@@ -976,6 +976,20 @@ static int s_combineExtActive = 0;
 /* crash-robust append logger to C:\3dfxogl.log (defined in WGL/WGLCMDS.C) */
 extern void OGLLOG( const char *fmt, ... );
 
+/* OPT 0.1.5 overbright (vertex-double mechanism): on-hardware logging on the
+** live Voodoo5 PROVED that grColorCombineExt's output-shift=1 does NOT double
+** the color combine result on Napalm (branch engaged, pfn resolved, texenvs
+** correct -- render stayed half-bright), so the ext-shift 2x is a dead end.
+** New mechanism: when the two-TMU MODULATE(base) x MODULATE(lightmap) world
+** path is active, the render procs (SST/sst_pgmode.c) DOUBLE the iterated
+** vertex RGB (clamped to 255) before building the GrVertex, and the combine
+** stays LEGACY 1x (iterated * T0*T1).  Q3 world vertex color is
+** identityLight = 0.5 with r_overBrightBits=1, so 2*0.5=1.0 reproduces the
+** free 2x the 2-pass (GL_DST_COLOR,GL_SRC_COLOR) lightmap blend provides.
+** This flag is the gate, published by __glSSTLoadCombineFunction and read by
+** the triangle fill procs. */
+int __glSSTOverbright2xVtx = 0;
+
 /* OPT 0.1.4b overbright gate hardening: gate ONLY on grGetProcAddress
 ** resolving both combine-ext entry points -- that is the real capability
 ** test.  The previous ' COMBINE ' GR_EXTENSION substring requirement is
@@ -1079,6 +1093,7 @@ void __glSSTResetCombineCache( void ) {
     s_combineExtProbed = 0;
     s_pfnColorCombineExt = 0;
     s_pfnAlphaCombineExt = 0;
+    __glSSTOverbright2xVtx = 0; /* OPT 0.1.5 overbright vertex-double gate */
 }
 
 static GrTexInfo cdrsTex;
@@ -1134,6 +1149,9 @@ void __glSSTSetCDRSTexture(__GLcontext *gc) {
                           GR_COMBINE_FACTOR_LOCAL,
                           GR_COMBINE_LOCAL_ITERATED,
                           GR_COMBINE_OTHER_TEXTURE );
+    /* OPT 0.1.5 overbright: CDRS programs its own combine; the world-path
+    ** vertex-double gate must not leak into CDRS draws. */
+    __glSSTOverbright2xVtx = 0;
     __glSSTSetLegacyCombine( CCWord, ACWord );
     grTexSource(0, 0, GR_MIPMAPLEVELMASK_BOTH, &cdrsTex);
 }
@@ -1271,14 +1289,17 @@ void __glSSTLoadCombineFunction( __GLcontext *gc ) {
                 ** combine below is kept. */
                 if ( texEnv1 == GL_MODULATE ) {
                     static int s_ob2xLogged = 0; /* first-hit log only */
-                    __glSSTProbeCombineExt();
-                    if ( s_pfnColorCombineExt ) {
-                        overbright2x = 1;
-                    }
+                    __glSSTProbeCombineExt(); /* kept for its diagnostics */
+                    /* OPT 0.1.5: the 2x now lives in the ITERATED vertex
+                    ** color (doubled+clamped in sst_pgmode.c), NOT in the
+                    ** ext output shift (proven a no-op on live Napalm).
+                    ** No hardware extension needed -> unconditional. */
+                    overbright2x = 1;
                     if ( !s_ob2xLogged ) {
                         s_ob2xLogged = 1;
                         OGLLOG( "overbright2x branch: ext_active=%d "
-                                "applying 2x (texEnv0=0x%x texEnv1=0x%x)",
+                                "applying 2x via vertex-color double "
+                                "(texEnv0=0x%x texEnv1=0x%x)",
                                 (int)( s_pfnColorCombineExt != 0 ),
                                 (unsigned)texEnv0, (unsigned)texEnv1 );
                     }
@@ -1517,13 +1538,13 @@ void __glSSTLoadCombineFunction( __GLcontext *gc ) {
         }
     }
 
-    /* OPT 0.1.4 overbright: 2x-scaled extended combine for the collapsed
-    ** Q3 world path, legacy combine everywhere else. */
-    if ( overbright2x ) {
-        __glSSTSetCombineExt2x();
-    } else {
-        __glSSTSetLegacyCombine( CCWord, ACWord );
-    }
+    /* OPT 0.1.5 overbright: publish the vertex-double gate for the render
+    ** procs and ALWAYS program the LEGACY 1x combine.  The doubling lives
+    ** in the iterated vertex color now, so applying the ext output-shift
+    ** 2x on top would be 4x (and it was proven a no-op on live Napalm
+    ** anyway) -- __glSSTSetCombineExt2x is intentionally NOT called. */
+    __glSSTOverbright2xVtx = overbright2x;
+    __glSSTSetLegacyCombine( CCWord, ACWord );
     gc->cdrsTexture = 0;
 }
 
