@@ -72,6 +72,25 @@ Multitexture single-pass still helps indirectly only if it shortens GPU work
 is vblank, not GPU-drain, so even multitexture's ceiling here is small.
 Quality-side wins (menu font, LOD/gamma) are orthogonal and still worth doing.
 
+## Quality corollary — CONFIRMED: high quality is FREE on the Voodoo5
+Because the frame is present-bound (not fill-bound), the card has fill headroom.
+Quality-sweep on 0.1.3 (Q3 four @640, tracked in specpicks):
+| quality | cvars | fps |
+|---------|-------|-----|
+| default | picmip 1, GL_LINEAR_MIPMAP_NEAREST (bilinear) | 77.0 / 76.8 |
+| **high**| **picmip 0, GL_LINEAR_MIPMAP_LINEAR (trilinear), full detail** | **77.1 / 76.9 (FREE)** |
+| max     | + subdivisions 2, lodbias -0.5, detail | 73.1 / 72.6 (-5%) |
+
+Full-detail textures + trilinear filtering cost **0 fps**. So the "quality up" half
+of the goal is largely free here. Next quality levers (driver-side, all-app):
+1. **Force trilinear** (GL_LINEAR_MIPMAP_LINEAR) in the ICD texture-filter path
+   even when the app asks bilinear — free quality.
+2. **Voodoo5 22-bit postfilter** — the VSA-100 has a post-dither filter that lifts
+   16-bit output toward 22-bit. Verify our Glide enables it (GR_DITHER / postfilter
+   register); if off, enabling = big free quality win on every app.
+3. Menu proportional-font garble (still open); LOD/gamma tuning.
+Ship recommendation for Voodoo5 boxes: run games at picmip 0 + trilinear.
+
 Profiler stays in the tree (gated off in shipped builds via a compile flag once
 we settle the present fix). Re-run any time by deploying a profiling build and
 reading `C:\3dfxprof.log`.
