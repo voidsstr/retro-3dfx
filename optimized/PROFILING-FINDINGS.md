@@ -85,9 +85,14 @@ Full-detail textures + trilinear filtering cost **0 fps**. So the "quality up" h
 of the goal is largely free here. Next quality levers (driver-side, all-app):
 1. **Force trilinear** (GL_LINEAR_MIPMAP_LINEAR) in the ICD texture-filter path
    even when the app asks bilinear — free quality.
-2. **Voodoo5 22-bit postfilter** — the VSA-100 has a post-dither filter that lifts
-   16-bit output toward 22-bit. Verify our Glide enables it (GR_DITHER / postfilter
-   register); if off, enabling = big free quality win on every app.
+2. **Voodoo5 22-bit postfilter** — the VSA-100 post-dither filter that lifts 16-bit
+   output toward 22-bit (the card's signature IQ feature). Controls are in the
+   **W2K display driver / miniport** (`vidProcCfg`/FBIINIT regs, H3.H — note
+   `SST_OVERLAY_FILTER_*` is the video-OVERLAY filter, not the 3D postfilter).
+   Big free quality win IF currently off — but it needs a **display-driver build**
+   (3dfxv5d.dll/3dfxv5m.sys), which is black-screen / physical-recovery risk on a
+   remote box: do it SUPERVISED, not unsupervised. (The ICD builds are safe by
+   contrast — a bad ICD just fails to load and we swap it back.)
 3. Menu proportional-font garble (still open); LOD/gamma tuning.
 Ship recommendation for Voodoo5 boxes: run games at picmip 0 + trilinear.
 
