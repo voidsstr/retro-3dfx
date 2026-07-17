@@ -1,0 +1,15 @@
+# 3dfx-driver-optimized — CHANGELOG
+
+Our self-built 3dfx Voodoo driver stack (miniport `3dfxv5m.sys`, display `3dfxv5d.dll`,
+`glide3x.dll`, OpenGL ICD `3dfxogl.dll`), built from the H5/Napalm source under Wine,
+deployed to **192.168.1.143** (Voodoo5 5500, XP SP3). Tracked in specpicks DB as
+`driver_stack.name = 3dfx-driver-optimized`, machine id=3.
+
+Each optimization is a separate commit + a benchmark JSON under `optimized/benchmarks/`.
+Deploy/bench harness: `tools/deploy_bench.py`. Q3 timedemo `four`, r_mode/colorbits per run.
+
+## Iteration ledger
+
+| ver | change | commit | Q3 timedemo (res/fps) | notes |
+|-----|--------|--------|-----------------------|-------|
+| 0.1.0 | first rendering build: glide3x grSstWinOpen NULL-lostContext fix (NT-branch dummyContextDWORD fallback) | 092ca60 | 640x480: **81.2** | Q3 four 16bpp; GL_RENDERER 3Dfx. Full self-built stack renders on Voodoo5 5500. Beats era V3 refs + .124 MesaFX (58.8). |
