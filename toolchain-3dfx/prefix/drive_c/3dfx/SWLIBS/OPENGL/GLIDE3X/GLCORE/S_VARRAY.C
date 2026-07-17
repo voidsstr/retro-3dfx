@@ -1139,6 +1139,48 @@ static void CompileElementsAllNoCull(__GLcontext *gc, GLint offset, GLint first,
 
 static GLuint vxcSlotOf[__GL_VXC_TABLE_SIZE];   /* garbage-tolerant, see above */
 
+/* OPT 0.1.6 overbright 2x, VARRAY edition.  Gate published by
+** __glSSTLoadCombineFunction (SST/SST_TEX.C) when the collapsed single-pass
+** Q3 world path (two TMUs, GL_MODULATE x GL_MODULATE) is active.  Q3 world
+** vertex color is identityLight = 0.5 (r_overBrightBits=1) and relies on a
+** free 2x it normally gets from the 2-pass (GL_DST_COLOR,GL_SRC_COLOR)
+** lightmap blend; our iterated*T0*T1 collapse has none, so we DOUBLE the
+** COMPILED vertex RGB here.  This is the correct site: Q3 world geometry is
+** glDrawElements -> CompileElementsIndexed (the sst_pgmode.c immediate-fill
+** doubling never fired on hardware and is neutralized).  Colors at this
+** point are already clamp-and-scaled to gc->frontBuffer.*Scale (255.0), so
+** clamp the doubled value to that same scale.  Alpha untouched.
+**
+** Composition with the OPT 0.1.3 vertex cache: doubling happens at compile
+** time, immediately after (*compileElements) finalizes the vertex, BEFORE
+** any cache slot can be copied from it -- so a cache hit struct-copies an
+** already-doubled color and is never doubled again.
+**
+** Validation order: __GL_SETUP_NOT_IN_BEGIN_VALIDATE() at the top of
+** __glim_DrawElements/__glim_DrawArrays runs the texture/combine validation
+** (which sets the gate) before any compile proc is invoked, so the gate is
+** stable for the whole batch. */
+extern int __glSSTOverbright2xVtx;
+extern void OGLLOG( const char *fmt, ... );
+static int s_ob2xVarrayLogged = 0;
+
+static void __glOB2xCompiledVertex(__GLcontext *gc, __GLvertex *v)
+{
+    __GLcolor *c = &v->colors[__GL_FRONTFACE];
+    __GLfloat maxR = gc->frontBuffer.redScale;
+    __GLfloat maxG = gc->frontBuffer.greenScale;
+    __GLfloat maxB = gc->frontBuffer.blueScale;
+
+    if (!s_ob2xVarrayLogged) {
+        s_ob2xVarrayLogged = 1;
+        OGLLOG("overbright2x VARRAY: doubled compiled vtx color (was %d,%d,%d)",
+               (int)c->r, (int)c->g, (int)c->b);
+    }
+    c->r += c->r; if (c->r > maxR) c->r = maxR;
+    c->g += c->g; if (c->g > maxG) c->g = maxG;
+    c->b += c->b; if (c->b > maxB) c->b = maxB;
+}
+
 /* wrapper for compileElements when it needs to deal with element indexes */
 static void CompileElementsIndexed(__GLcontext *gc, int offset, int first, int count, GLuint *elements)
 {
@@ -1153,7 +1195,9 @@ static void CompileElementsIndexed(__GLcontext *gc, int offset, int first, int c
                 GLuint s = vxcSlotOf[el];
 
                 if ((s < (GLuint)i) && (elements[first+s] == el)) {
-                    /* OPT 0.1.3 vertex-cache: hit -- reuse compiled vertex */
+                    /* OPT 0.1.3 vertex-cache: hit -- reuse compiled vertex
+                    ** (already overbright-doubled at compile time, so no
+                    ** second doubling here) */
                     __GLvertex *src = vb + s;
                     __GLvertex *dst = vb + i;
 
@@ -1168,10 +1212,22 @@ static void CompileElementsIndexed(__GLcontext *gc, int offset, int first, int c
                 vxcSlotOf[el] = (GLuint)i;
             }
             (*gc->vertexArray.compileElements)(gc, offset+i, el, 1);
+            if (__glSSTOverbright2xVtx) {
+                /* OPT 0.1.6 overbright: double the freshly compiled color */
+                __glOB2xCompiledVertex(gc, vb + i);
+            }
         }
     } else {
 
                 (*gc->vertexArray.compileElements)(gc, offset, first, count);
+                if (__glSSTOverbright2xVtx) {
+                    /* OPT 0.1.6 overbright: non-indexed (glDrawArrays) batch */
+                    __GLvertex *vb = gc->vertexArray.varrayPtr + offset;
+                    int i;
+                    for (i=0; i<count; ++i) {
+                        __glOB2xCompiledVertex(gc, vb + i);
+                    }
+                }
     }
 }
 

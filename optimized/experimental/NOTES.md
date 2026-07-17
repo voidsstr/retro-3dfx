@@ -31,3 +31,24 @@ Experimental DLLs here (all render dark, DO NOT SHIP):
 - 3dfxogl-0.1.4-multitexture-DARK.dll            (ext-shift 2x, md5 c10dcc38)
 - 3dfxogl-0.1.4-multitexture-itercolor-DARK.dll  (fill-proc doubling, md5 1fc3e1ce)
 Shipped/correct driver = 0.1.3 (ICD md5 0d8c9a5a), restored to dist/ and .143.
+
+## Attempt 5 (S_VARRAY.C CompileElementsIndexed) — ALSO misses
+Doubled the compiled vertex color right after (*compileElements)(gc,offset+i,el,1)
+in CompileElementsIndexed, gated on __glSSTOverbright2xVtx. On hardware the
+combine-branch log ("applying 2x") fires but the new "VARRAY: doubled compiled
+vtx color" log does NOT — so Q3's world geometry does not reach that per-element
+doubling site either (its JIT-batched drawVertexes path bypasses the loop, and/or
+the gate is reset between combine-validation and compile by
+__glSSTSetCDRSTexture / __glSSTResetCombineCache).
+
+## Conclusion after 5 attempts
+The 2x gate FLAG sets correctly on every attempt, but the doubling never lands on
+Q3's actual pixel-producing path. This needs RUNTIME TRACING, not more guesses:
+instrument gc->procs.renderTriangle and the __GL_CODEGEN JIT (__glSSTGenerateCompile
+in SST_OG.C) to log the ACTUAL proc/address Q3 calls per world triangle, find where
+the GrVertex r,g,b is finally written to the FIFO, and double there — OR verify the
+gate isn't being cleared between validate and draw (check the __glSSTSetCDRSTexture
+/ __glSSTResetCombineCache reset calls; the branch log fires so the gate is set at
+SOME point, but maybe not when the draw's vertices are built). All plumbing is in
+place; this is purely an injection-point / gate-lifetime problem.
+Shipped/correct = 0.1.3 (ICD md5 0d8c9a5a). 4 dark experimental DLLs preserved here.

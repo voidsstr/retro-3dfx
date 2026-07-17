@@ -31,31 +31,18 @@
 ** was proven a no-op on live Napalm hardware -- do not resurrect it.
 ** Alpha is deliberately left unscaled. */
 extern int __glSSTOverbright2xVtx;
-extern void OGLLOG( const char *fmt, ... );
-static int s_ob2xVtxLogged = 0;
 
-#define __GL_OB2X_CH(c) \
-    ( ( (c) + (c) ) > 255.0f ? 255.0f : ( (c) + (c) ) )
+/* OPT 0.1.6: NEUTRALIZED.  Live-hardware testing proved Q3's world never
+** reaches these immediate-fill procs -- glDrawElements world geometry is
+** compiled through GLCORE/S_VARRAY.C CompileElementsIndexed, so the 2x now
+** lives THERE (on the compiled __GLvertex color, gated by the same
+** __glSSTOverbright2xVtx).  The macro stays defined (call sites untouched)
+** but must NOT double, or any path hitting both sites would get 4x. */
+#define __GL_OB2X_CH(c) (c)
 
 #define __GL_OB2X_TRI(vA,vB,vC)                                          \
     do {                                                                  \
-        if ( __glSSTOverbright2xVtx ) {                                   \
-            if ( !s_ob2xVtxLogged ) {                                     \
-                s_ob2xVtxLogged = 1;                                      \
-                OGLLOG( "overbright2x: doubling iterated color "          \
-                        "(was %d,%d,%d)",                                 \
-                        (int)(vA).r, (int)(vA).g, (int)(vA).b );          \
-            }                                                             \
-            (vA).r = __GL_OB2X_CH( (vA).r );                              \
-            (vA).g = __GL_OB2X_CH( (vA).g );                              \
-            (vA).b = __GL_OB2X_CH( (vA).b );                              \
-            (vB).r = __GL_OB2X_CH( (vB).r );                              \
-            (vB).g = __GL_OB2X_CH( (vB).g );                              \
-            (vB).b = __GL_OB2X_CH( (vB).b );                              \
-            (vC).r = __GL_OB2X_CH( (vC).r );                              \
-            (vC).g = __GL_OB2X_CH( (vC).g );                              \
-            (vC).b = __GL_OB2X_CH( (vC).b );                              \
-        }                                                                 \
+        (void)&(vA); (void)&(vB); (void)&(vC);                            \
     } while (0)
 
 /*
