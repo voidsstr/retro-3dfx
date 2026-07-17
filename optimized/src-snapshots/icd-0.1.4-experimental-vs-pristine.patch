@@ -1,0 +1,1413 @@
+--- a/GLIDE3X/WGL/GLICD.C
++++ b/GLIDE3X/WGL/GLICD.C
+@@ -29,6 +29,9 @@
+ 
+ #include "gldrv.h"
+ 
++/* crash-robust debug logging to C:\3dfxogl.log (defined in wglcmds.c) */
++extern void OGLLOG( const char *fmt, ... );
++
+ 
+ GLCLTPROCTABLE procTable = {
+   /* Number of function entries in the table */
+@@ -387,6 +390,8 @@
+ DHGLRC APIENTRY DrvCreateContext( HDC hdc ) {
+ //  GL_BEGIN( "DrvCreateContext", 55 );
+ //  GL_END( (DHGLRC)0 );
++  OGLLOG( "DrvCreateContext hdc=0x%x -> 0 (unsupported, use LayerContext)",
++          (unsigned)hdc );
+         return (DHGLRC)0;
+ }
+ 
+@@ -399,8 +404,12 @@
+ //  GL_INFO(( 55, "hdc 0x%.08x\n", hdc ));
+ //  GL_INFO(( 55, "ilp 0x%.08x\n", iLayerPlane ));
+ //  GL_END( (DHGLRC)0xbeeff00d );
++  OGLLOG( "DrvCreateLayerContext hdc=0x%x plane=%d", (unsigned)hdc,
++          (int)iLayerPlane );
+   rv = (DHGLRC)wglCreateContext( hdc );
+-  
++  OGLLOG( "DrvCreateLayerContext -> 0x%x%s", (unsigned)rv,
++          rv ? "" : "  ** FAILED **" );
++
+         return rv;
+ }
+ 
+@@ -411,6 +420,7 @@
+   BOOL rv;
+ //  GL_BEGIN( "DrvDeleteContext", 55);
+ //  GL_END( (BOOL)0 );
++  OGLLOG( "DrvDeleteContext dhglrc=0x%x", (unsigned)dhglrc );
+   rv = wglDeleteContext( (HGLRC) dhglrc );
+         return rv;
+ }
+@@ -438,7 +448,21 @@
+ PROC APIENTRY DrvGetProcAddress ( LPCSTR lpszProc ) {
+ //  GL_BEGIN( "DrvGetProcAddress", 55);
+ //  GL_END( (PROC)0 );
+-        return (PROC)0;
++  /* OPT 0.1.4: resolve extension entry points (GL_ARB_multitexture etc.)
++  ** from the shared wgl extension-proc table.  MS opengl32.dll forwards
++  ** app wglGetProcAddress calls here for names it doesn't know. */
++  {
++    extern PROC __wglFindExtProc( LPCSTR );
++    PROC p = __wglFindExtProc( lpszProc );
++    /* cap the spam: apps probe many extension entry points */
++    static int nGPA = 0;
++    if ( nGPA < 32 ) {
++      nGPA++;
++      OGLLOG( "DrvGetProcAddress('%s') -> 0x%x",
++              lpszProc ? lpszProc : "(null)", (unsigned)p );
++    }
++    return p;
++  }
+ }
+ 
+ INT APIENTRY DrvRealizeLayerPalette( HDC hdc, INT iLayerPlane, BOOL bRealize ) {
+@@ -474,12 +498,17 @@
+ PGLCLTPROCTABLE APIENTRY DrvSetContext( HDC    hdc,
+                                         DHGLRC dhglrc,
+                                         PFN_SETPROCTABLE pfnSetProcTable ) {
++  BOOL mcrv;
+ //  GL_BEGIN( "DrvSetContext", 55);
+ //  GL_INFO((55, "hdc    0x%.08x\n", hdc ));
+ //  GL_INFO((55, "dhglrc 0x%.08x\n", dhglrc ));
+ //  GL_INFO((55, "pfnSPT 0x%.08x\n", pfnSetProcTable ));
+ //  GL_END( &procTable );
+-  wglMakeCurrent( hdc, (HGLRC)dhglrc );
++  OGLLOG( "DrvSetContext hdc=0x%x dhglrc=0x%x", (unsigned)hdc,
++          (unsigned)dhglrc );
++  mcrv = wglMakeCurrent( hdc, (HGLRC)dhglrc );
++  OGLLOG( "DrvSetContext: wglMakeCurrent -> %d%s", (int)mcrv,
++          mcrv ? "" : "  ** FAILED **" );
+ 
+   return &procTable;
+ }
+@@ -513,6 +542,7 @@
+ //  GL_BEGIN( "DrvValidateVersion", 55);
+   if ( ulVersion == 1 ) rv = TRUE;
+ //  GL_END( rv );
++  OGLLOG( "DrvValidateVersion(%lu) -> %d", ulVersion, (int)rv );
+   return rv;
+ }
+ 
+@@ -521,9 +551,17 @@
+ 
+ BOOL APIENTRY DrvSwapBuffers( HDC hdc ) {
+   BOOL rv;
++  static int firstSwap = 1;
+   //  GL_BEGIN( "DrvSwapBuffers", 55);
+   //  GL_END( (BOOL)0 );
++  if ( firstSwap )
++    OGLLOG( "DrvSwapBuffers first call hdc=0x%x", (unsigned)hdc );
+   rv = wglSwapBuffers( hdc );
++  if ( firstSwap ) {
++    firstSwap = 0;
++    OGLLOG( "DrvSwapBuffers first call -> %d (further swaps not logged)",
++            (int)rv );
++  }
+         return rv;
+ }
+ 
+@@ -613,10 +651,20 @@
+                                       ULONG cjpfd, 
+                                       PIXELFORMATDESCRIPTOR *ppfd ) {
+   int rv;
++  static int nDPF = 0;
+ 
+   rv = 4;
+ 
++  if ( nDPF < 24 ) {
++    nDPF++;
++    OGLLOG( "DrvDescribePixelFormat hdc=0x%x ipfd=%ld cjpfd=%lu -> count=%d",
++            (unsigned)hdc, ipfd, cjpfd, rv );
++  }
++
+   if ( ipfd && ppfd && cjpfd ) {
++    if ( ipfd < 1 || ipfd > (LONG)(sizeof(pfds)/sizeof(pfds[0])) )
++      OGLLOG( "DrvDescribePixelFormat ** ipfd=%ld OUT OF RANGE (1..4) **",
++              ipfd );
+     memset( ppfd, 0, sizeof( PIXELFORMATDESCRIPTOR ) );
+ 	memcpy( ppfd, &pfds[ipfd-1], sizeof( PIXELFORMATDESCRIPTOR ) );
+   }
+@@ -634,10 +682,23 @@
+ BOOL APIENTRY DrvSetPixelFormat( HDC hdc, LONG ipfd ) {
+     static PIXELFORMATDESCRIPTOR pfd;
+ 	int    pixelFormat;
+-	
++	BOOL   sprv;
++
++	OGLLOG( "DrvSetPixelFormat hdc=0x%x ipfd=%ld", (unsigned)hdc, ipfd );
++	if ( ipfd < 1 || ipfd > (LONG)(sizeof(pfds)/sizeof(pfds[0])) )
++	  OGLLOG( "DrvSetPixelFormat ** ipfd=%ld OUT OF RANGE (1..4) **", ipfd );
++
+ 	pfd = pfds[ipfd-1];
+ 
++	OGLLOG( "DrvSetPixelFormat pfd: flags=0x%lx type=%d color=%d depth=%d "
++	        "stencil=%d accum=%d",
++	        pfd.dwFlags, (int)pfd.iPixelType, (int)pfd.cColorBits,
++	        (int)pfd.cDepthBits, (int)pfd.cStencilBits, (int)pfd.cAccumBits );
++
+     pixelFormat = wglChoosePixelFormat(hdc, &pfd );
+-    wglSetPixelFormat( hdc, pixelFormat, &pfd );
++    OGLLOG( "DrvSetPixelFormat: wglChoosePixelFormat -> %d", pixelFormat );
++    sprv = wglSetPixelFormat( hdc, pixelFormat, &pfd );
++    OGLLOG( "DrvSetPixelFormat: wglSetPixelFormat -> %d%s", (int)sprv,
++            sprv ? "" : "  ** FAILED **" );
+     return TRUE;
+ }
+--- a/GLIDE3X/WGL/WGLCMDS.C
++++ b/GLIDE3X/WGL/WGLCMDS.C
+@@ -25,6 +25,48 @@
+ static int __glIgnoreActivate = 0;
+ #endif
+ 
++/* ------------------------------------------------------------------ */
++/* OGLLOG - crash-robust debug logging to C:\3dfxogl.log.              */
++/* Every line is opened/appended/flushed/closed so it survives an     */
++/* instant process death.  Formatting via wvsprintfA (user32, no CRT   */
++/* float support needed).  Failures are ignored silently.              */
++/* ------------------------------------------------------------------ */
++#include <stdarg.h>
++
++void OGLLOG( const char *fmt, ... )
++{
++    static volatile LONG oglLogBusy = 0;
++    char    msg[512];
++    char    line[560];
++    int     len;
++    HANDLE  hf;
++    DWORD   written;
++    va_list ap;
++
++    /* minimal reentrancy guard: drop the line if we are already logging */
++    if ( InterlockedExchange( (LONG *)&oglLogBusy, 1 ) )
++        return;
++
++    va_start( ap, fmt );
++    wvsprintfA( msg, fmt, ap );
++    va_end( ap );
++
++    len = wsprintfA( line, "[%lu] %s\r\n", GetTickCount(), msg );
++
++    hf = CreateFileA( "C:\\3dfxogl.log", GENERIC_WRITE,
++                      FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
++                      OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL );
++    if ( hf != INVALID_HANDLE_VALUE ) {
++        SetFilePointer( hf, 0, NULL, FILE_END );
++        WriteFile( hf, line, (DWORD)len, &written, NULL );
++        FlushFileBuffers( hf );
++        CloseHandle( hf );
++    }
++
++    InterlockedExchange( (LONG *)&oglLogBusy, 0 );
++}
++/* ------------------------------------------------------------------ */
++
+ int WINAPI wglGetPixelFormat(HDC hDC);
+ int WINAPI wglDescribePixelFormat(HDC hDC, int iPixelFormat,
+                                   UINT nBytes, LPPIXELFORMATDESCRIPTOR ppfd);
+@@ -319,6 +361,7 @@
+     char sysError[256];
+ 
+     sprintf(sysError, "System Error: (%d):%s", errorNumber, str);
++    OGLLOG( "3dfxogl ERROR path: %s (err=%ld)", str, errorNumber );
+     __wglMessage(sysError);
+     SetLastError(errorNumber | WGL_OGL_ID | WGL_ERROR | WGL_APP_ERROR);
+ }
+@@ -825,6 +868,9 @@
+     int pixelFormat = wglGetPixelFormat(hDC);
+     WGLCONTEXT *glrc;
+ 
++    OGLLOG( "wglCreateContext hdc=0x%x pixelFormat=%d",
++            (unsigned)hDC, pixelFormat );
++
+     if (pixelFormat == 0) {
+         __wglSetSystemError("wglCreateContex", WGL_BAD_PIXEL_FORMAT);
+         return (HGLRC) 0;
+@@ -865,6 +911,7 @@
+     __wglAddContext(glrc);
+     __wglUnlockMutex();
+ 
++    OGLLOG( "wglCreateContext OK hglrc=0x%x", (unsigned)glrc->hGLRC );
+     return glrc->hGLRC;
+ }
+ 
+@@ -2231,6 +2278,73 @@
+     return TRUE;
+ }
+ 
++/* ------------------------------------------------------------------ */
++/* OPT 0.1.4 GL_ARB_multitexture: ARB entry points.  Thin forwards     */
++/* onto the existing SGIS multitexture dispatch stubs (identical       */
++/* semantics for 2 units; ARB unit enums are GL_TEXTURE0_ARB-based,    */
++/* SGIS are TEXTURE0_SGIS-based).  glClientActiveTextureARB is a real  */
++/* implementation and lives in glcore (s_varray.c).                    */
++/* ------------------------------------------------------------------ */
++#define __WGL_ARB_TEX0        0x84C0  /* GL_TEXTURE0_ARB */
++#define __WGL_ARB_TEX1        0x84C1  /* GL_TEXTURE1_ARB */
++#define __WGL_SGIS_TEX0       0x835E  /* TEXTURE0_SGIS   */
++#define __WGL_ARB_TO_SGIS(u)  ((u) - __WGL_ARB_TEX0 + __WGL_SGIS_TEX0)
++#define __WGL_ARB_UNIT_OK(u)  ((u) >= __WGL_ARB_TEX0 && (u) <= __WGL_ARB_TEX1)
++
++void APIENTRY glActiveTextureARB( GLenum texture )
++{
++    if ( !__WGL_ARB_UNIT_OK( texture ) ) return;
++    glSelectTextureSGIS( __WGL_ARB_TO_SGIS( texture ) );
++}
++
++void APIENTRY glMultiTexCoord1fARB( GLenum target, GLfloat s )
++{
++    if ( !__WGL_ARB_UNIT_OK( target ) ) return;
++    glMTexCoord1fSGIS( __WGL_ARB_TO_SGIS( target ), s );
++}
++
++void APIENTRY glMultiTexCoord1fvARB( GLenum target, const GLfloat *v )
++{
++    if ( !__WGL_ARB_UNIT_OK( target ) ) return;
++    glMTexCoord1fvSGIS( __WGL_ARB_TO_SGIS( target ), v );
++}
++
++void APIENTRY glMultiTexCoord2fARB( GLenum target, GLfloat s, GLfloat t )
++{
++    if ( !__WGL_ARB_UNIT_OK( target ) ) return;
++    glMTexCoord2fSGIS( __WGL_ARB_TO_SGIS( target ), s, t );
++}
++
++void APIENTRY glMultiTexCoord2fvARB( GLenum target, const GLfloat *v )
++{
++    if ( !__WGL_ARB_UNIT_OK( target ) ) return;
++    glMTexCoord2fvSGIS( __WGL_ARB_TO_SGIS( target ), v );
++}
++
++void APIENTRY glMultiTexCoord3fARB( GLenum target, GLfloat s, GLfloat t, GLfloat r )
++{
++    if ( !__WGL_ARB_UNIT_OK( target ) ) return;
++    glMTexCoord3fSGIS( __WGL_ARB_TO_SGIS( target ), s, t, r );
++}
++
++void APIENTRY glMultiTexCoord3fvARB( GLenum target, const GLfloat *v )
++{
++    if ( !__WGL_ARB_UNIT_OK( target ) ) return;
++    glMTexCoord3fvSGIS( __WGL_ARB_TO_SGIS( target ), v );
++}
++
++void APIENTRY glMultiTexCoord4fARB( GLenum target, GLfloat s, GLfloat t, GLfloat r, GLfloat q )
++{
++    if ( !__WGL_ARB_UNIT_OK( target ) ) return;
++    glMTexCoord4fSGIS( __WGL_ARB_TO_SGIS( target ), s, t, r, q );
++}
++
++void APIENTRY glMultiTexCoord4fvARB( GLenum target, const GLfloat *v )
++{
++    if ( !__WGL_ARB_UNIT_OK( target ) ) return;
++    glMTexCoord4fvSGIS( __WGL_ARB_TO_SGIS( target ), v );
++}
++
+ typedef struct __WGLEXTPROC {
+     LPCSTR szProc;              /* extension function name */
+     PROC   Proc;                /* extension function address */
+@@ -2298,23 +2412,32 @@
+     { "glMTexCoordPointerSGIS" , (PROC) glMTexCoordPointerSGIS },
+     { "glSelectTextureSGIS" , (PROC) glSelectTextureSGIS },
+     { "glSelectTextureCoordSetSGIS" , (PROC) glSelectTextureCoordSetSGIS },
++    /* OPT 0.1.4 GL_ARB_multitexture */
++    { "glActiveTextureARB" , (PROC) glActiveTextureARB },
++    { "glClientActiveTextureARB" , (PROC) glClientActiveTextureARB },
++    { "glMultiTexCoord1fARB" , (PROC) glMultiTexCoord1fARB },
++    { "glMultiTexCoord1fvARB" , (PROC) glMultiTexCoord1fvARB },
++    { "glMultiTexCoord2fARB" , (PROC) glMultiTexCoord2fARB },
++    { "glMultiTexCoord2fvARB" , (PROC) glMultiTexCoord2fvARB },
++    { "glMultiTexCoord3fARB" , (PROC) glMultiTexCoord3fARB },
++    { "glMultiTexCoord3fvARB" , (PROC) glMultiTexCoord3fvARB },
++    { "glMultiTexCoord4fARB" , (PROC) glMultiTexCoord4fARB },
++    { "glMultiTexCoord4fvARB" , (PROC) glMultiTexCoord4fvARB },
+     { "wglLockBuffers" , (PROC) wglLockBuffers },
+     { "wglUnlockBuffers" , (PROC) wglUnlockBuffers },
+ };
+ 
+-PROC WINAPI
+-wglGetProcAddress(LPCSTR lpszProc)
++/* OPT 0.1.4: shared extension-proc lookup, used by wglGetProcAddress and
++** by the ICD entry DrvGetProcAddress (the path MS opengl32.dll uses). */
++PROC __wglFindExtProc(LPCSTR lpszProc)
+ {
+     CONST CHAR *pch1, *pch2;
+     int   i;
+ 
+-    /* Return error if there is no current RC. */
+-    if (GET_CURRENT_GC == __wglInvalidGC)  {
+-        __wglSetSystemError("wglGetProcAddress", WGL_INVALID_HRC);
++    if (lpszProc == NULL) {
+         return (PROC) NULL;
+     }
+ 
+-    /* Return extension function address if it is found. */
+     for (i=0; i<__WGL_EXT_TABLE_SIZE; i++) {
+         /* Compare names. */
+         for (pch1 = lpszProc, pch2 = __wglExtProcs[i].szProc;
+@@ -2331,6 +2454,19 @@
+ }
+ 
+ PROC WINAPI
++wglGetProcAddress(LPCSTR lpszProc)
++{
++    /* Return error if there is no current RC. */
++    if (GET_CURRENT_GC == __wglInvalidGC)  {
++        __wglSetSystemError("wglGetProcAddress", WGL_INVALID_HRC);
++        return (PROC) NULL;
++    }
++
++    /* Return extension function address if it is found. */
++    return __wglFindExtProc(lpszProc);
++}
++
++PROC WINAPI
+ wglGetDefaultProcAddress(LPCSTR lpszProc)
+ {
+     __wglSetSystemError("wglGetDefaultProcAddress not supported", WGL_ERROR);
+@@ -2873,20 +3009,26 @@
+ 
+   switch (Reason) {
+   case DLL_PROCESS_ATTACH:    /* Process started up. */
++    OGLLOG( "3dfxogl DLL_PROCESS_ATTACH pid=%lu tid=%lu",
++            GetCurrentProcessId(), GetCurrentThreadId() );
+     if ( !refcount ) {
+       refcount++;
+ 
+       DisableThreadLibraryCalls( hInst );  // No Thread Attach/Detach Messages
+ 
+       if ( __wglGetOS() == FALSE ) {
++        OGLLOG( "3dfxogl ATTACH FAIL: __wglGetOS returned FALSE" );
+         rv = FALSE;
+         break;
+       }
+ 
+       if ( !__wglAttachProcess( hInst, GetCurrentThreadId() ) ) {
++        OGLLOG( "3dfxogl ATTACH FAIL: __wglAttachProcess returned FALSE" );
+         rv = FALSE;
+         break;
+       }
++      OGLLOG( "3dfxogl attach: OS ok, process attached, sstUseHardware=%d",
++              sstUseHardware );
+ 
+       if ( getenv("SST_USESW") ) {
+         sstUseHardware = GL_FALSE;
+@@ -2909,19 +3051,32 @@
+ 
+         osinfo.dwOSVersionInfoSize = sizeof(osinfo);
+         GetVersionEx(&osinfo);
++        OGLLOG( "3dfxogl attach: platformId=%lu (1=Win9x 2=NT)",
++                osinfo.dwPlatformId );
+         if (osinfo.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS) {
+             FreeLibrary(GetModuleHandle("GLIDE3X"));
+             putenv("SST_DUALHEAD=1");
+             putenv("SSTV2_DUALHEAD=1");
+             LoadLibrary("GLIDE3X");
+         }
++        OGLLOG( "3dfxogl attach: calling grGlideInit()" );
+         grGlideInit();
++        OGLLOG( "3dfxogl attach: grGlideInit() returned" );
+ 
+-        if ( !strcmp( grGetString( GR_HARDWARE ), "VoodooRush" ) ) {
+-            __glIgnoreActivate = 2;
++        {
++          const char *hwstr;
++          OGLLOG( "3dfxogl attach: calling grGetString(GR_HARDWARE)" );
++          hwstr = grGetString( GR_HARDWARE );
++          OGLLOG( "3dfxogl attach: GR_HARDWARE = '%s'",
++                  hwstr ? hwstr : "(null)" );
++          if ( hwstr && !strcmp( hwstr, "VoodooRush" ) ) {
++              __glIgnoreActivate = 2;
++          }
+         }
+ 
++        OGLLOG( "3dfxogl attach: calling grSstSelect(0)" );
+         grSstSelect(0);
++        OGLLOG( "3dfxogl attach: grSstSelect(0) returned" );
+       }
+ 
+       switch (__wglInitializeDispatch(hInst)) {
+@@ -2933,15 +3088,19 @@
+         rv = TRUE;
+         break;
+       case 2:
++        OGLLOG( "3dfxogl ATTACH FAIL: __wglInitializeDispatch returned 2" );
+         rv = FALSE;
+         break;
+       }
++      OGLLOG( "3dfxogl DLL_PROCESS_ATTACH done rv=%d", rv );
+     } else {
+       /* Disallow multiple processes from loading the GL */
++      OGLLOG( "3dfxogl ATTACH FAIL: refcount!=0, second load refused" );
+       rv = FALSE;
+     }
+     break;
+   case DLL_PROCESS_DETACH:    /* Process closed down. */
++    OGLLOG( "3dfxogl DLL_PROCESS_DETACH pid=%lu", GetCurrentProcessId() );
+     refcount--;
+     wglMakeCurrent( 0, 0 );
+ #ifdef __GL_BUILD_TRACE
+--- a/GLIDE3X/SST/sst_export.c
++++ b/GLIDE3X/SST/sst_export.c
+@@ -32,6 +32,9 @@
+ #include "sst_globals.h"
+ #include "sst_imfncs.h"
+ 
++/* crash-robust debug logging to C:\3dfxogl.log (defined in wgl/wglcmds.c) */
++extern void OGLLOG( const char *fmt, ... );
++
+ /************************************************************************/
+ 
+ static void CheckViewport(__GLcontext *gc)
+@@ -384,7 +387,10 @@
+     if (gc->renderMode != GL_RENDER || __gl_beginMode == __GL_IN_BEGIN)
+         return GL_FALSE;
+ 
++    OGLLOG( "LoseCurrent: calling grSstWinClose(ctx=0x%x)",
++            (unsigned)tacoHackContext );
+     grSstWinClose( tacoHackContext );
++    OGLLOG( "LoseCurrent: grSstWinClose returned" );
+     tacoHackGlideInit = 0;
+ 
+     __glLoseCurrentBuffers( gc, ((__GLDDcontext *)gc)->displayBank );
+@@ -573,7 +579,10 @@
+     gc->currentDispatchState = __glSSTImmedState;
+     gc->listCompState = __glSSTListCompState;
+ 
++    OGLLOG( "MakeCurrent: enter gc=0x%x, calling grGet(GR_NUM_TMU)",
++            (unsigned)gc );
+     gc->grNTexelFx = grGetInteger( GR_NUM_TMU );
++    OGLLOG( "MakeCurrent: GR_NUM_TMU=%d", gc->grNTexelFx );
+ 
+ #ifdef __GL_BUILD_TRACE
+     if (getenv("SST_TRACEGL")) {
+@@ -604,6 +613,10 @@
+     res      = SST_640x480;
+     windowable = 0;
+ 
++    OGLLOG( "MakeCurrent: window %dx%d, hw='%s'", width, height,
++            grGetString( GR_HARDWARE ) ? grGetString( GR_HARDWARE )
++                                       : "(null)" );
++
+     if ( !strcmp( grGetString( GR_HARDWARE ), "Voodoo2" ) ) {
+         platform = SST_VOODOOII;
+     } else if ( !strcmp( grGetString( GR_HARDWARE ), "Voodoo" ) ) {
+@@ -668,14 +681,24 @@
+         }
+     }
+ 
+-    if ( !(tacoHackContext = grSstWinOpen( tacoHackHWND, 
++    OGLLOG( "MakeCurrent: fbmem=%dMB res idx=%d -> maxvp %dx%d, calling "
++            "grSstWinOpen(hwnd=0x%x res=%d refresh=GR_REFRESH_60Hz "
++            "fmt=ARGB origin=UL nCol=2 nAux=1)",
++            grGetInteger( GR_MEMORY_FB ), res,
++            gc->constants.maxViewportWidth, gc->constants.maxViewportHeight,
++            (unsigned)tacoHackHWND, resolution );
++
++    if ( !(tacoHackContext = grSstWinOpen( tacoHackHWND,
+                                            resolution,
+                                            GR_REFRESH_60Hz,
+                                            GR_COLORFORMAT_ARGB,
+                                            GR_ORIGIN_UPPER_LEFT,
+                                            2,1 )) ) {
++        OGLLOG( "MakeCurrent: ** grSstWinOpen FAILED (returned 0) **" );
+         return GL_FALSE;
+     }
++    OGLLOG( "MakeCurrent: grSstWinOpen OK ctx=0x%x",
++            (unsigned)tacoHackContext );
+     tacoHackGlideInit = 1;
+ 
+     if ( !gc->modes.doubleBufferMode || getenv( "SST_SINGLEBUFFER" ) ) {
+@@ -717,6 +740,9 @@
+                  GR_COMBINE_FUNCTION_LOCAL,
+                  GR_COMBINE_FACTOR_NONE,
+                  FXFALSE, FXFALSE);
++    /* OPT 0.1.4 overbright: the direct combine calls above bypassed the
++    ** SST_TEX.C dedup caches -- resync them for this fresh context. */
++    __glSSTResetCombineCache();
+ 
+     gc->texture.hwMinMag[0] = ~0;
+     gc->texture.hwMinMag[1] = ~0;
+@@ -779,6 +805,15 @@
+ 
+         /* XXXTaco This init is a hack */
+         if ( gc->grNTexelFx == 2 ) {
++            /* QUALITY FIX menu-text (baseline): do NOT advertise
++            ** GL_ARB_multitexture.  That was the unshipped OPT 0.1.4-0.1.6
++            ** single-pass/overbright experiment (world lighting collapse +
++            ** vertex-color doubling) which never validated clean on the live
++            ** Voodoo5 and is not in the kept 0.1.0/0.1.1/0.1.3 set.  With ARB
++            ** unadvertised, Q3 falls back to its classic two-pass world path
++            ** (identical to shipped 0.1.3 -- in-game q3dm1 stays clean) while
++            ** all the dormant multitexture plumbing compiles but never fires.
++            ** Reverted to the legacy SGIS-only advertisement. */
+             static char mtexString[] = "GL_SGIS_multitexture ";
+             if ( !strstr( gc->constants.extensions, mtexString ) ) {
+                 char *extString;
+@@ -852,6 +887,7 @@
+     gc->gcState |= __GL_INIT_HW | __GL_HW_MODE;
+     gc->gcState &= ~__GL_PIXMAP_MODE;
+ 
++    OGLLOG( "MakeCurrent: done, returning GL_TRUE" );
+     return GL_TRUE;
+ }
+ 
+--- a/GLIDE3X/SST/SST_TEX.C
++++ b/GLIDE3X/SST/SST_TEX.C
+@@ -29,6 +29,8 @@
+ #include <memory.h>
+ 
+ #include <glide.h>
++#include <g3ext.h>   /* OPT 0.1.4 overbright: GR_CMBX_* / GR_FUNC_MODE_* */
++#include <string.h>
+ #include "sst_globals.h"
+ 
+ #define __GL_TEXTURE_INDEX_1D 0
+@@ -882,6 +884,10 @@
+     enable = 0;
+     maxTxu = gc->grNTexelFx;
+     for( txu = 0; txu < maxTxu; txu++ ) {
++        /* QUALITY FIX menu-text: default this unit's texel-center bias to 0
++        ** (the mipmapped / no-texture case -- 3D stays bit-exact). */
++        __glSSTHalfTexelS[txu] = 0.0f;
++        __glSSTHalfTexelT[txu] = 0.0f;
+         enableState = gc->state.enables.texture[txu];
+         if ( enableState & __GL_TEXTURE_2D_ENABLE ) {
+             ptm = gc->texture.texture[txu][__GL_TEXTURE_INDEX_2D];
+@@ -893,6 +899,19 @@
+                     /* not mipmapping, verify presence of lvl 1 */
+                     if ( tex->sst.texUnit[txu].cache && tex->level[0].width && tex->level[0].height ) {
+                         enable = 1;
++                        /* QUALITY FIX menu-text: non-mipmapped 2D atlas --
++                        ** apply the OpenGL +0.5-texel texel-center offset in
++                        ** normalized coord space so tightly-packed glyph
++                        ** sub-rects (Q3 UI proportional font) sample texel
++                        ** centers instead of corner-blending the neighbour
++                        ** column.  width2/height2 are the real POT texel
++                        ** dims (SST_TEX.C:2135-2138). */
++                        if ( tex->level[0].width2 > 0 )
++                            __glSSTHalfTexelS[txu] =
++                                0.5f / (__GLfloat) tex->level[0].width2;
++                        if ( tex->level[0].height2 > 0 )
++                            __glSSTHalfTexelT[txu] =
++                                0.5f / (__GLfloat) tex->level[0].height2;
+                     }
+                 } else if ( cachemask != 0 ) {
+                     /* mipmapping, verify presence of all mipmap levels */
+@@ -950,6 +969,155 @@
+ static unsigned long s_TC0Word = ~0;
+ static unsigned long s_TC1Word = ~0;
+ 
++/* QUALITY FIX menu-text: definition of the per-unit normalized texel-center
++** bias declared in texture.h.  Set by __glSSTEnableTexturing below. */
++__GLfloat __glSSTHalfTexelS[__GL_MAX_TEX_UNITS] = { 0 };
++__GLfloat __glSSTHalfTexelT[__GL_MAX_TEX_UNITS] = { 0 };
++
++/* OPT 0.1.4 overbright: Quake3-style world lighting draws base*lightmap in
++** TWO passes at baseline, and the lightmap pass's framebuffer blend
++** (GL_DST_COLOR,GL_SRC_COLOR) doubles the product -- that is how Q3
++** implements r_overBrightBits=1 (2x overbright).  Our single-pass
++** GL_ARB_multitexture collapse computes iterated*T0*T1 with no doubling,
++** which renders uniformly ~50% too dark.  Fix: on hardware with the Napalm
++** COMBINE extension (Voodoo4/5), program the color combine through
++** grColorCombineExt with an output shift of 1 (2x) for the two-TMU
++** MODULATE(base) x MODULATE(lightmap) path only.  grColorCombineExt is not
++** a static glide3x export -- it must be fetched via grGetProcAddress.
++** Single-texture and REPLACE paths keep the legacy (unscaled) combine. */
++typedef void ( FX_CALL *__glSSTPfnCombineExt )( FxU32  a, FxU32 a_mode,
++                                                FxU32  b, FxU32 b_mode,
++                                                FxU32  c, FxBool c_invert,
++                                                FxU32  d, FxBool d_invert,
++                                                FxU32  shift, FxBool invert );
++static __glSSTPfnCombineExt s_pfnColorCombineExt = 0;
++static __glSSTPfnCombineExt s_pfnAlphaCombineExt = 0;
++static int s_combineExtProbed = 0;
++static int s_combineExtActive = 0;
++
++/* crash-robust append logger to C:\3dfxogl.log (defined in WGL/WGLCMDS.C) */
++extern void OGLLOG( const char *fmt, ... );
++
++/* OPT 0.1.5 overbright (vertex-double mechanism): on-hardware logging on the
++** live Voodoo5 PROVED that grColorCombineExt's output-shift=1 does NOT double
++** the color combine result on Napalm (branch engaged, pfn resolved, texenvs
++** correct -- render stayed half-bright), so the ext-shift 2x is a dead end.
++** New mechanism: when the two-TMU MODULATE(base) x MODULATE(lightmap) world
++** path is active, the render procs (SST/sst_pgmode.c) DOUBLE the iterated
++** vertex RGB (clamped to 255) before building the GrVertex, and the combine
++** stays LEGACY 1x (iterated * T0*T1).  Q3 world vertex color is
++** identityLight = 0.5 with r_overBrightBits=1, so 2*0.5=1.0 reproduces the
++** free 2x the 2-pass (GL_DST_COLOR,GL_SRC_COLOR) lightmap blend provides.
++** This flag is the gate, published by __glSSTLoadCombineFunction and read by
++** the triangle fill procs. */
++int __glSSTOverbright2xVtx = 0;
++
++/* OPT 0.1.4b overbright gate hardening: gate ONLY on grGetProcAddress
++** resolving both combine-ext entry points -- that is the real capability
++** test.  The previous ' COMBINE ' GR_EXTENSION substring requirement is
++** DROPPED: our Napalm glide3x resolves grColorCombineExt from a static
++** FX_GLIDE_NAPALM table regardless of what grGetString(GR_EXTENSION)
++** advertises, so the string check could (and on the live Voodoo5 did)
++** veto a perfectly working extension -> no 2x -> half-bright world. */
++static void __glSSTProbeCombineExt( void ) {
++    const char *ext;
++    char extbuf[400]; /* OGLLOG fmt buffer is 512; keep '%s' bounded */
++    if ( s_combineExtProbed ) {
++        return;
++    }
++    s_combineExtProbed = 1;
++    ext = grGetString( GR_EXTENSION );
++    s_pfnColorCombineExt = ( __glSSTPfnCombineExt )
++        grGetProcAddress( "grColorCombineExt" );
++    s_pfnAlphaCombineExt = ( __glSSTPfnCombineExt )
++        grGetProcAddress( "grAlphaCombineExt" );
++    extbuf[0] = '\0';
++    if ( ext ) {
++        lstrcpynA( extbuf, ext, sizeof( extbuf ) );
++    }
++    OGLLOG( "CombineExt probe: GR_EXTENSION='%s'",
++            ext ? extbuf : "(null)" );
++    OGLLOG( "CombineExt probe: grColorCombineExt=0x%x "
++            "grAlphaCombineExt=0x%x",
++            (unsigned)s_pfnColorCombineExt,
++            (unsigned)s_pfnAlphaCombineExt );
++    if ( !s_pfnColorCombineExt || !s_pfnAlphaCombineExt ) {
++        s_pfnColorCombineExt = 0;
++        s_pfnAlphaCombineExt = 0;
++        OGLLOG( "CombineExt probe: ** FAILED ** (grGetProcAddress NULL) "
++                "-> legacy combine, NO 2x overbright; need another "
++                "2x mechanism" );
++    } else {
++        OGLLOG( "CombineExt probe: OK -> 2x overbright available" );
++    }
++}
++
++/* OPT 0.1.4 overbright: color = ( itrgb * (T0*T1 chain) ) << 1, alpha
++** unscaled (italpha * texalpha).  While the extended combine mode is
++** enabled glide derives BOTH the color and alpha units from the ext args,
++** so both must be programmed here.  TMU combines stay legacy. */
++static void __glSSTSetCombineExt2x( void ) {
++    if ( !s_combineExtActive ) {
++        (*s_pfnColorCombineExt)( GR_CMBX_ITRGB,       GR_FUNC_MODE_X,
++                                 GR_CMBX_ZERO,        GR_FUNC_MODE_X,
++                                 GR_CMBX_TEXTURE_RGB, FXFALSE,
++                                 GR_CMBX_ZERO,        FXFALSE,
++                                 /* shift arg -> cc_outshift: glide3
++                                 ** _grCCExtcombineMode (GGLIDE.C) maps
++                                 ** 1 -> SST_CM_CC_OUTSHIFT_2X and
++                                 ** 2 -> SST_CM_CC_OUTSHIFT_4X, so 1 is
++                                 ** the correct 2x (verified in H5 src) */
++                                 1 /* output << 1 == 2x overbright */,
++                                 FXFALSE );
++        (*s_pfnAlphaCombineExt)( GR_CMBX_ITALPHA,       GR_FUNC_MODE_X,
++                                 GR_CMBX_ZERO,          GR_FUNC_MODE_X,
++                                 GR_CMBX_TEXTURE_ALPHA, FXFALSE,
++                                 GR_CMBX_ZERO,          FXFALSE,
++                                 0, FXFALSE );
++        s_combineExtActive = 1;
++        /* force the next legacy path to actually re-issue its combine
++        ** calls (they are what exit GR_COMBINEEXT_MODE in glide) */
++        s_CCWord = ~0;
++        s_ACWord = ~0;
++    }
++}
++
++/* Single emission point for the legacy color/alpha combine.  Leaving the
++** extended combine mode requires the legacy calls to really be issued
++** (glide's grColorCombine/grAlphaCombine disable GR_COMBINEEXT_MODE), so
++** the dedup words are invalidated on the ext->legacy transition. */
++static void __glSSTSetLegacyCombine( unsigned long CCWord,
++                                     unsigned long ACWord ) {
++    if ( s_combineExtActive ) {
++        s_combineExtActive = 0;
++        s_CCWord = ~0;
++        s_ACWord = ~0;
++    }
++    if ( s_CCWord != CCWord ) {
++        grColorCombine( USE_CUWORD( CCWord ), FXFALSE );
++        s_CCWord = CCWord;
++    }
++    if ( s_ACWord != ACWord ) {
++        grAlphaCombine( USE_CUWORD( ACWord ), FXFALSE );
++        s_ACWord = ACWord;
++    }
++}
++
++/* OPT 0.1.4 overbright: called from context init (MakeCurrent programs the
++** legacy combine directly, bypassing the dedup caches) so a stale
++** ext-active/dedup state can never leak across a glide context. */
++void __glSSTResetCombineCache( void ) {
++    s_ACWord  = ~0;
++    s_CCWord  = ~0;
++    s_TC0Word = ~0;
++    s_TC1Word = ~0;
++    s_combineExtActive = 0;
++    s_combineExtProbed = 0;
++    s_pfnColorCombineExt = 0;
++    s_pfnAlphaCombineExt = 0;
++    __glSSTOverbright2xVtx = 0; /* OPT 0.1.5 overbright vertex-double gate */
++}
++
+ static GrTexInfo cdrsTex;
+ void __glSSTSetCDRSTexture(__GLcontext *gc) {
+     unsigned long ACWord;
+@@ -1003,14 +1171,10 @@
+                           GR_COMBINE_FACTOR_LOCAL,
+                           GR_COMBINE_LOCAL_ITERATED,
+                           GR_COMBINE_OTHER_TEXTURE );
+-    if ( s_CCWord != CCWord ) {
+-        grColorCombine( USE_CUWORD( CCWord ), FXFALSE );
+-        s_CCWord = CCWord;
+-    }
+-    if ( s_ACWord != ACWord ) {
+-        grAlphaCombine( USE_CUWORD( ACWord ), FXFALSE );
+-        s_ACWord = ACWord;
+-    }
++    /* OPT 0.1.5 overbright: CDRS programs its own combine; the world-path
++    ** vertex-double gate must not leak into CDRS draws. */
++    __glSSTOverbright2xVtx = 0;
++    __glSSTSetLegacyCombine( CCWord, ACWord );
+     grTexSource(0, 0, GR_MIPMAPLEVELMASK_BOTH, &cdrsTex);
+ }
+ 
+@@ -1021,6 +1185,7 @@
+     GLenum format;
+     GLenum texEnv, texEnv0, texEnv1, enTex0, enTex1;
+     GLuint setCCU;
++    GLuint overbright2x; /* OPT 0.1.4 overbright */
+ 
+     unsigned long ACWord;
+     unsigned long CCWord;
+@@ -1041,6 +1206,7 @@
+ 
+     /* XXXtaco set default state */
+     setCCU  = 0;
++    overbright2x = 0;
+ 
+     ACWord = 
+     CCWord = MAKE_CUWORD( GR_COMBINE_FUNCTION_LOCAL,
+@@ -1084,6 +1250,10 @@
+ 
+             switch( texEnv0 ) {
+             case GL_REPLACE:
++            case GL_MODULATE: /* OPT 0.1.4 GL_ARB_multitexture: unit-0
++                              ** MODULATE differs from REPLACE only in that
++                              ** the iterated color re-enters at the color
++                              ** combine (set below); TMU words identical. */
+                 TC1Word = MAKE_CUWORD( GR_COMBINE_FUNCTION_LOCAL,
+                                        GR_COMBINE_FACTOR_NONE,
+                                        GR_COMBINE_FUNCTION_LOCAL,
+@@ -1116,16 +1286,53 @@
+                 }
+                 break;
+             case GL_BLEND:
+-            case GL_MODULATE:
+             case GL_DECAL:
+                 /* not implemented */
+                 break;
+             }
+-            ACWord  = 
+-            CCWord  = MAKE_CUWORD( GR_COMBINE_FUNCTION_SCALE_OTHER,
+-                                   GR_COMBINE_FACTOR_ONE,
+-                                   GR_COMBINE_LOCAL_NONE,
+-                                   GR_COMBINE_OTHER_TEXTURE );
++            if ( ( texEnv0 == GL_MODULATE ) && ( texEnv1 != GL_REPLACE ) ) {
++                /* OPT 0.1.4 GL_ARB_multitexture: unit-0 GL_MODULATE --
++                ** final = iterated * (TMU chain).  Q3 world surfaces are
++                ** MODULATE (base) x MODULATE (lightmap): chain = T0*T1,
++                ** then modulate by the iterated vertex color here. */
++                ACWord  =
++                CCWord  = MAKE_CUWORD( GR_COMBINE_FUNCTION_SCALE_OTHER,
++                                       GR_COMBINE_FACTOR_LOCAL,
++                                       GR_COMBINE_LOCAL_ITERATED,
++                                       GR_COMBINE_OTHER_TEXTURE );
++                /* OPT 0.1.4 overbright: MODULATE x MODULATE is the
++                ** collapsed Q3 base-x-lightmap world path; the 2-pass
++                ** equivalent gains a free 2x from the lightmap pass's
++                ** (GL_DST_COLOR,GL_SRC_COLOR) blend (r_overBrightBits=1).
++                ** GL exposes no overbright signal to the ICD, so the 2x
++                ** is keyed on this texenv combination -- the standard
++                ** 3dfx behavior.  Requires the Napalm COMBINE extension;
++                ** without it (Voodoo1/2/3/Banshee) the legacy unscaled
++                ** combine below is kept. */
++                if ( texEnv1 == GL_MODULATE ) {
++                    static int s_ob2xLogged = 0; /* first-hit log only */
++                    __glSSTProbeCombineExt(); /* kept for its diagnostics */
++                    /* OPT 0.1.5: the 2x now lives in the ITERATED vertex
++                    ** color (doubled+clamped in sst_pgmode.c), NOT in the
++                    ** ext output shift (proven a no-op on live Napalm).
++                    ** No hardware extension needed -> unconditional. */
++                    overbright2x = 1;
++                    if ( !s_ob2xLogged ) {
++                        s_ob2xLogged = 1;
++                        OGLLOG( "overbright2x branch: ext_active=%d "
++                                "applying 2x via vertex-color double "
++                                "(texEnv0=0x%x texEnv1=0x%x)",
++                                (int)( s_pfnColorCombineExt != 0 ),
++                                (unsigned)texEnv0, (unsigned)texEnv1 );
++                    }
++                }
++            } else {
++                ACWord  =
++                CCWord  = MAKE_CUWORD( GR_COMBINE_FUNCTION_SCALE_OTHER,
++                                       GR_COMBINE_FACTOR_ONE,
++                                       GR_COMBINE_LOCAL_NONE,
++                                       GR_COMBINE_OTHER_TEXTURE );
++            }
+         } else if ( enTex0 ) {
+             grVertexLayout( GR_PARAM_ST1, offsetof( GrVertex, tmuvtx[0].sow ), GR_PARAM_ENABLE );
+             grVertexLayout( GR_PARAM_Q,   offsetof( GrVertex, oow ),           GR_PARAM_ENABLE );
+@@ -1353,14 +1560,13 @@
+         }
+     }
+ 
+-    if ( s_CCWord != CCWord ) {
+-        grColorCombine( USE_CUWORD( CCWord ), FXFALSE );
+-        s_CCWord = CCWord;
+-    }
+-    if ( s_ACWord != ACWord ) {
+-        grAlphaCombine( USE_CUWORD( ACWord ), FXFALSE );
+-        s_ACWord = ACWord;
+-    }
++    /* OPT 0.1.5 overbright: publish the vertex-double gate for the render
++    ** procs and ALWAYS program the LEGACY 1x combine.  The doubling lives
++    ** in the iterated vertex color now, so applying the ext output-shift
++    ** 2x on top would be 4x (and it was proven a no-op on live Napalm
++    ** anyway) -- __glSSTSetCombineExt2x is intentionally NOT called. */
++    __glSSTOverbright2xVtx = overbright2x;
++    __glSSTSetLegacyCombine( CCWord, ACWord );
+     gc->cdrsTexture = 0;
+ }
+ 
+--- a/GLIDE3X/SST/sst_pgmode.c
++++ b/GLIDE3X/SST/sst_pgmode.c
+@@ -20,6 +20,31 @@
+ #include <glide.h>
+ #include "sst_globals.h"
+ 
++/* OPT 0.1.5 overbright (vertex-double mechanism): gate published by
++** __glSSTLoadCombineFunction (SST/SST_TEX.C) when the collapsed Q3 world
++** path -- two TMUs, texEnv0==GL_MODULATE && texEnv1==GL_MODULATE -- is
++** active.  Q3 world vertex color is identityLight = 0.5 (r_overBrightBits=1)
++** and relies on a free 2x it normally gets from the 2-pass lightmap blend
++** (GL_DST_COLOR,GL_SRC_COLOR); our single-pass iterated*T0*T1 collapse has
++** no such doubling, so we DOUBLE the iterated RGB here (clamp 255), feeding
++** the legacy 1x combine 2*0.5=1.0.  The grColorCombineExt output-shift 2x
++** was proven a no-op on live Napalm hardware -- do not resurrect it.
++** Alpha is deliberately left unscaled. */
++extern int __glSSTOverbright2xVtx;
++
++/* OPT 0.1.6: NEUTRALIZED.  Live-hardware testing proved Q3's world never
++** reaches these immediate-fill procs -- glDrawElements world geometry is
++** compiled through GLCORE/S_VARRAY.C CompileElementsIndexed, so the 2x now
++** lives THERE (on the compiled __GLvertex color, gated by the same
++** __glSSTOverbright2xVtx).  The macro stays defined (call sites untouched)
++** but must NOT double, or any path hitting both sites would get 4x. */
++#define __GL_OB2X_CH(c) (c)
++
++#define __GL_OB2X_TRI(vA,vB,vC)                                          \
++    do {                                                                  \
++        (void)&(vA); (void)&(vB); (void)&(vC);                            \
++    } while (0)
++
+ /*
+ ** The first three triangle drawers here handle the more general 
+ ** cases of two sided lighting, so they have to do the signed area
+@@ -153,6 +178,10 @@
+               vtxC.g = c->color->g;
+               vtxC.b = c->color->b;
+ 
++              /* OPT 0.1.5 overbright: 2x iterated RGB for the collapsed
++              ** Q3 world path (see gate comment at top of file) */
++              __GL_OB2X_TRI( vtxA, vtxB, vtxC );
++
+               if ( gc->texture.currentTexture[0] &&
+                    !gc->texture.currentTexture[1] ) {
+                   /* zero not one */
+@@ -349,6 +378,10 @@
+         vtxC.b = B;
+         vtxC.a = A;
+ 
++        /* OPT 0.1.5 overbright: 2x iterated RGB for the collapsed
++        ** Q3 world path (see gate comment at top of file) */
++        __GL_OB2X_TRI( vtxA, vtxB, vtxC );
++
+         if ( gc->texture.currentTexture[0] &&
+              !gc->texture.currentTexture[1] ) {
+             /* zero not one */
+@@ -517,6 +550,10 @@
+         vtxC.b = c->color->b;
+         vtxC.a = c->color->a;
+ 
++        /* OPT 0.1.5 overbright: 2x iterated RGB for the collapsed
++        ** Q3 world path (see gate comment at top of file) */
++        __GL_OB2X_TRI( vtxA, vtxB, vtxC );
++
+         if ( gc->texture.currentTexture[0] &&
+              !gc->texture.currentTexture[1] ) {
+             /* zero not one */
+@@ -646,6 +683,10 @@
+         vtxC.b = B;
+         vtxC.a = A;
+ 
++        /* OPT 0.1.5 overbright: 2x iterated RGB for the collapsed
++        ** Q3 world path (see gate comment at top of file) */
++        __GL_OB2X_TRI( vtxA, vtxB, vtxC );
++
+         if ( gc->texture.currentTexture[0] &&
+              !gc->texture.currentTexture[1] ) {
+             /* zero not one */
+@@ -755,6 +796,10 @@
+         vtxC.b = c->color->b;
+         vtxC.a = c->color->a;
+ 
++        /* OPT 0.1.5 overbright: 2x iterated RGB for the collapsed
++        ** Q3 world path (see gate comment at top of file) */
++        __GL_OB2X_TRI( vtxA, vtxB, vtxC );
++
+         if ( gc->texture.currentTexture[0] &&
+              !gc->texture.currentTexture[1] ) {
+             /* zero not one */
+--- a/GLIDE3X/SST/sst_globals.h
++++ b/GLIDE3X/SST/sst_globals.h
+@@ -65,6 +65,7 @@
+ void __glSSTBindTexture(__GLcontext *gc, GLuint targetIndex, GLuint texture,
+                         GLboolean freeingContext);
+ void __glSSTLoadCombineFunction(__GLcontext *gc);
++void __glSSTResetCombineCache(void); /* OPT 0.1.4 overbright */
+ void __glSSTEnableTexturing(__GLcontext *gc);
+ void __glSSTDisableTexturing(__GLcontext *gc);
+ void __glSSTFreeTextureState(__GLcontext *gc);
+--- a/GLIDE3X/INCLUDE/VARRAY.H
++++ b/GLIDE3X/INCLUDE/VARRAY.H
+@@ -222,6 +222,18 @@
+ 	void (*validateVertex)(__GLcontext *gc, __GLvertex *v, GLuint needs);
+ 	GLboolean continuation;		/* Are we in the rest of strip or fan? */
+ 
++	/* OPT 0.1.4 GL_ARB_multitexture: client state for texture unit 1.
++	** Kept at the end of the struct so no existing field offset moves. */
++	GLuint clientTexUnit;		/* glClientActiveTextureARB selector (0/1) */
++	const char *tex_coord_pointer1;	/* unit-1 glTexCoordPointer */
++	GLint tp1_size;
++	GLenum tp1_type;
++	GLsizei tp1_stride;
++	GLsizei tp1_usr_stride;
++	GLboolean texCoord1Enabled;	/* unit-1 GL_TEXTURE_COORD_ARRAY enable */
++	void (*compileElementsReal)(__GLcontext *gc, GLint offset,
++				GLint first, GLsizei count);
++
+ } __GLVertArrayMachine;
+ 
+ extern void __glInitVertexArrayState(__GLcontext *gc);
+--- a/GLIDE3X/INCLUDE/G_XPROTO.H
++++ b/GLIDE3X/INCLUDE/G_XPROTO.H
+@@ -79,4 +79,16 @@
+ WINGDIAPI void APIENTRY glPointParameterfEXT (GLenum pname, GLfloat param);
+ WINGDIAPI void APIENTRY glPointParameterfvEXT (GLenum pname, const GLfloat *params);
+ 
++/* ARB_multitexture (OPT 0.1.4) */
++WINGDIAPI void APIENTRY glActiveTextureARB(GLenum texture);
++WINGDIAPI void APIENTRY glClientActiveTextureARB(GLenum texture);
++WINGDIAPI void APIENTRY glMultiTexCoord1fARB(GLenum target, GLfloat s);
++WINGDIAPI void APIENTRY glMultiTexCoord1fvARB(GLenum target, const GLfloat *v);
++WINGDIAPI void APIENTRY glMultiTexCoord2fARB(GLenum target, GLfloat s, GLfloat t);
++WINGDIAPI void APIENTRY glMultiTexCoord2fvARB(GLenum target, const GLfloat *v);
++WINGDIAPI void APIENTRY glMultiTexCoord3fARB(GLenum target, GLfloat s, GLfloat t, GLfloat r);
++WINGDIAPI void APIENTRY glMultiTexCoord3fvARB(GLenum target, const GLfloat *v);
++WINGDIAPI void APIENTRY glMultiTexCoord4fARB(GLenum target, GLfloat s, GLfloat t, GLfloat r, GLfloat q);
++WINGDIAPI void APIENTRY glMultiTexCoord4fvARB(GLenum target, const GLfloat *v);
++
+ #endif /* __g_xproto_h_ */
+--- a/GLIDE3X/INCLUDE/TEXTURE.H
++++ b/GLIDE3X/INCLUDE/TEXTURE.H
+@@ -334,6 +334,20 @@
+     __GLfloat h[__GL_MAX_TEX_UNITS]; /* size of current texture */
+ #endif
+ } __GLSSTtextureMachine;
++
++/* QUALITY FIX menu-text: per-unit texel-center (+0.5-texel) bias in
++** NORMALIZED [0,1] texcoord space (i.e. +0.5/width2, +0.5/height2).
++** Nonzero ONLY for non-mipmapped (GL_LINEAR/GL_NEAREST) textures -- the 2D
++** UI/font atlases whose tightly-packed variable-width glyphs garble without
++** the OpenGL texel-center offset.  Left 0.0 for mipmapped (3D world)
++** textures, so adding it is a bit-exact no-op on the in-game path.  Kept as
++** module-scope state (like SST_TEX.C's s_CCWord single-context caches, not a
++** __GLcontext field) so the context struct layout -- and the hand-asm offsets
++** into it -- are untouched.  Defined in SST_TEX.C, set by
++** __glSSTEnableTexturing, consumed at the normalized-coord entry points
++** (S_TAPI.C TexCoord2f/2fv and S_VARRAY.C CopyTexCoord2f). */
++extern __GLfloat __glSSTHalfTexelS[__GL_MAX_TEX_UNITS];
++extern __GLfloat __glSSTHalfTexelT[__GL_MAX_TEX_UNITS];
+ #endif
+ 
+ typedef struct __GLtextureMachineRec {
+--- a/GLIDE3X/GLCORE/S_TAPI.C
++++ b/GLIDE3X/GLCORE/S_TAPI.C
+@@ -114,8 +114,10 @@
+ {
+     __GL_SETUP();
+     __GL_API_VAPI();
+-    gc->state.current.texture[0].x = x;
+-    gc->state.current.texture[0].y = y;
++    /* QUALITY FIX menu-text: +0.5-texel texel-center bias (0 unless a
++    ** non-mipmapped 2D atlas is bound on unit 0 -- see SST_TEX.C). */
++    gc->state.current.texture[0].x = x + __glSSTHalfTexelS[0];
++    gc->state.current.texture[0].y = y + __glSSTHalfTexelT[0];
+     gc->state.current.texture[0].z = __glZero;
+     gc->state.current.texture[0].w = __glOne;
+ }
+@@ -154,8 +156,12 @@
+ {
+     __GL_SETUP();
+     __GL_API_VAPI();
+-    gc->state.current.texture[0].x = x[0];
+-    gc->state.current.texture[0].y = x[1];
++    /* QUALITY FIX menu-text: +0.5-texel texel-center bias (0 unless a
++    ** non-mipmapped 2D atlas is bound on unit 0 -- see SST_TEX.C).  This is
++    ** the entry point Q3's glDrawElements 2D StretchPic path reaches via
++    ** __glim_ArrayElement -> tp_call. */
++    gc->state.current.texture[0].x = x[0] + __glSSTHalfTexelS[0];
++    gc->state.current.texture[0].y = x[1] + __glSSTHalfTexelT[0];
+     gc->state.current.texture[0].z = __glZero;
+     gc->state.current.texture[0].w = __glOne;
+ }
+--- a/GLIDE3X/GLCORE/S_GET.C
++++ b/GLIDE3X/GLCORE/S_GET.C
+@@ -1481,6 +1481,16 @@
+       case GL_MAX_TEXTURE_SIZE:
+         *ip++ = gc->constants.maxTextureSize;
+         break;
++      /* OPT 0.1.4 GL_ARB_multitexture */
++      case GL_MAX_TEXTURE_UNITS_ARB:
++        *ip++ = (gc->grNTexelFx > 1) ? 2 : 1;
++        break;
++      case GL_ACTIVE_TEXTURE_ARB:
++        *ip++ = GL_TEXTURE0_ARB + gc->texture.currentTexUnit;
++        break;
++      case GL_CLIENT_ACTIVE_TEXTURE_ARB:
++        *ip++ = GL_TEXTURE0_ARB + gc->vertexArray.clientTexUnit;
++        break;
+       case GL_SUBPIXEL_BITS:
+         *ip++ = gc->constants.subpixelBits;
+         break;
+--- a/GLIDE3X/GLCORE/S_ATTRIB.C
++++ b/GLIDE3X/GLCORE/S_ATTRIB.C
+@@ -2783,6 +2783,12 @@
+         __GL_DELAY_VALIDATE_MASK(gc, __GL_DIRTY_VERTARRAY);
+         return;
+     case GL_TEXTURE_COORD_ARRAY:
++        if (gc->vertexArray.clientTexUnit == 1) {
++            /* OPT 0.1.4 GL_ARB_multitexture: unit-1 texcoord array */
++            gc->vertexArray.texCoord1Enabled = GL_TRUE;
++            __GL_DELAY_VALIDATE_MASK(gc, __GL_DIRTY_VERTARRAY);
++            return;
++        }
+         gc->vertexArray.mask |= VERTARRAY_T_MASK;
+         gc->vertexArray.index |= VERTARRAY_T_INDEX;
+         __GL_DELAY_VALIDATE_MASK(gc, __GL_DIRTY_VERTARRAY);
+@@ -2827,6 +2833,12 @@
+         __GL_DELAY_VALIDATE_MASK(gc, __GL_DIRTY_VERTARRAY);
+         return;
+     case GL_TEXTURE_COORD_ARRAY:
++        if (gc->vertexArray.clientTexUnit == 1) {
++            /* OPT 0.1.4 GL_ARB_multitexture: unit-1 texcoord array */
++            gc->vertexArray.texCoord1Enabled = GL_FALSE;
++            __GL_DELAY_VALIDATE_MASK(gc, __GL_DIRTY_VERTARRAY);
++            return;
++        }
+         gc->vertexArray.mask &= ~VERTARRAY_T_MASK;
+         gc->vertexArray.index &= ~VERTARRAY_T_INDEX;
+         __GL_DELAY_VALIDATE_MASK(gc, __GL_DIRTY_VERTARRAY);
+--- a/GLIDE3X/GLCORE/S_VARRAY.C
++++ b/GLIDE3X/GLCORE/S_VARRAY.C
+@@ -314,7 +314,13 @@
+ }
+ static void __fastcall CopyTexCoord2f(__GLcontext *gc, const GLfloat *tp, __GLvertex *v)
+ {
+-    v->texture[0].x = tp[0]; v->texture[0].y = tp[1]; v->texture[0].z = 0.0F; v->texture[0].w = 1.0F;
++    /* QUALITY FIX menu-text: +0.5-texel texel-center bias (0 unless a
++    ** non-mipmapped 2D atlas is bound on unit 0 -- see SST_TEX.C).  Covers
++    ** the compiled vertex-array route in case it (rather than the immediate
++    ** __glim_TexCoord2fv route) services a 2D StretchPic draw. */
++    v->texture[0].x = tp[0] + __glSSTHalfTexelS[0];
++    v->texture[0].y = tp[1] + __glSSTHalfTexelT[0];
++    v->texture[0].z = 0.0F; v->texture[0].w = 1.0F;
+ }
+ static void __fastcall CopyTexCoord2d(__GLcontext *gc, const GLdouble *tp, __GLvertex *v)
+ {
+@@ -1108,18 +1114,126 @@
+     }
+ }
+ 
++/* OPT 0.1.3 vertex-cache: post-transform vertex dedup for indexed draws.
++**
++** This wrapper used to call compileElements once per element index with
++** count=1, so a vertex shared by N triangles in a glDrawElements call was
++** copied + color-converted + transformed + clip-checked N times.  Since
++** this ICD does not advertise GL_EXT_compiled_vertex_array, Quake3-style
++** indexed world geometry (2-5x vertex reuse) always paid that cost.
++**
++** Fix: within one CompileElementsIndexed call, if element value 'el' was
++** already compiled at an earlier position s of THIS call, reuse it with a
++** whole-struct copy of the compiled __GLvertex instead of recompiling.
++** The struct copy carries everything downstream needs (obj, clip codes,
++** colors, tex coords, hasAndClipCode, ...) byte-identically; the only
++** self-referential field, the 'color' pointer, is rebased (same fixup the
++** strip-continuation code in __glDrawVertexes_Tstrip already performs on
++** its own __GLvertex struct copies).
++**
++** The lookup table is only an accelerator and is allowed to hold garbage:
++** a hit is accepted only after verifying s < i AND elements[first+s]==el
++** against the CURRENT call's element list, and slot s (s < i) by
++** construction holds the compiled result of elements[first+s].  GL state
++** cannot change inside one glDrawElements, so the copy is exact.  Stale
++** or racy table contents can therefore cause a missed hit at worst, never
++** a wrong vertex.  Elements >= the table size just take the original
++** recompile path (bounds-safe fallback).  Non-indexed draws (glDrawArrays,
++** elements==NULL) are completely unaffected.
++*/
++#define __GL_VXC_TABLE_SIZE 16384
++
++static GLuint vxcSlotOf[__GL_VXC_TABLE_SIZE];   /* garbage-tolerant, see above */
++
++/* OPT 0.1.6 overbright 2x, VARRAY edition.  Gate published by
++** __glSSTLoadCombineFunction (SST/SST_TEX.C) when the collapsed single-pass
++** Q3 world path (two TMUs, GL_MODULATE x GL_MODULATE) is active.  Q3 world
++** vertex color is identityLight = 0.5 (r_overBrightBits=1) and relies on a
++** free 2x it normally gets from the 2-pass (GL_DST_COLOR,GL_SRC_COLOR)
++** lightmap blend; our iterated*T0*T1 collapse has none, so we DOUBLE the
++** COMPILED vertex RGB here.  This is the correct site: Q3 world geometry is
++** glDrawElements -> CompileElementsIndexed (the sst_pgmode.c immediate-fill
++** doubling never fired on hardware and is neutralized).  Colors at this
++** point are already clamp-and-scaled to gc->frontBuffer.*Scale (255.0), so
++** clamp the doubled value to that same scale.  Alpha untouched.
++**
++** Composition with the OPT 0.1.3 vertex cache: doubling happens at compile
++** time, immediately after (*compileElements) finalizes the vertex, BEFORE
++** any cache slot can be copied from it -- so a cache hit struct-copies an
++** already-doubled color and is never doubled again.
++**
++** Validation order: __GL_SETUP_NOT_IN_BEGIN_VALIDATE() at the top of
++** __glim_DrawElements/__glim_DrawArrays runs the texture/combine validation
++** (which sets the gate) before any compile proc is invoked, so the gate is
++** stable for the whole batch. */
++extern int __glSSTOverbright2xVtx;
++extern void OGLLOG( const char *fmt, ... );
++static int s_ob2xVarrayLogged = 0;
++
++static void __glOB2xCompiledVertex(__GLcontext *gc, __GLvertex *v)
++{
++    __GLcolor *c = &v->colors[__GL_FRONTFACE];
++    __GLfloat maxR = gc->frontBuffer.redScale;
++    __GLfloat maxG = gc->frontBuffer.greenScale;
++    __GLfloat maxB = gc->frontBuffer.blueScale;
++
++    if (!s_ob2xVarrayLogged) {
++        s_ob2xVarrayLogged = 1;
++        OGLLOG("overbright2x VARRAY: doubled compiled vtx color (was %d,%d,%d)",
++               (int)c->r, (int)c->g, (int)c->b);
++    }
++    c->r += c->r; if (c->r > maxR) c->r = maxR;
++    c->g += c->g; if (c->g > maxG) c->g = maxG;
++    c->b += c->b; if (c->b > maxB) c->b = maxB;
++}
++
+ /* wrapper for compileElements when it needs to deal with element indexes */
+ static void CompileElementsIndexed(__GLcontext *gc, int offset, int first, int count, GLuint *elements)
+ {
+     if (elements) {
++        __GLvertex *vb = gc->vertexArray.varrayPtr + offset;
+         int i;
+ 
+         for (i=0; i<count; ++i) {
+-            (*gc->vertexArray.compileElements)(gc, offset+i, elements[first+i], 1);
++            GLuint el = elements[first+i];
++
++            if (el < __GL_VXC_TABLE_SIZE) {
++                GLuint s = vxcSlotOf[el];
++
++                if ((s < (GLuint)i) && (elements[first+s] == el)) {
++                    /* OPT 0.1.3 vertex-cache: hit -- reuse compiled vertex
++                    ** (already overbright-doubled at compile time, so no
++                    ** second doubling here) */
++                    __GLvertex *src = vb + s;
++                    __GLvertex *dst = vb + i;
++
++                    *dst = *src;
++                    if (src->color == &src->colors[__GL_FRONTFACE]) {
++                        dst->color = &dst->colors[__GL_FRONTFACE];
++                    } else if (src->color == &src->colors[__GL_BACKFACE]) {
++                        dst->color = &dst->colors[__GL_BACKFACE];
++                    }
++                    continue;
++                }
++                vxcSlotOf[el] = (GLuint)i;
++            }
++            (*gc->vertexArray.compileElements)(gc, offset+i, el, 1);
++            if (__glSSTOverbright2xVtx) {
++                /* OPT 0.1.6 overbright: double the freshly compiled color */
++                __glOB2xCompiledVertex(gc, vb + i);
++            }
+         }
+     } else {
+-        
++
+                 (*gc->vertexArray.compileElements)(gc, offset, first, count);
++                if (__glSSTOverbright2xVtx) {
++                    /* OPT 0.1.6 overbright: non-indexed (glDrawArrays) batch */
++                    __GLvertex *vb = gc->vertexArray.varrayPtr + offset;
++                    int i;
++                    for (i=0; i<count; ++i) {
++                        __glOB2xCompiledVertex(gc, vb + i);
++                    }
++                }
+     }
+ }
+ 
+@@ -1246,6 +1360,81 @@
+     CompileElementsNIT,         /* NORMAL | COLOR | TEX */
+ };
+ 
++/* OPT 0.1.4 GL_ARB_multitexture: compile wrapper that runs the normal
++** (unit-0) element compile and then fills v->texture[1] from the unit-1
++** texcoord array, so the SST render procs can source both TMUs in a
++** single pass.  <first> is the array element index of the first vertex,
++** <count> consecutive elements follow (CompileElementsIndexed calls this
++** per element with count==1, DrawArrays-style paths with a range). */
++static void CompileElementsMT1(__GLcontext *gc, GLint offset, GLint first, GLsizei count)
++{
++    __GLVertArrayMachine *va = &gc->vertexArray;
++    __GLvertex *v = va->varrayPtr + offset;
++    const GLubyte *tp = (const GLubyte *) va->tex_coord_pointer1 +
++                                first * va->tp1_stride;
++    GLint size = va->tp1_size;
++    GLsizei stride = va->tp1_stride;
++    int i;
++
++    (*va->compileElementsReal)(gc, offset, first, count);
++
++    switch (va->tp1_type) {
++    case GL_FLOAT:
++        for (i = 0; i < count; ++i, ++v, tp += stride) {
++            const GLfloat *t = (const GLfloat *) tp;
++            v->texture[1].x = t[0];
++            v->texture[1].y = (size >= 2) ? t[1] : 0.0F;
++            v->texture[1].z = (size >= 3) ? t[2] : 0.0F;
++            v->texture[1].w = (size >= 4) ? t[3] : 1.0F;
++        }
++        break;
++    case GL_SHORT:
++        for (i = 0; i < count; ++i, ++v, tp += stride) {
++            const GLshort *t = (const GLshort *) tp;
++            v->texture[1].x = t[0];
++            v->texture[1].y = (size >= 2) ? t[1] : 0.0F;
++            v->texture[1].z = (size >= 3) ? t[2] : 0.0F;
++            v->texture[1].w = (size >= 4) ? t[3] : 1.0F;
++        }
++        break;
++    case GL_INT:
++        for (i = 0; i < count; ++i, ++v, tp += stride) {
++            const GLint *t = (const GLint *) tp;
++            v->texture[1].x = (GLfloat) t[0];
++            v->texture[1].y = (size >= 2) ? (GLfloat) t[1] : 0.0F;
++            v->texture[1].z = (size >= 3) ? (GLfloat) t[2] : 0.0F;
++            v->texture[1].w = (size >= 4) ? (GLfloat) t[3] : 1.0F;
++        }
++        break;
++    case GL_DOUBLE_EXT:
++        for (i = 0; i < count; ++i, ++v, tp += stride) {
++            const GLdouble *t = (const GLdouble *) tp;
++            v->texture[1].x = (GLfloat) t[0];
++            v->texture[1].y = (size >= 2) ? (GLfloat) t[1] : 0.0F;
++            v->texture[1].z = (size >= 3) ? (GLfloat) t[2] : 0.0F;
++            v->texture[1].w = (size >= 4) ? (GLfloat) t[3] : 1.0F;
++        }
++        break;
++    default:
++        /* unsupported type: leave unit-1 coords untouched */
++        break;
++    }
++}
++
++/* OPT 0.1.4 GL_ARB_multitexture: glClientActiveTextureARB entry point.
++** Selects which unit subsequent glTexCoordPointer /
++** gl{En,Dis}ableClientState(GL_TEXTURE_COORD_ARRAY) calls affect. */
++void APIENTRY glClientActiveTextureARB(GLenum texture)
++{
++    __GL_SETUP_NOT_IN_BEGIN();
++
++    if (texture < GL_TEXTURE0_ARB || texture > GL_TEXTURE1_ARB) {
++        __glSetError(GL_INVALID_ENUM);
++        return;
++    }
++    gc->vertexArray.clientTexUnit = texture - GL_TEXTURE0_ARB;
++}
++
+ void __glGenericPickVertexArrayEnables(__GLcontext *gc)
+ {
+     __GLVertArrayMachine *va = &gc->vertexArray;
+@@ -1371,16 +1560,25 @@
+     if (gc->renderMode == GL_RENDER) {
+         va->compileElements =
+ #if NEW_OG_KEY
+-            __glSSTGenerateCompile(gc, va->vp_size, 
++            __glSSTGenerateCompile(gc, va->vp_size,
+                                    va->compileIndex & (__GL_GEOM_OG_TEX |
+                                                        __GL_GEOM_OG_COLOR));
+ #else
+-            GenerateCompile(gc, va->vp_size, 
++            GenerateCompile(gc, va->vp_size,
+                             va->compileIndex & (__GL_GEOM_OG_TEX |
+                                                 __GL_GEOM_OG_COLOR));
+ #endif
+     }
+ #endif
++
++    /* OPT 0.1.4 GL_ARB_multitexture: when the unit-1 texcoord array is
++    ** enabled, wrap the freshly-picked compile proc so ST1 gets filled.
++    ** compileElements is always reassigned above, so no double-wrap. */
++    if (va->texCoord1Enabled && va->tex_coord_pointer1 &&
++        (gc->grNTexelFx > 1)) {
++        va->compileElementsReal = va->compileElements;
++        va->compileElements = CompileElementsMT1;
++    }
+ }
+ 
+ void __glGenericPickVertexArrayProcs(__GLcontext *gc)
+@@ -3775,6 +3973,20 @@
+ 
+     __GL_API_BLAND();
+ 
++    if (gc->vertexArray.clientTexUnit == 1) {
++        /* OPT 0.1.4 GL_ARB_multitexture: this pointer belongs to texture
++        ** unit 1 (selected via glClientActiveTextureARB).  Track it in the
++        ** dedicated unit-1 slots; unit-0 array state is untouched. */
++        gc->vertexArray.tex_coord_pointer1 = pointer;
++        gc->vertexArray.tp1_size = size;
++        gc->vertexArray.tp1_type = type;
++        gc->vertexArray.tp1_stride =
++            stride ? stride : stride_array[type - GL_BYTE][size];
++        gc->vertexArray.tp1_usr_stride = stride;
++        __GL_DELAY_VALIDATE_MASK(gc, __GL_DIRTY_VERTARRAY);
++        return;
++    }
++
+     /* update the rest of the gc */
+     gc->vertexArray.tp_call = tp_call;
+     gc->vertexArray.tp_copy =
+--- a/GLIDE3X/INCLUDE/GL/GL.H
++++ b/GLIDE3X/INCLUDE/GL/GL.H
+@@ -1154,6 +1154,13 @@
+ #define TEXTURE0_SGIS                       0x835E
+ #define TEXTURE1_SGIS                       0x835F
+ 
++/* ARB_multitexture (OPT 0.1.4) */
++#define GL_TEXTURE0_ARB                     0x84C0
++#define GL_TEXTURE1_ARB                     0x84C1
++#define GL_ACTIVE_TEXTURE_ARB               0x84E0
++#define GL_CLIENT_ACTIVE_TEXTURE_ARB        0x84E1
++#define GL_MAX_TEXTURE_UNITS_ARB            0x84E2
++
+ /* EXT_point_parameters */
+ #define GL_POINT_SIZE_MIN_EXT                           0x8126
+ #define GL_POINT_SIZE_MAX_EXT                           0x8127
