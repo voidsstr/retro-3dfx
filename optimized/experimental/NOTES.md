@@ -53,6 +53,49 @@ SOME point, but maybe not when the draw's vertices are built). All plumbing is i
 place; this is purely an injection-point / gate-lifetime problem.
 Shipped/correct = 0.1.3 (ICD md5 0d8c9a5a). 4 dark experimental DLLs preserved here.
 
+## INJECTION POINT IDENTIFIED (2026-07-17 midday) — attempt 6 plan
+Cross-checked the 5 attempts' edited files against the actual Q3 world render
+dispatch. **All 5 attempts edited the WRONG files.** The edited set was
+sst_pgmode.c (the 5 immediate triangle-FILL procs), S_VARRAY.C (per-element
+compile loop), SST_TEX.C (combine plumbing) — NONE of which is Q3's hot path.
+
+The hot path is **`SST/sst_vertex.c`** (NOT in the edited-files set — never
+touched by any attempt). It owns the batched `grDrawVertexArray` submission for
+Q3's `glDrawElements` world geometry:
+- C sites: `__glSSTEndTStrip` / `__glSSTEndTFan` etc. flush via
+  `grDrawVertexArray(ps->stripMode, ps->vCounter-ps->countDelta, &ps->vList[...])`
+  (lines ~127, 227, 236, 339, 348, 5782, 5791).
+- **hand-ASM sites**: `call grDrawVertexArray` at lines ~5638, 5661 (the fast
+  vertex-list path — likely what Q3 actually hits).
+- Per-vertex color is finalized by `RobFastCalcRGBColor(gc, IVert*s, __GLvertex*)`
+  and packed into `ps->vList[]` GrVertex structs before the array flush.
+
+So the 2x must be applied where the GrVertex `.r/.g/.b` are written into
+`ps->vList[]` in sst_vertex.c (or inside RobFastCalcRGBColor, which is
+path-independent across immediate + array). Per docs "trust the C path": if the
+ASM list-builder is the hot one, prefer doubling in RobFastCalcRGBColor (C,
+feeds both) rather than editing the naked-asm packer.
+
+**Attempt 6 (surgical, for a SUPERVISED session — it changes rendered output so
+it needs pixel-diff + on-monitor verification):**
+1. Instrument-first (zero-regression): add a rate-limited log at (a) the
+   sst_vertex.c grDrawVertexArray C flush, (b) the RobFastCalcRGBColor color
+   write, (c) the ASM `call grDrawVertexArray` site — each logging "fired, first
+   vtx rgb=(r,g,b)" ONCE per frame. Build (guards: ulimit -f 2000000, timeout,
+   redirect-to-file, pkill -9 wineserver after), deploy, run one `+devmap q3dm1`
+   frame, read C:\3dfxogl.log to confirm WHICH site carries Q3's ~0.5 world
+   color. Restore 0.1.3 immediately after (0.1.3 stays the shipped driver).
+2. Apply the 2x ONLY at the confirmed site, gated on the existing
+   `__glSSTOverbright2x*` flag (already wired), clamping to 1.0. Pixel-diff
+   q3dm1 vs the 2-pass reference; must match brightness, and the user must
+   confirm on the physical monitor (glReadPixels is unreliable here — see the
+   hard lesson). Ship only if both pass.
+
+This converts "5 attempts missed, needs tracing" -> "site = sst_vertex.c /
+RobFastCalcRGBColor, here is the exact bounded step." Not executed unsupervised:
+it changes rendered output and touches the hand-asm-adjacent hot path, which the
+regression lessons say must be validated with the user present.
+
 ## Glide->GDI teardown / stuck-mode / garble — DIAGNOSED (2026-07-17 morning)
 Symptom: after Quake III exits the Voodoo5 is stuck in 640x480 Glide mode; forcing
 a GDI mode change (setmode/ChangeDisplaySettings) then garbles the screen (Glide
