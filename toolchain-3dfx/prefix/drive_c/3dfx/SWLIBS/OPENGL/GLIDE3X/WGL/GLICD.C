@@ -448,15 +448,21 @@ INT APIENTRY DrvGetLayerPaletteEntries( HDC hdc,
 PROC APIENTRY DrvGetProcAddress ( LPCSTR lpszProc ) {
 //  GL_BEGIN( "DrvGetProcAddress", 55);
 //  GL_END( (PROC)0 );
+  /* OPT 0.1.4: resolve extension entry points (GL_ARB_multitexture etc.)
+  ** from the shared wgl extension-proc table.  MS opengl32.dll forwards
+  ** app wglGetProcAddress calls here for names it doesn't know. */
   {
+    extern PROC __wglFindExtProc( LPCSTR );
+    PROC p = __wglFindExtProc( lpszProc );
     /* cap the spam: apps probe many extension entry points */
     static int nGPA = 0;
     if ( nGPA < 32 ) {
       nGPA++;
-      OGLLOG( "DrvGetProcAddress('%s') -> 0", lpszProc ? lpszProc : "(null)" );
+      OGLLOG( "DrvGetProcAddress('%s') -> 0x%x",
+              lpszProc ? lpszProc : "(null)", (unsigned)p );
     }
+    return p;
   }
-        return (PROC)0;
 }
 
 INT APIENTRY DrvRealizeLayerPalette( HDC hdc, INT iLayerPlane, BOOL bRealize ) {

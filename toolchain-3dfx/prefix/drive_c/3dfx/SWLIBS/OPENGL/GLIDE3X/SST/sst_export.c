@@ -740,6 +740,9 @@ static GLboolean MakeCurrent(__GLcontext *gc)
                  GR_COMBINE_FUNCTION_LOCAL,
                  GR_COMBINE_FACTOR_NONE,
                  FXFALSE, FXFALSE);
+    /* OPT 0.1.4 overbright: the direct combine calls above bypassed the
+    ** SST_TEX.C dedup caches -- resync them for this fresh context. */
+    __glSSTResetCombineCache();
 
     gc->texture.hwMinMag[0] = ~0;
     gc->texture.hwMinMag[1] = ~0;
@@ -802,7 +805,9 @@ static GLboolean MakeCurrent(__GLcontext *gc)
 
         /* XXXTaco This init is a hack */
         if ( gc->grNTexelFx == 2 ) {
-            static char mtexString[] = "GL_SGIS_multitexture ";
+            /* OPT 0.1.4: advertise ARB_multitexture (2 units) alongside the
+            ** legacy SGIS variant -- Q3 keys off GL_ARB_multitexture. */
+            static char mtexString[] = "GL_ARB_multitexture GL_SGIS_multitexture ";
             if ( !strstr( gc->constants.extensions, mtexString ) ) {
                 char *extString;
                 extString = (void*)(gc->imports.calloc)( 0, 1, strlen( gc->constants.extensions ) + strlen( mtexString ) + 1 );

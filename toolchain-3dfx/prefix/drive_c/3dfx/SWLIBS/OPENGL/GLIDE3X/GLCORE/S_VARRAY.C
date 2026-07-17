@@ -1298,6 +1298,81 @@ static void (*CIInterleavedCompileProcs[8])(__GLcontext*, GLint, GLint, GLsizei)
     CompileElementsNIT,         /* NORMAL | COLOR | TEX */
 };
 
+/* OPT 0.1.4 GL_ARB_multitexture: compile wrapper that runs the normal
+** (unit-0) element compile and then fills v->texture[1] from the unit-1
+** texcoord array, so the SST render procs can source both TMUs in a
+** single pass.  <first> is the array element index of the first vertex,
+** <count> consecutive elements follow (CompileElementsIndexed calls this
+** per element with count==1, DrawArrays-style paths with a range). */
+static void CompileElementsMT1(__GLcontext *gc, GLint offset, GLint first, GLsizei count)
+{
+    __GLVertArrayMachine *va = &gc->vertexArray;
+    __GLvertex *v = va->varrayPtr + offset;
+    const GLubyte *tp = (const GLubyte *) va->tex_coord_pointer1 +
+                                first * va->tp1_stride;
+    GLint size = va->tp1_size;
+    GLsizei stride = va->tp1_stride;
+    int i;
+
+    (*va->compileElementsReal)(gc, offset, first, count);
+
+    switch (va->tp1_type) {
+    case GL_FLOAT:
+        for (i = 0; i < count; ++i, ++v, tp += stride) {
+            const GLfloat *t = (const GLfloat *) tp;
+            v->texture[1].x = t[0];
+            v->texture[1].y = (size >= 2) ? t[1] : 0.0F;
+            v->texture[1].z = (size >= 3) ? t[2] : 0.0F;
+            v->texture[1].w = (size >= 4) ? t[3] : 1.0F;
+        }
+        break;
+    case GL_SHORT:
+        for (i = 0; i < count; ++i, ++v, tp += stride) {
+            const GLshort *t = (const GLshort *) tp;
+            v->texture[1].x = t[0];
+            v->texture[1].y = (size >= 2) ? t[1] : 0.0F;
+            v->texture[1].z = (size >= 3) ? t[2] : 0.0F;
+            v->texture[1].w = (size >= 4) ? t[3] : 1.0F;
+        }
+        break;
+    case GL_INT:
+        for (i = 0; i < count; ++i, ++v, tp += stride) {
+            const GLint *t = (const GLint *) tp;
+            v->texture[1].x = (GLfloat) t[0];
+            v->texture[1].y = (size >= 2) ? (GLfloat) t[1] : 0.0F;
+            v->texture[1].z = (size >= 3) ? (GLfloat) t[2] : 0.0F;
+            v->texture[1].w = (size >= 4) ? (GLfloat) t[3] : 1.0F;
+        }
+        break;
+    case GL_DOUBLE_EXT:
+        for (i = 0; i < count; ++i, ++v, tp += stride) {
+            const GLdouble *t = (const GLdouble *) tp;
+            v->texture[1].x = (GLfloat) t[0];
+            v->texture[1].y = (size >= 2) ? (GLfloat) t[1] : 0.0F;
+            v->texture[1].z = (size >= 3) ? (GLfloat) t[2] : 0.0F;
+            v->texture[1].w = (size >= 4) ? (GLfloat) t[3] : 1.0F;
+        }
+        break;
+    default:
+        /* unsupported type: leave unit-1 coords untouched */
+        break;
+    }
+}
+
+/* OPT 0.1.4 GL_ARB_multitexture: glClientActiveTextureARB entry point.
+** Selects which unit subsequent glTexCoordPointer /
+** gl{En,Dis}ableClientState(GL_TEXTURE_COORD_ARRAY) calls affect. */
+void APIENTRY glClientActiveTextureARB(GLenum texture)
+{
+    __GL_SETUP_NOT_IN_BEGIN();
+
+    if (texture < GL_TEXTURE0_ARB || texture > GL_TEXTURE1_ARB) {
+        __glSetError(GL_INVALID_ENUM);
+        return;
+    }
+    gc->vertexArray.clientTexUnit = texture - GL_TEXTURE0_ARB;
+}
+
 void __glGenericPickVertexArrayEnables(__GLcontext *gc)
 {
     __GLVertArrayMachine *va = &gc->vertexArray;
@@ -1423,16 +1498,25 @@ void __glGenericPickVertexArrayEnables(__GLcontext *gc)
     if (gc->renderMode == GL_RENDER) {
         va->compileElements =
 #if NEW_OG_KEY
-            __glSSTGenerateCompile(gc, va->vp_size, 
+            __glSSTGenerateCompile(gc, va->vp_size,
                                    va->compileIndex & (__GL_GEOM_OG_TEX |
                                                        __GL_GEOM_OG_COLOR));
 #else
-            GenerateCompile(gc, va->vp_size, 
+            GenerateCompile(gc, va->vp_size,
                             va->compileIndex & (__GL_GEOM_OG_TEX |
                                                 __GL_GEOM_OG_COLOR));
 #endif
     }
 #endif
+
+    /* OPT 0.1.4 GL_ARB_multitexture: when the unit-1 texcoord array is
+    ** enabled, wrap the freshly-picked compile proc so ST1 gets filled.
+    ** compileElements is always reassigned above, so no double-wrap. */
+    if (va->texCoord1Enabled && va->tex_coord_pointer1 &&
+        (gc->grNTexelFx > 1)) {
+        va->compileElementsReal = va->compileElements;
+        va->compileElements = CompileElementsMT1;
+    }
 }
 
 void __glGenericPickVertexArrayProcs(__GLcontext *gc)
@@ -3826,6 +3910,20 @@ void APIENTRY __glim_TexCoordPointer(GLint size,
     }
 
     __GL_API_BLAND();
+
+    if (gc->vertexArray.clientTexUnit == 1) {
+        /* OPT 0.1.4 GL_ARB_multitexture: this pointer belongs to texture
+        ** unit 1 (selected via glClientActiveTextureARB).  Track it in the
+        ** dedicated unit-1 slots; unit-0 array state is untouched. */
+        gc->vertexArray.tex_coord_pointer1 = pointer;
+        gc->vertexArray.tp1_size = size;
+        gc->vertexArray.tp1_type = type;
+        gc->vertexArray.tp1_stride =
+            stride ? stride : stride_array[type - GL_BYTE][size];
+        gc->vertexArray.tp1_usr_stride = stride;
+        __GL_DELAY_VALIDATE_MASK(gc, __GL_DIRTY_VERTARRAY);
+        return;
+    }
 
     /* update the rest of the gc */
     gc->vertexArray.tp_call = tp_call;

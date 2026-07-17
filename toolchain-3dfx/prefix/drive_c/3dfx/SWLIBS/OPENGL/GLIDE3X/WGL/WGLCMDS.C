@@ -2278,6 +2278,73 @@ wglSetPixelFormat(HDC hDC, int iPixelFormat, const PIXELFORMATDESCRIPTOR *ppfd)
     return TRUE;
 }
 
+/* ------------------------------------------------------------------ */
+/* OPT 0.1.4 GL_ARB_multitexture: ARB entry points.  Thin forwards     */
+/* onto the existing SGIS multitexture dispatch stubs (identical       */
+/* semantics for 2 units; ARB unit enums are GL_TEXTURE0_ARB-based,    */
+/* SGIS are TEXTURE0_SGIS-based).  glClientActiveTextureARB is a real  */
+/* implementation and lives in glcore (s_varray.c).                    */
+/* ------------------------------------------------------------------ */
+#define __WGL_ARB_TEX0        0x84C0  /* GL_TEXTURE0_ARB */
+#define __WGL_ARB_TEX1        0x84C1  /* GL_TEXTURE1_ARB */
+#define __WGL_SGIS_TEX0       0x835E  /* TEXTURE0_SGIS   */
+#define __WGL_ARB_TO_SGIS(u)  ((u) - __WGL_ARB_TEX0 + __WGL_SGIS_TEX0)
+#define __WGL_ARB_UNIT_OK(u)  ((u) >= __WGL_ARB_TEX0 && (u) <= __WGL_ARB_TEX1)
+
+void APIENTRY glActiveTextureARB( GLenum texture )
+{
+    if ( !__WGL_ARB_UNIT_OK( texture ) ) return;
+    glSelectTextureSGIS( __WGL_ARB_TO_SGIS( texture ) );
+}
+
+void APIENTRY glMultiTexCoord1fARB( GLenum target, GLfloat s )
+{
+    if ( !__WGL_ARB_UNIT_OK( target ) ) return;
+    glMTexCoord1fSGIS( __WGL_ARB_TO_SGIS( target ), s );
+}
+
+void APIENTRY glMultiTexCoord1fvARB( GLenum target, const GLfloat *v )
+{
+    if ( !__WGL_ARB_UNIT_OK( target ) ) return;
+    glMTexCoord1fvSGIS( __WGL_ARB_TO_SGIS( target ), v );
+}
+
+void APIENTRY glMultiTexCoord2fARB( GLenum target, GLfloat s, GLfloat t )
+{
+    if ( !__WGL_ARB_UNIT_OK( target ) ) return;
+    glMTexCoord2fSGIS( __WGL_ARB_TO_SGIS( target ), s, t );
+}
+
+void APIENTRY glMultiTexCoord2fvARB( GLenum target, const GLfloat *v )
+{
+    if ( !__WGL_ARB_UNIT_OK( target ) ) return;
+    glMTexCoord2fvSGIS( __WGL_ARB_TO_SGIS( target ), v );
+}
+
+void APIENTRY glMultiTexCoord3fARB( GLenum target, GLfloat s, GLfloat t, GLfloat r )
+{
+    if ( !__WGL_ARB_UNIT_OK( target ) ) return;
+    glMTexCoord3fSGIS( __WGL_ARB_TO_SGIS( target ), s, t, r );
+}
+
+void APIENTRY glMultiTexCoord3fvARB( GLenum target, const GLfloat *v )
+{
+    if ( !__WGL_ARB_UNIT_OK( target ) ) return;
+    glMTexCoord3fvSGIS( __WGL_ARB_TO_SGIS( target ), v );
+}
+
+void APIENTRY glMultiTexCoord4fARB( GLenum target, GLfloat s, GLfloat t, GLfloat r, GLfloat q )
+{
+    if ( !__WGL_ARB_UNIT_OK( target ) ) return;
+    glMTexCoord4fSGIS( __WGL_ARB_TO_SGIS( target ), s, t, r, q );
+}
+
+void APIENTRY glMultiTexCoord4fvARB( GLenum target, const GLfloat *v )
+{
+    if ( !__WGL_ARB_UNIT_OK( target ) ) return;
+    glMTexCoord4fvSGIS( __WGL_ARB_TO_SGIS( target ), v );
+}
+
 typedef struct __WGLEXTPROC {
     LPCSTR szProc;              /* extension function name */
     PROC   Proc;                /* extension function address */
@@ -2345,23 +2412,32 @@ WGLEXTPROC __wglExtProcs[] =
     { "glMTexCoordPointerSGIS" , (PROC) glMTexCoordPointerSGIS },
     { "glSelectTextureSGIS" , (PROC) glSelectTextureSGIS },
     { "glSelectTextureCoordSetSGIS" , (PROC) glSelectTextureCoordSetSGIS },
+    /* OPT 0.1.4 GL_ARB_multitexture */
+    { "glActiveTextureARB" , (PROC) glActiveTextureARB },
+    { "glClientActiveTextureARB" , (PROC) glClientActiveTextureARB },
+    { "glMultiTexCoord1fARB" , (PROC) glMultiTexCoord1fARB },
+    { "glMultiTexCoord1fvARB" , (PROC) glMultiTexCoord1fvARB },
+    { "glMultiTexCoord2fARB" , (PROC) glMultiTexCoord2fARB },
+    { "glMultiTexCoord2fvARB" , (PROC) glMultiTexCoord2fvARB },
+    { "glMultiTexCoord3fARB" , (PROC) glMultiTexCoord3fARB },
+    { "glMultiTexCoord3fvARB" , (PROC) glMultiTexCoord3fvARB },
+    { "glMultiTexCoord4fARB" , (PROC) glMultiTexCoord4fARB },
+    { "glMultiTexCoord4fvARB" , (PROC) glMultiTexCoord4fvARB },
     { "wglLockBuffers" , (PROC) wglLockBuffers },
     { "wglUnlockBuffers" , (PROC) wglUnlockBuffers },
 };
 
-PROC WINAPI
-wglGetProcAddress(LPCSTR lpszProc)
+/* OPT 0.1.4: shared extension-proc lookup, used by wglGetProcAddress and
+** by the ICD entry DrvGetProcAddress (the path MS opengl32.dll uses). */
+PROC __wglFindExtProc(LPCSTR lpszProc)
 {
     CONST CHAR *pch1, *pch2;
     int   i;
 
-    /* Return error if there is no current RC. */
-    if (GET_CURRENT_GC == __wglInvalidGC)  {
-        __wglSetSystemError("wglGetProcAddress", WGL_INVALID_HRC);
+    if (lpszProc == NULL) {
         return (PROC) NULL;
     }
 
-    /* Return extension function address if it is found. */
     for (i=0; i<__WGL_EXT_TABLE_SIZE; i++) {
         /* Compare names. */
         for (pch1 = lpszProc, pch2 = __wglExtProcs[i].szProc;
@@ -2375,6 +2451,19 @@ wglGetProcAddress(LPCSTR lpszProc)
         }
     }
     return (PROC) NULL;
+}
+
+PROC WINAPI
+wglGetProcAddress(LPCSTR lpszProc)
+{
+    /* Return error if there is no current RC. */
+    if (GET_CURRENT_GC == __wglInvalidGC)  {
+        __wglSetSystemError("wglGetProcAddress", WGL_INVALID_HRC);
+        return (PROC) NULL;
+    }
+
+    /* Return extension function address if it is found. */
+    return __wglFindExtProc(lpszProc);
 }
 
 PROC WINAPI
