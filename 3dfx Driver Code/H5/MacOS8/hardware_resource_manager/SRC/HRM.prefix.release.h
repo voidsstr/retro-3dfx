@@ -1,0 +1,1 @@
+#define DCON 0#define GDX_SWIZZLE_HACK 1#define SET_BSWAP 1#define PCI_COPYBACK 1#define PCI_BUMP_N_GRIND 1

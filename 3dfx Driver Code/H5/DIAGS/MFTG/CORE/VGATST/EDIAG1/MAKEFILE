@@ -1,0 +1,71 @@
+#
+#	MAKEFILE - NMAKE script for EDIAG1.LIB for Elpin Diagnostics
+#	Copyright (c) 1994-1998 Elpin Systems, Inc.
+#	All rights reserved.
+#
+#	Written by:	Larry Coffey
+#	Date:		4/14/98
+#	Last modified:	4/17/98
+#
+
+all: goal install
+
+##### Module Macros #####
+NAME		= ediag1
+CSRCS		= vga.cpp vbeapi.cpp vbedrvr.cpp util.cpp data.cpp bddc.cpp
+
+##### Include Macro #####
+INCLS		= 
+INCDIR		= ..
+
+##### DEBUG Macro Defined #####
+# To include debugging information for symbolic debugging set DEBUG=1
+DEBUG		= 1
+
+##### Build Option Macros #####
+!if $(DEBUG)
+DDEF		= -DDEBUG
+COPT		= -e25 -zq -d2 -mf -5r -hw -od -wx
+LOPT		= SYS dos4g op m debug all op st=8192 op maxe=25 op q
+!else
+DDEF		=
+COPT		= -w4 -e25 -zq -otexan -d1 -mf -5r
+LOPT		= SYS dos4g op m op st=8192 op maxe=25 op q op symf
+!endif
+
+##### General Macros #####
+DEF		=
+
+##### Tool Macros #####
+CC		= wcc386
+###CC		= wpp386 -bt=dos -i$(INCDIR) $(COPT) $(DDEF) $(DEF)
+LINK		= wlink $(LOPT)
+
+##### Inference Rules #####
+.c.obj:
+	SET WCC386=-s -otexan -I..\;  -D__DOS32__ -w4 -e25 -7 -fp5 -zq -5s -ei -mf -bt#dos
+	$(CC) $*.c
+
+##### Main (default) Target #####
+goal:	$(NAME).lib
+
+##### Dependents For Goal and Command Line #####
+$(NAME).lib:	$(CSRCS:.cpp=.obj)
+	!wlib $(NAME).lib -+$?
+
+##### Dependents #####
+$(CSRCS:.cpp=.obj):	$(INCLS)
+
+install: 
+	copy /y $(NAME).lib ..\lib
+
+##### Clean Directory #####
+clean:
+	-if exist *.obj del *.obj
+	-if exist *.pdb del *.pdb
+	-if exist *.bak del *.bak
+	-if exist $(NAME).lib del $(NAME).lib
+#
+#	Copyright (c) 1994-1998 Elpin Systems, Inc.
+#	All rights reserved.
+#

@@ -1,0 +1,3299 @@
+Microsoft (R) Macro Assembler Version 6.14.8444		    11/10/00 19:13:25
+..\text16.asm						     Page 1 - 1
+
+
+				;/* $Header $ */
+				;/*
+				;** Copyright (c) 1995-1998, 3Dfx Interactive, Inc.
+				;** All Rights Reserved.
+				;**
+				;** This is UNPUBLISHED PROPRIETARY SOURCE CODE of 3Dfx Interactive, Inc.;
+				;** the contents of this file may not be disclosed to third parties, copied or
+				;** duplicated in any form, in whole or in part, without the prior written
+				;** permission of 3Dfx Interactive, Inc.
+				;**
+				;** RESTRICTED RIGHTS LEGEND:
+				;** Use, duplication or disclosure by the Government is subject to restrictions
+				;** as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+				;** and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+				;** successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished  -
+				;** rights reserved under the Copyright Laws of the United States.
+				;**
+				;**
+				;** $Revision $
+				;** $Date $
+				;**
+				;** $Log $
+				;; 
+				;; *****************  Version 19  *****************
+				;; User: Andrew       Date: 7/20/99    Time: 4:46p
+				;; Updated in $/devel/h5/Win9x/dx/dd16
+				;; Fixed Glide Problem where SDATA_GDIFLAGS_HWC_EXCLUSIVE was skipping
+				;; host bitmaps
+				;; 
+				;; *****************  Version 18  *****************
+				;; User: Andrew       Date: 6/16/99    Time: 4:46p
+				;; Updated in $/devel/h5/Win9x/dx/dd16
+				;; Added SKIP_TOTAL_FLAGS
+				;; 
+				;; *****************  Version 16  *****************
+				;; User: Stb_mimhoff  Date: 5/27/99    Time: 8:05a
+				;; Updated in $/devel/h3/win95/dx/dd16
+				;; Added check fo HWC_EXCLUSIVE bit to ExtTextOut function
+				;; 
+				;; *****************  Version 15  *****************
+				;; User: Stb_mimhoff  Date: 5/05/99    Time: 1:40p
+				;; Updated in $/devel/h3/win95/dx/dd16
+				;; Fix for PRS 5845... Added check for opaque rect right and bottom less
+				;; than left or top
+				;; 
+				;; *****************  Version 14  *****************
+				;; User: Stb_shanna   Date: 3/15/99    Time: 5:26p
+				;; Updated in $/devel/h3/win95/dx/dd16
+				;; Fixed PRS 4945 by circumventing a HW bug that does not allow drawing
+				;; spans of more than 16k bytes.
+				;; 
+				;; *****************  Version 13  *****************
+				;; User: Stb_shanna   Date: 3/11/99    Time: 10:42a
+				;; Updated in $/devel/h3/win95/dx/dd16
+				;; Fixed PRS 5008: used a DWORD instead of a WORD for the largerow glyph
+				;; offset
+				;; 
+				;; *****************  Version 12  *****************
+				;; User: Stb_sjohnston Date: 3/08/99    Time: 5:22p
+				;; Updated in $/devel/h3/win95/dx/dd16
+				;; Fix for PRSes - 4749 Winstone 99 Font corruption-hang 4937 Winstone 99
+				;; Lock Up 4885 Letters on Word pad are distorted
+				;; 
+				;; *****************  Version 11  *****************
+				;; User: Stb_mmcclure Date: 3/05/99    Time: 1:23p
+				;; Updated in $/devel/h3/win95/dx/dd16
+				;; For Bob Johnston:  Fix for PRS 4749 Winstone 99 Font corruption while
+				;; running Poweroint.  Incorrect index into a LARGE ROW glyph structure.
+				;; 
+				;; *****************  Version 10  *****************
+				;; User: Stb_mmcclure Date: 3/04/99    Time: 11:39a
+				;; Updated in $/devel/h3/win95/dx/dd16
+				;; From Bob Johnston: Fix for PRS 4757, clip optimization seems to cause
+				;; problems with the g, p, and y letters on a web page containing tables.
+				;; If you scroll up and down slowly, the bottom of the letters gets cut
+				;; off.
+				;; 
+				;; *****************  Version 9  *****************
+				;; User: Stb_sjohnston Date: 3/03/99    Time: 8:52p
+				;; Updated in $/devel/h3/win95/dx/dd16
+				;; Fix for PRS 4676 and 4681 - in 8bpp modes, use 32bit code instead of
+				;; optimized 16bit code
+				;; 
+				;; *****************  Version 8  *****************
+				;; User: Stb_pzheng   Date: 2/24/99    Time: 5:23p
+				;; Updated in $/devel/h3/win95/dx/dd16
+				;; Restored version 6 of this file and added fix for build problem when
+				;; STBPERF_16BIT_TEXTOUT is not defined
+				;; 
+				;; *****************  Version 6  *****************
+				;; User: Stb_pzheng   Date: 2/24/99    Time: 9:44a
+				;; Updated in $/devel/h3/win95/dx/dd16
+				;; Optimized glyph loop
+				;; 
+				;; *****************  Version 5  *****************
+				;; User: Stb_pzheng   Date: 2/09/99    Time: 10:16a
+				;; Updated in $/devel/h3/win95/dx/dd16
+				;; 
+				;; 
+				;**
+				;*/
+
+				;----------------------------------------------------------------------------
+				;
+				; text16.asm
+				;
+				; ASM equivalents text routines
+				;
+				;----------------------------------------------------------------------------
+
+				        .xlist
+			      C         .list
+			      C 
+			      C ; STB Begin change
+			      C ; STB-SR 12/16/98 Added for STB Performance optimizations
+			      C ifdef INCSTBPERF
+			      C INCLUDE ..\..\BUILD\STBPERF.INC
+			      C ;/*
+			      C ;-----------------------------Module-Header-----------------------------;
+			      C ; Module Name:  STBPERF.INC
+			      C ;
+			      C ; This file contains optimization definitions used by the STB build of the
+			      C ; Voodoo3 source.
+			      C ;
+			      C ; Created: 12/15/97
+			      C ; Author:  Steve Rogers
+			      C ;
+			      C ; History:  Who	What?
+			      C ; 12/15/98  SR  Created
+			      C ; 12/16/98  sr  Added Handle1to1Str
+			      C ; 12/16/98  sr  Added Handle1X1
+			      C ; 12/16/98  sr  Added HandleSTR1X1
+			      C ; 01/11/99  pz  Added STB_MMGR_TWK
+			      C ; 01/13/99  sr  Added STB 16BIT Textout function from bj
+			      C ; 03/08/99  mgm Comment out SKIP_STAGE2 to fix PRS 4898 (mgm=michael@3dfx)
+			      C ;-----------------------------------------------------------------------;
+			      C ;
+			      C 
+			      C ; Define Assembly performance optimizations here
+			      C ; Name                     Description
+			      C ; Example
+			      C ; STBPERF_FASTRECIP    EQU 1  ; SR Uses table lookup for a faster, less acurate reciprocal
+ = 0001			      C STBPERF_HANDLE1X1      EQU 1  ; SR Pokes pixel through framebuffer for 1 pixel bitmap copies
+ = 0001			      C STBPERF_HANDLESTR1X1   EQU 1  ; SR Pokes pixel through framebuffer for 1 pixel bitmap 1 to 1 stretches
+ = 0001			      C STB_FIFO16_ENABLE	   EQU 1  ; BJ Enable/Allow 16 bit FIFO code to be used
+ = 0001			      C STBPERF_CMBITBLT       EQU 1  ; PZ Special case for color to mono blit
+ = 0001			      C STBPERF_DEVBITFIX      EQU 1  ; PZ A replacement scheme to work around a GDI bug in device bmp management
+			      C ifdef STBPERF_DEVBITFIX
+			      C ;  SKIP_STAGE2            EQU 1  ; PZ Do SKIP_STAGE2 only if STBPERF_DEVBITFIX is enabled
+			      C endif
+			      C ifdef STB_FIFO16_ENABLE
+ = 0001			      C 	STB_16BIT_TEXTOUT  EQU 1  ; BJ Use 16 bit FIFO CODE in ExtTextOut
+ = 0001			      C 	STBPERF_POLYLINE16 EQU 1  ; RVB 16-bit code for Output::OS_POLYLINE
+ = 0001			      C     STB_16BIT_BITBLT   EQU 1  ; BJ Use 16 bit FIFO CODE in BitBlt (PatCopy, Whiteness, Blackness)
+ = 0001			      C     STB_FASTER_TR      EQU 1  ; BJ No need to have 2 segment loads to check TR
+ = 0001			      C     PERF_NEW16BITBLT   EQU 1  ; SteveH - optimized 16-bit BitBlt 
+ = 0001			      C     PERF_NEWMM         EQU 1  ; SteveH - optimized 2D memory manager
+			      C endif
+			      C ifdef PERF_NEWMM
+ = 0001			      C     SKIP_STAGE2        EQU 1  ; SteveH - if we're using the new MM, no need to do the hostify code
+			      C endif
+ = 0001			      C STBPERF_K6_ASM_AUTOSTRIP EQU 1    ; turn on auto-stripping in atrik.asm
+			      C 
+			      C comment `
+			      C 
+			      C ;*/
+			      C 
+			      C // Define C performance optimizations here
+			      C //#pragma message("Compiling with Performance optimizations in ../build/STBPERF.INC.")
+			      C // #define Name                  Description
+			      C // Example
+			      C // #define STBPERF_FASTRECIP 1      ; SR Uses table lookup for a faster, less acurate reciprocal
+			      C #define STBPERF_HANDLE1TO1STR 1     ; SR Some StretchBlts are called with 1 to 1 stretches, so copy them.
+			      C #define STB_FIFO16_ENABLE 1         ; BJ Enable/Allow 16 bit FIFO code to be used
+			      C #define STB_16BIT_BITBLT 1          ; BJ Enable/Allow 16 bit PatCopy cases to be done in assembler
+			      C #define STBPERF_CMBITBLT            ; PZ Special case for color to mono blit
+			      C #define STBPERF_SOLIDCLRPATCPY      ; PZ Special case for patcopy with solid color brush 
+			      C //#define STBPERF_RBO_SKIPDIBENGINE 1 ; PZ Skip calling to DIBENGIE when realizing bitmaps
+			      C #define STBPERF_DEVBITFIX 1         ; PZ A replacement scheme to work around a GDI bug in device bmp management
+			      C #ifdef STBPERF_DEVBITFIX
+			      C // #define SKIP_STAGE2 1            ; PZ Do SKIP_STAGE2 only if STBPERF_DEVBITFIX is enabled
+			      C #endif
+			      C #define PERF_NEWDIB 1               ; SteveH - Handle all ROPs and 4bpp sources in DIB functions
+			      C #define PERF_NEW16BITBLT 1
+			      C #define PERF_NEWMM 1                
+			      C #ifdef PERF_NEWMM
+			      C     #define SKIP_STAGE2 1
+			      C #endif    
+			      C 
+			      C //#define STBPERF_2DAGPCMDFIFO        ; SR Allows 2D Cmd Fifo to reside in AGP Memory.
+			      C //                                    ; To get AGP to work, you must set two registry entries
+			      C //									  ; "aFifo" must be set to 1, and "force1xrate" must be set to 1
+			      C //									  ; both are DWORDs under 
+			      C //									  ; HKLM/System/CurrentControlSet/Services/Class/Display/XXXX/DEFAULT
+			      C #define STBPERF_USE_FLIPNOVSYNC       ; enable FLIPNOVSYNC for WB 2000 mls 7/20/99
+			      C #define STBPERF_FAST_TEXTURE_DOWNLOAD ; forces explicit rep movsd loop for non-kni texture download: mls 7/30/99
+			      C #define C_AUTOSTRIP                   ; turn on the auto stripping code in the C files
+			      C #define PERF_USE_255_LOOKUP_TABLE     ; turn on int to float translation by lookup table instead of fpu conversion
+			      C //#define PERF_TXTR_LIST_STATIC_CNTR  ; use a static list index in the texture list instead of starting from 1 each time
+			      C 
+			      C // Changes made by Bob S. just prior to departure - 6/29/2000
+			      C #define TEXTURE_REPEAT_NOT_SCALED     ; Sets dwMaxTextureRepeat to 256 and sets the D3DPTEXTURECAPS_TEXREPEATNOTSCALEDBYSIZE
+			      C //                                    ; bit for lines and triangles. Per Gary Tarolli.
+			      C //                                    ;
+			      C #define COLUMNBANDCONTROL_DEFAULT     ; Change the default for CBC to 8 (register value of zero) to be in synch with Glide/Ogl.
+			      C //                                    ; Prior default was 32 (register value of 2).
+			      C //                                    ;
+			      C #define MAXPENDINGBUFFERS             ; Allow pending buffer max to be controlled via the registry.
+			      C //                                    ;
+			      C #define LODDITHER                     ; Allow Lod Dithering to be controlled via the registry.
+			      C //                                    ;
+			      C #define LODBIASPERCHIP                ; Allow per-chip Lod Bias values, if multitexturing,
+			      C //                                    ; trilinear filtering and > 1 chip. This also requires
+			      C //                                    ; LODDITHER code.
+			      C //									  ;
+			      C #define SLI_ABOVE_1280				  ; Allow SLI operation via the registry at modes 1280 and greater.
+			      C //									  ;	Previously we reverted to single chip mode at these
+			      C //									  ;	high resolutions due to visual artifacts
+			      C 
+			      C ;/*
+			      C ;end comment `
+			      C ;*/
+			      C 
+			      C endif
+			      C ; STB END change
+			      C 
+			      C ;
+			      C ; Things I grabbed from minivdd or other places and didn't know where to put
+			      C ;
+			      C 
+			      C 
+			      C ; flags for BitBlt
+ = 0000			      C BS_SOLID    equ 0
+ = 0001			      C BS_HOLLOW   equ 1
+ = 0002			      C BS_HATCHED  equ 2
+ = 0003			      C BS_PATTERN  equ 3
+			      C 
+			      C ; flags for extended textout
+			      C 
+ = 0001			      C ETO_GRAYED  equ 0001h
+ = 0002			      C ETO_OPAQUE  equ 0002h
+ = 0004			      C ETO_CLIPPED equ 0004h
+ = 0010			      C ETO_GLYPH_INDEX equ 0010h
+ = 0080			      C ETO_RTL     equ 0080h
+ = 0100			      C ETO_BYTE_PACKED equ 0100h
+ = 0200			      C ETO_BIT_PACKED  equ 0200h
+ = 1000			      C ETO_LEVEL_MODE  equ 1000h
+			      C 
+			      C 
+			      C ;------------------------------------------------------------------------------
+			      C ;--------------------------  4.0 font structures  -----------------------------
+			      C ;------------------------------------------------------------------------------
+			      C ; This font format has a simple font header. It contains a version field 
+			      C ; followed by a glyph format field, the total number of glyphs in the 
+			      C ; entire font, and the dword offset to the array of glyph offsets.
+			      C ;------------------------------------------------------------------------------
+			      C 
+			      C ;------------------------------------------------------------------------------
+			      C ; The NF_LARGE flag indicates that the glyph offset table is
+			      C ;  array of DWORDs instead of WORD offsets AND that the glyphs
+			      C ;  have LARGExxxGLYPH headers instead of SMALLxxxGLYPH headers.
+			      C ;------------------------------------------------------------------------------
+ = 0001			      C NF_BYTE_PACKED  equ 0001h       ; Byte aligned row format
+ = 0002			      C NF_BIT_PACKED   equ 0002h       ; Bit packed row format
+ = 0040			      C NF_FROM_BMP equ 0040h       ; Derived from bitmap font
+ = 0080			      C NF_LARGE    equ 0080h       ; Large offsets and glyph headers
+			      C 
+ 0016			      C NewFontSeg  struct
+ 0000  0000		      C  nfVersion  dw  0       ; Font version (0x0400)
+ 0002  0000		      C  nfFormat   dw  0       ; Font format flags
+ 0004  0000		      C  nfNumGlyphs    dw  0       ; Number of glyphs in font
+ 0006  00000000		      C  nfGlyphOffset  dd  0       ; Offset to glyph offset table
+ 000A  00000000		      C  nfAWTable  dd  0       ; Offset to advance width table
+			      C 
+ 000E  0000		      C  nfHeight   dw  0       ; Height of font in pixels
+ 0010  0000		      C  nfAscent   dw  0       ; Distance from baseline to top
+ 0012  00000000		      C  nfUniqueID dd  0       ; Unique identifier for this PFont
+			      C NewFontSeg  ends
+			      C 
+			      C 
+			      C ;----------------------  Byte-packed glyph structures  ------------------------
+			      C ;
+			      C ; This structure is the header for a glyph stored in byte-packed 
+			      C ; row-oriented format. The glyph bitmap is stored immediately after 
+			      C ; the ROWGLYPH structure.
+			      C ;------------------------------------------------------------------------------
+ 0004			      C SMALLROWGLYPH   struc
+ 0000  00		      C  srgOrgX    db  0       ; Vector to glyph origin in bitmap
+ 0001  00		      C  srgOrgY    db  0       ;  from upper left corner
+ 0002  00		      C  srgWidth   db  0       ; Width and height of glyph bmp in
+ 0003  00		      C  srgHeight  db  0       ;  pixels
+			      C SMALLROWGLYPH   ends
+			      C 
+ 0008			      C LARGEROWGLYPH   struc
+ 0000  0000		      C  lrgOrgX    dw  0       ; Vector to glyph origin in bitmap
+ 0002  0000		      C  lrgOrgY    dw  0       ;  from upper left corner
+ 0004  0000		      C  lrgWidth   dw  0       ; Width and height of glyph bmp in
+ 0006  0000		      C  lrgHeight  dw  0       ;  pixels
+			      C LARGEROWGLYPH   ends
+			      C 
+			      C ;----------------------  Bit-packed glyph structures  -------------------------
+			      C ;
+			      C ; This structure is the header for a glyph stored in bit-packed row-oriented 
+			      C ; format. The glyph bitmap is stored immediately after the BITGLYPH structure.
+			      C ;
+			      C ; Bit-packed format means that the glyph rows are packed together end-to-end. 
+			      C ; There is no padding out to byte boundaries at the end of a row. This
+			      C ; format results in the highest performance on some accelerated cards and 
+			      C ; the smallest memory footprint.
+			      C ;------------------------------------------------------------------------------
+ 0006			      C SMALLBITGLYPH   struc
+ 0000  00		      C  sbgOrgX    db  0       ; Vector to glyph origin in bitmap
+ 0001  00		      C  sbgOrgY    db  0       ;  from upper left corner
+ 0002  00		      C  sbgWidth   db  0       ; Width and height of glyph bmp in
+ 0003  00		      C  sbgHeight  db  0       ;  pixels
+ 0004  0000		      C  sbgPixels  dw  0       ; Total # of pixels in the glyph
+			      C SMALLBITGLYPH   ends
+			      C 
+ 000C			      C LARGEBITGLYPH   struc
+ 0000  0000		      C  lbgOrgX    dw  0       ; Vector to glyph origin in bitmap
+ 0002  0000		      C  lbgOrgY    dw  0       ;  from upper left corner
+ 0004  0000		      C  lbgWidth   dw  0       ; Width and height of glyph bmp in
+ 0006  0000		      C  lbgHeight  dw  0       ;  pixels
+ 0008  00000000		      C  lbgPixels  dd  0       ; Total # of pixels in the glyph
+			      C LARGEBITGLYPH   ends
+			      C 
+			      C 
+				        include fifomgr.inc
+			      C ;/* $Header:  $ */
+			      C ;/*
+			      C ;** Copyright (c) 1995-1998, 3Dfx Interactive, Inc.
+			      C ;** All Rights Reserved.
+			      C ;**
+			      C ;** This is UNPUBLISHED PROPRIETARY SOURCE CODE of 3Dfx Interactive, Inc.;
+			      C ;** the contents of this file may not be disclosed to third parties, copied or
+			      C ;** duplicated in any form, in whole or in part, without the prior written
+			      C ;** permission of 3Dfx Interactive, Inc.
+			      C ;**
+			      C ;** RESTRICTED RIGHTS LEGEND:
+			      C ;** Use, duplication or disclosure by the Government is subject to restrictions
+			      C ;** as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+			      C ;** and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+			      C ;** successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished  -
+			      C ;** rights reserved under the Copyright Laws of the United States.
+			      C ;**
+			      C ;**
+			      C ;** $Revision: $
+			      C ;** $Date: $
+			      C ;**
+			      C ;** $History: $
+			      C ;; 
+			      C ;; 
+			      C ;**
+			      C ;*/
+			      C 
+			      C ;----------------------------------------------------------------------------
+			      C ;
+			      C ; fifomgr.inc
+			      C ;
+			      C ; ASM macro equivalents of fifomgr.h macros
+			      C ; Macros assume that DS = driver data segment
+			      C ;
+			      C ; Notes:
+			      C ;
+			      C ;   Between CMDFIFO_CHECKROOM and BUMP, ebx must be preserved
+			      C ;   FXLEAVE sets ECX = 0 for PUNT, non-zero for normal return
+			      C ;
+			      C ;----------------------------------------------------------------------------
+			      C 
+			      C         .xlist
+			      C         .list
+			      C 
+			      C ; STB Begin change
+			      C ; STB-SR 12/16/98 Added for STB Performance optimizations
+			      C ifdef INCSTBPERF
+			      C INCLUDE ..\..\BUILD\STBPERF.INC
+			      C ;/*
+			      C ;-----------------------------Module-Header-----------------------------;
+			      C ; Module Name:  STBPERF.INC
+			      C ;
+			      C ; This file contains optimization definitions used by the STB build of the
+			      C ; Voodoo3 source.
+			      C ;
+			      C ; Created: 12/15/97
+			      C ; Author:  Steve Rogers
+			      C ;
+			      C ; History:  Who	What?
+			      C ; 12/15/98  SR  Created
+			      C ; 12/16/98  sr  Added Handle1to1Str
+			      C ; 12/16/98  sr  Added Handle1X1
+			      C ; 12/16/98  sr  Added HandleSTR1X1
+			      C ; 01/11/99  pz  Added STB_MMGR_TWK
+			      C ; 01/13/99  sr  Added STB 16BIT Textout function from bj
+			      C ; 03/08/99  mgm Comment out SKIP_STAGE2 to fix PRS 4898 (mgm=michael@3dfx)
+			      C ;-----------------------------------------------------------------------;
+			      C ;
+			      C 
+			      C ; Define Assembly performance optimizations here
+			      C ; Name                     Description
+			      C ; Example
+			      C ; STBPERF_FASTRECIP    EQU 1  ; SR Uses table lookup for a faster, less acurate reciprocal
+ = 0001			      C STBPERF_HANDLE1X1      EQU 1  ; SR Pokes pixel through framebuffer for 1 pixel bitmap copies
+ = 0001			      C STBPERF_HANDLESTR1X1   EQU 1  ; SR Pokes pixel through framebuffer for 1 pixel bitmap 1 to 1 stretches
+ = 0001			      C STB_FIFO16_ENABLE	   EQU 1  ; BJ Enable/Allow 16 bit FIFO code to be used
+ = 0001			      C STBPERF_CMBITBLT       EQU 1  ; PZ Special case for color to mono blit
+ = 0001			      C STBPERF_DEVBITFIX      EQU 1  ; PZ A replacement scheme to work around a GDI bug in device bmp management
+			      C ifdef STBPERF_DEVBITFIX
+			      C ;  SKIP_STAGE2            EQU 1  ; PZ Do SKIP_STAGE2 only if STBPERF_DEVBITFIX is enabled
+			      C endif
+			      C ifdef STB_FIFO16_ENABLE
+ = 0001			      C 	STB_16BIT_TEXTOUT  EQU 1  ; BJ Use 16 bit FIFO CODE in ExtTextOut
+ = 0001			      C 	STBPERF_POLYLINE16 EQU 1  ; RVB 16-bit code for Output::OS_POLYLINE
+ = 0001			      C     STB_16BIT_BITBLT   EQU 1  ; BJ Use 16 bit FIFO CODE in BitBlt (PatCopy, Whiteness, Blackness)
+ = 0001			      C     STB_FASTER_TR      EQU 1  ; BJ No need to have 2 segment loads to check TR
+ = 0001			      C     PERF_NEW16BITBLT   EQU 1  ; SteveH - optimized 16-bit BitBlt 
+ = 0001			      C     PERF_NEWMM         EQU 1  ; SteveH - optimized 2D memory manager
+			      C endif
+			      C ifdef PERF_NEWMM
+ = 0001			      C     SKIP_STAGE2        EQU 1  ; SteveH - if we're using the new MM, no need to do the hostify code
+			      C endif
+ = 0001			      C STBPERF_K6_ASM_AUTOSTRIP EQU 1    ; turn on auto-stripping in atrik.asm
+			      C 
+			      C comment `
+			      C 
+			      C ;*/
+			      C 
+			      C // Define C performance optimizations here
+			      C //#pragma message("Compiling with Performance optimizations in ../build/STBPERF.INC.")
+			      C // #define Name                  Description
+			      C // Example
+			      C // #define STBPERF_FASTRECIP 1      ; SR Uses table lookup for a faster, less acurate reciprocal
+			      C #define STBPERF_HANDLE1TO1STR 1     ; SR Some StretchBlts are called with 1 to 1 stretches, so copy them.
+			      C #define STB_FIFO16_ENABLE 1         ; BJ Enable/Allow 16 bit FIFO code to be used
+			      C #define STB_16BIT_BITBLT 1          ; BJ Enable/Allow 16 bit PatCopy cases to be done in assembler
+			      C #define STBPERF_CMBITBLT            ; PZ Special case for color to mono blit
+			      C #define STBPERF_SOLIDCLRPATCPY      ; PZ Special case for patcopy with solid color brush 
+			      C //#define STBPERF_RBO_SKIPDIBENGINE 1 ; PZ Skip calling to DIBENGIE when realizing bitmaps
+			      C #define STBPERF_DEVBITFIX 1         ; PZ A replacement scheme to work around a GDI bug in device bmp management
+			      C #ifdef STBPERF_DEVBITFIX
+			      C // #define SKIP_STAGE2 1            ; PZ Do SKIP_STAGE2 only if STBPERF_DEVBITFIX is enabled
+			      C #endif
+			      C #define PERF_NEWDIB 1               ; SteveH - Handle all ROPs and 4bpp sources in DIB functions
+			      C #define PERF_NEW16BITBLT 1
+			      C #define PERF_NEWMM 1                
+			      C #ifdef PERF_NEWMM
+			      C     #define SKIP_STAGE2 1
+			      C #endif    
+			      C 
+			      C //#define STBPERF_2DAGPCMDFIFO        ; SR Allows 2D Cmd Fifo to reside in AGP Memory.
+			      C //                                    ; To get AGP to work, you must set two registry entries
+			      C //									  ; "aFifo" must be set to 1, and "force1xrate" must be set to 1
+			      C //									  ; both are DWORDs under 
+			      C //									  ; HKLM/System/CurrentControlSet/Services/Class/Display/XXXX/DEFAULT
+			      C #define STBPERF_USE_FLIPNOVSYNC       ; enable FLIPNOVSYNC for WB 2000 mls 7/20/99
+			      C #define STBPERF_FAST_TEXTURE_DOWNLOAD ; forces explicit rep movsd loop for non-kni texture download: mls 7/30/99
+			      C #define C_AUTOSTRIP                   ; turn on the auto stripping code in the C files
+			      C #define PERF_USE_255_LOOKUP_TABLE     ; turn on int to float translation by lookup table instead of fpu conversion
+			      C //#define PERF_TXTR_LIST_STATIC_CNTR  ; use a static list index in the texture list instead of starting from 1 each time
+			      C 
+			      C // Changes made by Bob S. just prior to departure - 6/29/2000
+			      C #define TEXTURE_REPEAT_NOT_SCALED     ; Sets dwMaxTextureRepeat to 256 and sets the D3DPTEXTURECAPS_TEXREPEATNOTSCALEDBYSIZE
+			      C //                                    ; bit for lines and triangles. Per Gary Tarolli.
+			      C //                                    ;
+			      C #define COLUMNBANDCONTROL_DEFAULT     ; Change the default for CBC to 8 (register value of zero) to be in synch with Glide/Ogl.
+			      C //                                    ; Prior default was 32 (register value of 2).
+			      C //                                    ;
+			      C #define MAXPENDINGBUFFERS             ; Allow pending buffer max to be controlled via the registry.
+			      C //                                    ;
+			      C #define LODDITHER                     ; Allow Lod Dithering to be controlled via the registry.
+			      C //                                    ;
+			      C #define LODBIASPERCHIP                ; Allow per-chip Lod Bias values, if multitexturing,
+			      C //                                    ; trilinear filtering and > 1 chip. This also requires
+			      C //                                    ; LODDITHER code.
+			      C //									  ;
+			      C #define SLI_ABOVE_1280				  ; Allow SLI operation via the registry at modes 1280 and greater.
+			      C //									  ;	Previously we reverted to single chip mode at these
+			      C //									  ;	high resolutions due to visual artifacts
+			      C 
+			      C ;/*
+			      C ;end comment `
+			      C ;*/
+			      C 
+			      C endif
+			      C ; STB END change
+			      C 
+			      C 
+			      C 
+ = 0001			      C RESET_DST       equ     0001h
+ = 0002			      C RESET_SRC       equ     0002h
+ = 0004			      C RESET_PDEV      equ     0004h
+			      C 
+ = cmdFifo0		      C PRIMARY_CMDFIFO equ     cmdFifo0
+			      C 
+			      C ;
+			      C ; Equates to make things easier
+			      C ;
+			      C 
+ = bp			      C RBP     equ     bp
+			      C 
+			      C ; These locals will be the same in all routines that use the cmdfifo
+			      C 
+ = [RBP-04]		      C CF      equ     [RBP-04]
+ = [RBP-08]		      C IDX     equ     [RBP-08]
+ = [RBP-12]		      C CLIPSEL equ     [RBP-12]
+ = [RBP-16]		      C DSTADDR equ     [RBP-16]
+ = [RBP-20]		      C DSTFMT  equ     [RBP-20]
+ = [RBP-24]		      C SRCADDR equ     [RBP-24]
+ = [RBP-28]		      C SRCFMT  equ     [RBP-28]
+ = [RBP-32]		      C DSTDBM  equ     [RBP-32]
+ = [RBP-36]		      C SRCDBM  equ     [RBP-36]
+ = [RBP-40]		      C P6SWAP  equ     [RBP-40]
+ = [RBP-44]		      C RSTWRDS equ     [RBP-44]
+ = [RBP-48]		      C RSTMASK equ     [RBP-48]
+ = 0034			      C NEXTLOC equ     52      ; should always be last one + 4
+			      C 
+ = _DriverData		      C GLOB    equ     _DriverData
+			      C 
+			      C ;****************************
+			      C ; P6FENCE
+			      C ;
+			      C ; Flush write-combine cache
+			      C ;****************************
+			      C P6FENCE Macro
+			      C    ifdef WRITECOMBINE
+			      C 		;db 00fh		; Tried sfence, was not any faster
+			      C 		;db 0aeh
+			      C 		;db 0ffh
+			      C         xchg    eax, P6SWAP
+			      C    endif        
+			      C Endm
+			      C 
+			      C ;****************************
+			      C ; LOAD_CMDFIFO_RDPTR
+			      C ;****************************
+			      C LOAD_CMDFIFO_RDPTR Macro
+			      C         push    edi
+			      C         mov     edi, GLOB.lpCRegs
+			      C         lea     edi, [edi].SstCRegs.PRIMARY_CMDFIFO.readPtrL ;
+			      C         mov     edx, es:[edi]   ; GET( ((SstCRegs *) p)->PRIMARY_CMDFIFO.readPtrL )
+			      C         pop     edi
+			      C Endm
+			      C 
+			      C CMDFIFO_PROLOG Macro
+			      C Endm
+			      C 
+			      C 
+			      C ;*******************************************************
+			      C ; CMDFIFO_SETUP
+			      C ;
+			      C ; Retrieves the current CMDFIFO pointer from DriverData
+			      C ; Sets up ES with FlatSel
+			      C ;*******************************************************
+			      C CMDFIFO_SETUP Macro
+			      C ifdef STB_FIFO16_ENABLE
+			      C         mov     eax, GLOB.mainFifo.FXptr
+			      C         xor     edx, edx
+			      C         mov     dword ptr IDX, edx      ; initialize HWINDEX to 0
+			      C         mov     dx, _FlatSel
+			      C         mov     dword ptr CF, eax       ; initialize local CMDFIFO pointer
+			      C         mov     es, dx
+			      C endif
+			      C Endm
+			      C 
+			      C ;*******************************************************
+			      C ; CMDFIFO_SETUP_LITE
+			      C ;
+			      C ; Retrieves the current CMDFIFO pointer from DriverData
+			      C ; Assumes ES is already the FlatSel
+			      C ;*******************************************************
+			      C CMDFIFO_SETUP_LITE Macro
+			      C ifdef STB_FIFO16_ENABLE
+			      C         mov     eax, GLOB.mainFifo.FXptr
+			      C         xor     edx, edx
+			      C         mov     dword ptr IDX, edx      ; initialize HWINDEX to 0
+			      C         mov     dword ptr CF, eax       ; initialize local CMDFIFO pointer
+			      C endif
+			      C Endm
+			      C 
+			      C ;**************************************************************
+			      C ; CMDFIFO_EPILOG
+			      C ;
+			      C ; Finishes using the CMDFIFO by saving the current CMDFIFOPTR
+			      C ; in the global data structure and a few other things
+			      C ;**************************************************************
+			      C CMDFIFO_EPILOG Macro
+			      C         Local   CF_10
+			      C         mov     eax, IDX
+			      C         sub     GLOB.mainFifo.space, eax  ; _FF(mainFifo.space) -= hwIndex 
+			      C         xor     edx, edx
+			      C         shl     eax, 2
+			      C         add     CF, eax                 ; hwPtr += (hwIndex << 2)
+			      C         mov     IDX, edx                ; hwIndex = 0
+			      C    ifdef AGP_CMDFIFO
+			      C         cmp     GLOB.doAgpCF, 0         ; if (_FF(doAgpCF))
+			      C         je      short CF_10
+			      C         push    dword ptr CF
+			      C         call    myAgpEpilog             ;    myAgpEpilog((DWORD)hwPtr)
+			      C         add     sp, 1 * 4
+			      C CF_10:        
+			      C    endif        
+			      C         mov     eax, CF
+			      C         mov     GLOB.mainFifo.FXptr, eax    ; _FF(mainFifo.FXptr) = hwPtr
+			      C Endm
+			      C 
+			      C ;***********
+			      C ; SETCF
+			      C ;***********
+			      C SETCF Macro SetData
+			      C         mov     dword ptr es:[ebx], SetData
+			      C         add     ebx, 4
+			      C Endm        
+			      C         
+			      C ;**************************************************
+			      C ; SETI
+			      C ;
+			      C ; Puts a literal value or register into the packet
+			      C ;**************************************************
+			      C SETI Macro FxReg, LitVal
+			      C         SETCF   LitVal
+			      C Endm
+			      C 
+			      C ;*************************************************************
+			      C ; SETPH
+			      C ;
+			      C ; Sets up the packet header
+			      C ; Prepares EBX with the current CMDFIFO value for SETx macros
+			      C ;*************************************************************
+			      C SETPH Macro SetBits
+			      C         mov     ebx, CF         ; setup hwPtr for packet programming
+			      C         SETCF   SetBits
+			      C Endm
+			      C 
+			      C 
+			      C ;*****************************************************************
+			      C ; SETM
+			      C ;
+			      C ; Store the data at the specified memory location into the packet
+			      C ;*****************************************************************
+			      C SETM Macro FxReg, DataAddr
+			      C         mov     eax, dword ptr DataAddr
+			      C         SETCF   eax
+			      C Endm
+			      C 
+			      C ;********************************************
+			      C ; SETCMD
+			      C ;
+			      C ; Store the command starter into the packet
+			      C ;********************************************
+			      C SETCMD Macro FxReg, SetBits
+			      C         Local   SC_10, SC_11
+			      C    ifdef PERFNOP
+			      C         cmp     doPerfNop, 0
+			      C         je      short SC_10
+			      C         SETI    FxReg, 0
+			      C         jmp     short SC_11
+			      C SC_10:
+			      C         SETI    FxReg, SetBits
+			      C SC_11:
+			      C    else
+			      C         SETI    FxReg, SetBits
+			      C    endif        
+			      C Endm        
+			      C 
+			      C ;*************************************************************
+			      C ; GET_CF_OFFSET
+			      C ;
+			      C ; Prepares EBX with the current CMDFIFO value for SETx macros
+			      C ;*************************************************************
+			      C GET_CF_OFFSET Macro SetBits
+			      C         mov     ebx, CF         ; setup hwPtr for packet programming
+			      C Endm
+			      C 
+			      C ;*************************************************************
+			      C ; GET_CF_OFFSET_FAST
+			      C ;
+			      C ; Prepares EBX with the current CMDFIFO value for SETx macros
+			      C ; Special version of GET_CF_OFFSET for use with the optimised
+			      C ; CMDFIFO_CHECKROOM_FAST
+			      C ;*************************************************************
+			      C IFDEF PERF_NEW16BITBLT
+			      C GET_CF_OFFSET_FAST Macro SetBits
+			      C         mov     ebx, GLOB.mainFifo.FXptr
+			      C Endm
+			      C ENDIF
+			      C 
+			      C ;****************************************
+			      C ; BUMP
+			      C ;
+			      C ; Increments our hardware index counter
+			      C ; Decrements our fifo dword count
+			      C ;****************************************
+			      C BUMP Macro HowMany
+			      C         add     dword ptr IDX, HowMany
+			      C         ;sub     GLOB.fifoDwordCount, HowMany
+			      C Endm                                
+			      C 
+			      C ;****************************************
+			      C ; BUMP_FAST
+			      C ;
+			      C ; This is a special case of BUMP for use 
+			      C ; with CMDFIFO_CHECKROOM_FAST 
+			      C ;
+			      C ; Increments our hardware index counter
+			      C ; Decrements our fifo dword count
+			      C ;****************************************
+			      C IFDEF PERF_NEW16BITBLT
+			      C BUMP_FAST Macro HowMany
+			      C       add   ebx, HowMany
+			      C       mov   GLOB.mainFifo.FXptr, ebx   
+			      C Endm                  
+			      C ENDIF              
+			      C                                
+			      C ;*********************
+			      C ; CMDFIFO_CHECKBUMP - check whether fencing needs to occur, to prevent bump overflow
+			      C ;*********************
+			      C CMDFIFO_CHECKBUMP Macro HowMany
+			      C 		Local	Update_bumpval
+			      C 		mov		eax, dword ptr GLOB.mainFifo.bump
+			      C 		add		eax, HowMany
+			      C 		cmp		eax, 0ffffh
+			      C 		jb		Update_bumpval
+			      C 		P6FENCE
+			      C 		mov		eax, HowMany
+			      C Update_bumpval:
+			      C 		mov		dword ptr GLOB.mainFifo.bump, eax
+			      C Endm
+			      C 
+			      C ;*********************
+			      C ; CMDFIFO_CHECKROOM
+			      C ;*********************
+			      C CMDFIFO_CHECKROOM Macro HowMany
+			      C         Local   CR_10
+			      C 		CMDFIFO_CHECKBUMP HowMany
+			      C         mov     eax, IDX
+			      C         sub     GLOB.mainFifo.space, eax
+			      C         xor     edx, edx
+			      C         shl     eax, 2
+			      C         add     CF, eax
+			      C         mov     IDX, edx
+			      C         cmp     dword ptr GLOB.mainFifo.space, HowMany
+			      C         jae     short CR_10
+			      C         mov     ebx, CF
+			      C         mov     ecx, HowMany
+			      C         call    fifo_MakeRoom
+			      C         mov     CF, ebx
+			      C CR_10:
+			      C Endm
+			      C      
+			      C ;************************
+			      C ; CMDFIFO_CHECKROOM_FAST
+			      C ;************************
+			      C IFDEF PERF_NEW16BITBLT
+			      C CMDFIFO_CHECKROOM_FAST Macro HowMany
+			      C         Local   CR_9, CR_10
+			      C 		CMDFIFO_CHECKBUMP HowMany        
+			      C         sub     dword ptr GLOB.mainFifo.space, HowMany
+			      C         jl      short CR_9      ; Fall Through in majority of calls
+			      C         jmp     short CR_10
+			      C CR_9:        
+			      C         mov     ecx, HowMany
+			      C         call    fifo_MakeRoom_Fast
+			      C         sub     GLOB.mainFifo.space, ecx        
+			      C CR_10:
+			      C Endm
+			      C ENDIF
+			      C      
+			      C 
+			      C ;***********************************************************************
+			      C ; FXENTER
+			      C ;
+			      C ; Monster macro for handling common pre-drawing stuff
+			      C ; (softare cursor exclusion, destination type (screen or device bitmap)
+			      C ; checking, etc.
+			      C ;
+			      C ; Use the FXENTER <label to jmp on SW cursor>, SRC_PRESENT form 
+			      C ;  when source is present
+			      C ;
+			      C ;   rbissell@stb,990128: made "OnSoftwareCursor" param optional
+			      C ;                        to cater to situations where we can handle it.
+			      C ;
+			      C ; Register assumes:
+			      C ;
+			      C ;       FS:DI   = pointer to destination device (lpDst)
+			      C ;       GS:SI   = pointer to source if present
+			      C ;***********************************************************************
+			      C 
+			      C ; SRC_PRESENT equ 1
+			      C 
+ = fs:[di]		      C LPDST   equ     fs:[di]
+ = gs:[si]		      C LPSRC   equ     gs:[si]
+			      C ifdef SLI_AA
+ = 6004			      C SKIP_TO_C_FLAGS equ SDATA_GDIFLAGS_SW_CURSOR or SDATA_GDIFLAGS_SLI_AA_MASTER or SDATA_GDIFLAGS_SLI_AA_SLAVE
+ = 4008			      C SKIP_TOTAL_FLAGS equ SDATA_GDIFLAGS_HWC_EXCLUSIVE or SDATA_GDIFLAGS_SLI_AA_SLAVE
+			      C else
+			      C endif
+			      C 
+			      C FXENTER Macro   OnSoftwareCursor, SrcPresent 
+			      C         Local   FX_50, FX_60, FX_61, FX_62, FX_63, FX_16, FX_65
+			      C 
+			      C 		;******************************
+			      C 		; Need to Pre-Load the FlatSel
+			      C 		;******************************
+			      C 		xor		edx, edx
+			      C         mov     dx, _FlatSel
+			      C         mov     es, dx
+			      C 
+			      C 		mov		ebx, dword ptr GLOB.lpDeFlags 
+			      C         test    word ptr es:[ebx], (BUSY + PALETTE_XLAT)  ;     goto Use_DibEng;
+			      C         jnz     Use_DibEngine
+			      C         bts     word ptr es:[ebx], BUSY_BIT      ; pDeFlags = lpDriverData->lpDeFlags;
+			      C         jc      Use_DibEngine                                     ; SET_BUSY(pDeFlags);
+			      C         
+			      C         xor     eax, eax        ; default to dst not a device bitmap
+			      C         test    word ptr LPDST.DIBENGINE.deFlags, OFFSCREEN ; we already know its VRAM :)
+			      C         setnz   al
+			      C         mov     dword ptr DSTDBM, eax
+			      C         xor     eax, eax        ; default to src not a device bitmap
+			      C      IFNB <SrcPresent>
+			      C         movzx   edx, gs:[si].DIBENGINE.deFlags  ; if ((lpSrc->deFlags & VRAM+OFFSCREEN) ==
+			      C         and     edx, (VRAM + OFFSCREEN)         ;       (VRAM+OFFSCREEN))
+			      C         cmp     edx, (VRAM + OFFSCREEN)
+			      C         jne     short FX_15
+			      C         mov     eax, 1                          ; then Yes, we have a src device bitmap
+			      C FX_15:
+			      C      ENDIF
+			      C         mov     dword ptr SRCDBM, eax
+			      C         
+			      C         cmp     GLOB.gdiFlags, 0
+			      C         je      FX_60
+			      C         
+			      C         ;mov        eax, GLOB.gdiFlags 
+			      C         test    word ptr GLOB.gdiFlags, SKIP_TOTAL_FLAGS
+			      C         jz      short FX_16
+			      C 		mov		ebx, dword ptr GLOB.lpDeFlags 
+			      C         and     word ptr es:[ebx], NOT BUSY
+			      C         jmp     All_Done
+			      C FX_16:        
+			      C         test    byte ptr GLOB.gdiFlags, SDATA_GDIFLAGS_2D_DIRTY
+			      C         jz      FX_61
+			      C         
+			      C         ; if direct draw changed some 2d registers, or changed the desktop
+			      C         ; from being linear to tiled or vice-versa,
+			      C         ; we need to reset the invariant 2d regs and the stride of the
+			      C         ; screen's pDevice so that dib engine rendering will be correct
+			      C 
+			      C         xor     ecx, ecx
+			      C         mov     cl, (RESET_DST + RESET_SRC + RESET_PDEV) 
+			      C         call    reset_Invariants
+			      C         and     GLOB.gdiFlags, NOT (SDATA_GDIFLAGS_2D_DIRTY + SDATA_GDIFLAGS_DST_WAS_DEVBIT + SDATA_GDIFLAGS_SRC_WAS_DEVBIT)
+			      C         
+			      C FX_61:        
+			      C         
+			      C         ; if the previous drawing operation was to a device bitmap,
+			      C         ; the invariants were clobbered, so we need to reset them,
+			      C         ; but there's no need to do this if we're not going to clobber
+			      C         ; them again anyway, unless we need to save away the current
+			      C         ; dstBaseAddr and dstFormat (e.g., StretchBltBufferToScreen),
+			      C         ; so we'd need to put them to known states anyway
+			      C 
+			      C         test    byte ptr GLOB.gdiFlags, SDATA_GDIFLAGS_DST_WAS_DEVBIT
+			      C         jz      short FX_62
+			      C         cmp     dword ptr DSTDBM, 0
+			      C         jne     short FX_62
+			      C         xor     ecx, ecx
+			      C         mov     cl, RESET_DST
+			      C         call    reset_Invariants
+			      C         and     GLOB.gdiFlags, NOT SDATA_GDIFLAGS_DST_WAS_DEVBIT
+			      C FX_62:        
+			      C 
+			      C      IFNB  <SrcPresent>
+			      C         ; if the previous drawing operation used a device bitmap as a
+			      C         ; source, and the current operation doesn't use a device bitmap
+			      C         ; as a source, reset the source 2d invariants
+			      C 
+			      C         test    GLOB.gdiFlags, SDATA_GDIFLAGS_SRC_WAS_DEVBIT
+			      C         jz      short FX_63
+			      C         cmp     dword ptr SRCDBM, 0       ; is source a device bitmap?
+			      C         jne     short FX_63
+			      C         mov     ecx, RESET_SRC
+			      C         call    reset_Invariants
+			      C         and     GLOB.gdiFlags, NOT SDATA_GDIFLAGS_SRC_WAS_DEVBIT
+			      C      ENDIF
+			      C FX_63:
+			      C ifdef SLI_AA
+			      C         ; If SW cursor is on or SLI_AA forget this and go back to
+			      C         ; the trusty C code.
+			      C         test    word ptr GLOB.gdiFlags, SKIP_TO_C_FLAGS
+			      C         jz      short FX_65
+			      C 		mov		ebx, dword ptr GLOB.lpDeFlags 
+			      C         and     word ptr es:[ebx], NOT BUSY
+			      C 		jmp		OnSoftwareCursor
+			      C FX_65:
+			      C else
+			      C     IFNB <OnSoftwareCursor>
+			      C         ; If SW cursor is on, for get this and go back to
+			      C         ; the trusty C code.
+			      C         test    word ptr GLOB.gdiFlags, SKIP_TO_C_FLAGS
+			      C         jz      short FX_65
+			      C 		mov		ebx, dword ptr GLOB.lpDeFlags 
+			      C         and     word ptr es:[ebx], NOT BUSY
+			      C 		jmp		OnSoftwareCursor
+			      C FX_65:
+			      C     ENDIF
+			      C endif
+			      C 
+			      C FX_60:        
+			      C         CMDFIFO_SETUP_LITE
+			      C         
+			      C      IFNB  <SrcPresent>
+			      C         cmp     dword ptr SRCDBM, 0       ; is source a device bitmap?
+			      C         je      FX_70           ; if not, outta here!
+			      C         mov     eax, dword ptr LPSRC.DIBENGINE.deBits
+			      C         sub     eax, dword ptr GLOB.lfbBase
+			      C         mov     dword ptr SRCADDR, eax
+			      C         mov     eax, GLOB.screenFormat                                    ;  srcFormat = _FF(screenFormat) & ~(SSTG_DST_LINEAR_STRIDE |
+			      C         and     eax, NOT (SSTG_DST_LINEAR_STRIDE + SSTG_DST_TILE_STRIDE)  ;                    SSTG_DST_TILE_STRIDE);
+			      C         mov     edx, gs:[si].DIBENGINE.deDeltaScan                        ;  srcFormat |= mylpSrc->deDeltaScan & SSTG_DST_LINEAR_STRIDE;
+			      C         and     edx, SSTG_DST_LINEAR_STRIDE                               ;
+			      C         or      eax, edx
+			      C         mov     dword ptr SRCFMT, eax
+			      C         
+			      C         xor     ecx, ecx
+			      C         mov     cl, 3
+			      C         CMDFIFO_CHECKROOM      ecx 
+			      C         SETPH   (SSTCP_PKT2 + srcBaseAddrBit + srcFormatBit)
+			      C         SETM    srcBaseAddr, SRCADDR
+			      C         SETM    srcFormat, SRCFMT
+			      C         BUMP    3
+			      C         or      GLOB.gdiFlags, SDATA_GDIFLAGS_SRC_WAS_DEVBIT        
+			      C         ; DANGER
+			      C         ; missing the C enterleave FXENTER_COMPUTE_DSTBA_FORMAT stuff
+			      C         ; DANGER
+			      C FX_70:        
+			      C      ENDIF
+			      C         cmp     dword ptr DSTDBM, 0       ; is destination a device bitmap
+			      C         je      FX_50     ; if not, outta here!
+			      C         
+			      C         mov     eax, dword ptr LPDST.DIBENGINE.deBits
+			      C         sub     eax, dword ptr GLOB.lfbBase
+			      C         mov     dword ptr DSTADDR, eax
+			      C         
+			      C         mov     eax, dword ptr GLOB.screenFormat
+			      C         and     eax, 70000h                     ; & SSTG_DST_FORMAT
+			      C         mov     edx, dword ptr LPDST.DIBENGINE.deDeltaScan
+			      C         and     edx, 03fffh                         ; & SSTG_SRC_LINEAR_STRIDE
+			      C         or      eax, edx
+			      C         mov     dword ptr DSTFMT, eax
+			      C 
+			      C         xor     ecx, ecx
+			      C         mov     cl, 5
+			      C         CMDFIFO_CHECKROOM     ecx
+			      C         GET_CF_OFFSET
+			      C         xor     eax, eax
+			      C         mov     ax, (SSTCP_PKT2 + clip0minBit + clip0maxBit + dstBaseAddrBit + dstFormatBit)
+			      C         mov     es:[ebx], eax ;PH
+			      C         add     ebx, 4
+			      C         xor     eax, eax
+			      C         mov     es:[ebx], eax ; clip0min
+			      C         add     ebx, 4
+			      C         mov     eax, dword ptr LPDST.DIBENGINE.deWidth 
+			      C         mov     es:[ebx], eax ; clip0max
+			      C         add     ebx, 4
+			      C         mov     eax,dword ptr DSTADDR 
+			      C         mov     es:[ebx], eax ; dstBaseAddr
+			      C         add     ebx, 4
+			      C         mov     eax,dword ptr DSTFMT 
+			      C         mov     es:[ebx], eax ; dstFormat
+			      C 
+			      C         BUMP    5
+			      C         or      GLOB.gdiFlags, SDATA_GDIFLAGS_DST_WAS_DEVBIT
+			      C         ; DANGER
+			      C         ; missing the C enterleave FXENTER_COMPUTE_DSTBA_FORMAT stuff
+			      C         ; DANGER
+			      C FX_50:
+			      C Endm
+			      C 
+			      C ;***********************************************************************
+			      C ; FXENTER_FAST
+			      C ;
+			      C ; Monster macro for handling common pre-drawing stuff
+			      C ; (softare cursor exclusion, destination type (screen or device bitmap)
+			      C ; checking, etc.
+			      C ;
+			      C ; Use the FXENTER_FAST <label to jmp on SW cursor>, SRC_PRESENT form 
+			      C ;  when source is present
+			      C ;
+			      C ;   rbissell@stb,990128: made "OnSoftwareCursor" param optional
+			      C ;                        to cater to situations where we can handle it.
+			      C ;
+			      C ;   shouston@3dfx.com,10-7-99:  Specially optimised version of FXENTER 
+			      C ;                               for bitblt and ExtTextOut
+			      C ; Register assumes:
+			      C ;
+			      C ;       FS:DI   = pointer to destination device (lpDst)
+			      C ;       GS:SI   = pointer to source if present
+			      C ;***********************************************************************
+			      C 
+			      C IFDEF PERF_NEW16BITBLT
+			      C FXENTER_FAST Macro   OnSoftwareCursor, SrcPresent2 
+			      C         Local   FX_16, FX_50, FX_60, FX_65, FX_61, FX_62, FX_63, FX_70, FX_71, Check_Invariants
+			      C 
+			      C         ;******************************
+			      C         ; Need to Pre-Load the FlatSel
+			      C         ;******************************
+			      C 
+			      C         xor     edx, edx
+			      C         mov     dx, _FlatSel
+			      C         mov     es, dx
+			      C 
+			      C         mov     ebx, dword ptr GLOB.lpDeFlags 
+			      C 
+			      C         bts     word ptr es:[ebx], BUSY_BIT      ; pDeFlags = lpDriverData->lpDeFlags;
+			      C         jb      Use_DibEngine                    ; SET_BUSY(pDeFlags);
+			      C 
+			      C         xor     eax, eax        ; default to dst not a device bitmap
+			      C         test    word ptr LPDST.DIBENGINE.deFlags, OFFSCREEN ; we already know its VRAM :)
+			      C         setnz   al
+			      C         mov     dword ptr DSTDBM, eax
+			      C 
+			      C IFNB <SrcPresent2>
+			      C         xor     eax, eax
+			      C         test    word ptr LPSRC.DIBENGINE.deFlags, OFFSCREEN ; just test offscreen, we already know its VRAM
+			      C         setnz   al
+			      C         mov     dword ptr SRCDBM, eax
+			      C 
+			      C         ; TODO: This could be further optimized.... most of the time (in WB99) all Check_Invariants 
+			      C         ; will do is set the src base addr. An faster routine could be written that removes the other
+			      C         ; invariant checks, as is done for the dest invariants check.
+			      C 
+			      C         jmp     Check_Invariants
+			      C ELSE 
+			      C         mov     edx, GLOB.gdiFlags
+			      C ;        and      edx, SDATA_GDIFLAGS_2D_DIRTY + SKIP_TOTAL_FLAGS + SDATA_GDIFLAGS_DST_WAS_DEVBIT + SDATA_GDIFLAGS_SW_CURSOR
+			      C         and     edx, SKIP_TO_C_FLAGS + SDATA_GDIFLAGS_2D_DIRTY + SDATA_GDIFLAGS_DST_WAS_DEVBIT + SKIP_TOTAL_FLAGS
+			      C ENDIF 
+			      C         or      eax, edx
+			      C         cmp     eax, 0 
+			      C         jne     Check_Invariants
+			      C         jmp     FX_50
+			      C       
+			      C Check_Invariants: 
+			      C 
+			      C         test    word ptr GLOB.gdiFlags, SKIP_TOTAL_FLAGS
+			      C         jnz     ExclusiveMode
+			      C       
+			      C FX_16:
+			      C 
+			      C         test    byte ptr GLOB.gdiFlags, SDATA_GDIFLAGS_2D_DIRTY
+			      C         jz      FX_61
+			      C 
+			      C         ; if direct draw changed some 2d registers, or changed the desktop
+			      C         ; from being linear to tiled or vice-versa,
+			      C         ; we need to reset the invariant 2d regs and the stride of the
+			      C         ; screen's pDevice so that dib engine rendering will be correct
+			      C       
+			      C         xor     ecx, ecx
+			      C         mov     cl, (RESET_DST + RESET_SRC + RESET_PDEV) 
+			      C         call    reset_Invariants
+			      C         and     GLOB.gdiFlags, NOT (SDATA_GDIFLAGS_2D_DIRTY + SDATA_GDIFLAGS_DST_WAS_DEVBIT + SDATA_GDIFLAGS_SRC_WAS_DEVBIT)
+			      C         
+			      C FX_61:        
+			      C         
+			      C         ; if the previous drawing operation was to a device bitmap,
+			      C         ; the invariants were clobbered, so we need to reset them,
+			      C         ; but there's no need to do this if we're not going to clobber
+			      C         ; them again anyway, unless we need to save away the current
+			      C         ; dstBaseAddr and dstFormat (e.g., StretchBltBufferToScreen),
+			      C         ; so we'd need to put them to known states anyway
+			      C 
+			      C         test    byte ptr GLOB.gdiFlags, SDATA_GDIFLAGS_DST_WAS_DEVBIT   ; was the last operation to offscreen? 
+			      C         jz      short FX_62         ; No, jmp
+			      C         cmp     dword ptr DSTDBM, 0 ; Current operation to onscreen?
+			      C         jne     short FX_62         ; No, jmp
+			      C         
+			      C         ; we get here if the last operation was to offscreen and the current is to onscreen
+			      C         
+			      C         xor     ecx, ecx
+			      C         mov     cl, RESET_DST
+			      C         call    reset_Invariants
+			      C         and     GLOB.gdiFlags, NOT SDATA_GDIFLAGS_DST_WAS_DEVBIT
+			      C FX_62: 
+			      C      IFNB  <SrcPresent2>
+			      C         ; if the previous drawing operation used an offscreen bitmap as a
+			      C         ; source, and the current operation doesn't use an offscreen bitmap
+			      C         ; as a source, reset the source 2d invariants
+			      C 
+			      C         test    GLOB.gdiFlags, SDATA_GDIFLAGS_SRC_WAS_DEVBIT    ; was the last src offscreen?
+			      C         jz      short FX_63                 ; No, jmp
+			      C         cmp     dword ptr SRCDBM, 0         ; is the src onscreen?
+			      C         jne     short FX_63                 ; No, jmp
+			      C         mov     ecx, RESET_SRC
+			      C         call    reset_Invariants
+			      C         and     GLOB.gdiFlags, NOT SDATA_GDIFLAGS_SRC_WAS_DEVBIT
+			      C      ENDIF
+			      C 
+			      C           
+			      C 
+			      C FX_63:
+			      C      IFNB <OnSoftwareCursor>
+			      C         ; If SW cursor is on, for get this and go back to
+			      C         ; the trusty C code.
+			      C ;        test    byte ptr GLOB.gdiFlags, SDATA_GDIFLAGS_SW_CURSOR
+			      C         test    word ptr GLOB.gdiFlags, SKIP_TO_C_FLAGS
+			      C         jz      short FX_65
+			      C         mov     ebx, dword ptr GLOB.lpDeFlags 
+			      C         and     word ptr es:[ebx], NOT BUSY
+			      C         jmp     OnSoftwareCursor
+			      C FX_65:
+			      C     ENDIF
+			      C 
+			      C FX_60:        
+			      C 
+			      C      IFNB  <SrcPresent2>
+			      C         cmp     dword ptr SRCDBM, 0       ; is source in offscreen memory?
+			      C         je      FX_70                     ; if not, outta here!
+			      C         
+			      C         xor     ecx, ecx
+			      C         mov     cl, 2
+			      C         GET_CF_OFFSET_FAST          
+			      C         CMDFIFO_CHECKROOM_FAST       ecx 
+			      C                  
+			      C         mov     es:[ebx], dword ptr (SSTCP_PKT2 + srcBaseAddrBit)
+			      C         mov     eax, dword ptr LPSRC.DIBENGINE.deBits
+			      C         sub     eax, dword ptr GLOB.lfbBase        
+			      C         mov     es:[ebx+4], eax
+			      C         
+			      C         mov     eax, GLOB.screenFormat                                    ;  srcFormat = _FF(screenFormat) & ~(SSTG_DST_LINEAR_STRIDE |
+			      C         and     eax, NOT SSTG_SRC_LINEAR_STRIDE
+			      C         mov     edx, gs:[si].DIBENGINE.deDeltaScan                        ;  srcFormat |= mylpSrc->deDeltaScan & SSTG_DST_LINEAR_STRIDE;
+			      C         and     edx, SSTG_SRC_LINEAR_STRIDE                               
+			      C         or      eax, edx        
+			      C         mov     [SrcFormat], eax
+			      C 
+			      C         BUMP_FAST   8      
+			      C         or      GLOB.gdiFlags, SDATA_GDIFLAGS_SRC_WAS_DEVBIT        
+			      C         jmp     FX_71
+			      C         ; DANGER
+			      C         ; missing the C enterleave FXENTER_COMPUTE_DSTBA_FORMAT stuff
+			      C         ; DANGER
+			      C FX_70: 
+			      C         ; The src is onscreen memory, set the format correspondingly
+			      C         mov     eax, GLOB.screenFormat
+			      C         mov     [SrcFormat], eax 
+			      C FX_71:       
+			      C      ENDIF
+			      C         
+			      C         cmp     dword ptr DSTDBM, 0       ; is current operation to onscreen?
+			      C         je      FX_50     ; yes, outta here!
+			      C         
+			      C         ; we get here if the current operation is to offscreen
+			      C         
+			      C         mov     eax, dword ptr LPDST.DIBENGINE.deBits
+			      C         sub     eax, dword ptr GLOB.lfbBase
+			      C         mov     dword ptr DSTADDR, eax
+			      C         
+			      C         mov     eax, dword ptr GLOB.screenFormat
+			      C         and     eax, 70000h                     ; & SSTG_DST_FORMAT
+			      C         mov     edx, dword ptr LPDST.DIBENGINE.deDeltaScan
+			      C         and     edx, 03fffh                         ; & SSTG_SRC_LINEAR_STRIDE
+			      C         or      eax, edx
+			      C         mov     dword ptr DSTFMT, eax
+			      C 
+			      C         xor     ecx, ecx
+			      C         mov     cl, 5
+			      C         GET_CF_OFFSET_FAST
+			      C         CMDFIFO_CHECKROOM_FAST     ecx
+			      C 
+			      C         xor     eax, eax
+			      C         mov     ax, (SSTCP_PKT2 + clip0minBit + clip0maxBit + dstBaseAddrBit + dstFormatBit)
+			      C         mov     es:[ebx], eax ;PH
+			      C         xor     eax, eax
+			      C         mov     es:[ebx+4], eax ; clip0min
+			      C         mov     eax, dword ptr LPDST.DIBENGINE.deWidth 
+			      C         mov     es:[ebx+8], eax ; clip0max
+			      C         mov     eax,dword ptr DSTADDR 
+			      C         mov     es:[ebx+12], eax ; dstBaseAddr
+			      C         mov     eax,dword ptr DSTFMT 
+			      C         mov     es:[ebx+16], eax ; dstFormat
+			      C         BUMP_FAST     20
+			      C 
+			      C         or      GLOB.gdiFlags, SDATA_GDIFLAGS_DST_WAS_DEVBIT
+			      C         ; DANGER
+			      C         ; missing the C enterleave FXENTER_COMPUTE_DSTBA_FORMAT stuff
+			      C         ; DANGER
+			      C FX_50:
+			      C 
+			      C Endm FXENTER_FAST 
+			      C ENDIF ; PERF_NEW16BITBLT
+			      C 
+			      C 
+			      C FXLEAVE Macro
+			      C         Local   FXL_10 
+			      C         CMDFIFO_EPILOG
+			      C 		mov		ebx, dword ptr GLOB.lpDeFlags 
+			      C         and     word ptr es:[ebx], NOT BUSY
+			      C         jmp     short All_Done
+			      C Use_DibEngine:
+			      C         test    byte ptr GLOB.gdiFlags, SDATA_GDIFLAGS_2D_DIRTY
+			      C         jz      short FXL_10
+			      C         xor     ecx, ecx
+			      C         mov     cl, RESET_PDEV
+			      C         call    reset_Invariants
+			      C FXL_10:        
+			      C All_Done:        
+			      C Endm
+			      C 
+			      C IFDEF PERF_NEW16BITBLT
+			      C FXLEAVE_FAST Macro
+			      C         Local   FXL_10 
+			      C ExclusiveMode:        
+			      C         mov     ebx, dword ptr GLOB.lpDeFlags 
+			      C         and     word ptr es:[ebx], NOT BUSY
+			      C         jmp     short All_Done
+			      C Use_DibEngine:
+			      C         test    byte ptr GLOB.gdiFlags, SDATA_GDIFLAGS_2D_DIRTY
+			      C         jz      short FXL_10
+			      C         xor     ecx, ecx
+			      C         mov     cl, RESET_PDEV
+			      C         call    reset_Invariants
+			      C FXL_10:        
+			      C All_Done:        
+			      C Endm
+			      C ENDIF
+			      C 
+			      C ;
+			      C ; External data that these macros need
+			      C ;
+			      C 
+ 0000			      C _DATA   SEGMENT WORD PUBLIC 'DATA' USE16 
+			      C 
+			      C EXTERN  _DriverData:GLOBALDATA
+			      C ifdef STB_FIFO16_ENABLE 
+			      C EXTERN  _FlatSel:WORD
+			      C endif
+			      C 
+ 0000			      C _DATA   ENDS
+			      C 
+			      C ASSUME DS:_DATA
+			      C 
+ 0000			      C _TEXT   SEGMENT WORD PUBLIC 'CODE' USE16 
+			      C 
+			      C ifndef FIFO16FILE       ; don't include these externs in FIFO16.ASM
+			      C 
+			      C EXTERN  fifo_MakeRoom:NEAR
+			      C ifdef PERF_NEW16BITBLT
+			      C EXTERN  fifo_MakeRoom_Fast:NEAR
+			      C endif
+			      C EXTERN  fifo_Wrap:NEAR
+			      C EXTERN  reset_Invariants:NEAR
+			      C 
+			      C endif
+			      C 
+			      C ifdef AGP_CMDFIFO
+			      C endif
+			      C 
+			      C ifdef DEBUGFIFO
+			      C endif
+			      C 
+ 0000			      C _TEXT ENDS
+			      C 
+			      C 
+				        .list
+
+				; STB Begin change
+				; STB-SR 12/16/98 Added for STB Performance optimizations
+				ifdef INCSTBPERF
+				INCLUDE ..\..\BUILD\STBPERF.INC
+			      C ;/*
+			      C ;-----------------------------Module-Header-----------------------------;
+			      C ; Module Name:  STBPERF.INC
+			      C ;
+			      C ; This file contains optimization definitions used by the STB build of the
+			      C ; Voodoo3 source.
+			      C ;
+			      C ; Created: 12/15/97
+			      C ; Author:  Steve Rogers
+			      C ;
+			      C ; History:  Who	What?
+			      C ; 12/15/98  SR  Created
+			      C ; 12/16/98  sr  Added Handle1to1Str
+			      C ; 12/16/98  sr  Added Handle1X1
+			      C ; 12/16/98  sr  Added HandleSTR1X1
+			      C ; 01/11/99  pz  Added STB_MMGR_TWK
+			      C ; 01/13/99  sr  Added STB 16BIT Textout function from bj
+			      C ; 03/08/99  mgm Comment out SKIP_STAGE2 to fix PRS 4898 (mgm=michael@3dfx)
+			      C ;-----------------------------------------------------------------------;
+			      C ;
+			      C 
+			      C ; Define Assembly performance optimizations here
+			      C ; Name                     Description
+			      C ; Example
+			      C ; STBPERF_FASTRECIP    EQU 1  ; SR Uses table lookup for a faster, less acurate reciprocal
+ = 0001			      C STBPERF_HANDLE1X1      EQU 1  ; SR Pokes pixel through framebuffer for 1 pixel bitmap copies
+ = 0001			      C STBPERF_HANDLESTR1X1   EQU 1  ; SR Pokes pixel through framebuffer for 1 pixel bitmap 1 to 1 stretches
+ = 0001			      C STB_FIFO16_ENABLE	   EQU 1  ; BJ Enable/Allow 16 bit FIFO code to be used
+ = 0001			      C STBPERF_CMBITBLT       EQU 1  ; PZ Special case for color to mono blit
+ = 0001			      C STBPERF_DEVBITFIX      EQU 1  ; PZ A replacement scheme to work around a GDI bug in device bmp management
+			      C ifdef STBPERF_DEVBITFIX
+			      C ;  SKIP_STAGE2            EQU 1  ; PZ Do SKIP_STAGE2 only if STBPERF_DEVBITFIX is enabled
+			      C endif
+			      C ifdef STB_FIFO16_ENABLE
+ = 0001			      C 	STB_16BIT_TEXTOUT  EQU 1  ; BJ Use 16 bit FIFO CODE in ExtTextOut
+ = 0001			      C 	STBPERF_POLYLINE16 EQU 1  ; RVB 16-bit code for Output::OS_POLYLINE
+ = 0001			      C     STB_16BIT_BITBLT   EQU 1  ; BJ Use 16 bit FIFO CODE in BitBlt (PatCopy, Whiteness, Blackness)
+ = 0001			      C     STB_FASTER_TR      EQU 1  ; BJ No need to have 2 segment loads to check TR
+ = 0001			      C     PERF_NEW16BITBLT   EQU 1  ; SteveH - optimized 16-bit BitBlt 
+ = 0001			      C     PERF_NEWMM         EQU 1  ; SteveH - optimized 2D memory manager
+			      C endif
+			      C ifdef PERF_NEWMM
+ = 0001			      C     SKIP_STAGE2        EQU 1  ; SteveH - if we're using the new MM, no need to do the hostify code
+			      C endif
+ = 0001			      C STBPERF_K6_ASM_AUTOSTRIP EQU 1    ; turn on auto-stripping in atrik.asm
+			      C 
+			      C comment `
+			      C 
+			      C ;*/
+			      C 
+			      C // Define C performance optimizations here
+			      C //#pragma message("Compiling with Performance optimizations in ../build/STBPERF.INC.")
+			      C // #define Name                  Description
+			      C // Example
+			      C // #define STBPERF_FASTRECIP 1      ; SR Uses table lookup for a faster, less acurate reciprocal
+			      C #define STBPERF_HANDLE1TO1STR 1     ; SR Some StretchBlts are called with 1 to 1 stretches, so copy them.
+			      C #define STB_FIFO16_ENABLE 1         ; BJ Enable/Allow 16 bit FIFO code to be used
+			      C #define STB_16BIT_BITBLT 1          ; BJ Enable/Allow 16 bit PatCopy cases to be done in assembler
+			      C #define STBPERF_CMBITBLT            ; PZ Special case for color to mono blit
+			      C #define STBPERF_SOLIDCLRPATCPY      ; PZ Special case for patcopy with solid color brush 
+			      C //#define STBPERF_RBO_SKIPDIBENGINE 1 ; PZ Skip calling to DIBENGIE when realizing bitmaps
+			      C #define STBPERF_DEVBITFIX 1         ; PZ A replacement scheme to work around a GDI bug in device bmp management
+			      C #ifdef STBPERF_DEVBITFIX
+			      C // #define SKIP_STAGE2 1            ; PZ Do SKIP_STAGE2 only if STBPERF_DEVBITFIX is enabled
+			      C #endif
+			      C #define PERF_NEWDIB 1               ; SteveH - Handle all ROPs and 4bpp sources in DIB functions
+			      C #define PERF_NEW16BITBLT 1
+			      C #define PERF_NEWMM 1                
+			      C #ifdef PERF_NEWMM
+			      C     #define SKIP_STAGE2 1
+			      C #endif    
+			      C 
+			      C //#define STBPERF_2DAGPCMDFIFO        ; SR Allows 2D Cmd Fifo to reside in AGP Memory.
+			      C //                                    ; To get AGP to work, you must set two registry entries
+			      C //									  ; "aFifo" must be set to 1, and "force1xrate" must be set to 1
+			      C //									  ; both are DWORDs under 
+			      C //									  ; HKLM/System/CurrentControlSet/Services/Class/Display/XXXX/DEFAULT
+			      C #define STBPERF_USE_FLIPNOVSYNC       ; enable FLIPNOVSYNC for WB 2000 mls 7/20/99
+			      C #define STBPERF_FAST_TEXTURE_DOWNLOAD ; forces explicit rep movsd loop for non-kni texture download: mls 7/30/99
+			      C #define C_AUTOSTRIP                   ; turn on the auto stripping code in the C files
+			      C #define PERF_USE_255_LOOKUP_TABLE     ; turn on int to float translation by lookup table instead of fpu conversion
+			      C //#define PERF_TXTR_LIST_STATIC_CNTR  ; use a static list index in the texture list instead of starting from 1 each time
+			      C 
+			      C // Changes made by Bob S. just prior to departure - 6/29/2000
+			      C #define TEXTURE_REPEAT_NOT_SCALED     ; Sets dwMaxTextureRepeat to 256 and sets the D3DPTEXTURECAPS_TEXREPEATNOTSCALEDBYSIZE
+			      C //                                    ; bit for lines and triangles. Per Gary Tarolli.
+			      C //                                    ;
+			      C #define COLUMNBANDCONTROL_DEFAULT     ; Change the default for CBC to 8 (register value of zero) to be in synch with Glide/Ogl.
+			      C //                                    ; Prior default was 32 (register value of 2).
+			      C //                                    ;
+			      C #define MAXPENDINGBUFFERS             ; Allow pending buffer max to be controlled via the registry.
+			      C //                                    ;
+			      C #define LODDITHER                     ; Allow Lod Dithering to be controlled via the registry.
+			      C //                                    ;
+			      C #define LODBIASPERCHIP                ; Allow per-chip Lod Bias values, if multitexturing,
+			      C //                                    ; trilinear filtering and > 1 chip. This also requires
+			      C //                                    ; LODDITHER code.
+			      C //									  ;
+			      C #define SLI_ABOVE_1280				  ; Allow SLI operation via the registry at modes 1280 and greater.
+			      C //									  ;	Previously we reverted to single chip mode at these
+			      C //									  ;	high resolutions due to visual artifacts
+			      C 
+			      C ;/*
+			      C ;end comment `
+			      C ;*/
+			      C 
+				endif
+				; STB END change
+				ifdef STB_16BIT_TEXTOUT
+
+ 0000				_THK16TEXT   SEGMENT WORD USE16 PUBLIC 'CODE'
+ 0000				_THK16TEXT   ENDS
+
+ 0000				_DATA   SEGMENT WORD USE16 PUBLIC 'DATA'
+ 0000				_DATA   ENDS
+
+				        EXTRN _lpDriverData:FAR PTR
+				        EXTRN _lph3IORegs:DWORD
+				        EXTRN _h3READ:FAR
+
+
+
+				.586p
+				.MMX
+
+ 0000				_TEXT   SEGMENT WORD PUBLIC 'CODE' USE16 
+
+
+
+				DIB_ExtTextOut      PROTO   FAR PASCAL
+
+				ifdef STB_16BIT_TEXTOUT
+				ExtTextOutC         PROTO   FAR PASCAL
+				endif
+
+				IFNDEF SKIP_STAGE2
+				ENDIF
+
+
+				T16DRAWSTRING Macro   GLYPHSIZE,  INDEXSIZE, CHARWIDTHS
+				        ;********************************
+				        ; Setup Main glyph xfer loop 
+				        ;********************************
+				        Local   T16DSLoopTop, T16DSSkipGlyph
+				    
+				IFIDN <CHARWIDTHS>, <Dx>
+				        xor     ecx, ecx
+				        mov     NCHARS, ecx
+				ENDIF
+
+				        lfs     di, lpString
+				        mov     eax, (SSTG_ROP_SRCCOPY + SSTG_TRANSPARENT + SSTG_HOST_BLT)
+				        or      eax, CLIPSEL
+						mov		GLYPHCMD, eax
+						mov		eax, (SSTCP_PKT2 + dstSizeBit + dstXYBit + commandBit)  
+						mov		GLYPHPH, eax
+				        xor     eax,eax
+				T16DSLoopTop:
+				IFIDN <INDEXSIZE>, <ByteIndex>
+				        mov     al, fs:[di]                             ; EAX = glyph_index
+				ELSE
+				        mov     ax, fs:[di]                             ; EAX = glyph_index
+				ENDIF
+				        mov     GLYPHIDX, eax
+				        mov     bx,[NewFontSeg.nfGlyphOffset]
+				        mov     edx, gs:[bx]
+				IFIDN <GLYPHSIZE>, <SmallRow>
+				        lea     ebx, [edx+eax*2]
+				        movzx   ebx, word ptr gs:[ebx]
+
+				if 0
+				        ;***************************
+				        ; RAJ-01/29/99 Experiment
+				        ;  with KNI prefetchtna
+				        ;  on the glyph data
+				        ;  at gs:[ebx]
+				        ;***************************
+				        db      65h
+				        db      0fh
+				        db      18h
+				        db      03h
+				endif
+
+
+				        mov     eax, gs:[bx]                            ; org_x, org_y, width, height
+				        mov     SRSTRUC, eax                            ; Save off SR values.
+				        add     ebx, 4
+				        mov     GLYPHPTR, ebx                           ; Save off next Glyph address+ SR Struc size
+
+				        mov     ecx, eax                                ; Copy eax data to ecx
+				        and     ax, 0ffh
+				        movsx   ax, al                                  ; ax = X org
+				        shr     cx, 8
+				        movsx   cx, cl                                  ; cx = Y org
+				ELSE
+				        lea     ebx, [edx+eax*4]
+						
+						; Fix for PRS 5008: Winstone 99: system hang while running w/ a 1600 x 1200 desktop at any bit depth.
+						; The fix is to use a DWORD for the glyph offset since the glyph offset table is an array of DWORDs
+						; and not WORD offsets.
+
+				        mov		ebx, gs:[ebx]
+				        mov     eax, gs:[ebx]                            ; org_x, org_y, 
+				        mov     LRORGXY, eax                            
+
+						; STB-MDM For Bob J.  Fix for PRS 4749 Winstone 99 Font corruption while running Poweroint.  
+						; Incorrect index into a LARGE ROW glyph structure.
+				        mov     eax, gs:[ebx+4]                          ;  width, height
+				        mov     LRORGWH, eax                            
+				        add     ebx, 8
+				        mov     GLYPHPTR, ebx                           ; Save off next Glyph address+ SR Struc size
+
+				        mov     cx, word ptr LRORGXY+2                  ; cx = Y org
+				        mov     ax, word ptr LRORGXY                    ; ax = X org
+				ENDIF
+				        ;*******************************
+				        ; Position X, Y for the glyph
+				        ;*******************************
+				        add     ax, wDestXOrg                           ; ax = X
+				        neg     cx
+				        add     cx, wDestYOrg                           ; cx = Y
+
+				IFIDN <GLYPHSIZE>, <SmallRow>
+				        ;***************************
+				        ; Glyph Trivial rejection
+				        ;***************************
+				        mov     dx, word ptr SRSTRUC+2
+				        cmp     dl, 0
+				        jz      T16DSSkipGlyph
+				        cmp     dh, 0
+				        jz      T16DSSkipGlyph
+
+				        cmp     ax, word ptr CLPBR                      ; X > Clip Right
+				        jg      T16DSSkipGlyph
+				        and     dx, 0ffh
+				        movsx   dx, dl
+				        add     dx, ax                                  ; X+Width
+				        cmp     dx, word ptr CLPTL                      ; X+Width < Clip Left
+				        jl      T16DSSkipGlyph
+
+				        ;******************
+				        ; Save XY position
+				        ;******************
+				        mov     word ptr GLYPHPOS, ax
+				        mov     word ptr GLYPHPOS+2, cx
+
+				        ;**************************
+				        ; Compute # bytes per row
+				        ;**************************
+				        xor     ax, ax
+				        mov     al, byte ptr SRSTRUC+2                  ; AX = Width
+				        add     ax, 7                                   ; AX = Width+7
+				        shr     ax, 3                                   ; AX = num bytes/row
+
+				        ;*****************************
+				        ; Compute # dwords per Glyph
+				        ;*****************************
+				        xor     bx, bx
+				        mov     bl, byte ptr SRSTRUC+3                  ; BX = Height
+				        imul    bx
+				        add     ax, 3
+				        shr     ax, 2                                   ; AX = num dwords/glyph
+				        
+				ELSE
+				        ;***************************
+				        ; Glyph Trivial rejection
+				        ;***************************
+				        mov     dx, word ptr LRORGWH 
+				        cmp     dx, 0
+				        jz      T16DSSkipGlyph
+
+				        cmp     word ptr LRORGWH+2, 0
+				        jz      T16DSSkipGlyph
+
+				        cmp     ax, word ptr CLPBR                      ; X > Clip Right
+				        jg      T16DSSkipGlyph
+				        add     dx, ax                                  ; X+Width
+				        cmp     dx, word ptr CLPTL                      ; X+Width < Clip Left
+				        jl      T16DSSkipGlyph
+
+				        ;******************
+				        ; Save XY position
+				        ;******************
+				        mov     word ptr GLYPHPOS, ax
+				        mov     word ptr GLYPHPOS+2, cx
+
+				        ;**************************
+				        ; Compute # bytes per row
+				        ;**************************
+				        mov     ax, word ptr LRORGWH                    ; AX = Width
+				        add     ax, 7                                   ; AX = Width+7
+				        shr     ax, 3                                   ; AX = num bytes/row
+
+				        ;*****************************
+				        ; Compute # dwords per Glyph
+				        ;*****************************
+				        mov     bx, word ptr LRORGWH+2                  ; BX = Height
+				        imul    bx
+				        add     ax, 3
+				        shr     ax, 2                                   ; AX = num dwords/glyph
+				ENDIF
+
+				        ;*********************************
+				        ; Add 5 to the num dwords/glyph
+				        ; and setup the FIFO to blast the
+				        ; glyph out!
+				        ;*********************************
+				        xor     ecx, ecx
+				        mov     cx, ax
+				        mov     GLYPHDWORDS, ecx
+				        add     ax, 5
+				        xor     ecx, ecx
+				        mov     cx, ax
+				        mov     BUMPVAL, ecx                            ; Save the # Dword writes
+				        
+				        ;*********************************
+				        ; Setup Glyph blt pos and Size
+				        ;*********************************
+				        CMDFIFO_CHECKROOM       ecx 
+				        GET_CF_OFFSET
+						mov		eax, GLYPHPH
+						mov		es:[ebx], eax
+				        add     ebx, 4
+				IFIDN <GLYPHSIZE>, <SmallRow>
+				        xor     eax, eax
+				        mov     al, byte ptr SRSTRUC+2                              ; AX is width
+				        xor     ecx, ecx
+				        mov     cl, byte ptr SRSTRUC+3                              ; BX is height
+				        shl     ecx, 16
+				        or      eax, ecx
+				ELSE
+				        mov     eax, LRORGWH
+				ENDIF
+				        mov     es:[ebx],   eax                                     ; EAX = Height-Width
+				        add     ebx, 4
+				        mov     eax, GLYPHPOS
+				        mov     es:[ebx],   eax                                     ; EAX = Height-Width
+				        add     ebx, 4
+				        mov     eax, GLYPHCMD
+				        mov     es:[ebx], eax
+				        add     ebx, 4
+
+				        ;*********************************
+				        ; Blast Glyhp Data
+				        ;*********************************
+				        mov     ecx, GLYPHDWORDS
+				        mov     eax, ecx
+				        shl     eax, SSTCP_PKT1_NWORDS_SHIFT 
+				        or      eax, (SSTCP_PKT1 + SSTCP_PKT1_2D + 0100h) 
+				        mov     es:[ebx], eax
+				        add     ebx, 4
+
+				        push    edi
+				        mov     edi, ebx
+				        mov     esi, GLYPHPTR
+				        rep movsd es:[edi], gs:[esi]
+				        pop     edi
+
+				        mov     ecx, BUMPVAL
+				        BUMP    ecx
+
+				T16DSSkipGlyph: 
+
+				        ;**********************************
+				        ; Compute escapement to next glyph 
+				        ;**********************************
+				IFIDN <CHARWIDTHS>, <Dx>
+				        push    ds
+				        xor     ebx, ebx
+				        lds     bx, lpCharWidths
+				        mov     eax, NCHARS
+				        lea     ebx,[ebx+eax*2]
+				        mov     ax, ds:[bx]
+				        pop     ds
+				        inc     word ptr NCHARS
+				ELSE
+				        mov     eax, GLYPHIDX
+				        mov     bx,[NewFontSeg.nfAWTable] 
+				        mov     edx, gs:[bx]
+				        lea     ebx, [edx+eax*2]
+				        xor     eax, eax
+				        mov     ax, gs:[ebx]
+				ENDIF
+				        add     ax, wDestXOrg                           ; ax = wDestXOrg + nfAWTable[glyph_index]
+				        mov     wDestXOrg, ax                           ; Save back into the stack
+				        
+				IFIDN <INDEXSIZE>, <ByteIndex>
+				        inc     di
+				ELSE
+				        add     di, 2
+				ENDIF
+				        xor     eax, eax
+				        dec     wCount
+				        jnz     T16DSLoopTop
+
+				        jmp     Text16DoneSuccessLeave
+				EndM
+
+				;
+				; ExtTextOut
+				;
+				; Handles ExtTextOut call
+				;
+
+				; Prepare equates for locals
+ = (dword ptr [RBP-(NEXTLOC	OPQTL       equ     (dword ptr [RBP-(NEXTLOC+00)])
+   +00)])
+ = (dword ptr [RBP-(NEXTLOC	OPQBR       equ     (dword ptr [RBP-(NEXTLOC+04)])
+   +04)])
+ = (dword ptr [RBP-(NEXTLOC	OPQWH       equ     (dword ptr [RBP-(NEXTLOC+08)])
+   +08)])
+ = (dword ptr [RBP-(NEXTLOC	BKCOLOR     equ     (dword ptr [RBP-(NEXTLOC+12)])
+   +12)])
+ = (dword ptr [RBP-(NEXTLOC	FGCOLOR     equ     (dword ptr [RBP-(NEXTLOC+16)])
+   +16)])
+ = (dword ptr [RBP-(NEXTLOC	CLPTL       equ     (dword ptr [RBP-(NEXTLOC+20)]) 
+   +20)])
+ = (dword ptr [RBP-(NEXTLOC	CLPBR       equ     (dword ptr [RBP-(NEXTLOC+24)]) 
+   +24)])
+ = (dword ptr [RBP-(NEXTLOC	NCHARS      equ     (dword ptr [RBP-(NEXTLOC+28)]) 
+   +28)])
+ = (dword ptr [RBP-(NEXTLOC	SRSTRUC     equ     (dword ptr [RBP-(NEXTLOC+32)]) 
+   +32)])
+ = (dword ptr [RBP-(NEXTLOC	LRORGXY     equ     (dword ptr [RBP-(NEXTLOC+36)])
+   +36)])
+ = (dword ptr [RBP-(NEXTLOC	LRORGWH     equ     (dword ptr [RBP-(NEXTLOC+40)])
+   +40)])
+ = (dword ptr [RBP-(NEXTLOC	GLYPHPTR    equ     (dword ptr [RBP-(NEXTLOC+44)])
+   +44)])
+ = (dword ptr [RBP-(NEXTLOC	GLYPHPOS    equ     (dword ptr [RBP-(NEXTLOC+48)])
+   +48)])
+ = (dword ptr [RBP-(NEXTLOC	GLYPHDWORDS equ     (dword ptr [RBP-(NEXTLOC+52)])
+   +52)])
+ = (dword ptr [RBP-(NEXTLOC	GLYPHIDX    equ     (dword ptr [RBP-(NEXTLOC+56)])
+   +56)])
+ = (dword ptr [RBP-(NEXTLOC	BUMPVAL     equ     (dword ptr [RBP-(NEXTLOC+60)])
+   +60)])
+ = (dword ptr [RBP-(NEXTLOC	GLYPHCMD    equ     (dword ptr [RBP-(NEXTLOC+64)])
+   +64)])
+ = (dword ptr [RBP-(NEXTLOC	GLYPHPH     equ     (dword ptr [RBP-(NEXTLOC+68)])
+   +68)])
+
+ = 007C				LOCALS      equ     NEXTLOC+72
+
+				; Prepare equates for parameters
+ = 0006				PBASE   equ     6       ; (far return CS:IP + BP)
+
+ = (dword ptr [RBP+(PBASE+2	lpDestDev       equ (dword ptr [RBP+(PBASE+24h)])
+   4h)])
+ = (word  ptr [RBP+(PBASE+2	wDestXOrg       equ (word  ptr [RBP+(PBASE+22h)])
+   2h)])
+ = (word  ptr [RBP+(PBASE+2	wDestYOrg       equ (word  ptr [RBP+(PBASE+20h)])
+   0h)])
+ = (dword ptr [RBP+(PBASE+1	lpClipRect      equ (dword ptr [RBP+(PBASE+1Ch)])
+   Ch)])
+ = (dword ptr [RBP+(PBASE+1	lpString        equ (dword ptr [RBP+(PBASE+18h)])
+   8h)])
+ = (word  ptr [RBP+(PBASE+1	wCount          equ (word  ptr [RBP+(PBASE+16h)])
+   6h)])
+ = (dword ptr [RBP+(PBASE+1	lpFontInfo      equ (dword ptr [RBP+(PBASE+12h)])
+   2h)])
+ = (dword ptr [RBP+(PBASE+0	lpDrawMode      equ (dword ptr [RBP+(PBASE+0Eh)])
+   Eh)])
+ = (dword ptr [RBP+(PBASE+0	lpTextForm      equ (dword ptr [RBP+(PBASE+0Ah)])
+   Ah)])
+ = (dword ptr [RBP+(PBASE+0	lpCharWidths    equ (dword ptr [RBP+(PBASE+06h)])
+   6h)])
+ = (dword ptr [RBP+(PBASE+0	lpOpaqueRect    equ (dword ptr [RBP+(PBASE+02h)])
+   2h)])
+ = (word  ptr [RBP+(PBASE+0	wOptions        equ (word  ptr [RBP+(PBASE+00h)])
+   0h)])
+
+				ifdef STB_16BIT_TEXTOUT
+ 0000				ExtTextOut      PROC    FAR PASCAL PUBLIC
+				else
+				endif
+
+
+
+
+				        ;******************************
+				        ; Setup passed stack reference 
+				        ;******************************
+ 0000  55			        push    bp
+ 0001  8B EC			        mov     bp, sp                      ;setup EBP for accessing stack params
+ 0003  66| 33 E4			xor		esp, esp
+ 0006  8B E5				mov		sp, bp
+ 0008  83 EC 7C			        sub     sp, LOCALS                 ; Make room for locals
+ 000B  1E			        push    ds
+ 000C  56			        push    si
+ 000D  57			        push    di
+
+				IFNDEF SKIP_STAGE2
+				ENDIF
+
+				        ;******************************
+				        ; If not VRAM, BUSY 
+				        ;    or PALETTE_XLAT, Punt!
+				        ;******************************
+ 000E  0F B4 7E 2A		        lfs     di, lpDestDev
+ 0012  64: 8B 55 1C		        mov     dx, fs:[di].DIBENGINE.deFlags
+ 0016  81 F2 8000		        xor     dx, VRAM                        
+				        ;
+				        ; If it is the host let it happen even if GLide is running
+				        ;
+ 001A  F7 C2 8000		        test    dx, VRAM
+ 001E  0F 85 119B		        jnz     Text16PuntToDibEngine
+
+				        ;******************************
+				        ; If size call, Punt!
+				        ;******************************
+ 0022  83 7E 1C 00		        cmp     wCount, 0
+ 0026  0F 8C 1193		        jl      Text16PuntToDibEngine
+
+				        ;
+				        ; If the Destination Device is the Display Card
+				        ; make sure the hardware is not being used by
+				        ; Glide or SLI/AA
+				        ;
+ 002A  B8 ---- R		        mov     ax, _DATA					; Always check for Glide active
+ 002D  8E D8			        mov     ds, ax						; before accessing hardware
+ 002F  F7 06 0008 E 4008		test    word ptr GLOB.gdiFlags, SKIP_TOTAL_FLAGS
+ 0035  0F 85 1177		        jnz     Text16Exit
+
+				        ;
+				        ;
+				        ;
+ 0039  F7 C2 1010		        test    dx, BUSY+PALETTE_XLAT
+ 003D  0F 85 117C		        jnz     Text16PuntToDibEngine
+
+				        ;********************************************
+				        ; Check to see if text is a supported format
+				        ;********************************************
+ 0041  F7 46 06 1000		        test    wOptions, ETO_LEVEL_MODE                ; is text anti-alias?
+ 0046  0F 85 1173		        jnz     Text16PuntToDibEngine                   ;punt this for now 
+ 004A  F7 46 06 0100		        test    wOptions, ETO_BYTE_PACKED               ; is this a supported type?
+ 004F  0F 84 116A		        jz      Text16PuntToDibEngine                   ; nope
+				        
+ 0053  64: 80 7D 09 08			cmp		fs:[di].DIBENGINE.deBitsPixel, 8
+ 0058  0F 84 1170			jz		Text16JumpBacktoC
+
+				        ;******************************
+				        ; Load lpClipRect to stack
+				        ;   Get out now if TR 
+				        ;******************************
+ 005C  C5 5E 22			        lds     bx, lpClipRect
+ 005F  8B 0F			        mov     cx, [bx]            ;left
+ 0061  8B 57 02			        mov     dx, [bx+2]          ;top
+ 0064  8B 47 04			        mov     ax, [bx+4]          ;right
+ 0067  8B 5F 06			        mov     bx, [bx+6]          ;bottom
+ 006A  89 4E B8			        mov     word ptr CLPTL, cx
+ 006D  89 56 BA			        mov     word ptr CLPTL+2, dx
+ 0070  89 46 B4			        mov     word ptr CLPBR, ax
+ 0073  89 5E B6			        mov     word ptr CLPBR+2, bx
+ 0076  3B DA			        cmp     bx, dx                       ; test for trivial rejection case
+ 0078  0F 8E 1131		        jle     Text16DoneSuccess
+				        
+ 007C  3B C1			        cmp     ax, cx                       ; test for trivial rejection case
+ 007E  0F 8E 112B		        jle     Text16DoneSuccess
+
+				        
+
+
+				        ;****************************************
+				        ; Grab color out of the DrawMode struct
+				        ;****************************************
+ 0082  0F B5 5E 14		        lgs     bx, lpDrawMode
+ 0086  66| 65: 8B 47 04		        mov     eax, gs:[bx+4]  ; lpDrawMode->bkColor
+ 008B  66| 65: 8B 5F 08		        mov     ebx, gs:[bx+8]  ; lpDrawMode->TextColor
+ 0090  66| 89 46 C0		        mov     BKCOLOR, eax
+ 0094  66| 89 5E BC		        mov     FGCOLOR, ebx
+				        
+				        ;******************************
+				        ; Load our data segment
+				        ;******************************
+ 0098  66| 33 C0		        xor     eax, eax
+ 009B  B8 ---- R		        mov     ax, _DATA
+ 009E  66| 8E D8		        mov     ds, eax
+
+				        ;****************************************
+				        ; Prepare FIFO access
+				        ;****************************************
+				        CMDFIFO_PROLOG
+				        FXENTER Text16JumpBacktoC 
+ 00A1  66| 33 D2	     1			xor		edx, edx
+ 00A4  8B 16 0000 E	     1	        mov     dx, _FlatSel
+ 00A8  8E C2		     1	        mov     es, dx
+ 00AA  66| 8B 1E 0004 E	     1			mov		ebx, dword ptr GLOB.lpDeFlags 
+ 00AF  67& 26: F7 03 1010    1	        test    word ptr es:[ebx], (BUSY + PALETTE_XLAT)  ;     goto Use_DibEng;
+ 00B5  0F 85 10E5	     1	        jnz     Use_DibEngine
+ 00B9  67& 26: 0F BA 2B	     1	        bts     word ptr es:[ebx], BUSY_BIT      ; pDeFlags = lpDriverData->lpDeFlags;
+       04
+ 00BF  0F 82 10DB	     1	        jc      Use_DibEngine                                     ; SET_BUSY(pDeFlags);
+ 00C3  66| 33 C0	     1	        xor     eax, eax        ; default to dst not a device bitmap
+ 00C6  64: F7 45 1C 0008     1	        test    word ptr LPDST.DIBENGINE.deFlags, OFFSCREEN ; we already know its VRAM :)
+ 00CC  0F 95 C0		     1	        setnz   al
+ 00CF  66| 89 46 E0	     1	        mov     dword ptr DSTDBM, eax
+ 00D3  66| 33 C0	     1	        xor     eax, eax        ; default to src not a device bitmap
+ 00D6  66| 89 46 DC	     1	        mov     dword ptr SRCDBM, eax
+ 00DA  66| 83 3E 0008 E	     1	        cmp     GLOB.gdiFlags, 0
+       00
+ 00E0  74 5B		     1	        je      ??0001
+ 00E2  F7 06 0008 E 4008     1	        test    word ptr GLOB.gdiFlags, SKIP_TOTAL_FLAGS
+ 00E8  74 0D		     1	        jz      short ??0005
+ 00EA  66| 8B 1E 0004 E	     1			mov		ebx, dword ptr GLOB.lpDeFlags 
+ 00EF  67& 26: 83 23 EF	     1	        and     word ptr es:[ebx], NOT BUSY
+ 00F4  E9 10B6		     1	        jmp     All_Done
+ 00F7			     1	??0005:        
+ 00F7  F6 06 0008 E 02	     1	        test    byte ptr GLOB.gdiFlags, SDATA_GDIFLAGS_2D_DIRTY
+ 00FC  74 0E		     1	        jz      ??0002
+ 00FE  66| 33 C9	     1	        xor     ecx, ecx
+ 0101  B1 07		     1	        mov     cl, (RESET_DST + RESET_SRC + RESET_PDEV) 
+ 0103  E8 0000 E	     1	        call    reset_Invariants
+ 0106  66| 83 26 0008 E	     1	        and     GLOB.gdiFlags, NOT (SDATA_GDIFLAGS_2D_DIRTY + SDATA_GDIFLAGS_DST_WAS_DEVBIT + SDATA_GDIFLAGS_SRC_WAS_DEVBIT)
+       CD
+ 010C			     1	??0002:        
+ 010C  F6 06 0008 E 10	     1	        test    byte ptr GLOB.gdiFlags, SDATA_GDIFLAGS_DST_WAS_DEVBIT
+ 0111  74 15		     1	        jz      short ??0003
+ 0113  66| 83 7E E0 00	     1	        cmp     dword ptr DSTDBM, 0
+ 0118  75 0E		     1	        jne     short ??0003
+ 011A  66| 33 C9	     1	        xor     ecx, ecx
+ 011D  B1 01		     1	        mov     cl, RESET_DST
+ 011F  E8 0000 E	     1	        call    reset_Invariants
+ 0122  66| 83 26 0008 E	     1	        and     GLOB.gdiFlags, NOT SDATA_GDIFLAGS_DST_WAS_DEVBIT
+       EF
+ 0128			     1	??0003:        
+ 0128			     1	??0004:
+ 0128  F7 06 0008 E 6004     1	        test    word ptr GLOB.gdiFlags, SKIP_TO_C_FLAGS
+ 012E  74 0D		     1	        jz      short ??0006
+ 0130  66| 8B 1E 0004 E	     1			mov		ebx, dword ptr GLOB.lpDeFlags 
+ 0135  67& 26: 83 23 EF	     1	        and     word ptr es:[ebx], NOT BUSY
+ 013A  E9 108F		     1			jmp		Text16JumpBacktoC
+ 013D			     1	??0006:
+ 013D			     1	??0001:        
+ 013D  66| A1 05B8 E	     2	        mov     eax, GLOB.mainFifo.FXptr
+ 0141  66| 33 D2	     2	        xor     edx, edx
+ 0144  66| 89 56 F8	     2	        mov     dword ptr IDX, edx      ; initialize HWINDEX to 0
+ 0148  66| 89 46 FC	     2	        mov     dword ptr CF, eax       ; initialize local CMDFIFO pointer
+ 014C  66| 83 7E E0 00	     1	        cmp     dword ptr DSTDBM, 0       ; is destination a device bitmap
+ 0151  0F 84 00C5	     1	        je      ??0000     ; if not, outta here!
+ 0155  66| 64: 8B 45 16	     1	        mov     eax, dword ptr LPDST.DIBENGINE.deBits
+ 015A  66| 2B 06 177C E	     1	        sub     eax, dword ptr GLOB.lfbBase
+ 015F  66| 89 46 F0	     1	        mov     dword ptr DSTADDR, eax
+ 0163  66| A1 04EC E	     1	        mov     eax, dword ptr GLOB.screenFormat
+ 0167  66| 25 00070000	     1	        and     eax, 70000h                     ; & SSTG_DST_FORMAT
+ 016D  66| 64: 8B 55 0E	     1	        mov     edx, dword ptr LPDST.DIBENGINE.deDeltaScan
+ 0172  66| 81 E2 00003FFF    1	        and     edx, 03fffh                         ; & SSTG_SRC_LINEAR_STRIDE
+ 0179  66| 0B C2	     1	        or      eax, edx
+ 017C  66| 89 46 EC	     1	        mov     dword ptr DSTFMT, eax
+ 0180  66| 33 C9	     1	        xor     ecx, ecx
+ 0183  B1 05		     1	        mov     cl, 5
+ 0185  66| A1 05D4 E	     3			mov		eax, dword ptr GLOB.mainFifo.bump
+ 0189  66| 03 C1	     3			add		eax, ecx
+ 018C  66| 3D 0000FFFF	     3			cmp		eax, 0ffffh
+ 0192  72 07		     3			jb		??0008
+ 0194  66| 87 46 D8	     4	        xchg    eax, P6SWAP
+ 0198  66| 8B C1	     3			mov		eax, ecx
+ 019B			     3	??0008:
+ 019B  66| A3 05D4 E	     3			mov		dword ptr GLOB.mainFifo.bump, eax
+ 019F  66| 8B 46 F8	     2	        mov     eax, IDX
+ 01A3  66| 29 06 05C0 E	     2	        sub     GLOB.mainFifo.space, eax
+ 01A8  66| 33 D2	     2	        xor     edx, edx
+ 01AB  66| C1 E0 02	     2	        shl     eax, 2
+ 01AF  66| 01 46 FC	     2	        add     CF, eax
+ 01B3  66| 89 56 F8	     2	        mov     IDX, edx
+ 01B7  66| 39 0E 05C0 E	     2	        cmp     dword ptr GLOB.mainFifo.space, ecx
+ 01BC  73 0E		     2	        jae     short ??0007
+ 01BE  66| 8B 5E FC	     2	        mov     ebx, CF
+ 01C2  66| 8B C9	     2	        mov     ecx, ecx
+ 01C5  E8 0000 E	     2	        call    fifo_MakeRoom
+ 01C8  66| 89 5E FC	     2	        mov     CF, ebx
+ 01CC			     2	??0007:
+ 01CC  66| 8B 5E FC	     2	        mov     ebx, CF         ; setup hwPtr for packet programming
+ 01D0  66| 33 C0	     1	        xor     eax, eax
+ 01D3  B8 007A		     1	        mov     ax, (SSTCP_PKT2 + clip0minBit + clip0maxBit + dstBaseAddrBit + dstFormatBit)
+ 01D6  67& 66| 26: 89 03     1	        mov     es:[ebx], eax ;PH
+ 01DB  66| 83 C3 04	     1	        add     ebx, 4
+ 01DF  66| 33 C0	     1	        xor     eax, eax
+ 01E2  67& 66| 26: 89 03     1	        mov     es:[ebx], eax ; clip0min
+ 01E7  66| 83 C3 04	     1	        add     ebx, 4
+ 01EB  66| 64: 8B 45 02	     1	        mov     eax, dword ptr LPDST.DIBENGINE.deWidth 
+ 01F0  67& 66| 26: 89 03     1	        mov     es:[ebx], eax ; clip0max
+ 01F5  66| 83 C3 04	     1	        add     ebx, 4
+ 01F9  66| 8B 46 F0	     1	        mov     eax,dword ptr DSTADDR 
+ 01FD  67& 66| 26: 89 03     1	        mov     es:[ebx], eax ; dstBaseAddr
+ 0202  66| 83 C3 04	     1	        add     ebx, 4
+ 0206  66| 8B 46 EC	     1	        mov     eax,dword ptr DSTFMT 
+ 020A  67& 66| 26: 89 03     1	        mov     es:[ebx], eax ; dstFormat
+ 020F  66| 83 46 F8 05	     2	        add     dword ptr IDX, 5
+ 0214  66| 83 0E 0008 E	     1	        or      GLOB.gdiFlags, SDATA_GDIFLAGS_DST_WAS_DEVBIT
+       10
+ 021A			     1	??0000:
+				        
+				        ;**************************************************
+				        ; Prepare the engine for clipping and set 
+				        ;  our clipselect bit to clip1
+				        ;**************************************************
+ 021A  66| 33 C9				xor		ecx, ecx
+ 021D  B1 03					mov		cl, 3
+				        CMDFIFO_CHECKROOM     ecx 
+ 021F  66| A1 05D4 E	     2			mov		eax, dword ptr GLOB.mainFifo.bump
+ 0223  66| 03 C1	     2			add		eax, ecx
+ 0226  66| 3D 0000FFFF	     2			cmp		eax, 0ffffh
+ 022C  72 07		     2			jb		??000A
+ 022E  66| 87 46 D8	     3	        xchg    eax, P6SWAP
+ 0232  66| 8B C1	     2			mov		eax, ecx
+ 0235			     2	??000A:
+ 0235  66| A3 05D4 E	     2			mov		dword ptr GLOB.mainFifo.bump, eax
+ 0239  66| 8B 46 F8	     1	        mov     eax, IDX
+ 023D  66| 29 06 05C0 E	     1	        sub     GLOB.mainFifo.space, eax
+ 0242  66| 33 D2	     1	        xor     edx, edx
+ 0245  66| C1 E0 02	     1	        shl     eax, 2
+ 0249  66| 01 46 FC	     1	        add     CF, eax
+ 024D  66| 89 56 F8	     1	        mov     IDX, edx
+ 0251  66| 39 0E 05C0 E	     1	        cmp     dword ptr GLOB.mainFifo.space, ecx
+ 0256  73 0E		     1	        jae     short ??0009
+ 0258  66| 8B 5E FC	     1	        mov     ebx, CF
+ 025C  66| 8B C9	     1	        mov     ecx, ecx
+ 025F  E8 0000 E	     1	        call    fifo_MakeRoom
+ 0262  66| 89 5E FC	     1	        mov     CF, ebx
+ 0266			     1	??0009:
+				        GET_CF_OFFSET
+ 0266  66| 8B 5E FC	     1	        mov     ebx, CF         ; setup hwPtr for packet programming
+ 026A  67& 66| 26: C7 03	        mov     dword ptr es:[ebx],(SSTCP_PKT2 + clip1minBit + clip1maxBit)
+       00300002
+ 0273  66| 83 C3 04		        add     ebx, 4
+ 0277  66| 8B 46 B8		        mov     eax, CLPTL
+ 027B  67& 66| 26: 89 03	        mov     es:[ebx], eax                   ; clip1min lpClip->topleft
+ 0280  66| 83 C3 04		        add     ebx, 4
+ 0284  66| 8B 56 B4		        mov     edx, CLPBR
+ 0288  67& 66| 26: 89 13	        mov     es:[ebx], edx               ; clip1max lpClip->bottomright
+				        BUMP    3
+ 028D  66| 83 46 F8 03	     1	        add     dword ptr IDX, 3
+ 0292  66| C7 46 F4		        mov     dword ptr CLIPSEL, SSTG_CLIPSELECT
+       00800000
+
+				    
+				        ;**************************************************
+				        ; Is valid Opaque Rect?  If So, Grab values needed 
+				        ; to draw the rect out of their
+				        ; far pointers and store them locally
+				        ;**************************************************
+ 029A  83 7E 0A 00		        cmp     word ptr lpOpaqueRect+2, 0
+ 029E  0F 84 00FE		        jz      Text16NullOpaqueRect    
+
+ 02A2  0F B4 7E 08		        lfs     di, lpOpaqueRect
+
+ 02A6				Text16OpaqueLoopTop:
+ 02A6  64: 8B 0D		        mov     cx, fs:[di]         ; lpOpaque->left
+ 02A9  64: 8B 55 02		        mov     dx, fs:[di+2]       ; lpOpaque->top
+ 02AD  64: 8B 45 04		        mov     ax, fs:[di+4]       ; lpOpaque->right
+ 02B1  64: 8B 5D 06		        mov     bx, fs:[di+6]       ; lpOpaque->bottom
+				; Fix for TriGem bug, PRS 12184 text corruption in SQL Query Analyzer
+ 02B5  3D 1000					cmp 	ax, 1000h			; Check for out of range 'right'
+ 02B8  7E 03					jle		short @f  			; In range
+ 02BA  8B 46 B4					mov 	ax, word ptr CLPBR	; Set 'right' same as Clip Rect
+ 02BD				@@:
+ 02BD  83 F9 00					cmp 	cx, 0h				; Check for out of range 'left'
+ 02C0  7D 03					jge		short @f			; In range
+ 02C2  8B 4E B8					mov 	cx, word ptr CLPTL	; Set 'left' same as Clip Rect
+
+ 02C5				@@:	
+ 02C5  89 4E CC			        mov     word ptr OPQTL, cx
+ 02C8  89 56 CE			        mov     word ptr OPQTL+2, dx
+ 02CB  89 46 C8			        mov     word ptr OPQBR, ax
+ 02CE  89 5E CA			        mov     word ptr OPQBR+2, bx
+
+
+				if 1	; PRS 8400: Severe text corruption in Notepad
+					; Multiple error conditions to handle below.
+					; First, reject case of "inverted" width in
+					; opaque rectangle (i.e. left > right).
+					; Second, if left edge is negative use the
+					; right edge for the width.
+					; NOTE: this should probably be done for height
+					; as well.  Since this is the optimized code
+					; path and such an instance has not yet been
+					; encountered don't process this for now.  MGM
+ 02D1  3B C1				cmp	ax, cx			; Inverted width?
+ 02D3  0F 8E 00B6			jle	Text16DoMoreOpaqueRects	; Y: forget it
+ 02D7  2B C1			        sub     ax, cx              	; ax = Opaque Rect Width
+ 02D9  79 03				jns	@f			; left rect edge negative?
+ 02DB  8B 46 C8			   	mov	ax, word ptr OPQBR	; Y: use right for width
+ 02DE				@@:
+ 02DE  2B DA				sub     bx, dx              	; bx = Opaque Rect Height   
+				else
+				endif
+ 02E0  89 46 C4			        mov     word ptr OPQWH, ax          ; Store Rect Width to Stack
+ 02E3  89 5E C6			        mov     word ptr OPQWH+2, bx            ; Store Rect Height to Stack
+
+ 02E6  66| 8B 4E CC		        mov     ecx, OPQTL
+ 02EA  66| 8B 56 C8		        mov     edx, OPQBR
+
+ 02EE  66| 3B D1		        cmp     edx, ecx
+ 02F1  0F 8E 00AB		        jle     Text16NullOpaqueRect
+
+				        ;***************************
+				        ; Rip out Exclude rect(s)!
+				        ;***************************
+ 02F5  66| 33 C9				xor		ecx, ecx
+ 02F8  B1 05					mov		cl, 5
+				        CMDFIFO_CHECKROOM       ecx 
+ 02FA  66| A1 05D4 E	     2			mov		eax, dword ptr GLOB.mainFifo.bump
+ 02FE  66| 03 C1	     2			add		eax, ecx
+ 0301  66| 3D 0000FFFF	     2			cmp		eax, 0ffffh
+ 0307  72 07		     2			jb		??000C
+ 0309  66| 87 46 D8	     3	        xchg    eax, P6SWAP
+ 030D  66| 8B C1	     2			mov		eax, ecx
+ 0310			     2	??000C:
+ 0310  66| A3 05D4 E	     2			mov		dword ptr GLOB.mainFifo.bump, eax
+ 0314  66| 8B 46 F8	     1	        mov     eax, IDX
+ 0318  66| 29 06 05C0 E	     1	        sub     GLOB.mainFifo.space, eax
+ 031D  66| 33 D2	     1	        xor     edx, edx
+ 0320  66| C1 E0 02	     1	        shl     eax, 2
+ 0324  66| 01 46 FC	     1	        add     CF, eax
+ 0328  66| 89 56 F8	     1	        mov     IDX, edx
+ 032C  66| 39 0E 05C0 E	     1	        cmp     dword ptr GLOB.mainFifo.space, ecx
+ 0331  73 0E		     1	        jae     short ??000B
+ 0333  66| 8B 5E FC	     1	        mov     ebx, CF
+ 0337  66| 8B C9	     1	        mov     ecx, ecx
+ 033A  E8 0000 E	     1	        call    fifo_MakeRoom
+ 033D  66| 89 5E FC	     1	        mov     CF, ebx
+ 0341			     1	??000B:
+				        GET_CF_OFFSET
+ 0341  66| 8B 5E FC	     1	        mov     ebx, CF         ; setup hwPtr for packet programming
+ 0345  67& 66| 26: C7 03	        mov     dword ptr es:[ebx], (SSTCP_PKT2 + colorForeBit + dstSizeBit + dstXYBit + commandBit)
+       3C000002
+ 034E  66| 83 C3 04		        add     ebx, 4
+ 0352  66| 8B 46 C0		        mov     eax, BKCOLOR 
+ 0356  67& 66| 26: 89 03	        mov     es:[ebx], eax                   ; ColorFore
+ 035B  66| 83 C3 04		        add     ebx, 4
+ 035F  66| 8B 56 C4		        mov     edx, OPQWH
+ 0363  67& 66| 26: 89 13	        mov     es:[ebx], edx                       ; dstSize
+ 0368  66| 83 C3 04		        add     ebx, 4
+ 036C  66| 8B 4E CC		        mov     ecx, OPQTL
+ 0370  67& 66| 26: 89 0B	        mov     es:[ebx], ecx                   ; dstXY, OPQTL
+ 0375  66| 83 C3 04		        add     ebx, 4
+ 0379  66| B8 CC000105		        mov     eax, (SSTG_ROP_SRCCOPY + SSTG_GO + SSTG_RECTFILL)
+ 037F  66| 0B 46 F4		        or      eax, CLIPSEL
+ 0383  67& 66| 26: 89 03	        mov     es:[ebx], eax                   ; command
+				        BUMP    5
+ 0388  66| 83 46 F8 05	     1	        add     dword ptr IDX, 5
+
+ 038D				Text16DoMoreOpaqueRects:
+
+ 038D  83 C7 08			        add     di, 8               ; Advance to next possible Opaque Rect
+
+ 0390  66| 64: 8B 0D		        mov     ecx, fs:[di]
+ 0394  66| 64: 8B 55 04		        mov     edx, fs:[di+4]
+ 0399  66| 3B D1		        cmp     edx, ecx            ; Check if there is another valid Opaque Rect
+ 039C  0F 8F FF06		        jg      Text16OpaqueLoopTop ; Yep, better go handle it.
+
+
+ 03A0				Text16NullOpaqueRect:
+ 03A0  83 7E 1C 00		        cmp     wCount, 0
+ 03A4  0F 84 0DCA		        je      Text16DoneSuccessLeave
+
+				        ;***************************************
+				        ; Check for special case Trivial Reject
+				        ;  on entire string
+				        ;****************************************
+
+				if 0	;PRS 4757, this optimization seems to cause problems with
+				endif
+
+ 03A8  8B 46 28			        mov     ax, wDestXOrg                
+ 03AB  3B 46 B4			        cmp     ax, word ptr CLPBR           ; If string is to the right of the clip, reject it!
+ 03AE  0F 8F 0DC0		        jg      Text16DoneSuccessLeave 
+
+				        ;*****************************************
+				        ; Setup 2D Engine for the monochrome text
+				        ;  Program in the foreground color.
+				        ;  Because we are always transparent,
+				        ;  we don't need background color.
+				        ;*****************************************
+ 03B2  66| 33 C9				xor		ecx, ecx
+ 03B5  B1 04					mov		cl, 4
+				        CMDFIFO_CHECKROOM       ecx
+ 03B7  66| A1 05D4 E	     2			mov		eax, dword ptr GLOB.mainFifo.bump
+ 03BB  66| 03 C1	     2			add		eax, ecx
+ 03BE  66| 3D 0000FFFF	     2			cmp		eax, 0ffffh
+ 03C4  72 07		     2			jb		??000E
+ 03C6  66| 87 46 D8	     3	        xchg    eax, P6SWAP
+ 03CA  66| 8B C1	     2			mov		eax, ecx
+ 03CD			     2	??000E:
+ 03CD  66| A3 05D4 E	     2			mov		dword ptr GLOB.mainFifo.bump, eax
+ 03D1  66| 8B 46 F8	     1	        mov     eax, IDX
+ 03D5  66| 29 06 05C0 E	     1	        sub     GLOB.mainFifo.space, eax
+ 03DA  66| 33 D2	     1	        xor     edx, edx
+ 03DD  66| C1 E0 02	     1	        shl     eax, 2
+ 03E1  66| 01 46 FC	     1	        add     CF, eax
+ 03E5  66| 89 56 F8	     1	        mov     IDX, edx
+ 03E9  66| 39 0E 05C0 E	     1	        cmp     dword ptr GLOB.mainFifo.space, ecx
+ 03EE  73 0E		     1	        jae     short ??000D
+ 03F0  66| 8B 5E FC	     1	        mov     ebx, CF
+ 03F4  66| 8B C9	     1	        mov     ecx, ecx
+ 03F7  E8 0000 E	     1	        call    fifo_MakeRoom
+ 03FA  66| 89 5E FC	     1	        mov     CF, ebx
+ 03FE			     1	??000D:
+				        GET_CF_OFFSET
+ 03FE  66| 8B 5E FC	     1	        mov     ebx, CF         ; setup hwPtr for packet programming
+ 0402  66| 33 C0		        xor     eax, eax
+ 0405  67& 66| 26: C7 03	        mov     dword ptr es:[ebx], (SSTCP_PKT2 + srcFormatBit + srcXYBit + colorForeBit)   ; PH
+       05400002
+ 040E  66| 83 C3 04		        add     ebx, 4
+ 0412  67& 66| 26: C7 03	        mov     dword ptr es:[ebx], (SSTG_PIXFMT_1BPP + SSTG_SRC_PACK_8)                ; SrcFormat
+       00400000
+ 041B  66| 83 C3 04		        add     ebx, 4
+ 041F  67& 66| 26: 89 03	        mov     es:[ebx], eax                                                   ; SrcXY
+ 0424  66| 83 C3 04		        add     ebx, 4
+ 0428  66| 8B 46 BC		        mov     eax, FGCOLOR                                                    
+ 042C  67& 66| 26: 89 03	        mov     es:[ebx], eax                                               ; TextColor
+				        BUMP    4
+ 0431  66| 83 46 F8 04	     1	        add     dword ptr IDX, 4
+
+				        ;*****************************************
+				        ; Figure out which Glyph Xfer Loop we're
+				        ;  going to.
+				        ;*****************************************
+ 0436  66| 33 F6		        xor     esi, esi
+ 0439  66| 33 C0		        xor     eax, eax
+ 043C  8B 46 1A			        mov     ax, word ptr lpFontInfo+2
+ 043F  8E E8			        mov     gs, ax
+ 0441  83 7E 0E 00		        cmp     word ptr lpCharWidths+2, 0
+ 0445  0F 85 0689		        jne     Text16DrawGlyphLpDx                 ; Use Dx Array for porpotional spcaing
+
+ 0449  F7 46 06 0010		        test    wOptions, ETO_GLYPH_INDEX
+ 044E  0F 85 033E		        jnz     Text16DrawWordIndexGlyph            ; WORD based index glyphs
+
+ 0452  BB 0002			        mov     bx,[NewFontSeg.nfFormat] 
+ 0455  65: F7 07 0080		        test    word ptr gs:[bx], NF_LARGE          ; Must be Byte (char based) glyphs   
+ 045A  0F 85 01A5		        jnz     Text16DrawByteIndexLargeGlyph       ; LARGE ROW
+
+
+				;***************************
+				; Glyph Xfer Routines!
+				;***************************
+
+
+ 045E				Text16DrawByteIndexGlyph:
+				    T16DRAWSTRING  SmallRow, ByteIndex, NonDx
+ 045E  0F B4 7E 1E	     1	        lfs     di, lpString
+ 0462  66| B8 CC010003	     1	        mov     eax, (SSTG_ROP_SRCCOPY + SSTG_TRANSPARENT + SSTG_HOST_BLT)
+ 0468  66| 0B 46 F4	     1	        or      eax, CLIPSEL
+ 046C  66| 89 46 8C	     1			mov		GLYPHCMD, eax
+ 0470  66| B8 38000002	     1			mov		eax, (SSTCP_PKT2 + dstSizeBit + dstXYBit + commandBit)  
+ 0476  66| 89 46 88	     1			mov		GLYPHPH, eax
+ 047A  66| 33 C0	     1	        xor     eax,eax
+ 047D			     1	??000F:
+ 047D  64: 8A 05	     1	        mov     al, fs:[di]                             ; EAX = glyph_index
+ 0480  66| 89 46 94	     1	        mov     GLYPHIDX, eax
+ 0484  BB 0006		     1	        mov     bx,[NewFontSeg.nfGlyphOffset]
+ 0487  66| 65: 8B 17	     1	        mov     edx, gs:[bx]
+ 048B  67& 66| 8D 1C 42	     1	        lea     ebx, [edx+eax*2]
+ 0490  67& 66| 65: 0F B7 1B  1	        movzx   ebx, word ptr gs:[ebx]
+ 0496  66| 65: 8B 07	     1	        mov     eax, gs:[bx]                            ; org_x, org_y, width, height
+ 049A  66| 89 46 AC	     1	        mov     SRSTRUC, eax                            ; Save off SR values.
+ 049E  66| 83 C3 04	     1	        add     ebx, 4
+ 04A2  66| 89 5E A0	     1	        mov     GLYPHPTR, ebx                           ; Save off next Glyph address+ SR Struc size
+ 04A6  66| 8B C8	     1	        mov     ecx, eax                                ; Copy eax data to ecx
+ 04A9  25 00FF		     1	        and     ax, 0ffh
+ 04AC  0F BE C0		     1	        movsx   ax, al                                  ; ax = X org
+ 04AF  C1 E9 08		     1	        shr     cx, 8
+ 04B2  0F BE C9		     1	        movsx   cx, cl                                  ; cx = Y org
+ 04B5  03 46 28		     1	        add     ax, wDestXOrg                           ; ax = X
+ 04B8  F7 D9		     1	        neg     cx
+ 04BA  03 4E 26		     1	        add     cx, wDestYOrg                           ; cx = Y
+ 04BD  8B 56 AE		     1	        mov     dx, word ptr SRSTRUC+2
+ 04C0  80 FA 00		     1	        cmp     dl, 0
+ 04C3  0F 84 0111	     1	        jz      ??0010
+ 04C7  80 FE 00		     1	        cmp     dh, 0
+ 04CA  0F 84 010A	     1	        jz      ??0010
+ 04CE  3B 46 B4		     1	        cmp     ax, word ptr CLPBR                      ; X > Clip Right
+ 04D1  0F 8F 0103	     1	        jg      ??0010
+ 04D5  81 E2 00FF	     1	        and     dx, 0ffh
+ 04D9  0F BE D2		     1	        movsx   dx, dl
+ 04DC  03 D0		     1	        add     dx, ax                                  ; X+Width
+ 04DE  3B 56 B8		     1	        cmp     dx, word ptr CLPTL                      ; X+Width < Clip Left
+ 04E1  0F 8C 00F3	     1	        jl      ??0010
+ 04E5  89 46 9C		     1	        mov     word ptr GLYPHPOS, ax
+ 04E8  89 4E 9E		     1	        mov     word ptr GLYPHPOS+2, cx
+ 04EB  33 C0		     1	        xor     ax, ax
+ 04ED  8A 46 AE		     1	        mov     al, byte ptr SRSTRUC+2                  ; AX = Width
+ 04F0  83 C0 07		     1	        add     ax, 7                                   ; AX = Width+7
+ 04F3  C1 E8 03		     1	        shr     ax, 3                                   ; AX = num bytes/row
+ 04F6  33 DB		     1	        xor     bx, bx
+ 04F8  8A 5E AF		     1	        mov     bl, byte ptr SRSTRUC+3                  ; BX = Height
+ 04FB  F7 EB		     1	        imul    bx
+ 04FD  83 C0 03		     1	        add     ax, 3
+ 0500  C1 E8 02		     1	        shr     ax, 2                                   ; AX = num dwords/glyph
+ 0503  66| 33 C9	     1	        xor     ecx, ecx
+ 0506  8B C8		     1	        mov     cx, ax
+ 0508  66| 89 4E 98	     1	        mov     GLYPHDWORDS, ecx
+ 050C  83 C0 05		     1	        add     ax, 5
+ 050F  66| 33 C9	     1	        xor     ecx, ecx
+ 0512  8B C8		     1	        mov     cx, ax
+ 0514  66| 89 4E 90	     1	        mov     BUMPVAL, ecx                            ; Save the # Dword writes
+ 0518  66| A1 05D4 E	     3			mov		eax, dword ptr GLOB.mainFifo.bump
+ 051C  66| 03 C1	     3			add		eax, ecx
+ 051F  66| 3D 0000FFFF	     3			cmp		eax, 0ffffh
+ 0525  72 07		     3			jb		??0012
+ 0527  66| 87 46 D8	     4	        xchg    eax, P6SWAP
+ 052B  66| 8B C1	     3			mov		eax, ecx
+ 052E			     3	??0012:
+ 052E  66| A3 05D4 E	     3			mov		dword ptr GLOB.mainFifo.bump, eax
+ 0532  66| 8B 46 F8	     2	        mov     eax, IDX
+ 0536  66| 29 06 05C0 E	     2	        sub     GLOB.mainFifo.space, eax
+ 053B  66| 33 D2	     2	        xor     edx, edx
+ 053E  66| C1 E0 02	     2	        shl     eax, 2
+ 0542  66| 01 46 FC	     2	        add     CF, eax
+ 0546  66| 89 56 F8	     2	        mov     IDX, edx
+ 054A  66| 39 0E 05C0 E	     2	        cmp     dword ptr GLOB.mainFifo.space, ecx
+ 054F  73 0E		     2	        jae     short ??0011
+ 0551  66| 8B 5E FC	     2	        mov     ebx, CF
+ 0555  66| 8B C9	     2	        mov     ecx, ecx
+ 0558  E8 0000 E	     2	        call    fifo_MakeRoom
+ 055B  66| 89 5E FC	     2	        mov     CF, ebx
+ 055F			     2	??0011:
+ 055F  66| 8B 5E FC	     2	        mov     ebx, CF         ; setup hwPtr for packet programming
+ 0563  66| 8B 46 88	     1			mov		eax, GLYPHPH
+ 0567  67& 66| 26: 89 03     1			mov		es:[ebx], eax
+ 056C  66| 83 C3 04	     1	        add     ebx, 4
+ 0570  66| 33 C0	     1	        xor     eax, eax
+ 0573  8A 46 AE		     1	        mov     al, byte ptr SRSTRUC+2                              ; AX is width
+ 0576  66| 33 C9	     1	        xor     ecx, ecx
+ 0579  8A 4E AF		     1	        mov     cl, byte ptr SRSTRUC+3                              ; BX is height
+ 057C  66| C1 E1 10	     1	        shl     ecx, 16
+ 0580  66| 0B C1	     1	        or      eax, ecx
+ 0583  67& 66| 26: 89 03     1	        mov     es:[ebx],   eax                                     ; EAX = Height-Width
+ 0588  66| 83 C3 04	     1	        add     ebx, 4
+ 058C  66| 8B 46 9C	     1	        mov     eax, GLYPHPOS
+ 0590  67& 66| 26: 89 03     1	        mov     es:[ebx],   eax                                     ; EAX = Height-Width
+ 0595  66| 83 C3 04	     1	        add     ebx, 4
+ 0599  66| 8B 46 8C	     1	        mov     eax, GLYPHCMD
+ 059D  67& 66| 26: 89 03     1	        mov     es:[ebx], eax
+ 05A2  66| 83 C3 04	     1	        add     ebx, 4
+ 05A6  66| 8B 4E 98	     1	        mov     ecx, GLYPHDWORDS
+ 05AA  66| 8B C1	     1	        mov     eax, ecx
+ 05AD  66| C1 E0 10	     1	        shl     eax, SSTCP_PKT1_NWORDS_SHIFT 
+ 05B1  66| 0D 00004101	     1	        or      eax, (SSTCP_PKT1 + SSTCP_PKT1_2D + 0100h) 
+ 05B7  67& 66| 26: 89 03     1	        mov     es:[ebx], eax
+ 05BC  66| 83 C3 04	     1	        add     ebx, 4
+ 05C0  66| 57		     1	        push    edi
+ 05C2  66| 8B FB	     1	        mov     edi, ebx
+ 05C5  66| 8B 76 A0	     1	        mov     esi, GLYPHPTR
+ 05C9  F3/ 67& 66| 65: A5    1	        rep movsd es:[edi], gs:[esi]
+ 05CE  66| 5F		     1	        pop     edi
+ 05D0  66| 8B 4E 90	     1	        mov     ecx, BUMPVAL
+ 05D4  66| 01 4E F8	     2	        add     dword ptr IDX, ecx
+ 05D8			     1	??0010: 
+ 05D8  66| 8B 46 94	     1	        mov     eax, GLYPHIDX
+ 05DC  BB 000A		     1	        mov     bx,[NewFontSeg.nfAWTable] 
+ 05DF  66| 65: 8B 17	     1	        mov     edx, gs:[bx]
+ 05E3  67& 66| 8D 1C 42	     1	        lea     ebx, [edx+eax*2]
+ 05E8  66| 33 C0	     1	        xor     eax, eax
+ 05EB  67& 65: 8B 03	     1	        mov     ax, gs:[ebx]
+ 05EF  03 46 28		     1	        add     ax, wDestXOrg                           ; ax = wDestXOrg + nfAWTable[glyph_index]
+ 05F2  89 46 28		     1	        mov     wDestXOrg, ax                           ; Save back into the stack
+ 05F5  47		     1	        inc     di
+ 05F6  66| 33 C0	     1	        xor     eax, eax
+ 05F9  FF 4E 1C		     1	        dec     wCount
+ 05FC  0F 85 FE7D	     1	        jnz     ??000F
+ 0600  E9 0B6F		     1	        jmp     Text16DoneSuccessLeave
+
+
+ 0603				Text16DrawByteIndexLargeGlyph:
+				    T16DRAWSTRING  LargeRow, ByteIndex, NonDx
+ 0603  0F B4 7E 1E	     1	        lfs     di, lpString
+ 0607  66| B8 CC010003	     1	        mov     eax, (SSTG_ROP_SRCCOPY + SSTG_TRANSPARENT + SSTG_HOST_BLT)
+ 060D  66| 0B 46 F4	     1	        or      eax, CLIPSEL
+ 0611  66| 89 46 8C	     1			mov		GLYPHCMD, eax
+ 0615  66| B8 38000002	     1			mov		eax, (SSTCP_PKT2 + dstSizeBit + dstXYBit + commandBit)  
+ 061B  66| 89 46 88	     1			mov		GLYPHPH, eax
+ 061F  66| 33 C0	     1	        xor     eax,eax
+ 0622			     1	??0013:
+ 0622  64: 8A 05	     1	        mov     al, fs:[di]                             ; EAX = glyph_index
+ 0625  66| 89 46 94	     1	        mov     GLYPHIDX, eax
+ 0629  BB 0006		     1	        mov     bx,[NewFontSeg.nfGlyphOffset]
+ 062C  66| 65: 8B 17	     1	        mov     edx, gs:[bx]
+ 0630  67& 66| 8D 1C 82	     1	        lea     ebx, [edx+eax*4]
+ 0635  67& 66| 65: 8B 1B     1	        mov		ebx, gs:[ebx]
+ 063A  67& 66| 65: 8B 03     1	        mov     eax, gs:[ebx]                            ; org_x, org_y, 
+ 063F  66| 89 46 A8	     1	        mov     LRORGXY, eax                            
+ 0643  67& 66| 65: 8B 43     1	        mov     eax, gs:[ebx+4]                          ;  width, height
+       04
+ 0649  66| 89 46 A4	     1	        mov     LRORGWH, eax                            
+ 064D  66| 83 C3 08	     1	        add     ebx, 8
+ 0651  66| 89 5E A0	     1	        mov     GLYPHPTR, ebx                           ; Save off next Glyph address+ SR Struc size
+ 0655  8B 4E AA		     1	        mov     cx, word ptr LRORGXY+2                  ; cx = Y org
+ 0658  8B 46 A8		     1	        mov     ax, word ptr LRORGXY                    ; ax = X org
+ 065B  03 46 28		     1	        add     ax, wDestXOrg                           ; ax = X
+ 065E  F7 D9		     1	        neg     cx
+ 0660  03 4E 26		     1	        add     cx, wDestYOrg                           ; cx = Y
+ 0663  8B 56 A4		     1	        mov     dx, word ptr LRORGWH 
+ 0666  83 FA 00		     1	        cmp     dx, 0
+ 0669  0F 84 00F8	     1	        jz      ??0014
+ 066D  83 7E A6 00	     1	        cmp     word ptr LRORGWH+2, 0
+ 0671  0F 84 00F0	     1	        jz      ??0014
+ 0675  3B 46 B4		     1	        cmp     ax, word ptr CLPBR                      ; X > Clip Right
+ 0678  0F 8F 00E9	     1	        jg      ??0014
+ 067C  03 D0		     1	        add     dx, ax                                  ; X+Width
+ 067E  3B 56 B8		     1	        cmp     dx, word ptr CLPTL                      ; X+Width < Clip Left
+ 0681  0F 8C 00E0	     1	        jl      ??0014
+ 0685  89 46 9C		     1	        mov     word ptr GLYPHPOS, ax
+ 0688  89 4E 9E		     1	        mov     word ptr GLYPHPOS+2, cx
+ 068B  8B 46 A4		     1	        mov     ax, word ptr LRORGWH                    ; AX = Width
+ 068E  83 C0 07		     1	        add     ax, 7                                   ; AX = Width+7
+ 0691  C1 E8 03		     1	        shr     ax, 3                                   ; AX = num bytes/row
+ 0694  8B 5E A6		     1	        mov     bx, word ptr LRORGWH+2                  ; BX = Height
+ 0697  F7 EB		     1	        imul    bx
+ 0699  83 C0 03		     1	        add     ax, 3
+ 069C  C1 E8 02		     1	        shr     ax, 2                                   ; AX = num dwords/glyph
+ 069F  66| 33 C9	     1	        xor     ecx, ecx
+ 06A2  8B C8		     1	        mov     cx, ax
+ 06A4  66| 89 4E 98	     1	        mov     GLYPHDWORDS, ecx
+ 06A8  83 C0 05		     1	        add     ax, 5
+ 06AB  66| 33 C9	     1	        xor     ecx, ecx
+ 06AE  8B C8		     1	        mov     cx, ax
+ 06B0  66| 89 4E 90	     1	        mov     BUMPVAL, ecx                            ; Save the # Dword writes
+ 06B4  66| A1 05D4 E	     3			mov		eax, dword ptr GLOB.mainFifo.bump
+ 06B8  66| 03 C1	     3			add		eax, ecx
+ 06BB  66| 3D 0000FFFF	     3			cmp		eax, 0ffffh
+ 06C1  72 07		     3			jb		??0016
+ 06C3  66| 87 46 D8	     4	        xchg    eax, P6SWAP
+ 06C7  66| 8B C1	     3			mov		eax, ecx
+ 06CA			     3	??0016:
+ 06CA  66| A3 05D4 E	     3			mov		dword ptr GLOB.mainFifo.bump, eax
+ 06CE  66| 8B 46 F8	     2	        mov     eax, IDX
+ 06D2  66| 29 06 05C0 E	     2	        sub     GLOB.mainFifo.space, eax
+ 06D7  66| 33 D2	     2	        xor     edx, edx
+ 06DA  66| C1 E0 02	     2	        shl     eax, 2
+ 06DE  66| 01 46 FC	     2	        add     CF, eax
+ 06E2  66| 89 56 F8	     2	        mov     IDX, edx
+ 06E6  66| 39 0E 05C0 E	     2	        cmp     dword ptr GLOB.mainFifo.space, ecx
+ 06EB  73 0E		     2	        jae     short ??0015
+ 06ED  66| 8B 5E FC	     2	        mov     ebx, CF
+ 06F1  66| 8B C9	     2	        mov     ecx, ecx
+ 06F4  E8 0000 E	     2	        call    fifo_MakeRoom
+ 06F7  66| 89 5E FC	     2	        mov     CF, ebx
+ 06FB			     2	??0015:
+ 06FB  66| 8B 5E FC	     2	        mov     ebx, CF         ; setup hwPtr for packet programming
+ 06FF  66| 8B 46 88	     1			mov		eax, GLYPHPH
+ 0703  67& 66| 26: 89 03     1			mov		es:[ebx], eax
+ 0708  66| 83 C3 04	     1	        add     ebx, 4
+ 070C  66| 8B 46 A4	     1	        mov     eax, LRORGWH
+ 0710  67& 66| 26: 89 03     1	        mov     es:[ebx],   eax                                     ; EAX = Height-Width
+ 0715  66| 83 C3 04	     1	        add     ebx, 4
+ 0719  66| 8B 46 9C	     1	        mov     eax, GLYPHPOS
+ 071D  67& 66| 26: 89 03     1	        mov     es:[ebx],   eax                                     ; EAX = Height-Width
+ 0722  66| 83 C3 04	     1	        add     ebx, 4
+ 0726  66| 8B 46 8C	     1	        mov     eax, GLYPHCMD
+ 072A  67& 66| 26: 89 03     1	        mov     es:[ebx], eax
+ 072F  66| 83 C3 04	     1	        add     ebx, 4
+ 0733  66| 8B 4E 98	     1	        mov     ecx, GLYPHDWORDS
+ 0737  66| 8B C1	     1	        mov     eax, ecx
+ 073A  66| C1 E0 10	     1	        shl     eax, SSTCP_PKT1_NWORDS_SHIFT 
+ 073E  66| 0D 00004101	     1	        or      eax, (SSTCP_PKT1 + SSTCP_PKT1_2D + 0100h) 
+ 0744  67& 66| 26: 89 03     1	        mov     es:[ebx], eax
+ 0749  66| 83 C3 04	     1	        add     ebx, 4
+ 074D  66| 57		     1	        push    edi
+ 074F  66| 8B FB	     1	        mov     edi, ebx
+ 0752  66| 8B 76 A0	     1	        mov     esi, GLYPHPTR
+ 0756  F3/ 67& 66| 65: A5    1	        rep movsd es:[edi], gs:[esi]
+ 075B  66| 5F		     1	        pop     edi
+ 075D  66| 8B 4E 90	     1	        mov     ecx, BUMPVAL
+ 0761  66| 01 4E F8	     2	        add     dword ptr IDX, ecx
+ 0765			     1	??0014: 
+ 0765  66| 8B 46 94	     1	        mov     eax, GLYPHIDX
+ 0769  BB 000A		     1	        mov     bx,[NewFontSeg.nfAWTable] 
+ 076C  66| 65: 8B 17	     1	        mov     edx, gs:[bx]
+ 0770  67& 66| 8D 1C 42	     1	        lea     ebx, [edx+eax*2]
+ 0775  66| 33 C0	     1	        xor     eax, eax
+ 0778  67& 65: 8B 03	     1	        mov     ax, gs:[ebx]
+ 077C  03 46 28		     1	        add     ax, wDestXOrg                           ; ax = wDestXOrg + nfAWTable[glyph_index]
+ 077F  89 46 28		     1	        mov     wDestXOrg, ax                           ; Save back into the stack
+ 0782  47		     1	        inc     di
+ 0783  66| 33 C0	     1	        xor     eax, eax
+ 0786  FF 4E 1C		     1	        dec     wCount
+ 0789  0F 85 FE95	     1	        jnz     ??0013
+ 078D  E9 09E2		     1	        jmp     Text16DoneSuccessLeave
+
+ 0790				Text16DrawWordIndexGlyph:
+				    ; PRS 4885 - fixes large font draw problem
+ 0790  BB 0002			    mov     bx,[NewFontSeg.nfFormat] 
+ 0793  65: F7 07 0080		    test    word ptr gs:[bx], NF_LARGE
+ 0798  0F 85 01A7		    jnz     Text16DrawWordIndexLargeGlyph
+				    T16DRAWSTRING  SmallRow, WordIndex, NonDx
+ 079C  0F B4 7E 1E	     1	        lfs     di, lpString
+ 07A0  66| B8 CC010003	     1	        mov     eax, (SSTG_ROP_SRCCOPY + SSTG_TRANSPARENT + SSTG_HOST_BLT)
+ 07A6  66| 0B 46 F4	     1	        or      eax, CLIPSEL
+ 07AA  66| 89 46 8C	     1			mov		GLYPHCMD, eax
+ 07AE  66| B8 38000002	     1			mov		eax, (SSTCP_PKT2 + dstSizeBit + dstXYBit + commandBit)  
+ 07B4  66| 89 46 88	     1			mov		GLYPHPH, eax
+ 07B8  66| 33 C0	     1	        xor     eax,eax
+ 07BB			     1	??0017:
+ 07BB  64: 8B 05	     1	        mov     ax, fs:[di]                             ; EAX = glyph_index
+ 07BE  66| 89 46 94	     1	        mov     GLYPHIDX, eax
+ 07C2  BB 0006		     1	        mov     bx,[NewFontSeg.nfGlyphOffset]
+ 07C5  66| 65: 8B 17	     1	        mov     edx, gs:[bx]
+ 07C9  67& 66| 8D 1C 42	     1	        lea     ebx, [edx+eax*2]
+ 07CE  67& 66| 65: 0F B7 1B  1	        movzx   ebx, word ptr gs:[ebx]
+ 07D4  66| 65: 8B 07	     1	        mov     eax, gs:[bx]                            ; org_x, org_y, width, height
+ 07D8  66| 89 46 AC	     1	        mov     SRSTRUC, eax                            ; Save off SR values.
+ 07DC  66| 83 C3 04	     1	        add     ebx, 4
+ 07E0  66| 89 5E A0	     1	        mov     GLYPHPTR, ebx                           ; Save off next Glyph address+ SR Struc size
+ 07E4  66| 8B C8	     1	        mov     ecx, eax                                ; Copy eax data to ecx
+ 07E7  25 00FF		     1	        and     ax, 0ffh
+ 07EA  0F BE C0		     1	        movsx   ax, al                                  ; ax = X org
+ 07ED  C1 E9 08		     1	        shr     cx, 8
+ 07F0  0F BE C9		     1	        movsx   cx, cl                                  ; cx = Y org
+ 07F3  03 46 28		     1	        add     ax, wDestXOrg                           ; ax = X
+ 07F6  F7 D9		     1	        neg     cx
+ 07F8  03 4E 26		     1	        add     cx, wDestYOrg                           ; cx = Y
+ 07FB  8B 56 AE		     1	        mov     dx, word ptr SRSTRUC+2
+ 07FE  80 FA 00		     1	        cmp     dl, 0
+ 0801  0F 84 0111	     1	        jz      ??0018
+ 0805  80 FE 00		     1	        cmp     dh, 0
+ 0808  0F 84 010A	     1	        jz      ??0018
+ 080C  3B 46 B4		     1	        cmp     ax, word ptr CLPBR                      ; X > Clip Right
+ 080F  0F 8F 0103	     1	        jg      ??0018
+ 0813  81 E2 00FF	     1	        and     dx, 0ffh
+ 0817  0F BE D2		     1	        movsx   dx, dl
+ 081A  03 D0		     1	        add     dx, ax                                  ; X+Width
+ 081C  3B 56 B8		     1	        cmp     dx, word ptr CLPTL                      ; X+Width < Clip Left
+ 081F  0F 8C 00F3	     1	        jl      ??0018
+ 0823  89 46 9C		     1	        mov     word ptr GLYPHPOS, ax
+ 0826  89 4E 9E		     1	        mov     word ptr GLYPHPOS+2, cx
+ 0829  33 C0		     1	        xor     ax, ax
+ 082B  8A 46 AE		     1	        mov     al, byte ptr SRSTRUC+2                  ; AX = Width
+ 082E  83 C0 07		     1	        add     ax, 7                                   ; AX = Width+7
+ 0831  C1 E8 03		     1	        shr     ax, 3                                   ; AX = num bytes/row
+ 0834  33 DB		     1	        xor     bx, bx
+ 0836  8A 5E AF		     1	        mov     bl, byte ptr SRSTRUC+3                  ; BX = Height
+ 0839  F7 EB		     1	        imul    bx
+ 083B  83 C0 03		     1	        add     ax, 3
+ 083E  C1 E8 02		     1	        shr     ax, 2                                   ; AX = num dwords/glyph
+ 0841  66| 33 C9	     1	        xor     ecx, ecx
+ 0844  8B C8		     1	        mov     cx, ax
+ 0846  66| 89 4E 98	     1	        mov     GLYPHDWORDS, ecx
+ 084A  83 C0 05		     1	        add     ax, 5
+ 084D  66| 33 C9	     1	        xor     ecx, ecx
+ 0850  8B C8		     1	        mov     cx, ax
+ 0852  66| 89 4E 90	     1	        mov     BUMPVAL, ecx                            ; Save the # Dword writes
+ 0856  66| A1 05D4 E	     3			mov		eax, dword ptr GLOB.mainFifo.bump
+ 085A  66| 03 C1	     3			add		eax, ecx
+ 085D  66| 3D 0000FFFF	     3			cmp		eax, 0ffffh
+ 0863  72 07		     3			jb		??001A
+ 0865  66| 87 46 D8	     4	        xchg    eax, P6SWAP
+ 0869  66| 8B C1	     3			mov		eax, ecx
+ 086C			     3	??001A:
+ 086C  66| A3 05D4 E	     3			mov		dword ptr GLOB.mainFifo.bump, eax
+ 0870  66| 8B 46 F8	     2	        mov     eax, IDX
+ 0874  66| 29 06 05C0 E	     2	        sub     GLOB.mainFifo.space, eax
+ 0879  66| 33 D2	     2	        xor     edx, edx
+ 087C  66| C1 E0 02	     2	        shl     eax, 2
+ 0880  66| 01 46 FC	     2	        add     CF, eax
+ 0884  66| 89 56 F8	     2	        mov     IDX, edx
+ 0888  66| 39 0E 05C0 E	     2	        cmp     dword ptr GLOB.mainFifo.space, ecx
+ 088D  73 0E		     2	        jae     short ??0019
+ 088F  66| 8B 5E FC	     2	        mov     ebx, CF
+ 0893  66| 8B C9	     2	        mov     ecx, ecx
+ 0896  E8 0000 E	     2	        call    fifo_MakeRoom
+ 0899  66| 89 5E FC	     2	        mov     CF, ebx
+ 089D			     2	??0019:
+ 089D  66| 8B 5E FC	     2	        mov     ebx, CF         ; setup hwPtr for packet programming
+ 08A1  66| 8B 46 88	     1			mov		eax, GLYPHPH
+ 08A5  67& 66| 26: 89 03     1			mov		es:[ebx], eax
+ 08AA  66| 83 C3 04	     1	        add     ebx, 4
+ 08AE  66| 33 C0	     1	        xor     eax, eax
+ 08B1  8A 46 AE		     1	        mov     al, byte ptr SRSTRUC+2                              ; AX is width
+ 08B4  66| 33 C9	     1	        xor     ecx, ecx
+ 08B7  8A 4E AF		     1	        mov     cl, byte ptr SRSTRUC+3                              ; BX is height
+ 08BA  66| C1 E1 10	     1	        shl     ecx, 16
+ 08BE  66| 0B C1	     1	        or      eax, ecx
+ 08C1  67& 66| 26: 89 03     1	        mov     es:[ebx],   eax                                     ; EAX = Height-Width
+ 08C6  66| 83 C3 04	     1	        add     ebx, 4
+ 08CA  66| 8B 46 9C	     1	        mov     eax, GLYPHPOS
+ 08CE  67& 66| 26: 89 03     1	        mov     es:[ebx],   eax                                     ; EAX = Height-Width
+ 08D3  66| 83 C3 04	     1	        add     ebx, 4
+ 08D7  66| 8B 46 8C	     1	        mov     eax, GLYPHCMD
+ 08DB  67& 66| 26: 89 03     1	        mov     es:[ebx], eax
+ 08E0  66| 83 C3 04	     1	        add     ebx, 4
+ 08E4  66| 8B 4E 98	     1	        mov     ecx, GLYPHDWORDS
+ 08E8  66| 8B C1	     1	        mov     eax, ecx
+ 08EB  66| C1 E0 10	     1	        shl     eax, SSTCP_PKT1_NWORDS_SHIFT 
+ 08EF  66| 0D 00004101	     1	        or      eax, (SSTCP_PKT1 + SSTCP_PKT1_2D + 0100h) 
+ 08F5  67& 66| 26: 89 03     1	        mov     es:[ebx], eax
+ 08FA  66| 83 C3 04	     1	        add     ebx, 4
+ 08FE  66| 57		     1	        push    edi
+ 0900  66| 8B FB	     1	        mov     edi, ebx
+ 0903  66| 8B 76 A0	     1	        mov     esi, GLYPHPTR
+ 0907  F3/ 67& 66| 65: A5    1	        rep movsd es:[edi], gs:[esi]
+ 090C  66| 5F		     1	        pop     edi
+ 090E  66| 8B 4E 90	     1	        mov     ecx, BUMPVAL
+ 0912  66| 01 4E F8	     2	        add     dword ptr IDX, ecx
+ 0916			     1	??0018: 
+ 0916  66| 8B 46 94	     1	        mov     eax, GLYPHIDX
+ 091A  BB 000A		     1	        mov     bx,[NewFontSeg.nfAWTable] 
+ 091D  66| 65: 8B 17	     1	        mov     edx, gs:[bx]
+ 0921  67& 66| 8D 1C 42	     1	        lea     ebx, [edx+eax*2]
+ 0926  66| 33 C0	     1	        xor     eax, eax
+ 0929  67& 65: 8B 03	     1	        mov     ax, gs:[ebx]
+ 092D  03 46 28		     1	        add     ax, wDestXOrg                           ; ax = wDestXOrg + nfAWTable[glyph_index]
+ 0930  89 46 28		     1	        mov     wDestXOrg, ax                           ; Save back into the stack
+ 0933  83 C7 02		     1	        add     di, 2
+ 0936  66| 33 C0	     1	        xor     eax, eax
+ 0939  FF 4E 1C		     1	        dec     wCount
+ 093C  0F 85 FE7B	     1	        jnz     ??0017
+ 0940  E9 082F		     1	        jmp     Text16DoneSuccessLeave
+
+ 0943				Text16DrawWordIndexLargeGlyph:
+				    T16DRAWSTRING  LargeRow, WordIndex, NonDx
+ 0943  0F B4 7E 1E	     1	        lfs     di, lpString
+ 0947  66| B8 CC010003	     1	        mov     eax, (SSTG_ROP_SRCCOPY + SSTG_TRANSPARENT + SSTG_HOST_BLT)
+ 094D  66| 0B 46 F4	     1	        or      eax, CLIPSEL
+ 0951  66| 89 46 8C	     1			mov		GLYPHCMD, eax
+ 0955  66| B8 38000002	     1			mov		eax, (SSTCP_PKT2 + dstSizeBit + dstXYBit + commandBit)  
+ 095B  66| 89 46 88	     1			mov		GLYPHPH, eax
+ 095F  66| 33 C0	     1	        xor     eax,eax
+ 0962			     1	??001B:
+ 0962  64: 8B 05	     1	        mov     ax, fs:[di]                             ; EAX = glyph_index
+ 0965  66| 89 46 94	     1	        mov     GLYPHIDX, eax
+ 0969  BB 0006		     1	        mov     bx,[NewFontSeg.nfGlyphOffset]
+ 096C  66| 65: 8B 17	     1	        mov     edx, gs:[bx]
+ 0970  67& 66| 8D 1C 82	     1	        lea     ebx, [edx+eax*4]
+ 0975  67& 66| 65: 8B 1B     1	        mov		ebx, gs:[ebx]
+ 097A  67& 66| 65: 8B 03     1	        mov     eax, gs:[ebx]                            ; org_x, org_y, 
+ 097F  66| 89 46 A8	     1	        mov     LRORGXY, eax                            
+ 0983  67& 66| 65: 8B 43     1	        mov     eax, gs:[ebx+4]                          ;  width, height
+       04
+ 0989  66| 89 46 A4	     1	        mov     LRORGWH, eax                            
+ 098D  66| 83 C3 08	     1	        add     ebx, 8
+ 0991  66| 89 5E A0	     1	        mov     GLYPHPTR, ebx                           ; Save off next Glyph address+ SR Struc size
+ 0995  8B 4E AA		     1	        mov     cx, word ptr LRORGXY+2                  ; cx = Y org
+ 0998  8B 46 A8		     1	        mov     ax, word ptr LRORGXY                    ; ax = X org
+ 099B  03 46 28		     1	        add     ax, wDestXOrg                           ; ax = X
+ 099E  F7 D9		     1	        neg     cx
+ 09A0  03 4E 26		     1	        add     cx, wDestYOrg                           ; cx = Y
+ 09A3  8B 56 A4		     1	        mov     dx, word ptr LRORGWH 
+ 09A6  83 FA 00		     1	        cmp     dx, 0
+ 09A9  0F 84 00F8	     1	        jz      ??001C
+ 09AD  83 7E A6 00	     1	        cmp     word ptr LRORGWH+2, 0
+ 09B1  0F 84 00F0	     1	        jz      ??001C
+ 09B5  3B 46 B4		     1	        cmp     ax, word ptr CLPBR                      ; X > Clip Right
+ 09B8  0F 8F 00E9	     1	        jg      ??001C
+ 09BC  03 D0		     1	        add     dx, ax                                  ; X+Width
+ 09BE  3B 56 B8		     1	        cmp     dx, word ptr CLPTL                      ; X+Width < Clip Left
+ 09C1  0F 8C 00E0	     1	        jl      ??001C
+ 09C5  89 46 9C		     1	        mov     word ptr GLYPHPOS, ax
+ 09C8  89 4E 9E		     1	        mov     word ptr GLYPHPOS+2, cx
+ 09CB  8B 46 A4		     1	        mov     ax, word ptr LRORGWH                    ; AX = Width
+ 09CE  83 C0 07		     1	        add     ax, 7                                   ; AX = Width+7
+ 09D1  C1 E8 03		     1	        shr     ax, 3                                   ; AX = num bytes/row
+ 09D4  8B 5E A6		     1	        mov     bx, word ptr LRORGWH+2                  ; BX = Height
+ 09D7  F7 EB		     1	        imul    bx
+ 09D9  83 C0 03		     1	        add     ax, 3
+ 09DC  C1 E8 02		     1	        shr     ax, 2                                   ; AX = num dwords/glyph
+ 09DF  66| 33 C9	     1	        xor     ecx, ecx
+ 09E2  8B C8		     1	        mov     cx, ax
+ 09E4  66| 89 4E 98	     1	        mov     GLYPHDWORDS, ecx
+ 09E8  83 C0 05		     1	        add     ax, 5
+ 09EB  66| 33 C9	     1	        xor     ecx, ecx
+ 09EE  8B C8		     1	        mov     cx, ax
+ 09F0  66| 89 4E 90	     1	        mov     BUMPVAL, ecx                            ; Save the # Dword writes
+ 09F4  66| A1 05D4 E	     3			mov		eax, dword ptr GLOB.mainFifo.bump
+ 09F8  66| 03 C1	     3			add		eax, ecx
+ 09FB  66| 3D 0000FFFF	     3			cmp		eax, 0ffffh
+ 0A01  72 07		     3			jb		??001E
+ 0A03  66| 87 46 D8	     4	        xchg    eax, P6SWAP
+ 0A07  66| 8B C1	     3			mov		eax, ecx
+ 0A0A			     3	??001E:
+ 0A0A  66| A3 05D4 E	     3			mov		dword ptr GLOB.mainFifo.bump, eax
+ 0A0E  66| 8B 46 F8	     2	        mov     eax, IDX
+ 0A12  66| 29 06 05C0 E	     2	        sub     GLOB.mainFifo.space, eax
+ 0A17  66| 33 D2	     2	        xor     edx, edx
+ 0A1A  66| C1 E0 02	     2	        shl     eax, 2
+ 0A1E  66| 01 46 FC	     2	        add     CF, eax
+ 0A22  66| 89 56 F8	     2	        mov     IDX, edx
+ 0A26  66| 39 0E 05C0 E	     2	        cmp     dword ptr GLOB.mainFifo.space, ecx
+ 0A2B  73 0E		     2	        jae     short ??001D
+ 0A2D  66| 8B 5E FC	     2	        mov     ebx, CF
+ 0A31  66| 8B C9	     2	        mov     ecx, ecx
+ 0A34  E8 0000 E	     2	        call    fifo_MakeRoom
+ 0A37  66| 89 5E FC	     2	        mov     CF, ebx
+ 0A3B			     2	??001D:
+ 0A3B  66| 8B 5E FC	     2	        mov     ebx, CF         ; setup hwPtr for packet programming
+ 0A3F  66| 8B 46 88	     1			mov		eax, GLYPHPH
+ 0A43  67& 66| 26: 89 03     1			mov		es:[ebx], eax
+ 0A48  66| 83 C3 04	     1	        add     ebx, 4
+ 0A4C  66| 8B 46 A4	     1	        mov     eax, LRORGWH
+ 0A50  67& 66| 26: 89 03     1	        mov     es:[ebx],   eax                                     ; EAX = Height-Width
+ 0A55  66| 83 C3 04	     1	        add     ebx, 4
+ 0A59  66| 8B 46 9C	     1	        mov     eax, GLYPHPOS
+ 0A5D  67& 66| 26: 89 03     1	        mov     es:[ebx],   eax                                     ; EAX = Height-Width
+ 0A62  66| 83 C3 04	     1	        add     ebx, 4
+ 0A66  66| 8B 46 8C	     1	        mov     eax, GLYPHCMD
+ 0A6A  67& 66| 26: 89 03     1	        mov     es:[ebx], eax
+ 0A6F  66| 83 C3 04	     1	        add     ebx, 4
+ 0A73  66| 8B 4E 98	     1	        mov     ecx, GLYPHDWORDS
+ 0A77  66| 8B C1	     1	        mov     eax, ecx
+ 0A7A  66| C1 E0 10	     1	        shl     eax, SSTCP_PKT1_NWORDS_SHIFT 
+ 0A7E  66| 0D 00004101	     1	        or      eax, (SSTCP_PKT1 + SSTCP_PKT1_2D + 0100h) 
+ 0A84  67& 66| 26: 89 03     1	        mov     es:[ebx], eax
+ 0A89  66| 83 C3 04	     1	        add     ebx, 4
+ 0A8D  66| 57		     1	        push    edi
+ 0A8F  66| 8B FB	     1	        mov     edi, ebx
+ 0A92  66| 8B 76 A0	     1	        mov     esi, GLYPHPTR
+ 0A96  F3/ 67& 66| 65: A5    1	        rep movsd es:[edi], gs:[esi]
+ 0A9B  66| 5F		     1	        pop     edi
+ 0A9D  66| 8B 4E 90	     1	        mov     ecx, BUMPVAL
+ 0AA1  66| 01 4E F8	     2	        add     dword ptr IDX, ecx
+ 0AA5			     1	??001C: 
+ 0AA5  66| 8B 46 94	     1	        mov     eax, GLYPHIDX
+ 0AA9  BB 000A		     1	        mov     bx,[NewFontSeg.nfAWTable] 
+ 0AAC  66| 65: 8B 17	     1	        mov     edx, gs:[bx]
+ 0AB0  67& 66| 8D 1C 42	     1	        lea     ebx, [edx+eax*2]
+ 0AB5  66| 33 C0	     1	        xor     eax, eax
+ 0AB8  67& 65: 8B 03	     1	        mov     ax, gs:[ebx]
+ 0ABC  03 46 28		     1	        add     ax, wDestXOrg                           ; ax = wDestXOrg + nfAWTable[glyph_index]
+ 0ABF  89 46 28		     1	        mov     wDestXOrg, ax                           ; Save back into the stack
+ 0AC2  83 C7 02		     1	        add     di, 2
+ 0AC5  66| 33 C0	     1	        xor     eax, eax
+ 0AC8  FF 4E 1C		     1	        dec     wCount
+ 0ACB  0F 85 FE93	     1	        jnz     ??001B
+ 0ACF  E9 06A0		     1	        jmp     Text16DoneSuccessLeave
+
+
+ 0AD2				Text16DrawGlyphLpDx:
+ 0AD2  F7 46 06 0010		    test    wOptions, ETO_GLYPH_INDEX
+ 0AD7  0F 85 034A		    jnz     Text16DrawWordIndexGlyphLpDx
+ 0ADB  BB 0002			    mov     bx,[NewFontSeg.nfFormat] 
+ 0ADE  65: F7 07 0080		    test    word ptr gs:[bx], NF_LARGE
+ 0AE3  0F 85 01AB		    jnz     Text16DrawByteIndexLargeGlyphLpDx
+				    T16DRAWSTRING  SmallRow, ByteIndex, Dx
+ 0AE7  66| 33 C9	     1	        xor     ecx, ecx
+ 0AEA  66| 89 4E B0	     1	        mov     NCHARS, ecx
+ 0AEE  0F B4 7E 1E	     1	        lfs     di, lpString
+ 0AF2  66| B8 CC010003	     1	        mov     eax, (SSTG_ROP_SRCCOPY + SSTG_TRANSPARENT + SSTG_HOST_BLT)
+ 0AF8  66| 0B 46 F4	     1	        or      eax, CLIPSEL
+ 0AFC  66| 89 46 8C	     1			mov		GLYPHCMD, eax
+ 0B00  66| B8 38000002	     1			mov		eax, (SSTCP_PKT2 + dstSizeBit + dstXYBit + commandBit)  
+ 0B06  66| 89 46 88	     1			mov		GLYPHPH, eax
+ 0B0A  66| 33 C0	     1	        xor     eax,eax
+ 0B0D			     1	??001F:
+ 0B0D  64: 8A 05	     1	        mov     al, fs:[di]                             ; EAX = glyph_index
+ 0B10  66| 89 46 94	     1	        mov     GLYPHIDX, eax
+ 0B14  BB 0006		     1	        mov     bx,[NewFontSeg.nfGlyphOffset]
+ 0B17  66| 65: 8B 17	     1	        mov     edx, gs:[bx]
+ 0B1B  67& 66| 8D 1C 42	     1	        lea     ebx, [edx+eax*2]
+ 0B20  67& 66| 65: 0F B7 1B  1	        movzx   ebx, word ptr gs:[ebx]
+ 0B26  66| 65: 8B 07	     1	        mov     eax, gs:[bx]                            ; org_x, org_y, width, height
+ 0B2A  66| 89 46 AC	     1	        mov     SRSTRUC, eax                            ; Save off SR values.
+ 0B2E  66| 83 C3 04	     1	        add     ebx, 4
+ 0B32  66| 89 5E A0	     1	        mov     GLYPHPTR, ebx                           ; Save off next Glyph address+ SR Struc size
+ 0B36  66| 8B C8	     1	        mov     ecx, eax                                ; Copy eax data to ecx
+ 0B39  25 00FF		     1	        and     ax, 0ffh
+ 0B3C  0F BE C0		     1	        movsx   ax, al                                  ; ax = X org
+ 0B3F  C1 E9 08		     1	        shr     cx, 8
+ 0B42  0F BE C9		     1	        movsx   cx, cl                                  ; cx = Y org
+ 0B45  03 46 28		     1	        add     ax, wDestXOrg                           ; ax = X
+ 0B48  F7 D9		     1	        neg     cx
+ 0B4A  03 4E 26		     1	        add     cx, wDestYOrg                           ; cx = Y
+ 0B4D  8B 56 AE		     1	        mov     dx, word ptr SRSTRUC+2
+ 0B50  80 FA 00		     1	        cmp     dl, 0
+ 0B53  0F 84 0111	     1	        jz      ??0020
+ 0B57  80 FE 00		     1	        cmp     dh, 0
+ 0B5A  0F 84 010A	     1	        jz      ??0020
+ 0B5E  3B 46 B4		     1	        cmp     ax, word ptr CLPBR                      ; X > Clip Right
+ 0B61  0F 8F 0103	     1	        jg      ??0020
+ 0B65  81 E2 00FF	     1	        and     dx, 0ffh
+ 0B69  0F BE D2		     1	        movsx   dx, dl
+ 0B6C  03 D0		     1	        add     dx, ax                                  ; X+Width
+ 0B6E  3B 56 B8		     1	        cmp     dx, word ptr CLPTL                      ; X+Width < Clip Left
+ 0B71  0F 8C 00F3	     1	        jl      ??0020
+ 0B75  89 46 9C		     1	        mov     word ptr GLYPHPOS, ax
+ 0B78  89 4E 9E		     1	        mov     word ptr GLYPHPOS+2, cx
+ 0B7B  33 C0		     1	        xor     ax, ax
+ 0B7D  8A 46 AE		     1	        mov     al, byte ptr SRSTRUC+2                  ; AX = Width
+ 0B80  83 C0 07		     1	        add     ax, 7                                   ; AX = Width+7
+ 0B83  C1 E8 03		     1	        shr     ax, 3                                   ; AX = num bytes/row
+ 0B86  33 DB		     1	        xor     bx, bx
+ 0B88  8A 5E AF		     1	        mov     bl, byte ptr SRSTRUC+3                  ; BX = Height
+ 0B8B  F7 EB		     1	        imul    bx
+ 0B8D  83 C0 03		     1	        add     ax, 3
+ 0B90  C1 E8 02		     1	        shr     ax, 2                                   ; AX = num dwords/glyph
+ 0B93  66| 33 C9	     1	        xor     ecx, ecx
+ 0B96  8B C8		     1	        mov     cx, ax
+ 0B98  66| 89 4E 98	     1	        mov     GLYPHDWORDS, ecx
+ 0B9C  83 C0 05		     1	        add     ax, 5
+ 0B9F  66| 33 C9	     1	        xor     ecx, ecx
+ 0BA2  8B C8		     1	        mov     cx, ax
+ 0BA4  66| 89 4E 90	     1	        mov     BUMPVAL, ecx                            ; Save the # Dword writes
+ 0BA8  66| A1 05D4 E	     3			mov		eax, dword ptr GLOB.mainFifo.bump
+ 0BAC  66| 03 C1	     3			add		eax, ecx
+ 0BAF  66| 3D 0000FFFF	     3			cmp		eax, 0ffffh
+ 0BB5  72 07		     3			jb		??0022
+ 0BB7  66| 87 46 D8	     4	        xchg    eax, P6SWAP
+ 0BBB  66| 8B C1	     3			mov		eax, ecx
+ 0BBE			     3	??0022:
+ 0BBE  66| A3 05D4 E	     3			mov		dword ptr GLOB.mainFifo.bump, eax
+ 0BC2  66| 8B 46 F8	     2	        mov     eax, IDX
+ 0BC6  66| 29 06 05C0 E	     2	        sub     GLOB.mainFifo.space, eax
+ 0BCB  66| 33 D2	     2	        xor     edx, edx
+ 0BCE  66| C1 E0 02	     2	        shl     eax, 2
+ 0BD2  66| 01 46 FC	     2	        add     CF, eax
+ 0BD6  66| 89 56 F8	     2	        mov     IDX, edx
+ 0BDA  66| 39 0E 05C0 E	     2	        cmp     dword ptr GLOB.mainFifo.space, ecx
+ 0BDF  73 0E		     2	        jae     short ??0021
+ 0BE1  66| 8B 5E FC	     2	        mov     ebx, CF
+ 0BE5  66| 8B C9	     2	        mov     ecx, ecx
+ 0BE8  E8 0000 E	     2	        call    fifo_MakeRoom
+ 0BEB  66| 89 5E FC	     2	        mov     CF, ebx
+ 0BEF			     2	??0021:
+ 0BEF  66| 8B 5E FC	     2	        mov     ebx, CF         ; setup hwPtr for packet programming
+ 0BF3  66| 8B 46 88	     1			mov		eax, GLYPHPH
+ 0BF7  67& 66| 26: 89 03     1			mov		es:[ebx], eax
+ 0BFC  66| 83 C3 04	     1	        add     ebx, 4
+ 0C00  66| 33 C0	     1	        xor     eax, eax
+ 0C03  8A 46 AE		     1	        mov     al, byte ptr SRSTRUC+2                              ; AX is width
+ 0C06  66| 33 C9	     1	        xor     ecx, ecx
+ 0C09  8A 4E AF		     1	        mov     cl, byte ptr SRSTRUC+3                              ; BX is height
+ 0C0C  66| C1 E1 10	     1	        shl     ecx, 16
+ 0C10  66| 0B C1	     1	        or      eax, ecx
+ 0C13  67& 66| 26: 89 03     1	        mov     es:[ebx],   eax                                     ; EAX = Height-Width
+ 0C18  66| 83 C3 04	     1	        add     ebx, 4
+ 0C1C  66| 8B 46 9C	     1	        mov     eax, GLYPHPOS
+ 0C20  67& 66| 26: 89 03     1	        mov     es:[ebx],   eax                                     ; EAX = Height-Width
+ 0C25  66| 83 C3 04	     1	        add     ebx, 4
+ 0C29  66| 8B 46 8C	     1	        mov     eax, GLYPHCMD
+ 0C2D  67& 66| 26: 89 03     1	        mov     es:[ebx], eax
+ 0C32  66| 83 C3 04	     1	        add     ebx, 4
+ 0C36  66| 8B 4E 98	     1	        mov     ecx, GLYPHDWORDS
+ 0C3A  66| 8B C1	     1	        mov     eax, ecx
+ 0C3D  66| C1 E0 10	     1	        shl     eax, SSTCP_PKT1_NWORDS_SHIFT 
+ 0C41  66| 0D 00004101	     1	        or      eax, (SSTCP_PKT1 + SSTCP_PKT1_2D + 0100h) 
+ 0C47  67& 66| 26: 89 03     1	        mov     es:[ebx], eax
+ 0C4C  66| 83 C3 04	     1	        add     ebx, 4
+ 0C50  66| 57		     1	        push    edi
+ 0C52  66| 8B FB	     1	        mov     edi, ebx
+ 0C55  66| 8B 76 A0	     1	        mov     esi, GLYPHPTR
+ 0C59  F3/ 67& 66| 65: A5    1	        rep movsd es:[edi], gs:[esi]
+ 0C5E  66| 5F		     1	        pop     edi
+ 0C60  66| 8B 4E 90	     1	        mov     ecx, BUMPVAL
+ 0C64  66| 01 4E F8	     2	        add     dword ptr IDX, ecx
+ 0C68			     1	??0020: 
+ 0C68  1E		     1	        push    ds
+ 0C69  66| 33 DB	     1	        xor     ebx, ebx
+ 0C6C  C5 5E 0C		     1	        lds     bx, lpCharWidths
+ 0C6F  66| 8B 46 B0	     1	        mov     eax, NCHARS
+ 0C73  67& 66| 8D 1C 43	     1	        lea     ebx,[ebx+eax*2]
+ 0C78  8B 07		     1	        mov     ax, ds:[bx]
+ 0C7A  1F		     1	        pop     ds
+ 0C7B  FF 46 B0		     1	        inc     word ptr NCHARS
+ 0C7E  03 46 28		     1	        add     ax, wDestXOrg                           ; ax = wDestXOrg + nfAWTable[glyph_index]
+ 0C81  89 46 28		     1	        mov     wDestXOrg, ax                           ; Save back into the stack
+ 0C84  47		     1	        inc     di
+ 0C85  66| 33 C0	     1	        xor     eax, eax
+ 0C88  FF 4E 1C		     1	        dec     wCount
+ 0C8B  0F 85 FE7E	     1	        jnz     ??001F
+ 0C8F  E9 04E0		     1	        jmp     Text16DoneSuccessLeave
+
+ 0C92				Text16DrawByteIndexLargeGlyphLpDx:
+				    T16DRAWSTRING  LargeRow, ByteIndex, Dx
+ 0C92  66| 33 C9	     1	        xor     ecx, ecx
+ 0C95  66| 89 4E B0	     1	        mov     NCHARS, ecx
+ 0C99  0F B4 7E 1E	     1	        lfs     di, lpString
+ 0C9D  66| B8 CC010003	     1	        mov     eax, (SSTG_ROP_SRCCOPY + SSTG_TRANSPARENT + SSTG_HOST_BLT)
+ 0CA3  66| 0B 46 F4	     1	        or      eax, CLIPSEL
+ 0CA7  66| 89 46 8C	     1			mov		GLYPHCMD, eax
+ 0CAB  66| B8 38000002	     1			mov		eax, (SSTCP_PKT2 + dstSizeBit + dstXYBit + commandBit)  
+ 0CB1  66| 89 46 88	     1			mov		GLYPHPH, eax
+ 0CB5  66| 33 C0	     1	        xor     eax,eax
+ 0CB8			     1	??0023:
+ 0CB8  64: 8A 05	     1	        mov     al, fs:[di]                             ; EAX = glyph_index
+ 0CBB  66| 89 46 94	     1	        mov     GLYPHIDX, eax
+ 0CBF  BB 0006		     1	        mov     bx,[NewFontSeg.nfGlyphOffset]
+ 0CC2  66| 65: 8B 17	     1	        mov     edx, gs:[bx]
+ 0CC6  67& 66| 8D 1C 82	     1	        lea     ebx, [edx+eax*4]
+ 0CCB  67& 66| 65: 8B 1B     1	        mov		ebx, gs:[ebx]
+ 0CD0  67& 66| 65: 8B 03     1	        mov     eax, gs:[ebx]                            ; org_x, org_y, 
+ 0CD5  66| 89 46 A8	     1	        mov     LRORGXY, eax                            
+ 0CD9  67& 66| 65: 8B 43     1	        mov     eax, gs:[ebx+4]                          ;  width, height
+       04
+ 0CDF  66| 89 46 A4	     1	        mov     LRORGWH, eax                            
+ 0CE3  66| 83 C3 08	     1	        add     ebx, 8
+ 0CE7  66| 89 5E A0	     1	        mov     GLYPHPTR, ebx                           ; Save off next Glyph address+ SR Struc size
+ 0CEB  8B 4E AA		     1	        mov     cx, word ptr LRORGXY+2                  ; cx = Y org
+ 0CEE  8B 46 A8		     1	        mov     ax, word ptr LRORGXY                    ; ax = X org
+ 0CF1  03 46 28		     1	        add     ax, wDestXOrg                           ; ax = X
+ 0CF4  F7 D9		     1	        neg     cx
+ 0CF6  03 4E 26		     1	        add     cx, wDestYOrg                           ; cx = Y
+ 0CF9  8B 56 A4		     1	        mov     dx, word ptr LRORGWH 
+ 0CFC  83 FA 00		     1	        cmp     dx, 0
+ 0CFF  0F 84 00F8	     1	        jz      ??0024
+ 0D03  83 7E A6 00	     1	        cmp     word ptr LRORGWH+2, 0
+ 0D07  0F 84 00F0	     1	        jz      ??0024
+ 0D0B  3B 46 B4		     1	        cmp     ax, word ptr CLPBR                      ; X > Clip Right
+ 0D0E  0F 8F 00E9	     1	        jg      ??0024
+ 0D12  03 D0		     1	        add     dx, ax                                  ; X+Width
+ 0D14  3B 56 B8		     1	        cmp     dx, word ptr CLPTL                      ; X+Width < Clip Left
+ 0D17  0F 8C 00E0	     1	        jl      ??0024
+ 0D1B  89 46 9C		     1	        mov     word ptr GLYPHPOS, ax
+ 0D1E  89 4E 9E		     1	        mov     word ptr GLYPHPOS+2, cx
+ 0D21  8B 46 A4		     1	        mov     ax, word ptr LRORGWH                    ; AX = Width
+ 0D24  83 C0 07		     1	        add     ax, 7                                   ; AX = Width+7
+ 0D27  C1 E8 03		     1	        shr     ax, 3                                   ; AX = num bytes/row
+ 0D2A  8B 5E A6		     1	        mov     bx, word ptr LRORGWH+2                  ; BX = Height
+ 0D2D  F7 EB		     1	        imul    bx
+ 0D2F  83 C0 03		     1	        add     ax, 3
+ 0D32  C1 E8 02		     1	        shr     ax, 2                                   ; AX = num dwords/glyph
+ 0D35  66| 33 C9	     1	        xor     ecx, ecx
+ 0D38  8B C8		     1	        mov     cx, ax
+ 0D3A  66| 89 4E 98	     1	        mov     GLYPHDWORDS, ecx
+ 0D3E  83 C0 05		     1	        add     ax, 5
+ 0D41  66| 33 C9	     1	        xor     ecx, ecx
+ 0D44  8B C8		     1	        mov     cx, ax
+ 0D46  66| 89 4E 90	     1	        mov     BUMPVAL, ecx                            ; Save the # Dword writes
+ 0D4A  66| A1 05D4 E	     3			mov		eax, dword ptr GLOB.mainFifo.bump
+ 0D4E  66| 03 C1	     3			add		eax, ecx
+ 0D51  66| 3D 0000FFFF	     3			cmp		eax, 0ffffh
+ 0D57  72 07		     3			jb		??0026
+ 0D59  66| 87 46 D8	     4	        xchg    eax, P6SWAP
+ 0D5D  66| 8B C1	     3			mov		eax, ecx
+ 0D60			     3	??0026:
+ 0D60  66| A3 05D4 E	     3			mov		dword ptr GLOB.mainFifo.bump, eax
+ 0D64  66| 8B 46 F8	     2	        mov     eax, IDX
+ 0D68  66| 29 06 05C0 E	     2	        sub     GLOB.mainFifo.space, eax
+ 0D6D  66| 33 D2	     2	        xor     edx, edx
+ 0D70  66| C1 E0 02	     2	        shl     eax, 2
+ 0D74  66| 01 46 FC	     2	        add     CF, eax
+ 0D78  66| 89 56 F8	     2	        mov     IDX, edx
+ 0D7C  66| 39 0E 05C0 E	     2	        cmp     dword ptr GLOB.mainFifo.space, ecx
+ 0D81  73 0E		     2	        jae     short ??0025
+ 0D83  66| 8B 5E FC	     2	        mov     ebx, CF
+ 0D87  66| 8B C9	     2	        mov     ecx, ecx
+ 0D8A  E8 0000 E	     2	        call    fifo_MakeRoom
+ 0D8D  66| 89 5E FC	     2	        mov     CF, ebx
+ 0D91			     2	??0025:
+ 0D91  66| 8B 5E FC	     2	        mov     ebx, CF         ; setup hwPtr for packet programming
+ 0D95  66| 8B 46 88	     1			mov		eax, GLYPHPH
+ 0D99  67& 66| 26: 89 03     1			mov		es:[ebx], eax
+ 0D9E  66| 83 C3 04	     1	        add     ebx, 4
+ 0DA2  66| 8B 46 A4	     1	        mov     eax, LRORGWH
+ 0DA6  67& 66| 26: 89 03     1	        mov     es:[ebx],   eax                                     ; EAX = Height-Width
+ 0DAB  66| 83 C3 04	     1	        add     ebx, 4
+ 0DAF  66| 8B 46 9C	     1	        mov     eax, GLYPHPOS
+ 0DB3  67& 66| 26: 89 03     1	        mov     es:[ebx],   eax                                     ; EAX = Height-Width
+ 0DB8  66| 83 C3 04	     1	        add     ebx, 4
+ 0DBC  66| 8B 46 8C	     1	        mov     eax, GLYPHCMD
+ 0DC0  67& 66| 26: 89 03     1	        mov     es:[ebx], eax
+ 0DC5  66| 83 C3 04	     1	        add     ebx, 4
+ 0DC9  66| 8B 4E 98	     1	        mov     ecx, GLYPHDWORDS
+ 0DCD  66| 8B C1	     1	        mov     eax, ecx
+ 0DD0  66| C1 E0 10	     1	        shl     eax, SSTCP_PKT1_NWORDS_SHIFT 
+ 0DD4  66| 0D 00004101	     1	        or      eax, (SSTCP_PKT1 + SSTCP_PKT1_2D + 0100h) 
+ 0DDA  67& 66| 26: 89 03     1	        mov     es:[ebx], eax
+ 0DDF  66| 83 C3 04	     1	        add     ebx, 4
+ 0DE3  66| 57		     1	        push    edi
+ 0DE5  66| 8B FB	     1	        mov     edi, ebx
+ 0DE8  66| 8B 76 A0	     1	        mov     esi, GLYPHPTR
+ 0DEC  F3/ 67& 66| 65: A5    1	        rep movsd es:[edi], gs:[esi]
+ 0DF1  66| 5F		     1	        pop     edi
+ 0DF3  66| 8B 4E 90	     1	        mov     ecx, BUMPVAL
+ 0DF7  66| 01 4E F8	     2	        add     dword ptr IDX, ecx
+ 0DFB			     1	??0024: 
+ 0DFB  1E		     1	        push    ds
+ 0DFC  66| 33 DB	     1	        xor     ebx, ebx
+ 0DFF  C5 5E 0C		     1	        lds     bx, lpCharWidths
+ 0E02  66| 8B 46 B0	     1	        mov     eax, NCHARS
+ 0E06  67& 66| 8D 1C 43	     1	        lea     ebx,[ebx+eax*2]
+ 0E0B  8B 07		     1	        mov     ax, ds:[bx]
+ 0E0D  1F		     1	        pop     ds
+ 0E0E  FF 46 B0		     1	        inc     word ptr NCHARS
+ 0E11  03 46 28		     1	        add     ax, wDestXOrg                           ; ax = wDestXOrg + nfAWTable[glyph_index]
+ 0E14  89 46 28		     1	        mov     wDestXOrg, ax                           ; Save back into the stack
+ 0E17  47		     1	        inc     di
+ 0E18  66| 33 C0	     1	        xor     eax, eax
+ 0E1B  FF 4E 1C		     1	        dec     wCount
+ 0E1E  0F 85 FE96	     1	        jnz     ??0023
+ 0E22  E9 034D		     1	        jmp     Text16DoneSuccessLeave
+
+
+ 0E25				Text16DrawWordIndexGlyphLpDx:
+ 0E25  BB 0002			    mov     bx,[NewFontSeg.nfFormat] 
+ 0E28  65: F7 07 0080		    test    word ptr gs:[bx], NF_LARGE
+ 0E2D  0F 85 01AD		    jnz     Text16DrawWordIndexLargeGlyphLpDx
+				    T16DRAWSTRING  SmallRow, WordIndex, Dx
+ 0E31  66| 33 C9	     1	        xor     ecx, ecx
+ 0E34  66| 89 4E B0	     1	        mov     NCHARS, ecx
+ 0E38  0F B4 7E 1E	     1	        lfs     di, lpString
+ 0E3C  66| B8 CC010003	     1	        mov     eax, (SSTG_ROP_SRCCOPY + SSTG_TRANSPARENT + SSTG_HOST_BLT)
+ 0E42  66| 0B 46 F4	     1	        or      eax, CLIPSEL
+ 0E46  66| 89 46 8C	     1			mov		GLYPHCMD, eax
+ 0E4A  66| B8 38000002	     1			mov		eax, (SSTCP_PKT2 + dstSizeBit + dstXYBit + commandBit)  
+ 0E50  66| 89 46 88	     1			mov		GLYPHPH, eax
+ 0E54  66| 33 C0	     1	        xor     eax,eax
+ 0E57			     1	??0027:
+ 0E57  64: 8B 05	     1	        mov     ax, fs:[di]                             ; EAX = glyph_index
+ 0E5A  66| 89 46 94	     1	        mov     GLYPHIDX, eax
+ 0E5E  BB 0006		     1	        mov     bx,[NewFontSeg.nfGlyphOffset]
+ 0E61  66| 65: 8B 17	     1	        mov     edx, gs:[bx]
+ 0E65  67& 66| 8D 1C 42	     1	        lea     ebx, [edx+eax*2]
+ 0E6A  67& 66| 65: 0F B7 1B  1	        movzx   ebx, word ptr gs:[ebx]
+ 0E70  66| 65: 8B 07	     1	        mov     eax, gs:[bx]                            ; org_x, org_y, width, height
+ 0E74  66| 89 46 AC	     1	        mov     SRSTRUC, eax                            ; Save off SR values.
+ 0E78  66| 83 C3 04	     1	        add     ebx, 4
+ 0E7C  66| 89 5E A0	     1	        mov     GLYPHPTR, ebx                           ; Save off next Glyph address+ SR Struc size
+ 0E80  66| 8B C8	     1	        mov     ecx, eax                                ; Copy eax data to ecx
+ 0E83  25 00FF		     1	        and     ax, 0ffh
+ 0E86  0F BE C0		     1	        movsx   ax, al                                  ; ax = X org
+ 0E89  C1 E9 08		     1	        shr     cx, 8
+ 0E8C  0F BE C9		     1	        movsx   cx, cl                                  ; cx = Y org
+ 0E8F  03 46 28		     1	        add     ax, wDestXOrg                           ; ax = X
+ 0E92  F7 D9		     1	        neg     cx
+ 0E94  03 4E 26		     1	        add     cx, wDestYOrg                           ; cx = Y
+ 0E97  8B 56 AE		     1	        mov     dx, word ptr SRSTRUC+2
+ 0E9A  80 FA 00		     1	        cmp     dl, 0
+ 0E9D  0F 84 0111	     1	        jz      ??0028
+ 0EA1  80 FE 00		     1	        cmp     dh, 0
+ 0EA4  0F 84 010A	     1	        jz      ??0028
+ 0EA8  3B 46 B4		     1	        cmp     ax, word ptr CLPBR                      ; X > Clip Right
+ 0EAB  0F 8F 0103	     1	        jg      ??0028
+ 0EAF  81 E2 00FF	     1	        and     dx, 0ffh
+ 0EB3  0F BE D2		     1	        movsx   dx, dl
+ 0EB6  03 D0		     1	        add     dx, ax                                  ; X+Width
+ 0EB8  3B 56 B8		     1	        cmp     dx, word ptr CLPTL                      ; X+Width < Clip Left
+ 0EBB  0F 8C 00F3	     1	        jl      ??0028
+ 0EBF  89 46 9C		     1	        mov     word ptr GLYPHPOS, ax
+ 0EC2  89 4E 9E		     1	        mov     word ptr GLYPHPOS+2, cx
+ 0EC5  33 C0		     1	        xor     ax, ax
+ 0EC7  8A 46 AE		     1	        mov     al, byte ptr SRSTRUC+2                  ; AX = Width
+ 0ECA  83 C0 07		     1	        add     ax, 7                                   ; AX = Width+7
+ 0ECD  C1 E8 03		     1	        shr     ax, 3                                   ; AX = num bytes/row
+ 0ED0  33 DB		     1	        xor     bx, bx
+ 0ED2  8A 5E AF		     1	        mov     bl, byte ptr SRSTRUC+3                  ; BX = Height
+ 0ED5  F7 EB		     1	        imul    bx
+ 0ED7  83 C0 03		     1	        add     ax, 3
+ 0EDA  C1 E8 02		     1	        shr     ax, 2                                   ; AX = num dwords/glyph
+ 0EDD  66| 33 C9	     1	        xor     ecx, ecx
+ 0EE0  8B C8		     1	        mov     cx, ax
+ 0EE2  66| 89 4E 98	     1	        mov     GLYPHDWORDS, ecx
+ 0EE6  83 C0 05		     1	        add     ax, 5
+ 0EE9  66| 33 C9	     1	        xor     ecx, ecx
+ 0EEC  8B C8		     1	        mov     cx, ax
+ 0EEE  66| 89 4E 90	     1	        mov     BUMPVAL, ecx                            ; Save the # Dword writes
+ 0EF2  66| A1 05D4 E	     3			mov		eax, dword ptr GLOB.mainFifo.bump
+ 0EF6  66| 03 C1	     3			add		eax, ecx
+ 0EF9  66| 3D 0000FFFF	     3			cmp		eax, 0ffffh
+ 0EFF  72 07		     3			jb		??002A
+ 0F01  66| 87 46 D8	     4	        xchg    eax, P6SWAP
+ 0F05  66| 8B C1	     3			mov		eax, ecx
+ 0F08			     3	??002A:
+ 0F08  66| A3 05D4 E	     3			mov		dword ptr GLOB.mainFifo.bump, eax
+ 0F0C  66| 8B 46 F8	     2	        mov     eax, IDX
+ 0F10  66| 29 06 05C0 E	     2	        sub     GLOB.mainFifo.space, eax
+ 0F15  66| 33 D2	     2	        xor     edx, edx
+ 0F18  66| C1 E0 02	     2	        shl     eax, 2
+ 0F1C  66| 01 46 FC	     2	        add     CF, eax
+ 0F20  66| 89 56 F8	     2	        mov     IDX, edx
+ 0F24  66| 39 0E 05C0 E	     2	        cmp     dword ptr GLOB.mainFifo.space, ecx
+ 0F29  73 0E		     2	        jae     short ??0029
+ 0F2B  66| 8B 5E FC	     2	        mov     ebx, CF
+ 0F2F  66| 8B C9	     2	        mov     ecx, ecx
+ 0F32  E8 0000 E	     2	        call    fifo_MakeRoom
+ 0F35  66| 89 5E FC	     2	        mov     CF, ebx
+ 0F39			     2	??0029:
+ 0F39  66| 8B 5E FC	     2	        mov     ebx, CF         ; setup hwPtr for packet programming
+ 0F3D  66| 8B 46 88	     1			mov		eax, GLYPHPH
+ 0F41  67& 66| 26: 89 03     1			mov		es:[ebx], eax
+ 0F46  66| 83 C3 04	     1	        add     ebx, 4
+ 0F4A  66| 33 C0	     1	        xor     eax, eax
+ 0F4D  8A 46 AE		     1	        mov     al, byte ptr SRSTRUC+2                              ; AX is width
+ 0F50  66| 33 C9	     1	        xor     ecx, ecx
+ 0F53  8A 4E AF		     1	        mov     cl, byte ptr SRSTRUC+3                              ; BX is height
+ 0F56  66| C1 E1 10	     1	        shl     ecx, 16
+ 0F5A  66| 0B C1	     1	        or      eax, ecx
+ 0F5D  67& 66| 26: 89 03     1	        mov     es:[ebx],   eax                                     ; EAX = Height-Width
+ 0F62  66| 83 C3 04	     1	        add     ebx, 4
+ 0F66  66| 8B 46 9C	     1	        mov     eax, GLYPHPOS
+ 0F6A  67& 66| 26: 89 03     1	        mov     es:[ebx],   eax                                     ; EAX = Height-Width
+ 0F6F  66| 83 C3 04	     1	        add     ebx, 4
+ 0F73  66| 8B 46 8C	     1	        mov     eax, GLYPHCMD
+ 0F77  67& 66| 26: 89 03     1	        mov     es:[ebx], eax
+ 0F7C  66| 83 C3 04	     1	        add     ebx, 4
+ 0F80  66| 8B 4E 98	     1	        mov     ecx, GLYPHDWORDS
+ 0F84  66| 8B C1	     1	        mov     eax, ecx
+ 0F87  66| C1 E0 10	     1	        shl     eax, SSTCP_PKT1_NWORDS_SHIFT 
+ 0F8B  66| 0D 00004101	     1	        or      eax, (SSTCP_PKT1 + SSTCP_PKT1_2D + 0100h) 
+ 0F91  67& 66| 26: 89 03     1	        mov     es:[ebx], eax
+ 0F96  66| 83 C3 04	     1	        add     ebx, 4
+ 0F9A  66| 57		     1	        push    edi
+ 0F9C  66| 8B FB	     1	        mov     edi, ebx
+ 0F9F  66| 8B 76 A0	     1	        mov     esi, GLYPHPTR
+ 0FA3  F3/ 67& 66| 65: A5    1	        rep movsd es:[edi], gs:[esi]
+ 0FA8  66| 5F		     1	        pop     edi
+ 0FAA  66| 8B 4E 90	     1	        mov     ecx, BUMPVAL
+ 0FAE  66| 01 4E F8	     2	        add     dword ptr IDX, ecx
+ 0FB2			     1	??0028: 
+ 0FB2  1E		     1	        push    ds
+ 0FB3  66| 33 DB	     1	        xor     ebx, ebx
+ 0FB6  C5 5E 0C		     1	        lds     bx, lpCharWidths
+ 0FB9  66| 8B 46 B0	     1	        mov     eax, NCHARS
+ 0FBD  67& 66| 8D 1C 43	     1	        lea     ebx,[ebx+eax*2]
+ 0FC2  8B 07		     1	        mov     ax, ds:[bx]
+ 0FC4  1F		     1	        pop     ds
+ 0FC5  FF 46 B0		     1	        inc     word ptr NCHARS
+ 0FC8  03 46 28		     1	        add     ax, wDestXOrg                           ; ax = wDestXOrg + nfAWTable[glyph_index]
+ 0FCB  89 46 28		     1	        mov     wDestXOrg, ax                           ; Save back into the stack
+ 0FCE  83 C7 02		     1	        add     di, 2
+ 0FD1  66| 33 C0	     1	        xor     eax, eax
+ 0FD4  FF 4E 1C		     1	        dec     wCount
+ 0FD7  0F 85 FE7C	     1	        jnz     ??0027
+ 0FDB  E9 0194		     1	        jmp     Text16DoneSuccessLeave
+
+ 0FDE				Text16DrawWordIndexLargeGlyphLpDx:
+				    T16DRAWSTRING  LargeRow, WordIndex, Dx
+ 0FDE  66| 33 C9	     1	        xor     ecx, ecx
+ 0FE1  66| 89 4E B0	     1	        mov     NCHARS, ecx
+ 0FE5  0F B4 7E 1E	     1	        lfs     di, lpString
+ 0FE9  66| B8 CC010003	     1	        mov     eax, (SSTG_ROP_SRCCOPY + SSTG_TRANSPARENT + SSTG_HOST_BLT)
+ 0FEF  66| 0B 46 F4	     1	        or      eax, CLIPSEL
+ 0FF3  66| 89 46 8C	     1			mov		GLYPHCMD, eax
+ 0FF7  66| B8 38000002	     1			mov		eax, (SSTCP_PKT2 + dstSizeBit + dstXYBit + commandBit)  
+ 0FFD  66| 89 46 88	     1			mov		GLYPHPH, eax
+ 1001  66| 33 C0	     1	        xor     eax,eax
+ 1004			     1	??002B:
+ 1004  64: 8B 05	     1	        mov     ax, fs:[di]                             ; EAX = glyph_index
+ 1007  66| 89 46 94	     1	        mov     GLYPHIDX, eax
+ 100B  BB 0006		     1	        mov     bx,[NewFontSeg.nfGlyphOffset]
+ 100E  66| 65: 8B 17	     1	        mov     edx, gs:[bx]
+ 1012  67& 66| 8D 1C 82	     1	        lea     ebx, [edx+eax*4]
+ 1017  67& 66| 65: 8B 1B     1	        mov		ebx, gs:[ebx]
+ 101C  67& 66| 65: 8B 03     1	        mov     eax, gs:[ebx]                            ; org_x, org_y, 
+ 1021  66| 89 46 A8	     1	        mov     LRORGXY, eax                            
+ 1025  67& 66| 65: 8B 43     1	        mov     eax, gs:[ebx+4]                          ;  width, height
+       04
+ 102B  66| 89 46 A4	     1	        mov     LRORGWH, eax                            
+ 102F  66| 83 C3 08	     1	        add     ebx, 8
+ 1033  66| 89 5E A0	     1	        mov     GLYPHPTR, ebx                           ; Save off next Glyph address+ SR Struc size
+ 1037  8B 4E AA		     1	        mov     cx, word ptr LRORGXY+2                  ; cx = Y org
+ 103A  8B 46 A8		     1	        mov     ax, word ptr LRORGXY                    ; ax = X org
+ 103D  03 46 28		     1	        add     ax, wDestXOrg                           ; ax = X
+ 1040  F7 D9		     1	        neg     cx
+ 1042  03 4E 26		     1	        add     cx, wDestYOrg                           ; cx = Y
+ 1045  8B 56 A4		     1	        mov     dx, word ptr LRORGWH 
+ 1048  83 FA 00		     1	        cmp     dx, 0
+ 104B  0F 84 00F8	     1	        jz      ??002C
+ 104F  83 7E A6 00	     1	        cmp     word ptr LRORGWH+2, 0
+ 1053  0F 84 00F0	     1	        jz      ??002C
+ 1057  3B 46 B4		     1	        cmp     ax, word ptr CLPBR                      ; X > Clip Right
+ 105A  0F 8F 00E9	     1	        jg      ??002C
+ 105E  03 D0		     1	        add     dx, ax                                  ; X+Width
+ 1060  3B 56 B8		     1	        cmp     dx, word ptr CLPTL                      ; X+Width < Clip Left
+ 1063  0F 8C 00E0	     1	        jl      ??002C
+ 1067  89 46 9C		     1	        mov     word ptr GLYPHPOS, ax
+ 106A  89 4E 9E		     1	        mov     word ptr GLYPHPOS+2, cx
+ 106D  8B 46 A4		     1	        mov     ax, word ptr LRORGWH                    ; AX = Width
+ 1070  83 C0 07		     1	        add     ax, 7                                   ; AX = Width+7
+ 1073  C1 E8 03		     1	        shr     ax, 3                                   ; AX = num bytes/row
+ 1076  8B 5E A6		     1	        mov     bx, word ptr LRORGWH+2                  ; BX = Height
+ 1079  F7 EB		     1	        imul    bx
+ 107B  83 C0 03		     1	        add     ax, 3
+ 107E  C1 E8 02		     1	        shr     ax, 2                                   ; AX = num dwords/glyph
+ 1081  66| 33 C9	     1	        xor     ecx, ecx
+ 1084  8B C8		     1	        mov     cx, ax
+ 1086  66| 89 4E 98	     1	        mov     GLYPHDWORDS, ecx
+ 108A  83 C0 05		     1	        add     ax, 5
+ 108D  66| 33 C9	     1	        xor     ecx, ecx
+ 1090  8B C8		     1	        mov     cx, ax
+ 1092  66| 89 4E 90	     1	        mov     BUMPVAL, ecx                            ; Save the # Dword writes
+ 1096  66| A1 05D4 E	     3			mov		eax, dword ptr GLOB.mainFifo.bump
+ 109A  66| 03 C1	     3			add		eax, ecx
+ 109D  66| 3D 0000FFFF	     3			cmp		eax, 0ffffh
+ 10A3  72 07		     3			jb		??002E
+ 10A5  66| 87 46 D8	     4	        xchg    eax, P6SWAP
+ 10A9  66| 8B C1	     3			mov		eax, ecx
+ 10AC			     3	??002E:
+ 10AC  66| A3 05D4 E	     3			mov		dword ptr GLOB.mainFifo.bump, eax
+ 10B0  66| 8B 46 F8	     2	        mov     eax, IDX
+ 10B4  66| 29 06 05C0 E	     2	        sub     GLOB.mainFifo.space, eax
+ 10B9  66| 33 D2	     2	        xor     edx, edx
+ 10BC  66| C1 E0 02	     2	        shl     eax, 2
+ 10C0  66| 01 46 FC	     2	        add     CF, eax
+ 10C4  66| 89 56 F8	     2	        mov     IDX, edx
+ 10C8  66| 39 0E 05C0 E	     2	        cmp     dword ptr GLOB.mainFifo.space, ecx
+ 10CD  73 0E		     2	        jae     short ??002D
+ 10CF  66| 8B 5E FC	     2	        mov     ebx, CF
+ 10D3  66| 8B C9	     2	        mov     ecx, ecx
+ 10D6  E8 0000 E	     2	        call    fifo_MakeRoom
+ 10D9  66| 89 5E FC	     2	        mov     CF, ebx
+ 10DD			     2	??002D:
+ 10DD  66| 8B 5E FC	     2	        mov     ebx, CF         ; setup hwPtr for packet programming
+ 10E1  66| 8B 46 88	     1			mov		eax, GLYPHPH
+ 10E5  67& 66| 26: 89 03     1			mov		es:[ebx], eax
+ 10EA  66| 83 C3 04	     1	        add     ebx, 4
+ 10EE  66| 8B 46 A4	     1	        mov     eax, LRORGWH
+ 10F2  67& 66| 26: 89 03     1	        mov     es:[ebx],   eax                                     ; EAX = Height-Width
+ 10F7  66| 83 C3 04	     1	        add     ebx, 4
+ 10FB  66| 8B 46 9C	     1	        mov     eax, GLYPHPOS
+ 10FF  67& 66| 26: 89 03     1	        mov     es:[ebx],   eax                                     ; EAX = Height-Width
+ 1104  66| 83 C3 04	     1	        add     ebx, 4
+ 1108  66| 8B 46 8C	     1	        mov     eax, GLYPHCMD
+ 110C  67& 66| 26: 89 03     1	        mov     es:[ebx], eax
+ 1111  66| 83 C3 04	     1	        add     ebx, 4
+ 1115  66| 8B 4E 98	     1	        mov     ecx, GLYPHDWORDS
+ 1119  66| 8B C1	     1	        mov     eax, ecx
+ 111C  66| C1 E0 10	     1	        shl     eax, SSTCP_PKT1_NWORDS_SHIFT 
+ 1120  66| 0D 00004101	     1	        or      eax, (SSTCP_PKT1 + SSTCP_PKT1_2D + 0100h) 
+ 1126  67& 66| 26: 89 03     1	        mov     es:[ebx], eax
+ 112B  66| 83 C3 04	     1	        add     ebx, 4
+ 112F  66| 57		     1	        push    edi
+ 1131  66| 8B FB	     1	        mov     edi, ebx
+ 1134  66| 8B 76 A0	     1	        mov     esi, GLYPHPTR
+ 1138  F3/ 67& 66| 65: A5    1	        rep movsd es:[edi], gs:[esi]
+ 113D  66| 5F		     1	        pop     edi
+ 113F  66| 8B 4E 90	     1	        mov     ecx, BUMPVAL
+ 1143  66| 01 4E F8	     2	        add     dword ptr IDX, ecx
+ 1147			     1	??002C: 
+ 1147  1E		     1	        push    ds
+ 1148  66| 33 DB	     1	        xor     ebx, ebx
+ 114B  C5 5E 0C		     1	        lds     bx, lpCharWidths
+ 114E  66| 8B 46 B0	     1	        mov     eax, NCHARS
+ 1152  67& 66| 8D 1C 43	     1	        lea     ebx,[ebx+eax*2]
+ 1157  8B 07		     1	        mov     ax, ds:[bx]
+ 1159  1F		     1	        pop     ds
+ 115A  FF 46 B0		     1	        inc     word ptr NCHARS
+ 115D  03 46 28		     1	        add     ax, wDestXOrg                           ; ax = wDestXOrg + nfAWTable[glyph_index]
+ 1160  89 46 28		     1	        mov     wDestXOrg, ax                           ; Save back into the stack
+ 1163  83 C7 02		     1	        add     di, 2
+ 1166  66| 33 C0	     1	        xor     eax, eax
+ 1169  FF 4E 1C		     1	        dec     wCount
+ 116C  0F 85 FE94	     1	        jnz     ??002B
+ 1170  EB 00		     1	        jmp     Text16DoneSuccessLeave
+
+
+
+ 1172				Text16DoneSuccessLeave:        
+				        FXLEAVE
+ 1172  66| 8B 46 F8	     2	        mov     eax, IDX
+ 1176  66| 29 06 05C0 E	     2	        sub     GLOB.mainFifo.space, eax  ; _FF(mainFifo.space) -= hwIndex 
+ 117B  66| 33 D2	     2	        xor     edx, edx
+ 117E  66| C1 E0 02	     2	        shl     eax, 2
+ 1182  66| 01 46 FC	     2	        add     CF, eax                 ; hwPtr += (hwIndex << 2)
+ 1186  66| 89 56 F8	     2	        mov     IDX, edx                ; hwIndex = 0
+ 118A  66| 8B 46 FC	     2	        mov     eax, CF
+ 118E  66| A3 05B8 E	     2	        mov     GLOB.mainFifo.FXptr, eax    ; _FF(mainFifo.FXptr) = hwPtr
+ 1192  66| 8B 1E 0004 E	     1			mov		ebx, dword ptr GLOB.lpDeFlags 
+ 1197  67& 26: 83 23 EF	     1	        and     word ptr es:[ebx], NOT BUSY
+ 119C  EB 0F		     1	        jmp     short All_Done
+ 119E			     1	Use_DibEngine:
+ 119E  F6 06 0008 E 02	     1	        test    byte ptr GLOB.gdiFlags, SDATA_GDIFLAGS_2D_DIRTY
+ 11A3  74 08		     1	        jz      short ??002F
+ 11A5  66| 33 C9	     1	        xor     ecx, ecx
+ 11A8  B1 04		     1	        mov     cl, RESET_PDEV
+ 11AA  E8 0000 E	     1	        call    reset_Invariants
+ 11AD			     1	??002F:        
+ 11AD			     1	All_Done:        
+
+
+ 11AD				Text16DoneSuccess:
+ 11AD  B8 0001			        mov     ax,1
+
+				;*************************
+				; Hey, We're DONE!
+				; Return to GDI ASAP
+				;*************************
+ 11B0				Text16Exit:
+
+				        ;all done - pop saved registers
+
+ 11B0  5F			        pop     di
+ 11B1  5E			        pop     si
+ 11B2  1F			        pop     ds
+ 11B3  66| 33 E4				xor		esp, esp
+ 11B6  8D 66 00			        lea     sp,[bp]
+ 11B9  5D			        pop     bp
+
+ 11BA  CA 0028			        retf    40
+
+				;*************************
+				; Can't deal with life
+				; Punt this to the DIBEng
+				;*************************
+ 11BD				Text16PuntToDibEngine:
+				        ;pop saved regs and pass ExtTextOut call on to DIB Engine
+ 11BD  5F			        pop     di
+ 11BE  5E			        pop     si
+ 11BF  1F			        pop     ds
+ 11C0  66| 33 E4				xor		esp, esp
+ 11C3  8D 66 00			        lea     sp,[bp]
+ 11C6  5D			        pop     bp
+				 
+ 11C7  EA ---- 0000 E		        jmp     DIB_ExtTextOut
+
+
+				;*************************
+				; Oops, we have a software
+				; cursor and I'm too 
+				; lazy to code 16-bit
+				; exclusion code
+				;*************************
+ 11CC				Text16JumpBacktoC:
+				        ;pop saved regs and pass ExtTextOut call on to DIB Engine
+ 11CC  5F			        pop     di
+ 11CD  5E			        pop     si
+ 11CE  1F			        pop     ds
+ 11CF  66| 33 E4				xor		esp, esp
+ 11D2  8D 66 00			        lea     sp,[bp]
+ 11D5  5D			        pop     bp
+				 
+				ifdef STB_16BIT_TEXTOUT
+ 11D6  EA ---- 0000 E		        jmp     ExtTextOutC
+				else
+				endif
+
+
+				ifdef STB_16BIT_TEXTOUT
+ 11DB				ExtTextOut Endp
+				else
+				endif
+
+
+ 11DB				_TEXT   ENDS
+
+				endif
+
+				END
+

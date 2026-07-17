@@ -1,0 +1,2012 @@
+Microsoft (R) Macro Assembler Version 6.14.8444		    11/10/00 19:13:25
+..\reg16.asm						     Page 1 - 1
+
+
+				;/* $Header: /devel/h3/Win95/dx/dd16/reg16.asm 3     12/30/98 9:30a Michael $ */
+				;/*
+				;** Copyright (c) 1998-1999, 3Dfx Interactive, Inc.
+				;** All Rights Reserved.
+				;**
+				;** This is UNPUBLISHED PROPRIETARY SOURCE CODE of 3Dfx Interactive, Inc.;
+				;** the contents of this file may not be disclosed to third parties, copied or
+				;** duplicated in any form, in whole or in part, without the prior written
+				;** permission of 3Dfx Interactive, Inc.
+				;**
+				;** RESTRICTED RIGHTS LEGEND:
+				;** Use, duplication or disclosure by the Government is subject to restrictions
+				;** as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+				;** and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+				;** successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished  -
+				;** rights reserved under the Copyright Laws of the United States.
+				;**
+				;** File name:   reg16.asm
+				;**
+				;** Description: Misc functions to work on the 16-bit side.
+				;**              Some of these functions may no longer be used!
+				;**
+				;** $Revision: 3 $
+				;** $Date: 12/30/98 9:30a $
+				;**
+				;** $History: reg16.asm $
+				;; 
+				;; *****************  Version 3  *****************
+				;; User: Michael      Date: 12/30/98   Time: 9:30a
+				;; Updated in $/devel/h3/Win95/dx/dd16
+				;; Implement the 3Dfx/STB unified header.
+				;** 
+				;**
+				;*/
+
+				INCLUDE CMACROS.INC
+ = 0001			      C ?386regs=1
+ = 0001			      C ?32BitCodeSegs=1
+			      C comment $
+			      C cmacros - assembly macros for interfacing to hhls
+			      C (C)Copyright Microsoft Corp. 1984-1991
+			      C $
+			      C ifndef SETDF
+ = 0000			      C ?DF=0
+			      C else
+			      C endif
+			      C .xcref
+			      C ??CM_Paste macro arg1:req, arg2:req
+			      C exitm <arg1&arg2>
+			      C endm
+			      C .xcref ??_out
+			      C ??_out macro t
+			      C ifndef ?QUIET
+			      C %out t
+			      C endif
+			      C endm
+			      C outif macro name,defval,onmsg,offmsg
+			      C ifndef name
+			      C ifb <defval>
+			      C name=0
+			      C else
+			      C name=defval
+			      C endif
+			      C endif
+			      C if name
+			      C name=1
+			      C ifnb <onmsg>
+			      C ??_out <! onmsg>
+			      C endif
+			      C else
+			      C ifnb <offmsg>
+			      C ??_out <! offmsg>
+			      C endif
+			      C endif
+			      C endm
+			      C .xcref ??error
+			      C ??error macro msg
+			      C %out e r r o r ----- msg
+			      C .err e r r o r ----- msg
+			      C endm
+			      C .xcref ASMpass
+			      C .xcref memS,memM,memL,memC,memH,memMOD,sizec,sized
+ = 0001			      C ASMpass=1
+			      C ifdef ?SMALL
+			      C endif
+			      C ifdef ?MEDIUM
+			      C endif
+			      C ifdef ?COMPACT
+			      C endif
+			      C ifdef ?LARGE
+ = 0001			      C memL=1
+			      C endif
+			      C ifdef ?HUGE
+			      C endif
+			      C ??_out <cMacros Version 5.30 - Copyright (c) Microsoft Corp. 1984-1991>
+			      C outif memS,0,<Small Model>
+			      C outif memM,0,<Medium Model>
+			      C outif memL,0,<Large Model>
+			      C outif memC,0,<Compact Model>
+			      C outif memH,0,<Huge Model>
+ = 0001			      C memMOD= memS + memM + memL + memC + memH
+			      C if memMOD ne 1
+			      C endif
+ = 0001			      C sizec= memM + memL + memH
+ = 0001			      C sized= memL + memC + (memH*2)
+			      C outif ?DF,0,<No segments or groups will be defined>
+			      C outif ?TF,0,<Epilog sequences assume valid SP>
+			      C outif ?WIN,1,<Windows support>
+			      C ifdef PMODE
+			      C else
+ = 0000			      C ?pmd=0
+			      C endif
+			      C ifdef ?386regs
+			      C if ?386regs
+			      C ??_out <! 386 registers enabled>
+			      C endif
+			      C else
+			      C endif
+			      C if ?WIN eq 1
+			      C outif ?PLM,1,<>
+			      C else
+			      C endif
+			      C ifndef ?NODATA
+ = 0000			      C ?nodata1=0
+			      C else
+			      C endif
+			      C ifndef ?CHKSTK
+ = 0000			      C ?chkstk1=0
+			      C else
+			      C endif
+			      C ifndef DOS5
+ = 0000			      C ?DOS5=0
+			      C else
+			      C endif
+			      C ifdef ?PROFILE
+			      C endif
+			      C ifdef ?pmd
+			      C .286p
+			      C ;.386p
+			      C endif
+			      C if ?386regs
+			      C .xcref ?n,?ax,?eax,?bx,?ebx
+			      C .xcref ?cx,?ecx,?dx,?edx
+			      C .xcref ?si,?esi,?di,?edi,?es,?ds,?fs
+			      C .xcref ?gs
+			      C else
+			      C endif
+			      C .xcref ?rsl,?cpd,?argl,?argc,?ba
+			      C .xcref ?acb,???,?po
+			      C .xcref ?pas,?pc
+			      C .xcref uconcat,mpush,mpop
+			      C .xcref ?ri,?pp,?pp1,?al1
+			      C .xcref ?ad,?ap,?atal,?dd,?dd1,?dd2
+			      C .xcref ?pg,?pg1,?aloc,?cs1,?cs2
+			      C .xcref ?DF,?TF,?ff,?PLM,?WIN,?ia,?pu,?adj
+			      C .xcref ?uf,?rp,?nx,?nd,?nodata1,?chkstk1,?DOS5,?pmd,?lds,?exp
+			      C .xcref ?wfp,arg,cCall,cProc,assumes,?cs3,?cs2,?cs1
+			      C .xcref defgrp,addseg,createSeg
+			      C .xcref save,outif,errnz,errn$,errnz1
+			      C .xcref ?PLMPrevParm,?gcc
+			      C .xcref ?cCall1,?pcc
+ = 0000			      C ?rsl = 0
+ = 0000			      C ?cpd = 0
+ = 0000			      C ?argl = 0
+ = 0000			      C ?argc = 0
+ = 0000			      C ?ba = 0
+ = 0000			      C ?acb = 0
+ = 0000			      C ??? = 0
+ = 0000			      C ?po = 0
+ = 0000			      C ?pas = 0
+ = 0000			      C ?pc = 0
+ = 0000			      C ?ia = 0
+ = 0000			      C ?pu = 0
+ = 0000			      C ?adj = 0
+ = 0000			      C ?rp = 0
+ = 0000			      C ?uf = 0
+ = 0000			      C ?nd = 0
+ = 0000			      C ?nx = 0
+ = 0000			      C ?lds =	0 
+ = 0000			      C ?exp =	0 
+ = 0000			      C ?wfp = 0
+ = 0000			      C ?ff = 0
+ = 0000			      C ?dd2 = 0
+ = 0000			      C ?cCall1 = 0
+ = 0000			      C ?pgen32=0
+ = 0000			      C ?pconst32=0
+ = 0000			      C ?pgen66=0
+ = 0001			      C ?pcc = ?PLM
+ = 0000			      C ?PLMPrevParm = 0
+			      C .xcref ?casen
+			      C if1
+ = 0000			      C ?casen = 0
+			      C endif
+			      C if ?386regs
+ = 0000			      C ?n = 0000000000000000b
+ = 0001			      C ?ax = 0000000000000001b
+ = 0002			      C ?eax = 0000000000000010b
+ = 0004			      C ?bx = 0000000000000100b
+ = 0008			      C ?ebx = 0000000000001000b
+ = 0010			      C ?cx = 0000000000010000b
+ = 0020			      C ?ecx = 0000000000100000b
+ = 0040			      C ?dx = 0000000001000000b
+ = 0080			      C ?edx = 0000000010000000b
+ = 0100			      C ?si = 0000000100000000b
+ = 0200			      C ?esi = 0000001000000000b
+ = 0400			      C ?di = 0000010000000000b
+ = 0800			      C ?edi = 0000100000000000b
+ = 1000			      C ?ds = 0001000000000000b
+ = 2000			      C ?es = 0010000000000000b
+ = 4000			      C ?fs = 0100000000000000b
+ = 8000			      C ?gs = 1000000000000000b
+			      C else
+			      C endif
+			      C .cref
+			      C uconcat macro a,b,c,d,e,f,g
+			      C a&b c&d e&f&g
+			      C endm
+			      C if ?386regs
+			      C mpush macro r
+			      C irp x,<ax,eax,bx,ebx,cx,ecx,dx,edx,si,esi,di,edi,ds,es,fs,gs>
+			      C if (r and ??CM_Paste(?,x))
+			      C 	push	x
+			      C endif
+			      C endm
+			      C endm
+			      C else
+			      C endif
+			      C if ?386regs
+			      C mpop macro r
+			      C irp x,<gs,fs,es,ds,edi,di,esi,si,edx,dx,ecx,cx,ebx,bx,eax,ax>
+			      C if (r and ??CM_Paste(?,x))
+			      C 	pop	x
+			      C endif
+			      C endm
+			      C endm
+			      C else
+			      C endif
+			      C save macro r
+			      C ?rsl=0
+			      C ?ri ?rsl,<r>
+			      C endm
+			      C ?ri macro n,r
+			      C irp x,<r>
+			      C ifdef ??CM_Paste(?,x)
+			      C n=n or ??CM_Paste(?,x)
+			      C else
+			      C ??error <invalid register>
+			      C endif
+			      C endm
+			      C endm
+			      C .xcref
+			      C .xcref parmB,parmW,parmD,parmQ,parmT,parmCP,parmDP,parmH
+			      C .cref
+			      C parmB macro n
+			      C ?pp <n>,<byte>,2,1
+			      C endm
+			      C parmW macro n
+			      C ?pp <n>,<word>,2,2
+			      C endm
+			      C parmD macro n
+			      C ife ?pcc
+			      C irp x,<n>
+			      C ?pp <&&x>,<dword>,0,4
+			      C ?pp <off_&&x>,<word>,2,2
+			      C ?pp <seg_&&x>,<word>,2,2
+			      C endm
+			      C else
+			      C irp x,<n>
+			      C ?pp <seg_&&x>,<word>,2,2
+			      C ?pp <off_&&x>,<word>,2,2
+			      C ?pp <&&x>,<dword>,0,4
+			      C endm
+			      C endif
+			      C endm
+			      C parmH macro n
+			      C ?pp <n>,<word>,4,2
+			      C endm
+			      C parmQ macro n
+			      C ?pp <n>,<qword>,8,8
+			      C endm
+			      C parmT macro n
+			      C ?pp <n>,<tbyte>,10,10
+			      C endm
+			      C if sizec
+			      C parmCP macro n
+			      C parmD <n>
+			      C endm
+			      C else
+			      C endif
+			      C if sized
+			      C parmDP macro n
+			      C parmD <n>
+			      C endm
+			      C else
+			      C endif
+			      C ?pp macro n,t,l,s
+			      C if ?cpd
+			      C .xcref
+			      C irp x,<n>
+			      C .xcref ??CM_Paste(?t_,x)
+			      C ??CM_Paste(?t_,x)=s
+			      C ife ?pcc
+			      C ?pp1 x,<t>,,,%(?po+?adj)
+			      C ?po=?po+l
+			      C else
+			      C ?PLMPrevParm=?PLMPrevParm+1
+			      C ?po=?po+l
+			      C ?pp1 x,<t>,%?po,%?adj,,%?PLMPrevParm,%(?PLMPrevParm-1)
+			      C endif
+			      C endm
+			      C .cref
+			      C else
+			      C ??error <parm(s) "&n" declared outside proc def>
+			      C endif
+			      C endm
+			      C ?pp1 macro n,t,o,a,b,cpc,ppc
+			      C ife ?pcc
+			      C if ?pgen32
+			      C n equ (t ptr [ebp][+b])
+			      C else
+			      C n equ (t ptr [bp][+b])
+			      C endif
+			      C else
+			      C .xcref
+			      C .xcref ?PLMParm&cpc
+			      C .cref
+			      C ?PLMParm&cpc macro po
+			      C if ?pgen32
+			      C uconcat <n>,,<equ>,,<(t ptr [ebp][+>,%(a+po-o),<])>
+			      C else
+			      C uconcat <n>,,<equ>,,<(t ptr [bp][+>,%(a+po-o),<])>
+			      C endif
+			      C ?PLMParm&ppc po
+			      C purge ?PLMParm&cpc
+			      C endm
+			      C endif
+			      C endm
+			      C ifndef ?NOPARMR
+			      C if ?pmd
+			      C else
+			      C .xcref
+			      C .xcref ?pr,parmR
+			      C .cref
+			      C parmR macro n,r,r2
+			      C ?pr n,r,r2,%?rp,%(?ia+2)
+			      C endm
+			      C ?pr macro n,r,r2,i,o
+			      C .xcref
+			      C ifnb <r2>
+			      C parmR seg_&n,r
+			      C parmR off_&n,r2
+			      C if ?pgen32
+			      C n equ (dword ptr [ebp][-o-2])
+			      C else
+			      C n equ (dword ptr [bp][-o-2])
+			      C endif
+			      C .xcref ?t_&n
+			      C ?t_&n=4
+			      C else
+			      C .xcref ?rp&i
+			      C ?rp&i=0
+			      C ifdef ?&r
+			      C ?rp&i=?&r
+			      C endif
+			      C if ??? or (?cpd eq 0) or (?rp&i eq 0)
+			      C ??error <invalid parmR encountered: &n,&r>
+			      C exitm
+			      C endif
+			      C if ?pgen32
+			      C n equ (word ptr [ebp][-o])
+			      C else
+			      C n equ (word ptr [bp][-o])
+			      C endif
+			      C .xcref ?t_&n
+			      C ?t_&n=2
+			      C irp x,<bh,ch,dh,bl,cl,dl,ah,al>
+			      C if ??CM_Paste(?,x) eq ??CM_Paste(?,r)
+			      C if ?pgen32
+			      C n equ (byte ptr [ebp][-o])
+			      C else
+			      C n equ (byte ptr [bp][-o])
+			      C endif
+			      C ??CM_Paste(?t_,n)=1
+			      C exitm
+			      C endif
+			      C endm
+			      C ?ia=?ia+2
+			      C ?rp=?rp+1
+			      C endif
+			      C .cref
+			      C endm
+			      C endif
+			      C endif
+			      C .xcref
+			      C .xcref localB,localW,localD,localQ,localT,localCP,localDP,localV
+			      C .cref
+			      C localB macro n
+			      C ?aloc <n>,<byte ptr>,1,1,0
+			      C endm
+			      C localW macro n
+			      C ?aloc <n>,<word ptr>,2,2,1
+			      C endm
+			      C localD macro n
+			      C irp x,<n>
+			      C ?aloc <seg_&&x>,<word ptr>,2,2,1
+			      C ?aloc <off_&&x>,<word ptr>,2,2,1
+			      C ?aloc <&&x>,<dword ptr>,0,4,1
+			      C endm
+			      C endm
+			      C localQ macro n
+			      C ?aloc <n>,<qword ptr>,8,8,1
+			      C endm
+			      C localT macro n
+			      C ?aloc <n>,<tbyte ptr>,10,10,1
+			      C endm
+			      C if sizec
+			      C localCP macro n
+			      C localD <n>
+			      C endm
+			      C else
+			      C endif
+			      C if sized
+			      C localDP macro n
+			      C localD <n>
+			      C endm
+			      C else
+			      C endif
+			      C localV macro n,a
+			      C ?aloc <n>,,%(a),0,1
+			      C endm
+			      C ?aloc macro n,t,l,s,a
+			      C if ?cpd
+			      C .xcref
+			      C irp x,<n>
+			      C ???=???+l
+			      C if a
+			      C ???=((??? + 1) and 0fffeh)
+			      C endif
+			      C ;%	%out before x, n, t, l, s, a
+			      C ;	%out non-exp x, n, t, l, s, a
+			      C ?al1 x,<t>,%(???+?ia)
+			      C .xcref ??CM_Paste(?t_,x)
+			      C ;%	%out after x, n, t, l, s, a
+			      C ??CM_Paste(?t_,x)=s
+			      C endm
+			      C .cref
+			      C else
+			      C ??error <locals "&n" declared outside procedure def>
+			      C endif
+			      C endm
+			      C ?al1 macro n,t,o
+			      C if ?pgen32
+			      C n equ (t [ebp][-o])
+			      C else
+			      C n equ (t [bp][-o])
+			      C endif
+			      C endm
+			      C ?gcc macro s,i,cc
+			      C s = i
+			      C ifnb <cc>
+			      C ifidn <cc>,<C>
+			      C s=0
+			      C endif
+			      C ifidn <cc>,<PLM>
+			      C s=1
+			      C endif
+			      C ifidn <cc>,<PASCAL>
+			      C s=1
+			      C endif
+			      C endif
+			      C endm
+			      C ifndef ?NOGLOBAL
+			      C .xcref
+			      C .xcref globalB,globalW,globalD,globalQ,globalT,globalCP,globalDP
+			      C .cref
+			      C globalB macro n,i,s,c
+			      C ?ad <n>,1
+			      C ?dd n,1,<byte>,<db>,<i>,<s>,<c>
+			      C endm
+			      C globalW macro n,i,s,c
+			      C ?ad <n>,2
+			      C ?dd n,1,<word>,<dw>,<i>,<s>,<c>
+			      C endm
+			      C globalD macro n,i,s,c
+			      C ?ad <n>,4
+			      C ?dd n,1,<dword>,<dd>,<i>,<s>,<c>
+			      C off_&n equ word ptr n[0]
+			      C seg_&n equ word ptr n[2]
+			      C endm
+			      C globalQ macro n,i,s,c
+			      C ?ad <n>,8
+			      C ?dd n,1,<qword>,<dq>,<i>,<s>,<c>
+			      C endm
+			      C globalT macro n,i,s,c
+			      C ?ad <n>,10
+			      C ?dd n,1,<tbyte>,<dt>,<i>,<s>,<c>
+			      C endm
+			      C if sizec
+			      C globalCP macro n,i,s,c
+			      C globalD n,<i>,<s>,<c>
+			      C endm
+			      C else
+			      C endif
+			      C if sized
+			      C globalDP macro n,i,s,c
+			      C globalD n,<i>,<s>,<c>
+			      C endm
+			      C else
+			      C endif
+			      C endif
+			      C ifndef ?NOSTATIC
+			      C .xcref
+			      C .xcref staticB,staticW,staticD,staticQ,staticT,staticCP,staticDP
+			      C .cref
+			      C staticB macro n,i,s
+			      C ?ad <n>,1
+			      C ?dd n,0,<byte>,<db>,<i>,<s>,<PLM>
+			      C endm
+			      C staticW macro n,i,s
+			      C ?ad <n>,2
+			      C ?dd n,0,<word>,<dw>,<i>,<s>,<PLM>
+			      C endm
+			      C staticD macro n,i,s
+			      C ?ad <n>,4
+			      C ?dd n,0,<dword>,<dd>,<i>,<s>,<PLM>
+			      C endm
+			      C staticQ macro n,i,s
+			      C ?ad <n>,8
+			      C ?dd n,0,<qword>,<dq>,<i>,<s>,<PLM>
+			      C endm
+			      C staticT macro n,i,s
+			      C ?ad <n>,10
+			      C ?dd n,0,<tbyte>,<dt>,<i>,<s>,<PLM>
+			      C endm
+			      C if sizec
+			      C staticCP macro n,i,s
+			      C staticD n,<i>,<s>
+			      C endm
+			      C else
+			      C endif
+			      C if sized
+			      C staticDP macro n,i,s
+			      C staticD n,<i>,<s>
+			      C endm
+			      C else
+			      C endif
+			      C endif
+			      C ?dd macro n,p,t,d,i,s,c
+			      C ?gcc ?dd2,%?PLM,<c>
+			      C ife ?dd2
+			      C n label t
+			      C ?dd1 _&n,p,<d>,<i>,<s>
+			      C else
+			      C ?dd1 n,p,<d>,<i>,<s>
+			      C endif
+			      C endm
+			      C ?dd1 macro n,p,d,i,s
+			      C if p
+			      C public n
+			      C endif
+			      C ifb <s>
+			      C n d i
+			      C else
+			      C ifb <i>
+			      C n d s dup (?)
+			      C else
+			      C n d s dup (i)
+			      C endif
+			      C endif
+			      C endm
+			      C ifndef ?NOEXTERN
+			      C .xcref
+			      C .xcref ?ex1,?ex2,externB,externW,externD,externQ,externT
+			      C .xcref externNP,externFP,externP,externCP,externDP,externA
+			      C .cref
+ = 0000			      C ?ex2 = 0
+			      C externA macro n,c
+			      C ?ex1 <n>,40h,<abs>,<c>,<>
+			      C endm
+			      C externB macro n,c
+			      C ?ex1 <n>,1,<byte>,<c>,<>
+			      C endm
+			      C externW macro n,c
+			      C ?ex1 <n>,2,<word>,<c>,<>
+			      C endm
+			      C externD macro n,c
+			      C ?ex1 <n>,4,<dword>,<c>,<>
+			      C endm
+			      C externQ macro n,c
+			      C ?ex1 <n>,8,<qword>,<c>,<>
+			      C endm
+			      C externT macro n,c
+			      C ?ex1 <n>,10,<tbyte>,<c>,<>
+			      C endm
+			      C externNP macro n,c
+			      C ?ex1 <n>,2,<near>,<c>,<cc>
+			      C endm
+			      C externFP macro n,c
+			      C ?ex1 <n>,4,<far>,<c>,<cc>
+			      C endm
+			      C if sizec
+			      C externP macro n,c
+			      C ?ex1 <n>,4,<far>,<c>,<cc>
+			      C endm
+			      C else
+			      C endif
+			      C if sizec
+			      C externCP macro n,c
+			      C ?ex1 <n>,4,<dword>,<c>,<>
+			      C endm
+			      C else
+			      C endif
+			      C if sized
+			      C externDP macro n,c
+			      C ?ex1 <n>,4,<dword>,<c>,<>
+			      C endm
+			      C else
+			      C endif
+			      C ?ex1 macro n,s,d,c,scv
+			      C ?gcc ?ex2,%?PLM,<c>
+			      C irp x,<n>
+			      C .xcref
+			      C .xcref ??CM_Paste(?t_,x)
+			      C .cref
+			      C ??CM_Paste(?t_,x)=s
+			      C ife ?ex2
+			      C extrn ??CM_Paste(_,x):&d
+			      C x equ ??CM_Paste(_,x)
+			      C else
+			      C extrn x:&d
+			      C endif
+			      C ifidn <scv>,<cc>
+			      C .xcref
+			      C .xcref ??CM_Paste(?CC,x)
+			      C .cref
+			      C ??CM_Paste(?CC,x)=?ex2
+			      C endif
+			      C endm
+			      C endm
+			      C endif
+			      C ifndef ?NOLABEL
+			      C .xcref
+			      C .xcref ?lb1,?lblpu,?lb2
+			      C .xcref labelB,labelW,labelD,labelQ,labelT
+			      C .xcref labelNP,labelFP,labelP,labelCP,labelDP
+			      C .cref
+ = 0000			      C ?lblpu = 0
+ = 0000			      C ?lb2 = 0
+			      C labelB macro n,c
+			      C ?lb1 <n>,1,<byte>,<c>
+			      C endm
+			      C labelW macro n,c
+			      C ?lb1 <n>,2,<word>,<c>
+			      C endm
+			      C labelD macro n,c
+			      C ?lb1 <n>,4,<dword>,<c>
+			      C endm
+			      C labelQ macro n,c
+			      C ?lb1 <n>,8,<qword>,<c>
+			      C endm
+			      C labelT macro n,c
+			      C ?lb1 <n>,10,<tbyte>,<c>
+			      C endm
+			      C labelNP macro n,c
+			      C ?lb1 <n>,2,<near>,<c>
+			      C endm
+			      C labelFP macro n,c
+			      C ?lb1 <n>,4,<far>,<c>
+			      C endm
+			      C if sizec
+			      C labelP macro n,c
+			      C ?lb1 <n>,4,<far>,<c>
+			      C endm
+			      C else
+			      C endif
+			      C if sizec
+			      C labelCP macro n,c
+			      C ?lb1 <n>,4,<dword>,<c>
+			      C endm
+			      C else
+			      C endif
+			      C if sized
+			      C labelDP macro n,c
+			      C ?lb1 <n>,4,<dword>,<c>
+			      C endm
+			      C else
+			      C endif
+			      C ?lb1 macro n,s,d,c
+			      C ?gcc ?lb2,%?PLM,<c>
+			      C ?lblpu=0
+			      C irp x,<n>
+			      C ifidn <x>,<PUBLIC>
+			      C ?lblpu=1
+			      C else
+			      C .xcref
+			      C .xcref ??CM_Paste(?t_,x)
+			      C .cref
+			      C ??CM_Paste(?t_,x)=s
+			      C ife ?lb2
+			      C if ?lblpu
+			      C public ??CM_Paste(_,x)
+			      C endif
+			      C ??CM_Paste(_,x) label &d
+			      C x equ ??CM_Paste(_,x)
+			      C else
+			      C if ?lblpu
+			      C public x
+			      C endif
+			      C x label &d
+			      C endif
+			      C endif
+			      C endm
+			      C endm
+			      C endif
+			      C ifndef ?NODEF
+			      C .xcref
+			      C .xcref defB,defW,defD,defQ,defT,defCP,defDP
+			      C .cref
+			      C defB macro n
+			      C ?ad <n>,1
+			      C endm
+			      C defW macro n
+			      C ?ad <n>,2
+			      C endm
+			      C defD macro n
+			      C ?ad <n>,4
+			      C endm
+			      C defQ macro n
+			      C ?ad <n>,8
+			      C endm
+			      C defT macro n
+			      C ?ad <n>,10
+			      C endm
+			      C if sizec
+			      C defCP macro n
+			      C defD <n>
+			      C endm
+			      C else
+			      C endif
+			      C if sized
+			      C defDP macro n
+			      C defD <n>
+			      C endm
+			      C else
+			      C endif
+			      C endif
+			      C ?ad macro n,s
+			      C irp x,<n>
+			      C .xcref
+			      C .xcref ??CM_Paste(?t_,x)
+			      C .cref
+			      C ??CM_Paste(?t_,x)=s
+			      C endm
+			      C endm
+			      C ifndef ?NOPTR
+			      C .xcref
+			      C .xcref regPtr,farPtr
+			      C .cref
+			      C regPtr macro n,s,o
+			      C farPtr n,s,o
+			      C endm
+			      C farPtr macro n,s,o
+			      C .xcref
+			      C .xcref ?t_&n
+			      C .cref
+			      C n macro
+			      C if ?pgen32
+			      C irp sn,<cs,ds,es,fs,gs,ss>
+			      C ifidni <s>,<sn>
+			      C         db 66h
+			      C endif
+			      C endm
+			      C endif
+			      C 	push	s
+			      C if ?pgen32
+			      C irp sn,<cs,ds,es,fs,gs,ss>
+			      C ifidni <o>,<sn>
+			      C         db 66h
+			      C endif
+			      C endm
+			      C endif
+			      C 	push	o
+			      C endm
+			      C ?t_&n=80h
+			      C endm
+			      C endif
+			      C arg macro a
+			      C irp x,<a>
+			      C ?argc=?argc+1
+			      C ?atal <x>,%?argc
+			      C endm
+			      C endm
+			      C ?atal macro n,i
+			      C .xcref
+			      C .xcref ?ali&i
+			      C .cref
+			      C ?ali&i macro
+			      C ?ap <n>
+			      C endm
+			      C endm
+			      C ?ap macro n
+			      C ?argl=?argl+2
+			      C ifdef ?t_&n
+			      C ife ?t_&n-1
+			      C 	push	word ptr (n)
+			      C exitm
+			      C endif
+			      C ife ?t_&n-2
+			      C 	push	n
+			      C exitm
+			      C endif
+			      C ife ?t_&n-4
+			      C if @Cpu AND 1000b
+			      C 	pushd	n
+			      C else
+			      C 	push	word ptr (n)[2]
+			      C 	push	word ptr (n)
+			      C endif
+			      C ?argl=?argl+2
+			      C exitm
+			      C endif
+			      C ife ?t_&n-8
+			      C 	push	word ptr (n)[6]
+			      C 	push	word ptr (n)[4]
+			      C 	push	word ptr (n)[2]
+			      C 	push	word ptr (n)
+			      C ?argl=?argl+6
+			      C exitm
+			      C endif
+			      C if ?t_&n and 80h
+			      C n
+			      C ?argl=?argl+2
+			      C exitm
+			      C endif
+			      C ife ?t_&n
+			      C 	push	word ptr (n)
+			      C exitm
+			      C endif
+			      C endif
+			      C if ((OPATTR n) AND 00000100b)
+			      C if (?pconst32 OR (?pgen32 EQ 0))
+			      C         push    n
+			      C else
+			      C         push    word ptr (n)
+			      C endif
+			      C else
+			      C if ?pgen32
+			      C irp s,<cs,ds,es,fs,gs,ss>
+			      C ifidni <n>,<s>
+			      C         db 66h
+			      C endif
+			      C endm
+			      C endif
+			      C 	push	n
+			      C endif
+			      C endm
+			      C cCallN32 macro n,a,c
+			      C ?pconst32=1
+			      C cCall <NEAR16 PTR (n)>,<a>,c
+			      C ?pconst32=0
+			      C         endm
+			      C cCallF32 macro n,a,c
+			      C ?pconst32=1
+			      C ?pgen66=1
+			      C cCall (n),<a>,c
+			      C ?pgen66=0
+			      C ?pconst32=0
+			      C         endm
+			      C cCall macro n,a,c
+			      C ifnb <a>
+			      C arg <a>
+			      C endif
+			      C mpush %?rsl
+			      C ifdef ?CC&n
+			      C ?cCall1=?CC&n
+			      C else
+			      C ?cCall1=?PLM
+			      C endif
+			      C ifnb <c>
+			      C ?gcc ?cCall1,%?cCall1,<c>
+			      C endif
+			      C ?argl=0
+			      C ife ?cCall1
+			      C ?acb=?argc
+			      C else
+			      C ?acb=1
+			      C endif
+			      C rept ?argc
+			      C uconcat <?ali>,%?acb
+			      C uconcat <purge>,,<?ali>,%?acb
+			      C ife ?cCall1
+			      C ?acb=?acb-1
+			      C else
+			      C ?acb=?acb+1
+			      C endif
+			      C endm
+			      C if ?pgen66
+			      C db 66h,9Ah
+			      C dw OFFSET (n), SEG (n)
+			      C else
+			      C         call    n
+			      C endif
+			      C if ((?cCall1 eq 0) and (?argl ne 0))
+			      C 	add	sp,?argl
+			      C endif
+			      C mpop %?rsl
+			      C ?rsl=0
+			      C ?argc= 0
+			      C ?argl= 0
+			      C endm
+			      C cProc macro n,cf,a
+			      C if ?cpd
+			      C ?utpe
+			      C endif
+			      C ?cpd=1
+			      C ???=0
+			      C ?argc=0
+			      C ?ba=0
+			      C ?po=0
+			      C ?pu=0
+			      C ?ia=0
+			      C ?adj=4
+			      C ?rp=0
+			      C ?uf=0
+			      C ?wfp=?WIN
+			      C ?ff=0
+			      C ?pas=0
+			      C ?pcc=?PLM
+			      C ?lds=0
+			      C ?exp=0
+			      C ?entser=0
+			      C ?extser=0
+			      C ifnb <a>
+			      C ?ri ?pas,<a>
+			      C endif
+			      C ?pc=sizec
+			      C ?nd=?nodata1
+			      C ?nx=0
+			      C irp x,<cf>
+			      C ifidn <x>,<FAR>
+			      C ?pc=1
+			      C endif
+			      C ifidn <x>,<NEAR>
+			      C ?pc=0
+			      C endif
+			      C ifidn <x>,<PUBLIC>
+			      C ?pu=1
+			      C endif
+			      C ifidn <x>,<SMALL>
+			      C ?uf=1
+			      C endif
+			      C ifidn <x>,<DATA>
+			      C ?nd=0
+			      C endif
+			      C ifidn <x>,<NODATA>
+			      C ?nd=1
+			      C endif
+			      C ifidn <x>,<ATOMIC>
+			      C ?nx=1
+			      C endif
+			      C ifidn <x>,<C>
+			      C ?pcc=0
+			      C endif
+			      C ifidn <x>,<PLM>
+			      C ?pcc=1
+			      C endif
+			      C ifidn <x>,<PASCAL>
+			      C ?pcc=1
+			      C endif
+			      C ifidn <x>,<WIN>
+			      C ?wfp=1
+			      C endif
+			      C ifidn <x>,<NONWIN>
+			      C ?wfp=0
+			      C endif
+			      C ifidn <x>,<LOADDS>
+			      C ?lds=1
+			      C endif
+			      C ifidn <x>,<EXPORTED>
+			      C ?exp=1
+			      C endif
+			      C ifidn <x>,<SERIAL>
+			      C ?entser=1
+			      C ?extser=1
+			      C endif
+			      C endm
+			      C if ?pcc
+			      C ?PLMPrevParm=0
+			      C .xcref
+			      C .xcref ?PLMParm0
+			      C .cref
+			      C ?PLMParm0 macro arg
+			      C purge ?PLMParm0
+			      C endm
+			      C endif
+			      C .xcref
+			      C .xcref ?CC&n
+			      C .cref
+			      C ?CC&n=?pcc
+			      C if (?nx eq 1) and (?nd eq 0)
+			      C ?nx = 0
+			      C ??error <ATOMIC specified without NODATA - ATOMIC ignored>
+			      C endif
+			      C if ?pc
+			      C if ?wfp+?exp+?lds 
+			      C ife ?nx
+			      C ife ?pmd 	  
+			      C ?ia=2		  
+			      C endif
+			      C ?pas = ?pas and (not ?ds)
+			      C endif
+			      C endif
+			      C ?adj=?adj+2
+			      C else
+			      C ?wfp=0
+			      C if ?pgen32
+			      C ?adj = ?adj+2
+			      C endif
+			      C endif
+			      C ife ?386regs
+			      C ?pas = ?pas and (not (?sp+?cs+?ss))
+			      C endif
+			      C if ?uf
+			      C if ?386regs
+			      C ?pas = ?pas and (not (?si+?di))
+			      C else
+			      C ?pas = ?pas and (not (?bp+?si+?di))
+			      C endif
+			      C endif
+			      C ife ?pcc
+			      C ?pg <_&n>,%?pu,%?pc,%?pas,%?wfp,<n>,%?pcc
+			      C else
+			      C ?pg <n>,%?pu,%?pc,%?pas,%?wfp,<n>,%?pcc
+			      C endif
+			      C endm
+			      C ?pg macro n,p,c,a,w,nnu,cc
+			      C .xcref
+			      C if ?uf
+			      C if ?nd
+			      C ??error <NODATA encountered in &n - user frame ignored>
+			      C ?uf=0
+			      C endif
+			      C endif
+			      C .xcref cBegin
+			      C cBegin macro g
+			      C .xcref
+			      C if cc
+			      C uconcat <?PLMParm>,%?PLMPrevParm,%?po
+			      C endif
+			      C if ?uf
+			      C if ?rp
+			      C ??error <parmR encountered in &n - user frame ignored>
+			      C ?uf=0
+			      C endif
+			      C endif
+			      C ?pg1 <n>,c,a,%?po,w,%?uf,%?nd,%?rp,cc
+			      C ?cpd=0
+			      C ?argc=0
+			      C ?ba=1
+			      C ???=(???+1) and 0fffeh
+			      C if p
+			      C public n
+			      C endif
+			      C ife c
+			      C n proc near
+			      C else
+			      C n proc far
+			      C endif
+			      C ife cc
+			      C nnu equ n
+			      C endif
+			      C ifidn <g>,<nogen>
+			      C if ???+?po+a+?rp
+			      C ??_out <cBegin - possible invalid use of nogen>
+			      C endif
+			      C else
+			      C if ?uf
+			      C ?mf c,%???,%?po
+			      C mpush a
+			      C else
+			      C if w+?exp+?lds	
+			      C if ?pmd		
+			      C ife ?nd		
+			      C if ?lds		
+			      C mov ax,_DATA	
+			      C else		
+			      C if ?exp
+			      C mov ax,ds 	
+			      C nop		
+			      C endif
+			      C endif
+			      C endif
+			      C ife ?nx		
+			      C if ???+?po	
+			      C   if ?chkstk1 	
+			      C     push bp
+			      C     ife ?pgen32
+			      C       movzx ebp,sp
+			      C     else
+			      C       mov  bp,sp
+			      C     endif
+			      C   else
+			      C     if ???		
+			      C       if ?pgen32
+			      C         push bp
+			      C         movzx ebp,sp
+			      C         sub sp,???
+			      C       else
+			      C         enter ???,0
+			      C       endif
+			      C     else
+			      C       push bp
+			      C       if ?pgen32
+			      C         movzx ebp,sp
+			      C       else
+			      C         mov bp,sp	
+			      C       endif
+			      C     endif
+			      C   endif
+			      C endif
+			      C 
+			      C push ds		
+			      C 
+			      C if ?lds+?exp 	
+			      C  mov ds,ax	
+			      C endif
+			      C else		
+			      C if ?ff+???+?po+?rp
+			      C push bp
+			      C if ?pgen32
+			      C movzx ebp,sp
+			      C else
+			      C mov bp,sp	  
+			      C endif
+			      C endif
+			      C endif
+			      C else 
+			      C ife ?nd
+			      C 	mov	ax,ds
+			      C 	nop
+			      C endif
+			      C ife ?nx
+			      C ife ?DOS5
+			      C 	inc	bp
+			      C endif
+			      C 	push	bp
+			      C if ?pgen32
+			      C         movzx   ebp,sp
+			      C else
+			      C 	mov	bp,sp
+			      C endif
+			      C 	push	ds
+			      C else
+			      C if ?ff+???+?po+?rp
+			      C 	push	bp
+			      C if ?pgen32
+			      C         movzx   ebp,sp
+			      C else
+			      C 	mov	bp,sp
+			      C endif
+			      C endif
+			      C endif
+			      C ife ?nd
+			      C 	mov	ds,ax
+			      C endif
+			      C endif
+			      C else
+			      C if ?pmd		     
+			      C if ?exp
+			      C mov ax,ds	     
+			      C nop 		     
+			      C else
+			      C if ?lds		     
+			      C mov ax,_DATA
+			      C endif
+			      C endif
+			      C if ?ff+???+?po+?rp   
+			      C if ?chkstk1	     
+			      C push bp
+			      C if ?pgen32
+			      C movzx ebp,sp
+			      C else
+			      C mov  bp,sp
+			      C endif
+			      C else
+			      C if ???
+			      C     if ?pgen32
+			      C       push bp
+			      C       movzx ebp,sp
+			      C       sub sp,???
+			      C     else
+			      C       enter ???,0
+			      C     endif
+			      C else
+			      C push bp
+			      C if ?pgen32
+			      C movzx ebp,sp
+			      C else
+			      C mov bp,sp 	     
+			      C endif
+			      C endif
+			      C endif
+			      C endif
+			      C if ?exp+?lds	     
+			      C push ds		     
+			      C mov ds,ax	     
+			      C endif
+			      C else 
+			      C if ?ff+???+?po+?rp
+			      C 	push	bp
+			      C if ?pgen32
+			      C         movzx   ebp,sp
+			      C else
+			      C 	mov	bp,sp
+			      C endif
+			      C endif
+			      C endif
+			      C endif
+			      C if ?rp
+			      C ?uf=0
+			      C rept ?rp
+			      C uconcat mpush,,?rp,%?uf
+			      C ?uf=?uf+1
+			      C endm
+			      C endif
+			      C if ???
+			      C if ?chkstk1
+			      C ifdef ?CHKSTKPROC
+			      C ?CHKSTKPROC %???
+			      C else
+			      C 	mov	ax,???
+			      C ife cc
+			      C 	call	_chkstk
+			      C else
+			      C 	call	chkstk
+			      C endif
+			      C endif
+			      C else
+			      C 	ife ?pmd  
+			      C 	sub sp,???
+			      C 	endif
+			      C endif
+			      C endif
+			      C mpush a
+			      C endif
+			      C if ?entser
+			      C EnterSerialize
+			      C ?entser=0
+			      C endif
+			      C ifdef ?PROFILE
+			      C if c
+			      C 	call	StartNMeas
+			      C endif
+			      C endif
+			      C endif
+			      C .cref
+			      C purge cBegin
+			      C endm
+			      C .xcref ?utpe
+			      C ?utpe macro
+			      C ??error <unterminated procedure definition: "&n">
+			      C endm
+			      C .cref
+			      C endm
+			      C ?pg1 macro n,c,a,o,w,f,d,r,cc
+			      C .xcref
+			      C .xcref cEnd
+			      C cEnd macro g
+			      C .xcref
+			      C ?ba=0
+			      C ifidn <g>,<nogen>
+			      C if o+a+r
+			      C ??_out <cEnd - possible invalid use of nogen>
+			      C endif
+			      C else
+			      C ifdef ?PROFILE
+			      C if c
+			      C call StopNMeas
+			      C endif
+			      C endif
+			      C if ?extser
+			      C ExitSerialize
+			      C ?extser=0
+			      C endif
+			      C mpop a
+			      C if f
+			      C if (?pgen32 and ?pc)
+			      C 	db	66h     ; override the ret!
+			      C endif
+			      C 	db	0c3h
+			      C else
+			      C if w+?exp+?lds	      
+			      C if ?pmd
+			      C ife ?nx
+			      C pop ds		      
+			      C endif
+			      C ife ?nx		      
+			      C if ?chkstk1+???+?po
+			      C if ?pgen32
+			      C mov sp,bp
+			      C pop bp
+			      C else
+			      C leave
+			      C endif
+			      C endif
+			      C else		      
+			      C if ?ff+???+?po+?rp    
+			      C if ?pgen32
+			      C mov sp,bp
+			      C pop bp
+			      C else
+			      C leave
+			      C endif
+			      C endif
+			      C endif
+			      C else	    
+			      C ife ?nx
+			      C if (?TF eq 0) or (???+?rp)
+			      C if ?pgen32
+			      C 	lea	sp,(-4)[bp]
+			      C else
+			      C 	lea	sp,(-2)[bp]
+			      C endif
+			      C endif
+			      C 	pop	ds
+			      C 	pop	bp
+			      C ife ?DOS5
+			      C 	dec	bp
+			      C endif
+			      C else
+			      C if (?TF eq 0) or (???+?rp)
+			      C 	mov	sp,bp
+			      C endif
+			      C if ???+?po+?rp
+			      C 	pop	bp
+			      C endif
+			      C endif
+			      C endif
+			      C else
+			      C if ?pmd
+			      C if ?ff+???+?po+?rp 
+			      C if ?pgen32
+			      C mov sp,bp
+			      C pop bp
+			      C else
+			      C leave
+			      C endif
+			      C endif
+			      C else
+			      C if ?ff+???+?po+?rp
+			      C if (?TF eq 0) or (???+?rp)
+			      C 	mov	sp,bp
+			      C endif
+			      C 	pop	bp
+			      C endif
+			      C endif
+			      C endif
+			      C if (?pgen32 and ?pc)
+			      C         db      66h     ; override the ret!
+			      C endif
+			      C ife cc
+			      C 	ret
+			      C else
+			      C 	ret	o
+			      C endif
+			      C endif
+			      C endif
+			      C n endp
+			      C .cref
+			      C purge cEnd
+			      C endm
+			      C .cref
+			      C endm
+			      C assumes macro s,ln
+			      C ifdef MS_STARTUP
+			      C ifidn <code>,<ln>
+			      C assume s&:_TEXT
+			      C exitm
+			      C elseifidn <CODE>,<ln>
+			      C assume s&:_TEXT
+			      C exitm
+			      C elseifidn <data>,<ln>
+			      C assume s&:dgroup
+			      C exitm
+			      C elseifidn <DATA>,<ln>
+			      C assume s&:dgroup
+			      C exitm
+			      C endif
+			      C endif
+			      C ifndef ln&_assumes
+			      C assume s:ln
+			      C else
+			      C ln&_assumes s
+			      C endif
+			      C endm
+			      C createSeg macro n,ln,a,co,cl,grp,u
+			      C ifnb <cl>
+			      C ifnb <u>
+			      C ifidn <u>,<USE32>
+			      C .386p
+			      C endif
+			      C n segment a co '&cl'
+			      C else
+			      C .286p
+			      C n segment a co '&cl'
+			      C endif
+			      C else
+			      C ifnb <u>
+			      C n segment a co u
+			      C else
+			      C n segment a co
+			      C endif
+			      C endif
+			      C n ends
+			      C ?cs1 <ln>,<n>,<u>
+			      C ifnb <grp>
+			      C grp group n
+			      C ?cs3 <ln>,<grp>
+			      C ln&OFFSET equ <offset grp:>
+			      C ln&BASE equ <grp>
+			      C else
+			      C ?cs3 <ln>,<n>
+			      C ln&OFFSET equ <offset>
+			      C ln&BASE equ <n>
+			      C endif
+			      C endm
+			      C addseg macro grp,seg
+			      C .xcref
+			      C .xcref grp&_add
+			      C .cref
+			      C grp&_add macro s
+			      C grp&_in <seg>,s
+			      C endm
+			      C .xcref
+			      C .xcref grp&_in
+			      C .cref
+			      C grp&_in macro sl,s
+			      C ifb <s>
+			      C grp group sl
+			      C else
+			      C grp&_add macro ns
+			      C grp&_in <sl,s>,ns
+			      C endm
+			      C endif
+			      C endm
+			      C endm
+			      C defgrp macro grp,ln
+			      C endm
+			      C ?cs1 macro ln,n,u
+			      C .xcref
+			      C .xcref ln&_sbegin
+			      C .cref
+			      C ln&_sbegin macro
+			      C ?cs2 <ln>,<n>
+			      C n segment
+			      C .xcref
+			      C .xcref ?mf
+			      C .cref
+			      C ?mf macro c,l,p
+			      C if c
+			      C 	extrn	n&_FARFRAME:near
+			      C 	call	n&_FARFRAME
+			      C else
+			      C 	extrn	n&_NEARFRAME:near
+			      C 	call	n&_NEARFRAME
+			      C endif
+			      C 	db	l shr 1
+			      C 	db	p shr 1
+			      C endm
+			      C ?pgen32=0
+			      C ifnb <u>
+			      C ifidn <u>,<USE32>
+			      C ?pgen32=1
+			      C endif
+			      C endif
+			      C endm
+			      C endm
+			      C ?cs2 macro ln,n
+			      C .xcref
+			      C .xcref sEnd
+			      C .cref
+			      C sEnd macro arg
+			      C n ends
+			      C ?pgen32=0
+			      C purge ?mf
+			      C purge sEnd
+			      C endm
+			      C endm
+			      C ?cs3 macro ln,n
+			      C .xcref
+			      C .xcref ln&_assumes
+			      C .cref
+			      C ln&_assumes macro s
+			      C assume s:&n
+			      C endm
+			      C endm
+			      C retn32 macro
+			      C db 66h
+			      C retn
+			      C endm
+			      C retf32 macro
+			      C db 66h
+			      C retf
+			      C endm
+			      C .xcref
+			      C .xcref sBegin
+			      C .cref
+			      C sBegin macro ln
+			      C ln&_sbegin
+			      C endm
+			      C ife ?DF
+			      C createSeg _TEXT,Code,para,public,CODE
+ 0000			     1C _TEXT segment para public 'CODE'
+ 0000			     1C _TEXT ends
+			      C ife ?nodata1
+			      C createSeg _DATA,Data,dword,public,DATA,DGROUP
+ 0000			     1C _DATA segment dword public 'DATA'
+ 0000			     1C _DATA ends
+			      C defgrp DGROUP,Data
+			      C endif
+			      C if ?chkstk1
+			      C endif
+			      C endif
+			      C errnz macro x
+			      C ifnb <x>
+			      C .errnz (x),<x>
+			      C endif
+			      C endm
+			      C errnz1 macro x1,x2
+			      C = *errnz* x1 = x2
+			      C .err
+			      C endm
+			      C errn$ macro l,x
+			      C errnz <offset $ - offset l x>
+			      C endm
+			      C EnterSerialize  macro
+			      C endm
+			      C ExitSerialize   macro
+			      C endm
+			      C ifdef ?PROFILE
+			      C endif
+			      C callcrt MACRO funcname
+			      C ifdef _QC2
+			      C call funcname
+			      C else
+			      C if sizeC
+			      C push cs
+			      C call near ptr (funcname)
+			      C else
+			      C call funcname
+			      C endif
+			      C endif
+			      C ENDM
+			      C .cref
+			      C 
+				externFP  LoadLibraryEx32W
+				externFP  GetProcAddress32W
+				extern OUTPUTDEBUGSTRING:far
+
+					.MODEL  LARGE
+					.586p
+				INCLUDELIB      LLIBCE
+				INCLUDELIB	OLDNAMES.LIB
+
+ 0000				reg16	SEGMENT  WORD USE16 PUBLIC 'CODE'
+ 0000				reg16 ENDS
+
+
+ 0000				data2 SEGMENT  DWORD PUBLIC 'DATA'
+ 0000				data2 ENDS
+
+ 0000				CONST	SEGMENT  WORD USE16 PUBLIC 'CONST'
+ 0000				CONST	ENDS
+
+ 0000				_BSS	SEGMENT  WORD USE16 PUBLIC 'BSS'
+ 0000				_BSS	ENDS
+
+				;DGROUP	GROUP	CONST, _BSS, _DATA
+				;	ASSUME DS: DGROUP
+				;	ASSUME  SS: NOTHING
+
+				EXTRN	_h3WRITE:FAR
+
+ 0000				data2 SEGMENT
+				align 4
+ 0000 00000000			t1 dd ?
+ 0004 00000000			t2 dd  ?
+ 0008 0000			t3 dw  ?
+ 000A 00000000			t4 dd ?
+
+				align 4
+
+				globalD SavedProcAddress, 0
+ 0010 00000000		     3	SavedProcAddress dd 0
+ = 0010			     1	off_SavedProcAddress equ word ptr SavedProcAddress[0]
+ = 0012			     1	seg_SavedProcAddress equ word ptr SavedProcAddress[2]
+				globalW CodeSelector32, 0
+ 0014 0000		     3	CodeSelector32 dw 0
+				globalW CodeFiller, 0
+ 0016 0000		     3	CodeFiller dw 0
+				globalW DataSelector32, 0
+ 0018 0000		     3	DataSelector32 dw 0
+				globalW DataFiller, 0
+ 001A 0000		     3	DataFiller dw 0
+
+ 001C 57 6F 72 6B 49 74		SpecialLibName db "WorkIt.dll", 0
+       2E 64 6C 6C 00
+ 0027 54 65 73 74 00		TestFuncName   db "Test", 0
+
+ 002C				data2 ENDS
+
+ 0000				reg16      SEGMENT
+					ASSUME	CS: reg16 
+
+ = [bp+12h]			_data_	EQU	[bp+12h]
+ = [bp+0eh]			_reg_	EQU	[bp+0eh]
+ = [bp+0ah]			_hwptr_	EQU [bp+0ah]
+
+
+				;*----------------------------------------------------------------------
+				;Function name:  H3WRITE16
+				;
+				;Description:    Perform a register write to the HW.
+				;
+				;Information:    Calls _h3WRITE.
+				;
+				;Return:         VOID
+				;----------------------------------------------------------------------*
+					PUBLIC H3WRITE16
+ 0000					H3WRITE16 PROC FAR
+ 0000  55				push bp
+ 0001  8B EC				mov bp, sp
+
+ 0003  66| 8B 46 12			mov eax, dword ptr _data_
+ 0007  66| 50				push eax
+ 0009  66| 8B 46 0E			mov eax, dword ptr _reg_
+ 000D  66| 50				push eax
+ 000F  66| 8B 46 0A			mov eax, dword ptr _hwptr_
+ 0013  66| 50				push eax
+
+ 0015  9A ---- 0000 E			call FAR PTR _h3WRITE
+ 001A  8B E5				mov sp, bp
+ 001C  5D				pop bp
+ 001D  66				db 66h
+ 001E  CB				ret
+ 001F					H3WRITE16 endp
+
+
+				;*----------------------------------------------------------------------
+				;Function name:  _DbgOut
+				;
+				;Description:    Send a message to the debug terminal.
+				;
+				;Information:    Calls OUTPUTDEBUGSTRING.
+				;
+				;Return:         VOID
+				;----------------------------------------------------------------------*
+					PUBLIC _DbgOut
+ 001F					_DbgOut PROC FAR
+ 001F  55				push bp
+ 0020  8B EC				mov bp, sp
+
+ 0022  FF 76 14				push [bp+014h]  ;selector
+ 0025  FF 76 12				push [bp+012h] ;offset
+
+ 0028  9A ---- 0000 E			call 	FAR PTR OUTPUTDEBUGSTRING
+
+ 002D  8B E5				mov sp, bp
+ 002F  5D				pop bp
+ 0030  66				db 66h
+ 0031  CB				ret 
+ 0032					_DbgOut  endp 
+
+				; ********************************************************************** 
+				; arg last to first
+ = [bp+0eh]			glyphIndex_GAT				EQU 	[bp+0eh]		
+ = [bp+0ah]			nfAWTableOffset_GAT  		EQU		[bp+0ah]	
+ = [bp+08h]			FontPtr_GAT 				EQU		[bp+08h]
+				; ********************************************************************** 
+
+
+				;*----------------------------------------------------------------------
+				;Function name:  _GETAWTABLEDATA
+				;
+				;Description:    Return the offset of a glyph.
+				;
+				;Information:
+				;
+				;Return:         AX     Offset to the glyph.
+				;----------------------------------------------------------------------*
+					PUBLIC _GETAWTABLEDATA
+ 0032					_GETAWTABLEDATA PROC FAR
+
+ 0032  55				push bp 
+ 0033  8B EC				mov bp, sp
+
+ 0035  8B 46 08				mov ax, FontPtr_GAT
+ 0038  8E C0				mov es, ax
+ 003A  66| 8B 56 0A			mov edx, dword ptr nfAWTableOffset_GAT
+ 003E  66| 0F B7 7E 0E			movzx edi, word ptr glyphIndex_GAT	
+
+ 0043  67& 26: 8B 04 7A			mov ax, word ptr es:[edx][edi*2]  ; get glyph offset.
+
+ 0048  8B E5				mov sp, bp
+ 004A  5D				pop bp
+ 004B  CB				ret
+ 004C					_GETAWTABLEDATA endp
+
+
+				; ********************************************************************** 
+ = [bp+006h]			HeaderSize_GGD		EQU		[bp+006h]
+ = [bp+00ch]			Offset_GGD  		EQU		[bp+00ch]	
+ = [bp+00ah]			FontPtr_GGD 		EQU		[bp+00ah]	
+ = [bp+010h]			glyphIndex_GGD		EQU 	[bp+010h] ; last arg
+ = [bp+012h]			dataOffset_GGD		EQU		[bp+012h]
+				; ********************************************************************** 
+				; ********************************************************************** 
+
+
+				;*----------------------------------------------------------------------
+				;Function name:  _GETGLYPHDATA
+				;
+				;Description:    Obtain the data for a specified glyph.
+				;
+				;Information:
+				;
+				;Return:         DX:AX     Returns dword of glyph data.
+				;----------------------------------------------------------------------*
+					PUBLIC _GETGLYPHDATA
+ 004C					_GETGLYPHDATA PROC FAR
+
+ 004C  55				push bp 
+ 004D  8B EC				mov bp, sp
+
+ 004F  8B 46 0A				mov ax, FontPtr_GGD
+ 0052  8E C0				mov es, ax
+ 0054  66| 8B 56 0C			mov edx, dword ptr Offset_GGD
+ 0058  66| 0F B7 7E 10			movzx edi, word ptr glyphIndex_GGD	
+					
+
+ 005D  67& 66| 26: 0F B7 3C		movzx edi, word ptr es:[edx][edi*2]  ; get glyph offset.
+       7A
+
+ 0064  03 7E 06				add  di, word ptr HeaderSize_GGD
+ 0067  03 7E 12				add  di, word ptr dataOffset_GGD
+
+ 006A  67& 26: 8B 07			mov ax, word ptr es:[edi];           ;get first dword of rowglyph data
+ 006E  66| 83 C7 02			add edi, 2
+ 0072  67& 26: 8B 17			mov dx,  word ptr es:[edi];
+
+ 0076  8B E5				mov sp, bp
+ 0078  5D				pop bp
+ 0079  CB				ret
+
+ 007A					_GETGLYPHDATA endp
+
+				; ********************************************************************** 
+				; ********************************************************************** 
+
+
+
+ = [bp+006h]			Dataptr				EQU		[bp+006h]		
+ = [bp+00ah]			FontPtr_GGS			EQU		[bp+00ah]		
+ = [bp+00eh]			Offset_GGS 			EQU		[bp+00eh]	
+ = [bp+012h]			glyphIndex_GGS		EQU 	[bp+012h]
+
+
+				;*----------------------------------------------------------------------
+				;Function name:  _GETGLYPHSTRUCT
+				;
+				;Description:    Obtain a glyph's structure.
+				;
+				;Information:
+				;
+				;Return:         VOID
+				;----------------------------------------------------------------------*
+				PUBLIC _GETGLYPHSTRUCT
+ 007A					_GETGLYPHSTRUCT PROC FAR
+
+ 007A  55				push bp 
+ 007B  8B EC				mov bp, sp
+ 007D  1E				push ds
+ 007E  06				push es
+ 007F  66| 56				push esi
+ 0081  66| 57				push edi
+
+ 0083  C5 76 06				lds si, dword ptr Dataptr
+ 0086  66| 0F B7 F6			movzx esi, si
+					
+
+					; load font pointer
+ 008A  C4 7E 0A				les di, FontPtr_GGS
+					;mov ax, FontPtr_GGS    ;FontPtr_GGS needs to be bp+c
+					;mov es, ax
+
+ 008D  66| 8B 5E 0E			mov ebx, dword ptr Offset_GGS
+ 0091  66| 0F B7 7E 12			movzx edi, word ptr glyphIndex_GGS	
+
+					; move smallrow/largerow glyph header.  move 2 dwords, size of 
+					; largerowglyph. let c code sort dataPtr.
+
+ 0096  67& 66| 26: 0F B7 3C		movzx edi, word ptr es:[ebx][edi*2]  ; get glyph offset.
+       7B
+
+ 009D  67& 66| 26: 8B 07		mov eax, dword ptr es:[edi];           ;get first dword of rowglyph data
+ 00A2  67& 66| 89 06			mov dword ptr ds:[esi], eax
+ 00A6  83 C6 04				add si, 4
+ 00A9  66| 83 C7 04			add edi, 4
+ 00AD  67& 66| 26: 8B 07		mov eax,  dword ptr es:[edi];
+ 00B2  67& 66| 89 06			mov dword ptr ds:[esi], eax
+
+ 00B6  66| 5F				pop edi
+ 00B8  66| 5E				pop esi
+ 00BA  07				pop es
+ 00BB  1F				pop ds
+
+ 00BC  5D				pop bp
+ 00BD  CB				ret
+ 00BE					_GETGLYPHSTRUCT endp
+
+
+				;*----------------------------------------------------------------------
+				;Function name:  Start32
+				;
+				;Description:    Sets up 32-bit environment for the driver
+				;                to play in.
+				;
+				;Information:    Contains numerous INT 3s!
+				;                Uses INT 31h.
+				;
+				;Return:         AX     0 is returned.
+				;----------------------------------------------------------------------*
+				cProc   Start32, <FAR, PUBLIC, PASCAL>, <esi, edi>
+				cBegin
+ 00BE			     1	Start32 proc far
+ 00BE  8C D8		     1		mov	ax,ds
+ 00C0  90		     1		nop
+ 00C1  45		     1		inc	bp
+ 00C2  55		     1		push	bp
+ 00C3  8B EC		     1		mov	bp,sp
+ 00C5  1E		     1		push	ds
+ 00C6  8E D8		     1		mov	ds,ax
+ 00C8  66| 56		     3		push	esi
+ 00CA  66| 57		     3		push	edi
+						ASSUME DS:data2
+ 00CC  CC			        int     3
+
+				        ; load our 32-bit library
+
+ 00CD  68 ---- R		        push    SEG    SpecialLibName
+ 00D0  68 001C R		        push    OFFSET SpecialLibName
+ 00D3  66| 33 C0		        xor     eax, eax
+ 00D6  66| 50			        push    eax
+ 00D8  66| 50			        push    eax
+ 00DA  9A ---- 0000 E		        call    LoadLibraryEx32W
+
+ 00DF  0B D2			        or      dx, dx
+ 00E1  75 03			        jnz     @f
+ 00E3  E9 00B4			        jmp     Start32_Bail
+
+				        ; retrieve linear address of our 32-bit test function
+
+ 00E6  52			@@:     push    dx
+ 00E7  50			        push    ax
+ 00E8  68 ---- R		        push    SEG    TestFuncName
+ 00EB  68 0027 R		        push    OFFSET TestFuncName
+ 00EE  9A ---- 0000 E		        call    GetProcAddress32W
+
+ 00F3  0B D2			        or      dx, dx
+ 00F5  75 03			        jnz     @f
+ 00F7  E9 00A0			        jmp     Start32_Bail
+
+				        ; let's save the address, why don't we
+
+ 00FA  A3 0010 R		@@:     mov     WORD PTR SavedProcAddress, ax
+ 00FD  89 16 0012 R		        mov     WORD PTR SavedProcAddress[2], dx
+
+				        ; create two selectors for our 32-bit stuff
+
+ 0101  B9 0002			        mov     cx, 2
+
+ 0104  33 C0			        xor     ax, ax
+ 0106  CD 31			        int     31h
+
+ 0108  73 03			        jnc     @f
+ 010A  E9 008D			        jmp     Start32_Bail
+
+				        ; the first selector will be our code selector
+
+ 010D  A3 0014 R		@@:     mov     CodeSelector32, ax
+
+				        ; set code segment base to zero
+
+ 0110  8B D8			        mov     bx, ax
+ 0112  33 C9			        xor     cx, cx
+ 0114  33 D2			        xor     dx, dx
+
+ 0116  B8 0007			        mov     ax, 7
+ 0119  CD 31			        int     31h
+
+ 011B  73 02			        jnc     @f
+ 011D  EB 7B			        jmp     Start32_Bail
+
+				        ; set code segment limit to four gigs
+
+ 011F  8B 1E 0014 R		@@:     mov     bx, CodeSelector32
+ 0123  B9 FFFF			        mov     cx, 0FFFFh
+ 0126  BA FFFF			        mov     dx, 0FFFFh
+
+ 0129  B8 0008			        mov     ax, 8
+ 012C  CD 31			        int     31h
+
+ 012E  73 02			        jnc     @f
+ 0130  EB 68			        jmp     Start32_Bail
+
+				        ; wouldn't it be nice if our code selector was 32-bit CODE?
+
+ 0132  8B 1E 0014 R		@@:     mov     bx, CodeSelector32
+ 0136  B9 C0FA			        mov     cx, 0C0FAh
+
+ 0139  B8 0009			        mov     ax, 9
+ 013C  CD 31			        int     31h
+
+ 013E  73 02			        jnc     @f
+ 0140  EB 58			        jmp     Start32_Bail
+
+				        ; now get the selector increment
+
+ 0142  B8 0003			@@:     mov     ax, 3
+ 0145  CD 31			        int     31h
+
+ 0147  73 02			        jnc     @f
+ 0149  EB 4F			        jmp     Start32_Bail
+
+				        ; the second selector wil be our... data selector!
+
+ 014B  03 06 0014 R		@@:     add     ax, CodeSelector32
+ 014F  A3 0018 R		        mov     DataSelector32, ax
+
+				        ; set data segment base to zero
+
+ 0152  8B D8			        mov     bx, ax
+ 0154  33 C9			        xor     cx, cx
+ 0156  33 D2			        xor     dx, dx
+
+ 0158  B8 0007			        mov     ax, 7
+ 015B  CD 31			        int     31h
+
+ 015D  73 02			        jnc     @f
+ 015F  EB 39			        jmp     Start32_Bail
+
+				        ; set data segment limit to four gigs
+
+ 0161  8B 1E 0018 R		@@:     mov     bx, DataSelector32
+ 0165  B9 FFFF			        mov     cx, 0FFFFh
+ 0168  BA FFFF			        mov     dx, 0FFFFh
+
+ 016B  B8 0008			        mov     ax, 8
+ 016E  CD 31			        int     31h
+
+ 0170  73 02			        jnc     @f
+ 0172  EB 26			        jmp     Start32_Bail
+
+				        ; wouldn't it be nice if our code selector was 32-bit DATA?
+
+ 0174  8B 1E 0018 R		@@:     mov     bx, DataSelector32
+ 0178  B9 C0F2			        mov     cx, 0C0F2h
+
+ 017B  B8 0009			        mov     ax, 9
+ 017E  CD 31			        int     31h
+
+ 0180  73 02			        jnc     @f
+ 0182  EB 16			        jmp     Start32_Bail
+
+				        ; let's try making the call...
+
+ 0184  CC			@@:     int     3
+
+ 0185  68 DEAD					push 	0deadh
+ 0188  68 BEEF					push 	0beefh
+ 018B  6A 00			        push    0
+ 018D  0E			        push    cs
+ 018E  6A 00			        push    0
+ 0190  68 0198 R		        push    OFFSET @f
+
+ 0193  66| FF 2E 0010 R		        jmp     FWORD PTR SavedProcAddress
+
+				        ; what, done already?
+
+ 0198  EB 02			@@:     jmp     Start32_Done
+
+ 019A				Start32_Bail:
+ 019A  33 C0			        xor     ax, ax
+
+ 019C				Start32_Done:
+				cEnd
+ 019C  66| 5F		     3		pop	edi
+ 019E  66| 5E		     3		pop	esi
+ 01A0  8D 66 FE		     1		lea	sp,(-2)[bp]
+ 01A3  1F		     1		pop	ds
+ 01A4  5D		     1		pop	bp
+ 01A5  4D		     1		dec	bp
+ 01A6  CB		     1		ret	0
+ 01A7			     1	Start32 endp
+
+
+ 01A7				reg16 ENDS
+				END

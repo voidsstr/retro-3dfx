@@ -1,0 +1,2012 @@
+	TITLE	..\h3irq.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+_PTEXT	SEGMENT PARA USE32 PUBLIC 'PCODE'
+_PTEXT	ENDS
+_LTEXT	SEGMENT PARA USE32 PUBLIC 'LCODE'
+_LTEXT	ENDS
+_PDATA	SEGMENT DWORD USE32 PUBLIC 'PDATA'
+_PDATA	ENDS
+_LDATA	SEGMENT DWORD USE32 PUBLIC 'LCODE'
+_LDATA	ENDS
+FLAT	GROUP _DATA, CONST, _BSS, _PDATA, _LDATA
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+PUBLIC	_bOldBuf
+_DATA	SEGMENT
+COMM	_hInIRQ:DWORD
+_DATA	ENDS
+_LDATA	SEGMENT
+_bOldBuf DB	0ffH
+	ORG $+3
+_dwResetCounter DD 00H
+_LDATA	ENDS
+PUBLIC	_InitializeInterrupts
+PUBLIC	_InterruptHandler
+PUBLIC	_EnableInterrupts
+PUBLIC	_DisableInterrupts
+_LTEXT	SEGMENT
+_iIRQ$ = 8
+_pDev$ = 12
+$T11573 = 12
+_InitializeInterrupts PROC NEAR
+
+; 272  : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	56		 push	 esi
+
+; 275  :     pDev->bVMInts = TRUE;
+
+  00004	8b 75 0c	 mov	 esi, DWORD PTR _pDev$[ebp]
+
+; 276  :     DisableInterrupts(pDev);
+
+  00007	56		 push	 esi
+  00008	c7 86 80 00 00
+	00 01 00 00 00	 mov	 DWORD PTR [esi+128], 1
+  00012	e8 00 00 00 00	 call	 _DisableInterrupts
+
+; 277  : 
+; 278  :     // connect to interrupt
+; 279  : 
+; 280  :     pDev->IRQDesc.VID_IRQ_Number = iIRQ;
+
+  00017	66 8b 4d 08	 mov	 cx, WORD PTR _iIRQ$[ebp]
+  0001b	8d 46 5c	 lea	 eax, DWORD PTR [esi+92]
+
+; 281  :     pDev->IRQDesc.VID_Options = VPICD_OPT_CAN_SHARE;
+; 282  :     pDev->IRQDesc.VID_Hw_Int_Proc = (ULONG)InterruptHandler;
+; 283  :     if( pDev->hIRQ = VPICD_Virtualize_IRQ( &pDev->IRQDesc ) )
+
+  0001e	50		 push	 eax
+  0001f	66 c7 46 5e 02
+	00		 mov	 WORD PTR [esi+94], 2
+  00025	66 89 08	 mov	 WORD PTR [eax], cx
+  00028	c7 46 60 00 00
+	00 00		 mov	 DWORD PTR [esi+96], OFFSET FLAT:_InterruptHandler
+  0002f	e8 00 00 00 00	 call	 _VPICD_Virtualize_IRQ
+  00034	83 c4 08	 add	 esp, 8
+  00037	89 46 58	 mov	 DWORD PTR [esi+88], eax
+  0003a	85 c0		 test	 eax, eax
+  0003c	74 1d		 je	 SHORT $L11400
+
+; 284  :     {
+; 285  :         VPICD_Physically_Unmask( pDev->hIRQ );
+
+  0003e	89 45 0c	 mov	 DWORD PTR $T11573[ebp], eax
+
+; 273  :     // disable before grab
+
+  00041	8b 45 0c	 mov	 eax, DWORD PTR $T11573[ebp]
+
+; 274  : 
+
+  00044	cd		 DB	 -51			; ffffffcdH
+  00045	20		 DB	 32			; 00000020H
+  00046	09		 DB	 9
+  00047	00		 DB	 0
+  00048	03		 DB	 3
+  00049	00		 DB	 0
+
+; 286  : 
+; 287  :         // now enable
+; 288  : 
+; 289  :         EnableInterrupts(pDev);
+
+  0004a	56		 push	 esi
+  0004b	e8 00 00 00 00	 call	 _EnableInterrupts
+  00050	83 c4 04	 add	 esp, 4
+
+; 290  :         return TRUE;
+
+  00053	b8 01 00 00 00	 mov	 eax, 1
+  00058	5e		 pop	 esi
+
+; 293  : }
+
+  00059	5d		 pop	 ebp
+  0005a	c3		 ret	 0
+$L11400:
+
+; 291  :     }
+; 292  :     return FALSE;
+
+  0005b	33 c0		 xor	 eax, eax
+  0005d	5e		 pop	 esi
+
+; 293  : }
+
+  0005e	5d		 pop	 ebp
+  0005f	c3		 ret	 0
+_InitializeInterrupts ENDP
+_LTEXT	ENDS
+_TEXT	SEGMENT
+_pvid$ = 8
+_VPICD_Virtualize_IRQ PROC NEAR
+
+; 142  : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	57		 push	 edi
+
+; 143  :     __asm {
+; 144  : 	mov edi,[pvid]
+
+  00004	8b 7d 08	 mov	 edi, DWORD PTR _pvid$[ebp]
+
+; 145  : 	VxDCall(VPICD_Virtualize_IRQ)
+
+  00007	cd		 DB	 -51			; ffffffcdH
+  00008	20		 DB	 32			; 00000020H
+  00009	01		 DB	 1
+  0000a	00		 DB	 0
+  0000b	03		 DB	 3
+  0000c	00		 DB	 0
+
+; 146  :     	jnc short vvi10
+
+  0000d	73 02		 jae	 SHORT $vvi10$997
+
+; 147  :     	xor eax,eax
+
+  0000f	33 c0		 xor	 eax, eax
+$vvi10$997:
+  00011	5f		 pop	 edi
+
+; 148  :     vvi10:
+; 149  :     }
+; 150  : }
+
+  00012	5d		 pop	 ebp
+  00013	c3		 ret	 0
+_VPICD_Virtualize_IRQ ENDP
+_TEXT	ENDS
+PUBLIC	_InterruptsToDOS
+EXTRN	_pVGADevTable:DWORD
+_LTEXT	SEGMENT
+$T11579 = -4
+_InterruptsToDOS PROC NEAR
+
+; 307  : {
+
+  00060	55		 push	 ebp
+  00061	8b ec		 mov	 ebp, esp
+  00063	51		 push	 ecx
+
+; 308  :     __asm pushfd;
+
+  00064	9c		 pushfd
+
+; 309  :     __asm cli;
+
+  00065	fa		 cli
+
+; 310  :     if( pVGADevTable && pVGADevTable->hIRQ && pVGADevTable->bVMInts )
+
+  00066	a1 00 00 00 00	 mov	 eax, DWORD PTR _pVGADevTable
+  0006b	85 c0		 test	 eax, eax
+  0006d	74 45		 je	 SHORT $L11403
+  0006f	8b 48 58	 mov	 ecx, DWORD PTR [eax+88]
+  00072	85 c9		 test	 ecx, ecx
+  00074	74 3e		 je	 SHORT $L11403
+  00076	8b 88 80 00 00
+	00		 mov	 ecx, DWORD PTR [eax+128]
+  0007c	85 c9		 test	 ecx, ecx
+  0007e	74 34		 je	 SHORT $L11403
+
+; 311  :     {
+; 312  :         pVGADevTable->bVMInts = FALSE;
+; 313  :         DisableInterrupts(pVGADevTable);
+
+  00080	50		 push	 eax
+  00081	c7 80 80 00 00
+	00 00 00 00 00	 mov	 DWORD PTR [eax+128], 0
+  0008b	e8 00 00 00 00	 call	 _DisableInterrupts
+
+; 314  :         VPICD_Force_Default_Behavior( pVGADevTable->hIRQ );
+
+  00090	a1 00 00 00 00	 mov	 eax, DWORD PTR _pVGADevTable
+  00095	83 c4 04	 add	 esp, 4
+  00098	8b 48 58	 mov	 ecx, DWORD PTR [eax+88]
+  0009b	89 4d fc	 mov	 DWORD PTR $T11579[ebp], ecx
+
+; 308  :     __asm pushfd;
+
+  0009e	8b 45 fc	 mov	 eax, DWORD PTR $T11579[ebp]
+
+; 309  :     __asm cli;
+
+  000a1	cd		 DB	 -51			; ffffffcdH
+  000a2	20		 DB	 32			; 00000020H
+  000a3	11		 DB	 17			; 00000011H
+  000a4	00		 DB	 0
+  000a5	03		 DB	 3
+  000a6	00		 DB	 0
+
+; 315  :         pVGADevTable->hIRQ = 0x0;
+
+  000a7	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _pVGADevTable
+  000ad	c7 42 58 00 00
+	00 00		 mov	 DWORD PTR [edx+88], 0
+$L11403:
+
+; 316  :     }
+; 317  :     __asm popfd;
+
+  000b4	9d		 popfd
+
+; 318  : }
+
+  000b5	8b e5		 mov	 esp, ebp
+  000b7	5d		 pop	 ebp
+  000b8	c3		 ret	 0
+_InterruptsToDOS ENDP
+_LTEXT	ENDS
+PUBLIC	_InterruptsToSVM
+_LTEXT	SEGMENT
+_InterruptsToSVM PROC NEAR
+
+; 332  :     if( pVGADevTable->IRQDesc.VID_IRQ_Number && !pVGADevTable->bVMInts )
+
+  000c0	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _pVGADevTable
+  000c6	66 8b 41 5c	 mov	 ax, WORD PTR [ecx+92]
+  000ca	66 85 c0	 test	 ax, ax
+  000cd	74 19		 je	 SHORT $L11406
+  000cf	8b 91 80 00 00
+	00		 mov	 edx, DWORD PTR [ecx+128]
+  000d5	85 d2		 test	 edx, edx
+  000d7	75 0f		 jne	 SHORT $L11406
+
+; 333  :         InitializeInterrupts( pVGADevTable->IRQDesc.VID_IRQ_Number, pVGADevTable );
+
+  000d9	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  000de	51		 push	 ecx
+  000df	50		 push	 eax
+  000e0	e8 00 00 00 00	 call	 _InitializeInterrupts
+  000e5	83 c4 08	 add	 esp, 8
+$L11406:
+
+; 334  : }
+
+  000e8	c3		 ret	 0
+_InterruptsToSVM ENDP
+_LTEXT	ENDS
+EXTRN	_VMIPLD_ReadStatus:NEAR
+EXTRN	_VMIPLD_SetCommand:NEAR
+EXTRN	_VMIPLD_SetVbiMax:NEAR
+EXTRN	_VMIPLD_SetVidMax:NEAR
+EXTRN	_VDD_VMIWrite:DWORD
+EXTRN	_VDD_VMIRead:DWORD
+EXTRN	_panelOff:NEAR
+EXTRN	_isPanelActive:NEAR
+EXTRN	_CCODE__CONFIGMG_Call_Enumerator_Function:NEAR
+EXTRN	_panelGbl:NEAR
+EXTRN	_CCODE__CONFIGMG_Reenumerate_DevNode:NEAR
+EXTRN	_DevTable:BYTE
+EXTRN	_dwNumDevices:DWORD
+EXTRN	_GETGBL_dwOvlOffset:NEAR
+EXTRN	_GETGBL_KMVTBuff:NEAR
+EXTRN	_kmtvInfo:BYTE
+_BSS	SEGMENT
+_LastServicedBanshee DW 01H DUP (?)
+_BSS	ENDS
+_LTEXT	SEGMENT
+_dwReg$ = -12
+_sst3dRegs$ = -16
+_pDevTable$ = -24
+_dwOvlBufAddr$ = -8
+_dwOvlOffset$ = -20
+_dwFieldStatus$ = -28
+_bNewBuf$ = -32
+_cfgSliAaMisc$11432 = -32
+_bVideoInterrupt$11443 = -1
+_bVMIStatus$11444 = -32
+_JustFinishBuf$11447 = -16
+_fFlipOVL$11499 = -24
+_lpKMVTBuff$11514 = -36
+_InterruptHandler PROC NEAR
+
+; 356  :    PDEVTABLE   pDevTable;     // Ptr to device table array
+; 357  :    DWORD       PllReg;
+; 358  :    DWORD       dwOvlBufAddr;  // Overlay buffer hw address
+; 359  :    DWORD       dwOvlOffset;
+; 360  :    DWORD       dwFieldStatus;
+; 361  :    BYTE        bNewBuf;
+; 362  : 
+; 363  :     // naked prolog code
+; 364  :     __asm
+; 365  :     {
+; 366  :         push    ebp;
+
+  000f0	55		 push	 ebp
+
+; 367  :         mov     ebp,esp;
+
+  000f1	8b ec		 mov	 ebp, esp
+
+; 368  :         sub     esp,__LOCAL_SIZE;
+
+  000f3	83 ec 28	 sub	 esp, 40			; 00000028H
+
+; 369  :         mov     hInIRQ,eax;
+
+  000f6	a3 00 00 00 00	 mov	 DWORD PTR _hInIRQ, eax
+
+; 370  : //      mov     hVM,ebx;
+; 371  :     }
+; 372  : 
+; 373  : 	for (count = (FxI16)dwNumDevices; --count >= 0;  )
+
+  000fb	a1 00 00 00 00	 mov	 eax, DWORD PTR _dwNumDevices
+  00100	8d 70 ff	 lea	 esi, DWORD PTR [eax-1]
+  00103	66 85 f6	 test	 si, si
+  00106	0f 8c 84 00 00
+	00		 jl	 $L11590
+  0010c	8b 5d f4	 mov	 ebx, DWORD PTR _dwReg$[ebp]
+$L11423:
+
+; 374  : 	{
+; 375  : 		if (++LastServicedBanshee >= dwNumDevices)
+
+  0010f	66 ff 05 00 00
+	00 00		 inc	 WORD PTR _LastServicedBanshee
+  00116	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _LastServicedBanshee
+  0011c	a1 00 00 00 00	 mov	 eax, DWORD PTR _dwNumDevices
+  00121	8b ca		 mov	 ecx, edx
+  00123	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  00129	3b c8		 cmp	 ecx, eax
+  0012b	72 0f		 jb	 SHORT $L11425
+
+; 376  : 			LastServicedBanshee = 0;
+
+  0012d	66 c7 05 00 00
+	00 00 00 00	 mov	 WORD PTR _LastServicedBanshee, 0
+  00136	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _LastServicedBanshee
+$L11425:
+
+; 377  : 		if (sst3dRegs = DevTable[LastServicedBanshee].RegBase[HWINFO_SST_IOREGS_INDEX])
+
+  0013c	8b c2		 mov	 eax, edx
+  0013e	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  00143	8d 0c 80	 lea	 ecx, DWORD PTR [eax+eax*4]
+  00146	8d 0c 89	 lea	 ecx, DWORD PTR [ecx+ecx*4]
+  00149	8d 0c c8	 lea	 ecx, DWORD PTR [eax+ecx*8]
+  0014c	8d 04 48	 lea	 eax, DWORD PTR [eax+ecx*2]
+  0014f	c1 e0 02	 shl	 eax, 2
+  00152	8b b8 90 00 00
+	00		 mov	 edi, DWORD PTR _DevTable[eax+144]
+  00158	85 ff		 test	 edi, edi
+  0015a	89 7d f0	 mov	 DWORD PTR _sst3dRegs$[ebp], edi
+  0015d	74 1c		 je	 SHORT $L11429
+
+; 378  : 		{
+; 379  :          PllReg = ((SstIORegs *)sst3dRegs)->pllCtrl0;
+
+  0015f	8b 4f 40	 mov	 ecx, DWORD PTR [edi+64]
+
+; 380  : 		   sst3dRegs = DevTable[LastServicedBanshee].RegBase[HWINFO_SST_3DREGS_INDEX];
+
+  00162	8b b8 9c 00 00
+	00		 mov	 edi, DWORD PTR _DevTable[eax+156]
+  00168	89 7d f0	 mov	 DWORD PTR _sst3dRegs$[ebp], edi
+
+; 381  : 			dwReg = ((SstRegs *)sst3dRegs)->intrCtrl;
+
+  0016b	8b 5f 04	 mov	 ebx, DWORD PTR [edi+4]
+
+; 382  : 
+; 383  :          // If IO is disabled on this device
+; 384  :          // then the HOST/PCI Bridge will do a Master Abort
+; 385  :          // For a read cycle the HOST/PCI Bridge is required to return all 1's
+; 386  :          // This will check for this occurence 
+; 387  : 
+; 388  : 			// VMI_IRQ_USAGE
+; 389  : 			if ((dwReg & (0x300 | H3_VMI_INTERRUPT | H5_HP_INTERRUPT)) && (0xFFFFFFFF != PllReg))
+
+  0016e	f7 c3 00 03 80
+	08		 test	 ebx, 142607104		; 08800300H
+  00174	74 05		 je	 SHORT $L11429
+  00176	83 f9 ff	 cmp	 ecx, -1
+  00179	75 0b		 jne	 SHORT $L11586
+$L11429:
+
+; 370  : //      mov     hVM,ebx;
+; 371  :     }
+; 372  : 
+; 373  : 	for (count = (FxI16)dwNumDevices; --count >= 0;  )
+
+  0017b	4e		 dec	 esi
+  0017c	66 85 f6	 test	 si, si
+  0017f	7d 8e		 jge	 SHORT $L11423
+
+; 381  : 			dwReg = ((SstRegs *)sst3dRegs)->intrCtrl;
+
+  00181	89 5d f4	 mov	 DWORD PTR _dwReg$[ebp], ebx
+
+; 390  : 				break;
+; 391  : 		}
+; 392  : 	}
+; 393  :    if (count < 0)
+
+  00184	eb 10		 jmp	 SHORT $L11587
+$L11586:
+  00186	66 85 f6	 test	 si, si
+  00189	89 5d f4	 mov	 DWORD PTR _dwReg$[ebp], ebx
+  0018c	7d 13		 jge	 SHORT $L11430
+  0018e	eb 06		 jmp	 SHORT $L11587
+$L11590:
+  00190	8b 7d f0	 mov	 edi, DWORD PTR _sst3dRegs$[ebp]
+  00193	8b 5d f4	 mov	 ebx, DWORD PTR _dwReg$[ebp]
+$L11587:
+
+; 394  :    {
+; 395  :       // naked epilog code, pass on this interrupt (not for us)
+; 396  :       __asm
+; 397  :       {
+; 398  :          stc;
+
+  00196	f9		 stc
+
+; 399  :          mov     esp,ebp;
+
+  00197	8b e5		 mov	 esp, ebp
+
+; 400  :          pop     ebp;
+
+  00199	5d		 pop	 ebp
+
+; 401  :          ret;
+
+  0019a	c3		 ret	 0
+
+; 390  : 				break;
+; 391  : 		}
+; 392  : 	}
+; 393  :    if (count < 0)
+
+  0019b	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _LastServicedBanshee
+$L11430:
+
+; 402  :       }
+; 403  :    }
+; 404  : 
+; 405  :    //Get the pointer to Banshee device generating the interrupt
+; 406  :    pDevTable = &DevTable[LastServicedBanshee];
+
+  001a1	81 e2 ff ff 00
+	00		 and	 edx, 65535		; 0000ffffH
+
+; 407  : 
+; 408  : #if 0 // KMW
+; 409  :     if( dwIPend & softrapen_INT_OCCURRED )   // DMA interrupt
+; 410  :     {
+; 411  :         DWORD dwSoftrap, dwQPos;
+; 412  : 
+; 413  :         dwSoftrap = mgaReadDWord( DWG1_SOFTRAP );
+; 414  :         if( !(dwSoftrap & 0x80000000) )
+; 415  :         {
+; 416  :             pMMIf->wFlags &= ~MMMIF_DMAINPROGRESS;
+; 417  :             // count given by register
+; 418  :             pMMIf->dwDMACount = dwSoftrap >> 2;
+; 419  :         }
+; 420  :         else
+; 421  :         {
+; 422  :             switch( dwSoftrap )
+; 423  :             {
+; 424  :             case MMMST_STOP:
+; 425  :                 pMMIf->wFlags &= ~MMMIF_DMAINPROGRESS;
+; 426  :                 // find count of completed DMA secondaries, and update
+; 427  :                 dwQPos = mgaReadDWord( HST_PRIMADDRESS ) & ~3;
+; 428  :                 dwQPos -= pMMIf->dwDMACQPhys; // now bytes from start of Q
+; 429  :                 dwQPos = dwQPos/sizeof(MMDMAENTRY) + 1;
+; 430  :                 pMMIf->dwDMACount = (pMMIf->dwDMACount + dwQPos) & 0xFFFF;
+; 431  :                 break;
+; 432  : 
+; 433  :             case MMMST_LOOP:    // restart primary at start of CQ
+; 434  :                 // Q finished, so update dma count by number of entries
+; 435  :                 pMMIf->dwDMACount = (pMMIf->dwDMACount + MMDMAENTRIES) & 0xFFFF;
+; 436  :                 pMMIf->DMAStop.dwVal[0] = MMMST_STOP;
+; 437  :                 mgaWriteDWord( HST_PRIMADDRESS, pMMIf->dwDMACQPhys );
+; 438  :                 mgaWriteDWord( HST_PRIMEND, pMMIf->dwDMACQPhys + 
+; 439  :                     ((MMDMAENTRIES+1)*sizeof(MMDMAENTRY))/sizeof(DWORD) );
+; 440  :                 break;
+; 441  : 
+; 442  :             default:            // update free
+; 443  :                 pMMIf->wFlags &= ~MMMIF_DMAINPROGRESS;
+; 444  :                 break;
+; 445  :             }
+; 446  :         }
+; 447  :     }
+; 448  : 
+; 449  :     if( dwIPend & vsyncpen_INT_OCCURRED )   // vsync interrupt
+; 450  :     {
+; 451  :         BYTE bIndexSave;
+; 452  : 
+; 453  :         dwVCount++;
+; 454  : 
+; 455  :         // save CRTC index
+; 456  :         bIndexSave = mgaReadByte( VgaReg|VGA_CRTC_INDEX );
+; 457  : 
+; 458  :         // update start address if required
+; 459  :         if( pMMIf->wFlags & MMMIF_PLEASEFLIP )
+; 460  :         {
+; 461  :             BYTE bExtIndexSave;
+; 462  : 
+; 463  :             pMMIf->wFlags &= ~MMMIF_PLEASEFLIP;
+; 464  :             mgaWriteByte( VgaReg|VGA_CRTC_INDEX, 13); 
+; 465  :             mgaWriteByte( VgaReg|VGA_CRTC_DATA, pMMIf->dwFlipToOffset );
+; 466  :             mgaWriteByte( VgaReg|VGA_CRTC_INDEX, 12); 
+; 467  :             mgaWriteByte( VgaReg|VGA_CRTC_DATA, pMMIf->dwFlipToOffset >> 8 );
+; 468  :             bExtIndexSave = mgaReadByte( VgaReg|VGA_CRTCEXT_INDEX ); 
+; 469  :             mgaWriteByte( VgaReg|VGA_CRTCEXT_INDEX, 0); 
+; 470  :             mgaWriteByte( VgaReg|VGA_CRTCEXT_DATA, 
+; 471  :                 (mgaReadByte( VgaReg|VGA_CRTCEXT_DATA ) & 0xf0) |
+; 472  :                 (pMMIf->dwFlipToOffset >> 16)) ;
+; 473  :             mgaWriteByte( VgaReg|VGA_CRTCEXT_INDEX, bExtIndexSave);
+; 474  :         }
+; 475  :         // post event if needed
+; 476  :         if( pMMIf->wFlags & MMMIF_VSYNCEVENT )
+; 477  :         {
+; 478  :             Schedule_VM_Event( hSysVM, (DWORD)SignalVMEvent, 0 );
+; 479  :         }
+; 480  :         mgaWriteByte( VgaReg|VGA_CRTC_INDEX, 17); 
+; 481  :         mgaWriteByte( VgaReg|VGA_CRTC_DATA, 
+; 482  :             mgaReadByte( VgaReg|VGA_CRTC_DATA ) & ~0x30 );
+; 483  :         mgaWriteByte( VgaReg|VGA_CRTC_DATA, 
+; 484  :             mgaReadByte( VgaReg|VGA_CRTC_DATA ) | 0x10 );
+; 485  :         mgaWriteByte( VgaReg|VGA_CRTC_INDEX, bIndexSave );
+; 486  :     }
+; 487  : 
+; 488  :     if( dwIPend & pickpen_INT_OCCURRED )   // pick interrupt
+; 489  :     {
+; 490  :         pMMIf->wFlags |= MMMIF_PICKED;
+; 491  :     }
+; 492  : 
+; 493  :     // reset MGA interrupt sources
+; 494  : 
+; 495  :     mgaWriteDWord( HST_ICLEAR, dwIPend & ~vsyncpen_MASK );
+; 496  : 
+; 497  : #endif /* #if 0 KMW */
+; 498  : 
+; 499  :     // HotPlug
+; 500  :    if(dwReg & H5_HP_INTERRUPT)
+
+  001a7	f7 c3 00 00 00
+	08		 test	 ebx, 134217728		; 08000000H
+  001ad	8d 04 92	 lea	 eax, DWORD PTR [edx+edx*4]
+  001b0	8d 04 80	 lea	 eax, DWORD PTR [eax+eax*4]
+  001b3	8d 0c c2	 lea	 ecx, DWORD PTR [edx+eax*8]
+  001b6	8d 14 4a	 lea	 edx, DWORD PTR [edx+ecx*2]
+  001b9	8d 34 95 00 00
+	00 00		 lea	 esi, DWORD PTR _DevTable[edx*4]
+  001c0	89 75 e8	 mov	 DWORD PTR _pDevTable$[ebp], esi
+  001c3	0f 84 a3 00 00
+	00		 je	 $L11431
+
+; 501  :    {
+; 502  :       DWORD cfgSliAaMisc;
+; 503  :       CONFIGRET cr;
+; 504  : 
+; 505  :       dwReg &= ~H5_HP_INTERRUPT;
+
+  001c9	81 e3 ff ff ff
+	f7		 and	 ebx, -134217729		; f7ffffffH
+
+; 506  :       ((SstRegs *)sst3dRegs)->intrCtrl = (0x80000000 | dwReg);
+
+  001cf	81 cb 00 00 00
+	80		 or	 ebx, -2147483648	; 80000000H
+  001d5	89 5f 04	 mov	 DWORD PTR [edi+4], ebx
+
+; 507  : 
+; 508  :       if(pDevTable)
+
+  001d8	85 f6		 test	 esi, esi
+  001da	0f 84 1b 05 00
+	00		 je	 $L11497
+
+; 509  :       {
+; 510  :          cr = CM_Call_Enumerator_Function(
+; 511  :             pDevTable->dwDevNode,
+; 512  :             PCI_ENUM_FUNC_GET_DEVICE_INFO,
+; 513  :             CFG_SLI_AA_MISC,
+; 514  :             &cfgSliAaMisc,
+; 515  :             sizeof(DWORD),
+; 516  :             0);
+
+  001e0	8b 0e		 mov	 ecx, DWORD PTR [esi]
+  001e2	6a 00		 push	 0
+  001e4	8d 45 e0	 lea	 eax, DWORD PTR _cfgSliAaMisc$11432[ebp]
+  001e7	6a 04		 push	 4
+  001e9	50		 push	 eax
+  001ea	68 ac 00 00 00	 push	 172			; 000000acH
+  001ef	6a 00		 push	 0
+  001f1	51		 push	 ecx
+  001f2	e8 00 00 00 00	 call	 _CCODE__CONFIGMG_Call_Enumerator_Function
+  001f7	83 c4 18	 add	 esp, 24			; 00000018H
+
+; 517  :          if(cr == CR_SUCCESS)
+
+  001fa	66 85 c0	 test	 ax, ax
+  001fd	0f 85 f8 04 00
+	00		 jne	 $L11497
+
+; 518  :          {
+; 519  :             if(cfgSliAaMisc & H5_HP_PIN)
+
+  00203	8b 45 e0	 mov	 eax, DWORD PTR _cfgSliAaMisc$11432[ebp]
+
+; 520  :             {
+; 521  :                //Plug In
+; 522  : 
+; 523  :                //Set the connected bit for the control panel
+; 524  :                *(panelGbl(pDevTable)) = 0x00000001;
+
+  00206	56		 push	 esi
+  00207	f6 c4 08	 test	 ah, 8
+  0020a	74 1d		 je	 SHORT $L11438
+  0020c	e8 00 00 00 00	 call	 _panelGbl
+  00211	c7 00 01 00 00
+	00		 mov	 DWORD PTR [eax], 1
+
+; 525  : 
+; 526  :                CM_Reenumerate_DevNode(pDevTable->dwDevNode, 0);
+
+  00217	8b 16		 mov	 edx, DWORD PTR [esi]
+  00219	6a 00		 push	 0
+  0021b	52		 push	 edx
+  0021c	e8 00 00 00 00	 call	 _CCODE__CONFIGMG_Reenumerate_DevNode
+  00221	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 527  : 
+; 528  : #if 0
+; 529  :                //If it was plugged in turn it on.  Special for Kaymann W. 
+; 530  :                panelOn(pDevTable);
+; 531  : #endif
+; 532  :             }
+; 533  :             else
+
+  00224	e9 d2 04 00 00	 jmp	 $L11497
+$L11438:
+
+; 534  :             {
+; 535  :                //UnPlug
+; 536  : 
+; 537  :                //Deactivate the panel output
+; 538  :                if(isPanelActive(pDevTable))
+
+  00229	e8 00 00 00 00	 call	 _isPanelActive
+  0022e	83 c4 04	 add	 esp, 4
+  00231	84 c0		 test	 al, al
+  00233	74 09		 je	 SHORT $L11440
+
+; 539  :                   panelOff(pDevTable);
+
+  00235	56		 push	 esi
+  00236	e8 00 00 00 00	 call	 _panelOff
+  0023b	83 c4 04	 add	 esp, 4
+$L11440:
+
+; 540  : 
+; 541  :                //Invalidate the current edid info
+; 542  :                pDevTable->dfpDisp.dispWidth = 0;
+
+  0023e	66 c7 86 f6 04
+	00 00 00 00	 mov	 WORD PTR [esi+1270], 0
+
+; 543  :                pDevTable->dfpDisp.uniqueName[0] = '\0';
+; 544  : 
+; 545  :                //Set the connected bit for the control panel
+; 546  :                *(panelGbl(pDevTable)) = 0x00000000;
+
+  00247	56		 push	 esi
+  00248	c6 86 30 05 00
+	00 00		 mov	 BYTE PTR [esi+1328], 0
+  0024f	e8 00 00 00 00	 call	 _panelGbl
+  00254	c7 00 00 00 00
+	00		 mov	 DWORD PTR [eax], 0
+
+; 547  : 
+; 548  :                CM_Reenumerate_DevNode(pDevTable->dwDevNode, 0);
+
+  0025a	8b 06		 mov	 eax, DWORD PTR [esi]
+  0025c	6a 00		 push	 0
+  0025e	50		 push	 eax
+  0025f	e8 00 00 00 00	 call	 _CCODE__CONFIGMG_Reenumerate_DevNode
+  00264	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 549  :             }
+; 550  :          }
+; 551  :       }
+; 552  :    }
+; 553  :     // V3TV
+; 554  :     // VMI_IRQ_USAGE
+; 555  : 	else if(dwReg & H3_VMI_INTERRUPT)   // vmi interrupt
+
+  00267	e9 8f 04 00 00	 jmp	 $L11497
+$L11431:
+  0026c	f7 c3 00 00 80
+	00		 test	 ebx, 8388608		; 00800000H
+  00272	0f 84 9e 02 00
+	00		 je	 $L11442
+
+; 556  : 	{
+; 557  : 		BYTE		bVideoInterrupt = 0, bVMIStatus;
+; 558  : 		BOOL		bReportedPolarity;
+; 559  : 		BOOL		bPLDfield;
+; 560  : 		BYTE		JustFinishBuf;
+; 561  : 		BYTE		thisBuf = 3;
+; 562  : 		BYTE		bBufModeSelect;
+; 563  : 		DWORD		dwFieldStatus;
+; 564  :         KMVTBUFF  * lpKMVTBuff;
+; 565  : 
+; 566  : 		// clear vmi interrupt - always do this
+; 567  : 		dwReg &= ~H3_VMI_INTERRUPT;
+
+  00278	81 e3 ff ff 7f
+	ff		 and	 ebx, -8388609		; ff7fffffH
+
+; 568  : 		((SstRegs *)sst3dRegs)->intrCtrl = (0x80000000 | dwReg);
+
+  0027e	81 cb 00 00 00
+	80		 or	 ebx, -2147483648	; 80000000H
+  00284	89 5f 04	 mov	 DWORD PTR [edi+4], ebx
+
+; 569  : 
+; 570  : #ifdef danofix
+; 571  : //Note: There is a hole during initialization where an interrupt can occur before initialization of 
+; 572  : //      the following pointers is complete.  I fell into this trap when using a proto Voodoo4 4500 PCI.
+; 573  : // Check to make sure that lpDriverData is not bogus
+; 574  :    if (( pDevTable ) && (pDevTable->lpDriverData))
+; 575  :    {
+; 576  : #endif //def danofix
+; 577  : 		// set up data and see if enough fields for stable video
+; 578  : 
+; 579  :         lpKMVTBuff = (KMVTBUFF *)GETGBL_KMVTBuff((DWORD)pDevTable->lpDriverData);
+
+  00287	8b 8e 14 02 00
+	00		 mov	 ecx, DWORD PTR [esi+532]
+  0028d	51		 push	 ecx
+  0028e	e8 00 00 00 00	 call	 _GETGBL_KMVTBuff
+  00293	8b f8		 mov	 edi, eax
+  00295	83 c4 04	 add	 esp, 4
+
+; 580  : 
+; 581  : 		if (lpKMVTBuff->dwCounter < 30)		// throw out first 30 fields
+
+  00298	8b 87 84 00 00
+	00		 mov	 eax, DWORD PTR [edi+132]
+  0029e	83 f8 1e	 cmp	 eax, 30			; 0000001eH
+  002a1	73 1a		 jae	 SHORT $L11455
+
+; 582  : 		{
+; 583  : 			bVideoInterrupt = 2;
+; 584  : 			lpKMVTBuff->dwCounter++;
+
+  002a3	40		 inc	 eax
+  002a4	c6 45 ff 02	 mov	 BYTE PTR _bVideoInterrupt$11443[ebp], 2
+  002a8	89 87 84 00 00
+	00		 mov	 DWORD PTR [edi+132], eax
+
+; 585  : 			lpKMVTBuff->bSawVBIintr = FALSE;
+
+  002ae	33 c0		 xor	 eax, eax
+  002b0	89 87 a4 00 00
+	00		 mov	 DWORD PTR [edi+164], eax
+
+; 586  : 			dwResetCounter = 0;
+
+  002b6	a3 00 00 00 00	 mov	 DWORD PTR _dwResetCounter, eax
+
+; 587  : 		}
+; 588  : 		else
+
+  002bb	eb 04		 jmp	 SHORT $L11456
+$L11455:
+
+; 589  : 			bVideoInterrupt = 1;
+
+  002bd	c6 45 ff 01	 mov	 BYTE PTR _bVideoInterrupt$11443[ebp], 1
+$L11456:
+
+; 590  :         dwFieldStatus = *(DWORD*)(pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX] + H4_VID_IN_STATUS_CURLINE);
+
+  002c1	8b 96 90 00 00
+	00		 mov	 edx, DWORD PTR [esi+144]
+  002c7	8b 82 94 00 00
+	00		 mov	 eax, DWORD PTR [edx+148]
+
+; 591  : 
+; 592  : 		bReportedPolarity = (BOOL)((dwFieldStatus >> 18) & 0x01);
+
+  002cd	8b d8		 mov	 ebx, eax
+
+; 593  :         JustFinishBuf = (BYTE) ((dwFieldStatus >> 16 ) & 0x3);		// not valid when manual flipping is done
+
+  002cf	c1 e8 10	 shr	 eax, 16			; 00000010H
+  002d2	24 03		 and	 al, 3
+  002d4	88 45 f0	 mov	 BYTE PTR _JustFinishBuf$11447[ebp], al
+
+; 594  : 		bBufModeSelect = (BYTE)((*(DWORD*)(pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX] + VID_IN_FORMAT)) >> 9) & 0x3;
+; 595  : 		if (GETGBL_dwOvlOffset((DWORD)kmtvInfo.pDev->lpDriverData) 
+; 596  : 		   && (pVGADevTable->dwIMask & H3_VSYNC_INT_ENABLE) 
+; 597  : 		   &&  (lpKMVTBuff->dwStatus & INTERLEAVE_ON ))
+
+  002d7	a1 10 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+16
+  002dc	c1 eb 12	 shr	 ebx, 18			; 00000012H
+  002df	8b 88 14 02 00
+	00		 mov	 ecx, DWORD PTR [eax+532]
+  002e5	83 e3 01	 and	 ebx, 1
+  002e8	51		 push	 ecx
+  002e9	e8 00 00 00 00	 call	 _GETGBL_dwOvlOffset
+  002ee	83 c4 04	 add	 esp, 4
+  002f1	85 c0		 test	 eax, eax
+  002f3	74 2f		 je	 SHORT $L11466
+  002f5	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _pVGADevTable
+  002fb	f6 42 54 04	 test	 BYTE PTR [edx+84], 4
+  002ff	74 23		 je	 SHORT $L11466
+  00301	8b 4f 4c	 mov	 ecx, DWORD PTR [edi+76]
+  00304	f7 c1 00 00 02
+	00		 test	 ecx, 131072		; 00020000H
+  0030a	74 18		 je	 SHORT $L11466
+
+; 598  : 		{	// manual flipping
+; 599  : 			JustFinishBuf = thisBuf = (BYTE)(lpKMVTBuff->dwStatus & BUFFER_IN_USE_MASK);
+
+  0030c	8a c1		 mov	 al, cl
+  0030e	24 03		 and	 al, 3
+
+; 600  : 			if (JustFinishBuf)
+
+  00310	74 07		 je	 SHORT $L11465
+
+; 601  : 				JustFinishBuf--;
+
+  00312	fe c8		 dec	 al
+  00314	88 45 f0	 mov	 BYTE PTR _JustFinishBuf$11447[ebp], al
+
+; 602  : 			else
+
+  00317	eb 0b		 jmp	 SHORT $L11466
+$L11465:
+
+; 603  : 				JustFinishBuf = (BYTE)((lpKMVTBuff->dwStatus & VP_BUFF_MASK)>> VP_BUFF_SHIFT) - 1;
+
+  00319	c1 e9 08	 shr	 ecx, 8
+  0031c	80 e1 03	 and	 cl, 3
+  0031f	fe c9		 dec	 cl
+  00321	88 4d f0	 mov	 BYTE PTR _JustFinishBuf$11447[ebp], cl
+$L11466:
+
+; 604  : 		}
+; 605  : 		if (!lpKMVTBuff->bVMIPLDinUse)
+
+  00324	8b 87 90 00 00
+	00		 mov	 eax, DWORD PTR [edi+144]
+  0032a	85 c0		 test	 eax, eax
+  0032c	75 16		 jne	 SHORT $L11468
+
+; 606  : 		{
+; 607  : 			lpKMVTBuff->dwLastBufferFilled = JustFinishBuf;	
+
+  0032e	8b 45 f0	 mov	 eax, DWORD PTR _JustFinishBuf$11447[ebp]
+
+; 608  : 			lpKMVTBuff->bLastFieldEven = bReportedPolarity;
+
+  00331	89 9f 94 00 00
+	00		 mov	 DWORD PTR [edi+148], ebx
+  00337	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  0033c	89 87 a0 00 00
+	00		 mov	 DWORD PTR [edi+160], eax
+
+; 609  : 		}
+; 610  : 		else
+
+  00342	eb 71		 jmp	 SHORT $L11472
+$L11468:
+
+; 611  : 		{
+; 612  : 			bVMIStatus = VMIPLD_ReadStatus((DWORD)pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX], 
+; 613  : 				 VDD_VMIRead );
+
+  00344	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _VDD_VMIRead
+  0034a	8b 96 90 00 00
+	00		 mov	 edx, DWORD PTR [esi+144]
+  00350	51		 push	 ecx
+  00351	52		 push	 edx
+  00352	e8 00 00 00 00	 call	 _VMIPLD_ReadStatus
+  00357	88 45 e0	 mov	 BYTE PTR _bVMIStatus$11444[ebp], al
+
+; 614  :             lpKMVTBuff->bLastIntrVBI = (bVMIStatus & VMI_WASVBIINTR)? TRUE: FALSE;
+
+  0035a	8b 45 e0	 mov	 eax, DWORD PTR _bVMIStatus$11444[ebp]
+  0035d	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00362	83 c4 08	 add	 esp, 8
+  00365	8b c8		 mov	 ecx, eax
+  00367	c1 e9 05	 shr	 ecx, 5
+
+; 615  :             bPLDfield = (bVMIStatus & VMI_WASEVENFIELD)? TRUE: FALSE;
+
+  0036a	c1 e8 04	 shr	 eax, 4
+  0036d	83 e1 01	 and	 ecx, 1
+  00370	83 e0 01	 and	 eax, 1
+
+; 616  : 
+; 617  : 			if (lpKMVTBuff->bLastIntrVBI)
+
+  00373	85 c9		 test	 ecx, ecx
+  00375	89 8f 98 00 00
+	00		 mov	 DWORD PTR [edi+152], ecx
+  0037b	74 0a		 je	 SHORT $L11471
+
+; 618  : 				lpKMVTBuff->bSawVBIintr = TRUE;
+
+  0037d	c7 87 a4 00 00
+	00 01 00 00 00	 mov	 DWORD PTR [edi+164], 1
+$L11471:
+
+; 619  : 			if (lpKMVTBuff->bSawVBIintr && lpKMVTBuff->bLastIntrVBI)
+
+  00387	8b 97 a4 00 00
+	00		 mov	 edx, DWORD PTR [edi+164]
+  0038d	85 d2		 test	 edx, edx
+  0038f	74 24		 je	 SHORT $L11472
+  00391	85 c9		 test	 ecx, ecx
+  00393	74 20		 je	 SHORT $L11472
+
+; 620  : 			{
+; 621  : 				// handle post vbi interrupt
+; 622  : 				bVideoInterrupt = 0;
+; 623  : 				lpKMVTBuff->dwLastBufferFilled = JustFinishBuf;			// always valid on VBI
+
+  00395	8b 4d f0	 mov	 ecx, DWORD PTR _JustFinishBuf$11447[ebp]
+
+; 624  : 				lpKMVTBuff->bLastFieldEven = !bPLDfield;//bReportedPolarity;
+
+  00398	33 d2		 xor	 edx, edx
+  0039a	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  003a0	c6 45 ff 00	 mov	 BYTE PTR _bVideoInterrupt$11443[ebp], 0
+  003a4	85 c0		 test	 eax, eax
+  003a6	0f 94 c2	 sete	 dl
+  003a9	89 8f a0 00 00
+	00		 mov	 DWORD PTR [edi+160], ecx
+  003af	89 97 94 00 00
+	00		 mov	 DWORD PTR [edi+148], edx
+$L11472:
+
+; 625  : 			}
+; 626  : 			else if (lpKMVTBuff->bSawVBIintr && !lpKMVTBuff->bLastIntrVBI)
+; 627  : 			{
+; 628  : 				// handle post video interrupt
+; 629  : 				// JustFinishBuf is on last vref - which may not have occured
+; 630  : 				/*
+; 631  : 				lpKMVTBuff->bLastFieldEven = !lpKMVTBuff->bLastFieldEven;
+; 632  : 				// this breaks is the manual flip is going on - see getcurrentautoflip in kmtv.c
+; 633  : 				if (!(lpKMVTBuff->dwVidInFormat & H3_VMI_DEINTERLACE_WEAVE)		// changes on every field
+; 634  : 					|| lpKMVTBuff->bLastFieldEven)								// both change on even field
+; 635  : 				{
+; 636  : 					lpKMVTBuff->dwLastBufferFilled++;
+; 637  : 					if (lpKMVTBuff->dwVidInFormat & H3_VMI_TRIPLE_BUFFER)
+; 638  : 					{
+; 639  : 						if (lpKMVTBuff->dwLastBufferFilled > 2)
+; 640  : 							lpKMVTBuff->dwLastBufferFilled = 0;
+; 641  : 					}
+; 642  : 					else if (lpKMVTBuff->dwVidInFormat & H3_VMI_DOUBLE_BUFFER)
+; 643  : 					{
+; 644  : 						if (lpKMVTBuff->dwLastBufferFilled > 1)
+; 645  : 							lpKMVTBuff->dwLastBufferFilled = 0;
+; 646  : 					}
+; 647  : 					else
+; 648  : 						lpKMVTBuff->dwLastBufferFilled = 0;
+; 649  : 				}
+; 650  : 				*/
+; 651  : 			}
+; 652  : 		}
+; 653  : 		// do actions of interest on video port VREF rising edge
+; 654  : 
+; 655  : 		if ((lpKMVTBuff->bVMIPLDinUse && bVideoInterrupt == 0)	// do it on vbi end
+; 656  : 			|| (!lpKMVTBuff->bVMIPLDinUse && bVideoInterrupt == 1))		// do in on vint
+
+  003b5	8b 87 90 00 00
+	00		 mov	 eax, DWORD PTR [edi+144]
+  003bb	85 c0		 test	 eax, eax
+  003bd	74 0b		 je	 SHORT $L11604
+  003bf	8a 4d ff	 mov	 cl, BYTE PTR _bVideoInterrupt$11443[ebp]
+  003c2	84 c9		 test	 cl, cl
+  003c4	74 0a		 je	 SHORT $L11476
+  003c6	85 c0		 test	 eax, eax
+  003c8	75 41		 jne	 SHORT $L11478
+$L11604:
+  003ca	80 7d ff 01	 cmp	 BYTE PTR _bVideoInterrupt$11443[ebp], 1
+  003ce	75 3b		 jne	 SHORT $L11478
+$L11476:
+
+; 657  : 		{
+; 658  : 			kmtvInfo.dwFieldCount++;
+
+  003d0	8b 0d 40 00 00
+	00		 mov	 ecx, DWORD PTR _kmtvInfo+64
+
+; 659  : #ifdef DEBUG
+; 660  : 			if (kmtvInfo.dwFieldCount && kmtvInfo.dwFieldCount >= 180 && kmtvInfo.dwFieldCount < 200)
+; 661  : 			{
+; 662  : 				Debug_Printf (" irq field %d, hwpol %d, lastfield %d, pldfield %d hwbuf %d buf %d \n",
+; 663  : 					kmtvInfo.dwFieldCount, 
+; 664  : 					bReportedPolarity, lpKMVTBuff->bLastFieldEven, bPLDfield,
+; 665  : 					JustFinishBuf, lpKMVTBuff->dwLastBufferFilled);
+; 666  : 			}
+; 667  : #endif
+; 668  : 			if (kmtvInfo.IRQCallback && (kmtvInfo.dwIRQSources & DDIRQ_VPORT0_VSYNC))
+
+  003d6	a1 00 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo
+  003db	41		 inc	 ecx
+  003dc	85 c0		 test	 eax, eax
+  003de	89 0d 40 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+64, ecx
+  003e4	74 53		 je	 SHORT $L11480
+  003e6	f6 05 04 00 00
+	00 04		 test	 BYTE PTR _kmtvInfo+4, 4
+  003ed	74 1c		 je	 SHORT $L11478
+
+; 669  : 			{
+; 670  : 			   _asm {
+; 671  : 				  push ebp
+
+  003ef	55		 push	 ebp
+
+; 672  : 				  push esi
+
+  003f0	56		 push	 esi
+
+; 673  : 				  push eax
+
+  003f1	50		 push	 eax
+
+; 674  : 				  push ebx
+
+  003f2	53		 push	 ebx
+
+; 675  : 				  mov eax, DDIRQ_VPORT0_VSYNC
+
+  003f3	b8 04 00 00 00	 mov	 eax, 4
+
+; 676  : 				  mov ebx, kmtvInfo.Context
+
+  003f8	8b 1d 08 00 00
+	00		 mov	 ebx, DWORD PTR _kmtvInfo+8
+
+; 677  : 				  call [kmtvInfo.IRQCallback]
+
+  003fe	ff 15 00 00 00
+	00		 call	 DWORD PTR _kmtvInfo
+
+; 678  : 				  pop ebx
+
+  00404	5b		 pop	 ebx
+
+; 679  : 				  pop eax
+
+  00405	58		 pop	 eax
+
+; 680  : 				  pop esi
+
+  00406	5e		 pop	 esi
+
+; 681  : 				  pop ebp          
+
+  00407	5d		 pop	 ebp
+
+; 659  : #ifdef DEBUG
+; 660  : 			if (kmtvInfo.dwFieldCount && kmtvInfo.dwFieldCount >= 180 && kmtvInfo.dwFieldCount < 200)
+; 661  : 			{
+; 662  : 				Debug_Printf (" irq field %d, hwpol %d, lastfield %d, pldfield %d hwbuf %d buf %d \n",
+; 663  : 					kmtvInfo.dwFieldCount, 
+; 664  : 					bReportedPolarity, lpKMVTBuff->bLastFieldEven, bPLDfield,
+; 665  : 					JustFinishBuf, lpKMVTBuff->dwLastBufferFilled);
+; 666  : 			}
+; 667  : #endif
+; 668  : 			if (kmtvInfo.IRQCallback && (kmtvInfo.dwIRQSources & DDIRQ_VPORT0_VSYNC))
+
+  00408	8b 75 e8	 mov	 esi, DWORD PTR _pDevTable$[ebp]
+$L11478:
+
+; 682  : 			   } 
+; 683  : 			}
+; 684  : 		}
+; 685  : 		if (kmtvInfo.IRQCallback)
+
+  0040b	a1 00 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo
+  00410	85 c0		 test	 eax, eax
+  00412	74 25		 je	 SHORT $L11480
+
+; 686  : 		{
+; 687  : #ifdef USE_EVENT_TRANSFER
+; 688  : #ifdef USE_VMM_CALLBACK_IRQ
+; 689  : 			if ( kmtvInfo.dwTransferID) 
+; 690  : #else
+; 691  : 			if ( kmtvInfo.fTransferFull == 1) 
+
+  00414	80 3d 2c 00 00
+	00 01		 cmp	 BYTE PTR _kmtvInfo+44, 1
+  0041b	75 1c		 jne	 SHORT $L11480
+
+; 692  : #endif
+; 693  : #else
+; 694  : 			if ( kmtvInfo.dwTransferID) 
+; 695  : #endif
+; 696  : 			{
+; 697  : 			   _asm {
+; 698  : 				  push ebp
+
+  0041d	55		 push	 ebp
+
+; 699  : 				  push esi
+
+  0041e	56		 push	 esi
+
+; 700  : 				  push eax
+
+  0041f	50		 push	 eax
+
+; 701  : 				  push ebx
+
+  00420	53		 push	 ebx
+
+; 702  : 				  mov eax, DDIRQ_BUSMASTER
+
+  00421	b8 02 00 00 00	 mov	 eax, 2
+
+; 703  : 				  mov ebx, kmtvInfo.Context
+
+  00426	8b 1d 08 00 00
+	00		 mov	 ebx, DWORD PTR _kmtvInfo+8
+
+; 704  : 				  call [kmtvInfo.IRQCallback]
+
+  0042c	ff 15 00 00 00
+	00		 call	 DWORD PTR _kmtvInfo
+
+; 705  : 				  pop ebx
+
+  00432	5b		 pop	 ebx
+
+; 706  : 				  pop eax
+
+  00433	58		 pop	 eax
+
+; 707  : 				  pop esi
+
+  00434	5e		 pop	 esi
+
+; 708  : 				  pop ebp          
+
+  00435	5d		 pop	 ebp
+
+; 686  : 		{
+; 687  : #ifdef USE_EVENT_TRANSFER
+; 688  : #ifdef USE_VMM_CALLBACK_IRQ
+; 689  : 			if ( kmtvInfo.dwTransferID) 
+; 690  : #else
+; 691  : 			if ( kmtvInfo.fTransferFull == 1) 
+
+  00436	8b 75 e8	 mov	 esi, DWORD PTR _pDevTable$[ebp]
+$L11480:
+
+; 709  : 			   } 
+; 710  : 			}
+; 711  : 		}
+; 712  : 
+; 713  : //#ifdef THEBAD_SILICON_RETURNS
+; 714  : 		// see if we need to reset this sucker
+; 715  : 		if (bVideoInterrupt == 1 && lpKMVTBuff->bUseReset) 
+
+  00439	80 7d ff 01	 cmp	 BYTE PTR _bVideoInterrupt$11443[ebp], 1
+  0043d	0f 85 b8 02 00
+	00		 jne	 $L11497
+  00443	8b 87 b4 00 00
+	00		 mov	 eax, DWORD PTR [edi+180]
+  00449	85 c0		 test	 eax, eax
+  0044b	0f 84 aa 02 00
+	00		 je	 $L11497
+
+; 716  : 		{
+; 717  : 			BOOL bResetIt = FALSE;
+; 718  : 			if (++dwResetCounter >= 30)// && !lpKMVTBuff->bLastFieldEven)		// every 1/2 secs (120 fields)
+
+  00451	a1 00 00 00 00	 mov	 eax, DWORD PTR _dwResetCounter
+  00456	40		 inc	 eax
+  00457	83 f8 1e	 cmp	 eax, 30			; 0000001eH
+  0045a	a3 00 00 00 00	 mov	 DWORD PTR _dwResetCounter, eax
+  0045f	0f 82 96 02 00
+	00		 jb	 $L11497
+
+; 719  : 			{
+; 720  : 				bResetIt = TRUE;
+; 721  : 				dwResetCounter = 0;
+; 722  : 			}
+; 723  : 
+; 724  : 			if (bResetIt)
+; 725  : 			{
+; 726  : 				DWORD dwVIReg;
+; 727  : 				// reset vmi to clear fifo - and kill color problem
+; 728  : 				dwVIReg = *(volatile DWORD*)(pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX] + VID_SERIAL_PARALLEL_PORT);
+
+  00465	8b 86 90 00 00
+	00		 mov	 eax, DWORD PTR [esi+144]
+  0046b	c7 05 00 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _dwResetCounter, 0
+  00475	8b 58 78	 mov	 ebx, DWORD PTR [eax+120]
+
+; 729  : 				dwVIReg &= ~(H3_VMI_RESET_DISABLE | H3_VMI_ENABLE);
+
+  00478	81 e3 fe ff ff
+	ef		 and	 ebx, -268435458		; effffffeH
+
+; 730  : 				*(volatile DWORD*)(pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX] + VID_SERIAL_PARALLEL_PORT) = dwVIReg;
+
+  0047e	89 58 78	 mov	 DWORD PTR [eax+120], ebx
+
+; 731  : 				dwVIReg |= H3_VMI_RESET_DISABLE;
+
+  00481	81 cb 00 00 00
+	10		 or	 ebx, 268435456		; 10000000H
+
+; 732  : 				*(volatile DWORD*)(pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX] + VID_SERIAL_PARALLEL_PORT) = dwVIReg;
+
+  00487	89 58 78	 mov	 DWORD PTR [eax+120], ebx
+
+; 733  : 		
+; 734  : 				if (lpKMVTBuff->bVMIPLDinUse)
+
+  0048a	8b 8f 90 00 00
+	00		 mov	 ecx, DWORD PTR [edi+144]
+  00490	85 c9		 test	 ecx, ecx
+  00492	74 58		 je	 SHORT $L11489
+
+; 735  : 				{
+; 736  : 					VMIPLD_SetCommand((DWORD)pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX], 
+; 737  : 							VMI_VBIINT |							// not passthru - 656 mode
+; 738  : 							VMI_VBICROP,						// always need for last buffer.
+; 739  : 							VDD_VMIRead,
+; 740  : 							VDD_VMIWrite);
+
+  00494	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _VDD_VMIWrite
+  0049a	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _VDD_VMIRead
+  004a0	51		 push	 ecx
+  004a1	52		 push	 edx
+  004a2	6a 06		 push	 6
+  004a4	50		 push	 eax
+  004a5	e8 00 00 00 00	 call	 _VMIPLD_SetCommand
+
+; 741  : 
+; 742  : 					VMIPLD_SetVbiMax((DWORD)pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX], 1,VDD_VMIWrite);		// vbi is actually in video
+
+  004aa	a1 00 00 00 00	 mov	 eax, DWORD PTR _VDD_VMIWrite
+  004af	8b 8e 90 00 00
+	00		 mov	 ecx, DWORD PTR [esi+144]
+  004b5	50		 push	 eax
+  004b6	6a 01		 push	 1
+  004b8	51		 push	 ecx
+  004b9	e8 00 00 00 00	 call	 _VMIPLD_SetVbiMax
+
+; 743  : 					VMIPLD_SetVidMax((DWORD)pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX], lpKMVTBuff->dwPLDVidLines,VDD_VMIWrite);
+
+  004be	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _VDD_VMIWrite
+  004c4	8b 87 ac 00 00
+	00		 mov	 eax, DWORD PTR [edi+172]
+  004ca	8b 8e 90 00 00
+	00		 mov	 ecx, DWORD PTR [esi+144]
+  004d0	52		 push	 edx
+  004d1	50		 push	 eax
+  004d2	51		 push	 ecx
+  004d3	e8 00 00 00 00	 call	 _VMIPLD_SetVidMax
+
+; 750  : 
+; 751  : 				dwVIReg |= H3_VMI_ENABLE;
+; 752  : 				*(volatile DWORD*)(pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX] + VID_SERIAL_PARALLEL_PORT) = dwVIReg;
+
+  004d8	8b 96 90 00 00
+	00		 mov	 edx, DWORD PTR [esi+144]
+  004de	83 c4 28	 add	 esp, 40			; 00000028H
+  004e1	83 cb 01	 or	 ebx, 1
+  004e4	89 5a 78	 mov	 DWORD PTR [edx+120], ebx
+
+; 753  : 			}
+; 754  : 		}
+; 755  : #ifdef danofix
+; 756  : }
+; 757  : #endif //def danofix
+; 758  : 	}
+; 759  : 
+; 760  :     //Overlay flipping
+; 761  :     //------------------------------------------------------------------------------
+; 762  :     // Check to make sure that lpDriverData is not bogus also
+; 763  :     else if (( pDevTable ) && (pDevTable->lpDriverData))
+
+  004e7	e9 0f 02 00 00	 jmp	 $L11497
+$L11489:
+
+; 744  : 				}
+; 745  : 				else
+; 746  : 					VMIPLD_SetCommand((DWORD)pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX], 
+; 747  : 							VMI_PASSTHRU,
+; 748  : 							VDD_VMIRead,
+; 749  : 							VDD_VMIWrite);	// passthru, no vbi int, no crop vbi
+
+  004ec	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _VDD_VMIWrite
+  004f2	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _VDD_VMIRead
+  004f8	52		 push	 edx
+  004f9	51		 push	 ecx
+  004fa	6a 01		 push	 1
+  004fc	50		 push	 eax
+  004fd	e8 00 00 00 00	 call	 _VMIPLD_SetCommand
+
+; 750  : 
+; 751  : 				dwVIReg |= H3_VMI_ENABLE;
+; 752  : 				*(volatile DWORD*)(pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX] + VID_SERIAL_PARALLEL_PORT) = dwVIReg;
+
+  00502	8b 96 90 00 00
+	00		 mov	 edx, DWORD PTR [esi+144]
+  00508	83 c4 10	 add	 esp, 16			; 00000010H
+  0050b	83 cb 01	 or	 ebx, 1
+  0050e	89 5a 78	 mov	 DWORD PTR [edx+120], ebx
+
+; 753  : 			}
+; 754  : 		}
+; 755  : #ifdef danofix
+; 756  : }
+; 757  : #endif //def danofix
+; 758  : 	}
+; 759  : 
+; 760  :     //Overlay flipping
+; 761  :     //------------------------------------------------------------------------------
+; 762  :     // Check to make sure that lpDriverData is not bogus also
+; 763  :     else if (( pDevTable ) && (pDevTable->lpDriverData))
+
+  00511	e9 e5 01 00 00	 jmp	 $L11497
+$L11442:
+  00516	85 f6		 test	 esi, esi
+  00518	0f 84 dd 01 00
+	00		 je	 $L11497
+  0051e	8b 86 14 02 00
+	00		 mov	 eax, DWORD PTR [esi+532]
+  00524	85 c0		 test	 eax, eax
+  00526	0f 84 cf 01 00
+	00		 je	 $L11497
+
+; 764  :     {
+; 765  :        //If overlay offset is not zero do manual flipping
+; 766  :        if ( (dwOvlOffset = GETGBL_dwOvlOffset(pDevTable->lpDriverData)) )
+
+  0052c	50		 push	 eax
+  0052d	e8 00 00 00 00	 call	 _GETGBL_dwOvlOffset
+  00532	83 c4 04	 add	 esp, 4
+  00535	89 45 ec	 mov	 DWORD PTR _dwOvlOffset$[ebp], eax
+  00538	85 c0		 test	 eax, eax
+  0053a	0f 84 af 01 00
+	00		 je	 $L11513
+
+; 767  :        {
+; 768  :           BOOL fFlipOVL = TRUE;
+; 769  : 
+; 770  :           dwFieldStatus = *(DWORD*)(pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX] + H4_VID_IN_STATUS_CURLINE);
+
+  00540	8b 96 90 00 00
+	00		 mov	 edx, DWORD PTR [esi+144]
+  00546	c7 45 e8 01 00
+	00 00		 mov	 DWORD PTR _fFlipOVL$11499[ebp], 1
+  0054d	8b 82 94 00 00
+	00		 mov	 eax, DWORD PTR [edx+148]
+
+; 771  :           bNewBuf = (BYTE) ((dwFieldStatus >> 16 ) & 0x3);
+
+  00553	8b c8		 mov	 ecx, eax
+
+; 772  :           dwFieldStatus &= 0x40000;
+
+  00555	25 00 00 04 00	 and	 eax, 262144		; 00040000H
+  0055a	c1 e9 10	 shr	 ecx, 16			; 00000010H
+  0055d	80 e1 03	 and	 cl, 3
+  00560	89 45 e4	 mov	 DWORD PTR _dwFieldStatus$[ebp], eax
+  00563	88 4d e0	 mov	 BYTE PTR _bNewBuf$[ebp], cl
+
+; 773  : 
+; 774  :           switch ( bNewBuf )
+; 775  :           {
+
+  00566	8b 45 e0	 mov	 eax, DWORD PTR _bNewBuf$[ebp]
+  00569	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  0056e	89 45 d8	 mov	 DWORD PTR -40+[ebp], eax
+  00571	83 e8 00	 sub	 eax, 0
+  00574	74 22		 je	 SHORT $L11506
+  00576	48		 dec	 eax
+  00577	74 14		 je	 SHORT $L11508
+  00579	48		 dec	 eax
+  0057a	74 09		 je	 SHORT $L11510
+
+; 785  :             default:    
+; 786  :                dwOvlBufAddr = 0;
+
+  0057c	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _dwOvlBufAddr$[ebp], 0
+
+; 787  :                break;
+
+  00583	eb 1c		 jmp	 SHORT $L11503
+$L11510:
+
+; 782  :             case 2:
+; 783  :                dwOvlBufAddr = *(DWORD*)(pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX] + H3_VID_IN_ADDR2);
+
+  00585	8b 82 f4 00 00
+	00		 mov	 eax, DWORD PTR [edx+244]
+
+; 784  :                break;
+
+  0058b	eb 11		 jmp	 SHORT $L11605
+$L11508:
+
+; 778  :                break;
+; 779  :             case 1:
+; 780  :                dwOvlBufAddr = *(DWORD*)(pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX] + H3_VID_IN_ADDR1);
+
+  0058d	8b 92 f0 00 00
+	00		 mov	 edx, DWORD PTR [edx+240]
+  00593	89 55 f8	 mov	 DWORD PTR _dwOvlBufAddr$[ebp], edx
+
+; 781  :                break;
+
+  00596	eb 09		 jmp	 SHORT $L11503
+$L11506:
+
+; 776  :             case 0:
+; 777  :                dwOvlBufAddr = *(DWORD*)(pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX] + H3_VID_IN_ADDR0);
+
+  00598	8b 82 ec 00 00
+	00		 mov	 eax, DWORD PTR [edx+236]
+$L11605:
+  0059e	89 45 f8	 mov	 DWORD PTR _dwOvlBufAddr$[ebp], eax
+$L11503:
+
+; 788  :           }
+; 789  : 
+; 790  :           dwOvlOffset &= 0x7FFFFFFF;
+
+  005a1	8b 55 ec	 mov	 edx, DWORD PTR _dwOvlOffset$[ebp]
+
+; 791  :               
+; 792  :           if ( dwOvlBufAddr && bNewBuf != bOldBuf )
+
+  005a4	8b 45 f8	 mov	 eax, DWORD PTR _dwOvlBufAddr$[ebp]
+  005a7	81 e2 ff ff ff
+	7f		 and	 edx, 2147483647		; 7fffffffH
+  005ad	85 c0		 test	 eax, eax
+  005af	89 55 ec	 mov	 DWORD PTR _dwOvlOffset$[ebp], edx
+  005b2	0f 84 37 01 00
+	00		 je	 $L11513
+  005b8	3a 0d 00 00 00
+	00		 cmp	 cl, BYTE PTR _bOldBuf
+  005be	0f 84 2b 01 00
+	00		 je	 $L11513
+
+; 793  :           {
+; 794  :             KMVTBUFF * lpKMVTBuff;
+; 795  : 
+; 796  :             lpKMVTBuff = (KMVTBUFF *)GETGBL_KMVTBuff(pDevTable->lpDriverData);
+
+  005c4	8b 8e 14 02 00
+	00		 mov	 ecx, DWORD PTR [esi+532]
+  005ca	51		 push	 ecx
+  005cb	e8 00 00 00 00	 call	 _GETGBL_KMVTBuff
+
+; 797  :             dwOvlBufAddr += dwOvlOffset;
+
+  005d0	8b 55 ec	 mov	 edx, DWORD PTR _dwOvlOffset$[ebp]
+  005d3	8b 4d f8	 mov	 ecx, DWORD PTR _dwOvlBufAddr$[ebp]
+  005d6	83 c4 04	 add	 esp, 4
+  005d9	03 ca		 add	 ecx, edx
+
+; 798  :             
+; 799  :             if(lpKMVTBuff && (lpKMVTBuff->dwStatus & INTERLEAVE_ON ))
+
+  005db	85 c0		 test	 eax, eax
+  005dd	89 45 dc	 mov	 DWORD PTR _lpKMVTBuff$11514[ebp], eax
+  005e0	89 4d f8	 mov	 DWORD PTR _dwOvlBufAddr$[ebp], ecx
+  005e3	0f 84 a6 00 00
+	00		 je	 $L11527
+  005e9	8b 48 4c	 mov	 ecx, DWORD PTR [eax+76]
+  005ec	f7 c1 00 00 02
+	00		 test	 ecx, 131072		; 00020000H
+  005f2	0f 84 97 00 00
+	00		 je	 $L11527
+
+; 800  :             {
+; 801  :                DWORD dwVPAddress;
+; 802  :                DWORD dwTotalBuffs;
+; 803  :                DWORD dwCurrentBuff,dwNextBuff;
+; 804  :                //display interleaved BOB for video port
+; 805  :                //at this time only two vport addresses are used
+; 806  : 
+; 807  :                dwTotalBuffs =
+; 808  :                   (lpKMVTBuff->dwStatus & VP_BUFF_MASK)>> VP_BUFF_SHIFT;
+; 809  : 
+; 810  :                dwCurrentBuff = lpKMVTBuff->dwStatus & BUFFER_IN_USE_MASK;
+
+  005f8	8b f9		 mov	 edi, ecx
+
+; 811  : 
+; 812  :                dwNextBuff = (dwCurrentBuff +1) % dwTotalBuffs;
+
+  005fa	8b d9		 mov	 ebx, ecx
+  005fc	83 e7 03	 and	 edi, 3
+  005ff	33 d2		 xor	 edx, edx
+  00601	c1 eb 08	 shr	 ebx, 8
+  00604	83 e3 03	 and	 ebx, 3
+  00607	8d 47 01	 lea	 eax, DWORD PTR [edi+1]
+  0060a	f7 f3		 div	 ebx
+
+; 813  :                //swap to the new address
+; 814  :                dwVPAddress =*( &(lpKMVTBuff->dwVPAddr0) + dwNextBuff);
+
+  0060c	8b 45 dc	 mov	 eax, DWORD PTR _lpKMVTBuff$11514[ebp]
+
+; 815  : 
+; 816  :                if(!dwFieldStatus)
+
+  0060f	83 7d e4 00	 cmp	 DWORD PTR _dwFieldStatus$[ebp], 0
+  00613	8b 5c 90 50	 mov	 ebx, DWORD PTR [eax+edx*4+80]
+  00617	75 4c		 jne	 SHORT $L11521
+
+; 817  :                {
+; 818  :                   //odd field is done, point *dwVPAddress to next line
+; 819  :                   dwVPAddress += lpKMVTBuff->dwVPStride;
+
+  00619	03 58 5c	 add	 ebx, DWORD PTR [eax+92]
+
+; 820  :                   //if not bob and pure interleaved mode
+; 821  :                   //only flip overlay at even field
+; 822  :                   if(!(lpKMVTBuff->dwStatus & BOB_ON ))
+
+  0061c	f7 c1 00 00 01
+	00		 test	 ecx, 65536		; 00010000H
+  00622	75 07		 jne	 SHORT $L11522
+
+; 823  :                      fFlipOVL = FALSE;
+
+  00624	c7 45 e8 00 00
+	00 00		 mov	 DWORD PTR _fFlipOVL$11499[ebp], 0
+$L11522:
+
+; 838  : 			   }
+; 839  : 
+; 840  : 
+; 841  :                if(fFlipOVL)
+
+  0062b	8b 4d e8	 mov	 ecx, DWORD PTR _fFlipOVL$11499[ebp]
+  0062e	89 3d 48 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+72, edi
+  00634	85 c9		 test	 ecx, ecx
+  00636	74 11		 je	 SHORT $L11525
+$L11589:
+
+; 842  :                {
+; 843  :                   //make sure the offset doesn't go to the next field
+; 844  :                   if( (dwOvlOffset / lpKMVTBuff->dwVPStride) & 1 )
+
+  00638	8b 48 5c	 mov	 ecx, DWORD PTR [eax+92]
+  0063b	8b 45 ec	 mov	 eax, DWORD PTR _dwOvlOffset$[ebp]
+  0063e	33 d2		 xor	 edx, edx
+  00640	f7 f1		 div	 ecx
+  00642	a8 01		 test	 al, 1
+  00644	74 03		 je	 SHORT $L11525
+
+; 845  :                   {
+; 846  :                      dwOvlBufAddr += lpKMVTBuff->dwVPStride;
+
+  00646	01 4d f8	 add	 DWORD PTR _dwOvlBufAddr$[ebp], ecx
+$L11525:
+
+; 847  :                   }
+; 848  :                }
+; 849  : 
+; 850  :                switch ( bNewBuf )
+; 851  :                {
+
+  00649	8b 45 d8	 mov	 eax, DWORD PTR -40+[ebp]
+  0064c	83 e8 00	 sub	 eax, 0
+  0064f	74 2c		 je	 SHORT $L11530
+  00651	48		 dec	 eax
+  00652	74 1b		 je	 SHORT $L11532
+  00654	48		 dec	 eax
+  00655	75 32		 jne	 SHORT $L11594
+
+; 858  :                     case 2:
+; 859  :                      *(DWORD*)(pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX] + H3_VID_IN_ADDR2) = dwVPAddress;
+
+  00657	8b 86 90 00 00
+	00		 mov	 eax, DWORD PTR [esi+144]
+  0065d	89 98 f4 00 00
+	00		 mov	 DWORD PTR [eax+244], ebx
+
+; 860  :                     break;
+
+  00663	eb 24		 jmp	 SHORT $L11594
+$L11521:
+
+; 824  : 
+; 825  : 				  // keep address of last odd field buffer filled
+; 826  : 				  kmtvInfo.dwFirstFieldBuffer = dwCurrentBuff;
+; 827  : 
+; 828  :                   //update current buff to dwNextBuff
+; 829  :                   //V3TV lpKMVTBuff->dwStatus &= ~BUFFER_IN_USE_MASK;
+; 830  :                   //V3TV lpKMVTBuff->dwStatus |= dwNextBuff;
+; 831  : 
+; 832  :                }
+; 833  : 			   else
+; 834  : 			   {
+; 835  : 				                     //update current buff to dwNextBuff after even
+; 836  :                   lpKMVTBuff->dwStatus &= ~BUFFER_IN_USE_MASK;
+
+  00665	83 e1 fc	 and	 ecx, -4			; fffffffcH
+
+; 837  :                   lpKMVTBuff->dwStatus |= dwNextBuff;
+
+  00668	0b ca		 or	 ecx, edx
+  0066a	89 48 4c	 mov	 DWORD PTR [eax+76], ecx
+
+; 838  : 			   }
+; 839  : 
+; 840  : 
+; 841  :                if(fFlipOVL)
+
+  0066d	eb c9		 jmp	 SHORT $L11589
+$L11532:
+
+; 854  :                     break;
+; 855  :                     case 1:
+; 856  :                      *(DWORD*)(pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX] + H3_VID_IN_ADDR1) = dwVPAddress;
+
+  0066f	8b 8e 90 00 00
+	00		 mov	 ecx, DWORD PTR [esi+144]
+  00675	89 99 f0 00 00
+	00		 mov	 DWORD PTR [ecx+240], ebx
+
+; 857  :                     break;
+
+  0067b	eb 0c		 jmp	 SHORT $L11594
+$L11530:
+
+; 852  :                     case 0:
+; 853  :                      *(DWORD*)(pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX] + H3_VID_IN_ADDR0) = dwVPAddress;
+
+  0067d	8b 96 90 00 00
+	00		 mov	 edx, DWORD PTR [esi+144]
+  00683	89 9a ec 00 00
+	00		 mov	 DWORD PTR [edx+236], ebx
+$L11594:
+  00689	8b 5d f4	 mov	 ebx, DWORD PTR _dwReg$[ebp]
+  0068c	8b 7d f0	 mov	 edi, DWORD PTR _sst3dRegs$[ebp]
+$L11527:
+
+; 861  : 
+; 862  :                }
+; 863  :             }
+; 864  : 
+; 865  :             if( !(*(DWORD*)(pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX] + H3_VID_PROC_CFG) &
+; 866  :              SST_OVERLAY_DEINTERLACE_EN))
+
+  0068f	8b 86 90 00 00
+	00		 mov	 eax, DWORD PTR [esi+144]
+  00695	f7 40 5c 00 00
+	00 80		 test	 DWORD PTR [eax+92], -2147483648 ; 80000000H
+  0069c	75 04		 jne	 SHORT $L11596
+
+; 867  :             dwFieldStatus = 0;      //don't set even/odd field if not BOB
+
+  0069e	33 c0		 xor	 eax, eax
+  006a0	eb 03		 jmp	 SHORT $L11537
+$L11596:
+  006a2	8b 45 e4	 mov	 eax, DWORD PTR _dwFieldStatus$[ebp]
+$L11537:
+
+; 868  : 
+; 869  :             //Direct write to swap overlay buffer
+; 870  :             if(fFlipOVL)
+
+  006a5	8b 4d e8	 mov	 ecx, DWORD PTR _fFlipOVL$11499[ebp]
+  006a8	85 c9		 test	 ecx, ecx
+  006aa	74 3a		 je	 SHORT $L11538
+
+; 871  :             {
+; 872  :               if(dwFieldStatus)
+
+  006ac	85 c0		 test	 eax, eax
+  006ae	74 17		 je	 SHORT $L11539
+
+; 873  :               ((SstRegs *)(pVGADevTable->RegBase[HWINFO_SST_3DREGS_INDEX]))->leftOverlayBuf
+; 874  :                 = dwOvlBufAddr |0x80000000;     //set evne/odd field
+
+  006b0	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _pVGADevTable
+  006b6	8b 81 9c 00 00
+	00		 mov	 eax, DWORD PTR [ecx+156]
+  006bc	8b 4d f8	 mov	 ecx, DWORD PTR _dwOvlBufAddr$[ebp]
+  006bf	81 c9 00 00 00
+	80		 or	 ecx, -2147483648	; 80000000H
+
+; 875  :               else
+
+  006c5	eb 0f		 jmp	 SHORT $L11606
+$L11539:
+
+; 876  :               ((SstRegs *)(pVGADevTable->RegBase[HWINFO_SST_3DREGS_INDEX]))->leftOverlayBuf = dwOvlBufAddr;
+
+  006c7	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _pVGADevTable
+  006cd	8b 4d f8	 mov	 ecx, DWORD PTR _dwOvlBufAddr$[ebp]
+  006d0	8b 82 9c 00 00
+	00		 mov	 eax, DWORD PTR [edx+156]
+$L11606:
+  006d6	89 88 50 02 00
+	00		 mov	 DWORD PTR [eax+592], ecx
+
+; 877  :             ((SstRegs *)(pVGADevTable->RegBase[HWINFO_SST_3DREGS_INDEX]))->swapbufferCMD = 0;
+
+  006dc	c7 80 28 01 00
+	00 00 00 00 00	 mov	 DWORD PTR [eax+296], 0
+$L11538:
+
+; 878  :             }
+; 879  : 
+; 880  :             
+; 881  :             bOldBuf = bNewBuf;
+
+  006e6	8a 55 e0	 mov	 dl, BYTE PTR _bNewBuf$[ebp]
+  006e9	88 15 00 00 00
+	00		 mov	 BYTE PTR _bOldBuf, dl
+$L11513:
+
+; 882  :           }   
+; 883  :        }
+; 884  : 
+; 885  :            
+; 886  :     //------------------------------------------------------------------------------
+; 887  : 	// clear vertical interrupts only
+; 888  : 	((SstRegs *)sst3dRegs)->intrCtrl = 0x80000000 | (dwReg & ~0x300);
+
+  006ef	80 e7 fc	 and	 bh, -4			; fffffffcH
+  006f2	81 cb 00 00 00
+	80		 or	 ebx, -2147483648	; 80000000H
+  006f8	89 5f 04	 mov	 DWORD PTR [edi+4], ebx
+$L11497:
+
+; 354  : 	FxI16 count;
+
+  006fb	a1 00 00 00 00	 mov	 eax, DWORD PTR _hInIRQ
+
+; 355  :    DWORD dwReg, sst3dRegs;
+
+  00700	cd		 DB	 -51			; ffffffcdH
+  00701	20		 DB	 32			; 00000020H
+  00702	04		 DB	 4
+  00703	00		 DB	 0
+  00704	03		 DB	 3
+  00705	00		 DB	 0
+
+; 889  : 
+; 890  : #ifdef REAL_NET
+; 891  :    if (dwReg & H3_VSYNC_INTERRUPT)
+; 892  :       {
+; 893  :       pDevTable->dwVCount++;
+; 894  :       }
+; 895  : #endif
+; 896  : 
+; 897  : 	} //V3TV else
+; 898  : 
+; 899  :     // ack it and exit
+; 900  :     VPICD_Phys_EOI (hInIRQ);
+; 901  :     __asm
+; 902  :     {
+; 903  :         clc;
+
+  00706	f8		 clc
+
+; 904  :         mov     esp,ebp;
+
+  00707	8b e5		 mov	 esp, ebp
+
+; 905  :         pop     ebp;
+
+  00709	5d		 pop	 ebp
+
+; 906  :         ret;
+
+  0070a	c3		 ret	 0
+_InterruptHandler ENDP
+_LTEXT	ENDS
+PUBLIC	_SignalVMEvent
+_LTEXT	SEGMENT
+_SignalVMEvent PROC NEAR
+
+; 923  : #ifdef KMW
+; 924  :     _VWIN32_PulseWin32Event( pMMIf->dwVSyncEvent );
+; 925  : #endif // #ifdef KMW
+; 926  : }
+
+  00710	c3		 ret	 0
+_SignalVMEvent ENDP
+_pDevTable$ = 8
+_EnableInterrupts PROC NEAR
+
+; 938  : {
+
+  00720	55		 push	 ebp
+  00721	8b ec		 mov	 ebp, esp
+
+; 939  :    DWORD dwReg;
+; 940  :    DWORD sst3dRegs = pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX];
+
+  00723	8b 4d 08	 mov	 ecx, DWORD PTR _pDevTable$[ebp]
+  00726	8b 81 90 00 00
+	00		 mov	 eax, DWORD PTR [ecx+144]
+
+; 941  :    DWORD PllReg;         
+; 942  : 
+; 943  :    PllReg = ((SstIORegs *)sst3dRegs)->pllCtrl0;
+; 944  : 
+; 945  :    // If IO is disabled on this device
+; 946  :    // then the HOST/PCI Bridge will do a Master Abort
+; 947  :    // For a read cycle the HOST/PCI Bridge is required to return all 1's
+; 948  :    // This will check for this 
+; 949  :    if (0xFFFFFFFF == PllReg)    
+
+  0072c	8b 50 40	 mov	 edx, DWORD PTR [eax+64]
+  0072f	83 fa ff	 cmp	 edx, -1
+  00732	74 14		 je	 SHORT $L11549
+
+; 950  :       {
+; 951  :       // This is not good ---
+; 952  :       // Why would we try to do something on a card that is disabled?
+; 953  : #ifdef DEBUG
+; 954  :       _asm {int 03}
+; 955  : #endif
+; 956  :       return;
+; 957  :       }
+; 958  : 
+; 959  :    sst3dRegs = pDevTable->RegBase[HWINFO_SST_3DREGS_INDEX];
+
+  00734	8b 81 9c 00 00
+	00		 mov	 eax, DWORD PTR [ecx+156]
+
+; 960  : 	dwReg = ((SstRegs *)sst3dRegs)->intrCtrl;
+
+  0073a	8b 50 04	 mov	 edx, DWORD PTR [eax+4]
+
+; 961  : 
+; 962  :    // This is critical code
+; 963  :    // We need to make this a atomic operation since the flags
+; 964  :    // can get modified on a asynchronous basis
+; 965  :    __asm pushfd;
+
+  0073d	9c		 pushfd
+
+; 966  :    DISABLE_INTERRUPTS();
+
+  0073e	fa		 cli
+
+; 967  :    dwReg |= pDevTable->dwIMask;
+
+  0073f	8b 49 54	 mov	 ecx, DWORD PTR [ecx+84]
+  00742	0b ca		 or	 ecx, edx
+
+; 968  :    
+; 969  :    ((SstRegs *)sst3dRegs)->intrCtrl = dwReg;
+
+  00744	89 48 04	 mov	 DWORD PTR [eax+4], ecx
+
+; 970  :    __asm popfd;
+
+  00747	9d		 popfd
+
+; 968  :    
+; 969  :    ((SstRegs *)sst3dRegs)->intrCtrl = dwReg;
+
+$L11549:
+
+; 971  : }
+
+  00748	5d		 pop	 ebp
+  00749	c3		 ret	 0
+_EnableInterrupts ENDP
+_pDevTable$ = 8
+_DisableInterrupts PROC NEAR
+
+; 984  :    DWORD dwReg;
+; 985  :    DWORD sst3dRegs = pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX];
+
+  00750	8b 44 24 04	 mov	 eax, DWORD PTR _pDevTable$[esp-4]
+  00754	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+
+; 986  :    DWORD PllReg;         
+; 987  : 
+; 988  :    PllReg = ((SstIORegs *)sst3dRegs)->pllCtrl0;
+; 989  : 
+; 990  :    // If IO is disabled on this device
+; 991  :    // then the HOST/PCI Bridge will do a Master Abort
+; 992  :    // For a read cycle the HOST/PCI Bridge is required to return all 1's
+; 993  :    // This will check for this 
+; 994  :    if (0xFFFFFFFF == PllReg)    
+
+  0075a	8b 51 40	 mov	 edx, DWORD PTR [ecx+64]
+  0075d	83 fa ff	 cmp	 edx, -1
+  00760	74 0e		 je	 SHORT $L11559
+
+; 995  :       {
+; 996  :       // This is not good ---
+; 997  :       // Why would we try to do something on a card that is disabled?
+; 998  : #ifdef DEBUG
+; 999  :       _asm {int 03}
+; 1000 : #endif
+; 1001 :       return;
+; 1002 :       }
+; 1003 : 
+; 1004 :    sst3dRegs = pDevTable->RegBase[HWINFO_SST_3DREGS_INDEX];
+
+  00762	8b 88 9c 00 00
+	00		 mov	 ecx, DWORD PTR [eax+156]
+
+; 1005 : 	dwReg = ((SstRegs *)sst3dRegs)->intrCtrl;
+
+  00768	8b 41 04	 mov	 eax, DWORD PTR [ecx+4]
+
+; 1006 : 
+; 1007 :    dwReg &= ~(H3_IMASK);
+
+  0076b	24 c0		 and	 al, -64			; ffffffc0H
+
+; 1008 :    ((SstRegs *)sst3dRegs)->intrCtrl = dwReg;
+
+  0076d	89 41 04	 mov	 DWORD PTR [ecx+4], eax
+$L11559:
+
+; 1009 : }
+
+  00770	c3		 ret	 0
+_DisableInterrupts ENDP
+_LTEXT	ENDS
+END

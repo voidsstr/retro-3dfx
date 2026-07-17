@@ -1,0 +1,960 @@
+//
+// Copyright (c) 1996, 3Dfx Interactive, Inc.
+// All Rights Reserved.
+//
+// This is UNPUBLISHED PROPRIETARY SOURCE CODE of 3Dfx Interactive, Inc.;
+// the contents of this file may not be disclosed to third parties, copied or
+// duplicated in any form, in whole or in part, without the prior written
+// permission of 3Dfx Interactive, Inc.
+//
+// RESTRICTED RIGHTS LEGEND:
+// Use, duplication or disclosure by the Government is subject to restrictions
+// as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+// and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+// successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished -
+// rights reserved under the Copyright Laws of the United States.
+//
+// --------------------------------------------------------------------------
+//
+//
+// Initialization routines for H3 "Banshee" simulations
+//
+//
+// $Log: h3_init.c,v $
+// Revision 1.57  1997/12/22 22:46:14  anderson
+// Added option to make VGA diags always be able to drive out on TV
+//
+// Revision 1.56  1997/12/17 02:04:28  psmith
+// deselect vmi as driver for vmi input signals so x's won't be driven
+// during vector capture.  Add AGP 2x support.
+//
+// Revision 1.55  1997/11/03 23:57:34  anderson
+// Fixed init for no 8 bit pal for VGA
+//
+// Revision 1.54  1997/10/28 01:12:26  psmith
+// fixed initialization of vidSerialParallelPort register
+//
+// Revision 1.53  1997/10/22 01:26:48  psmith
+// added support for Samsung SGRAM timing, unset vmi chip select so X's
+// are generated during vector capture
+//
+// Revision 1.52  1997/09/30 22:35:31  psmith
+// updated handling of dramInit1 and dramInit0 during initialization to
+// preserve value of strapped bits.  Removed check of dramInit0's default
+// value since it is no longer constant (depends on strapping bits).
+//
+// Revision 1.51  1997/09/30 00:56:58  skong
+// Add inverting clut
+//
+// Revision 1.50  1997/09/21 23:46:00  psmith
+// added code to preserve dramInit1[13] in its power-up state, removed code to
+// enable .8 bilinear blending (it's now the hardware default), added
+// SST_VIDEO_ENABLE config variable, cleaned up some info messages
+//
+// Revision 1.49  1997/09/19 00:27:43  psmith
+// fixed typo seemingly introduced by corruption of the cvs database
+//
+// Revision 1.48  1997/09/13 20:58:18  skong
+// Minor fix
+//
+// Revision 1.47  1997/09/12 23:07:04  psmith
+// 32-Mbit SGRAMs no longer supported
+//
+// Revision 1.46  1997/09/10 17:24:09  skong
+// Don't randomise agpinit0 for fastsim
+//
+// Revision 1.45  1997/09/10 00:23:54  skong
+// Add 4G bit
+//
+// Revision 1.44  1997/08/29 23:21:15  skong
+// Add CAP id list scan
+//
+// Revision 1.43  1997/08/26 21:13:02  skong
+// PCI retries disable
+//
+// Revision 1.42  1997/08/26 21:03:47  psmith
+// added i/o port virt/phys addresses to info structure.  if fbi rev is
+// greater than 1, complain that the user must also update the tmu rev.
+// The sense of the bilinear blend precision select trexInit[26] has
+// changed, now write a zero to set .8 bilinear blend.
+//
+// Revision 1.41  1997/08/06 01:56:51  psmith
+// force tmu revision to 4 so that Banshee-specific tmu features and .8
+// bilinear blending will be tested by the diags.  Also, enable .8
+// bilinear blending in the hardware by setting bit 26 of trexInit1.
+//
+// Revision 1.40  1997/07/30 01:29:05  skong
+// vga addr decode select
+//
+// Revision 1.39  1997/07/29 23:25:00  anderson
+// Added VGA motherboard wakeup
+//
+// Revision 1.38  1997/07/29 04:08:20  psmith
+// read miscInit1 before setting bits and re-writing so that default
+// values (esp. those initialized from strapping bits) aren't
+// unintentionally overwritten
+//
+// Revision 1.37  1997/07/29 01:28:41  psmith
+// get memory size from the dramInit0 register instead of the
+// SGRAM_MEM_SIZE config variable
+//
+// Revision 1.36  1997/07/21 23:27:35  psmith
+// read pciInit0 before setting bits and re-writing so that default
+// values aren't unintentionally overwritten
+//
+// Revision 1.35  1997/07/19 02:11:50  skong
+// Randomise mapped VGA accesses
+//
+// Revision 1.34  1997/07/19 01:54:37  psmith
+// removed some functionality from H3_GET_DEVICE_INFO since the csim can
+// now perform pci cfg cycles and obtain the desired information itself
+//
+// Revision 1.33  1997/07/16 01:08:40  psmith
+// changed dramInit0 value for SGRAM_222, added read-back check of the
+// miscInit1 register
+//
+// Revision 1.32  1997/07/15 16:51:26  psmith
+// added support for fast sgram configuration, SGRAM_222
+//
+// Revision 1.31  1997/07/14 23:00:49  psmith
+// removed redundant checks on pciInit0, dramInit1, and agpInit.
+//
+// Revision 1.30  1997/07/08 22:15:14  psmith
+// force sgram initialization to use pci i/o cycles, added
+// SST_DISABLE_PCI_RETRIES which disables retries for both i/o and mem cycles
+//
+// Revision 1.29  1997/07/08 02:09:32  anderson
+// Modified to use IO for DRAM mode set
+//
+// Revision 1.28  1997/07/03 23:20:32  skong
+// Changed all mem writes to IO writes
+//
+// Revision 1.27  1997/06/25 02:32:15  emmett
+// added vga mode fe.
+//
+// Revision 1.26  1997/06/18 19:18:19  psmith
+// changed default 2d block write behavior to (1) enable block writes and
+// (2) set the low-water threshold to 2
+//
+// Revision 1.25  1997/06/18 00:34:20  kirk
+// Fixed typeo: tdfxIrandom -> tdfxIRandom
+//
+// Revision 1.24  1997/06/17 01:43:38  psmith
+// forced the pci low threshold (in pciInit0) to be >= 4
+//
+// Revision 1.23  1997/06/16 23:16:29  psmith
+// Re-enabled block write threshold and sgram init code.  Moved checking
+// of register default values into the routine H3_CHECK_DEFAULTS().
+//
+// Revision 1.22  1997/06/13 00:42:49  psmith
+// For Banshee, get memory size from SGRAM_MEM_SIZE config variable.
+// Temporarily ifdef'ed out block write threshold and sgram init code.
+// Also, temporarily moved raw lfb tiled aperture to 8MB until CMDFIFO
+// can be relocated to low memory.
+//
+// Revision 1.21  1997/06/12 21:44:57  skong
+// pciInit0 randomised unless fast sim is set
+//
+// Revision 1.20  1997/06/11 20:57:46  psmith
+// removed random enabling of fastsim.  added init code to set 2d block
+// write parameters and sgram mode/mask/color registers.
+//
+// Revision 1.19  1997/06/10 18:03:44  skong
+// Move default and cfg definitions to separate file
+//
+// Revision 1.18  1997/06/09 23:34:20  skong
+// Various init registers are now randomised
+//
+// Revision 1.17  1997/06/03 20:37:11  anderson
+// Made VGA_MODE_SET global
+//
+// Revision 1.16  1997/06/03 03:10:15  skong
+// Removed obsolete config option
+//
+// Revision 1.15  1997/06/03 01:24:50  skong
+// Added SST_TMU0_MEM , AGP_INFO calls
+//
+// Revision 1.14  1997/06/02 23:07:29  psmith
+// added SST_VGA_ONLY config variable which inhibits automatic video mode
+// setting for vga-only diags
+//
+// Revision 1.13  1997/05/31 05:52:35  psmith
+// updated config register addresses to conform to latest spec
+//
+// Revision 1.12  1997/05/31 00:55:09  skong
+// Added H3 Config space definitions and added AGP register cfg
+//
+// Revision 1.11  1997/05/29 18:42:15  psmith
+// disabled video memory requests when SST_FASTSIM is enabled
+//
+// Revision 1.10  1997/05/29 18:28:56  bangell
+// Fixed duplicate calls by adding static declaration to vga_mode
+//
+// Revision 1.9  1997/05/29 00:47:57  psmith
+// changed default video mode to a special simulation-only 16x16 mode
+//
+// Revision 1.8  1997/05/28 00:12:39  psmith
+// changed default video resolution to 16x16
+//
+// Revision 1.7  1997/05/27 22:51:45  psmith
+// added SST_FASTSIM support
+//
+// Revision 1.6  1997/05/24 05:12:15  psmith
+// Added h3-specific routine to fill in FxDeviceInfo structure.  Also,
+// added new config vars VGA_MODE8 and VGA_MODE16 to set the vga mode at
+// sim startup.
+//
+// Revision 1.5  1997/05/06 18:02:10  bangell
+// Added PCI flow control logic
+//
+// Revision 1.4  1997/04/28 23:09:11  anderson
+// Fixed VGAINIT locations to conform to new spec
+//
+// Revision 1.3  1997/04/25 20:18:31  psmith
+// changed dramInit1 value to 0x451.
+//
+// Revision 1.2  1997/04/21 18:54:01  psmith
+// enable memory refresh, set pciInit0, change addr for vgaInit0/1
+//
+// Revision 1.1  1997/04/19 06:15:28  psmith
+// Original coding of Banshee init code.
+//
+//
+//
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <string.h>
+#include <ctype.h>
+#include "h3defaults.h"
+#include "h3cfg.h"
+#include "tstbench.h"
+#include "random.h"
+#include "vconfig.h"
+
+#include "h3info.h"
+#include "h3defs.h"
+#include "h3asm.h"
+
+#include "h3_vga_modes.h"
+// init should not use memory mapped access
+// #define PCI_MEM_WR(a,d) dead
+// #define PCI_MEM_RD(a)   dead
+
+#define RNDM(X)                	{if ( tdfxRandom() & 0x800000 ) X;}
+
+int VGA_SET_MODE();
+static void H3_CHECK_DEFAULTS();
+
+static ulong SST_ADDR_OFFSET;
+static ulong SST_IDLE_TIMEOUT = 500;
+
+extern ushort *fbi_frame_buffer;
+extern ulong *agpMemory;
+
+extern ulong pci_nows_between_cycles;
+extern ulong pci_nows_within_cycles;
+extern ulong video_override_en;
+extern ulong fbi_pixel_pipeline_override_en;
+extern ulong SST_PCI_OTHER_ACCESS;
+
+static ulong force_en_lfb_memfifo = 0;
+static ulong force_en_tex_memfifo = 0;
+static ulong mem_fifo_en = 0;
+
+static int fastsim = 0;
+enum VAMODE { VARANDOM,VALEGACY,VAMAPPED };
+static int vgaAddrMap = VARANDOM;
+
+//
+// get config of verilog simulator
+//
+// used by H3 C-simulator
+//
+void H3_GET_DEVICE_INFO(FxDeviceInfo *device)
+{
+  char *p;
+  ulong val;
+  int local_trex_standalone;
+
+  // The csim and the verilog sim each have definitions of FxDeviceInfo.
+  // Use the struct size to check that the definitions are the same.
+
+  if ( device->size != sizeof(FxDeviceInfo) ) {
+    printf("H3_GET_DEVICE_INFO ERROR: FxDeviceInfo struct definition is out of date\n");
+    fflush(stdout);
+    TESTBENCH_FAIL();
+  }
+
+  // check if running in trex_standalone mode
+  if ( vconfigLookup("TREX_STANDALONE",NULL) ) 
+    local_trex_standalone = 1;
+  else
+    local_trex_standalone = 0;
+
+  if ( local_trex_standalone ) {
+    printf("H3_GET_DEVICE_INFO WARNING: running in trex_standalone mode\n");
+    fflush(stdout);
+  }
+
+  // the following information describes the hardware configuration being simulated
+
+  if ( local_trex_standalone ) {
+
+    // for trex standalone, hardcode the values
+    device->deviceNumber = 1;                                  // PCI device number
+    device->vendorID = 0x121a;                                 // PCI vendor ID
+    device->deviceID = 3;		                       // PCI device ID
+    device->fbiRevision = 1;
+
+  } 
+
+  device->fbiMemSize = H3_GET_MEM_SIZE();
+
+  // set tmuRevision=4 to notify the csim to enable the new-for-Banshee 
+  // features and full .8 bilinear blending in the trex diags
+
+/*
+  if ( vconfigLookup("SST_TREX_REV",&p) )
+    device->tmuRevision = atoi(p);
+  else
+*/
+    device->tmuRevision = 4;					// revision number (for all TMUs)
+
+  if ( device->fbiRevision != 1 ) {
+    printf("H3_GET_DEVICE_INFO: new fbi rev (%d) detected\n",device->fbiRevision);
+    printf("                    pls update code for corresponding tmu rev\n");
+    fflush(stdout);
+    exit(-1);
+  }
+  
+  if ( device->tmuRevision != 4 ) {
+    printf("H3_GET_DEVICE_INFO ERROR: TMU Rev = %d (must be 4 for Banshee)\n",
+	   device->tmuRevision);
+    fflush(stdout);
+    exit(-1);
+  }
+  
+  device->numberTmus = 1;					// force one TMU for now
+
+  //
+  // AGP memory info
+  // 
+  if ( agpMemory != NULL )
+    device->agpSizeInBytes = 1024; // 1 KBytes
+  
+  device->agpBaseAddrH = AGP_INFO(AGP_INFO_BASEADDRH);
+  device->agpBaseAddrL = AGP_INFO(AGP_INFO_BASEADDRL);
+  device->agpSizeInBytes = AGP_INFO(AGP_INFO_SIZE);
+  device->agpRqDepth = AGP_INFO(AGP_INFO_RQDEPTH);
+
+  if ( agpMemory == NULL )
+    device->agpSizeInBytes = 0;
+
+  device->agpMem = (unsigned char *)agpMemory;
+
+  //
+  // display hardware config
+  //
+  printf("H3_GET_DEVICE_INFO: \n");
+  printf("   virtAddr[0]      = %d \t (0x%0x)\n",device->virtAddr[0],device->virtAddr[0]);
+  printf("   virtAddr[1]      = %d \t (0x%0x)\n",device->virtAddr[1],device->virtAddr[1]);
+  printf("   physAddr[0]      = %d \t (0x%0x)\n",device->physAddr[0],device->physAddr[0]);
+  printf("   physAddr[1]      = %d \t (0x%0x)\n",device->physAddr[1],device->physAddr[1]);
+  printf("   virtPort         = %d \t (0x%0x)\n",device->virtPort,device->virtPort);
+  printf("   physPort         = %d \t (0x%0x)\n",device->physPort,device->physPort);
+  printf("   deviceNumber     = %d \t (0x%0x)\n",device->deviceNumber,device->deviceNumber);
+  printf("   vendorID         = %d \t (0x%0x)\n",device->vendorID,device->vendorID);
+  printf("   deviceID         = %d \t (0x%0x)\n",device->deviceID,device->deviceID);
+  printf("   fbiRevision      = %d \t (0x%0x)\n",device->fbiRevision,device->fbiRevision);
+  printf("   fbiConfig        = %d \t (0x%0x)\n",device->fbiConfig,device->fbiConfig);
+  printf("   fbiMemType       = %d \t (0x%0x)\n",device->fbiMemType,device->fbiMemType);
+  printf("   fbiVideoWidth    = %d \t (0x%0x)\n",device->fbiVideoWidth,device->fbiVideoWidth);
+  printf("   fbiVideoHeight   = %d \t (0x%0x)\n",device->fbiVideoHeight,device->fbiVideoHeight);
+  printf("   fbiVideoRefresh  = %d \t (0x%0x)\n",device->fbiVideoRefresh,device->fbiVideoRefresh);
+  printf("   fbiMemoryFifoEn  = %d \t (0x%0x)\n",device->fbiMemoryFifoEn,device->fbiMemoryFifoEn);
+  printf("   tmuRevision      = %d \t (0x%0x)\n",device->tmuRevision,device->tmuRevision);
+  printf("   numberTmus       = %d \t (0x%0x)\n",device->numberTmus,device->numberTmus);
+  printf("   tmuMemSize[0]    = %d \t (0x%0x)\n",device->tmuMemSize[0],device->tmuMemSize[0]);
+  printf("   tmuConfig        = %d \t (0x%0x)\n",device->tmuConfig,device->tmuConfig);
+  printf("   fbiMemSize       = %d \t (0x%0x)\n",device->fbiMemSize,device->fbiMemSize);
+  printf("   agpMem           = %d \t (0x%0x)\n",device->agpMem,device->agpMem);
+  printf("   agpSizeInBytes   = %d \t (0x%0x)\n",device->agpSizeInBytes,device->agpSizeInBytes);
+  printf("   agpBaseAddrH     = %d \t (0x%0x)\n",device->agpBaseAddrH,device->agpBaseAddrH);
+  printf("   agpBaseAddrL     = %d \t (0x%0x)\n",device->agpBaseAddrL,device->agpBaseAddrL);
+  printf("   agpRqDepth       = %d \t (0x%0x)\n",device->agpRqDepth,device->agpRqDepth);
+  for ( val=0; val<device->numberTmus; val++ ) {
+    printf("   TMU %d tmuInit0   = %d \t (0x%0x)\n",val,device->tmuInit0[val],device->tmuInit0[val]);
+    printf("   TMU %d tmuInit1   = %d \t (0x%0x)\n",val,device->tmuInit1[val],device->tmuInit1[val]);
+  }
+  printf("   initGrxClkDone   = %d \t (0x%0x)\n",device->initGrxClkDone,device->initGrxClkDone);
+  fflush(stdout);
+
+}
+
+
+// 
+// return the memory size being simulated so the csim can clone the hsim
+//
+  
+int H3_GET_MEM_SIZE()
+{
+  int val, nchips, size;
+
+  val = PCI_IO_RD(IOBASE+DRAMINIT0);
+
+  nchips = val & SST_SGRAM_NUM_CHIPSETS;
+
+  if ( (val&SST_SGRAM_NUM_CHIPSETS) == 0 )
+    nchips = 4;
+  else 
+    nchips = 8;
+
+  switch ( val & SST_SGRAM_TYPE ) {
+  case SST_SGRAM_TYPE_8MBIT:    size = 1*nchips; break; // in MBytes
+  case SST_SGRAM_TYPE_16MBIT:   size = 2*nchips; break;
+  default:
+    printf("H3_GET_MEM_SIZE: invalid sgram type = %d\n",
+	   (val&SST_SGRAM_TYPE)<<SST_SGRAM_TYPE_SHIFT);
+    exit(-1);
+  }
+  
+  printf("H3_GET_MEM_SIZE: memory size is %d MBytes\n",size);
+
+  return size;
+}
+
+//
+// initialize an h3 (Banshee) chip
+//
+void H3_CHIP_SETUP(void)
+{
+  ulong val, mode;
+  char *p;
+  ulong data, temp;
+  ulong pciInit0, thresh;
+  ulong agpStatus, agpCmd;
+  ulong dramInit1,agpInit;
+  ulong vidSerialParallelPort;
+  ulong miscInit1, miscInit0;
+  ulong vgaInit0;
+  int agpEnabled;
+
+  // Sync up first time with Verilog Simulator
+  hdl_sync();
+  
+  // check for fast sim
+  if ( vconfigLookup("SST_FASTSIM",NULL) ) {
+    fastsim = 1 ;
+    printf("H3_CHIP_SETUP: Running with FAST simulation options...\n");
+    fflush(stdout);
+  }
+      
+  // Enable IO accesses
+  PCI_CFG_WR(PCICOMMAND, (COMMAND_DEF|BIT(0)), 0x1);
+
+  // set base address registers to defaults
+  PCI_CFG_WR(MEMBASEADDR0, MEMBASE0, 0x1);
+  PCI_CFG_WR(MEMBASEADDR1, MEMBASE1, 0x1);
+  PCI_CFG_WR(IOBASEADDR, IOBASE, 0x1);
+  PCI_CFG_WR(ROMBASEADDR, ROMBASE, 0x1);
+
+  // check default register values
+  H3_CHECK_DEFAULTS();
+
+  // set init values
+  val = PCI_IO_RD(IOBASE+PCIINIT0);
+  val |= (0x8<<2) | BIT(0);         // enable PCI stall at HWM, set LWM to 8
+  if ( vconfigLookup("SST_DISABLE_PCI_RETRIES",NULL) )
+    val |= BIT(11)|BIT(12);        // disable io and memory retries
+  PCI_IO_WR(IOBASE+PCIINIT0, val);
+
+  PCI_IO_WR(IOBASE+VGAINIT0, BIT(11));	   // vgaInit0
+  PCI_IO_WR(IOBASE+VGAINIT1, 0x0);		   // vgaInit1
+
+  // turn on memory refresh, randomly select video override
+  dramInit1 = PCI_IO_RD(IOBASE+DRAMINIT1);
+  dramInit1 &= ~(SST_DRAM_REFRESH_EN | 
+		 SST_DRAM_REFRESH_VALUE | 
+		 SST_VIDEO_OVERRIDE_EN);
+
+  if (!fastsim) {			// turn on refresh if not fastsim
+    dramInit1 |= SST_DRAM_REFRESH_EN;
+    dramInit1 |= (0x18<<SST_DRAM_REFRESH_VALUE_SHIFT);
+  }
+
+  if (tdfxRandom() & 0x1) {
+    dramInit1 |= SST_VIDEO_OVERRIDE_EN;
+    printf("H3_CHIP_SETUP: Video override enabled\n");
+  } else {
+    printf("H3_CHIP_SETUP: Video override disabled\n");
+  }
+  
+  PCI_IO_WR(IOBASE+DRAMINIT1, dramInit1);
+
+  // set 2D block write parameters
+  miscInit1 = PCI_IO_RD(IOBASE+MISCINIT1);
+  miscInit1 &= ~(SST_BLOCK_WRITE_THRESH | SST_DISABLE_2D_BLOCK_WRITE);
+  if ( vconfigLookup("BLOCK_WRITE_THRESHOLD",&p) )
+    miscInit1 |= atoi(p) << SST_BLOCK_WRITE_THRESH_SHIFT;
+  else
+    miscInit1 |= (2<<SST_BLOCK_WRITE_THRESH_SHIFT) | SST_DISABLE_2D_BLOCK_WRITE;
+
+#define SST_H3_CLUTINVERT BIT(0)
+  miscInit1 |= SST_H3_CLUTINVERT;
+      
+  printf("H3_CHIP_SETUP: miscInit1 block write thresh=0x%x\n",
+	 (miscInit1&SST_BLOCK_WRITE_THRESH)>>SST_BLOCK_WRITE_THRESH_SHIFT);
+  printf("H3_CHIP_SETUP: miscInit1 block writes %s\n",
+	 miscInit1&SST_DISABLE_2D_BLOCK_WRITE ? "DISABLED" : "ENABLED");
+  
+  PCI_IO_WR(IOBASE+MISCINIT1, miscInit1);
+  temp = PCI_IO_RD(IOBASE+MISCINIT1);
+  if (temp != miscInit1)
+    printf("H3_CHIP_SETUP: Error setting miscInit1 to 0x%08x, read 0x%08x\n",
+	   miscInit1,temp);	
+
+  // set sgram timing parameters
+  if ( vconfigLookup("SGRAM_222",NULL) ) {
+    // cas-latency	= 2 (default is 3)
+    // tRCD		= 2 (default is 3)
+    // tRP		= 2 (default is 3)
+    // tRRD		= 1 (default is 2)
+    // tBWC		= 1 (default is 2)
+    // tRC		= 7 (default is 8)
+    FxU32 dramInit0 = PCI_IO_RD(IOBASE + DRAMINIT0);
+    dramInit0 &= ( SST_SGRAM_NUM_CHIPSETS | 
+		   SST_SGRAM_TYPE );  		// clear all but strapped bits
+    dramInit0 |= 0x00115914;
+    PCI_IO_WR(IOBASE + DRAMINIT0, dramInit0);
+  } 
+
+  if ( vconfigLookup("SAMSUNG",NULL) ) {
+    FxU32 dramInit0 = PCI_IO_RD(IOBASE + DRAMINIT0);
+    printf("h3_CHIP_SETUP: configuring for Samsung SGRAMs\n");
+    dramInit0 &= ~( SST_SGRAM_RAS | SST_SGRAM_RC ); // clear RAS & RC
+    dramInit0 |= (6<<SST_SGRAM_RAS_SHIFT)	// tRASmin = 70ns = 7 clk
+      | (9<<SST_SGRAM_RC_SHIFT); 		// tRCmin = 100ns = 10clk
+    PCI_IO_WR(IOBASE + DRAMINIT0, dramInit0);
+  }
+  
+  // load sgram mode register
+  if ( vconfigLookup("SGRAM_MODE",&p) )
+    val = atoi(p);
+  else
+    if ( vconfigLookup("SGRAM_222",NULL) )
+      val = 0x27;
+    else
+      val = 0x37;
+  
+  PCI_IO_WR(IOBASE + 0x34, val);
+  PCI_IO_WR(IOBASE + 0x30, 0x10d);
+
+  // load sgram mask register
+  if ( vconfigLookup("SGRAM_MASK",&p) )
+    val = atoi(p);
+  else
+    val = 0xFFFFFFFF;
+
+  PCI_IO_WR(IOBASE + 0x34, val);
+  PCI_IO_WR(IOBASE + 0x30, 0x10e);
+
+  // load sgram color register
+  if ( vconfigLookup("SGRAM_COLOR",&p) )
+    val = atoi(p);
+  else
+    val = 0;
+
+  PCI_IO_WR(IOBASE + 0x34, val);
+  PCI_IO_WR(IOBASE + 0x30, 0x10f);
+  
+  // speed up PCI accesses by eliminating wait states
+  if ( fastsim || ! vconfigLookup("SST_SLOWPCI",NULL) ) {
+    pci_nows_between_cycles = TRUE;
+    pci_nows_within_cycles = TRUE;
+    PCI_CTRL_WR();
+  } else {
+    printf("H3_CHIP_SETUP: Running with SLOW PCI options...\n");
+    fflush(stdout);
+  }
+  
+  // speed up PCI by eliminating other traffic on the PCI bus
+  if(fastsim) {
+    SST_PCI_OTHER_ACCESS = 0;
+    PCI_CTRL_WR();
+  }
+
+  // speed up memory accesses ... FIX ME for H3 !!!
+  if(!fastsim) {
+//    RNDM(SST_MEM_WR(FBIINIT2,
+//		    ((SST_MEM_RD(FBIINIT2) & ~SST_EN_FAST_RAS_READ) |
+//		     SST_EN_FAST_RAS_READ)));
+//    RNDM(SST_MEM_WR(FBIINIT2, ((SST_MEM_RD(FBIINIT2) &
+//				~SST_EN_DRAM_RD_AHEAD_FIFO) | SST_EN_DRAM_RD_AHEAD_FIFO)));
+//    RNDM(SST_MEM_WR(FBIINIT2,
+//		    ((SST_MEM_RD(FBIINIT2) & ~SST_EN_FAST_RD_AHEAD_WR) |
+//		     SST_EN_FAST_RD_AHEAD_WR)));
+  } else {
+//    SST_MEM_WR(FBIINIT2,
+//	       ((SST_MEM_RD(FBIINIT2) & ~SST_EN_FAST_RAS_READ) |
+//		SST_EN_FAST_RAS_READ));
+//    SST_MEM_WR(FBIINIT2, ((SST_MEM_RD(FBIINIT2) &
+//			   ~SST_EN_DRAM_RD_AHEAD_FIFO) | SST_EN_DRAM_RD_AHEAD_FIFO));
+//    SST_MEM_WR(FBIINIT2,
+//	       ((SST_MEM_RD(FBIINIT2) & ~SST_EN_FAST_RD_AHEAD_WR) |
+//		SST_EN_FAST_RD_AHEAD_WR));
+  }
+
+  // prevent X's on VMI control pins during vector capture
+  vidSerialParallelPort = PCI_IO_RD(IOBASE+VIDSERIALPARALLELPORT);
+  vidSerialParallelPort |= BIT(29);          // deselect vmi as a drive for vmi input signals
+  PCI_IO_WR(IOBASE+VIDSERIALPARALLELPORT, vidSerialParallelPort);
+
+  // configure video
+  vgaAddrMap = VARANDOM;
+   if ( vconfigLookup("SST_VGA_ONLY",NULL) ) {
+
+      PCI_IO_WR(IOBASE+0x070, 0x00008000);	// vid in format chrontel digital tv, no genlock
+      PCI_IO_WR(IOBASE+0x078, 0x20000002);	// VMI
+
+		// set delay1 to 4; the blank signal is not used anyway
+		miscInit0 = PCI_IO_RD(IOBASE + MISCINIT0) & 0xffff80ff; // clear the delay bits
+		PCI_IO_WR(IOBASE + MISCINIT0, (miscInit0 | BIT(13) | BIT(11) | BIT(10))); 
+
+		// bit16:14 -- set delay3 to ; delay for monitor sync out (this is set to a random number since not used by monitor model)
+		// bit13:11 -- set delay2 to 5; delay for tv sync out (this is used by the tv model)
+		// bit10:8 -- set delay1 to ; delay for tv blank out (this is used by the tv model)
+		miscInit1 = PCI_IO_RD(IOBASE + MISCINIT1);
+		PCI_IO_WR(IOBASE + MISCINIT1, (miscInit1 | BIT(29))); // invert the tv clk out
+	}
+	else { // skip video setup for vga-only diags
+    if (vconfigLookup("VGA_DISABLE_LEGACY",NULL))
+      vgaAddrMap = VAMAPPED;
+    if (vconfigLookup("VGA_DISABLE_MAPPED",NULL))
+      vgaAddrMap = VALEGACY;
+
+    if ( vconfigLookup("VGA_MOTHERBOARD",NULL) ) {
+    	// Wakeup the VGA (motherboard Style)
+      vgaInit0 = (PCI_IO_RD(IOBASE+VGAINIT0) & 0xfeff) | BIT(8);
+      PCI_IO_WR(IOBASE+VGAINIT0, vgaInit0);
+    	
+      PCI_IOW8( 0x3C3, 0x1 );	                // Setup   	
+    } else {
+      // wake up vga (Adapter Style)
+      PCI_IOW8( 0x46E8, 0x16 );	                // Setup
+      PCI_IOW8( 0x102, 0x01 );	                // Sleep bit=1
+      PCI_IOW8( 0x46E8, 0x0E );	                // Non-setup
+    
+    }
+
+    if ( vconfigLookup("VGA_MODE8",&p) ) {
+      mode = atoi(p);
+      VGA_SET_MODE(mode,0);
+    } else if ( vconfigLookup("VGA_MODE16",&p) ) {
+      mode = atoi(p);
+      VGA_SET_MODE(mode,1);
+    } else {
+      VGA_SET_MODE(0xFF,1);                     // special simulation mode 16x16
+    }
+
+    if ( vconfigLookup("SST_ENABLE_VIDEO",NULL) ) { // enable video processor
+      FxU32 data = PCI_IO_RD(IOBASE+VIDPROCCFG);
+      data |= SST_VIDEO_PROCESSOR_EN;
+      PCI_IO_WR(IOBASE+VIDPROCCFG,data);
+      printf("H3_CHIP_SETUP: Video Processor ENABLED\n");
+    }
+
+    if (fastsim) {                              // turn off video memory requests
+      FxU32 data;
+      PCI_IOW8( 0x03C4, 0x1 );
+      data = PCI_IOR8( 0x03C5 );
+      data |= 0x20;                             // turn on bit 5
+      PCI_IOW16( 0x03C4, ((data<<8) | 1) );
+      printf("H3_CHIP_SETUP: Running with VIDEO memory requests DISABLED\n");
+    }
+
+  }
+
+  // check whether AGP is enabled
+  data = PCI_CFG_RD(PCISTATUS,0x1);
+  agpEnabled = 0;
+  if (data & PCISTATUS_CAPLIST) {
+    ulong capptr;
+    capptr = PCI_CFG_RD(CAPPTR,0x1);
+    while (capptr != 0) {
+      data = PCI_CFG_RD(capptr,0x1);
+      if ((data & CAPID_MASK) >> CAPID_SHIFT  == AGP_ID)
+	agpEnabled = 1;
+      capptr = (data & NEXTPTR_MASK) >> NEXTPTR_SHIFT;
+    }
+  }
+
+  // configure AGP
+  if (agpEnabled) {
+    agpStatus = PCI_CFG_RD(AGPSTATUS,0x1);
+    if (agpStatus & AGPSTATUS_RES0 || agpStatus & AGPSTATUS_RES1 || agpStatus & AGPSTATUS_RES2) {
+      printf("H3_CHIP_SETUP: ***Config Error*** AGP Status Reserved field not 0\n");
+    }
+    if ((agpStatus & AGPSTATUS_4G) == 0)
+      printf("H3_CHIP_SETUP: ***Config Error*** AGP Status 4G not 1\n");
+    if ((agpStatus & AGPSTATUS_SBA) == 0)
+      printf("H3_CHIP_SETUP: ***Config Error*** AGP Status SBA not 1\n");
+    if ((agpStatus & AGPSTATUS_RATE) == 0)
+      printf("H3_CHIP_SETUP: ***Config Error*** AGP Status RATE not set\n");
+
+    {
+      ulong rqDepth,sysRqDepth,actual,rdata;
+      
+      rqDepth = (agpStatus & AGPSTATUS_RQDEPTH) >> AGPSTATUS_RQDEPTH_SHIFT;
+      sysRqDepth = AGP_INFO(AGP_INFO_RQDEPTH);
+      actual = (sysRqDepth > rqDepth) ? rqDepth : sysRqDepth;
+      printf("H3_CHIP_SETUP: AGP RQDEPTH %d\n",actual);
+      agpCmd = (actual << AGPCMD_RQDEPTH_SHIFT) & AGPCMD_RQDEPTH 
+	| AGPCMD_SBAENABLE
+	| AGPCMD_4G
+	| AGPCMD_ENABLE;
+      if ( (agpStatus & AGPSTATUS_RATE) >= 2 )
+	agpCmd |= (2 & AGPCMD_RATE);
+      else
+	agpCmd |= (1 & AGPCMD_RATE);
+      PCI_CFG_WR(AGPCMD,agpCmd,0x1);
+      rdata = PCI_CFG_RD(AGPCMD,0x1);
+      if (agpCmd != rdata) {
+	printf("H3_CHIP_SETUP: ***Config Error*** Unexpected AGPCMD 0x%x. Expecting 0x%x\n",
+	       rdata,agpCmd);
+      }
+    }
+  }
+
+  // init scratch register 
+  PCI_CFG_WR(CFGSCRATCH,0x12345678,0x1);
+
+    // randomize pciInit0
+    if (!fastsim) {
+      
+      pciInit0 = PCI_IO_RD(IOBASE+PCIINIT0);
+      pciInit0 &= ~(SST_PCI_LOWTHRESH | SST_PCI_READ_WS | SST_PCI_WRITE_WS | SST_PCI_RETRY_INTERVAL);
+      
+      // force threshold >= 4
+      thresh = tdfxIRandom( (SST_PCI_LOWTHRESH>>SST_PCI_LOWTHRESH_SHIFT)-4 ) + 4;
+      pciInit0 |= ( thresh<<SST_PCI_LOWTHRESH_SHIFT ) & SST_PCI_LOWTHRESH;
+      pciInit0 |= tdfxRandom() & SST_PCI_RETRY_INTERVAL;
+      if ( tdfxIRandom(1) ) 
+	pciInit0 |= SST_PCI_READ_WS;
+      if ( tdfxIRandom(1) ) 
+	pciInit0 |= SST_PCI_WRITE_WS;
+#if NYI
+      if (tdfxIRandom(1)) {
+	pciInit0 |= (SST_PCI_DISABLE_IO|SST_PCI_DISABLE_MEM);
+	printf("H3_CHIP_SETUP: PCI Disable Retries\n");
+      }
+      else {
+	pciInit0 &= ~(SST_PCI_DISABLE_IO|SST_PCI_DISABLE_MEM);
+      }
+#endif
+      PCI_IO_WR(IOBASE+PCIINIT0,pciInit0);
+      temp = PCI_IO_RD(IOBASE+PCIINIT0);
+      if (pciInit0 != temp) {
+	printf("H3_CHIP_SETUP: Error setting pciInit0 (@0x%x) to 0x%08x Read 0x%08x\n",
+	       PCIINIT0,pciInit0,temp);	
+      }
+      
+    }
+    
+    // temporarily force tiled mem to start at 8MB, so CMDFIFO will be in
+    // linear memory for 4MB and 8MB simulations
+    printf("H3_CHIP_SETUP: forcing raw lfb tiled aperture to begin at 8MB\n");
+    fflush(stdout);
+    PCI_IO_WR(IOBASE+LFBMEMORYCONFIG,0xa1800);
+    
+    if (agpEnabled && !fastsim) {
+      // randomize agpInit0
+      agpInit = tdfxRandom() & (SST_AGP_RQSIZE | SST_AGP_REQFULL_THRESH | SST_AGP_READFULL_THRESH);
+      PCI_IO_WR(IOBASE+AGPINIT,agpInit);
+      temp = PCI_IO_RD(IOBASE+AGPINIT);
+      if (agpInit != temp)
+	printf("H3_CHIP_SETUP: Error setting agpInit (@0x%x) to 0x%08x Read 0x%08x\n",AGPINIT,agpInit,temp);	
+    }
+    
+#ifdef NYIH3
+    // randomize tmuGbeInit
+    temp = tdfxRandom() & SST_TGI_READHIGH_THRESH;
+    temp |= tdfxIRandom(temp>>SST_TGI_READHIGH_THRESH_SHIFT) & SST_TGI_READLOW_THRESH;
+    temp |= tdfxRandom() & SST_TGI_PIXELHIGH_THRESH;
+    PCI_IO_WR(IOBASE+TMUGBEINIT,temp);
+    if (temp != PCI_IO_RD(IOBASE+TMUGBEINIT))
+      printf("H3_CHIP_SETUP: Error setting textureGRXBackend (@0x%x) to 0x%x\n",TMUGBEINIT,temp);	
+#endif
+
+    // Enable MEM accesses
+    PCI_CFG_WR(PCICOMMAND, (COMMAND_DEF|BIT(0)|BIT(1)), 0x1);
+
+}
+
+//
+// check register default values
+//
+#define SST_DRAMINIT0_DEFAULT 0x00579d29
+#define SST_LFBMEMCONFIG_DEFAULT 0xa1200
+#define SST_TMUGBEINIT_DEFAULT   0x555
+static void H3_CHECK_DEFAULTS()
+{
+  ulong temp;
+#if 0
+  // dramInit0 now has several strapping bits, default is no longer constant
+
+  // dramInit0
+  temp = PCI_IO_RD(IOBASE+DRAMINIT0);
+  if (temp != SST_DRAMINIT0_DEFAULT)
+    printf("H3_CHECK_DEFAULTS: dramInit0 is 0x%x, not at default value 0x%x\n",
+	   temp,SST_DRAMINIT0_DEFAULT);
+#endif
+
+#ifdef NYIH3  
+  // lfbMemConfig
+  temp = PCI_IO_RD(IOBASE+LFBMEMORYCONFIG);
+  if (temp != SST_LFBMEMCONFIG_DEFAULT)
+    printf("H3_CHECK_DEFAULTS: lfbMemConfig is 0x%x, not at default value 0x%x\n",
+	   temp,SST_LFBMEMCONFIG_DEFAULT);
+
+  // tmuGbeInit
+  temp = PCI_IO_RD(IOBASE+TMUGBEINIT);
+  if (temp != SST_TMUGBEINIT_DEFAULT)
+    printf("H3_CHECK_DEFAULTS: tmuGbeInit is 0x%x, not at default value 0x%x\n",
+	   temp,SST_TMUGBEINIT_DEFAULT);	
+#endif
+}
+
+static FxU32 vgaWrite8(FxU32 daddr,FxU32 data) {
+  int rr;
+  switch(vgaAddrMap) {
+  case VARANDOM: rr = tdfxRandom() >> 5 & 0x1; break;
+  case VALEGACY: rr = 0; break;
+  case VAMAPPED: rr = 1; break;
+  }
+  switch(rr) {
+  case 0:
+    PCI_IOW8(daddr,data);
+    break;
+  case 1:
+    PCI_IOW8(IOBASE+(daddr & 0xFF),data);
+    break;
+  }
+}
+
+static FxU32 vgaWrite16(FxU32 daddr,FxU32 data) {
+  int rr;
+  switch(vgaAddrMap) {
+  case VARANDOM: rr = tdfxRandom() >> 5 & 0x1; break;
+  case VALEGACY: rr = 0; break;
+  case VAMAPPED: rr = 1; break;
+  }
+  switch(rr) {
+  case 0:
+    PCI_IOW16(daddr,data);
+    break;
+  case 1:
+    PCI_IOW16(IOBASE+(daddr & 0xFF),data);
+    break;
+  }
+
+}
+
+static FxU32 vgaRead8(FxU32 daddr) {
+  int rr;
+  FxU32 data;
+  switch(vgaAddrMap) {
+  case VARANDOM: rr = tdfxRandom() >> 5 & 0x1; break;
+  case VALEGACY: rr = 0; break;
+  case VAMAPPED: rr = 1; break;
+  }
+  switch(rr) {
+  case 0:
+    data = PCI_IOR8(daddr);
+    break;
+  case 1:
+    data = PCI_IOR8(IOBASE+(daddr & 0xFF));
+    break;
+  }
+  return(data);
+}
+
+//
+// set the vga mode using 8- or 16-bit io's
+//
+
+int VGA_SET_MODE(mode,io16)
+  ulong mode, io16;
+{
+  ulong v;
+  ulong expect;
+  ulong * vga_mode;
+
+  switch (mode) {
+  case 0x0:	vga_mode = mode0_200;      break;
+  case 0x2:	vga_mode = mode2_480;      break;
+  case 0x3:	vga_mode = mode03_200;     break;
+  case 0x4:	vga_mode = mode4_200;      break;
+  case 0x6:	vga_mode = mode6_200;      break;
+  case 0xe:	vga_mode = mode0e_200;     break;
+  case 0x10:	vga_mode = mode10_350;     break;
+  case 0x12:	vga_mode = mode12_480;     break;
+  case 0x13:	vga_mode = mode13_200;     break;
+  case 0xFE:	vga_mode = modeFF_16;      break;
+  case 0xFF:	vga_mode = modeFF_16;      break;
+  default: 	return(-1);	/* Fail */
+  }
+
+  vgaWrite8( 0x03C2, vga_mode[MISC_REG] );	 //Misc Output Register 3C2
+
+  if ( io16 ) {
+
+   if(mode != 0xFE)
+	{
+    for (v=0; v <= 24 ; v++)
+      vgaWrite16( 0x03D4,  (vga_mode[v+CRTC_REG]<<8) | v );
+   }
+    
+    for (v=0; v <= 4 ; v++)
+      vgaWrite16( 0x03C4, (vga_mode[v+SEQ_REG]<<8) | v );
+    
+    for (v=0; v <= 8 ; v++)
+      vgaWrite16( 0x03CE, (vga_mode[v+GR_REG]<<8) | v );
+    
+  } else {
+    
+   if(mode != 0xFE)
+	{
+      for (v=0; v <= 24 ; v++) {
+       vgaWrite8( 0x03D4, v );
+       vgaWrite8( 0x03D5, vga_mode[v+CRTC_REG]);
+     } 
+	 }
+    
+    for (v=0; v <= 4 ; v++) {
+      vgaWrite8( 0x03C4, v );
+      vgaWrite8( 0x03C5, vga_mode[v+SEQ_REG]);
+    } 
+    
+    for (v=0; v <= 8 ; v++) {
+      vgaWrite8( 0x03CE, v );
+      vgaWrite8( 0x03CF, vga_mode[v+GR_REG]);
+    } 
+    
+  }
+  
+  //Make Sure Attribute Index register is Initialized 
+  expect = vgaRead8(0x3DA);
+  
+  for (v=0; v <= 19 ; v++) {
+    vgaWrite8( 0x03C0, v );
+    vgaWrite8( 0x03C0, vga_mode[v+ATTR_REG]);
+  } 
+  
+  vgaWrite8( 0x03DA, 0x00 );	 //Feature Control 3xA
+
+  return 0;
+}
+

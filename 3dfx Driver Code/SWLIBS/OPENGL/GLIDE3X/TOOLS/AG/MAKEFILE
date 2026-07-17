@@ -1,0 +1,28 @@
+
+TARGETS	= ag
+CFILES	= ag.c agyacc.c aglex.c
+OBJECTS	= $(CFILES:.c=.o)
+YFLAGS	= -d
+
+LEX = $(BUILD_ROOT_SWLIBS)\binsrc\flex.exe
+YACC = $(BUILD_ROOT_SWLIBS)\binsrc\bison.exe 
+
+!include $(BUILD_ROOT_SWLIBS)/include/nmake/3dfx.mak
+
+#ag: $(OBJECTS)
+#	$(CC) -o ag $(OBJECTS) $(LDFLAGS)
+
+aglex.obj: aglex.l y.tab.h
+	$(LEX) aglex.l
+	$(CC) lexyy.c /c /Fo"aglex.obj"
+
+y.tab.h agyacc.obj: agyacc.y
+	$(YACC) $(YFLAGS) agyacc.y
+	$(CC) agyacc_tab.c /DMSDOS /c /Fo"agyacc.obj"
+
+ag.obj: ag.c
+	$(CC) ag.c /c
+
+ag: ag.obj aglex.obj agyacc.obj
+	$(LINK) -o ag.exe ag.obj agyacc.obj aglex.obj $(LDFLAGS)
+

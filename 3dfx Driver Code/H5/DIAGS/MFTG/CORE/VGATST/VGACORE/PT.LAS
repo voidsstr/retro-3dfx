@@ -1,0 +1,2 @@
+0 
+1 0 21 79 1495 C:\VD3_2\CORE\VGATST\VGACORE\corevga.c 

@@ -1,0 +1,111 @@
+//{{NO_DEPENDENCIES}}
+// Microsoft Developer Studio generated include file.
+// Used by foo.rc
+//
+#define IDC_BUTTON_FRONT                3
+#define IDC_BUTTON_BACK                 4
+#define IDC_BUTTON_AUX                  5
+#define IDC_BUTTON_GUI                  6
+#define IDD_ABOUTBOX                    102
+#define IDR_APPMENU                     103
+#define IDR_APPMENU1                    104
+#define IDD_CSIM_MAIN                   106
+#define IDD_CSIM_VIEW                   107
+#define IDI_CSIM                        111
+#define IDR_ACCELERATOR1                112
+#define IDI_CHILD                       113
+#define IDC_CHECK1                      1000
+#define IDC_CHECK2                      1001
+#define IDC_CHECK3                      1002
+#define IDC_CHECK4                      1003
+#define IDC_CHECK5                      1004
+#define IDC_CHECK6                      1005
+#define IDC_CHECK7                      1006
+#define IDC_RADIO1                      1007
+#define IDC_RADIO2                      1008
+#define IDC_RADIO3                      1009
+#define IDC_RADIO4                      1010
+#define IDC_RADIO5                      1011
+#define IDC_RADIO6                      1012
+#define IDC_RADIO7                      1013
+#define IDC_RADIO8                      1014
+#define IDC_EDIT1                       1015
+#define IDC_EDIT2                       1016
+#define IDC_EDIT3                       1017
+#define IDC_EDIT4                       1018
+#define IDC_EDIT5                       1019
+#define IDC_RADIO9                      1019
+#define IDC_EDIT6                       1020
+#define IDC_EDIT7                       1021
+#define IDC_EDIT8                       1022
+#define IDC_EDIT9                       1023
+#define IDC_EDIT10                      1024
+#define IDC_EDIT11                      1025
+#define IDC_EDIT12                      1026
+#define IDC_COMBO_GDBG                  1027
+#define IDC_BUTTON_GDBG                 1028
+#define IDC_UPDOWN1                     2001
+#define IDC_UPDOWN2                     2002
+#define IDC_UPDOWN3                     2003
+#define IDC_STATUSBAR                   3001
+#define ID_FILE_EXIT                    40001
+#define IDS_PAUSED                      40002
+#define IDS_DEBUGMENU                   40003
+#define ID_WINDOW_NEWWINDOW             40004
+#define ID_WINDOW_CLOSE_ALL             40005
+#define ID_WINDOW_CLOSE                 40006
+#define ID_HELP_CONTENTS                40007
+#define ID_FILE_SAVEAS                  40010
+#define ID_VIEW_PROPERTIES              40014
+#define ID_HELP_ABOUT                   40018
+#define ID_VIEW_STATUSBAR               40024
+#define IDS_READY                       40025
+#define IDS_SYSMENU                     40026
+#define IDS_FILEMENU                    40027
+#define IDS_VIEWMENU                    40028
+#define IDS_WINDOWMENU                  40029
+#define IDS_HELPMENU                    40030
+#define ID_WINDOW_REFRESH               40031
+#define ID_DEBUG_GO                     40033
+#define ID_DEBUG_BREAK                  40034
+#define ID_VIEW_ZOOM_11                 40035
+#define ID_VIEW_ZOOM_21                 40036
+#define ID_VIEW_ZOOM_31                 40037
+#define ID_VIEW_ZOOM_41                 40038
+#define ID_VIEW_ZOOM_51                 40039
+#define ID_VIEW_ZOOM_61                 40040
+#define ID_VIEW_ZOOM_71                 40041
+#define ID_VIEW_ZOOM_81                 40042
+#define ID_VIEW_ZOOM_91                 40043
+#define ID_VIEW_ZOOM_101                40044
+#define ID_VIEW_ZOOM_111                40045
+#define ID_VIEW_ZOOM_121                40046
+#define ID_VIEW_ZOOM_131                40047
+#define ID_VIEW_ZOOM_141                40048
+#define ID_VIEW_ZOOM_151                40049
+#define ID_VIEW_ZOOM_161                40050
+#define ID_VIEW_FILTER_NONE             40052
+#define ID_VIEW_FILTER_EXPAND           40053
+#define ID_VIEW_FILTER_2X2              40054
+#define ID_VIEW_FILTER_4X1              40055
+#define ID_VIEW_HEXADECIMAL             40056
+#define ID_WINDOW_PROPERTIES            40057
+#define ID_WINDOW_FIT                   40058
+#define IDS_WINDOW_SIZE                 61440
+#define IDS_WINDOW_MOVE                 61456
+#define IDS_WINDOW_MINIMIZE             61472
+#define IDS_WINDOW_MAXIMIZE             61488
+#define IDS_WINDOW_CLOSE                61536
+#define IDS_WINDOW_RESTORE              61728
+#define IDS_WINDOW_SWITCH_TO            61744
+
+// Next default values for new objects
+// 
+#ifdef APSTUDIO_INVOKED
+#ifndef APSTUDIO_READONLY_SYMBOLS
+#define _APS_NEXT_RESOURCE_VALUE        116
+#define _APS_NEXT_COMMAND_VALUE         40059
+#define _APS_NEXT_CONTROL_VALUE         1026
+#define _APS_NEXT_SYMED_VALUE           106
+#endif
+#endif

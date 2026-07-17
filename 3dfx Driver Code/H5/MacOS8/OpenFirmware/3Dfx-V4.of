@@ -1,0 +1,627 @@
+\ ***************************************************************
+\ * Sample FCode driver for a "display" card.
+\ *
+\ * Note that this version supports the Multi-color Terminal
+\ * Emulator extension, as implemented in the A7 (and, beyond) ROM.
+\ * The exact behavior of the Terminal Emulator may change.
+\ *
+\ * In particular, the new version will set FOREGROUND-COLOR
+\ * and BACKGROUND-COLOR to 0 and 15 if it detects our
+\ * "ISO6429-1983-COLORS" property.  This version of the driver
+\ * initializes the CLUT based upon whether it detects the presence
+\ * of an implementation of FOREGROUND-COLOR.  If not, it will
+\ * initialize so that the standard 1275 Terminal Emulator works.
+\ ***************************************************************
+
+\ ***************************************************************
+\ *  NOTE:  The following PCI-HEADER arguments are correct for this
+\ * card.  They MUST correspond to your devices Device-ID, Vendor-ID
+\ * and CLASS-CODE.
+\ ***************************************************************
+tokenizer[ hex 121a 0009 030000 decimal ]tokenizer PCI-HEADER
+
+FCODE-VERSION2
+
+HEADERLESS
+0 value VOODOO3#		\ config #
+
+0 value REG-BASE		\ for H3 register accesses
+0 value REG-BASE-PHYS	\ for H3 register accesses (physical)
+0 value REG-SPACE-SIZE	\ size of
+0 value LFB-BASE		\ linear framebuffer address space
+0 value LFB-BASE-PHYS	\ linear framebuffer address space (physical)
+0 value LFB-SPACE-SIZE	\ linear framebuffer address space
+0 value IO-BASE			\ for I/O cycle generationinstance
+0 value IO-BASE-PHYS	\ from "assigned addresses"instance
+0 value IO-SPACE-SIZE	\ from 2nd config
+
+0 value ROM-SPACE-SIZE	\ linear framebuffer address space
+
+: >Command	h# 04 + ;
+: >Base0	h# 10 + ;
+: >Base1	h# 14 + ;
+: >Base2	h# 18 + ;
+: >RomBase	h# 30 + ;
+: config-b@	" config-b@"	$call-parent ;
+: config-b!	" config-b!"	$call-parent ;
+: config-w@	" config-w@"	$call-parent ;
+: config-w!	" config-w!"	$call-parent ;
+: config-l@	" config-l@"	$call-parent ;
+: config-l!	" config-l!"	$call-parent ;
+: command-set	VOODOO3# >Command tuck config-w@ or  swap config-w! ;
+: command-clr	invert VOODOO3# >Command tuck config-w@ and swap config-w! ;
+: io-b@		io-base + rb@ ;
+: io-b!		io-base + rb! ;
+: reg-l@	reg-base + rl@ ;
+: reg-l!	reg-base + rl! ;
+: map-in	" map-in"	$call-parent ;
+: map-out	" map-out"	$call-parent ;
+: ENCODE-PCI-REG
+	>r >r VOODOO3# or encode-int rot encode-int encode+ rot encode-int encode+
+	r> r> encode-int rot encode-int encode+ encode+
+	;
+
+hex
+\ following are offsets from Memory Base 0
+0000 constant kREGstatus
+0004 constant kREGpciInit0
+000C constant kREGlfbMemoryConfig
+0010 constant kREGmiscInit0
+0014 constant kREGmiscInit1
+0018 constant kREGdramInit0
+001C constant kREGdramInit1
+0028 constant kREGvgaInit0
+002C constant kREGvgaInit1
+0030 constant kREGdramCommand
+0034 constant kREGdramData
+0038 constant kREGstrapInfo
+0040 constant kREGpllCtrl0
+0044 constant kREGpllCtrl1
+0048 constant kREGpllCtrl2
+004c constant kREGdacMode
+0050 constant kREGdacAddr
+0054 constant kREGdacData
+005C constant kREGvidProcCfg
+0098 constant kREGvidScreenSize
+009c constant kREGvidOverlayStartCoords
+00a0 constant kREGvidOverlayEndScreenCoord
+00e4 constant kREGvidDesktopStartAddr
+00e8 constant kREGvidDesktopOverlayStride
+
+\ VGA relative IO addresses (for DAC)
+00C6 constant kPixelMask
+00C7 constant kRamRead
+00C8 constant kRamWrite
+00C9 constant kRamData
+0078 constant kREGI2C
+
+\ I hope this isn't too painful...
+00000001 constant kBit0
+00000002 constant kBit1
+00000004 constant kBit2
+00000008 constant kBit3
+00000010 constant kBit4
+00000020 constant kBit5
+00000040 constant kBit6
+00000080 constant kBit7
+00000100 constant kBit8
+00000200 constant kBit9
+00000400 constant kBit10
+00000800 constant kBit11
+00001000 constant kBit12
+00002000 constant kBit13
+00004000 constant kBit14
+00008000 constant kBit15
+00010000 constant kBit16
+00020000 constant kBit17
+00040000 constant kBit18
+00080000 constant kBit19
+00100000 constant kBit20
+00200000 constant kBit21
+00400000 constant kBit22
+00800000 constant kBit23
+01000000 constant kBit24
+02000000 constant kBit25
+04000000 constant kBit26
+08000000 constant kBit27
+10000000 constant kBit28
+20000000 constant kBit29
+40000000 constant kBit30
+80000000 constant kBit31
+
+
+decimal
+
+	my-space to VOODOO3#
+	VOODOO3# >base0 config-l@
+	encode-int " base0" property
+	
+	-1 VOODOO3# >base0 config-l!
+	\ VOODOO3# >base0 config-l@  h# FFFFFFF0 and negate to reg-space-size
+	\ I'm going to lie and claim I need 256MB in an attempt to end up in a
+	\ dedicated memory segment.
+	h# 10000000 to reg-space-size
+	0 VOODOO3# >base0 config-l!
+	
+	VOODOO3# >base1 config-l@
+	encode-int " base1" property
+
+	-1 VOODOO3# >base1 config-l!
+	\ VOODOO3# >base1 config-l@  h# FFFFFFF0 and negate to lfb-space-size
+	\ I'm going to lie and claim I need 256MB in an attempt to end up in a
+	\ dedicated memory segment.
+	h# 10000000 to lfb-space-size
+	0 VOODOO3# >base1 config-l!
+
+	VOODOO3# >base2 config-l@
+	encode-int " base2" property
+
+	-1 VOODOO3# >base2 config-l!
+	\ VOODOO3# >base2 config-l@  h# FFFFFFFC and negate to io-space-size
+	\ Again, we lie and ask for twice as much I/O space as we need.
+	h# 00001000 to io-space-size
+	0 VOODOO3# >base2 config-l!
+
+	-1 VOODOO3# >rombase config-l!
+	VOODOO3# >rombase config-l@  h# FFFFFFF0 and negate to rom-space-size
+	0 VOODOO3# >rombase config-l!
+	
+	" 3dfx,Voodoo4" device-name
+	0 0 0  0 0
+	  encode-pci-reg
+	0 0 h# 02000010   reg-space-size 0
+	  encode-pci-reg  encode+
+	0 0 h# 02000014   lfb-space-size 0
+	  encode-pci-reg  encode+
+	0 0 h# 01000018   io-space-size 0
+	  encode-pci-reg  encode+
+	0 0 h# 02000030   rom-space-size 0
+	  encode-pci-reg  encode+
+	  
+	\ I don't report these since they are always disabled anyway.  
+	\ VGA Sleep Register - not relocatable
+	\ h# 102 0 my-space h# a1000000 or encode-phys encode+
+	\ 0 encode-int encode+ h# 1 encode-int encode+
+	\ VGA monochrome emulation mode registers
+	\ h# 3b0 0 my-space h# a1000000 or encode-phys encode+
+	\ 0 encode-int encode+ h# c encode-int encode+
+	\ VGA control and color emulation mode registers
+	\ h# 3c0 0 my-space h# a1000000 or encode-phys encode+
+	\ 0 encode-int encode+ h# 20 encode-int encode+
+	\ VGA subsystem enable register
+	\ h# 46e8 0 my-space h# a1000000 or encode-phys encode+
+	\ 0 encode-int encode+ h# 1 encode-int encode+
+	\ VGA frame buffer
+	\ h# a0000 0 my-space h# a1000000 or encode-phys encode+
+	\ 0 encode-int encode+ h# 20000 encode-int encode+
+	
+		" reg" property
+	" display" device-type
+	" Voodoo4" model
+	" ISO8859-1" encode-string " character-set" property
+	
+	640 encode-int	" width" property
+	480 encode-int	" height" property
+	8 encode-int	" depth" property
+	640 encode-int	" linebytes" property
+	0 0	encode-bytes " iso6429-1983-colors" property		\ we support extensions
+
+    encode-file Voodoo4Driver   " driver,AAPL,MacOS,PowerPC" property
+	
+: grey-clut
+	0 kRamWrite io-b!
+	h# 100 0 do				\ initialize to smooth grey
+		h# FF i -
+		dup kRamData io-b!	\ red
+		dup kRamData io-b!	\ green
+		kRamData io-b!	\ blue
+	loop
+	;
+
+: h3-initpci
+	\ kREGpciInit0 reg-l@	
+	\ h# 00400300 or
+	h# 01800320
+	kREGpciInit0 reg-l!	
+	;
+
+0 value tempValue
+
+: h3-resetall
+	kREGmiscInit1 reg-l@ dup
+	kBit19 or			\ SST_CMDSTREAM_RESET
+	kREGmiscInit1 reg-l!
+	kREGmiscInit0 reg-l@	
+	kBit0   			\ SST_GRX_RESET
+	kBit1 or			\ SST_FBI_FIFO_RESET
+	kBit4 or			\ SST_VIDEO_RESET
+	kBit5 or			\ SST_2D_RESET
+	kBit6 or			\ SST_MEMORY_TIMING_RESET
+	kBit7 or			\ SST_VGA_TIMING_RESET
+	to tempValue			
+	dup tempValue or			
+	kREGmiscInit0 reg-l!
+	tempValue invert and 	
+	kREGmiscInit0 reg-l!
+	kBit19 invert and		
+	kREGmiscInit1 reg-l!
+	;
+
+: h3-initpll
+	\ h# 00003A05 kREGpllCtrl1 reg-l!	\ 143.181800 Mhz
+    h# 0000e721 kRegpllCtrl1 reg-l! \ This is the FCC-compliant 166.8Mz speed.
+	\ h# 00003F05 kRegpllCtrl1 reg-l! \ This is the FCC-compliant 155Mz speed.
+	;
+
+\ This is sorta gnarly
+
+0 value dramInit1strap
+0 value dramInit0strap
+0 value dramInit1
+0 value dramInit0
+0 value nChips
+0 value partSize
+0 value memSize
+0 value memType
+
+: h3-initram
+	0 to memType
+	kREGdramInit1 reg-l@ kBit30 and	to dramInit1strap \ SST_MCTL_TYPE_SDRAM
+	dramInit1strap kBit30 = if
+		1 to memType
+	then
+
+	\ set up dramInit1
+	kBit0 				\ SST_DRAM_REFRESH_EN
+	h# 18 1 << or		\ (0x18 << SST_DRAM_REFRESH_VALUE_SHIFT) & SST_DRAM_REFRESH_VALUE
+	kBit14 or			\ SST_SGRAM_USE_INV_SAMPLE
+	kBit15 or			\ SST_SGRAM_DEL_CLK_INVERT
+	h# 6 16 << or		\ (3 << SST_SGRAM_CLK_ADJ_SHIFT)
+	h# 5 20 << or		\ (5 << SST_SGRAM_OFLOP_DEL_ADJ_SHIFT)
+	dramInit1strap or	\ get kind of memory from strapping info
+	kREGdramInit1 reg-l!
+	
+	\ set up dramInit0
+	kREGdramInit0 reg-l@
+	kBit26 kBit27 kBit28 kBit29 kBit30 or or or or
+	and to dramInit0strap
+	
+	dramInit0strap kBit26 and 0 = if   \ SST_SGRAM_NUM_CHIPSETS
+	    4 	
+	else 
+	    8
+    then
+    to nChips
+    
+    8 dramInit0strap 27 >> 7 and << to partSize \ get SST_H5_SGRAM_TYPE    
+    nChips partSize * 8 / to memSize
+
+	\ Get initial sgramMode & dramInit0 parameters
+	memType 1 = if
+		h# 00000037 h# 001ea9b9			( sgramMode dramInit0 )	\ Generic SDRAM
+	else
+		partSize 8 = if
+			h# 00000037 h# 001ea9b9		( sgramMode dramInit0 )	\ Generic 8Mbit SGRAM
+		else
+			h# 00000037 h# 001ea9b9		( sgramMode dramInit0 )	\ Generic 16Mbit SGRAM
+		then
+	then
+	
+	( sgramMode dramInit0 )
+	kBit27 kBit26 or invert and
+	dramInit0strap or
+	kREGdramInit0 reg-l!
+	
+	( sgramMode )
+	kREGdramData reg-l!
+	h# 10d kREGdramCommand reg-l!
+	
+	memType 0 = if
+		h# FFFFFFFF kREGdramData reg-l!
+		h# 10e kREGdramCommand reg-l!
+		h# 00000000 kREGdramData reg-l!
+		h# 10f kREGdramCommand reg-l!
+	then
+	
+	memType 1 = if
+		kREGmiscInit1 reg-l@
+		kBit15 or
+		kREGmiscInit1 reg-l!
+	then
+	;
+	
+hex	
+: attr-table
+	" "(00 00 00 00 00  00 00 00 00 00  00 00 00 00 00  00 01 00 0F 00)" 
+	;
+\ "dummy comment
+
+: mode-table
+    " "(00 5f 01 4f 02 4f 03 83 04 52 05 9e 06 0b 07 3e 09 40 10 ea 11 2c 12 df 15 df 16 0c 1a 20 1b 00 17 80)"
+    ;
+\ "dummy comment
+	
+decimal
+
+: h3-initvga
+	kBit2			\ SST_VGA0_CLUT_SELECT
+	kBit6 or		\ SST_VGA0_EXTENSIONS
+	kBit8 or		\ SST_WAKEUP_3C3
+	kBit9 or		\ SST_VGA0_DISABLE_DECODE
+	kREGvgaInit0 reg-l!
+	0 kREGvgaInit1 reg-l!
+	1 h# c3 io-b!
+	kREGmiscInit1 reg-l@
+	kBit0 or
+	kREGmiscInit1 reg-l!
+	
+	h# cf 1 or h# c2 io-b!
+
+	mode-table 0 do       \ addr
+		dup i + c@ h# d4 io-b!
+		dup i 1+ + c@ h# d5 io-b!
+	2 +loop drop
+
+	h# 727d kREGpllCtrl0 reg-l!
+	h# 00 kREGdacMode reg-l!
+	
+	h# 01 h# c4 io-b!
+	h# 21 kBit5 invert and h# c5 io-b!
+	h# 00 h# c4 io-b!
+	h# 03 h# c5 io-b!
+	kREGvgaInit0 reg-l@
+	kBit12 or
+	kREGvgaInit0 reg-l!
+	
+	h# 0da io-b@ drop	\ Force index mode
+	
+	attr-table 0 do dup i + c@ i h# c0 io-b! h# c0 io-b! loop drop
+	
+	h# 34 h# c0 io-b!
+	h# 00 h# da io-b!
+	
+	;
+
+: h3-initdesktop
+	480 12 << 640 or kREGvidScreenSize reg-l!
+	0 kREGvidOverlayStartCoords reg-l!
+	479 12 << 639 or kREGvidOverlayEndScreenCoord reg-l!
+	
+	h# 400 h# a0000 or kREGlfbMemoryConfig reg-l!
+	
+	kBit0 kBit7 or kREGvidProcCfg reg-l!
+	0 kREGvidDesktopStartAddr reg-l!
+	640 kREGvidDesktopOverlayStride reg-l!
+	
+	\ reset graphics controller due to size change
+	kREGvidProcCfg reg-l@
+	kBit0 invert and dup
+	kREGvidProcCfg reg-l!
+	kBit0 or
+	kREGvidProcCfg reg-l!
+	
+	grey-clut
+	;
+	
+: h3-getbaseregs
+	0 to REG-BASE-PHYS
+	0 to LFB-BASE-PHYS
+	0 to IO-BASE-PHYS
+	
+	" assigned-addresses" get-my-property abort" no assigned-addresses"
+	begin									\ search for my REG base
+		dup while
+		decode-phys h# FF and h# 10 = if	\ this is for BASE0
+			drop to REG-BASE-PHYS
+		  else
+			2drop
+		  then
+		decode-int drop decode-int drop		\ size values
+		repeat
+	2drop									\ drop final prop.adr prop.len pair
+
+	" assigned-addresses" get-my-property abort" no assigned-addresses"
+	begin									\ search for my LFB base
+		dup while
+		decode-phys h# FF and h# 14 = if	\ this is for BASE1
+			drop to LFB-BASE-PHYS
+		  else
+			2drop
+		  then
+		decode-int drop decode-int drop		\ size values
+		repeat
+	2drop									\ drop final prop.adr prop.len pair
+
+	" assigned-addresses" get-my-property abort" no assigned-addresses"
+	begin									\ search for my IO base
+		dup while
+		decode-phys h# FF and h# 18 = if	\ this is for BASE2
+			drop to IO-BASE-PHYS
+		  else
+			2drop
+		  then
+		decode-int drop decode-int drop		\ size values
+		repeat
+	2drop									\ drop final prop.adr prop.len pair
+	;
+	
+: h3-mapregs
+	REG-BASE-PHYS 0 h# 02000000 VOODOO3# or
+		REG-SPACE-SIZE map-in to REG-BASE	\ get register access
+	;
+
+: h3-mapio	
+	IO-BASE-PHYS 0 h# 01000000 VOODOO3# or
+		IO-SPACE-SIZE map-in to IO-BASE		\ get io access
+	;
+	
+: h3-maplfb		
+	LFB-BASE-PHYS 0 h# 02000000 VOODOO3# or
+		LFB-SPACE-SIZE map-in to LFB-BASE		\ get lfb access
+	
+	LFB-BASE encode-int " address" property
+	;
+	
+: VOODOO3init
+	VOODOO3# >base0 config-l@
+	encode-int " base0-open" property
+	VOODOO3# >base1 config-l@
+	encode-int " base1-open" property
+	VOODOO3# >base2 config-l@
+	encode-int " base2-open" property
+	
+	3 command-set							\ enable both RAM and I/O cycles
+
+	h3-getbaseregs
+	h3-mapregs
+	h3-mapio
+	h3-initpci
+	h3-resetall
+	h3-initpll
+	h3-initram
+	h3-initvga
+	h3-initdesktop
+
+	reg-base reg-space-size map-out				\ don't need regs anymore
+	io-base io-space-size map-out				\  nor, I/O
+	1 command-clr								\ disable I/O for shared environment
+	h3-maplfb									\ map in framebuffer
+	;
+
+decimal
+
+variable RGB-temp	\ used for COLOR! & COLOR@
+: map-in-io
+	IO-BASE-PHYS 0 h# 01000000 VOODOO3# or IO-SPACE-SIZE map-in to io-base
+	1 command-set						\ enable I/O accesses
+	;
+	
+: map-out-io
+	1 command-clr						\ disable I/O
+	io-base io-space-size map-out
+	;
+	
+EXTERNAL
+
+\ ******* the following are new routines added by the Terminal Emulator Extensions
+: SET-COLORS	( adr index #indices -- )
+	map-in-io
+	swap kRamWrite io-b!				\ initialize index
+	( #indices ) 0 ?do				( adr )
+		dup c@  kRamData io-b! 1+	( adr )		\ R
+		dup c@  kRamData io-b! 1+	( adr )		\ G
+		dup c@  kRamData io-b! 1+	( adr )		\ B
+		loop						( adr )
+	drop
+	map-out-io
+	;
+	
+: GET-COLORS	( adr index #indices -- )
+	map-in-io
+	swap kRamRead io-b!					\ initialize index
+	( #indices ) 0 ?do				( adr )
+		kRamData io-b@ over c! 1+	( adr )		\ R
+		kRamData io-b@ over c! 1+	( adr )		\ G
+		kRamData io-b@ over c! 1+	( adr )		\ B
+		loop						( adr )
+	drop
+	map-out-io
+	;
+	
+: COLOR!		( r g b index -- )
+	>r RGB-temp 2+ tuck c! 1- tuck c! 1- c!		\ setup our packed buffer
+	RGB-temp r> 1 set-colors					\  and, use our own code
+	;
+
+: COLOR@		( index -- r g b )
+	RGB-temp swap 1 get-colors					\ fetch one set
+	RGB-temp dup c@ swap 1+ dup c@ swap 1+ c@	\ split them out
+	;
+
+: DRAW-RECTANGLE	( adr x y w h -- )
+	2swap 640 * + frame-buffer-adr +
+	swap 0 ?do
+		3dup swap move
+		>r tuck + swap r>
+		640 +
+	loop
+	3drop
+	;
+		
+: FILL-RECTANGLE	( index x y w h -- )
+	2swap 640 * + frame-buffer-adr +
+	swap 0 ?do
+		3dup swap rot fill
+		640 +
+	loop
+	3drop	
+	;
+	
+: READ-RECTANGLE	( adr x y w h -- )
+	2swap 640 * + frame-buffer-adr +
+	swap 0 ?do
+		3dup -rot move
+		>r tuck + swap r>
+		640 +
+	loop
+	3drop
+	;
+
+: DIMENSIONS 640 480 ;
+
+\ ***************************************************************
+\ Note that MY-OPEN does not return the flag associated with
+\ the OPEN call.  The shell code generated by Open Firmware for
+\ the IS-INSTALL word generates the result value.
+\ ***************************************************************
+
+: my-open
+	Voodoo3init
+
+\ **********************************************************************
+\ * Note:  the CLUT setup is being done depending upon the presence of
+\ * the FOREGROUND-COLOR FCode (which is new for 16-Color Extension).
+\ **********************************************************************
+
+\ ** detect if Terminal Emulator can support 16-colors
+	h# 168 get-token drop  ['] ferror  <> if
+
+		\ *** 16-color is supported by Terminal Emulator, so setup CLUT
+		\		black    red  green  brown   blue  magenta cyan  white
+			" "(000000 AA0000 00AA00 AA5500 0000AA AA00AA 00AAAA AAAAAA)" drop
+				0 8 set-colors
+		\		grey     red  green  yellow  blue  magenta cyan  white
+			" "(AAAAAA FF0000 00FF00 FFFF00 0000FF FF00FF 00FFFF FFFFFF)" drop
+				8 8 set-colors
+		15		\ leave WHITE background fill for clear routine
+
+	  else	\ ** 16-color support not present, setup for standard 1275
+
+		 0  0  0	0		color!		\ initialize BACKGROUND color
+		-1 -1 -1	h# FF	color!		\ initialize FOREGROUND color
+		0		\ leave WHITE background for clear
+
+	  then
+
+
+	( background ) LFB-BASE h# 00200000 rot fill		\ clear the buffer
+
+	default-font set-font
+	640 480 100 40 fb8-install
+	LFB-BASE to frame-buffer-adr
+	;
+
+['] my-open is-install
+
+: my-close
+	LFB-BASE LFB-SPACE-SIZE map-out
+	2 command-clr
+	
+	" address" delete-property
+	;
+	
+['] my-close is-remove
+
+FCODE-END
+
+PCI-END

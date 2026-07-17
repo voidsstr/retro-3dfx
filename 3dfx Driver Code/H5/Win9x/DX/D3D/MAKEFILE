@@ -1,0 +1,1177 @@
+##
+## Copyright (c) 1997, 3Dfx Interactive, Inc.
+## All Rights Reserved.
+##
+## This is UNPUBLISHED PROPRIETARY SOURCE CODE of 3Dfx Interactive, Inc.;
+## the contents of this file may not be disclosed to third parties, copied or
+## duplicated in any form, in whole or in part, without the prior written
+## permission of 3Dfx Interactive, Inc.
+##
+## RESTRICTED RIGHTS LEGEND:
+## Use, duplication or disclosure by the Government is subject to restrictions
+## as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+## and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+## successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished  -
+## rights reserved under the Copyright Laws of the United States.
+##
+## $Log: /DEVEL/h5/Win9x/DX/d3d/makefile $
+# 
+# 1     11/12/99 4:27p Skephart
+# 
+# 12    8/25/99 3:27p Adrians
+# Updated for new build environment.
+# 
+# 11    8/11/99 9:35a Msmith
+# I included $(BRDCFLAGS) in the CFLAGS32 so that the STBPERF.INC file
+# can be included to turn on and off performance optimizations in D3D
+# code.
+# 
+# 10    7/28/99 11:59p Bseitsin
+# Changes to enable DX7 for W9x.
+# 
+# 9     6/21/99 12:44p Andrew
+# removed HAL_CSIM ifdef
+# 
+# 8     6/18/99 3:17p Michael
+# make HP= case insensitive (ie. H5 or h5, H4 or h4)
+# 
+# 7     6/07/99 9:48a Cshaw
+# Use Napalm combineMode by default.
+# 
+# 6     6/04/99 7:15p Bseitsin
+# 24bit Z/8bit stencil mods.
+# 
+# 5     6/04/99 1:13p Cwilcox
+# Removed obsolete H3_AGP_WORKAROUND variable.
+# 
+# 4     6/03/99 12:04p Cshaw
+# Added environ var NAPALM_CU for compiling with combineMode
+# 
+# 3     6/03/99 9:02a Andrew
+# Added SLI AA flag
+# 
+# 2     6/02/99 2:49p Edwin
+# Remove MULTIMON definition, multi-monitor support is always enabled.
+# 
+# 1     6/02/99 6:46a Michael
+# Branch from H3
+# 
+# 53    5/26/99 1:24p Cwilcox
+# Added AGP texture download back into TOT.
+# 
+# 52    5/25/99 11:31a Bseitsin
+# Remove Antialiasing baggage.
+# 
+# 51    5/24/99 4:37p Cwilcox
+# Removed AGP texture download.
+# 
+# 50    5/24/99 3:34p Bseitsin
+# Add -WX switch to make warnings same severity as errors.
+# 
+# 49    5/10/99 1:32p Andrew
+# Added WCS to makefile for Windows "C" Simulator
+# 
+# 48    4/09/99 12:35p Stb_bseitsin
+# Added Napalm registers. Added ifdef H5.
+# 
+# 47    3/30/99 4:14p Adrians
+# Correct a compiler option echo message.
+# 
+# 46    3/26/99 11:45a Adrians
+# Make DX=6 the default build mode.
+# 
+# 45    3/18/99 12:42p Stb_bburton
+# Added deferred texture download (DTD).
+# 
+# 44    2/25/99 1:41p Martin
+# Turn agp texture download on by default
+# 
+# 43    2/20/99 4:55p Martin
+# Define new environment variable to enable agp texture downloads.
+# 
+# 42    2/11/99 11:07a Mconrad
+# Support for Banshee/Voodoo3 file names based on HP= H3 or H4
+# environment variable. Fixes PRSs #4087, #4088, #4151.
+# 
+# 41    2/11/99 9:41a Stb_skephart
+# 
+# 40    2/11/99 9:22a Stb_skephart
+# 
+# 39    2/08/99 2:10p Ken
+# added cpu/OS detection of pentium III (katmai) processors, and added
+# katmai-optimized d3d texture download
+# 
+# 38    1/29/99 6:49a Stb_srogers
+# 
+# 37    1/07/99 12:01p Cshaw
+# Added #defs for doing wb99 performance analysis.
+# To disable areas of the driver use the following environment vars:
+# nd=1 (manditory - enables NULLDRIVER)
+# OND_TEXD=1 (optional - OverridesNullDriver by executing
+# TextureDownloads)
+# OND_STATE=1 (optional - OverridesNullDriver by executing
+# D3DStateChanges)
+# OND_HWSU=1 (optional - OverridesNullDriver by executing Hardware setup)
+# OND_ZB=1 (optional - OverridesNullDriver by executing ZBuffer clears)
+# OND_TRI=1 (optional - OverridesNullDriver by executing Triangle
+# Rendering)
+# 
+# 36    1/06/99 1:15p Adrians
+# Added a compile time option for special multi-texture modes.
+# 
+# 35    12/16/98 7:20p Sreid
+# Latest K6 drop from contractor
+# 
+# 34    12/11/98 12:07p Sreid
+# Merging K6 stuff
+# 
+# 33    12/02/98 10:36a Andrew
+# changed MM to MULTIMON
+# 
+# 32    11/22/98 9:14p Andrew
+# Changes to support multi-monitor
+# 
+# 31    11/13/98 2:52p Miriam
+# Support for DX6 triangle flavor & texture flavor tracing. Just compile
+# with debug & fp=1 or tp=1.
+# 
+# 30    10/30/98 12:28a Artg
+# added option for 2 tmu
+# 
+# 29    10/15/98 6:35p Artg
+# changed ifdef h3 to account for h4
+# ifdef h3  --> if defined(h3) || defined(h4)
+# 
+# 28    10/04/98 9:32p Hanson
+# I had previously broken the Dx6 build with some assembly files not
+# being built.
+# 
+# 27    10/04/98 5:46p Hanson
+# Added cpu.asm to list of compiles.
+# 
+# 26    9/24/98 11:52a Hanson
+# Dx6 optimizations + MSDEV support
+# 
+# 25    9/01/98 5:47p Martin
+# Remove AA from compile options
+# 
+# 24    8/28/98 1:32p Adrians
+# Add new DX6 file.
+# 
+# 23    8/23/98 12:49a Adrians
+# Added support for AA SuperSampling.
+# 
+# 22    7/29/98 3:30p Adrians
+# DX6 Changes.
+# 
+# 21    7/24/98 4:57p Adrians
+# Changed to accomodate aatri.c to d3aatri.c name change.
+# 
+# 20    7/23/98 8:18p Hanson
+# New aa file
+# 
+# 19    7/23/98 4:04p Ken
+# added agp command fifo.   not added to NT build.  currently not
+# functional on non-win98 systems without running a special enable apg
+# script first, see Ken for that.   agp command fifo is enabled by
+# setting the environment variable ACF=1 , all other settings disable it.
+# Only turned on interatively in debugger in InitFifo call.   
+# 
+# 18    7/09/98 6:39p Miriam
+# Build option for B0 silicon.
+# 
+# 17    6/01/98 1:47p Ken
+# added isSdram to globaldata, settable through control1() calls
+# (probably should put this in the registry), changed d3d ddiClear to
+# look at this to determine whether or not to issue a dithered clear (to
+# force block writes on/off)
+# 
+# 16    5/26/98 7:25p Adrians
+# Added antialiasing.
+# 
+# 15    5/15/98 9:33a Miriam
+# Support A2 silicon.
+# 
+# 14    5/14/98 6:51p Miriam
+# Add DX version support & d3clear.
+# 
+# 13    4/21/98 12:22a Ken
+# changed sense of AW (agp workaround) to be on unless AW=0
+# 
+# 12    4/21/98 12:01a Ken
+# added agp workaround (set ar=1) for readback unreliability
+# 
+# 11    4/06/98 1:29p Miriam
+# Need writecombine enabled for fencing (fixes hang).
+# 
+# 10    3/31/98 1:48p Miriam
+# no longer use cpu check.
+# 
+# 9     3/31/98 11:35a Miriam
+# Command fifo debug consistent with 2D driver. Remove old env. settings.
+# 
+# 7     3/17/98 3:44p Miriam
+# set compiler flag H3_A1 if building for A1 silicon
+# 
+# 6     3/17/98 11:21a Ken
+# placed A0 workarounds in #ifdef H3_A0.  updated makefiles to use
+# environment variable HR for hardware rev.   if hardware rev is not
+# HR=A1, then we build an A0 revision.   use #ifdef H3_A0 for A0
+# workarounds
+# 
+# 5     2/23/98 12:31p Miriam
+# rename 32 bit dll to 3dfx32vb.dll
+# 
+# 4     2/11/98 11:40a Ken
+# compile in debug info if SIW95 is defined
+# 
+# 3     1/25/98 9:54p Ken
+# removed dependency on BUILD_ROOT
+##
+#--------------------------------------------------------------------
+# Define all macros
+
+!ifndef VERBOSE
+.SILENT :
+!ifndef LOGO
+LOGO = /nologo
+!endif
+!else
+LOGO =
+!endif
+
+!if ("$(TU)" == "")
+TU=1
+!endif
+TUTXT = (tu=$(TU))
+TARGET = $(TARGET)  -DNUMTEXTUREUNITS=$(TU)
+
+!if "$(CF)" == "1"
+CFTXT = (cf=1) YES
+TARGET = $(TARGET) -DCMDFIFO
+!else
+CFTXT = (cf=0) NO
+!endif
+
+!if "$(ND)" == "1"
+NDTXT = (nd=1) YES
+TARGET = $(TARGET) -DNULLDRIVER
+!else
+NDTXT = (nd=0) NO
+!endif
+
+!if "$(OND_TEXD)" == "1"
+OND_TEXDTXT = (ond_texd=1) YES
+TARGET = $(TARGET) -DOND_TEXD
+!else
+OND_TEXDTXT = (ond_TexD=0) NO
+!endif
+
+!if "$(OND_TRI)" == "1"
+OND_TRITXT = (ond_tri=1) YES
+TARGET = $(TARGET) -DOND_TRI
+!else
+OND_TRITXT = (ond_Tri=0) NO
+!endif
+
+!if "$(OND_ZB)" == "1"
+OND_ZBTXT = (ond_zb=1) YES
+TARGET = $(TARGET) -DOND_ZB
+!else
+OND_ZBTXT = (ond_ZB=0) NO
+!endif
+
+!if "$(OND_STATE)" == "1"
+OND_STATETXT = (ond_state=1) YES
+TARGET = $(TARGET) -DOND_STATE
+!else
+OND_STATETXT = (ond_State=0) NO
+!endif
+
+!if "$(OND_HWSU)" == "1"
+OND_HWSUTXT = (ond_hwsu=1) YES
+TARGET = $(TARGET) -DOND_HWSU
+!else
+OND_HWSUTXT = (ond_HWSU=0) NO
+!endif
+
+# This will go away (and become the default) eventually; in the meantime, use 
+# it for debug (as many changes are currently being added to driver). - cws
+# This is causing problems with apps that query for TextureBlend Caps.
+# TARGET = $(TARGET) -DREMOVE_OBSOLETE1_FOR_DX7_WIN9X
+
+TARGET =  $(TARGET) -DNEW_CLIP_FOR_GB
+
+# Use the CCU for single stage rendering ops (for trilinear and chromakey).
+
+TARGET =  $(TARGET) -DNEW_CCU
+
+!if ("$(HP)" == "H5" || "$(HP)" == "h5")
+TRTXT = H5 Napalm
+TARGET = $(TARGET) -DH5 -DNAPALM_CU
+!elseif ("$(HP)" == "H4" || "$(HP)" == "h4")
+TRTXT = H4 Voodoo3
+TARGET = $(TARGET) -DH4
+!else
+TRTXT = H3 Banshee
+TARGET = $(TARGET) -DH3
+!endif
+
+!if ("$(DF)" == "1")
+FDTXT = (df=1) YES
+TARGET = $(TARGET) -DDEBUGFIFO
+!else
+FDTXT = (df=0) NO
+!endif
+
+# Use Triangle Flavor profiling ...
+!if ("$(FP)" == "1") && ("$(DEBUG)" == "debug")
+FPTXT = (fp=1) YES
+TARGET = $(TARGET) -DFLAVOR_PROFILE
+!else
+FPTXT = (fp=0) NO
+!endif
+
+# Use Texture Flavor profiling ...
+!if ("$(TP)" == "1") && ("$(DEBUG)" == "debug")
+TPTXT = (tp=1) YES
+TARGET = $(TARGET) -DTXTR_PROFILE
+!else
+TPTXT = (tp=0) NO
+!endif
+
+!if "$(ACF)" == "1"
+TARGET = $(TARGET) -DAGP_CMDFIFO
+AGPCMDFIFOECHO = (acf=1) ENABLED
+!else #!if "$(ACF)" == "1"
+AGPCMDFIFOECHO = (acf=0) DISABLED
+!endif #!if "$(ACF)" == "1"
+
+
+!if ("$(HR)" == "B0")
+HWREV = -DH3_B0
+HWREVTXT = (hr=$(HR)) B0
+!elseif ("$(HR)" == "") || ("$(HR)" == "A1")
+TARGET = $(TARGET) -DH3_A1
+HWREVTXT = A1
+!else
+TARGET = $(TARGET) -DH3_A2
+HWREVTXT = A2
+!endif 
+
+!if ("$(SD)" != "0")
+TARGET = $(TARGET) -DSDRAM_SUPPORT
+SDRAM_TEXT = (sd=1) YES
+!else                   #!if ("$(SD)" != "0")
+SDRAM_TEXT = (sd=0) NO
+!endif                  #!if ("$(SD)" != "0")
+
+!if "$(CT)" == "1"
+TARGET = $(TARGET) -DCRASH
+CRASHTXT = (ct=1) YES
+!else #!if "$(CT)" == "1"
+CRASHTXT = (ct=0) NO
+!endif #!if "$(CT)" == "1"
+
+# DirectX version ...
+!if ("$(DX)" == "")
+DX = 6
+!endif
+DXTXT = (dx=$(DX))
+TARGET = $(TARGET) -DDX=$(DX)
+
+!if ("$(AA)" == "")
+AATXT = (aa=1) YES
+TARGET = $(TARGET) -DENABLE_AA=1
+!elseif ("$(AA)" == "1")
+AATXT = (aa=1) YES
+TARGET = $(TARGET) -DENABLE_AA=1
+!elseif ("$(AA)" == "2")
+AATXT = (aa=2) YES
+TARGET = $(TARGET) -DENABLE_AA=2
+!else
+AATXT = (aa=0) NO
+!endif 
+
+# K6-2 optimization (MMX+3DNOW!)
+!IF "$(K6)" == "1"
+TARGET = $(TARGET) -DK6_2 -D_3DNOWDP2AAFUNCS
+COPTL = -DK6_2
+K6TXT = (k6=1) YES
+!ELSE
+COPTL =
+K6TXT = (k6=0) NO
+!ENDIF
+
+# KNI texture download
+!if "$(KT)" != "0"
+KTTXT = (kt=1) YES
+!else
+KTTXT = (kt=0) NO
+TARGET = $(TARGET) -DNOKNITEXTUREDOWNLOAD
+!endif
+
+# Performance statistics monitoring
+!if "$(PS)" == "1"
+PSTXT = (ps=1) YES
+!else
+PSTXT = (ps=0) NO
+!endif
+
+# Special multi-texture modes
+!if "$(SM)" != ""
+SMTXT = (sm=$(SM))
+TARGET = $(TARGET) -DSM=$(SM)
+!else
+!if (("$(HP)" == "H4") || ("$(HP)" == "H5"))
+SMTXT = (sm=3)
+TARGET = $(TARGET) -DSM=3
+!else
+SMTXT = (sm=0)
+!endif
+!endif
+
+!if "$(STBKNI)" == "1"
+TARGET = $(TARGET) -DSTBKNI=1
+!else 
+TARGET = $(TARGET) -DSTBKNI=0
+!endif
+
+!if "$(RA)" == "1"
+RD_STUFF = (RA=1) YES
+TARGET = $(TARGET) -DRD_ABORT_ERROR
+!else
+RD_STUFF = (RA=0) NO
+!endif
+
+!if ("$(SW_TNL)" == "1")
+TARGET = $(TARGET) -DTnL_HAL=1
+!endif
+
+!if ("$(TNL_PROF)" == "1")
+TARGET = $(TARGET) -DTNL_PROFILE
+!endif
+ 
+# Minimized texture download
+# bburton@stb.com, 3/3/98.
+!if "$(DTD)" == "1"
+TARGET = $(TARGET) -DDEFER_TXTR_DNLD
+DTDTXT = (DTD=1) YES
+!else
+DTDTXT = (DTD=0) NO
+!endif
+
+!if "$(STBKNI)" == "1"
+KNITXT = (STBKNI=1) YES
+!else
+KNITXT = (STBKNI=0) NO
+!endif
+
+!if "$(WCS)" == "1"
+WINSIM = (wcs=1) YES
+TARGET = $(TARGET) -DWIN_CSIM
+!else
+WINSIM = (wcs=0) NO
+!endif
+
+!if "$(SA)" == "1"
+SLI_STUFF = (SA=1) YES
+TARGET = $(TARGET) -DSLI_AA
+!else
+SLI_STUFF = (SA=0) NO
+!endif
+
+
+!if "$(SLIAA2D)" == "1"
+SLI_2D_STUFF = (SLIAA2D=1) YES
+TARGET = $(TARGET) -DSLI_AA_2D
+!else
+SLI_2D_STUFF = (SLIAA2D=0) NO
+!endif
+
+!if "$(SW_TNL)" == "1"
+SW_TnLTXT = (SW_TNL=1) YES
+!else
+SW_TnLTXT = (SW_TNL=0) NO
+!endif
+
+!if "$(TNL_PROF)" == "1"
+TNL_PROFTXT = (TNL_PROF=1) YES
+!else
+TNL_PROFTXT = (TNL_PROF=0) NO
+!endif
+
+!if "$(C_AUTOSTRIP)" == "1"
+C_AutoTXT = (C_AUTOSTRIP=1) YES
+C_AUTOSTRIP=-DC_AUTOSTRIP
+!else
+C_AutoTXT = (C_AUTOSTRIP=0) NO
+C_AUTOSTRIP=-DC_AUTOSTRIP
+!endif
+
+!if "$(NEWASMTRI)" == "1"
+TARGET = $(TARGET) -DNEWASMTRI=1
+NEWASMTRITXT = (NEWASMTRI=1) YES
+!else 
+TARGET = $(TARGET) -DNEWASMTRI=0
+NEWASMTRITXT = (NEWASMTRI=0) NO
+!endif
+
+!if "$(Z_ACCESS_OPT)" == "1"
+TARGET = $(TARGET) -DZ_ACCESS_OPT
+Z_ACCESS_OPT_TXT = (Z_ACCESS_OPT=1) YES
+!else
+Z_ACCESS_OPT_TXT = (Z_ACCESS_OPT=0) NO
+!endif
+
+#--------------------------------------------------------------------
+# Define macros for the various compilers, assemblers, linkers
+# and library managers.
+
+RC   = $(COMP32)\bin\rc
+LK   = $(COMP32)\bin\link
+CL   = $(COMP32)\bin\cl
+!ifdef ICC
+ICL  = $(ICC)\bin\icl
+!endif
+!ifdef VCPP
+CLPP  = $(VCPP)\bin\cl
+!endif
+ML   = $(MASM)\bin\ml
+BSC  = $(COMP32)\bin\bscmake
+
+
+#--------------------------------------------------------------------
+# Select our working directory, either DEBUG or RETAIL.
+
+!if "$(DEBUG)"=="debug"
+DIR = DEBUG
+!else
+DIR = RETAIL
+!endif
+
+#--------------------------------------------------------------------
+# Define 32Bit macros for DEBUG or RETAIL build.
+
+!if "$(DEBUG)"=="debug"
+
+    # Generic Debug build flags
+
+# SK -- clean this up later -- we need different flags to make winice 4.0 happy
+#		This really isn't specific to SW T&L.
+!if "$(SW_TNL)" == "1"
+COPT32 = -DDEBUG -D_DEBUG -DDEBLEVEL=1 -DBUILD_DDDDK -YX -Od -Zi -DFXTRACE
+!else
+COPT32 = -DDEBUG -D_DEBUG -DDEBLEVEL=1 -DBUILD_DDDDK -YX -Oxa -Z7 -DFXTRACE
+!endif
+!ifdef ICC
+COPT32ICL = -Od -Oy- -G6s -Qvec -Qkscalar -QxK -DDEBUG -D_DEBUG -DDEBLEVEL=1 -DBUILD_DDDDK -Zi -DFXTRACE -DSSECPP
+# Warning -- Stack alignment is DISABLED for the SOA code!
+COPT32ICLSOA = -Od -Oy- -G6s -Qsfalign- -DDEBUG -D_DEBUG -DDEBLEVEL=1 -DBUILD_DDDDK -Zi -DFXTRACE -DSSECPP
+!endif
+
+#SK -- add support for the beta Visual C++ Processor Pack.
+#SK -- if only this were as simple as replacing the default C compiler. But no, it's not. The AMD code won't compile with
+#SK -- the processor pack. 
+!ifdef VCPP
+COPT32PP = $(COPT32) -DVCPP
+!endif
+
+MOPT32 = -DDEBUG -D_DEBUG
+ROPT32 = -DDEBUG -D_DEBUG
+LOPT32  = -debug -debugtype:cv
+
+COPT16 = -DDEBUG -D_DEBUG -Z7i -DFXTRACE
+MOPT16 = -DDEBUG -D_DEBUG
+ROPT16 = -DDEBUG -D_DEBUG
+
+    # Specific Debug build flags
+
+!else
+
+    # Generic Retail build flags
+
+COPT32 = -Oxa
+!ifdef ICC
+COPT32ICL = -Ox -G6s -Qvec -Qkscalar -QxK -DSSECPP
+# Warning -- Stack alignment is DISABLED for the SOA code!
+COPT32ICLSOA = -Ox -G6s -Qsfalign- -DSSECPP
+!endif
+
+#SK -- add support for the beta Visual C++ Processor Pack.
+#SK -- if only this were as simple as replacing the default C compiler. But no, it's not. The AMD code won't compile with
+#SK -- the processor pack. 
+!ifdef VCPP
+COPT32PP = $(COPT32) -DVCPP
+!endif
+
+!ifdef SIW95
+!if "$(SW_TNL)" == "1"
+COPT32 = $(COPT32) -Zi
+!ifdef ICC
+COPT32ICL = $(COPT32ICL) -Zi
+COPT32ICLSOA = $(COPT32ICLSOA) -Zi
+!endif
+
+!ifdef VCPP
+COPT32PP = $(COPT32PP) -Zi
+!endif
+
+!else
+COPT32 = $(COPT32) -Z7
+!endif
+!endif
+
+MOPT32 =
+ROPT32 =
+LOPT32 =
+
+COPT16 =
+MOPT16 = 
+ROPT16 =
+
+    # Specific Retail build flags
+
+!endif
+#STB-SK 12/21/98 -- add support for VTUNE profiling
+#STB Begin Change
+!if "$(VTUNE)" == "1"
+COPT32 = $(COPT32) -Zi
+MFLAGS32 = $(MFLAGS32) -Zi
+!ifdef VCPP
+COPT32PP = $(COPT32PP) -Zi
+!endif
+!endif
+#STB End Change
+
+
+
+#--------------------------------------------------------------------
+# Define our 32 Bit build flag macros
+
+CDEFS32  = $(TARGET) $(DXDEF) -D__MSC__ -DWRITECOMBINE -DDUAL_HEAP -DGLIDE_MUTEX -D_X86_ -DIS_32 -DWIN32 -DDIRECTX
+CINCS32  = -I..\..\inc -I..\..\dd32 -I..\..\d3d -I$(DDKDX)\inc -I$(DDK9X)\inc32 -I$(SDK32)\include -I$(COMP32)\include 
+!ifdef ICC
+CINCS32 = $(CINCS32) -I$(ICC)\include
+!endif
+!ifdef VCPP
+CINCS32PP  = -I..\..\inc -I..\..\dd32 -I..\..\d3d -I$(DDKDX)\inc -I$(DDK9X)\inc32 -I$(SDK32)\include -I$(VCPP)\include 
+!endif
+!if "$(VC6)" == "1"
+CFLAGS32 = $(LOGO) $(COPT32) $(CDEFS32) $(CINCS32) $(BRDCFLAGS) -G6s -FAsc -W3 -c -Zp
+!else
+CFLAGS32 = $(LOGO) $(COPT32) $(CDEFS32) $(CINCS32) $(BRDCFLAGS) -G5s -FAsc -W3 -c -Zp
+!endif
+
+#SK -- add support for the beta Visual C++ Processor Pack.
+#SK -- if only this were as simple as replacing the default C compiler. But no, it's not. The AMD code won't compile with
+#SK -- the processor pack. 
+!ifdef VCPP
+CFLAGS32PP = $(LOGO) $(COPT32PP) $(CDEFS32) $(CINCS32PP) $(BRDCFLAGS) -G6s -FAsc -W3 -c -Zp
+!endif
+
+!ifdef ICC
+COPTICL =  $(LOGO) $(COPT32ICL) $(CDEFS32) $(CINCS32) $(BRDCFLAGS)  -c -Zp1 -Qwd344,186 -FAsc
+COPTICLSOA =  $(LOGO) $(COPT32ICLSOA) $(CDEFS32) $(CINCS32) $(BRDCFLAGS)  -c -Zp1 -Qwd344,186 -FAsc
+!endif
+
+#Preprocess, but don't compile. Generate a listing file.
+#CFLAGS32 = $(CFLAGS32) -E -C
+
+#Set warnings as errors
+CFLAGS32 = $(CFLAGS32) -WX
+
+#skephart - enable browser file info
+!if "$(BROWSE)"=="1" 
+CFLAGS32 = $(CFLAGS32) -FR$(@B).sbr
+!ifdef ICC
+COPTICL =  $(COPTICL)  -FR$(@B).sbr
+!endif
+
+!ifdef VCPP
+CFLAGS32PP = $(CFLAGS32PP) -FR$(@B).sbr
+!endif
+!endif
+
+!if "$(PS)" == "1"
+CFLAGS32 = $(CFLAGS32) -Gh
+!endif
+
+MDEFS32  = $(TARGET) $(DXDEF) -DWIN32 -DIS_32 -DSTD_CALL -DBLD_COFF -DMASM6 -D__MSC__
+MINCS32  = 
+!if "$(STBKNI)" == "1"
+MINCS32  = -I..\..\inc
+!endif
+MFLAGS32 = $(LOGO) $(MOPT32) $(MDEFS32) $(MINCS32) -Zp4 -coff -W3 -WX -Zd -c -Cx
+
+#skephart - enable browser file info
+!if "$(BROWSE)"=="1" 
+MFLAGS32 = $(MFLAGS32) -FR$(@B).sbr
+!endif
+
+!if "$(PS)" == "1"
+MDEFS32  = $(MDEFS32) -DPERF_MONITORING
+!endif
+
+RDEFS32  = -DIS_32 -DWIN32
+RINCS32  = -I.. -I$(DDKDX)\inc
+RFLAGS32 = $(ROPT32) $(RDEFS32) $(RINCS32) -r 
+
+LINCS32  = -LIBPATH:..\..\d3d\$(DIR) -LIBPATH:$(DIRECTXSDK)\lib -LIBPATH:$(COMP32)\lib
+#STB-SK 12/21/98 -- add support for VTUNE profiling
+#STB Begin Change
+!if "$(VTUNE)" == "1"
+LFLAGS32 = $(LOGO) $(LOPT32) $(LINCS32) -nodefaultlib -align:0x1000
+!else
+LFLAGS32 = $(LOGO) $(LOPT32) $(LINCS32) -pdb:none -nodefaultlib -align:0x1000
+!endif
+#STB End Change
+
+#####################################################################
+#--------------------------------------------------------------------
+# Lets build everything NOW !!!!
+
+
+debug:  debug.mak
+
+retail: retail.mak
+
+all:    debug retail
+
+debug.mak retail.mak:
+        nmake -nologo DEBUG=$(@B) build
+
+#build:  makedir d3dhwdir d3dhw.lib ddhwdir\
+build:  makedir d3ddir d3d.lib 
+
+makedir :
+        if not exist .\$(DIR)\nul md .\$(DIR)
+        @echo -------Building $(DIR) D3D Library----------
+        @echo Target Hardware .......$(TRTXT)
+        @echo Hardware revision......$(HWREVTXT)
+        @echo DirectX Version .......$(DXTXT)
+        @echo Command Fifo ..........$(CFTXT)
+        @echo Command Fifo Debug ....$(FDTXT)
+        @echo Null Driver ...........$(NDTXT)
+        @echo OVERIDE NullDriver :
+        @echo 1 Texture Downloads.....$(OND_TEXDTXT)
+        @echo 2 Render Texture States.$(OND_STATETXT)
+        @echo 3 Triangle Rendering....$(OND_TRITXT)
+        @echo 4 Clearing ZBuffer......$(OND_ZBTXT)
+        @echo 5 Hardware Setup........$(OND_HWSUTXT)
+        @echo Texture Profiling......$(TPTXT)
+        @echo Flavor Profiling ......$(FPTXT)
+        @echo Crash Test.............$(CRASHTXT)
+        @echo Anti-alias ............$(AATXT)
+        @echo Num Texture Units......$(TUTXT)
+        @echo K63DNow! Optimization..$(K6TXT)
+        @echo SDRAM support is ......$(SDRAM_TEXT)
+        @echo AGP cmdfifo is ........$(AGPCMDFIFOECHO)
+        @echo Special MT modes ......$(SMTXT)
+        @echo KNI Texture Download ..$(KTTXT)
+        @echo KNI Optimizations .....$(KNITXT)
+        @echo Deferred Txtr Dwnld ...$(DTDTXT)
+        @echo Deferred Txtr Dwnld ...$(WINSIM)
+        @echo SLI AA   ..............$(SLI_STUFF)
+        @echo SLI AA 2D..............$(SLI_2D_STUFF)
+        @echo Read Abort Error ......$(RD_STUFF)
+	    @Echo SW TnL ................$(SW_TnLTXT)
+	    @Echo TnL Profiling..........$(TNL_PROFTXT)
+		@Echo C Autostripping .......$(C_AutoTXT)
+		@Echo Vertex Buffer DDI......$(VERTBUFFTXT)
+		@Echo New KNI-3DNow Asm Tri..$(NEWASMTRITXT) *MASM 6.14 REQUIRED!*
+                @Echo Z Access Optimization..$(Z_ACCESS_OPT_TXT)
+        @echo --------------------------------------------
+
+d3ddir:
+        cd .\$(DIR)
+
+!ifdef KILLHELP
+        killhelp -k
+!endif 
+
+!ifdef COPYSYS
+!if "$(COPY32)" == "1"
+!if (("$(HP)" == "H4") || ("$(HP)" == "H5"))
+        if exist $(COPYSYS) copy 3dfx32v3.dll $(COPYSYS) /y
+        if exist $(COPYSYS)\nul copy 3dfx32v3.dll $(COPYSYS) /y
+!else
+        if exist $(COPYSYS) copy 3dfx32vb.dll $(COPYSYS) /y
+        if exist $(COPYSYS)\nul copy 3dfx32vb.dll $(COPYSYS) /y
+!endif
+!endif        
+!endif
+
+clean:
+        rem <<yes
+y
+<<
+        if exist .\debug\*.*   del .\debug <yes >nul
+        if exist .\debug\nul   rd  .\debug >nul
+        if exist .\retail\*.*  del .\retail <yes >nul
+        if exist .\retail\nul  rd  .\retail >nul
+
+#--------------------------------------------------------------------
+# d3d.lib
+
+OBJ1 =  d3ftri.obj      d3line.obj      d3point.obj     fxt.obj      \
+        fxf2i.obj       fxexp.obj       d3trace.obj     d3tri.obj    \
+        d3init.obj      d3global.obj    d3txtr.obj      d3contxt.obj \
+        d3rstate.obj    d3fog.obj       d3scene.obj     d3tri2.obj   \
+        d3fan.obj       d3strip.obj     d3clear.obj     d3clear2.obj \
+        tcutils.obj     fifodbg.obj                                  \
+!if "$(KT)" != "0"
+        memcopy.obj                                                  \
+!endif
+
+!if "$(DX)"=="5"
+DX5OBJ= d3execut.obj    d3drwprm.obj
+!endif
+
+!if "$(DX)"=="6" || "$(DX)"=="7" || "$(DX)"=="8"
+DX6OBJ= d6temp.obj      d6dp2.obj       d6fvf.obj       d6tri2.obj   \
+        d6fan.obj       d6strip.obj     d6line.obj      d6point.obj  \
+        d6mt.obj        afifo.obj       atri.obj        afan.obj     \
+!if "$(K6)" == "1"
+        afank.obj       amesh2k.obj\
+!if "$(NEWASMTRI)" == "1"
+        axtrik.obj\
+!else
+        atrik.obj \
+!endif
+!endif
+!if "$(SW_TNL)" == "1"
+    tnldp2.obj xform.obj d7fvfext.obj procprim.obj tlutil.obj light.obj tlclip.obj tnlinit.obj\
+    soaprim.obj soatnl.obj soaclipc.obj soadev.obj soageom.obj soaswiz.obj soadswiz.obj soalight.obj\
+    soalitfn.obj tlrend.obj tlknimath.obj soaconst.obj atlrend.obj asoaswiz.obj\
+    k3dtnl.obj k3dlight.obj k3dlitfn.obj tlk3dmath.obj\
+!endif
+!if "$(STBKNI)" == "1"
+!if "$(NEWASMTRI)" == "1"
+        axtrikni.obj\
+!else
+        atrikni.obj\
+!endif
+        afankni.obj\
+!endif
+        amesh2.obj      ameshf.obj
+!endif
+
+!if "$(DX)"=="7" || "$(DX)"=="8"
+DX7OBJ= d7dp2.obj       d7d3d.obj
+!endif
+
+!if "$(DX)"=="8"
+DX8OBJ= d8dp2.obj
+!endif
+
+#setup absolute path to files if defined for msdev users
+!if "$(BUILD_ROOT_H3_DX)" != ""
+D3D_32_PATH=$(BUILD_ROOT_H3_DX)\d3d
+!else
+D3D_32_PATH=..
+!endif
+
+#Browser Information files -- keep this synched up with the objects above
+!if "$(BROWSE)"=="1" 
+SBR1 =  d3ftri.sbr      d3line.sbr      d3point.sbr     fxt.sbr      \
+        fxf2i.sbr       fxexp.sbr       d3trace.sbr     d3tri.sbr    \
+        d3init.sbr      d3global.sbr    d3txtr.sbr      d3contxt.sbr \
+        d3rstate.sbr    d3fog.sbr       d3scene.sbr     d3tri2.sbr   \
+        d3drwprm.sbr    d3fan.sbr       d3strip.sbr     d3clear.sbr  \
+        d3clear2.sbr    fifodbg.sbr     tcutils.sbr                  \
+!if "$(KT)" != "0"
+        memcopy.sbr                                                  \
+!endif
+
+!if "$(DX)"=="5"
+DX5SBR= d3execut.sbr
+!endif
+
+!if "$(DX)"=="6" || "$(DX)"=="7" || "$(DX)"=="8"
+DX6SBR= d6temp.sbr      d6dp2.sbr       d6fvf.sbr       d6tri2.sbr   \
+        d6fan.sbr       d6strip.sbr     d6line.sbr      d6point.sbr  \
+        d6mt.sbr        afifo.sbr       atri.sbr        afan.sbr     \
+!if "$(K6)" == "1"
+        afank.sbr       amesh2k.sbr \
+!if "$(NEWASMTRI)" == "1"
+        axtrik.sbr \
+!else
+        atrik.sbr \
+!endif
+!endif
+!if "$(SW_TNL)" == "1"
+    tnldp2.sbr xform.sbr d7fvfext.sbr procprim.sbr tlutil.sbr light.sbr tlclip.sbr tnlinit.sbr\
+    soaprim.sbr soatnl.sbr soaclipc.sbr soadev.sbr soageom.sbr soaswiz.sbr soadswiz.sbr soalight.sbr\
+    soalitfn.sbr tlrend.sbr tlknimath.sbr soaconst.sbr atlrend.obj asoaswiz.obj\
+    k3dtnl.sbr k3dlight.sbr k3dlitfn.sbr tlk3dmath.sbr\
+!endif
+!if "$(STBKNI)" == "1"
+!if "$(NEWASMTRI)" == "1"
+        axtrikni.sbr \
+!else
+        atrikni.sbr \
+!endif
+        afankni.sbr\
+!endif
+        amesh2.sbr      ameshf.sbr
+!endif
+
+!if "$(DX)"=="7" || "$(DX)"=="8"
+DX7SBR= d7dp2.sbr       d7d3d.sbr
+!endif
+
+!if "$(DX)"=="8"
+DX8SBR= d8dp2.sbr
+!endif
+
+!endif
+
+#--------------------------------------------------------------------
+# d3dhw.lib - Build
+
+d3d.lib:                $(OBJ1) $(DX5OBJ) $(DX6OBJ) $(DX7OBJ) $(DX8OBJ)
+                        $(LK) -lib -out:$(@B).lib $(OBJ1) $(DX5OBJ) $(DX6OBJ) $(DX7OBJ) $(DX8OBJ) $(LOGO)
+!if "$(BROWSE)"=="1" 
+                        $(BSC) /o$(@B).bsc $(SBR1) $(DX5SBR) $(DX6SBR) $(DX7SBR) $(DX8SBR)
+!endif
+
+d3cpu.obj:              ..\$(@B).asm
+                        $(ML) $(MFLAGS32) -Fo$(@B).obj ..\$(@B).asm
+
+d3ftri.obj:             ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d3line.obj:             ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+fifodbg.obj:            ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d3clear.obj:            ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d3clear2.obj:           ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d3point.obj:            ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+fxf2i.obj:              ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+fxexp.obj:              ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d3trace.obj:            ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d3tri.obj:              ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d3trisw.obj:            ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d3init.obj:             ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d3global.obj:           ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d3txtr.obj:             ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+fxt.obj:                ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+tcutils.obj:            ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+!if "$(DX)"=="5"
+d3execut.obj:           ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d3drwprm.obj:           ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+!endif
+
+d3contxt.obj:           ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d3rstate.obj:           ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d3fog.obj:              ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d3scene.obj:            ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d3tri2.obj:             ..\$(@B).c ..\$(@B)i.c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+                        
+d3fan.obj:              ..\$(@B).c ..\$(@B)i.c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d3strip.obj:            ..\$(@B).c ..\$(@B)i.c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+
+!if "$(KT)" != "0"
+memcopy.obj:        ..\$(@B).asm
+                        $(ML) $(MFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).asm
+!endif
+
+!if "$(DX)"=="6" || "$(DX)"=="7" || "$(DX)"=="8"
+afifo.obj:              ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+atri.obj:               ..\$(@B).asm
+                        $(ML) $(MFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).asm
+
+afan.obj:               ..\$(@B).asm
+                        $(ML) $(MFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).asm
+
+amesh.obj:               ..\$(@B).asm
+                        $(ML) $(MFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).asm
+
+amesh2.obj:              ..\$(@B).asm
+                        $(ML) $(MFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).asm
+
+ameshf.obj:              ..\$(@B).asm
+                        $(ML) $(MFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).asm
+
+!if "$(K6)" == "1"
+afank.obj:              ..\$(@B).asm
+                        $(ML) $(MFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).asm
+
+amesh2k.obj:            ..\$(@B).asm
+                        $(ML) $(MFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).asm
+
+!if "$(NEWASMTRI)" == "1"
+axtrik.obj:             ..\$(@B).asm
+                        $(ML) $(MFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).asm
+!else
+atrik.obj:              ..\$(@B).asm
+                        $(ML) $(MFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).asm
+!endif
+
+!endif
+
+
+!if "$(STBKNI)" == "1"
+!if "$(NEWASMTRI)" == "1"
+axtrikni.obj:           ..\$(@B).asm
+                        $(ML) $(MFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).asm
+!else
+atrikni.obj:            ..\$(@B).asm
+                        $(ML) $(MFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).asm
+!endif
+
+afankni.obj:            ..\$(@B).asm
+                        $(ML) $(MFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).asm
+!endif
+
+d6dp2.obj:              ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d6fvf.obj:              ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d6tri2.obj:             ..\$(@B).c ..\$(@B)i.c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d6strip.obj:            ..\$(@B).c ..\$(@B)i.c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d6fan.obj:              ..\$(@B).c ..\$(@B)i.c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d6line.obj:             ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d6point.obj:            ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d6temp.obj:             ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+
+d6mt.obj:               ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+!endif
+
+
+!if "$(DX)"=="7" || "$(DX)"=="8"
+d7dp2.obj:              ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+d7d3d.obj:              ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+!if "$(SW_TNL)" == "1"
+!ifdef VCPP
+
+# Switch compilers
+CL = $(CLPP)
+CFLAGS32 = $(CFLAGS32PP)
+
+tnldp2.obj:              ..\$(@B).c
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+xform.obj:               ..\$(@B).c
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+d7fvfext.obj:               ..\$(@B).c
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+procprim.obj:               ..\$(@B).c
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+light.obj:               ..\$(@B).c
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+soalight.obj:           ..\$(@B).c
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+k3dlight.obj:           ..\$(@B).c
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+k3dlitfn.obj:           ..\$(@B).c
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+k3dtnl.obj:             ..\$(@B).c
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+soalitfn.obj:           ..\$(@B).c ..\soadd.h ..\soads.h ..\soapsd.h ..\soapss.h
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+soaprim.obj:            ..\$(@B).c
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+soatnl.obj:             ..\$(@B).c
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+soaclipc.obj:           ..\$(@B).c
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+soadev.obj:             ..\$(@B).c
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+soageom.obj:            ..\$(@B).c
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+soaswiz.obj:            ..\$(@B).c
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+soadswiz.obj:           ..\$(@B).c
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+soaconst.obj:           ..\$(@B).c
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+tlrend.obj:             ..\$(@B).c
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+tlclip.obj:             ..\$(@B).c
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+tlutil.obj:             ..\$(@B).c
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+tnlinit.obj:            ..\$(@B).c
+                        $(CL)  $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+tlknimath.obj:          ..\$(@B).asm
+                        $(ML) $(MFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).asm
+atlrend.obj:            ..\$(@B).asm
+                        $(ML) $(MFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).asm
+asoaswiz.obj:           ..\$(@B).asm
+                        $(ML) $(MFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).asm
+tlk3dmath.obj:          ..\$(@B).asm
+                        $(ML) $(MFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).asm
+#end of VCPP
+!endif
+#end of SW_TNL
+!endif
+#end if DX7
+!if "$(DX)"=="8"
+d8dp2.obj:              ..\$(@B).c
+                        $(CL) $(CFLAGS32) -Fo$(@B).obj $(D3D_32_PATH)\$(@B).c
+!endif
+!endif

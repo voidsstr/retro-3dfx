@@ -1,0 +1,5564 @@
+	TITLE	..\ddsli2d.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+FLAT	GROUP _DATA, CONST, _BSS
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+PUBLIC	_IsIntersect
+_DATA	SEGMENT
+_f_255_reverse_lookup DD 0437f0000r		; 255
+	DD	0437e0000r			; 254
+	DD	0437d0000r			; 253
+	DD	0437c0000r			; 252
+	DD	0437b0000r			; 251
+	DD	0437a0000r			; 250
+	DD	043790000r			; 249
+	DD	043780000r			; 248
+	DD	043770000r			; 247
+	DD	043760000r			; 246
+	DD	043750000r			; 245
+	DD	043740000r			; 244
+	DD	043730000r			; 243
+	DD	043720000r			; 242
+	DD	043710000r			; 241
+	DD	043700000r			; 240
+	DD	0436f0000r			; 239
+	DD	0436e0000r			; 238
+	DD	0436d0000r			; 237
+	DD	0436c0000r			; 236
+	DD	0436b0000r			; 235
+	DD	0436a0000r			; 234
+	DD	043690000r			; 233
+	DD	043680000r			; 232
+	DD	043670000r			; 231
+	DD	043660000r			; 230
+	DD	043650000r			; 229
+	DD	043640000r			; 228
+	DD	043630000r			; 227
+	DD	043620000r			; 226
+	DD	043610000r			; 225
+	DD	043600000r			; 224
+	DD	0435f0000r			; 223
+	DD	0435e0000r			; 222
+	DD	0435d0000r			; 221
+	DD	0435c0000r			; 220
+	DD	0435b0000r			; 219
+	DD	0435a0000r			; 218
+	DD	043590000r			; 217
+	DD	043580000r			; 216
+	DD	043570000r			; 215
+	DD	043560000r			; 214
+	DD	043550000r			; 213
+	DD	043540000r			; 212
+	DD	043530000r			; 211
+	DD	043520000r			; 210
+	DD	043510000r			; 209
+	DD	043500000r			; 208
+	DD	0434f0000r			; 207
+	DD	0434e0000r			; 206
+	DD	0434d0000r			; 205
+	DD	0434c0000r			; 204
+	DD	0434b0000r			; 203
+	DD	0434a0000r			; 202
+	DD	043490000r			; 201
+	DD	043480000r			; 200
+	DD	043470000r			; 199
+	DD	043460000r			; 198
+	DD	043450000r			; 197
+	DD	043440000r			; 196
+	DD	043430000r			; 195
+	DD	043420000r			; 194
+	DD	043410000r			; 193
+	DD	043400000r			; 192
+	DD	0433f0000r			; 191
+	DD	0433e0000r			; 190
+	DD	0433d0000r			; 189
+	DD	0433c0000r			; 188
+	DD	0433b0000r			; 187
+	DD	0433a0000r			; 186
+	DD	043390000r			; 185
+	DD	043380000r			; 184
+	DD	043370000r			; 183
+	DD	043360000r			; 182
+	DD	043350000r			; 181
+	DD	043340000r			; 180
+	DD	043330000r			; 179
+	DD	043320000r			; 178
+	DD	043310000r			; 177
+	DD	043300000r			; 176
+	DD	0432f0000r			; 175
+	DD	0432e0000r			; 174
+	DD	0432d0000r			; 173
+	DD	0432c0000r			; 172
+	DD	0432b0000r			; 171
+	DD	0432a0000r			; 170
+	DD	043290000r			; 169
+	DD	043280000r			; 168
+	DD	043270000r			; 167
+	DD	043260000r			; 166
+	DD	043250000r			; 165
+	DD	043240000r			; 164
+	DD	043230000r			; 163
+	DD	043220000r			; 162
+	DD	043210000r			; 161
+	DD	043200000r			; 160
+	DD	0431f0000r			; 159
+	DD	0431e0000r			; 158
+	DD	0431d0000r			; 157
+	DD	0431c0000r			; 156
+	DD	0431b0000r			; 155
+	DD	0431a0000r			; 154
+	DD	043190000r			; 153
+	DD	043180000r			; 152
+	DD	043170000r			; 151
+	DD	043160000r			; 150
+	DD	043150000r			; 149
+	DD	043140000r			; 148
+	DD	043130000r			; 147
+	DD	043120000r			; 146
+	DD	043110000r			; 145
+	DD	043100000r			; 144
+	DD	0430f0000r			; 143
+	DD	0430e0000r			; 142
+	DD	0430d0000r			; 141
+	DD	0430c0000r			; 140
+	DD	0430b0000r			; 139
+	DD	0430a0000r			; 138
+	DD	043090000r			; 137
+	DD	043080000r			; 136
+	DD	043070000r			; 135
+	DD	043060000r			; 134
+	DD	043050000r			; 133
+	DD	043040000r			; 132
+	DD	043030000r			; 131
+	DD	043020000r			; 130
+	DD	043010000r			; 129
+	DD	043000000r			; 128
+	DD	042fe0000r			; 127
+	DD	042fc0000r			; 126
+	DD	042fa0000r			; 125
+	DD	042f80000r			; 124
+	DD	042f60000r			; 123
+	DD	042f40000r			; 122
+	DD	042f20000r			; 121
+	DD	042f00000r			; 120
+	DD	042ee0000r			; 119
+	DD	042ec0000r			; 118
+	DD	042ea0000r			; 117
+	DD	042e80000r			; 116
+	DD	042e60000r			; 115
+	DD	042e40000r			; 114
+	DD	042e20000r			; 113
+	DD	042e00000r			; 112
+	DD	042de0000r			; 111
+	DD	042dc0000r			; 110
+	DD	042da0000r			; 109
+	DD	042d80000r			; 108
+	DD	042d60000r			; 107
+	DD	042d40000r			; 106
+	DD	042d20000r			; 105
+	DD	042d00000r			; 104
+	DD	042ce0000r			; 103
+	DD	042cc0000r			; 102
+	DD	042ca0000r			; 101
+	DD	042c80000r			; 100
+	DD	042c60000r			; 99
+	DD	042c40000r			; 98
+	DD	042c20000r			; 97
+	DD	042c00000r			; 96
+	DD	042be0000r			; 95
+	DD	042bc0000r			; 94
+	DD	042ba0000r			; 93
+	DD	042b80000r			; 92
+	DD	042b60000r			; 91
+	DD	042b40000r			; 90
+	DD	042b20000r			; 89
+	DD	042b00000r			; 88
+	DD	042ae0000r			; 87
+	DD	042ac0000r			; 86
+	DD	042aa0000r			; 85
+	DD	042a80000r			; 84
+	DD	042a60000r			; 83
+	DD	042a40000r			; 82
+	DD	042a20000r			; 81
+	DD	042a00000r			; 80
+	DD	0429e0000r			; 79
+	DD	0429c0000r			; 78
+	DD	0429a0000r			; 77
+	DD	042980000r			; 76
+	DD	042960000r			; 75
+	DD	042940000r			; 74
+	DD	042920000r			; 73
+	DD	042900000r			; 72
+	DD	0428e0000r			; 71
+	DD	0428c0000r			; 70
+	DD	0428a0000r			; 69
+	DD	042880000r			; 68
+	DD	042860000r			; 67
+	DD	042840000r			; 66
+	DD	042820000r			; 65
+	DD	042800000r			; 64
+	DD	0427c0000r			; 63
+	DD	042780000r			; 62
+	DD	042740000r			; 61
+	DD	042700000r			; 60
+	DD	0426c0000r			; 59
+	DD	042680000r			; 58
+	DD	042640000r			; 57
+	DD	042600000r			; 56
+	DD	0425c0000r			; 55
+	DD	042580000r			; 54
+	DD	042540000r			; 53
+	DD	042500000r			; 52
+	DD	0424c0000r			; 51
+	DD	042480000r			; 50
+	DD	042440000r			; 49
+	DD	042400000r			; 48
+	DD	0423c0000r			; 47
+	DD	042380000r			; 46
+	DD	042340000r			; 45
+	DD	042300000r			; 44
+	DD	0422c0000r			; 43
+	DD	042280000r			; 42
+	DD	042240000r			; 41
+	DD	042200000r			; 40
+	DD	0421c0000r			; 39
+	DD	042180000r			; 38
+	DD	042140000r			; 37
+	DD	042100000r			; 36
+	DD	0420c0000r			; 35
+	DD	042080000r			; 34
+	DD	042040000r			; 33
+	DD	042000000r			; 32
+	DD	041f80000r			; 31
+	DD	041f00000r			; 30
+	DD	041e80000r			; 29
+	DD	041e00000r			; 28
+	DD	041d80000r			; 27
+	DD	041d00000r			; 26
+	DD	041c80000r			; 25
+	DD	041c00000r			; 24
+	DD	041b80000r			; 23
+	DD	041b00000r			; 22
+	DD	041a80000r			; 21
+	DD	041a00000r			; 20
+	DD	041980000r			; 19
+	DD	041900000r			; 18
+	DD	041880000r			; 17
+	DD	041800000r			; 16
+	DD	041700000r			; 15
+	DD	041600000r			; 14
+	DD	041500000r			; 13
+	DD	041400000r			; 12
+	DD	041300000r			; 11
+	DD	041200000r			; 10
+	DD	041100000r			; 9
+	DD	041000000r			; 8
+	DD	040e00000r			; 7
+	DD	040c00000r			; 6
+	DD	040a00000r			; 5
+	DD	040800000r			; 4
+	DD	040400000r			; 3
+	DD	040000000r			; 2
+	DD	03f800000r			; 1
+	DD	000000000r			; 0
+_IsIntersect DD	00H
+	DD	00H
+	DD	00H
+	DD	01H
+	DD	00H
+	DD	00H
+	DD	01H
+	DD	01H
+	DD	00H
+	DD	01H
+	DD	00H
+	DD	01H
+	DD	01H
+	DD	01H
+	DD	01H
+	DD	01H
+_DATA	ENDS
+PUBLIC	_SliClear
+PUBLIC	_DdSli2DSolidColor
+EXTRN	__fltused:NEAR
+EXTRN	_ddftol:NEAR
+_TEXT	SEGMENT
+_pRc$ = 8
+_dwFlags$ = 12
+_dwFillColor$ = 16
+_dvFillDepth$ = 20
+_dwFillStencil$ = 24
+_pRects$ = 28
+_count$ = 32
+_ppdev$ = -76
+_i$ = -72
+_dstPixelFormat$ = -88
+_dstPitch$ = -80
+_fillData1$ = -92
+_fillData2$ = -84
+_dwReturned$ = -68
+_SolidColorParams$ = -64
+_pSurfaceData$ = -4
+_SliClear PROC NEAR
+
+; 88   : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	83 ec 74	 sub	 esp, 116		; 00000074H
+  00006	56		 push	 esi
+
+; 89   :    SETUP_PPDEV(pRc)
+
+  00007	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  0000a	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  0000d	89 4d b4	 mov	 DWORD PTR _ppdev$[ebp], ecx
+
+; 90   :    DWORD i;
+; 91   :    DWORD dstPixelFormat;
+; 92   :    long  dstPitch;
+; 93   :    DWORD fillData1;
+; 94   :    DWORD fillData2;
+; 95   :    DWORD dwReturned;
+; 96   : 
+; 97   :    SOLIDCOLORPARAMS SolidColorParams; 
+; 98   :    FXSURFACEDATA * pSurfaceData;
+; 99   : 
+; 100  :    for (i = 0; i < count; ++i)
+
+  00010	c7 45 b8 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  00017	eb 09		 jmp	 SHORT $L36894
+$L36895:
+  00019	8b 55 b8	 mov	 edx, DWORD PTR _i$[ebp]
+  0001c	83 c2 01	 add	 edx, 1
+  0001f	89 55 b8	 mov	 DWORD PTR _i$[ebp], edx
+$L36894:
+  00022	8b 45 b8	 mov	 eax, DWORD PTR _i$[ebp]
+  00025	3b 45 20	 cmp	 eax, DWORD PTR _count$[ebp]
+  00028	0f 83 95 06 00
+	00		 jae	 $L36896
+
+; 102  :       SolidColorParams.dstLeft = pRects[i].left;
+
+  0002e	8b 4d b8	 mov	 ecx, DWORD PTR _i$[ebp]
+  00031	c1 e1 04	 shl	 ecx, 4
+  00034	8b 55 1c	 mov	 edx, DWORD PTR _pRects$[ebp]
+  00037	8b 04 0a	 mov	 eax, DWORD PTR [edx+ecx]
+  0003a	89 45 c0	 mov	 DWORD PTR _SolidColorParams$[ebp], eax
+
+; 103  :       SolidColorParams.dstTop = pRects[i].top;
+
+  0003d	8b 4d b8	 mov	 ecx, DWORD PTR _i$[ebp]
+  00040	c1 e1 04	 shl	 ecx, 4
+  00043	8b 55 1c	 mov	 edx, DWORD PTR _pRects$[ebp]
+  00046	8b 44 0a 04	 mov	 eax, DWORD PTR [edx+ecx+4]
+  0004a	89 45 c8	 mov	 DWORD PTR _SolidColorParams$[ebp+8], eax
+
+; 104  :       SolidColorParams.dstRight = pRects[i].right;
+
+  0004d	8b 4d b8	 mov	 ecx, DWORD PTR _i$[ebp]
+  00050	c1 e1 04	 shl	 ecx, 4
+  00053	8b 55 1c	 mov	 edx, DWORD PTR _pRects$[ebp]
+  00056	8b 44 0a 08	 mov	 eax, DWORD PTR [edx+ecx+8]
+  0005a	89 45 c4	 mov	 DWORD PTR _SolidColorParams$[ebp+4], eax
+
+; 105  :       SolidColorParams.dstBottom = pRects[i].bottom;
+
+  0005d	8b 4d b8	 mov	 ecx, DWORD PTR _i$[ebp]
+  00060	c1 e1 04	 shl	 ecx, 4
+  00063	8b 55 1c	 mov	 edx, DWORD PTR _pRects$[ebp]
+  00066	8b 44 0a 0c	 mov	 eax, DWORD PTR [edx+ecx+12]
+  0006a	89 45 cc	 mov	 DWORD PTR _SolidColorParams$[ebp+12], eax
+
+; 106  : 
+; 107  :       if (((dwFlags & D3DCLEAR_ZBUFFER) | (dwFlags & D3DCLEAR_STENCIL)) && (pRc->DDSZHndl != 0))
+
+  0006d	8b 4d 0c	 mov	 ecx, DWORD PTR _dwFlags$[ebp]
+  00070	83 e1 02	 and	 ecx, 2
+  00073	8b 55 0c	 mov	 edx, DWORD PTR _dwFlags$[ebp]
+  00076	83 e2 04	 and	 edx, 4
+  00079	0b ca		 or	 ecx, edx
+  0007b	85 c9		 test	 ecx, ecx
+  0007d	0f 84 f3 03 00
+	00		 je	 $L36923
+  00083	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  00086	83 b8 34 05 00
+	00 00		 cmp	 DWORD PTR [eax+1332], 0
+  0008d	0f 84 e3 03 00
+	00		 je	 $L36923
+
+; 109  :          pSurfaceData = ((TXTRHNDL_PTR(pRc->DDSZHndl))->surfData);
+
+  00093	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  00096	8b 91 38 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1336]
+  0009c	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  0009f	8b 88 34 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1332]
+  000a5	8b 52 08	 mov	 edx, DWORD PTR [edx+8]
+  000a8	8b 04 8a	 mov	 eax, DWORD PTR [edx+ecx*4]
+  000ab	8b 48 48	 mov	 ecx, DWORD PTR [eax+72]
+  000ae	89 4d fc	 mov	 DWORD PTR _pSurfaceData$[ebp], ecx
+
+; 110  : 
+; 111  :          SolidColorParams.isTiled = IS_TILED(pSurfaceData->hwPtr);
+
+  000b1	8b 55 fc	 mov	 edx, DWORD PTR _pSurfaceData$[ebp]
+  000b4	8b 02		 mov	 eax, DWORD PTR [edx]
+  000b6	25 00 00 00 80	 and	 eax, -2147483648	; 80000000H
+  000bb	f7 d8		 neg	 eax
+  000bd	1b c0		 sbb	 eax, eax
+  000bf	f7 d8		 neg	 eax
+  000c1	89 45 f0	 mov	 DWORD PTR _SolidColorParams$[ebp+48], eax
+
+; 112  :          if (SolidColorParams.isTiled && _DD(ddSLIModeEnabled))
+
+  000c4	83 7d f0 00	 cmp	 DWORD PTR _SolidColorParams$[ebp+48], 0
+  000c8	74 1b		 je	 SHORT $L36899
+  000ca	8b 4d b4	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  000cd	8b 91 14 18 00
+	00		 mov	 edx, DWORD PTR [ecx+6164]
+  000d3	83 ba 76 03 00
+	00 00		 cmp	 DWORD PTR [edx+886], 0
+  000da	74 09		 je	 SHORT $L36899
+
+; 113  :             SolidColorParams.dwSliSurface = TRUE;
+
+  000dc	c7 45 e0 01 00
+	00 00		 mov	 DWORD PTR _SolidColorParams$[ebp+32], 1
+
+; 114  :          else
+
+  000e3	eb 07		 jmp	 SHORT $L36900
+$L36899:
+
+; 115  :             SolidColorParams.dwSliSurface = FALSE;
+
+  000e5	c7 45 e0 00 00
+	00 00		 mov	 DWORD PTR _SolidColorParams$[ebp+32], 0
+$L36900:
+
+; 116  : 
+; 117  :          SolidColorParams.bltDstBaseAddr = GET_HW_OFFSET(pRc->DDSZHndl);
+
+  000ec	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  000ef	8b 88 38 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1336]
+  000f5	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  000f8	8b 82 34 05 00
+	00		 mov	 eax, DWORD PTR [edx+1332]
+  000fe	8b 49 08	 mov	 ecx, DWORD PTR [ecx+8]
+  00101	8b 14 81	 mov	 edx, DWORD PTR [ecx+eax*4]
+  00104	8b 42 48	 mov	 eax, DWORD PTR [edx+72]
+  00107	8b 08		 mov	 ecx, DWORD PTR [eax]
+  00109	89 4d dc	 mov	 DWORD PTR _SolidColorParams$[ebp+28], ecx
+
+; 118  : 
+; 119  :          SolidColorParams.BytesPerPel = 
+; 120  :           (TXTRHNDL_PTR(pRc->DDSZHndl)->dwZDepth ) >> 3;
+
+  0010c	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  0010f	8b 82 38 05 00
+	00		 mov	 eax, DWORD PTR [edx+1336]
+  00115	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  00118	8b 91 34 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1332]
+  0011e	8b 40 08	 mov	 eax, DWORD PTR [eax+8]
+  00121	8b 0c 90	 mov	 ecx, DWORD PTR [eax+edx*4]
+  00124	8b 51 30	 mov	 edx, DWORD PTR [ecx+48]
+  00127	c1 ea 03	 shr	 edx, 3
+  0012a	89 55 f8	 mov	 DWORD PTR _SolidColorParams$[ebp+56], edx
+
+; 121  : 
+; 122  :          GETPIXELFORMAT(SolidColorParams.BytesPerPel, dstPixelFormat);
+
+  0012d	8b 45 f8	 mov	 eax, DWORD PTR _SolidColorParams$[ebp+56]
+  00130	89 45 a0	 mov	 DWORD PTR -96+[ebp], eax
+  00133	8b 4d a0	 mov	 ecx, DWORD PTR -96+[ebp]
+  00136	83 e9 01	 sub	 ecx, 1
+  00139	89 4d a0	 mov	 DWORD PTR -96+[ebp], ecx
+  0013c	83 7d a0 03	 cmp	 DWORD PTR -96+[ebp], 3
+  00140	77 2e		 ja	 SHORT $L36910
+  00142	8b 55 a0	 mov	 edx, DWORD PTR -96+[ebp]
+  00145	ff 24 95 00 00
+	00 00		 jmp	 DWORD PTR $L37364[edx*4]
+$L36906:
+  0014c	c7 45 a8 00 00
+	01 00		 mov	 DWORD PTR _dstPixelFormat$[ebp], 65536 ; 00010000H
+  00153	eb 22		 jmp	 SHORT $L36903
+$L36907:
+  00155	c7 45 a8 00 00
+	03 00		 mov	 DWORD PTR _dstPixelFormat$[ebp], 196608 ; 00030000H
+  0015c	eb 19		 jmp	 SHORT $L36903
+$L36908:
+  0015e	c7 45 a8 00 00
+	04 00		 mov	 DWORD PTR _dstPixelFormat$[ebp], 262144 ; 00040000H
+  00165	eb 10		 jmp	 SHORT $L36903
+$L36909:
+  00167	c7 45 a8 00 00
+	05 00		 mov	 DWORD PTR _dstPixelFormat$[ebp], 327680 ; 00050000H
+  0016e	eb 07		 jmp	 SHORT $L36903
+$L36910:
+  00170	c7 45 a8 ff ff
+	00 00		 mov	 DWORD PTR _dstPixelFormat$[ebp], 65535 ; 0000ffffH
+$L36903:
+
+; 123  : 
+; 124  :          SolidColorParams.fpVidMem = pSurfaceData->lfbPtr;
+
+  00177	8b 45 fc	 mov	 eax, DWORD PTR _pSurfaceData$[ebp]
+  0017a	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  0017d	89 4d e8	 mov	 DWORD PTR _SolidColorParams$[ebp+40], ecx
+
+; 125  :          SolidColorParams.linearPitch = TXTRHNDL_PTR(pRc->DDSZHndl)->lPitch;
+
+  00180	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  00183	8b 82 38 05 00
+	00		 mov	 eax, DWORD PTR [edx+1336]
+  00189	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  0018c	8b 91 34 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1332]
+  00192	8b 40 08	 mov	 eax, DWORD PTR [eax+8]
+  00195	8b 0c 90	 mov	 ecx, DWORD PTR [eax+edx*4]
+  00198	8b 51 20	 mov	 edx, DWORD PTR [ecx+32]
+  0019b	89 55 ec	 mov	 DWORD PTR _SolidColorParams$[ebp+44], edx
+
+; 126  :          SolidColorParams.isZClear = TRUE;
+
+  0019e	c7 45 f4 01 00
+	00 00		 mov	 DWORD PTR _SolidColorParams$[ebp+52], 1
+
+; 127  : #if ENABLE_TILED_HEAP
+; 128  :          if (SolidColorParams.isTiled)
+
+  001a5	83 7d f0 00	 cmp	 DWORD PTR _SolidColorParams$[ebp+48], 0
+  001a9	74 1a		 je	 SHORT $L36911
+
+; 130  :             dstPitch = _DS(ddTileStride);
+
+  001ab	8b 45 b4	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  001ae	8b 88 8c 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1420]
+  001b4	89 4d b0	 mov	 DWORD PTR _dstPitch$[ebp], ecx
+
+; 131  :             SolidColorParams.Pitch = _DS(ddTilePitch);
+
+  001b7	8b 55 b4	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  001ba	8b 82 94 05 00
+	00		 mov	 eax, DWORD PTR [edx+1428]
+  001c0	89 45 e4	 mov	 DWORD PTR _SolidColorParams$[ebp+36], eax
+
+; 133  :          else
+
+  001c3	eb 24		 jmp	 SHORT $L36912
+$L36911:
+
+; 136  :             dstPitch = TXTRHNDL_PTR(pRc->DDSZHndl)->lPitch;
+
+  001c5	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  001c8	8b 91 38 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1336]
+  001ce	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  001d1	8b 88 34 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1332]
+  001d7	8b 52 08	 mov	 edx, DWORD PTR [edx+8]
+  001da	8b 04 8a	 mov	 eax, DWORD PTR [edx+ecx*4]
+  001dd	8b 48 20	 mov	 ecx, DWORD PTR [eax+32]
+  001e0	89 4d b0	 mov	 DWORD PTR _dstPitch$[ebp], ecx
+
+; 137  :             SolidColorParams.Pitch = dstPitch;
+
+  001e3	8b 55 b0	 mov	 edx, DWORD PTR _dstPitch$[ebp]
+  001e6	89 55 e4	 mov	 DWORD PTR _SolidColorParams$[ebp+36], edx
+$L36912:
+
+; 139  : 
+; 140  :          BLTFMT(dstPitch, dstPixelFormat, SolidColorParams.bltDstFormat);
+
+  001e9	8b 45 b0	 mov	 eax, DWORD PTR _dstPitch$[ebp]
+  001ec	25 ff 3f 00 00	 and	 eax, 16383		; 00003fffH
+  001f1	8b 4d a8	 mov	 ecx, DWORD PTR _dstPixelFormat$[ebp]
+  001f4	0b c8		 or	 ecx, eax
+  001f6	89 4d d4	 mov	 DWORD PTR _SolidColorParams$[ebp+20], ecx
+
+; 141  : 
+; 142  :          if ((pRc->stencilEnable) && ((D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL) != (dwFlags & (D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL))))
+
+  001f9	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  001fc	83 ba b4 00 00
+	00 00		 cmp	 DWORD PTR [edx+180], 0
+  00203	0f 84 95 01 00
+	00		 je	 $L36913
+  00209	8b 45 0c	 mov	 eax, DWORD PTR _dwFlags$[ebp]
+  0020c	83 e0 06	 and	 eax, 6
+  0020f	83 f8 06	 cmp	 eax, 6
+  00212	0f 84 86 01 00
+	00		 je	 $L36913
+
+; 144  :             // This is a two step operation
+; 145  :             // we are going to do a AND and then a OR
+; 146  :             // the AND mask will be either NOT STENCIL or NOT Z-Buffer and the
+; 147  :             // OR mask will be STENCIL or Z-BUFFER Data
+; 148  :             if (dwFlags & D3DCLEAR_ZBUFFER)
+
+  00218	8b 4d 0c	 mov	 ecx, DWORD PTR _dwFlags$[ebp]
+  0021b	83 e1 02	 and	 ecx, 2
+  0021e	85 c9		 test	 ecx, ecx
+  00220	74 60		 je	 SHORT $L36914
+
+; 150  :                fillData1 = ((0xFF << 24) & TXTRHNDL_PTR(pRc->DDSZHndl)->dwStencil);
+
+  00222	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  00225	8b 82 38 05 00
+	00		 mov	 eax, DWORD PTR [edx+1336]
+  0022b	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  0022e	8b 91 34 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1332]
+  00234	8b 40 08	 mov	 eax, DWORD PTR [eax+8]
+  00237	8b 0c 90	 mov	 ecx, DWORD PTR [eax+edx*4]
+  0023a	8b 51 34	 mov	 edx, DWORD PTR [ecx+52]
+  0023d	81 e2 00 00 00
+	ff		 and	 edx, -16777216		; ff000000H
+  00243	89 55 a4	 mov	 DWORD PTR _fillData1$[ebp], edx
+
+; 151  : #ifdef WINNT
+; 152  :                fillData2 = ((DWORD)(dvFillDepth * TXTRHNDL_PTR(pRc->DDSZHndl)->dwZMask));
+; 153  : #else
+; 154  :                fillData2 = (DWORD)(ddftol(dvFillDepth * TXTRHNDL_PTR(pRc->DDSZHndl)->dwZMask));
+
+  00246	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  00249	8b 88 38 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1336]
+  0024f	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  00252	8b 82 34 05 00
+	00		 mov	 eax, DWORD PTR [edx+1332]
+  00258	8b 49 08	 mov	 ecx, DWORD PTR [ecx+8]
+  0025b	8b 14 81	 mov	 edx, DWORD PTR [ecx+eax*4]
+  0025e	8b 42 2c	 mov	 eax, DWORD PTR [edx+44]
+  00261	89 45 98	 mov	 DWORD PTR -104+[ebp], eax
+  00264	c7 45 9c 00 00
+	00 00		 mov	 DWORD PTR -104+[ebp+4], 0
+  0026b	df 6d 98	 fild	 QWORD PTR -104+[ebp]
+  0026e	d8 4d 14	 fmul	 DWORD PTR _dvFillDepth$[ebp]
+  00271	51		 push	 ecx
+  00272	d9 1c 24	 fstp	 DWORD PTR [esp]
+  00275	e8 00 00 00 00	 call	 _ddftol
+  0027a	83 c4 04	 add	 esp, 4
+  0027d	89 45 ac	 mov	 DWORD PTR _fillData2$[ebp], eax
+
+; 157  :             else
+
+  00280	eb 48		 jmp	 SHORT $L36916
+$L36914:
+
+; 159  :                fillData1 = ((0x00FFFFFF) & TXTRHNDL_PTR(pRc->DDSZHndl)->dwZMask);
+
+  00282	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  00285	8b 91 38 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1336]
+  0028b	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  0028e	8b 88 34 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1332]
+  00294	8b 52 08	 mov	 edx, DWORD PTR [edx+8]
+  00297	8b 04 8a	 mov	 eax, DWORD PTR [edx+ecx*4]
+  0029a	8b 48 2c	 mov	 ecx, DWORD PTR [eax+44]
+  0029d	81 e1 ff ff ff
+	00		 and	 ecx, 16777215		; 00ffffffH
+  002a3	89 4d a4	 mov	 DWORD PTR _fillData1$[ebp], ecx
+
+; 160  :                fillData2 = ((dwFillStencil << 24) & TXTRHNDL_PTR(pRc->DDSZHndl)->dwStencil);
+
+  002a6	8b 55 18	 mov	 edx, DWORD PTR _dwFillStencil$[ebp]
+  002a9	c1 e2 18	 shl	 edx, 24			; 00000018H
+  002ac	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  002af	8b 88 38 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1336]
+  002b5	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  002b8	8b 80 34 05 00
+	00		 mov	 eax, DWORD PTR [eax+1332]
+  002be	8b 49 08	 mov	 ecx, DWORD PTR [ecx+8]
+  002c1	8b 04 81	 mov	 eax, DWORD PTR [ecx+eax*4]
+  002c4	23 50 34	 and	 edx, DWORD PTR [eax+52]
+  002c7	89 55 ac	 mov	 DWORD PTR _fillData2$[ebp], edx
+$L36916:
+
+; 162  : 
+; 163  :             // Clear the Stencil or Z-Buffer
+; 164  :             SolidColorParams.fillData =  fillData1;
+
+  002ca	8b 4d a4	 mov	 ecx, DWORD PTR _fillData1$[ebp]
+  002cd	89 4d d0	 mov	 DWORD PTR _SolidColorParams$[ebp+16], ecx
+
+; 165  :             SolidColorParams.bltRop = (SSTG_ROP_AND << 16) | (SSTG_ROP_AND << 8) | (SSTG_ROP_AND);
+
+  002d0	c7 45 d8 88 88
+	88 00		 mov	 DWORD PTR _SolidColorParams$[ebp+24], 8947848 ; 00888888H
+
+; 166  :             dwReturned = DdSli2DSolidColor(ppdev, &SolidColorParams);
+
+  002d7	8d 55 c0	 lea	 edx, DWORD PTR _SolidColorParams$[ebp]
+  002da	52		 push	 edx
+  002db	8b 45 b4	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  002de	50		 push	 eax
+  002df	e8 00 00 00 00	 call	 _DdSli2DSolidColor
+  002e4	83 c4 08	 add	 esp, 8
+  002e7	89 45 bc	 mov	 DWORD PTR _dwReturned$[ebp], eax
+
+; 167  :       
+; 168  :             // Fill the Stencil or Z-Buffer
+; 169  :             SolidColorParams.fillData =  fillData2;
+
+  002ea	8b 4d ac	 mov	 ecx, DWORD PTR _fillData2$[ebp]
+  002ed	89 4d d0	 mov	 DWORD PTR _SolidColorParams$[ebp+16], ecx
+
+; 170  :             SolidColorParams.bltRop = (SSTG_ROP_OR << 16) | (SSTG_ROP_OR << 8) | (SSTG_ROP_OR);
+
+  002f0	c7 45 d8 ee ee
+	ee 00		 mov	 DWORD PTR _SolidColorParams$[ebp+24], 15658734 ; 00eeeeeeH
+
+; 171  :             dwReturned = DdSli2DSolidColor(ppdev, &SolidColorParams);
+
+  002f7	8d 55 c0	 lea	 edx, DWORD PTR _SolidColorParams$[ebp]
+  002fa	52		 push	 edx
+  002fb	8b 45 b4	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  002fe	50		 push	 eax
+  002ff	e8 00 00 00 00	 call	 _DdSli2DSolidColor
+  00304	83 c4 08	 add	 esp, 8
+  00307	89 45 bc	 mov	 DWORD PTR _dwReturned$[ebp], eax
+
+; 172  :             // If AA Mode then Do Every Thing Twice unless we punted then once is enough
+; 173  :             if ( (BLIT_WAS_HW == dwReturned) &&
+; 174  :                  SolidColorParams.isTiled && _DD(ddAAModeEnabled)
+; 175  :                )
+
+  0030a	83 7d bc 01	 cmp	 DWORD PTR _dwReturned$[ebp], 1
+  0030e	0f 85 85 00 00
+	00		 jne	 $L36918
+  00314	83 7d f0 00	 cmp	 DWORD PTR _SolidColorParams$[ebp+48], 0
+  00318	74 7f		 je	 SHORT $L36918
+  0031a	8b 4d b4	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0031d	8b 91 14 18 00
+	00		 mov	 edx, DWORD PTR [ecx+6164]
+  00323	83 ba 86 03 00
+	00 00		 cmp	 DWORD PTR [edx+902], 0
+  0032a	74 6d		 je	 SHORT $L36918
+
+; 177  :                SolidColorParams.bltDstBaseAddr = GET_AAHW_OFFSET(pRc->DDSZHndl);
+
+  0032c	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  0032f	8b 88 38 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1336]
+  00335	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  00338	8b 82 34 05 00
+	00		 mov	 eax, DWORD PTR [edx+1332]
+  0033e	8b 49 08	 mov	 ecx, DWORD PTR [ecx+8]
+  00341	8b 14 81	 mov	 edx, DWORD PTR [ecx+eax*4]
+  00344	8b 42 48	 mov	 eax, DWORD PTR [edx+72]
+  00347	8b 48 30	 mov	 ecx, DWORD PTR [eax+48]
+  0034a	89 4d dc	 mov	 DWORD PTR _SolidColorParams$[ebp+28], ecx
+
+; 178  :                SolidColorParams.fpVidMem = pSurfaceData->AAlfbPtr;
+
+  0034d	8b 55 fc	 mov	 edx, DWORD PTR _pSurfaceData$[ebp]
+  00350	8b 42 34	 mov	 eax, DWORD PTR [edx+52]
+  00353	89 45 e8	 mov	 DWORD PTR _SolidColorParams$[ebp+40], eax
+
+; 179  :                SolidColorParams.Pitch = pSurfaceData->AAlPitch;
+
+  00356	8b 4d fc	 mov	 ecx, DWORD PTR _pSurfaceData$[ebp]
+  00359	8b 51 38	 mov	 edx, DWORD PTR [ecx+56]
+  0035c	89 55 e4	 mov	 DWORD PTR _SolidColorParams$[ebp+36], edx
+
+; 180  : 
+; 181  :                // Clear the Stencil or Z-Buffer
+; 182  :                SolidColorParams.fillData =  fillData1;
+
+  0035f	8b 45 a4	 mov	 eax, DWORD PTR _fillData1$[ebp]
+  00362	89 45 d0	 mov	 DWORD PTR _SolidColorParams$[ebp+16], eax
+
+; 183  :                SolidColorParams.bltRop = (SSTG_ROP_AND << 16) | (SSTG_ROP_AND << 8) | (SSTG_ROP_AND);
+
+  00365	c7 45 d8 88 88
+	88 00		 mov	 DWORD PTR _SolidColorParams$[ebp+24], 8947848 ; 00888888H
+
+; 184  :                DdSli2DSolidColor(ppdev, &SolidColorParams);
+
+  0036c	8d 4d c0	 lea	 ecx, DWORD PTR _SolidColorParams$[ebp]
+  0036f	51		 push	 ecx
+  00370	8b 55 b4	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00373	52		 push	 edx
+  00374	e8 00 00 00 00	 call	 _DdSli2DSolidColor
+  00379	83 c4 08	 add	 esp, 8
+
+; 185  :       
+; 186  :                // Fill the Stencil or Z-Buffer
+; 187  :                SolidColorParams.fillData =  fillData2;
+
+  0037c	8b 45 ac	 mov	 eax, DWORD PTR _fillData2$[ebp]
+  0037f	89 45 d0	 mov	 DWORD PTR _SolidColorParams$[ebp+16], eax
+
+; 188  :                SolidColorParams.bltRop = (SSTG_ROP_OR << 16) | (SSTG_ROP_OR << 8) | (SSTG_ROP_OR);
+
+  00382	c7 45 d8 ee ee
+	ee 00		 mov	 DWORD PTR _SolidColorParams$[ebp+24], 15658734 ; 00eeeeeeH
+
+; 189  :                DdSli2DSolidColor(ppdev, &SolidColorParams);
+
+  00389	8d 4d c0	 lea	 ecx, DWORD PTR _SolidColorParams$[ebp]
+  0038c	51		 push	 ecx
+  0038d	8b 55 b4	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00390	52		 push	 edx
+  00391	e8 00 00 00 00	 call	 _DdSli2DSolidColor
+  00396	83 c4 08	 add	 esp, 8
+$L36918:
+
+; 192  :          else
+
+  00399	e9 d8 00 00 00	 jmp	 $L36923
+$L36913:
+
+; 194  :             SolidColorParams.bltRop = (SSTG_ROP_SRC << 16 )| (SSTG_ROP_SRC << 8 ) | (SSTG_ROP_SRC );
+
+  0039e	c7 45 d8 cc cc
+	cc 00		 mov	 DWORD PTR _SolidColorParams$[ebp+24], 13421772 ; 00ccccccH
+
+; 195  : #ifdef WINNT
+; 196  :             SolidColorParams.fillData =  ((dwFillStencil << 24) & TXTRHNDL_PTR(pRc->DDSZHndl)->dwZMask) |   // Stencil value
+; 197  :                          ((DWORD)(dvFillDepth * TXTRHNDL_PTR(pRc->DDSZHndl)->dwZMask));                     // Z value
+; 198  : #else
+; 199  :             SolidColorParams.fillData =  ((dwFillStencil << 24) & TXTRHNDL_PTR(pRc->DDSZHndl)->dwZMask) |   // Stencil value
+; 200  :                          ((DWORD)ddftol(dvFillDepth * TXTRHNDL_PTR(pRc->DDSZHndl)->dwZMask));               // Z value
+
+  003a5	8b 75 18	 mov	 esi, DWORD PTR _dwFillStencil$[ebp]
+  003a8	c1 e6 18	 shl	 esi, 24			; 00000018H
+  003ab	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  003ae	8b 88 38 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1336]
+  003b4	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  003b7	8b 82 34 05 00
+	00		 mov	 eax, DWORD PTR [edx+1332]
+  003bd	8b 49 08	 mov	 ecx, DWORD PTR [ecx+8]
+  003c0	8b 14 81	 mov	 edx, DWORD PTR [ecx+eax*4]
+  003c3	23 72 2c	 and	 esi, DWORD PTR [edx+44]
+  003c6	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  003c9	8b 88 38 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1336]
+  003cf	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  003d2	8b 82 34 05 00
+	00		 mov	 eax, DWORD PTR [edx+1332]
+  003d8	8b 49 08	 mov	 ecx, DWORD PTR [ecx+8]
+  003db	8b 14 81	 mov	 edx, DWORD PTR [ecx+eax*4]
+  003de	8b 42 2c	 mov	 eax, DWORD PTR [edx+44]
+  003e1	89 45 90	 mov	 DWORD PTR -112+[ebp], eax
+  003e4	c7 45 94 00 00
+	00 00		 mov	 DWORD PTR -112+[ebp+4], 0
+  003eb	df 6d 90	 fild	 QWORD PTR -112+[ebp]
+  003ee	d8 4d 14	 fmul	 DWORD PTR _dvFillDepth$[ebp]
+  003f1	51		 push	 ecx
+  003f2	d9 1c 24	 fstp	 DWORD PTR [esp]
+  003f5	e8 00 00 00 00	 call	 _ddftol
+  003fa	83 c4 04	 add	 esp, 4
+  003fd	0b f0		 or	 esi, eax
+  003ff	89 75 d0	 mov	 DWORD PTR _SolidColorParams$[ebp+16], esi
+
+; 201  : #endif
+; 202  : 
+; 203  :             // Doit the operation
+; 204  :             dwReturned = DdSli2DSolidColor(ppdev, &SolidColorParams);
+
+  00402	8d 4d c0	 lea	 ecx, DWORD PTR _SolidColorParams$[ebp]
+  00405	51		 push	 ecx
+  00406	8b 55 b4	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00409	52		 push	 edx
+  0040a	e8 00 00 00 00	 call	 _DdSli2DSolidColor
+  0040f	83 c4 08	 add	 esp, 8
+  00412	89 45 bc	 mov	 DWORD PTR _dwReturned$[ebp], eax
+
+; 205  :             // If AA Mode then Do Every Thing Twice unless we punted then once is enough
+; 206  :             if ( (BLIT_WAS_HW == dwReturned) &&
+; 207  :                  SolidColorParams.isTiled && _DD(ddAAModeEnabled)
+; 208  :                )
+
+  00415	83 7d bc 01	 cmp	 DWORD PTR _dwReturned$[ebp], 1
+  00419	75 5b		 jne	 SHORT $L36923
+  0041b	83 7d f0 00	 cmp	 DWORD PTR _SolidColorParams$[ebp+48], 0
+  0041f	74 55		 je	 SHORT $L36923
+  00421	8b 45 b4	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00424	8b 88 14 18 00
+	00		 mov	 ecx, DWORD PTR [eax+6164]
+  0042a	83 b9 86 03 00
+	00 00		 cmp	 DWORD PTR [ecx+902], 0
+  00431	74 43		 je	 SHORT $L36923
+
+; 210  :                SolidColorParams.bltDstBaseAddr = GET_AAHW_OFFSET(pRc->DDSZHndl);
+
+  00433	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  00436	8b 82 38 05 00
+	00		 mov	 eax, DWORD PTR [edx+1336]
+  0043c	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  0043f	8b 91 34 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1332]
+  00445	8b 40 08	 mov	 eax, DWORD PTR [eax+8]
+  00448	8b 0c 90	 mov	 ecx, DWORD PTR [eax+edx*4]
+  0044b	8b 51 48	 mov	 edx, DWORD PTR [ecx+72]
+  0044e	8b 42 30	 mov	 eax, DWORD PTR [edx+48]
+  00451	89 45 dc	 mov	 DWORD PTR _SolidColorParams$[ebp+28], eax
+
+; 211  :                SolidColorParams.fpVidMem = pSurfaceData->AAlfbPtr;
+
+  00454	8b 4d fc	 mov	 ecx, DWORD PTR _pSurfaceData$[ebp]
+  00457	8b 51 34	 mov	 edx, DWORD PTR [ecx+52]
+  0045a	89 55 e8	 mov	 DWORD PTR _SolidColorParams$[ebp+40], edx
+
+; 212  :                SolidColorParams.Pitch = pSurfaceData->AAlPitch;
+
+  0045d	8b 45 fc	 mov	 eax, DWORD PTR _pSurfaceData$[ebp]
+  00460	8b 48 38	 mov	 ecx, DWORD PTR [eax+56]
+  00463	89 4d e4	 mov	 DWORD PTR _SolidColorParams$[ebp+36], ecx
+
+; 213  :                DdSli2DSolidColor(ppdev, &SolidColorParams);
+
+  00466	8d 55 c0	 lea	 edx, DWORD PTR _SolidColorParams$[ebp]
+  00469	52		 push	 edx
+  0046a	8b 45 b4	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0046d	50		 push	 eax
+  0046e	e8 00 00 00 00	 call	 _DdSli2DSolidColor
+  00473	83 c4 08	 add	 esp, 8
+$L36923:
+
+; 217  : 
+; 218  :       if( (dwFlags & D3DCLEAR_TARGET) && (pRc->DDSHndl != 0))
+
+  00476	8b 4d 0c	 mov	 ecx, DWORD PTR _dwFlags$[ebp]
+  00479	83 e1 01	 and	 ecx, 1
+  0047c	85 c9		 test	 ecx, ecx
+  0047e	0f 84 3a 02 00
+	00		 je	 $L36951
+  00484	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  00487	83 ba 30 05 00
+	00 00		 cmp	 DWORD PTR [edx+1328], 0
+  0048e	0f 84 2a 02 00
+	00		 je	 $L36951
+
+; 220  : 
+; 221  :          pSurfaceData = (FXSURFACEDATA*)((TXTRHNDL_PTR(pRc->DDSHndl))->surfData);
+
+  00494	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  00497	8b 88 38 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1336]
+  0049d	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  004a0	8b 82 30 05 00
+	00		 mov	 eax, DWORD PTR [edx+1328]
+  004a6	8b 49 08	 mov	 ecx, DWORD PTR [ecx+8]
+  004a9	8b 14 81	 mov	 edx, DWORD PTR [ecx+eax*4]
+  004ac	8b 42 48	 mov	 eax, DWORD PTR [edx+72]
+  004af	89 45 fc	 mov	 DWORD PTR _pSurfaceData$[ebp], eax
+
+; 222  :          SolidColorParams.isTiled = IS_TILED(pSurfaceData->hwPtr);
+
+  004b2	8b 4d fc	 mov	 ecx, DWORD PTR _pSurfaceData$[ebp]
+  004b5	8b 11		 mov	 edx, DWORD PTR [ecx]
+  004b7	81 e2 00 00 00
+	80		 and	 edx, -2147483648	; 80000000H
+  004bd	f7 da		 neg	 edx
+  004bf	1b d2		 sbb	 edx, edx
+  004c1	f7 da		 neg	 edx
+  004c3	89 55 f0	 mov	 DWORD PTR _SolidColorParams$[ebp+48], edx
+
+; 223  :          if (SolidColorParams.isTiled && _DD(ddSLIModeEnabled))
+
+  004c6	83 7d f0 00	 cmp	 DWORD PTR _SolidColorParams$[ebp+48], 0
+  004ca	74 1b		 je	 SHORT $L36928
+  004cc	8b 45 b4	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  004cf	8b 88 14 18 00
+	00		 mov	 ecx, DWORD PTR [eax+6164]
+  004d5	83 b9 76 03 00
+	00 00		 cmp	 DWORD PTR [ecx+886], 0
+  004dc	74 09		 je	 SHORT $L36928
+
+; 224  :             SolidColorParams.dwSliSurface = TRUE;
+
+  004de	c7 45 e0 01 00
+	00 00		 mov	 DWORD PTR _SolidColorParams$[ebp+32], 1
+
+; 225  :          else
+
+  004e5	eb 07		 jmp	 SHORT $L36929
+$L36928:
+
+; 226  :             SolidColorParams.dwSliSurface = FALSE;
+
+  004e7	c7 45 e0 00 00
+	00 00		 mov	 DWORD PTR _SolidColorParams$[ebp+32], 0
+$L36929:
+
+; 227  : 
+; 228  :          SolidColorParams.bltDstBaseAddr = GET_HW_OFFSET(pRc->DDSHndl);
+
+  004ee	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  004f1	8b 82 38 05 00
+	00		 mov	 eax, DWORD PTR [edx+1336]
+  004f7	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  004fa	8b 91 30 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1328]
+  00500	8b 40 08	 mov	 eax, DWORD PTR [eax+8]
+  00503	8b 0c 90	 mov	 ecx, DWORD PTR [eax+edx*4]
+  00506	8b 51 48	 mov	 edx, DWORD PTR [ecx+72]
+  00509	8b 02		 mov	 eax, DWORD PTR [edx]
+  0050b	89 45 dc	 mov	 DWORD PTR _SolidColorParams$[ebp+28], eax
+
+; 229  : 
+; 230  :          SolidColorParams.BytesPerPel = GETPRIMARYBYTEDEPTH;
+
+  0050e	8b 4d b4	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00511	33 d2		 xor	 edx, edx
+  00513	66 8b 91 e4 04
+	00 00		 mov	 dx, WORD PTR [ecx+1252]
+  0051a	c1 fa 03	 sar	 edx, 3
+  0051d	89 55 f8	 mov	 DWORD PTR _SolidColorParams$[ebp+56], edx
+
+; 231  :          if (SolidColorParams.BytesPerPel == 2)            // if 16 bpp
+
+  00520	83 7d f8 02	 cmp	 DWORD PTR _SolidColorParams$[ebp+56], 2
+  00524	75 32		 jne	 SHORT $L36931
+
+; 233  :             SolidColorParams.fillData = dwFillColor;  // Assume fill color is rgb888 always
+
+  00526	8b 45 10	 mov	 eax, DWORD PTR _dwFillColor$[ebp]
+  00529	89 45 d0	 mov	 DWORD PTR _SolidColorParams$[ebp+16], eax
+
+; 234  : 		      SolidColorParams.fillData = (((SolidColorParams.fillData & 0xF80000) >> 8) | ((SolidColorParams.fillData & 0xFC00) >> 5) | ((SolidColorParams.fillData & 0xF8) >> 3));
+
+  0052c	8b 4d d0	 mov	 ecx, DWORD PTR _SolidColorParams$[ebp+16]
+  0052f	81 e1 00 00 f8
+	00		 and	 ecx, 16252928		; 00f80000H
+  00535	c1 e9 08	 shr	 ecx, 8
+  00538	8b 55 d0	 mov	 edx, DWORD PTR _SolidColorParams$[ebp+16]
+  0053b	81 e2 00 fc 00
+	00		 and	 edx, 64512		; 0000fc00H
+  00541	c1 ea 05	 shr	 edx, 5
+  00544	0b ca		 or	 ecx, edx
+  00546	8b 45 d0	 mov	 eax, DWORD PTR _SolidColorParams$[ebp+16]
+  00549	25 f8 00 00 00	 and	 eax, 248		; 000000f8H
+  0054e	c1 e8 03	 shr	 eax, 3
+  00551	0b c8		 or	 ecx, eax
+  00553	89 4d d0	 mov	 DWORD PTR _SolidColorParams$[ebp+16], ecx
+
+; 236  :          else if (SolidColorParams.BytesPerPel == 4)       // if 32 bpp
+
+  00556	eb 1e		 jmp	 SHORT $L36934
+$L36931:
+  00558	83 7d f8 04	 cmp	 DWORD PTR _SolidColorParams$[ebp+56], 4
+  0055c	75 0e		 jne	 SHORT $L36933
+
+; 238  :             SolidColorParams.fillData = dwFillColor & 0x00FFFFFF;
+
+  0055e	8b 4d 10	 mov	 ecx, DWORD PTR _dwFillColor$[ebp]
+  00561	81 e1 ff ff ff
+	00		 and	 ecx, 16777215		; 00ffffffH
+  00567	89 4d d0	 mov	 DWORD PTR _SolidColorParams$[ebp+16], ecx
+
+; 240  :          else                                // An error exists - non supported color format
+
+  0056a	eb 0a		 jmp	 SHORT $L36934
+$L36933:
+
+; 242  :             return D3DERR_UNSUPPORTEDCOLOROPERATION;
+
+  0056c	b8 19 08 76 88	 mov	 eax, -2005530599	; 88760819H
+  00571	e9 4f 01 00 00	 jmp	 $L36883
+$L36934:
+
+; 244  : 
+; 245  :          GETPIXELFORMAT(SolidColorParams.BytesPerPel, dstPixelFormat);
+
+  00576	8b 55 f8	 mov	 edx, DWORD PTR _SolidColorParams$[ebp+56]
+  00579	89 55 8c	 mov	 DWORD PTR -116+[ebp], edx
+  0057c	8b 45 8c	 mov	 eax, DWORD PTR -116+[ebp]
+  0057f	83 e8 01	 sub	 eax, 1
+  00582	89 45 8c	 mov	 DWORD PTR -116+[ebp], eax
+  00585	83 7d 8c 03	 cmp	 DWORD PTR -116+[ebp], 3
+  00589	77 2e		 ja	 SHORT $L36947
+  0058b	8b 4d 8c	 mov	 ecx, DWORD PTR -116+[ebp]
+  0058e	ff 24 8d 00 00
+	00 00		 jmp	 DWORD PTR $L37365[ecx*4]
+$L36943:
+  00595	c7 45 a8 00 00
+	01 00		 mov	 DWORD PTR _dstPixelFormat$[ebp], 65536 ; 00010000H
+  0059c	eb 22		 jmp	 SHORT $L36940
+$L36944:
+  0059e	c7 45 a8 00 00
+	03 00		 mov	 DWORD PTR _dstPixelFormat$[ebp], 196608 ; 00030000H
+  005a5	eb 19		 jmp	 SHORT $L36940
+$L36945:
+  005a7	c7 45 a8 00 00
+	04 00		 mov	 DWORD PTR _dstPixelFormat$[ebp], 262144 ; 00040000H
+  005ae	eb 10		 jmp	 SHORT $L36940
+$L36946:
+  005b0	c7 45 a8 00 00
+	05 00		 mov	 DWORD PTR _dstPixelFormat$[ebp], 327680 ; 00050000H
+  005b7	eb 07		 jmp	 SHORT $L36940
+$L36947:
+  005b9	c7 45 a8 ff ff
+	00 00		 mov	 DWORD PTR _dstPixelFormat$[ebp], 65535 ; 0000ffffH
+$L36940:
+
+; 246  : 
+; 247  :          SolidColorParams.fpVidMem = pSurfaceData->lfbPtr;
+
+  005c0	8b 55 fc	 mov	 edx, DWORD PTR _pSurfaceData$[ebp]
+  005c3	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  005c6	89 45 e8	 mov	 DWORD PTR _SolidColorParams$[ebp+40], eax
+
+; 248  :          SolidColorParams.linearPitch = TXTRHNDL_PTR(pRc->DDSHndl)->lPitch;
+
+  005c9	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  005cc	8b 91 38 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1336]
+  005d2	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  005d5	8b 88 30 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1328]
+  005db	8b 52 08	 mov	 edx, DWORD PTR [edx+8]
+  005de	8b 04 8a	 mov	 eax, DWORD PTR [edx+ecx*4]
+  005e1	8b 48 20	 mov	 ecx, DWORD PTR [eax+32]
+  005e4	89 4d ec	 mov	 DWORD PTR _SolidColorParams$[ebp+44], ecx
+
+; 249  :          SolidColorParams.isZClear = FALSE;
+
+  005e7	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _SolidColorParams$[ebp+52], 0
+
+; 250  : #if ENABLE_TILED_HEAP
+; 251  :          if (SolidColorParams.isTiled)
+
+  005ee	83 7d f0 00	 cmp	 DWORD PTR _SolidColorParams$[ebp+48], 0
+  005f2	74 1a		 je	 SHORT $L36948
+
+; 253  :             dstPitch = _DS(ddTileStride);
+
+  005f4	8b 55 b4	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  005f7	8b 82 8c 05 00
+	00		 mov	 eax, DWORD PTR [edx+1420]
+  005fd	89 45 b0	 mov	 DWORD PTR _dstPitch$[ebp], eax
+
+; 254  :             SolidColorParams.Pitch = _DS(ddTilePitch);
+
+  00600	8b 4d b4	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00603	8b 91 94 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1428]
+  00609	89 55 e4	 mov	 DWORD PTR _SolidColorParams$[ebp+36], edx
+
+; 256  :          else
+
+  0060c	eb 24		 jmp	 SHORT $L36949
+$L36948:
+
+; 259  :             dstPitch = TXTRHNDL_PTR(pRc->DDSHndl)->lPitch;
+
+  0060e	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  00611	8b 88 38 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1336]
+  00617	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  0061a	8b 82 30 05 00
+	00		 mov	 eax, DWORD PTR [edx+1328]
+  00620	8b 49 08	 mov	 ecx, DWORD PTR [ecx+8]
+  00623	8b 14 81	 mov	 edx, DWORD PTR [ecx+eax*4]
+  00626	8b 42 20	 mov	 eax, DWORD PTR [edx+32]
+  00629	89 45 b0	 mov	 DWORD PTR _dstPitch$[ebp], eax
+
+; 260  :             SolidColorParams.Pitch = dstPitch;
+
+  0062c	8b 4d b0	 mov	 ecx, DWORD PTR _dstPitch$[ebp]
+  0062f	89 4d e4	 mov	 DWORD PTR _SolidColorParams$[ebp+36], ecx
+$L36949:
+
+; 262  : 
+; 263  :          BLTFMT(dstPitch, dstPixelFormat, SolidColorParams.bltDstFormat);
+
+  00632	8b 55 b0	 mov	 edx, DWORD PTR _dstPitch$[ebp]
+  00635	81 e2 ff 3f 00
+	00		 and	 edx, 16383		; 00003fffH
+  0063b	8b 45 a8	 mov	 eax, DWORD PTR _dstPixelFormat$[ebp]
+  0063e	0b c2		 or	 eax, edx
+  00640	89 45 d4	 mov	 DWORD PTR _SolidColorParams$[ebp+20], eax
+
+; 264  :          // Doit the operation
+; 265  :          SolidColorParams.bltRop = (SSTG_ROP_SRC << 16) | (SSTG_ROP_SRC << 8) | (SSTG_ROP_SRC);
+
+  00643	c7 45 d8 cc cc
+	cc 00		 mov	 DWORD PTR _SolidColorParams$[ebp+24], 13421772 ; 00ccccccH
+
+; 266  :          dwReturned = DdSli2DSolidColor(ppdev, &SolidColorParams);
+
+  0064a	8d 4d c0	 lea	 ecx, DWORD PTR _SolidColorParams$[ebp]
+  0064d	51		 push	 ecx
+  0064e	8b 55 b4	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00651	52		 push	 edx
+  00652	e8 00 00 00 00	 call	 _DdSli2DSolidColor
+  00657	83 c4 08	 add	 esp, 8
+  0065a	89 45 bc	 mov	 DWORD PTR _dwReturned$[ebp], eax
+
+; 267  : 
+; 268  :          // If AA Mode then Do Every Thing Twice unless we punted then once is enough
+; 269  :          if ( (BLIT_WAS_HW == dwReturned) &&
+; 270  :               SolidColorParams.isTiled && _DD(ddAAModeEnabled)
+; 271  :             )
+
+  0065d	83 7d bc 01	 cmp	 DWORD PTR _dwReturned$[ebp], 1
+  00661	75 5b		 jne	 SHORT $L36951
+  00663	83 7d f0 00	 cmp	 DWORD PTR _SolidColorParams$[ebp+48], 0
+  00667	74 55		 je	 SHORT $L36951
+  00669	8b 45 b4	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0066c	8b 88 14 18 00
+	00		 mov	 ecx, DWORD PTR [eax+6164]
+  00672	83 b9 86 03 00
+	00 00		 cmp	 DWORD PTR [ecx+902], 0
+  00679	74 43		 je	 SHORT $L36951
+
+; 273  :             SolidColorParams.bltDstBaseAddr = GET_AAHW_OFFSET(pRc->DDSHndl);
+
+  0067b	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  0067e	8b 82 38 05 00
+	00		 mov	 eax, DWORD PTR [edx+1336]
+  00684	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  00687	8b 91 30 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1328]
+  0068d	8b 40 08	 mov	 eax, DWORD PTR [eax+8]
+  00690	8b 0c 90	 mov	 ecx, DWORD PTR [eax+edx*4]
+  00693	8b 51 48	 mov	 edx, DWORD PTR [ecx+72]
+  00696	8b 42 30	 mov	 eax, DWORD PTR [edx+48]
+  00699	89 45 dc	 mov	 DWORD PTR _SolidColorParams$[ebp+28], eax
+
+; 274  :             SolidColorParams.fpVidMem = pSurfaceData->AAlfbPtr;
+
+  0069c	8b 4d fc	 mov	 ecx, DWORD PTR _pSurfaceData$[ebp]
+  0069f	8b 51 34	 mov	 edx, DWORD PTR [ecx+52]
+  006a2	89 55 e8	 mov	 DWORD PTR _SolidColorParams$[ebp+40], edx
+
+; 275  :             SolidColorParams.Pitch = pSurfaceData->AAlPitch;
+
+  006a5	8b 45 fc	 mov	 eax, DWORD PTR _pSurfaceData$[ebp]
+  006a8	8b 48 38	 mov	 ecx, DWORD PTR [eax+56]
+  006ab	89 4d e4	 mov	 DWORD PTR _SolidColorParams$[ebp+36], ecx
+
+; 276  :             DdSli2DSolidColor(ppdev, &SolidColorParams);
+
+  006ae	8d 55 c0	 lea	 edx, DWORD PTR _SolidColorParams$[ebp]
+  006b1	52		 push	 edx
+  006b2	8b 45 b4	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  006b5	50		 push	 eax
+  006b6	e8 00 00 00 00	 call	 _DdSli2DSolidColor
+  006bb	83 c4 08	 add	 esp, 8
+$L36951:
+
+; 279  : 
+; 280  :       }
+
+  006be	e9 56 f9 ff ff	 jmp	 $L36895
+$L36896:
+
+; 281  : 
+; 282  :    return D3D_OK;
+
+  006c3	33 c0		 xor	 eax, eax
+$L36883:
+
+; 283  : }
+
+  006c5	5e		 pop	 esi
+  006c6	8b e5		 mov	 esp, ebp
+  006c8	5d		 pop	 ebp
+  006c9	c3		 ret	 0
+$L37364:
+  006ca	00 00 00 00	 DD	 $L36906
+  006ce	00 00 00 00	 DD	 $L36907
+  006d2	00 00 00 00	 DD	 $L36908
+  006d6	00 00 00 00	 DD	 $L36909
+$L37365:
+  006da	00 00 00 00	 DD	 $L36943
+  006de	00 00 00 00	 DD	 $L36944
+  006e2	00 00 00 00	 DD	 $L36945
+  006e6	00 00 00 00	 DD	 $L36946
+_SliClear ENDP
+_TEXT	ENDS
+PUBLIC	_DdSliColorFill
+EXTRN	_Blt32_ColorFill@12:NEAR
+_TEXT	SEGMENT
+_ppdev$ = 8
+_pbd$ = 12
+_dstPixelFormat$ = 16
+_dwSurfCaps$ = 20
+_dstPitch$ = -72
+_SolidColorParams$ = -64
+_pDstSurfaceData$ = -68
+_dwReturn$ = -76
+_dwReturned$ = -4
+_DdSliColorFill PROC NEAR
+
+; 297  : {
+
+  006ea	55		 push	 ebp
+  006eb	8b ec		 mov	 ebp, esp
+  006ed	83 ec 50	 sub	 esp, 80			; 00000050H
+
+; 298  :    long      dstPitch;
+; 299  :    SOLIDCOLORPARAMS SolidColorParams;   
+; 300  :    FXSURFACEDATA * pDstSurfaceData;
+; 301  :    DWORD dwReturn;
+; 302  :    DWORD dwReturned;
+; 303  : 
+; 304  :    pDstSurfaceData = (FXSURFACEDATA*) (pbd->lpDDDestSurface->lpGbl->dwReserved1);
+
+  006f0	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  006f3	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  006f6	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  006f9	8b 42 24	 mov	 eax, DWORD PTR [edx+36]
+  006fc	89 45 bc	 mov	 DWORD PTR _pDstSurfaceData$[ebp], eax
+
+; 305  :    if (IS_TILED(pDstSurfaceData->hwPtr))
+
+  006ff	8b 4d bc	 mov	 ecx, DWORD PTR _pDstSurfaceData$[ebp]
+  00702	8b 11		 mov	 edx, DWORD PTR [ecx]
+  00704	81 e2 00 00 00
+	80		 and	 edx, -2147483648	; 80000000H
+  0070a	f7 da		 neg	 edx
+  0070c	1b d2		 sbb	 edx, edx
+  0070e	f7 da		 neg	 edx
+  00710	85 d2		 test	 edx, edx
+  00712	0f 84 e4 01 00
+	00		 je	 $L36968
+
+; 307  :       SolidColorParams.dstTop = pbd->rDest.top;
+
+  00718	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  0071b	8b 48 0c	 mov	 ecx, DWORD PTR [eax+12]
+  0071e	89 4d c8	 mov	 DWORD PTR _SolidColorParams$[ebp+8], ecx
+
+; 308  :       SolidColorParams.dstRight = pbd->rDest.right;
+
+  00721	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  00724	8b 42 10	 mov	 eax, DWORD PTR [edx+16]
+  00727	89 45 c4	 mov	 DWORD PTR _SolidColorParams$[ebp+4], eax
+
+; 309  :       SolidColorParams.dstBottom = pbd->rDest.bottom;
+
+  0072a	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  0072d	8b 51 14	 mov	 edx, DWORD PTR [ecx+20]
+  00730	89 55 cc	 mov	 DWORD PTR _SolidColorParams$[ebp+12], edx
+
+; 310  :       SolidColorParams.dstLeft = pbd->rDest.left;
+
+  00733	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  00736	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  00739	89 4d c0	 mov	 DWORD PTR _SolidColorParams$[ebp], ecx
+
+; 311  :    
+; 312  :       SolidColorParams.bltDstBaseAddr = GET_HW_ADDR(pbd->lpDDDestSurface);
+
+  0073c	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  0073f	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  00742	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  00745	8b 51 24	 mov	 edx, DWORD PTR [ecx+36]
+  00748	8b 02		 mov	 eax, DWORD PTR [edx]
+  0074a	89 45 dc	 mov	 DWORD PTR _SolidColorParams$[ebp+28], eax
+
+; 313  :      
+; 314  :       SolidColorParams.fillData = pbd->bltFX.dwFillColor;
+
+  0074d	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  00750	8b 91 84 00 00
+	00		 mov	 edx, DWORD PTR [ecx+132]
+  00756	89 55 d0	 mov	 DWORD PTR _SolidColorParams$[ebp+16], edx
+
+; 315  : 
+; 316  :       // This seems kinda of pointless
+; 317  : #if ENABLE_TILED_HEAP
+; 318  :       if (IS_TILED(SolidColorParams.bltDstBaseAddr))
+
+  00759	8b 45 dc	 mov	 eax, DWORD PTR _SolidColorParams$[ebp+28]
+  0075c	25 00 00 00 80	 and	 eax, -2147483648	; 80000000H
+  00761	f7 d8		 neg	 eax
+  00763	1b c0		 sbb	 eax, eax
+  00765	f7 d8		 neg	 eax
+  00767	85 c0		 test	 eax, eax
+  00769	74 1a		 je	 SHORT $L36970
+
+; 320  :             dstPitch = _DS(ddTileStride);
+
+  0076b	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0076e	8b 91 8c 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1420]
+  00774	89 55 b8	 mov	 DWORD PTR _dstPitch$[ebp], edx
+
+; 321  :             SolidColorParams.Pitch = _DS(ddTilePitch);
+
+  00777	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0077a	8b 88 94 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1428]
+  00780	89 4d e4	 mov	 DWORD PTR _SolidColorParams$[ebp+36], ecx
+
+; 323  :       else
+
+  00783	eb 15		 jmp	 SHORT $L36971
+$L36970:
+
+; 326  :             dstPitch = pbd->lpDDDestSurface->lpGbl->lPitch;         
+
+  00785	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  00788	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  0078b	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  0078e	8b 51 18	 mov	 edx, DWORD PTR [ecx+24]
+  00791	89 55 b8	 mov	 DWORD PTR _dstPitch$[ebp], edx
+
+; 327  :             SolidColorParams.Pitch = dstPitch;
+
+  00794	8b 45 b8	 mov	 eax, DWORD PTR _dstPitch$[ebp]
+  00797	89 45 e4	 mov	 DWORD PTR _SolidColorParams$[ebp+36], eax
+$L36971:
+
+; 329  :       BLTFMT(dstPitch, dstPixelFormat, SolidColorParams.bltDstFormat);
+
+  0079a	8b 4d b8	 mov	 ecx, DWORD PTR _dstPitch$[ebp]
+  0079d	81 e1 ff 3f 00
+	00		 and	 ecx, 16383		; 00003fffH
+  007a3	8b 55 10	 mov	 edx, DWORD PTR _dstPixelFormat$[ebp]
+  007a6	0b d1		 or	 edx, ecx
+  007a8	89 55 d4	 mov	 DWORD PTR _SolidColorParams$[ebp+20], edx
+
+; 330  :       SolidColorParams.bltRop = (SSTG_ROP_SRC << 16 )| (SSTG_ROP_SRC << 8 ) | (SSTG_ROP_SRC );
+
+  007ab	c7 45 d8 cc cc
+	cc 00		 mov	 DWORD PTR _SolidColorParams$[ebp+24], 13421772 ; 00ccccccH
+
+; 331  : 
+; 332  :       if (_DD(ddSLIModeEnabled))
+
+  007b2	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  007b5	8b 88 14 18 00
+	00		 mov	 ecx, DWORD PTR [eax+6164]
+  007bb	83 b9 76 03 00
+	00 00		 cmp	 DWORD PTR [ecx+886], 0
+  007c2	74 09		 je	 SHORT $L36973
+
+; 333  :          SolidColorParams.dwSliSurface = TRUE;
+
+  007c4	c7 45 e0 01 00
+	00 00		 mov	 DWORD PTR _SolidColorParams$[ebp+32], 1
+
+; 334  :       else
+
+  007cb	eb 07		 jmp	 SHORT $L36974
+$L36973:
+
+; 335  :          SolidColorParams.dwSliSurface = FALSE;
+
+  007cd	c7 45 e0 00 00
+	00 00		 mov	 DWORD PTR _SolidColorParams$[ebp+32], 0
+$L36974:
+
+; 336  :    
+; 337  :       SolidColorParams.fpVidMem = pDstSurfaceData->lfbPtr;
+
+  007d4	8b 55 bc	 mov	 edx, DWORD PTR _pDstSurfaceData$[ebp]
+  007d7	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  007da	89 45 e8	 mov	 DWORD PTR _SolidColorParams$[ebp+40], eax
+
+; 338  :       SolidColorParams.linearPitch = pbd->lpDDDestSurface->lpGbl->lPitch;
+
+  007dd	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  007e0	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  007e3	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  007e6	8b 48 18	 mov	 ecx, DWORD PTR [eax+24]
+  007e9	89 4d ec	 mov	 DWORD PTR _SolidColorParams$[ebp+44], ecx
+
+; 339  :       SolidColorParams.isTiled = TRUE;
+
+  007ec	c7 45 f0 01 00
+	00 00		 mov	 DWORD PTR _SolidColorParams$[ebp+48], 1
+
+; 340  :       SolidColorParams.isZClear= (dwSurfCaps & DDSCAPS_ZBUFFER)? TRUE : FALSE;
+
+  007f3	8b 55 14	 mov	 edx, DWORD PTR _dwSurfCaps$[ebp]
+  007f6	81 e2 00 00 02
+	00		 and	 edx, 131072		; 00020000H
+  007fc	f7 da		 neg	 edx
+  007fe	1b d2		 sbb	 edx, edx
+  00800	f7 da		 neg	 edx
+  00802	89 55 f4	 mov	 DWORD PTR _SolidColorParams$[ebp+52], edx
+
+; 341  : 
+; 342  :       GETFORMATBYTE(dstPixelFormat, SolidColorParams.BytesPerPel);
+
+  00805	8b 45 10	 mov	 eax, DWORD PTR _dstPixelFormat$[ebp]
+  00808	25 00 00 07 00	 and	 eax, 458752		; 00070000H
+  0080d	89 45 b0	 mov	 DWORD PTR -80+[ebp], eax
+  00810	81 7d b0 00 00
+	04 00		 cmp	 DWORD PTR -80+[ebp], 262144 ; 00040000H
+  00817	77 26		 ja	 SHORT $L37368
+  00819	81 7d b0 00 00
+	04 00		 cmp	 DWORD PTR -80+[ebp], 262144 ; 00040000H
+  00820	74 4c		 je	 SHORT $L36981
+  00822	81 7d b0 00 00
+	01 00		 cmp	 DWORD PTR -80+[ebp], 65536 ; 00010000H
+  00829	74 31		 je	 SHORT $L36979
+  0082b	81 7d b0 00 00
+	02 00		 cmp	 DWORD PTR -80+[ebp], 131072 ; 00020000H
+  00832	74 31		 je	 SHORT $L36980
+  00834	81 7d b0 00 00
+	03 00		 cmp	 DWORD PTR -80+[ebp], 196608 ; 00030000H
+  0083b	74 28		 je	 SHORT $L36980
+  0083d	eb 41		 jmp	 SHORT $L36983
+$L37368:
+  0083f	81 7d b0 00 00
+	05 00		 cmp	 DWORD PTR -80+[ebp], 327680 ; 00050000H
+  00846	74 2f		 je	 SHORT $L36982
+  00848	81 7d b0 00 00
+	08 00		 cmp	 DWORD PTR -80+[ebp], 524288 ; 00080000H
+  0084f	74 14		 je	 SHORT $L36980
+  00851	81 7d b0 00 00
+	09 00		 cmp	 DWORD PTR -80+[ebp], 589824 ; 00090000H
+  00858	74 0b		 je	 SHORT $L36980
+  0085a	eb 24		 jmp	 SHORT $L36983
+$L36979:
+  0085c	c7 45 f8 01 00
+	00 00		 mov	 DWORD PTR _SolidColorParams$[ebp+56], 1
+  00863	eb 22		 jmp	 SHORT $L36976
+$L36980:
+  00865	c7 45 f8 02 00
+	00 00		 mov	 DWORD PTR _SolidColorParams$[ebp+56], 2
+  0086c	eb 19		 jmp	 SHORT $L36976
+$L36981:
+  0086e	c7 45 f8 03 00
+	00 00		 mov	 DWORD PTR _SolidColorParams$[ebp+56], 3
+  00875	eb 10		 jmp	 SHORT $L36976
+$L36982:
+  00877	c7 45 f8 04 00
+	00 00		 mov	 DWORD PTR _SolidColorParams$[ebp+56], 4
+  0087e	eb 07		 jmp	 SHORT $L36976
+$L36983:
+  00880	c7 45 f8 ff ff
+	00 00		 mov	 DWORD PTR _SolidColorParams$[ebp+56], 65535 ; 0000ffffH
+$L36976:
+
+; 343  :       dwReturned = DdSli2DSolidColor(ppdev, &SolidColorParams);
+
+  00887	8d 4d c0	 lea	 ecx, DWORD PTR _SolidColorParams$[ebp]
+  0088a	51		 push	 ecx
+  0088b	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0088e	52		 push	 edx
+  0088f	e8 00 00 00 00	 call	 _DdSli2DSolidColor
+  00894	83 c4 08	 add	 esp, 8
+  00897	89 45 fc	 mov	 DWORD PTR _dwReturned$[ebp], eax
+
+; 344  : 
+; 345  :       // If AA Mode then do it for each buffer unless we punted then once is enough   
+; 346  :       if (_DD(ddAAModeEnabled) && (BLIT_WAS_HW == dwReturned))
+
+  0089a	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0089d	8b 88 14 18 00
+	00		 mov	 ecx, DWORD PTR [eax+6164]
+  008a3	83 b9 86 03 00
+	00 00		 cmp	 DWORD PTR [ecx+902], 0
+  008aa	74 3a		 je	 SHORT $L36985
+  008ac	83 7d fc 01	 cmp	 DWORD PTR _dwReturned$[ebp], 1
+  008b0	75 34		 jne	 SHORT $L36985
+
+; 348  :          SolidColorParams.bltDstBaseAddr = GET_AAHW_ADDR(pbd->lpDDDestSurface);
+
+  008b2	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  008b5	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  008b8	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  008bb	8b 51 24	 mov	 edx, DWORD PTR [ecx+36]
+  008be	8b 42 30	 mov	 eax, DWORD PTR [edx+48]
+  008c1	89 45 dc	 mov	 DWORD PTR _SolidColorParams$[ebp+28], eax
+
+; 349  :          SolidColorParams.fpVidMem = pDstSurfaceData->AAlfbPtr;
+
+  008c4	8b 4d bc	 mov	 ecx, DWORD PTR _pDstSurfaceData$[ebp]
+  008c7	8b 51 34	 mov	 edx, DWORD PTR [ecx+52]
+  008ca	89 55 e8	 mov	 DWORD PTR _SolidColorParams$[ebp+40], edx
+
+; 350  :          SolidColorParams.Pitch = pDstSurfaceData->AAlPitch;
+
+  008cd	8b 45 bc	 mov	 eax, DWORD PTR _pDstSurfaceData$[ebp]
+  008d0	8b 48 38	 mov	 ecx, DWORD PTR [eax+56]
+  008d3	89 4d e4	 mov	 DWORD PTR _SolidColorParams$[ebp+36], ecx
+
+; 351  :          DdSli2DSolidColor(ppdev, &SolidColorParams);
+
+  008d6	8d 55 c0	 lea	 edx, DWORD PTR _SolidColorParams$[ebp]
+  008d9	52		 push	 edx
+  008da	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  008dd	50		 push	 eax
+  008de	e8 00 00 00 00	 call	 _DdSli2DSolidColor
+  008e3	83 c4 08	 add	 esp, 8
+$L36985:
+
+; 353  :    
+; 354  :       pbd->ddRVal = DD_OK;
+
+  008e6	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  008e9	c7 81 98 00 00
+	00 00 00 00 00	 mov	 DWORD PTR [ecx+152], 0
+
+; 355  :       dwReturn = DDHAL_DRIVER_HANDLED;
+
+  008f3	c7 45 b4 01 00
+	00 00		 mov	 DWORD PTR _dwReturn$[ebp], 1
+
+; 357  :    else
+
+  008fa	eb 14		 jmp	 SHORT $L36987
+$L36968:
+
+; 359  :       dwReturn = Blt32_ColorFill(ppdev, pbd, dstPixelFormat);
+
+  008fc	8b 55 10	 mov	 edx, DWORD PTR _dstPixelFormat$[ebp]
+  008ff	52		 push	 edx
+  00900	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  00903	50		 push	 eax
+  00904	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00907	51		 push	 ecx
+  00908	e8 00 00 00 00	 call	 _Blt32_ColorFill@12
+  0090d	89 45 b4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+$L36987:
+
+; 361  :    
+; 362  :    return dwReturn;
+
+  00910	8b 45 b4	 mov	 eax, DWORD PTR _dwReturn$[ebp]
+
+; 363  : }
+
+  00913	8b e5		 mov	 esp, ebp
+  00915	5d		 pop	 ebp
+  00916	c3		 ret	 0
+_DdSliColorFill ENDP
+_TEXT	ENDS
+PUBLIC	_DoIntersect
+_TEXT	SEGMENT
+_ppdev$ = 8
+_left$ = 12
+_top$ = 16
+_right$ = 20
+_bottom$ = 24
+_bIntersect$ = -16
+_cl$ = -20
+_cr$ = -8
+_ct$ = -12
+_cb$ = -4
+_DoIntersect PROC NEAR
+
+; 396  : {
+
+  00917	55		 push	 ebp
+  00918	8b ec		 mov	 ebp, esp
+  0091a	83 ec 34	 sub	 esp, 52			; 00000034H
+
+; 397  :    int bIntersect;
+; 398  :    int cl, cr, ct, cb;
+; 399  : 
+; 400  :    cl = _FF(LastCursorPosX);
+
+  0091d	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00920	0f bf 88 6c 04
+	00 00		 movsx	 ecx, WORD PTR [eax+1132]
+  00927	89 4d ec	 mov	 DWORD PTR _cl$[ebp], ecx
+
+; 401  :    cr = cl + SWCURSOR_WIDTH;
+
+  0092a	8b 55 ec	 mov	 edx, DWORD PTR _cl$[ebp]
+  0092d	83 c2 20	 add	 edx, 32			; 00000020H
+  00930	89 55 f8	 mov	 DWORD PTR _cr$[ebp], edx
+
+; 402  :    ct = _FF(LastCursorPosY);
+
+  00933	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00936	0f bf 88 6e 04
+	00 00		 movsx	 ecx, WORD PTR [eax+1134]
+  0093d	89 4d f4	 mov	 DWORD PTR _ct$[ebp], ecx
+
+; 403  :    cb = ct + SWCURSOR_HEIGHT;
+
+  00940	8b 55 f4	 mov	 edx, DWORD PTR _ct$[ebp]
+  00943	83 c2 20	 add	 edx, 32			; 00000020H
+  00946	89 55 fc	 mov	 DWORD PTR _cb$[ebp], edx
+
+; 404  : 
+; 405  :    if (right - left <= SWCURSOR_WIDTH)
+
+  00949	8b 45 14	 mov	 eax, DWORD PTR _right$[ebp]
+  0094c	2b 45 0c	 sub	 eax, DWORD PTR _left$[ebp]
+  0094f	83 f8 20	 cmp	 eax, 32			; 00000020H
+  00952	77 56		 ja	 SHORT $L37006
+
+; 407  :       bIntersect = RANGE(left, cl, cr);
+
+  00954	8b 4d ec	 mov	 ecx, DWORD PTR _cl$[ebp]
+  00957	3b 4d 0c	 cmp	 ecx, DWORD PTR _left$[ebp]
+  0095a	7f 11		 jg	 SHORT $L37370
+  0095c	8b 55 0c	 mov	 edx, DWORD PTR _left$[ebp]
+  0095f	3b 55 f8	 cmp	 edx, DWORD PTR _cr$[ebp]
+  00962	7f 09		 jg	 SHORT $L37370
+  00964	c7 45 e8 01 00
+	00 00		 mov	 DWORD PTR -24+[ebp], 1
+  0096b	eb 07		 jmp	 SHORT $L37371
+$L37370:
+  0096d	c7 45 e8 00 00
+	00 00		 mov	 DWORD PTR -24+[ebp], 0
+$L37371:
+  00974	8b 45 e8	 mov	 eax, DWORD PTR -24+[ebp]
+  00977	89 45 f0	 mov	 DWORD PTR _bIntersect$[ebp], eax
+
+; 408  :       bIntersect |= (RANGE(right, cl, cr) << 2);
+
+  0097a	8b 4d ec	 mov	 ecx, DWORD PTR _cl$[ebp]
+  0097d	3b 4d 14	 cmp	 ecx, DWORD PTR _right$[ebp]
+  00980	7f 11		 jg	 SHORT $L37372
+  00982	8b 55 14	 mov	 edx, DWORD PTR _right$[ebp]
+  00985	3b 55 f8	 cmp	 edx, DWORD PTR _cr$[ebp]
+  00988	7f 09		 jg	 SHORT $L37372
+  0098a	c7 45 e4 01 00
+	00 00		 mov	 DWORD PTR -28+[ebp], 1
+  00991	eb 07		 jmp	 SHORT $L37373
+$L37372:
+  00993	c7 45 e4 00 00
+	00 00		 mov	 DWORD PTR -28+[ebp], 0
+$L37373:
+  0099a	8b 45 e4	 mov	 eax, DWORD PTR -28+[ebp]
+  0099d	c1 e0 02	 shl	 eax, 2
+  009a0	8b 4d f0	 mov	 ecx, DWORD PTR _bIntersect$[ebp]
+  009a3	0b c8		 or	 ecx, eax
+  009a5	89 4d f0	 mov	 DWORD PTR _bIntersect$[ebp], ecx
+
+; 410  :    else
+
+  009a8	eb 54		 jmp	 SHORT $L37007
+$L37006:
+
+; 412  :       bIntersect = RANGE(cl, left, right);
+
+  009aa	8b 55 0c	 mov	 edx, DWORD PTR _left$[ebp]
+  009ad	3b 55 ec	 cmp	 edx, DWORD PTR _cl$[ebp]
+  009b0	7f 11		 jg	 SHORT $L37374
+  009b2	8b 45 ec	 mov	 eax, DWORD PTR _cl$[ebp]
+  009b5	3b 45 14	 cmp	 eax, DWORD PTR _right$[ebp]
+  009b8	7f 09		 jg	 SHORT $L37374
+  009ba	c7 45 e0 01 00
+	00 00		 mov	 DWORD PTR -32+[ebp], 1
+  009c1	eb 07		 jmp	 SHORT $L37375
+$L37374:
+  009c3	c7 45 e0 00 00
+	00 00		 mov	 DWORD PTR -32+[ebp], 0
+$L37375:
+  009ca	8b 4d e0	 mov	 ecx, DWORD PTR -32+[ebp]
+  009cd	89 4d f0	 mov	 DWORD PTR _bIntersect$[ebp], ecx
+
+; 413  :       bIntersect |= (RANGE(cr, left, right) << 2);
+
+  009d0	8b 55 0c	 mov	 edx, DWORD PTR _left$[ebp]
+  009d3	3b 55 f8	 cmp	 edx, DWORD PTR _cr$[ebp]
+  009d6	7f 11		 jg	 SHORT $L37376
+  009d8	8b 45 f8	 mov	 eax, DWORD PTR _cr$[ebp]
+  009db	3b 45 14	 cmp	 eax, DWORD PTR _right$[ebp]
+  009de	7f 09		 jg	 SHORT $L37376
+  009e0	c7 45 dc 01 00
+	00 00		 mov	 DWORD PTR -36+[ebp], 1
+  009e7	eb 07		 jmp	 SHORT $L37377
+$L37376:
+  009e9	c7 45 dc 00 00
+	00 00		 mov	 DWORD PTR -36+[ebp], 0
+$L37377:
+  009f0	8b 4d dc	 mov	 ecx, DWORD PTR -36+[ebp]
+  009f3	c1 e1 02	 shl	 ecx, 2
+  009f6	8b 55 f0	 mov	 edx, DWORD PTR _bIntersect$[ebp]
+  009f9	0b d1		 or	 edx, ecx
+  009fb	89 55 f0	 mov	 DWORD PTR _bIntersect$[ebp], edx
+$L37007:
+
+; 415  : 
+; 416  :    if (bottom - top <= SWCURSOR_WIDTH)
+
+  009fe	8b 45 18	 mov	 eax, DWORD PTR _bottom$[ebp]
+  00a01	2b 45 10	 sub	 eax, DWORD PTR _top$[ebp]
+  00a04	83 f8 20	 cmp	 eax, 32			; 00000020H
+  00a07	77 5d		 ja	 SHORT $L37008
+
+; 418  :       bIntersect |= (RANGE(top, ct, cb) << 1);
+
+  00a09	8b 4d f4	 mov	 ecx, DWORD PTR _ct$[ebp]
+  00a0c	3b 4d 10	 cmp	 ecx, DWORD PTR _top$[ebp]
+  00a0f	7f 11		 jg	 SHORT $L37378
+  00a11	8b 55 10	 mov	 edx, DWORD PTR _top$[ebp]
+  00a14	3b 55 fc	 cmp	 edx, DWORD PTR _cb$[ebp]
+  00a17	7f 09		 jg	 SHORT $L37378
+  00a19	c7 45 d8 01 00
+	00 00		 mov	 DWORD PTR -40+[ebp], 1
+  00a20	eb 07		 jmp	 SHORT $L37379
+$L37378:
+  00a22	c7 45 d8 00 00
+	00 00		 mov	 DWORD PTR -40+[ebp], 0
+$L37379:
+  00a29	8b 45 d8	 mov	 eax, DWORD PTR -40+[ebp]
+  00a2c	d1 e0		 shl	 eax, 1
+  00a2e	8b 4d f0	 mov	 ecx, DWORD PTR _bIntersect$[ebp]
+  00a31	0b c8		 or	 ecx, eax
+  00a33	89 4d f0	 mov	 DWORD PTR _bIntersect$[ebp], ecx
+
+; 419  :       bIntersect |= (RANGE(bottom, ct, cb) << 3);
+
+  00a36	8b 55 f4	 mov	 edx, DWORD PTR _ct$[ebp]
+  00a39	3b 55 18	 cmp	 edx, DWORD PTR _bottom$[ebp]
+  00a3c	7f 11		 jg	 SHORT $L37380
+  00a3e	8b 45 18	 mov	 eax, DWORD PTR _bottom$[ebp]
+  00a41	3b 45 fc	 cmp	 eax, DWORD PTR _cb$[ebp]
+  00a44	7f 09		 jg	 SHORT $L37380
+  00a46	c7 45 d4 01 00
+	00 00		 mov	 DWORD PTR -44+[ebp], 1
+  00a4d	eb 07		 jmp	 SHORT $L37381
+$L37380:
+  00a4f	c7 45 d4 00 00
+	00 00		 mov	 DWORD PTR -44+[ebp], 0
+$L37381:
+  00a56	8b 4d d4	 mov	 ecx, DWORD PTR -44+[ebp]
+  00a59	c1 e1 03	 shl	 ecx, 3
+  00a5c	8b 55 f0	 mov	 edx, DWORD PTR _bIntersect$[ebp]
+  00a5f	0b d1		 or	 edx, ecx
+  00a61	89 55 f0	 mov	 DWORD PTR _bIntersect$[ebp], edx
+
+; 421  :    else
+
+  00a64	eb 5b		 jmp	 SHORT $L37009
+$L37008:
+
+; 423  :       bIntersect |= (RANGE(ct, top, bottom) << 1);
+
+  00a66	8b 45 10	 mov	 eax, DWORD PTR _top$[ebp]
+  00a69	3b 45 f4	 cmp	 eax, DWORD PTR _ct$[ebp]
+  00a6c	7f 11		 jg	 SHORT $L37382
+  00a6e	8b 4d f4	 mov	 ecx, DWORD PTR _ct$[ebp]
+  00a71	3b 4d 18	 cmp	 ecx, DWORD PTR _bottom$[ebp]
+  00a74	7f 09		 jg	 SHORT $L37382
+  00a76	c7 45 d0 01 00
+	00 00		 mov	 DWORD PTR -48+[ebp], 1
+  00a7d	eb 07		 jmp	 SHORT $L37383
+$L37382:
+  00a7f	c7 45 d0 00 00
+	00 00		 mov	 DWORD PTR -48+[ebp], 0
+$L37383:
+  00a86	8b 55 d0	 mov	 edx, DWORD PTR -48+[ebp]
+  00a89	d1 e2		 shl	 edx, 1
+  00a8b	8b 45 f0	 mov	 eax, DWORD PTR _bIntersect$[ebp]
+  00a8e	0b c2		 or	 eax, edx
+  00a90	89 45 f0	 mov	 DWORD PTR _bIntersect$[ebp], eax
+
+; 424  :       bIntersect |= (RANGE(cb, top, bottom) << 3);
+
+  00a93	8b 4d 10	 mov	 ecx, DWORD PTR _top$[ebp]
+  00a96	3b 4d fc	 cmp	 ecx, DWORD PTR _cb$[ebp]
+  00a99	7f 11		 jg	 SHORT $L37384
+  00a9b	8b 55 fc	 mov	 edx, DWORD PTR _cb$[ebp]
+  00a9e	3b 55 18	 cmp	 edx, DWORD PTR _bottom$[ebp]
+  00aa1	7f 09		 jg	 SHORT $L37384
+  00aa3	c7 45 cc 01 00
+	00 00		 mov	 DWORD PTR -52+[ebp], 1
+  00aaa	eb 07		 jmp	 SHORT $L37385
+$L37384:
+  00aac	c7 45 cc 00 00
+	00 00		 mov	 DWORD PTR -52+[ebp], 0
+$L37385:
+  00ab3	8b 45 cc	 mov	 eax, DWORD PTR -52+[ebp]
+  00ab6	c1 e0 03	 shl	 eax, 3
+  00ab9	8b 4d f0	 mov	 ecx, DWORD PTR _bIntersect$[ebp]
+  00abc	0b c8		 or	 ecx, eax
+  00abe	89 4d f0	 mov	 DWORD PTR _bIntersect$[ebp], ecx
+$L37009:
+
+; 426  : 
+; 427  :    return IsIntersect[bIntersect];
+
+  00ac1	8b 55 f0	 mov	 edx, DWORD PTR _bIntersect$[ebp]
+  00ac4	8b 04 95 00 00
+	00 00		 mov	 eax, DWORD PTR _IsIntersect[edx*4]
+
+; 428  : }
+
+  00acb	8b e5		 mov	 esp, ebp
+  00acd	5d		 pop	 ebp
+  00ace	c3		 ret	 0
+_DoIntersect ENDP
+_TEXT	ENDS
+EXTRN	_myAgpEpilog:NEAR
+EXTRN	_HostDrawCursor:NEAR
+EXTRN	_sli_PuntColorFill@8:NEAR
+EXTRN	_sli_PuntColorFillZ@8:NEAR
+EXTRN	_myWrapAgp:NEAR
+EXTRN	_HostRestoreCursor:NEAR
+_TEXT	SEGMENT
+_ppdev$ = 8
+_pParams$ = 12
+_clip1min$ = -16
+_clip1max$ = -24
+_packetHeader$ = -44
+_dstWidth$ = -8
+_dstHeight$ = -56
+_bltDstSize$ = -52
+_bltDstXY$ = -12
+_dwReturn$ = -48
+_bltDstFormat$ = -32
+_dstRight$ = -40
+_bltDstBaseAddr$ = -4
+_dwDrawCursor$ = -28
+_cmdFifo$ = -36
+_hwIndex$ = -20
+_fenceVar$37390 = -60
+$T37422 = -108
+$T37423 = -112
+_rdPtr$37425 = -84
+_resetIdleCount$37426 = -64
+_i$37427 = -72
+_nNumChips$37428 = -68
+_dwCmdFifoSpace$37429 = -76
+_dwCmdFifoMin$37430 = -80
+_rdPtr$37445 = -100
+_i$37446 = -92
+_nNumChips$37447 = -88
+_rdPtrMin$37448 = -96
+_fenceVar$37464 = -104
+_fenceVar$37468 = -116
+$T37500 = -164
+$T37501 = -168
+_rdPtr$37503 = -140
+_resetIdleCount$37504 = -120
+_i$37505 = -128
+_nNumChips$37506 = -124
+_dwCmdFifoSpace$37507 = -132
+_dwCmdFifoMin$37508 = -136
+_rdPtr$37523 = -156
+_i$37524 = -148
+_nNumChips$37525 = -144
+_rdPtrMin$37526 = -152
+_fenceVar$37542 = -160
+_DdSli2DSolidColor PROC NEAR
+
+; 454  : {
+
+  00acf	55		 push	 ebp
+  00ad0	8b ec		 mov	 ebp, esp
+  00ad2	81 ec b8 00 00
+	00		 sub	 esp, 184		; 000000b8H
+  00ad8	53		 push	 ebx
+  00ad9	56		 push	 esi
+  00ada	57		 push	 edi
+
+; 455  :    DWORD clip1min;
+; 456  :    DWORD clip1max;
+; 457  :    DWORD packetHeader;
+; 458  :    long dstWidth;
+; 459  :    long dstHeight;
+; 460  :    DWORD bltDstSize;
+; 461  :    DWORD bltDstXY;
+; 462  :    DWORD dwReturn = BLIT_WAS_HW;
+
+  00adb	c7 45 d0 01 00
+	00 00		 mov	 DWORD PTR _dwReturn$[ebp], 1
+
+; 463  :    DWORD bltDstFormat;
+; 464  :    DWORD dstRight;
+; 465  :    DWORD bltDstBaseAddr;
+; 466  : #ifndef WINNT
+; 467  :    DWORD dwDrawCursor=FALSE;
+
+  00ae2	c7 45 e4 00 00
+	00 00		 mov	 DWORD PTR _dwDrawCursor$[ebp], 0
+
+; 468  : #endif
+; 469  :    CMDFIFO_PROLOG(cmdFifo);
+
+  00ae9	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00aec	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00af2	8b 51 0c	 mov	 edx, DWORD PTR [ecx+12]
+  00af5	89 55 dc	 mov	 DWORD PTR _cmdFifo$[ebp], edx
+  00af8	c7 45 ec 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$[ebp], 0
+
+; 470  : 
+; 471  :    //Calculate some loop invariants
+; 472  :    dstWidth = pParams->dstRight - pParams->dstLeft;
+
+  00aff	8b 45 0c	 mov	 eax, DWORD PTR _pParams$[ebp]
+  00b02	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  00b05	8b 50 04	 mov	 edx, DWORD PTR [eax+4]
+  00b08	2b 11		 sub	 edx, DWORD PTR [ecx]
+  00b0a	89 55 f8	 mov	 DWORD PTR _dstWidth$[ebp], edx
+
+; 473  : 
+; 474  : #ifndef WINNT
+; 475  :    if (_FF(CursorSurface) == pParams->fpVidMem)
+
+  00b0d	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00b10	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  00b13	8b 90 78 04 00
+	00		 mov	 edx, DWORD PTR [eax+1144]
+  00b19	3b 51 28	 cmp	 edx, DWORD PTR [ecx+40]
+  00b1c	75 76		 jne	 SHORT $L37034
+
+; 477  :       if (SDATA_GDIFLAGS_CURSOR_ENABLED == (_FF(gdiFlags) & (SDATA_GDIFLAGS_CURSOR_EXCLUDE | SDATA_GDIFLAGS_CURSOR_ENABLED)))
+
+  00b1e	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00b21	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  00b24	81 e1 c0 00 00
+	00		 and	 ecx, 192		; 000000c0H
+  00b2a	83 f9 40	 cmp	 ecx, 64			; 00000040H
+  00b2d	75 65		 jne	 SHORT $L37034
+
+; 479  :          if (DoIntersect(ppdev, pParams->dstLeft, pParams->dstTop, pParams->dstRight, pParams->dstBottom))
+
+  00b2f	8b 55 0c	 mov	 edx, DWORD PTR _pParams$[ebp]
+  00b32	8b 42 0c	 mov	 eax, DWORD PTR [edx+12]
+  00b35	50		 push	 eax
+  00b36	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  00b39	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  00b3c	52		 push	 edx
+  00b3d	8b 45 0c	 mov	 eax, DWORD PTR _pParams$[ebp]
+  00b40	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  00b43	51		 push	 ecx
+  00b44	8b 55 0c	 mov	 edx, DWORD PTR _pParams$[ebp]
+  00b47	8b 02		 mov	 eax, DWORD PTR [edx]
+  00b49	50		 push	 eax
+  00b4a	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00b4d	51		 push	 ecx
+  00b4e	e8 00 00 00 00	 call	 _DoIntersect
+  00b53	83 c4 14	 add	 esp, 20			; 00000014H
+  00b56	85 c0		 test	 eax, eax
+  00b58	74 3a		 je	 SHORT $L37034
+
+; 481  :             HostRestoreCursor(ppdev, pParams->fpVidMem, _FF(LastCursorPosX), _FF(LastCursorPosY), _FF(HostcursorExclusionStart));
+
+  00b5a	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00b5d	8b 82 a8 04 00
+	00		 mov	 eax, DWORD PTR [edx+1192]
+  00b63	50		 push	 eax
+  00b64	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00b67	0f bf 91 6e 04
+	00 00		 movsx	 edx, WORD PTR [ecx+1134]
+  00b6e	52		 push	 edx
+  00b6f	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00b72	0f bf 88 6c 04
+	00 00		 movsx	 ecx, WORD PTR [eax+1132]
+  00b79	51		 push	 ecx
+  00b7a	8b 55 0c	 mov	 edx, DWORD PTR _pParams$[ebp]
+  00b7d	8b 42 28	 mov	 eax, DWORD PTR [edx+40]
+  00b80	50		 push	 eax
+  00b81	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00b84	51		 push	 ecx
+  00b85	e8 00 00 00 00	 call	 _HostRestoreCursor
+  00b8a	83 c4 14	 add	 esp, 20			; 00000014H
+
+; 482  :             dwDrawCursor = TRUE;
+
+  00b8d	c7 45 e4 01 00
+	00 00		 mov	 DWORD PTR _dwDrawCursor$[ebp], 1
+$L37034:
+
+; 486  : #endif
+; 487  : 
+; 488  :    if (pParams->dwSliSurface)
+
+  00b94	8b 55 0c	 mov	 edx, DWORD PTR _pParams$[ebp]
+  00b97	83 7a 20 00	 cmp	 DWORD PTR [edx+32], 0
+  00b9b	0f 84 f7 04 00
+	00		 je	 $L37035
+
+; 490  :       // Start with the most common and easist case
+; 491  :       // This is the case where the Blt is Full Screen so we just need to munge the
+; 492  :       // Height of the Blt
+; 493  :       if ((0x0 == pParams->dstTop) &&
+; 494  : #ifdef WINNT
+; 495  :           (ppdev->cyScreen == pParams->dstBottom))
+; 496  : #else
+; 497  :           (ppdev->bi.biHeight == pParams->dstBottom))
+
+  00ba1	8b 45 0c	 mov	 eax, DWORD PTR _pParams$[ebp]
+  00ba4	83 78 08 00	 cmp	 DWORD PTR [eax+8], 0
+  00ba8	0f 85 b9 04 00
+	00		 jne	 $L37036
+  00bae	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00bb1	8b 55 0c	 mov	 edx, DWORD PTR _pParams$[ebp]
+  00bb4	8b 41 40	 mov	 eax, DWORD PTR [ecx+64]
+  00bb7	3b 42 0c	 cmp	 eax, DWORD PTR [edx+12]
+  00bba	0f 85 a7 04 00
+	00		 jne	 $L37036
+
+; 500  : #ifndef WINNT
+; 501  :          ppdev->gdiFlags |= SDATA_GDIFLAGS_2D_DIRTY; 
+
+  00bc0	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00bc3	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  00bc6	83 ca 02	 or	 edx, 2
+  00bc9	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00bcc	89 50 08	 mov	 DWORD PTR [eax+8], edx
+
+; 530  :             bltDstFormat = pParams->bltDstFormat;
+
+  00bcf	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  00bd2	8b 51 14	 mov	 edx, DWORD PTR [ecx+20]
+  00bd5	89 55 e0	 mov	 DWORD PTR _bltDstFormat$[ebp], edx
+
+; 531  :             dstRight = pParams->dstRight;
+
+  00bd8	8b 45 0c	 mov	 eax, DWORD PTR _pParams$[ebp]
+  00bdb	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  00bde	89 4d d8	 mov	 DWORD PTR _dstRight$[ebp], ecx
+
+; 532  :             bltDstBaseAddr = pParams->bltDstBaseAddr;
+
+  00be1	8b 55 0c	 mov	 edx, DWORD PTR _pParams$[ebp]
+  00be4	8b 42 1c	 mov	 eax, DWORD PTR [edx+28]
+  00be7	89 45 fc	 mov	 DWORD PTR _bltDstBaseAddr$[ebp], eax
+
+; 533  :             dstHeight = YMAX();
+
+  00bea	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00bed	8b 91 14 18 00
+	00		 mov	 edx, DWORD PTR [ecx+6164]
+  00bf3	8b 82 a2 03 00
+	00		 mov	 eax, DWORD PTR [edx+930]
+  00bf9	89 45 c8	 mov	 DWORD PTR _dstHeight$[ebp], eax
+
+; 535  : 
+; 536  :    	   CMDFIFO_CHECKROOM( cmdFifo, 10);
+
+  00bfc	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00bff	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00c05	8b 42 28	 mov	 eax, DWORD PTR [edx+40]
+  00c08	83 c0 0a	 add	 eax, 10			; 0000000aH
+  00c0b	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00c0e	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00c14	89 42 28	 mov	 DWORD PTR [edx+40], eax
+  00c17	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00c1a	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00c20	81 79 28 ff ff
+	00 00		 cmp	 DWORD PTR [ecx+40], 65535 ; 0000ffffH
+  00c27	72 30		 jb	 SHORT $L37045
+
+; 470  : 
+; 471  :    //Calculate some loop invariants
+; 472  :    dstWidth = pParams->dstRight - pParams->dstLeft;
+
+  00c29	66 87 45 c4	 xchg	 ax, WORD PTR _fenceVar$37390[ebp]
+
+; 535  : 
+; 536  :    	   CMDFIFO_CHECKROOM( cmdFifo, 10);
+
+  00c2d	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00c30	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00c36	c7 40 28 0a 00
+	00 00		 mov	 DWORD PTR [eax+40], 10	; 0000000aH
+  00c3d	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00c40	83 b9 f0 17 00
+	00 00		 cmp	 DWORD PTR [ecx+6128], 0
+  00c47	74 10		 je	 SHORT $L37045
+  00c49	8b 55 dc	 mov	 edx, DWORD PTR _cmdFifo$[ebp]
+  00c4c	52		 push	 edx
+  00c4d	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00c50	50		 push	 eax
+  00c51	e8 00 00 00 00	 call	 _myAgpEpilog
+  00c56	83 c4 08	 add	 esp, 8
+$L37045:
+  00c59	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00c5c	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00c62	8b 42 14	 mov	 eax, DWORD PTR [edx+20]
+  00c65	2b 45 ec	 sub	 eax, DWORD PTR _hwIndex$[ebp]
+  00c68	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00c6b	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00c71	89 42 14	 mov	 DWORD PTR [edx+20], eax
+  00c74	8b 45 ec	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  00c77	8b 4d dc	 mov	 ecx, DWORD PTR _cmdFifo$[ebp]
+  00c7a	8d 14 81	 lea	 edx, DWORD PTR [ecx+eax*4]
+  00c7d	89 55 dc	 mov	 DWORD PTR _cmdFifo$[ebp], edx
+  00c80	c7 45 ec 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$[ebp], 0
+  00c87	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00c8a	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00c90	83 79 14 0a	 cmp	 DWORD PTR [ecx+20], 10	; 0000000aH
+  00c94	0f 83 65 02 00
+	00		 jae	 $L37424
+  00c9a	c7 45 c0 00 00
+	00 00		 mov	 DWORD PTR _resetIdleCount$37426[ebp], 0
+  00ca1	ba 0a 00 00 00	 mov	 edx, 10			; 0000000aH
+  00ca6	c1 e2 02	 shl	 edx, 2
+  00ca9	8b 45 dc	 mov	 eax, DWORD PTR _cmdFifo$[ebp]
+  00cac	03 c2		 add	 eax, edx
+  00cae	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00cb1	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00cb7	3b 42 08	 cmp	 eax, DWORD PTR [edx+8]
+  00cba	0f 86 3e 01 00
+	00		 jbe	 $L37431
+  00cc0	8b 45 dc	 mov	 eax, DWORD PTR _cmdFifo$[ebp]
+  00cc3	89 45 94	 mov	 DWORD PTR $T37422[ebp], eax
+  00cc6	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00cc9	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  00ccc	81 e2 00 20 00
+	00		 and	 edx, 8192		; 00002000H
+  00cd2	85 d2		 test	 edx, edx
+  00cd4	74 0e		 je	 SHORT $L37449
+  00cd6	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00cd9	8b 88 d0 04 00
+	00		 mov	 ecx, DWORD PTR [eax+1232]
+  00cdf	89 4d a8	 mov	 DWORD PTR _nNumChips$37447[ebp], ecx
+  00ce2	eb 07		 jmp	 SHORT $L37450
+$L37449:
+  00ce4	c7 45 a8 01 00
+	00 00		 mov	 DWORD PTR _nNumChips$37447[ebp], 1
+$L37450:
+  00ceb	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00cee	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00cf4	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  00cf7	89 4d a0	 mov	 DWORD PTR _rdPtrMin$37448[ebp], ecx
+  00cfa	c7 45 a4 00 00
+	00 00		 mov	 DWORD PTR _i$37446[ebp], 0
+  00d01	eb 09		 jmp	 SHORT $L37451
+$L37452:
+  00d03	8b 55 a4	 mov	 edx, DWORD PTR _i$37446[ebp]
+  00d06	83 c2 01	 add	 edx, 1
+  00d09	89 55 a4	 mov	 DWORD PTR _i$37446[ebp], edx
+$L37451:
+  00d0c	8b 45 a4	 mov	 eax, DWORD PTR _i$37446[ebp]
+  00d0f	3b 45 a8	 cmp	 eax, DWORD PTR _nNumChips$37447[ebp]
+  00d12	7d 62		 jge	 SHORT $L37453
+$L37454:
+  00d14	8b 4d a4	 mov	 ecx, DWORD PTR _i$37446[ebp]
+  00d17	c1 e1 02	 shl	 ecx, 2
+  00d1a	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00d1d	8b 84 8a 40 17
+	00 00		 mov	 eax, DWORD PTR [edx+ecx*4+5952]
+  00d24	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00d27	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00d2d	8b 40 2c	 mov	 eax, DWORD PTR [eax+44]
+  00d30	03 42 10	 add	 eax, DWORD PTR [edx+16]
+  00d33	89 45 9c	 mov	 DWORD PTR _rdPtr$37445[ebp], eax
+  00d36	8b 4d 9c	 mov	 ecx, DWORD PTR _rdPtr$37445[ebp]
+  00d39	3b 4d 94	 cmp	 ecx, DWORD PTR $T37422[ebp]
+  00d3c	77 d6		 ja	 SHORT $L37454
+  00d3e	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00d41	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00d47	8b 4d 9c	 mov	 ecx, DWORD PTR _rdPtr$37445[ebp]
+  00d4a	3b 48 04	 cmp	 ecx, DWORD PTR [eax+4]
+  00d4d	74 c5		 je	 SHORT $L37454
+  00d4f	8b 55 a0	 mov	 edx, DWORD PTR _rdPtrMin$37448[ebp]
+  00d52	3b 55 9c	 cmp	 edx, DWORD PTR _rdPtr$37445[ebp]
+  00d55	73 0b		 jae	 SHORT $L37460
+  00d57	8b 45 a0	 mov	 eax, DWORD PTR _rdPtrMin$37448[ebp]
+  00d5a	89 85 54 ff ff
+	ff		 mov	 DWORD PTR -172+[ebp], eax
+  00d60	eb 09		 jmp	 SHORT $L37461
+$L37460:
+  00d62	8b 4d 9c	 mov	 ecx, DWORD PTR _rdPtr$37445[ebp]
+  00d65	89 8d 54 ff ff
+	ff		 mov	 DWORD PTR -172+[ebp], ecx
+$L37461:
+  00d6b	8b 95 54 ff ff
+	ff		 mov	 edx, DWORD PTR -172+[ebp]
+  00d71	89 55 a0	 mov	 DWORD PTR _rdPtrMin$37448[ebp], edx
+  00d74	eb 8d		 jmp	 SHORT $L37452
+$L37453:
+  00d76	8b 45 a0	 mov	 eax, DWORD PTR _rdPtrMin$37448[ebp]
+  00d79	89 45 9c	 mov	 DWORD PTR _rdPtr$37445[ebp], eax
+  00d7c	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00d7f	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00d85	8b 45 94	 mov	 eax, DWORD PTR $T37422[ebp]
+  00d88	8b 4a 18	 mov	 ecx, DWORD PTR [edx+24]
+  00d8b	89 08		 mov	 DWORD PTR [eax], ecx
+  00d8d	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00d90	83 ba f0 17 00
+	00 00		 cmp	 DWORD PTR [edx+6128], 0
+  00d97	74 12		 je	 SHORT $L37457
+  00d99	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00d9c	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00da2	8b 55 94	 mov	 edx, DWORD PTR $T37422[ebp]
+  00da5	8b 41 1c	 mov	 eax, DWORD PTR [ecx+28]
+  00da8	89 42 04	 mov	 DWORD PTR [edx+4], eax
+$L37457:
+
+; 470  : 
+; 471  :    //Calculate some loop invariants
+; 472  :    dstWidth = pParams->dstRight - pParams->dstLeft;
+
+  00dab	66 87 45 98	 xchg	 ax, WORD PTR _fenceVar$37464[ebp]
+
+; 535  : 
+; 536  :    	   CMDFIFO_CHECKROOM( cmdFifo, 10);
+
+  00daf	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00db2	83 b9 f0 17 00
+	00 00		 cmp	 DWORD PTR [ecx+6128], 0
+  00db9	74 10		 je	 SHORT $L37458
+  00dbb	8b 55 94	 mov	 edx, DWORD PTR $T37422[ebp]
+  00dbe	52		 push	 edx
+  00dbf	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00dc2	50		 push	 eax
+  00dc3	e8 00 00 00 00	 call	 _myWrapAgp
+  00dc8	83 c4 08	 add	 esp, 8
+$L37458:
+  00dcb	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00dce	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00dd4	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  00dd7	89 45 94	 mov	 DWORD PTR $T37422[ebp], eax
+  00dda	8b 4d 9c	 mov	 ecx, DWORD PTR _rdPtr$37445[ebp]
+  00ddd	2b 4d 94	 sub	 ecx, DWORD PTR $T37422[ebp]
+  00de0	c1 f9 02	 sar	 ecx, 2
+  00de3	83 e9 01	 sub	 ecx, 1
+  00de6	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00de9	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00def	89 48 14	 mov	 DWORD PTR [eax+20], ecx
+  00df2	8b 4d 94	 mov	 ecx, DWORD PTR $T37422[ebp]
+  00df5	89 4d 90	 mov	 DWORD PTR $T37423[ebp], ecx
+  00df8	8b 55 90	 mov	 edx, DWORD PTR $T37423[ebp]
+  00dfb	89 55 dc	 mov	 DWORD PTR _cmdFifo$[ebp], edx
+$L37431:
+  00dfe	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00e01	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  00e04	81 e1 00 20 00
+	00		 and	 ecx, 8192		; 00002000H
+  00e0a	85 c9		 test	 ecx, ecx
+  00e0c	74 0e		 je	 SHORT $L37432
+  00e0e	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00e11	8b 82 d0 04 00
+	00		 mov	 eax, DWORD PTR [edx+1232]
+  00e17	89 45 bc	 mov	 DWORD PTR _nNumChips$37428[ebp], eax
+  00e1a	eb 07		 jmp	 SHORT $L37433
+$L37432:
+  00e1c	c7 45 bc 01 00
+	00 00		 mov	 DWORD PTR _nNumChips$37428[ebp], 1
+$L37433:
+  00e23	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00e26	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00e2c	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00e2f	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00e35	8b 52 08	 mov	 edx, DWORD PTR [edx+8]
+  00e38	2b 51 04	 sub	 edx, DWORD PTR [ecx+4]
+  00e3b	83 c2 01	 add	 edx, 1
+  00e3e	89 55 b0	 mov	 DWORD PTR _dwCmdFifoMin$37430[ebp], edx
+  00e41	c7 45 b8 00 00
+	00 00		 mov	 DWORD PTR _i$37427[ebp], 0
+  00e48	eb 09		 jmp	 SHORT $L37434
+$L37435:
+  00e4a	8b 45 b8	 mov	 eax, DWORD PTR _i$37427[ebp]
+  00e4d	83 c0 01	 add	 eax, 1
+  00e50	89 45 b8	 mov	 DWORD PTR _i$37427[ebp], eax
+$L37434:
+  00e53	8b 4d b8	 mov	 ecx, DWORD PTR _i$37427[ebp]
+  00e56	3b 4d bc	 cmp	 ecx, DWORD PTR _nNumChips$37428[ebp]
+  00e59	0f 8d 91 00 00
+	00		 jge	 $L37436
+  00e5f	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00e62	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00e68	8b 48 14	 mov	 ecx, DWORD PTR [eax+20]
+  00e6b	89 4d b4	 mov	 DWORD PTR _dwCmdFifoSpace$37429[ebp], ecx
+$L37437:
+  00e6e	83 7d b4 0a	 cmp	 DWORD PTR _dwCmdFifoSpace$37429[ebp], 10 ; 0000000aH
+  00e72	73 52		 jae	 SHORT $L37438
+  00e74	8b 55 b8	 mov	 edx, DWORD PTR _i$37427[ebp]
+  00e77	c1 e2 02	 shl	 edx, 2
+  00e7a	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00e7d	8b 8c 90 40 17
+	00 00		 mov	 ecx, DWORD PTR [eax+edx*4+5952]
+  00e84	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00e87	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00e8d	8b 49 2c	 mov	 ecx, DWORD PTR [ecx+44]
+  00e90	03 48 10	 add	 ecx, DWORD PTR [eax+16]
+  00e93	89 4d ac	 mov	 DWORD PTR _rdPtr$37425[ebp], ecx
+  00e96	8b 55 ac	 mov	 edx, DWORD PTR _rdPtr$37425[ebp]
+  00e99	3b 55 dc	 cmp	 edx, DWORD PTR _cmdFifo$[ebp]
+  00e9c	77 17		 ja	 SHORT $L37439
+  00e9e	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00ea1	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00ea7	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  00eaa	2b 55 dc	 sub	 edx, DWORD PTR _cmdFifo$[ebp]
+  00ead	c1 fa 02	 sar	 edx, 2
+  00eb0	89 55 b4	 mov	 DWORD PTR _dwCmdFifoSpace$37429[ebp], edx
+  00eb3	eb 0f		 jmp	 SHORT $L37440
+$L37439:
+  00eb5	8b 45 ac	 mov	 eax, DWORD PTR _rdPtr$37425[ebp]
+  00eb8	2b 45 dc	 sub	 eax, DWORD PTR _cmdFifo$[ebp]
+  00ebb	c1 f8 02	 sar	 eax, 2
+  00ebe	83 e8 01	 sub	 eax, 1
+  00ec1	89 45 b4	 mov	 DWORD PTR _dwCmdFifoSpace$37429[ebp], eax
+$L37440:
+  00ec4	eb a8		 jmp	 SHORT $L37437
+$L37438:
+  00ec6	8b 4d b0	 mov	 ecx, DWORD PTR _dwCmdFifoMin$37430[ebp]
+  00ec9	3b 4d b4	 cmp	 ecx, DWORD PTR _dwCmdFifoSpace$37429[ebp]
+  00ecc	73 0b		 jae	 SHORT $L37442
+  00ece	8b 55 b0	 mov	 edx, DWORD PTR _dwCmdFifoMin$37430[ebp]
+  00ed1	89 95 50 ff ff
+	ff		 mov	 DWORD PTR -176+[ebp], edx
+  00ed7	eb 09		 jmp	 SHORT $L37443
+$L37442:
+  00ed9	8b 45 b4	 mov	 eax, DWORD PTR _dwCmdFifoSpace$37429[ebp]
+  00edc	89 85 50 ff ff
+	ff		 mov	 DWORD PTR -176+[ebp], eax
+$L37443:
+  00ee2	8b 8d 50 ff ff
+	ff		 mov	 ecx, DWORD PTR -176+[ebp]
+  00ee8	89 4d b0	 mov	 DWORD PTR _dwCmdFifoMin$37430[ebp], ecx
+  00eeb	e9 5a ff ff ff	 jmp	 $L37435
+$L37436:
+  00ef0	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00ef3	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00ef9	8b 4d b0	 mov	 ecx, DWORD PTR _dwCmdFifoMin$37430[ebp]
+  00efc	89 48 14	 mov	 DWORD PTR [eax+20], ecx
+$L37424:
+
+; 537  : 
+; 538  :          // write to hw
+; 539  :          packetHeader =  dstBaseAddrBit | dstFormatBit | ropBit | clip1minBit | clip1maxBit | colorForeBit | dstSizeBit | dstXYBit | commandBit;
+
+  00eff	c7 45 d4 60 20
+	30 3c		 mov	 DWORD PTR _packetHeader$[ebp], 1009786976 ; 3c302060H
+
+; 540  : 
+; 541  :          BLTCLIP(pParams->dstLeft, pParams->dstTop, clip1min);
+
+  00f06	8b 55 0c	 mov	 edx, DWORD PTR _pParams$[ebp]
+  00f09	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  00f0c	25 ff 0f 00 00	 and	 eax, 4095		; 00000fffH
+  00f11	c1 e0 10	 shl	 eax, 16			; 00000010H
+  00f14	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  00f17	8b 11		 mov	 edx, DWORD PTR [ecx]
+  00f19	81 e2 ff 0f 00
+	00		 and	 edx, 4095		; 00000fffH
+  00f1f	0b c2		 or	 eax, edx
+  00f21	89 45 f0	 mov	 DWORD PTR _clip1min$[ebp], eax
+
+; 542  :          BLTCLIP(dstRight, dstHeight, clip1max);
+
+  00f24	8b 45 c8	 mov	 eax, DWORD PTR _dstHeight$[ebp]
+  00f27	25 ff 0f 00 00	 and	 eax, 4095		; 00000fffH
+  00f2c	c1 e0 10	 shl	 eax, 16			; 00000010H
+  00f2f	8b 4d d8	 mov	 ecx, DWORD PTR _dstRight$[ebp]
+  00f32	81 e1 ff 0f 00
+	00		 and	 ecx, 4095		; 00000fffH
+  00f38	0b c1		 or	 eax, ecx
+  00f3a	89 45 e8	 mov	 DWORD PTR _clip1max$[ebp], eax
+
+; 543  :          BLTSIZE(dstWidth, dstHeight, bltDstSize);
+
+  00f3d	8b 55 f8	 mov	 edx, DWORD PTR _dstWidth$[ebp]
+  00f40	81 e2 ff 1f 00
+	00		 and	 edx, 8191		; 00001fffH
+  00f46	8b 45 c8	 mov	 eax, DWORD PTR _dstHeight$[ebp]
+  00f49	25 ff 1f 00 00	 and	 eax, 8191		; 00001fffH
+  00f4e	c1 e0 10	 shl	 eax, 16			; 00000010H
+  00f51	0b d0		 or	 edx, eax
+  00f53	89 55 cc	 mov	 DWORD PTR _bltDstSize$[ebp], edx
+
+; 544  :          BLTXY(pParams->dstLeft, pParams->dstTop, bltDstXY);
+
+  00f56	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  00f59	8b 11		 mov	 edx, DWORD PTR [ecx]
+  00f5b	81 e2 ff 0f 00
+	00		 and	 edx, 4095		; 00000fffH
+  00f61	8b 45 0c	 mov	 eax, DWORD PTR _pParams$[ebp]
+  00f64	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  00f67	81 e1 ff 0f 00
+	00		 and	 ecx, 4095		; 00000fffH
+  00f6d	c1 e1 10	 shl	 ecx, 16			; 00000010H
+  00f70	0b d1		 or	 edx, ecx
+  00f72	89 55 f4	 mov	 DWORD PTR _bltDstXY$[ebp], edx
+
+; 545  :          SETPH(cmdFifo, CMDFIFO_BUILD_PK2(packetHeader));
+
+  00f75	8b 55 d4	 mov	 edx, DWORD PTR _packetHeader$[ebp]
+  00f78	83 ca 02	 or	 edx, 2
+  00f7b	8b 45 ec	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  00f7e	8b 4d dc	 mov	 ecx, DWORD PTR _cmdFifo$[ebp]
+  00f81	89 14 81	 mov	 DWORD PTR [ecx+eax*4], edx
+  00f84	8b 55 ec	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  00f87	83 c2 01	 add	 edx, 1
+  00f8a	89 55 ec	 mov	 DWORD PTR _hwIndex$[ebp], edx
+
+; 546  :          SETPD(cmdFifo, ghw2D->dstBaseAddr, bltDstBaseAddr);
+
+  00f8d	8b 45 ec	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  00f90	8b 4d dc	 mov	 ecx, DWORD PTR _cmdFifo$[ebp]
+  00f93	8b 55 fc	 mov	 edx, DWORD PTR _bltDstBaseAddr$[ebp]
+  00f96	89 14 81	 mov	 DWORD PTR [ecx+eax*4], edx
+  00f99	8b 45 ec	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  00f9c	83 c0 01	 add	 eax, 1
+  00f9f	89 45 ec	 mov	 DWORD PTR _hwIndex$[ebp], eax
+
+; 547  :          SETPD(cmdFifo, ghw2D->dstFormat, bltDstFormat);
+
+  00fa2	8b 4d ec	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  00fa5	8b 55 dc	 mov	 edx, DWORD PTR _cmdFifo$[ebp]
+  00fa8	8b 45 e0	 mov	 eax, DWORD PTR _bltDstFormat$[ebp]
+  00fab	89 04 8a	 mov	 DWORD PTR [edx+ecx*4], eax
+  00fae	8b 4d ec	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  00fb1	83 c1 01	 add	 ecx, 1
+  00fb4	89 4d ec	 mov	 DWORD PTR _hwIndex$[ebp], ecx
+
+; 548  :          SETPD(cmdFifo, ghw2D->rop,          pParams->bltRop );
+
+  00fb7	8b 55 ec	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  00fba	8b 45 dc	 mov	 eax, DWORD PTR _cmdFifo$[ebp]
+  00fbd	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  00fc0	8b 49 18	 mov	 ecx, DWORD PTR [ecx+24]
+  00fc3	89 0c 90	 mov	 DWORD PTR [eax+edx*4], ecx
+  00fc6	8b 55 ec	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  00fc9	83 c2 01	 add	 edx, 1
+  00fcc	89 55 ec	 mov	 DWORD PTR _hwIndex$[ebp], edx
+
+; 549  :          SETPD(cmdFifo, ghw2D->clip1min,     clip1min);
+
+  00fcf	8b 45 ec	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  00fd2	8b 4d dc	 mov	 ecx, DWORD PTR _cmdFifo$[ebp]
+  00fd5	8b 55 f0	 mov	 edx, DWORD PTR _clip1min$[ebp]
+  00fd8	89 14 81	 mov	 DWORD PTR [ecx+eax*4], edx
+  00fdb	8b 45 ec	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  00fde	83 c0 01	 add	 eax, 1
+  00fe1	89 45 ec	 mov	 DWORD PTR _hwIndex$[ebp], eax
+
+; 550  :          SETPD(cmdFifo, ghw2D->clip1max,     clip1max);
+
+  00fe4	8b 4d ec	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  00fe7	8b 55 dc	 mov	 edx, DWORD PTR _cmdFifo$[ebp]
+  00fea	8b 45 e8	 mov	 eax, DWORD PTR _clip1max$[ebp]
+  00fed	89 04 8a	 mov	 DWORD PTR [edx+ecx*4], eax
+  00ff0	8b 4d ec	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  00ff3	83 c1 01	 add	 ecx, 1
+  00ff6	89 4d ec	 mov	 DWORD PTR _hwIndex$[ebp], ecx
+
+; 551  :          SETPD(cmdFifo, ghw2D->colorFore,    pParams->fillData );
+
+  00ff9	8b 55 ec	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  00ffc	8b 45 dc	 mov	 eax, DWORD PTR _cmdFifo$[ebp]
+  00fff	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  01002	8b 49 10	 mov	 ecx, DWORD PTR [ecx+16]
+  01005	89 0c 90	 mov	 DWORD PTR [eax+edx*4], ecx
+  01008	8b 55 ec	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  0100b	83 c2 01	 add	 edx, 1
+  0100e	89 55 ec	 mov	 DWORD PTR _hwIndex$[ebp], edx
+
+; 552  :          SETPD(cmdFifo, ghw2D->dstSize,      bltDstSize);
+
+  01011	8b 45 ec	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  01014	8b 4d dc	 mov	 ecx, DWORD PTR _cmdFifo$[ebp]
+  01017	8b 55 cc	 mov	 edx, DWORD PTR _bltDstSize$[ebp]
+  0101a	89 14 81	 mov	 DWORD PTR [ecx+eax*4], edx
+  0101d	8b 45 ec	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  01020	83 c0 01	 add	 eax, 1
+  01023	89 45 ec	 mov	 DWORD PTR _hwIndex$[ebp], eax
+
+; 553  :          SETPD(cmdFifo, ghw2D->dstXY,        bltDstXY);
+
+  01026	8b 4d ec	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  01029	8b 55 dc	 mov	 edx, DWORD PTR _cmdFifo$[ebp]
+  0102c	8b 45 f4	 mov	 eax, DWORD PTR _bltDstXY$[ebp]
+  0102f	89 04 8a	 mov	 DWORD PTR [edx+ecx*4], eax
+  01032	8b 4d ec	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  01035	83 c1 01	 add	 ecx, 1
+  01038	89 4d ec	 mov	 DWORD PTR _hwIndex$[ebp], ecx
+
+; 554  :          SETPD(cmdFifo, ghw2D->command,      SSTG_RECTFILL | SSTG_GO
+; 555  :                   | ((pParams->bltRop & 0xFF) << SSTG_ROP0_SHIFT) | SSTG_CLIPSELECT);
+
+  0103b	8b 55 0c	 mov	 edx, DWORD PTR _pParams$[ebp]
+  0103e	8b 42 18	 mov	 eax, DWORD PTR [edx+24]
+  01041	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  01046	c1 e0 18	 shl	 eax, 24			; 00000018H
+  01049	0d 05 01 00 00	 or	 eax, 261		; 00000105H
+  0104e	0d 00 00 80 00	 or	 eax, 8388608		; 00800000H
+  01053	8b 4d ec	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  01056	8b 55 dc	 mov	 edx, DWORD PTR _cmdFifo$[ebp]
+  01059	89 04 8a	 mov	 DWORD PTR [edx+ecx*4], eax
+  0105c	8b 45 ec	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  0105f	83 c0 01	 add	 eax, 1
+  01062	89 45 ec	 mov	 DWORD PTR _hwIndex$[ebp], eax
+
+; 559  :       else
+
+  01065	eb 2c		 jmp	 SHORT $L37062
+$L37036:
+
+; 561  :          // Don't go through special case if Napalm2
+; 562  :          if (pParams->isZClear)
+
+  01067	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  0106a	83 79 34 00	 cmp	 DWORD PTR [ecx+52], 0
+  0106e	74 0f		 je	 SHORT $L37063
+
+; 563  :           sli_PuntColorFillZ(ppdev, pParams);
+
+  01070	8b 55 0c	 mov	 edx, DWORD PTR _pParams$[ebp]
+  01073	52		 push	 edx
+  01074	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01077	50		 push	 eax
+  01078	e8 00 00 00 00	 call	 _sli_PuntColorFillZ@8
+
+; 564  :          else
+
+  0107d	eb 0d		 jmp	 SHORT $L37064
+$L37063:
+
+; 565  :           sli_PuntColorFill(ppdev, pParams);
+
+  0107f	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  01082	51		 push	 ecx
+  01083	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  01086	52		 push	 edx
+  01087	e8 00 00 00 00	 call	 _sli_PuntColorFill@8
+$L37064:
+
+; 566  :          dwReturn = BLIT_WAS_SW;
+
+  0108c	c7 45 d0 00 00
+	00 00		 mov	 DWORD PTR _dwReturn$[ebp], 0
+$L37062:
+
+; 569  :    else
+
+  01093	e9 23 05 00 00	 jmp	 $L37065
+$L37035:
+
+; 571  : #ifndef WINNT
+; 572  :       ppdev->gdiFlags |= SDATA_GDIFLAGS_2D_DIRTY; 
+
+  01098	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0109b	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  0109e	83 c9 02	 or	 ecx, 2
+  010a1	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  010a4	89 4a 08	 mov	 DWORD PTR [edx+8], ecx
+
+; 573  : #endif
+; 574  :       // Punt to HW non-SLI case
+; 575  :       CMDFIFO_CHECKROOM( cmdFifo, 10);
+
+  010a7	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  010aa	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  010b0	8b 51 28	 mov	 edx, DWORD PTR [ecx+40]
+  010b3	83 c2 0a	 add	 edx, 10			; 0000000aH
+  010b6	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  010b9	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  010bf	89 51 28	 mov	 DWORD PTR [ecx+40], edx
+  010c2	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  010c5	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  010cb	81 78 28 ff ff
+	00 00		 cmp	 DWORD PTR [eax+40], 65535 ; 0000ffffH
+  010d2	72 30		 jb	 SHORT $L37073
+
+; 470  : 
+; 471  :    //Calculate some loop invariants
+; 472  :    dstWidth = pParams->dstRight - pParams->dstLeft;
+
+  010d4	66 87 45 8c	 xchg	 ax, WORD PTR _fenceVar$37468[ebp]
+
+; 573  : #endif
+; 574  :       // Punt to HW non-SLI case
+; 575  :       CMDFIFO_CHECKROOM( cmdFifo, 10);
+
+  010d8	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  010db	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  010e1	c7 42 28 0a 00
+	00 00		 mov	 DWORD PTR [edx+40], 10	; 0000000aH
+  010e8	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  010eb	83 b8 f0 17 00
+	00 00		 cmp	 DWORD PTR [eax+6128], 0
+  010f2	74 10		 je	 SHORT $L37073
+  010f4	8b 4d dc	 mov	 ecx, DWORD PTR _cmdFifo$[ebp]
+  010f7	51		 push	 ecx
+  010f8	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  010fb	52		 push	 edx
+  010fc	e8 00 00 00 00	 call	 _myAgpEpilog
+  01101	83 c4 08	 add	 esp, 8
+$L37073:
+  01104	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01107	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  0110d	8b 51 14	 mov	 edx, DWORD PTR [ecx+20]
+  01110	2b 55 ec	 sub	 edx, DWORD PTR _hwIndex$[ebp]
+  01113	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01116	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  0111c	89 51 14	 mov	 DWORD PTR [ecx+20], edx
+  0111f	8b 55 ec	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  01122	8b 45 dc	 mov	 eax, DWORD PTR _cmdFifo$[ebp]
+  01125	8d 0c 90	 lea	 ecx, DWORD PTR [eax+edx*4]
+  01128	89 4d dc	 mov	 DWORD PTR _cmdFifo$[ebp], ecx
+  0112b	c7 45 ec 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$[ebp], 0
+  01132	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  01135	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  0113b	83 78 14 0a	 cmp	 DWORD PTR [eax+20], 10	; 0000000aH
+  0113f	0f 83 f2 02 00
+	00		 jae	 $L37502
+  01145	c7 45 88 00 00
+	00 00		 mov	 DWORD PTR _resetIdleCount$37504[ebp], 0
+  0114c	b9 0a 00 00 00	 mov	 ecx, 10			; 0000000aH
+  01151	c1 e1 02	 shl	 ecx, 2
+  01154	8b 55 dc	 mov	 edx, DWORD PTR _cmdFifo$[ebp]
+  01157	03 d1		 add	 edx, ecx
+  01159	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0115c	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  01162	3b 51 08	 cmp	 edx, DWORD PTR [ecx+8]
+  01165	0f 86 a2 01 00
+	00		 jbe	 $L37509
+  0116b	8b 55 dc	 mov	 edx, DWORD PTR _cmdFifo$[ebp]
+  0116e	89 95 5c ff ff
+	ff		 mov	 DWORD PTR $T37500[ebp], edx
+  01174	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01177	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  0117a	81 e1 00 20 00
+	00		 and	 ecx, 8192		; 00002000H
+  01180	85 c9		 test	 ecx, ecx
+  01182	74 11		 je	 SHORT $L37527
+  01184	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  01187	8b 82 d0 04 00
+	00		 mov	 eax, DWORD PTR [edx+1232]
+  0118d	89 85 70 ff ff
+	ff		 mov	 DWORD PTR _nNumChips$37525[ebp], eax
+  01193	eb 0a		 jmp	 SHORT $L37528
+$L37527:
+  01195	c7 85 70 ff ff
+	ff 01 00 00 00	 mov	 DWORD PTR _nNumChips$37525[ebp], 1
+$L37528:
+  0119f	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  011a2	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  011a8	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  011ab	89 85 68 ff ff
+	ff		 mov	 DWORD PTR _rdPtrMin$37526[ebp], eax
+  011b1	c7 85 6c ff ff
+	ff 00 00 00 00	 mov	 DWORD PTR _i$37524[ebp], 0
+  011bb	eb 0f		 jmp	 SHORT $L37529
+$L37530:
+  011bd	8b 8d 6c ff ff
+	ff		 mov	 ecx, DWORD PTR _i$37524[ebp]
+  011c3	83 c1 01	 add	 ecx, 1
+  011c6	89 8d 6c ff ff
+	ff		 mov	 DWORD PTR _i$37524[ebp], ecx
+$L37529:
+  011cc	8b 95 6c ff ff
+	ff		 mov	 edx, DWORD PTR _i$37524[ebp]
+  011d2	3b 95 70 ff ff
+	ff		 cmp	 edx, DWORD PTR _nNumChips$37525[ebp]
+  011d8	0f 8d 83 00 00
+	00		 jge	 $L37531
+$L37532:
+  011de	8b 85 6c ff ff
+	ff		 mov	 eax, DWORD PTR _i$37524[ebp]
+  011e4	c1 e0 02	 shl	 eax, 2
+  011e7	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  011ea	8b 94 81 40 17
+	00 00		 mov	 edx, DWORD PTR [ecx+eax*4+5952]
+  011f1	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  011f4	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  011fa	8b 52 2c	 mov	 edx, DWORD PTR [edx+44]
+  011fd	03 51 10	 add	 edx, DWORD PTR [ecx+16]
+  01200	89 95 64 ff ff
+	ff		 mov	 DWORD PTR _rdPtr$37523[ebp], edx
+  01206	8b 85 64 ff ff
+	ff		 mov	 eax, DWORD PTR _rdPtr$37523[ebp]
+  0120c	3b 85 5c ff ff
+	ff		 cmp	 eax, DWORD PTR $T37500[ebp]
+  01212	77 ca		 ja	 SHORT $L37532
+  01214	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  01217	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  0121d	8b 85 64 ff ff
+	ff		 mov	 eax, DWORD PTR _rdPtr$37523[ebp]
+  01223	3b 42 04	 cmp	 eax, DWORD PTR [edx+4]
+  01226	74 b6		 je	 SHORT $L37532
+  01228	8b 8d 68 ff ff
+	ff		 mov	 ecx, DWORD PTR _rdPtrMin$37526[ebp]
+  0122e	3b 8d 64 ff ff
+	ff		 cmp	 ecx, DWORD PTR _rdPtr$37523[ebp]
+  01234	73 0e		 jae	 SHORT $L37538
+  01236	8b 95 68 ff ff
+	ff		 mov	 edx, DWORD PTR _rdPtrMin$37526[ebp]
+  0123c	89 95 4c ff ff
+	ff		 mov	 DWORD PTR -180+[ebp], edx
+  01242	eb 0c		 jmp	 SHORT $L37539
+$L37538:
+  01244	8b 85 64 ff ff
+	ff		 mov	 eax, DWORD PTR _rdPtr$37523[ebp]
+  0124a	89 85 4c ff ff
+	ff		 mov	 DWORD PTR -180+[ebp], eax
+$L37539:
+  01250	8b 8d 4c ff ff
+	ff		 mov	 ecx, DWORD PTR -180+[ebp]
+  01256	89 8d 68 ff ff
+	ff		 mov	 DWORD PTR _rdPtrMin$37526[ebp], ecx
+  0125c	e9 5c ff ff ff	 jmp	 $L37530
+$L37531:
+  01261	8b 95 68 ff ff
+	ff		 mov	 edx, DWORD PTR _rdPtrMin$37526[ebp]
+  01267	89 95 64 ff ff
+	ff		 mov	 DWORD PTR _rdPtr$37523[ebp], edx
+  0126d	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01270	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  01276	8b 95 5c ff ff
+	ff		 mov	 edx, DWORD PTR $T37500[ebp]
+  0127c	8b 41 18	 mov	 eax, DWORD PTR [ecx+24]
+  0127f	89 02		 mov	 DWORD PTR [edx], eax
+  01281	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  01284	83 b9 f0 17 00
+	00 00		 cmp	 DWORD PTR [ecx+6128], 0
+  0128b	74 15		 je	 SHORT $L37535
+  0128d	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  01290	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  01296	8b 8d 5c ff ff
+	ff		 mov	 ecx, DWORD PTR $T37500[ebp]
+  0129c	8b 50 1c	 mov	 edx, DWORD PTR [eax+28]
+  0129f	89 51 04	 mov	 DWORD PTR [ecx+4], edx
+$L37535:
+
+; 470  : 
+; 471  :    //Calculate some loop invariants
+; 472  :    dstWidth = pParams->dstRight - pParams->dstLeft;
+
+  012a2	66 87 85 60 ff
+	ff ff		 xchg	 ax, WORD PTR _fenceVar$37542[ebp]
+
+; 573  : #endif
+; 574  :       // Punt to HW non-SLI case
+; 575  :       CMDFIFO_CHECKROOM( cmdFifo, 10);
+
+  012a9	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  012ac	83 b8 f0 17 00
+	00 00		 cmp	 DWORD PTR [eax+6128], 0
+  012b3	74 13		 je	 SHORT $L37536
+  012b5	8b 8d 5c ff ff
+	ff		 mov	 ecx, DWORD PTR $T37500[ebp]
+  012bb	51		 push	 ecx
+  012bc	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  012bf	52		 push	 edx
+  012c0	e8 00 00 00 00	 call	 _myWrapAgp
+  012c5	83 c4 08	 add	 esp, 8
+$L37536:
+  012c8	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  012cb	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  012d1	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  012d4	89 95 5c ff ff
+	ff		 mov	 DWORD PTR $T37500[ebp], edx
+  012da	8b 85 64 ff ff
+	ff		 mov	 eax, DWORD PTR _rdPtr$37523[ebp]
+  012e0	2b 85 5c ff ff
+	ff		 sub	 eax, DWORD PTR $T37500[ebp]
+  012e6	c1 f8 02	 sar	 eax, 2
+  012e9	83 e8 01	 sub	 eax, 1
+  012ec	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  012ef	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  012f5	89 42 14	 mov	 DWORD PTR [edx+20], eax
+  012f8	8b 85 5c ff ff
+	ff		 mov	 eax, DWORD PTR $T37500[ebp]
+  012fe	89 85 58 ff ff
+	ff		 mov	 DWORD PTR $T37501[ebp], eax
+  01304	8b 8d 58 ff ff
+	ff		 mov	 ecx, DWORD PTR $T37501[ebp]
+  0130a	89 4d dc	 mov	 DWORD PTR _cmdFifo$[ebp], ecx
+$L37509:
+  0130d	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  01310	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  01313	25 00 20 00 00	 and	 eax, 8192		; 00002000H
+  01318	85 c0		 test	 eax, eax
+  0131a	74 0e		 je	 SHORT $L37510
+  0131c	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0131f	8b 91 d0 04 00
+	00		 mov	 edx, DWORD PTR [ecx+1232]
+  01325	89 55 84	 mov	 DWORD PTR _nNumChips$37506[ebp], edx
+  01328	eb 07		 jmp	 SHORT $L37511
+$L37510:
+  0132a	c7 45 84 01 00
+	00 00		 mov	 DWORD PTR _nNumChips$37506[ebp], 1
+$L37511:
+  01331	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01334	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  0133a	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0133d	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  01343	8b 49 08	 mov	 ecx, DWORD PTR [ecx+8]
+  01346	2b 48 04	 sub	 ecx, DWORD PTR [eax+4]
+  01349	83 c1 01	 add	 ecx, 1
+  0134c	89 8d 78 ff ff
+	ff		 mov	 DWORD PTR _dwCmdFifoMin$37508[ebp], ecx
+  01352	c7 45 80 00 00
+	00 00		 mov	 DWORD PTR _i$37505[ebp], 0
+  01359	eb 09		 jmp	 SHORT $L37512
+$L37513:
+  0135b	8b 55 80	 mov	 edx, DWORD PTR _i$37505[ebp]
+  0135e	83 c2 01	 add	 edx, 1
+  01361	89 55 80	 mov	 DWORD PTR _i$37505[ebp], edx
+$L37512:
+  01364	8b 45 80	 mov	 eax, DWORD PTR _i$37505[ebp]
+  01367	3b 45 84	 cmp	 eax, DWORD PTR _nNumChips$37506[ebp]
+  0136a	0f 8d b5 00 00
+	00		 jge	 $L37514
+  01370	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  01373	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  01379	8b 42 14	 mov	 eax, DWORD PTR [edx+20]
+  0137c	89 85 7c ff ff
+	ff		 mov	 DWORD PTR _dwCmdFifoSpace$37507[ebp], eax
+$L37515:
+  01382	83 bd 7c ff ff
+	ff 0a		 cmp	 DWORD PTR _dwCmdFifoSpace$37507[ebp], 10 ; 0000000aH
+  01389	73 61		 jae	 SHORT $L37516
+  0138b	8b 4d 80	 mov	 ecx, DWORD PTR _i$37505[ebp]
+  0138e	c1 e1 02	 shl	 ecx, 2
+  01391	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  01394	8b 84 8a 40 17
+	00 00		 mov	 eax, DWORD PTR [edx+ecx*4+5952]
+  0139b	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0139e	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  013a4	8b 40 2c	 mov	 eax, DWORD PTR [eax+44]
+  013a7	03 42 10	 add	 eax, DWORD PTR [edx+16]
+  013aa	89 85 74 ff ff
+	ff		 mov	 DWORD PTR _rdPtr$37503[ebp], eax
+  013b0	8b 8d 74 ff ff
+	ff		 mov	 ecx, DWORD PTR _rdPtr$37503[ebp]
+  013b6	3b 4d dc	 cmp	 ecx, DWORD PTR _cmdFifo$[ebp]
+  013b9	77 1a		 ja	 SHORT $L37517
+  013bb	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  013be	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  013c4	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  013c7	2b 4d dc	 sub	 ecx, DWORD PTR _cmdFifo$[ebp]
+  013ca	c1 f9 02	 sar	 ecx, 2
+  013cd	89 8d 7c ff ff
+	ff		 mov	 DWORD PTR _dwCmdFifoSpace$37507[ebp], ecx
+  013d3	eb 15		 jmp	 SHORT $L37518
+$L37517:
+  013d5	8b 95 74 ff ff
+	ff		 mov	 edx, DWORD PTR _rdPtr$37503[ebp]
+  013db	2b 55 dc	 sub	 edx, DWORD PTR _cmdFifo$[ebp]
+  013de	c1 fa 02	 sar	 edx, 2
+  013e1	83 ea 01	 sub	 edx, 1
+  013e4	89 95 7c ff ff
+	ff		 mov	 DWORD PTR _dwCmdFifoSpace$37507[ebp], edx
+$L37518:
+  013ea	eb 96		 jmp	 SHORT $L37515
+$L37516:
+  013ec	8b 85 78 ff ff
+	ff		 mov	 eax, DWORD PTR _dwCmdFifoMin$37508[ebp]
+  013f2	3b 85 7c ff ff
+	ff		 cmp	 eax, DWORD PTR _dwCmdFifoSpace$37507[ebp]
+  013f8	73 0e		 jae	 SHORT $L37520
+  013fa	8b 8d 78 ff ff
+	ff		 mov	 ecx, DWORD PTR _dwCmdFifoMin$37508[ebp]
+  01400	89 8d 48 ff ff
+	ff		 mov	 DWORD PTR -184+[ebp], ecx
+  01406	eb 0c		 jmp	 SHORT $L37521
+$L37520:
+  01408	8b 95 7c ff ff
+	ff		 mov	 edx, DWORD PTR _dwCmdFifoSpace$37507[ebp]
+  0140e	89 95 48 ff ff
+	ff		 mov	 DWORD PTR -184+[ebp], edx
+$L37521:
+  01414	8b 85 48 ff ff
+	ff		 mov	 eax, DWORD PTR -184+[ebp]
+  0141a	89 85 78 ff ff
+	ff		 mov	 DWORD PTR _dwCmdFifoMin$37508[ebp], eax
+  01420	e9 36 ff ff ff	 jmp	 $L37513
+$L37514:
+  01425	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  01428	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  0142e	8b 85 78 ff ff
+	ff		 mov	 eax, DWORD PTR _dwCmdFifoMin$37508[ebp]
+  01434	89 42 14	 mov	 DWORD PTR [edx+20], eax
+$L37502:
+
+; 576  : 
+; 577  :       // write to hw
+; 578  :       packetHeader =  dstBaseAddrBit | dstFormatBit | ropBit | clip1minBit | clip1maxBit | colorForeBit | dstSizeBit | dstXYBit | commandBit;
+
+  01437	c7 45 d4 60 20
+	30 3c		 mov	 DWORD PTR _packetHeader$[ebp], 1009786976 ; 3c302060H
+
+; 579  : 
+; 580  :       BLTCLIP(pParams->dstLeft, pParams->dstTop, clip1min);
+
+  0143e	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  01441	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  01444	81 e2 ff 0f 00
+	00		 and	 edx, 4095		; 00000fffH
+  0144a	c1 e2 10	 shl	 edx, 16			; 00000010H
+  0144d	8b 45 0c	 mov	 eax, DWORD PTR _pParams$[ebp]
+  01450	8b 08		 mov	 ecx, DWORD PTR [eax]
+  01452	81 e1 ff 0f 00
+	00		 and	 ecx, 4095		; 00000fffH
+  01458	0b d1		 or	 edx, ecx
+  0145a	89 55 f0	 mov	 DWORD PTR _clip1min$[ebp], edx
+
+; 581  :       dstHeight = pParams->dstBottom - pParams->dstTop;
+
+  0145d	8b 55 0c	 mov	 edx, DWORD PTR _pParams$[ebp]
+  01460	8b 45 0c	 mov	 eax, DWORD PTR _pParams$[ebp]
+  01463	8b 4a 0c	 mov	 ecx, DWORD PTR [edx+12]
+  01466	2b 48 08	 sub	 ecx, DWORD PTR [eax+8]
+  01469	89 4d c8	 mov	 DWORD PTR _dstHeight$[ebp], ecx
+
+; 582  :       BLTCLIP(pParams->dstRight, pParams->dstBottom, clip1max);
+
+  0146c	8b 55 0c	 mov	 edx, DWORD PTR _pParams$[ebp]
+  0146f	8b 42 0c	 mov	 eax, DWORD PTR [edx+12]
+  01472	25 ff 0f 00 00	 and	 eax, 4095		; 00000fffH
+  01477	c1 e0 10	 shl	 eax, 16			; 00000010H
+  0147a	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  0147d	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  01480	81 e2 ff 0f 00
+	00		 and	 edx, 4095		; 00000fffH
+  01486	0b c2		 or	 eax, edx
+  01488	89 45 e8	 mov	 DWORD PTR _clip1max$[ebp], eax
+
+; 583  :       BLTSIZE(dstWidth, dstHeight, bltDstSize);
+
+  0148b	8b 45 f8	 mov	 eax, DWORD PTR _dstWidth$[ebp]
+  0148e	25 ff 1f 00 00	 and	 eax, 8191		; 00001fffH
+  01493	8b 4d c8	 mov	 ecx, DWORD PTR _dstHeight$[ebp]
+  01496	81 e1 ff 1f 00
+	00		 and	 ecx, 8191		; 00001fffH
+  0149c	c1 e1 10	 shl	 ecx, 16			; 00000010H
+  0149f	0b c1		 or	 eax, ecx
+  014a1	89 45 cc	 mov	 DWORD PTR _bltDstSize$[ebp], eax
+
+; 584  :       BLTXY(pParams->dstLeft, pParams->dstTop, bltDstXY);
+
+  014a4	8b 55 0c	 mov	 edx, DWORD PTR _pParams$[ebp]
+  014a7	8b 02		 mov	 eax, DWORD PTR [edx]
+  014a9	25 ff 0f 00 00	 and	 eax, 4095		; 00000fffH
+  014ae	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  014b1	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  014b4	81 e2 ff 0f 00
+	00		 and	 edx, 4095		; 00000fffH
+  014ba	c1 e2 10	 shl	 edx, 16			; 00000010H
+  014bd	0b c2		 or	 eax, edx
+  014bf	89 45 f4	 mov	 DWORD PTR _bltDstXY$[ebp], eax
+
+; 585  :       SETPH(cmdFifo, CMDFIFO_BUILD_PK2(packetHeader));
+
+  014c2	8b 45 d4	 mov	 eax, DWORD PTR _packetHeader$[ebp]
+  014c5	83 c8 02	 or	 eax, 2
+  014c8	8b 4d ec	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  014cb	8b 55 dc	 mov	 edx, DWORD PTR _cmdFifo$[ebp]
+  014ce	89 04 8a	 mov	 DWORD PTR [edx+ecx*4], eax
+  014d1	8b 45 ec	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  014d4	83 c0 01	 add	 eax, 1
+  014d7	89 45 ec	 mov	 DWORD PTR _hwIndex$[ebp], eax
+
+; 586  :       SETPD(cmdFifo, ghw2D->dstBaseAddr,  pParams->bltDstBaseAddr);
+
+  014da	8b 4d ec	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  014dd	8b 55 dc	 mov	 edx, DWORD PTR _cmdFifo$[ebp]
+  014e0	8b 45 0c	 mov	 eax, DWORD PTR _pParams$[ebp]
+  014e3	8b 40 1c	 mov	 eax, DWORD PTR [eax+28]
+  014e6	89 04 8a	 mov	 DWORD PTR [edx+ecx*4], eax
+  014e9	8b 4d ec	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  014ec	83 c1 01	 add	 ecx, 1
+  014ef	89 4d ec	 mov	 DWORD PTR _hwIndex$[ebp], ecx
+
+; 587  :       SETPD(cmdFifo, ghw2D->dstFormat,    pParams->bltDstFormat);
+
+  014f2	8b 55 ec	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  014f5	8b 45 dc	 mov	 eax, DWORD PTR _cmdFifo$[ebp]
+  014f8	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  014fb	8b 49 14	 mov	 ecx, DWORD PTR [ecx+20]
+  014fe	89 0c 90	 mov	 DWORD PTR [eax+edx*4], ecx
+  01501	8b 55 ec	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  01504	83 c2 01	 add	 edx, 1
+  01507	89 55 ec	 mov	 DWORD PTR _hwIndex$[ebp], edx
+
+; 588  :       SETPD(cmdFifo, ghw2D->rop,          pParams->bltRop );
+
+  0150a	8b 45 ec	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  0150d	8b 4d dc	 mov	 ecx, DWORD PTR _cmdFifo$[ebp]
+  01510	8b 55 0c	 mov	 edx, DWORD PTR _pParams$[ebp]
+  01513	8b 52 18	 mov	 edx, DWORD PTR [edx+24]
+  01516	89 14 81	 mov	 DWORD PTR [ecx+eax*4], edx
+  01519	8b 45 ec	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  0151c	83 c0 01	 add	 eax, 1
+  0151f	89 45 ec	 mov	 DWORD PTR _hwIndex$[ebp], eax
+
+; 589  :       SETPD(cmdFifo, ghw2D->clip1min,     clip1min);
+
+  01522	8b 4d ec	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  01525	8b 55 dc	 mov	 edx, DWORD PTR _cmdFifo$[ebp]
+  01528	8b 45 f0	 mov	 eax, DWORD PTR _clip1min$[ebp]
+  0152b	89 04 8a	 mov	 DWORD PTR [edx+ecx*4], eax
+  0152e	8b 4d ec	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  01531	83 c1 01	 add	 ecx, 1
+  01534	89 4d ec	 mov	 DWORD PTR _hwIndex$[ebp], ecx
+
+; 590  :       SETPD(cmdFifo, ghw2D->clip1max,     clip1max);
+
+  01537	8b 55 ec	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  0153a	8b 45 dc	 mov	 eax, DWORD PTR _cmdFifo$[ebp]
+  0153d	8b 4d e8	 mov	 ecx, DWORD PTR _clip1max$[ebp]
+  01540	89 0c 90	 mov	 DWORD PTR [eax+edx*4], ecx
+  01543	8b 55 ec	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  01546	83 c2 01	 add	 edx, 1
+  01549	89 55 ec	 mov	 DWORD PTR _hwIndex$[ebp], edx
+
+; 591  :       SETPD(cmdFifo, ghw2D->colorFore,    pParams->fillData );
+
+  0154c	8b 45 ec	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  0154f	8b 4d dc	 mov	 ecx, DWORD PTR _cmdFifo$[ebp]
+  01552	8b 55 0c	 mov	 edx, DWORD PTR _pParams$[ebp]
+  01555	8b 52 10	 mov	 edx, DWORD PTR [edx+16]
+  01558	89 14 81	 mov	 DWORD PTR [ecx+eax*4], edx
+  0155b	8b 45 ec	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  0155e	83 c0 01	 add	 eax, 1
+  01561	89 45 ec	 mov	 DWORD PTR _hwIndex$[ebp], eax
+
+; 592  :       SETPD(cmdFifo, ghw2D->dstSize,      bltDstSize);
+
+  01564	8b 4d ec	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  01567	8b 55 dc	 mov	 edx, DWORD PTR _cmdFifo$[ebp]
+  0156a	8b 45 cc	 mov	 eax, DWORD PTR _bltDstSize$[ebp]
+  0156d	89 04 8a	 mov	 DWORD PTR [edx+ecx*4], eax
+  01570	8b 4d ec	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  01573	83 c1 01	 add	 ecx, 1
+  01576	89 4d ec	 mov	 DWORD PTR _hwIndex$[ebp], ecx
+
+; 593  :       SETPD(cmdFifo, ghw2D->dstXY,        bltDstXY);
+
+  01579	8b 55 ec	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  0157c	8b 45 dc	 mov	 eax, DWORD PTR _cmdFifo$[ebp]
+  0157f	8b 4d f4	 mov	 ecx, DWORD PTR _bltDstXY$[ebp]
+  01582	89 0c 90	 mov	 DWORD PTR [eax+edx*4], ecx
+  01585	8b 55 ec	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  01588	83 c2 01	 add	 edx, 1
+  0158b	89 55 ec	 mov	 DWORD PTR _hwIndex$[ebp], edx
+
+; 594  :       SETPD(cmdFifo, ghw2D->command,      SSTG_RECTFILL | SSTG_GO
+; 595  :                   | ((pParams->bltRop & 0xFF) << SSTG_ROP0_SHIFT) | SSTG_CLIPSELECT);
+
+  0158e	8b 45 0c	 mov	 eax, DWORD PTR _pParams$[ebp]
+  01591	8b 48 18	 mov	 ecx, DWORD PTR [eax+24]
+  01594	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  0159a	c1 e1 18	 shl	 ecx, 24			; 00000018H
+  0159d	81 c9 05 01 00
+	00		 or	 ecx, 261		; 00000105H
+  015a3	81 c9 00 00 80
+	00		 or	 ecx, 8388608		; 00800000H
+  015a9	8b 55 ec	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  015ac	8b 45 dc	 mov	 eax, DWORD PTR _cmdFifo$[ebp]
+  015af	89 0c 90	 mov	 DWORD PTR [eax+edx*4], ecx
+  015b2	8b 4d ec	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  015b5	83 c1 01	 add	 ecx, 1
+  015b8	89 4d ec	 mov	 DWORD PTR _hwIndex$[ebp], ecx
+$L37065:
+
+; 599  : 
+; 600  :    CMDFIFO_EPILOG( cmdFifo );
+
+  015bb	8b 55 ec	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  015be	8b 45 dc	 mov	 eax, DWORD PTR _cmdFifo$[ebp]
+  015c1	8d 0c 90	 lea	 ecx, DWORD PTR [eax+edx*4]
+  015c4	89 4d dc	 mov	 DWORD PTR _cmdFifo$[ebp], ecx
+  015c7	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  015ca	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  015d0	8b 4d dc	 mov	 ecx, DWORD PTR _cmdFifo$[ebp]
+  015d3	89 48 0c	 mov	 DWORD PTR [eax+12], ecx
+  015d6	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  015d9	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  015df	8b 48 14	 mov	 ecx, DWORD PTR [eax+20]
+  015e2	2b 4d ec	 sub	 ecx, DWORD PTR _hwIndex$[ebp]
+  015e5	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  015e8	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  015ee	89 48 14	 mov	 DWORD PTR [eax+20], ecx
+  015f1	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  015f4	83 b9 f0 17 00
+	00 00		 cmp	 DWORD PTR [ecx+6128], 0
+  015fb	74 10		 je	 SHORT $L37095
+  015fd	8b 55 dc	 mov	 edx, DWORD PTR _cmdFifo$[ebp]
+  01600	52		 push	 edx
+  01601	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01604	50		 push	 eax
+  01605	e8 00 00 00 00	 call	 _myAgpEpilog
+  0160a	83 c4 08	 add	 esp, 8
+$L37095:
+  0160d	c7 45 ec 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$[ebp], 0
+
+; 601  : 
+; 602  : #ifndef WINNT
+; 603  :    if (dwDrawCursor)
+
+  01614	83 7d e4 00	 cmp	 DWORD PTR _dwDrawCursor$[ebp], 0
+  01618	74 13		 je	 SHORT $L37097
+
+; 604  :       HostDrawCursor(ppdev, pParams->fpVidMem);
+
+  0161a	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  0161d	8b 51 28	 mov	 edx, DWORD PTR [ecx+40]
+  01620	52		 push	 edx
+  01621	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01624	50		 push	 eax
+  01625	e8 00 00 00 00	 call	 _HostDrawCursor
+  0162a	83 c4 08	 add	 esp, 8
+$L37097:
+
+; 605  : #endif
+; 606  : 
+; 607  :    return dwReturn;
+
+  0162d	8b 45 d0	 mov	 eax, DWORD PTR _dwReturn$[ebp]
+
+; 608  : }
+
+  01630	5f		 pop	 edi
+  01631	5e		 pop	 esi
+  01632	5b		 pop	 ebx
+  01633	8b e5		 mov	 esp, ebp
+  01635	5d		 pop	 ebp
+  01636	c3		 ret	 0
+_DdSli2DSolidColor ENDP
+_TEXT	ENDS
+PUBLIC	_DdSliBltNoSP
+EXTRN	_Blt32_DoBltNoSP@16:NEAR
+EXTRN	_sli_DoBltNoSP@16:NEAR
+_TEXT	SEGMENT
+_ppdev$ = 8
+_pbd$ = 12
+_rop3$ = 16
+_dstPixelFormat$ = 20
+_bottom$ = -32
+_dwReturn$ = -28
+_hwAddr$ = -20
+_pDstSurfaceData$ = -12
+_dstPixelByte$ = -24
+_dwDrawCursor$ = -8
+_cmdFifo$ = -16
+_hwIndex$ = -4
+_DdSliBltNoSP PROC NEAR
+
+; 633  : {
+
+  01637	55		 push	 ebp
+  01638	8b ec		 mov	 ebp, esp
+  0163a	83 ec 24	 sub	 esp, 36			; 00000024H
+
+; 634  :    LONG bottom;
+; 635  :    DWORD dwReturn;
+; 636  :    DWORD hwAddr;
+; 637  :    FXSURFACEDATA * pDstSurfaceData;
+; 638  :    DWORD dstPixelByte;
+; 639  : #ifndef WINNT
+; 640  :    DWORD dwDrawCursor=FALSE;
+
+  0163d	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _dwDrawCursor$[ebp], 0
+
+; 641  : #endif
+; 642  :    CMDFIFO_PROLOG(cmdFifo);
+
+  01644	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01647	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  0164d	8b 51 0c	 mov	 edx, DWORD PTR [ecx+12]
+  01650	89 55 f0	 mov	 DWORD PTR _cmdFifo$[ebp], edx
+  01653	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$[ebp], 0
+
+; 643  : 
+; 644  :    pDstSurfaceData = (FXSURFACEDATA*) (pbd->lpDDDestSurface->lpGbl->dwReserved1);
+
+  0165a	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  0165d	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  01660	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  01663	8b 42 24	 mov	 eax, DWORD PTR [edx+36]
+  01666	89 45 f4	 mov	 DWORD PTR _pDstSurfaceData$[ebp], eax
+
+; 645  : 
+; 646  : #ifndef WINNT
+; 647  :    if (_FF(CursorSurface) == pDstSurfaceData->lfbPtr)
+
+  01669	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0166c	8b 55 f4	 mov	 edx, DWORD PTR _pDstSurfaceData$[ebp]
+  0166f	8b 81 78 04 00
+	00		 mov	 eax, DWORD PTR [ecx+1144]
+  01675	3b 42 04	 cmp	 eax, DWORD PTR [edx+4]
+  01678	75 77		 jne	 SHORT $L37121
+
+; 649  :       if (SDATA_GDIFLAGS_CURSOR_ENABLED == (_FF(gdiFlags) & (SDATA_GDIFLAGS_CURSOR_EXCLUDE | SDATA_GDIFLAGS_CURSOR_ENABLED)))
+
+  0167a	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0167d	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  01680	81 e2 c0 00 00
+	00		 and	 edx, 192		; 000000c0H
+  01686	83 fa 40	 cmp	 edx, 64			; 00000040H
+  01689	75 66		 jne	 SHORT $L37121
+
+; 651  :          if (DoIntersect(ppdev, pbd->rDest.left, pbd->rDest.top, pbd->rDest.right, pbd->rDest.bottom))
+
+  0168b	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  0168e	8b 48 14	 mov	 ecx, DWORD PTR [eax+20]
+  01691	51		 push	 ecx
+  01692	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01695	8b 42 10	 mov	 eax, DWORD PTR [edx+16]
+  01698	50		 push	 eax
+  01699	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  0169c	8b 51 0c	 mov	 edx, DWORD PTR [ecx+12]
+  0169f	52		 push	 edx
+  016a0	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  016a3	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  016a6	51		 push	 ecx
+  016a7	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  016aa	52		 push	 edx
+  016ab	e8 00 00 00 00	 call	 _DoIntersect
+  016b0	83 c4 14	 add	 esp, 20			; 00000014H
+  016b3	85 c0		 test	 eax, eax
+  016b5	74 3a		 je	 SHORT $L37121
+
+; 653  :             HostRestoreCursor(ppdev, pDstSurfaceData->lfbPtr, _FF(LastCursorPosX), _FF(LastCursorPosY), _FF(HostcursorExclusionStart));
+
+  016b7	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  016ba	8b 88 a8 04 00
+	00		 mov	 ecx, DWORD PTR [eax+1192]
+  016c0	51		 push	 ecx
+  016c1	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  016c4	0f bf 82 6e 04
+	00 00		 movsx	 eax, WORD PTR [edx+1134]
+  016cb	50		 push	 eax
+  016cc	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  016cf	0f bf 91 6c 04
+	00 00		 movsx	 edx, WORD PTR [ecx+1132]
+  016d6	52		 push	 edx
+  016d7	8b 45 f4	 mov	 eax, DWORD PTR _pDstSurfaceData$[ebp]
+  016da	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  016dd	51		 push	 ecx
+  016de	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  016e1	52		 push	 edx
+  016e2	e8 00 00 00 00	 call	 _HostRestoreCursor
+  016e7	83 c4 14	 add	 esp, 20			; 00000014H
+
+; 654  :             dwDrawCursor = TRUE;
+
+  016ea	c7 45 f8 01 00
+	00 00		 mov	 DWORD PTR _dwDrawCursor$[ebp], 1
+$L37121:
+
+; 658  : #endif
+; 659  : 
+; 660  :    if (IS_TILED(pDstSurfaceData->hwPtr))
+
+  016f1	8b 45 f4	 mov	 eax, DWORD PTR _pDstSurfaceData$[ebp]
+  016f4	8b 08		 mov	 ecx, DWORD PTR [eax]
+  016f6	81 e1 00 00 00
+	80		 and	 ecx, -2147483648	; 80000000H
+  016fc	f7 d9		 neg	 ecx
+  016fe	1b c9		 sbb	 ecx, ecx
+  01700	f7 d9		 neg	 ecx
+  01702	85 c9		 test	 ecx, ecx
+  01704	0f 84 16 02 00
+	00		 je	 $L37122
+
+; 662  :       // Start with the most common and easist case
+; 663  :       // This is the case where the Blt is Full Screen so we just need to munge the
+; 664  :       // Height of the Blt
+; 665  :       bottom = pbd->rDest.bottom;
+
+  0170a	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  0170d	8b 42 14	 mov	 eax, DWORD PTR [edx+20]
+  01710	89 45 e0	 mov	 DWORD PTR _bottom$[ebp], eax
+
+; 666  :       if ((0x0 == pbd->rDest.top) &&
+; 667  : #ifdef WINNT
+; 668  :           (ppdev->cyScreen == pbd->rDest.bottom))
+; 669  : #else
+; 670  :           (ppdev->bi.biHeight == pbd->rDest.bottom))
+
+  01713	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01716	83 79 0c 00	 cmp	 DWORD PTR [ecx+12], 0
+  0171a	0f 85 c8 00 00
+	00		 jne	 $L37123
+  01720	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  01723	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  01726	8b 4a 40	 mov	 ecx, DWORD PTR [edx+64]
+  01729	3b 48 14	 cmp	 ecx, DWORD PTR [eax+20]
+  0172c	0f 85 b6 00 00
+	00		 jne	 $L37123
+
+; 673  :          // If SLI Mode is enabled then reduce Y
+; 674  :          if (_DD(ddSLIModeEnabled))
+
+  01732	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  01735	8b 82 14 18 00
+	00		 mov	 eax, DWORD PTR [edx+6164]
+  0173b	83 b8 76 03 00
+	00 00		 cmp	 DWORD PTR [eax+886], 0
+  01742	74 15		 je	 SHORT $L37125
+
+; 675  :             pbd->rDest.bottom = YMAX();
+
+  01744	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  01747	8b 91 14 18 00
+	00		 mov	 edx, DWORD PTR [ecx+6164]
+  0174d	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  01750	8b 8a a2 03 00
+	00		 mov	 ecx, DWORD PTR [edx+930]
+  01756	89 48 14	 mov	 DWORD PTR [eax+20], ecx
+$L37125:
+
+; 676  :          dwReturn = Blt32_DoBltNoSP(ppdev, pbd, rop3, dstPixelFormat);
+
+  01759	8b 55 14	 mov	 edx, DWORD PTR _dstPixelFormat$[ebp]
+  0175c	52		 push	 edx
+  0175d	8b 45 10	 mov	 eax, DWORD PTR _rop3$[ebp]
+  01760	50		 push	 eax
+  01761	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01764	51		 push	 ecx
+  01765	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  01768	52		 push	 edx
+  01769	e8 00 00 00 00	 call	 _Blt32_DoBltNoSP@16
+  0176e	89 45 e4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 677  : 
+; 678  :          // One more time for AA
+; 679  :          if (_DD(ddAAModeEnabled))
+
+  01771	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01774	8b 88 14 18 00
+	00		 mov	 ecx, DWORD PTR [eax+6164]
+  0177a	83 b9 86 03 00
+	00 00		 cmp	 DWORD PTR [ecx+902], 0
+  01781	74 57		 je	 SHORT $L37128
+
+; 681  :             // Swap the Address so that we use the AA Addr
+; 682  :             hwAddr = GET_HW_ADDR(pbd->lpDDDestSurface);
+
+  01783	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01786	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  01789	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  0178c	8b 51 24	 mov	 edx, DWORD PTR [ecx+36]
+  0178f	8b 02		 mov	 eax, DWORD PTR [edx]
+  01791	89 45 ec	 mov	 DWORD PTR _hwAddr$[ebp], eax
+
+; 683  :             SET_HW_ADDR(pbd->lpDDDestSurface, GET_AAHW_ADDR(pbd->lpDDDestSurface));
+
+  01794	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01797	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  0179a	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  0179d	8b 48 24	 mov	 ecx, DWORD PTR [eax+36]
+  017a0	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  017a3	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  017a6	8b 50 04	 mov	 edx, DWORD PTR [eax+4]
+  017a9	8b 42 24	 mov	 eax, DWORD PTR [edx+36]
+  017ac	8b 49 30	 mov	 ecx, DWORD PTR [ecx+48]
+  017af	89 08		 mov	 DWORD PTR [eax], ecx
+
+; 684  :             dwReturn = Blt32_DoBltNoSP(ppdev, pbd, rop3, dstPixelFormat);
+
+  017b1	8b 55 14	 mov	 edx, DWORD PTR _dstPixelFormat$[ebp]
+  017b4	52		 push	 edx
+  017b5	8b 45 10	 mov	 eax, DWORD PTR _rop3$[ebp]
+  017b8	50		 push	 eax
+  017b9	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  017bc	51		 push	 ecx
+  017bd	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  017c0	52		 push	 edx
+  017c1	e8 00 00 00 00	 call	 _Blt32_DoBltNoSP@16
+  017c6	89 45 e4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 685  :             SET_HW_ADDR(pbd->lpDDDestSurface, hwAddr);
+
+  017c9	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  017cc	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  017cf	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  017d2	8b 42 24	 mov	 eax, DWORD PTR [edx+36]
+  017d5	8b 4d ec	 mov	 ecx, DWORD PTR _hwAddr$[ebp]
+  017d8	89 08		 mov	 DWORD PTR [eax], ecx
+$L37128:
+
+; 687  : 
+; 688  :          pbd->rDest.bottom = bottom;
+
+  017da	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  017dd	8b 45 e0	 mov	 eax, DWORD PTR _bottom$[ebp]
+  017e0	89 42 14	 mov	 DWORD PTR [edx+20], eax
+
+; 690  :       else
+
+  017e3	e9 36 01 00 00	 jmp	 $L37141
+$L37123:
+
+; 692  :          // If just AA Mode then we can handle it
+; 693  :          if (!_DD(ddSLIModeEnabled) && _DD(ddAAModeEnabled))
+
+  017e8	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  017eb	8b 91 14 18 00
+	00		 mov	 edx, DWORD PTR [ecx+6164]
+  017f1	83 ba 76 03 00
+	00 00		 cmp	 DWORD PTR [edx+886], 0
+  017f8	0f 85 86 00 00
+	00		 jne	 $L37136
+  017fe	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01801	8b 88 14 18 00
+	00		 mov	 ecx, DWORD PTR [eax+6164]
+  01807	83 b9 86 03 00
+	00 00		 cmp	 DWORD PTR [ecx+902], 0
+  0180e	74 74		 je	 SHORT $L37136
+
+; 695  :             // We can accelerate ALL AA case w/o SLI
+; 696  :             dwReturn = Blt32_DoBltNoSP(ppdev, pbd, rop3, dstPixelFormat);
+
+  01810	8b 55 14	 mov	 edx, DWORD PTR _dstPixelFormat$[ebp]
+  01813	52		 push	 edx
+  01814	8b 45 10	 mov	 eax, DWORD PTR _rop3$[ebp]
+  01817	50		 push	 eax
+  01818	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  0181b	51		 push	 ecx
+  0181c	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0181f	52		 push	 edx
+  01820	e8 00 00 00 00	 call	 _Blt32_DoBltNoSP@16
+  01825	89 45 e4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 697  : 
+; 698  :             // One more time for AA
+; 699  :             // Swap the Address so that we use the AA Addr
+; 700  :             hwAddr = GET_HW_ADDR(pbd->lpDDDestSurface);
+
+  01828	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  0182b	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  0182e	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  01831	8b 42 24	 mov	 eax, DWORD PTR [edx+36]
+  01834	8b 08		 mov	 ecx, DWORD PTR [eax]
+  01836	89 4d ec	 mov	 DWORD PTR _hwAddr$[ebp], ecx
+
+; 701  :             SET_HW_ADDR(pbd->lpDDDestSurface, GET_AAHW_ADDR(pbd->lpDDDestSurface));
+
+  01839	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  0183c	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  0183f	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  01842	8b 51 24	 mov	 edx, DWORD PTR [ecx+36]
+  01845	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  01848	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  0184b	8b 41 04	 mov	 eax, DWORD PTR [ecx+4]
+  0184e	8b 48 24	 mov	 ecx, DWORD PTR [eax+36]
+  01851	8b 52 30	 mov	 edx, DWORD PTR [edx+48]
+  01854	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 702  :             dwReturn = Blt32_DoBltNoSP(ppdev, pbd, rop3, dstPixelFormat);
+
+  01856	8b 45 14	 mov	 eax, DWORD PTR _dstPixelFormat$[ebp]
+  01859	50		 push	 eax
+  0185a	8b 4d 10	 mov	 ecx, DWORD PTR _rop3$[ebp]
+  0185d	51		 push	 ecx
+  0185e	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01861	52		 push	 edx
+  01862	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01865	50		 push	 eax
+  01866	e8 00 00 00 00	 call	 _Blt32_DoBltNoSP@16
+  0186b	89 45 e4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 703  :             SET_HW_ADDR(pbd->lpDDDestSurface, hwAddr);
+
+  0186e	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01871	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  01874	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  01877	8b 48 24	 mov	 ecx, DWORD PTR [eax+36]
+  0187a	8b 55 ec	 mov	 edx, DWORD PTR _hwAddr$[ebp]
+  0187d	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 705  :          else
+
+  0187f	e9 9a 00 00 00	 jmp	 $L37141
+$L37136:
+
+; 707  :             // Punt to SW case
+; 708  :             GETFORMATBYTE(dstPixelFormat, dstPixelByte);
+
+  01884	8b 45 14	 mov	 eax, DWORD PTR _dstPixelFormat$[ebp]
+  01887	25 00 00 07 00	 and	 eax, 458752		; 00070000H
+  0188c	89 45 dc	 mov	 DWORD PTR -36+[ebp], eax
+  0188f	81 7d dc 00 00
+	04 00		 cmp	 DWORD PTR -36+[ebp], 262144 ; 00040000H
+  01896	77 26		 ja	 SHORT $L37544
+  01898	81 7d dc 00 00
+	04 00		 cmp	 DWORD PTR -36+[ebp], 262144 ; 00040000H
+  0189f	74 4c		 je	 SHORT $L37148
+  018a1	81 7d dc 00 00
+	01 00		 cmp	 DWORD PTR -36+[ebp], 65536 ; 00010000H
+  018a8	74 31		 je	 SHORT $L37146
+  018aa	81 7d dc 00 00
+	02 00		 cmp	 DWORD PTR -36+[ebp], 131072 ; 00020000H
+  018b1	74 31		 je	 SHORT $L37147
+  018b3	81 7d dc 00 00
+	03 00		 cmp	 DWORD PTR -36+[ebp], 196608 ; 00030000H
+  018ba	74 28		 je	 SHORT $L37147
+  018bc	eb 41		 jmp	 SHORT $L37150
+$L37544:
+  018be	81 7d dc 00 00
+	05 00		 cmp	 DWORD PTR -36+[ebp], 327680 ; 00050000H
+  018c5	74 2f		 je	 SHORT $L37149
+  018c7	81 7d dc 00 00
+	08 00		 cmp	 DWORD PTR -36+[ebp], 524288 ; 00080000H
+  018ce	74 14		 je	 SHORT $L37147
+  018d0	81 7d dc 00 00
+	09 00		 cmp	 DWORD PTR -36+[ebp], 589824 ; 00090000H
+  018d7	74 0b		 je	 SHORT $L37147
+  018d9	eb 24		 jmp	 SHORT $L37150
+$L37146:
+  018db	c7 45 e8 01 00
+	00 00		 mov	 DWORD PTR _dstPixelByte$[ebp], 1
+  018e2	eb 22		 jmp	 SHORT $L37143
+$L37147:
+  018e4	c7 45 e8 02 00
+	00 00		 mov	 DWORD PTR _dstPixelByte$[ebp], 2
+  018eb	eb 19		 jmp	 SHORT $L37143
+$L37148:
+  018ed	c7 45 e8 03 00
+	00 00		 mov	 DWORD PTR _dstPixelByte$[ebp], 3
+  018f4	eb 10		 jmp	 SHORT $L37143
+$L37149:
+  018f6	c7 45 e8 04 00
+	00 00		 mov	 DWORD PTR _dstPixelByte$[ebp], 4
+  018fd	eb 07		 jmp	 SHORT $L37143
+$L37150:
+  018ff	c7 45 e8 ff ff
+	00 00		 mov	 DWORD PTR _dstPixelByte$[ebp], 65535 ; 0000ffffH
+$L37143:
+
+; 709  :             dwReturn = sli_DoBltNoSP(ppdev, pbd, rop3, dstPixelByte);
+
+  01906	8b 4d e8	 mov	 ecx, DWORD PTR _dstPixelByte$[ebp]
+  01909	51		 push	 ecx
+  0190a	8b 55 10	 mov	 edx, DWORD PTR _rop3$[ebp]
+  0190d	52		 push	 edx
+  0190e	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  01911	50		 push	 eax
+  01912	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  01915	51		 push	 ecx
+  01916	e8 00 00 00 00	 call	 _sli_DoBltNoSP@16
+  0191b	89 45 e4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+$L37141:
+
+; 713  :    else
+
+  0191e	eb 18		 jmp	 SHORT $L37151
+$L37122:
+
+; 714  :       dwReturn = Blt32_DoBltNoSP(ppdev, pbd, rop3, dstPixelFormat);
+
+  01920	8b 55 14	 mov	 edx, DWORD PTR _dstPixelFormat$[ebp]
+  01923	52		 push	 edx
+  01924	8b 45 10	 mov	 eax, DWORD PTR _rop3$[ebp]
+  01927	50		 push	 eax
+  01928	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  0192b	51		 push	 ecx
+  0192c	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0192f	52		 push	 edx
+  01930	e8 00 00 00 00	 call	 _Blt32_DoBltNoSP@16
+  01935	89 45 e4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+$L37151:
+
+; 715  : 
+; 716  : #ifndef WINNT
+; 717  :    if (dwDrawCursor)
+
+  01938	83 7d f8 00	 cmp	 DWORD PTR _dwDrawCursor$[ebp], 0
+  0193c	74 13		 je	 SHORT $L37152
+
+; 718  :       HostDrawCursor(ppdev, pDstSurfaceData->lfbPtr);
+
+  0193e	8b 45 f4	 mov	 eax, DWORD PTR _pDstSurfaceData$[ebp]
+  01941	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  01944	51		 push	 ecx
+  01945	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  01948	52		 push	 edx
+  01949	e8 00 00 00 00	 call	 _HostDrawCursor
+  0194e	83 c4 08	 add	 esp, 8
+$L37152:
+
+; 719  : #endif
+; 720  : 
+; 721  :    return dwReturn;
+
+  01951	8b 45 e4	 mov	 eax, DWORD PTR _dwReturn$[ebp]
+
+; 722  : }
+
+  01954	8b e5		 mov	 esp, ebp
+  01956	5d		 pop	 ebp
+  01957	c3		 ret	 0
+_DdSliBltNoSP ENDP
+_TEXT	ENDS
+PUBLIC	_DdSli2DScn2Scn
+EXTRN	_Blt32_DoBltS@20:NEAR
+EXTRN	_FXGETBUSYSTATUS:NEAR
+EXTRN	_sli_DoBltS@24:NEAR
+EXTRN	_sli_3DDoBltS@20:NEAR
+EXTRN	_PromoteSrcToPower2Width@8:NEAR
+_TEXT	SEGMENT
+_ppdev$ = 8
+_pbd$ = 12
+_rop3$ = 16
+_srcPixelFormat$ = 20
+_dstPixelFormat$ = 24
+_pSrcSurfaceData$ = -24
+_pDstSurfaceData$ = -36
+_dstHeight$ = -52
+_srcHeight$ = -16
+_dstWidth$ = -8
+_srcWidth$ = -4
+_bottom$ = -48
+_dwReturn$ = -44
+_hwDstAddr$ = -12
+_hwSrcAddr$ = -20
+_dwDrawCursor$ = -32
+_cmdFifo$ = -40
+_hwIndex$ = -28
+_DdSli2DScn2Scn PROC NEAR
+
+; 746  : {
+
+  01958	55		 push	 ebp
+  01959	8b ec		 mov	 ebp, esp
+  0195b	83 ec 34	 sub	 esp, 52			; 00000034H
+
+; 747  :    FXSURFACEDATA       *pSrcSurfaceData;
+; 748  :    FXSURFACEDATA       *pDstSurfaceData;
+; 749  :    long dstHeight;
+; 750  :    long srcHeight;
+; 751  :    long dstWidth;
+; 752  :    long srcWidth;
+; 753  :    LONG bottom;
+; 754  :    DWORD dwReturn;
+; 755  :    DWORD hwDstAddr;
+; 756  :    DWORD hwSrcAddr;
+; 757  : #ifndef WINNT
+; 758  :    DWORD dwDrawCursor=FALSE;
+
+  0195e	c7 45 e0 00 00
+	00 00		 mov	 DWORD PTR _dwDrawCursor$[ebp], 0
+
+; 759  : #endif
+; 760  :    CMDFIFO_PROLOG(cmdFifo);
+
+  01965	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01968	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  0196e	8b 51 0c	 mov	 edx, DWORD PTR [ecx+12]
+  01971	89 55 d8	 mov	 DWORD PTR _cmdFifo$[ebp], edx
+  01974	c7 45 e4 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$[ebp], 0
+
+; 761  : 
+; 762  :    pSrcSurfaceData = (FXSURFACEDATA*) (pbd->lpDDSrcSurface->lpGbl->dwReserved1);
+
+  0197b	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  0197e	8b 48 18	 mov	 ecx, DWORD PTR [eax+24]
+  01981	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  01984	8b 42 24	 mov	 eax, DWORD PTR [edx+36]
+  01987	89 45 e8	 mov	 DWORD PTR _pSrcSurfaceData$[ebp], eax
+
+; 763  :    pDstSurfaceData = (FXSURFACEDATA*) (pbd->lpDDDestSurface->lpGbl->dwReserved1);
+
+  0198a	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  0198d	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  01990	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  01993	8b 48 24	 mov	 ecx, DWORD PTR [eax+36]
+  01996	89 4d dc	 mov	 DWORD PTR _pDstSurfaceData$[ebp], ecx
+
+; 764  : 
+; 765  : #ifndef WINNT
+; 766  :    if (_FF(CursorSurface) == pDstSurfaceData->lfbPtr)
+
+  01999	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0199c	8b 45 dc	 mov	 eax, DWORD PTR _pDstSurfaceData$[ebp]
+  0199f	8b 8a 78 04 00
+	00		 mov	 ecx, DWORD PTR [edx+1144]
+  019a5	3b 48 04	 cmp	 ecx, DWORD PTR [eax+4]
+  019a8	75 76		 jne	 SHORT $L37184
+
+; 768  :       if (SDATA_GDIFLAGS_CURSOR_ENABLED == (_FF(gdiFlags) & (SDATA_GDIFLAGS_CURSOR_EXCLUDE | SDATA_GDIFLAGS_CURSOR_ENABLED)))
+
+  019aa	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  019ad	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  019b0	25 c0 00 00 00	 and	 eax, 192		; 000000c0H
+  019b5	83 f8 40	 cmp	 eax, 64			; 00000040H
+  019b8	75 66		 jne	 SHORT $L37184
+
+; 770  :          if (DoIntersect(ppdev, pbd->rDest.left, pbd->rDest.top, pbd->rDest.right, pbd->rDest.bottom))
+
+  019ba	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  019bd	8b 51 14	 mov	 edx, DWORD PTR [ecx+20]
+  019c0	52		 push	 edx
+  019c1	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  019c4	8b 48 10	 mov	 ecx, DWORD PTR [eax+16]
+  019c7	51		 push	 ecx
+  019c8	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  019cb	8b 42 0c	 mov	 eax, DWORD PTR [edx+12]
+  019ce	50		 push	 eax
+  019cf	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  019d2	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  019d5	52		 push	 edx
+  019d6	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  019d9	50		 push	 eax
+  019da	e8 00 00 00 00	 call	 _DoIntersect
+  019df	83 c4 14	 add	 esp, 20			; 00000014H
+  019e2	85 c0		 test	 eax, eax
+  019e4	74 3a		 je	 SHORT $L37184
+
+; 772  :             HostRestoreCursor(ppdev, pDstSurfaceData->lfbPtr, _FF(LastCursorPosX), _FF(LastCursorPosY), _FF(HostcursorExclusionStart));
+
+  019e6	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  019e9	8b 91 a8 04 00
+	00		 mov	 edx, DWORD PTR [ecx+1192]
+  019ef	52		 push	 edx
+  019f0	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  019f3	0f bf 88 6e 04
+	00 00		 movsx	 ecx, WORD PTR [eax+1134]
+  019fa	51		 push	 ecx
+  019fb	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  019fe	0f bf 82 6c 04
+	00 00		 movsx	 eax, WORD PTR [edx+1132]
+  01a05	50		 push	 eax
+  01a06	8b 4d dc	 mov	 ecx, DWORD PTR _pDstSurfaceData$[ebp]
+  01a09	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  01a0c	52		 push	 edx
+  01a0d	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01a10	50		 push	 eax
+  01a11	e8 00 00 00 00	 call	 _HostRestoreCursor
+  01a16	83 c4 14	 add	 esp, 20			; 00000014H
+
+; 773  :             dwDrawCursor = TRUE;
+
+  01a19	c7 45 e0 01 00
+	00 00		 mov	 DWORD PTR _dwDrawCursor$[ebp], 1
+$L37184:
+
+; 777  : #endif
+; 778  : 
+; 779  :    // If in Flip Chain assume that it is a Sli Surface
+; 780  :    if ((IS_TILED(pSrcSurfaceData->hwPtr)) == (IS_TILED(pDstSurfaceData->hwPtr)))
+
+  01a20	8b 4d e8	 mov	 ecx, DWORD PTR _pSrcSurfaceData$[ebp]
+  01a23	8b 11		 mov	 edx, DWORD PTR [ecx]
+  01a25	81 e2 00 00 00
+	80		 and	 edx, -2147483648	; 80000000H
+  01a2b	f7 da		 neg	 edx
+  01a2d	1b d2		 sbb	 edx, edx
+  01a2f	f7 da		 neg	 edx
+  01a31	8b 45 dc	 mov	 eax, DWORD PTR _pDstSurfaceData$[ebp]
+  01a34	8b 08		 mov	 ecx, DWORD PTR [eax]
+  01a36	81 e1 00 00 00
+	80		 and	 ecx, -2147483648	; 80000000H
+  01a3c	f7 d9		 neg	 ecx
+  01a3e	1b c9		 sbb	 ecx, ecx
+  01a40	f7 d9		 neg	 ecx
+  01a42	3b d1		 cmp	 edx, ecx
+  01a44	0f 85 1c 03 00
+	00		 jne	 $L37185
+
+; 782  :       if (IS_TILED(pSrcSurfaceData->hwPtr))
+
+  01a4a	8b 55 e8	 mov	 edx, DWORD PTR _pSrcSurfaceData$[ebp]
+  01a4d	8b 02		 mov	 eax, DWORD PTR [edx]
+  01a4f	25 00 00 00 80	 and	 eax, -2147483648	; 80000000H
+  01a54	f7 d8		 neg	 eax
+  01a56	1b c0		 sbb	 eax, eax
+  01a58	f7 d8		 neg	 eax
+  01a5a	85 c0		 test	 eax, eax
+  01a5c	0f 84 e3 02 00
+	00		 je	 $L37186
+
+; 784  :          // if this is full screen not a stretch then
+; 785  :          // crunch Y and do it
+; 786  :          dstHeight = pbd->rDest.bottom - pbd->rDest.top;
+
+  01a62	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01a65	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01a68	8b 41 14	 mov	 eax, DWORD PTR [ecx+20]
+  01a6b	2b 42 0c	 sub	 eax, DWORD PTR [edx+12]
+  01a6e	89 45 cc	 mov	 DWORD PTR _dstHeight$[ebp], eax
+
+; 787  :          srcHeight = pbd->rSrc.bottom - pbd->rSrc.top;
+
+  01a71	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01a74	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01a77	8b 41 28	 mov	 eax, DWORD PTR [ecx+40]
+  01a7a	2b 42 20	 sub	 eax, DWORD PTR [edx+32]
+  01a7d	89 45 f0	 mov	 DWORD PTR _srcHeight$[ebp], eax
+
+; 788  :          dstWidth = pbd->rDest.right - pbd->rDest.left;
+
+  01a80	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01a83	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01a86	8b 41 10	 mov	 eax, DWORD PTR [ecx+16]
+  01a89	2b 42 08	 sub	 eax, DWORD PTR [edx+8]
+  01a8c	89 45 f8	 mov	 DWORD PTR _dstWidth$[ebp], eax
+
+; 789  :          srcWidth = pbd->rSrc.right - pbd->rSrc.left;
+
+  01a8f	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01a92	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01a95	8b 41 24	 mov	 eax, DWORD PTR [ecx+36]
+  01a98	2b 42 1c	 sub	 eax, DWORD PTR [edx+28]
+  01a9b	89 45 fc	 mov	 DWORD PTR _srcWidth$[ebp], eax
+
+; 790  :          if ((dstHeight == srcHeight) && 
+; 791  :              (dstWidth == srcWidth) &&
+; 792  :              (0x0 == pbd->rDest.top) &&
+; 793  :              (0x0 == pbd->rSrc.top) &&
+; 794  : #ifdef WINNT
+; 795  :              (ppdev->cyScreen == pbd->rDest.bottom))
+; 796  : #else
+; 797  :              (ppdev->bi.biHeight == pbd->rDest.bottom))
+
+  01a9e	8b 4d cc	 mov	 ecx, DWORD PTR _dstHeight$[ebp]
+  01aa1	3b 4d f0	 cmp	 ecx, DWORD PTR _srcHeight$[ebp]
+  01aa4	0f 85 77 01 00
+	00		 jne	 $L37187
+  01aaa	8b 55 f8	 mov	 edx, DWORD PTR _dstWidth$[ebp]
+  01aad	3b 55 fc	 cmp	 edx, DWORD PTR _srcWidth$[ebp]
+  01ab0	0f 85 6b 01 00
+	00		 jne	 $L37187
+  01ab6	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  01ab9	83 78 0c 00	 cmp	 DWORD PTR [eax+12], 0
+  01abd	0f 85 5e 01 00
+	00		 jne	 $L37187
+  01ac3	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01ac6	83 79 20 00	 cmp	 DWORD PTR [ecx+32], 0
+  01aca	0f 85 51 01 00
+	00		 jne	 $L37187
+  01ad0	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  01ad3	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  01ad6	8b 4a 40	 mov	 ecx, DWORD PTR [edx+64]
+  01ad9	3b 48 14	 cmp	 ecx, DWORD PTR [eax+20]
+  01adc	0f 85 3f 01 00
+	00		 jne	 $L37187
+
+; 800  :             // Save crunched bottom
+; 801  :             bottom = pbd->rDest.bottom;
+
+  01ae2	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01ae5	8b 42 14	 mov	 eax, DWORD PTR [edx+20]
+  01ae8	89 45 d0	 mov	 DWORD PTR _bottom$[ebp], eax
+
+; 802  : 
+; 803  :             // If SLI Mode is enabled then Just Crunch Y
+; 804  :             if (_DD(ddSLIModeEnabled))
+
+  01aeb	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  01aee	8b 91 14 18 00
+	00		 mov	 edx, DWORD PTR [ecx+6164]
+  01af4	83 ba 76 03 00
+	00 00		 cmp	 DWORD PTR [edx+886], 0
+  01afb	74 21		 je	 SHORT $L37189
+
+; 805  :                pbd->rDest.bottom = pbd->rSrc.bottom = YMAX();
+
+  01afd	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01b00	8b 88 14 18 00
+	00		 mov	 ecx, DWORD PTR [eax+6164]
+  01b06	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01b09	8b 81 a2 03 00
+	00		 mov	 eax, DWORD PTR [ecx+930]
+  01b0f	89 42 28	 mov	 DWORD PTR [edx+40], eax
+  01b12	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01b15	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01b18	8b 42 28	 mov	 eax, DWORD PTR [edx+40]
+  01b1b	89 41 14	 mov	 DWORD PTR [ecx+20], eax
+$L37189:
+
+; 806  : 
+; 807  :             // If we Don't wait here Half-Life Looks bad
+; 808  :             if (pbd->dwFlags & DDBLT_WAIT)
+
+  01b1e	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01b21	8b 51 2c	 mov	 edx, DWORD PTR [ecx+44]
+  01b24	81 e2 00 00 00
+	01		 and	 edx, 16777216		; 01000000H
+  01b2a	85 d2		 test	 edx, edx
+  01b2c	74 10		 je	 SHORT $L37194
+$L37192:
+
+; 809  :                FXBUSYWAIT(ppdev);
+
+  01b2e	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01b31	50		 push	 eax
+  01b32	e8 00 00 00 00	 call	 _FXGETBUSYSTATUS
+  01b37	83 c4 04	 add	 esp, 4
+  01b3a	85 c0		 test	 eax, eax
+  01b3c	75 f0		 jne	 SHORT $L37192
+$L37194:
+
+; 810  : 
+; 811  :             dwReturn = Blt32_DoBltS(ppdev, pbd, rop3, srcPixelFormat, dstPixelFormat);
+
+  01b3e	8b 4d 18	 mov	 ecx, DWORD PTR _dstPixelFormat$[ebp]
+  01b41	51		 push	 ecx
+  01b42	8b 55 14	 mov	 edx, DWORD PTR _srcPixelFormat$[ebp]
+  01b45	52		 push	 edx
+  01b46	8b 45 10	 mov	 eax, DWORD PTR _rop3$[ebp]
+  01b49	50		 push	 eax
+  01b4a	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01b4d	51		 push	 ecx
+  01b4e	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  01b51	52		 push	 edx
+  01b52	e8 00 00 00 00	 call	 _Blt32_DoBltS@20
+  01b57	89 45 d4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 812  : 
+; 813  :             // One more time for AA
+; 814  :             if (_DD(ddAAModeEnabled))
+
+  01b5a	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01b5d	8b 88 14 18 00
+	00		 mov	 ecx, DWORD PTR [eax+6164]
+  01b63	83 b9 86 03 00
+	00 00		 cmp	 DWORD PTR [ecx+902], 0
+  01b6a	0f 84 9a 00 00
+	00		 je	 $L37196
+
+; 816  :                // Swap the Address so that we use the AA Addr
+; 817  :                hwDstAddr = GET_HW_ADDR(pbd->lpDDDestSurface);
+
+  01b70	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01b73	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  01b76	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  01b79	8b 51 24	 mov	 edx, DWORD PTR [ecx+36]
+  01b7c	8b 02		 mov	 eax, DWORD PTR [edx]
+  01b7e	89 45 f4	 mov	 DWORD PTR _hwDstAddr$[ebp], eax
+
+; 818  :                hwSrcAddr = GET_HW_ADDR(pbd->lpDDSrcSurface);
+
+  01b81	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01b84	8b 51 18	 mov	 edx, DWORD PTR [ecx+24]
+  01b87	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  01b8a	8b 48 24	 mov	 ecx, DWORD PTR [eax+36]
+  01b8d	8b 11		 mov	 edx, DWORD PTR [ecx]
+  01b8f	89 55 ec	 mov	 DWORD PTR _hwSrcAddr$[ebp], edx
+
+; 819  :                SET_HW_ADDR(pbd->lpDDDestSurface, GET_AAHW_ADDR(pbd->lpDDDestSurface));
+
+  01b92	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  01b95	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  01b98	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  01b9b	8b 42 24	 mov	 eax, DWORD PTR [edx+36]
+  01b9e	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01ba1	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  01ba4	8b 4a 04	 mov	 ecx, DWORD PTR [edx+4]
+  01ba7	8b 51 24	 mov	 edx, DWORD PTR [ecx+36]
+  01baa	8b 40 30	 mov	 eax, DWORD PTR [eax+48]
+  01bad	89 02		 mov	 DWORD PTR [edx], eax
+
+; 820  :                SET_HW_ADDR(pbd->lpDDSrcSurface, GET_AAHW_ADDR(pbd->lpDDSrcSurface));
+
+  01baf	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01bb2	8b 51 18	 mov	 edx, DWORD PTR [ecx+24]
+  01bb5	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  01bb8	8b 48 24	 mov	 ecx, DWORD PTR [eax+36]
+  01bbb	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01bbe	8b 42 18	 mov	 eax, DWORD PTR [edx+24]
+  01bc1	8b 50 04	 mov	 edx, DWORD PTR [eax+4]
+  01bc4	8b 42 24	 mov	 eax, DWORD PTR [edx+36]
+  01bc7	8b 49 30	 mov	 ecx, DWORD PTR [ecx+48]
+  01bca	89 08		 mov	 DWORD PTR [eax], ecx
+
+; 821  :                dwReturn = Blt32_DoBltS(ppdev, pbd, rop3, srcPixelFormat, dstPixelFormat);
+
+  01bcc	8b 55 18	 mov	 edx, DWORD PTR _dstPixelFormat$[ebp]
+  01bcf	52		 push	 edx
+  01bd0	8b 45 14	 mov	 eax, DWORD PTR _srcPixelFormat$[ebp]
+  01bd3	50		 push	 eax
+  01bd4	8b 4d 10	 mov	 ecx, DWORD PTR _rop3$[ebp]
+  01bd7	51		 push	 ecx
+  01bd8	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01bdb	52		 push	 edx
+  01bdc	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01bdf	50		 push	 eax
+  01be0	e8 00 00 00 00	 call	 _Blt32_DoBltS@20
+  01be5	89 45 d4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 822  :                SET_HW_ADDR(pbd->lpDDDestSurface, hwDstAddr);
+
+  01be8	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01beb	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  01bee	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  01bf1	8b 48 24	 mov	 ecx, DWORD PTR [eax+36]
+  01bf4	8b 55 f4	 mov	 edx, DWORD PTR _hwDstAddr$[ebp]
+  01bf7	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 823  :                SET_HW_ADDR(pbd->lpDDSrcSurface, hwSrcAddr);
+
+  01bf9	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  01bfc	8b 48 18	 mov	 ecx, DWORD PTR [eax+24]
+  01bff	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  01c02	8b 42 24	 mov	 eax, DWORD PTR [edx+36]
+  01c05	8b 4d ec	 mov	 ecx, DWORD PTR _hwSrcAddr$[ebp]
+  01c08	89 08		 mov	 DWORD PTR [eax], ecx
+$L37196:
+
+; 825  : 
+; 826  :             // Restore crunched bottom
+; 827  :             pbd->rDest.bottom = pbd->rSrc.bottom = bottom;
+
+  01c0a	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01c0d	8b 45 d0	 mov	 eax, DWORD PTR _bottom$[ebp]
+  01c10	89 42 28	 mov	 DWORD PTR [edx+40], eax
+  01c13	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01c16	8b 55 d0	 mov	 edx, DWORD PTR _bottom$[ebp]
+  01c19	89 51 14	 mov	 DWORD PTR [ecx+20], edx
+
+; 829  :          else
+
+  01c1c	e9 22 01 00 00	 jmp	 $L37221
+$L37187:
+
+; 831  :             // If this is AA then we can go fast so do it
+; 832  :             if (!_DD(ddSLIModeEnabled) && _DD(ddAAModeEnabled))
+
+  01c21	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01c24	8b 88 14 18 00
+	00		 mov	 ecx, DWORD PTR [eax+6164]
+  01c2a	83 b9 76 03 00
+	00 00		 cmp	 DWORD PTR [ecx+886], 0
+  01c31	0f 85 ee 00 00
+	00		 jne	 $L37208
+  01c37	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  01c3a	8b 82 14 18 00
+	00		 mov	 eax, DWORD PTR [edx+6164]
+  01c40	83 b8 86 03 00
+	00 00		 cmp	 DWORD PTR [eax+902], 0
+  01c47	0f 84 d8 00 00
+	00		 je	 $L37208
+
+; 834  :                if (pbd->dwFlags & DDBLT_WAIT)
+
+  01c4d	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01c50	8b 51 2c	 mov	 edx, DWORD PTR [ecx+44]
+  01c53	81 e2 00 00 00
+	01		 and	 edx, 16777216		; 01000000H
+  01c59	85 d2		 test	 edx, edx
+  01c5b	74 10		 je	 SHORT $L37212
+$L37210:
+
+; 835  :                   FXBUSYWAIT(ppdev);
+
+  01c5d	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01c60	50		 push	 eax
+  01c61	e8 00 00 00 00	 call	 _FXGETBUSYSTATUS
+  01c66	83 c4 04	 add	 esp, 4
+  01c69	85 c0		 test	 eax, eax
+  01c6b	75 f0		 jne	 SHORT $L37210
+$L37212:
+
+; 836  : 
+; 837  :                dwReturn = Blt32_DoBltS(ppdev, pbd, rop3, srcPixelFormat, dstPixelFormat);
+
+  01c6d	8b 4d 18	 mov	 ecx, DWORD PTR _dstPixelFormat$[ebp]
+  01c70	51		 push	 ecx
+  01c71	8b 55 14	 mov	 edx, DWORD PTR _srcPixelFormat$[ebp]
+  01c74	52		 push	 edx
+  01c75	8b 45 10	 mov	 eax, DWORD PTR _rop3$[ebp]
+  01c78	50		 push	 eax
+  01c79	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01c7c	51		 push	 ecx
+  01c7d	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  01c80	52		 push	 edx
+  01c81	e8 00 00 00 00	 call	 _Blt32_DoBltS@20
+  01c86	89 45 d4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 838  : 
+; 839  :                // Swap the Address so that we use the AA Addr
+; 840  :                hwDstAddr = GET_HW_ADDR(pbd->lpDDDestSurface);
+
+  01c89	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  01c8c	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  01c8f	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  01c92	8b 42 24	 mov	 eax, DWORD PTR [edx+36]
+  01c95	8b 08		 mov	 ecx, DWORD PTR [eax]
+  01c97	89 4d f4	 mov	 DWORD PTR _hwDstAddr$[ebp], ecx
+
+; 841  :                hwSrcAddr = GET_HW_ADDR(pbd->lpDDSrcSurface);
+
+  01c9a	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01c9d	8b 42 18	 mov	 eax, DWORD PTR [edx+24]
+  01ca0	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  01ca3	8b 51 24	 mov	 edx, DWORD PTR [ecx+36]
+  01ca6	8b 02		 mov	 eax, DWORD PTR [edx]
+  01ca8	89 45 ec	 mov	 DWORD PTR _hwSrcAddr$[ebp], eax
+
+; 842  :                SET_HW_ADDR(pbd->lpDDDestSurface, GET_AAHW_ADDR(pbd->lpDDDestSurface));
+
+  01cab	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01cae	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  01cb1	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  01cb4	8b 48 24	 mov	 ecx, DWORD PTR [eax+36]
+  01cb7	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01cba	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  01cbd	8b 50 04	 mov	 edx, DWORD PTR [eax+4]
+  01cc0	8b 42 24	 mov	 eax, DWORD PTR [edx+36]
+  01cc3	8b 49 30	 mov	 ecx, DWORD PTR [ecx+48]
+  01cc6	89 08		 mov	 DWORD PTR [eax], ecx
+
+; 843  :                SET_HW_ADDR(pbd->lpDDSrcSurface, GET_AAHW_ADDR(pbd->lpDDSrcSurface));
+
+  01cc8	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01ccb	8b 42 18	 mov	 eax, DWORD PTR [edx+24]
+  01cce	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  01cd1	8b 51 24	 mov	 edx, DWORD PTR [ecx+36]
+  01cd4	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  01cd7	8b 48 18	 mov	 ecx, DWORD PTR [eax+24]
+  01cda	8b 41 04	 mov	 eax, DWORD PTR [ecx+4]
+  01cdd	8b 48 24	 mov	 ecx, DWORD PTR [eax+36]
+  01ce0	8b 52 30	 mov	 edx, DWORD PTR [edx+48]
+  01ce3	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 844  :                dwReturn = Blt32_DoBltS(ppdev, pbd, rop3, srcPixelFormat, dstPixelFormat);
+
+  01ce5	8b 45 18	 mov	 eax, DWORD PTR _dstPixelFormat$[ebp]
+  01ce8	50		 push	 eax
+  01ce9	8b 4d 14	 mov	 ecx, DWORD PTR _srcPixelFormat$[ebp]
+  01cec	51		 push	 ecx
+  01ced	8b 55 10	 mov	 edx, DWORD PTR _rop3$[ebp]
+  01cf0	52		 push	 edx
+  01cf1	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  01cf4	50		 push	 eax
+  01cf5	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  01cf8	51		 push	 ecx
+  01cf9	e8 00 00 00 00	 call	 _Blt32_DoBltS@20
+  01cfe	89 45 d4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 845  :                SET_HW_ADDR(pbd->lpDDDestSurface, hwDstAddr);
+
+  01d01	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01d04	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  01d07	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  01d0a	8b 51 24	 mov	 edx, DWORD PTR [ecx+36]
+  01d0d	8b 45 f4	 mov	 eax, DWORD PTR _hwDstAddr$[ebp]
+  01d10	89 02		 mov	 DWORD PTR [edx], eax
+
+; 846  :                SET_HW_ADDR(pbd->lpDDSrcSurface, hwSrcAddr);
+
+  01d12	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01d15	8b 51 18	 mov	 edx, DWORD PTR [ecx+24]
+  01d18	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  01d1b	8b 48 24	 mov	 ecx, DWORD PTR [eax+36]
+  01d1e	8b 55 ec	 mov	 edx, DWORD PTR _hwSrcAddr$[ebp]
+  01d21	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 848  :             else
+
+  01d23	eb 1e		 jmp	 SHORT $L37221
+$L37208:
+
+; 850  :                dwReturn = sli_DoBltS(ppdev, pbd, rop3, srcPixelFormat, dstPixelFormat, vid2vid);
+
+  01d25	6a 00		 push	 0
+  01d27	8b 45 18	 mov	 eax, DWORD PTR _dstPixelFormat$[ebp]
+  01d2a	50		 push	 eax
+  01d2b	8b 4d 14	 mov	 ecx, DWORD PTR _srcPixelFormat$[ebp]
+  01d2e	51		 push	 ecx
+  01d2f	8b 55 10	 mov	 edx, DWORD PTR _rop3$[ebp]
+  01d32	52		 push	 edx
+  01d33	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  01d36	50		 push	 eax
+  01d37	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  01d3a	51		 push	 ecx
+  01d3b	e8 00 00 00 00	 call	 _sli_DoBltS@24
+  01d40	89 45 d4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+$L37221:
+
+; 854  :       else
+
+  01d43	eb 1c		 jmp	 SHORT $L37222
+$L37186:
+
+; 856  :          // ND to ND .... nothing to do
+; 857  :          dwReturn = Blt32_DoBltS(ppdev, pbd, rop3, srcPixelFormat, dstPixelFormat);
+
+  01d45	8b 55 18	 mov	 edx, DWORD PTR _dstPixelFormat$[ebp]
+  01d48	52		 push	 edx
+  01d49	8b 45 14	 mov	 eax, DWORD PTR _srcPixelFormat$[ebp]
+  01d4c	50		 push	 eax
+  01d4d	8b 4d 10	 mov	 ecx, DWORD PTR _rop3$[ebp]
+  01d50	51		 push	 ecx
+  01d51	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01d54	52		 push	 edx
+  01d55	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01d58	50		 push	 eax
+  01d59	e8 00 00 00 00	 call	 _Blt32_DoBltS@20
+  01d5e	89 45 d4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+$L37222:
+
+; 860  :    else if (IS_TILED(pSrcSurfaceData->hwPtr))
+
+  01d61	e9 e2 01 00 00	 jmp	 $L37248
+$L37185:
+  01d66	8b 4d e8	 mov	 ecx, DWORD PTR _pSrcSurfaceData$[ebp]
+  01d69	8b 11		 mov	 edx, DWORD PTR [ecx]
+  01d6b	81 e2 00 00 00
+	80		 and	 edx, -2147483648	; 80000000H
+  01d71	f7 da		 neg	 edx
+  01d73	1b d2		 sbb	 edx, edx
+  01d75	f7 da		 neg	 edx
+  01d77	85 d2		 test	 edx, edx
+  01d79	74 23		 je	 SHORT $L37224
+
+; 862  :       dwReturn = sli_DoBltS(ppdev, pbd, rop3, srcPixelFormat, dstPixelFormat, vid2vid);
+
+  01d7b	6a 00		 push	 0
+  01d7d	8b 45 18	 mov	 eax, DWORD PTR _dstPixelFormat$[ebp]
+  01d80	50		 push	 eax
+  01d81	8b 4d 14	 mov	 ecx, DWORD PTR _srcPixelFormat$[ebp]
+  01d84	51		 push	 ecx
+  01d85	8b 55 10	 mov	 edx, DWORD PTR _rop3$[ebp]
+  01d88	52		 push	 edx
+  01d89	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  01d8c	50		 push	 eax
+  01d8d	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  01d90	51		 push	 ecx
+  01d91	e8 00 00 00 00	 call	 _sli_DoBltS@24
+  01d96	89 45 d4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 864  :    else
+
+  01d99	e9 aa 01 00 00	 jmp	 $L37248
+$L37224:
+
+; 866  : 
+; 867  :       if (!_DD(ddSLIModeEnabled) && _DD(ddAAModeEnabled))
+
+  01d9e	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  01da1	8b 82 14 18 00
+	00		 mov	 eax, DWORD PTR [edx+6164]
+  01da7	83 b8 76 03 00
+	00 00		 cmp	 DWORD PTR [eax+886], 0
+  01dae	0f 85 b2 00 00
+	00		 jne	 $L37228
+  01db4	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  01db7	8b 91 14 18 00
+	00		 mov	 edx, DWORD PTR [ecx+6164]
+  01dbd	83 ba 86 03 00
+	00 00		 cmp	 DWORD PTR [edx+902], 0
+  01dc4	0f 84 9c 00 00
+	00		 je	 $L37228
+
+; 869  :          if (pbd->dwFlags & DDBLT_WAIT)
+
+  01dca	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  01dcd	8b 48 2c	 mov	 ecx, DWORD PTR [eax+44]
+  01dd0	81 e1 00 00 00
+	01		 and	 ecx, 16777216		; 01000000H
+  01dd6	85 c9		 test	 ecx, ecx
+  01dd8	74 10		 je	 SHORT $L37232
+$L37230:
+
+; 870  :             FXBUSYWAIT(ppdev);
+
+  01dda	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  01ddd	52		 push	 edx
+  01dde	e8 00 00 00 00	 call	 _FXGETBUSYSTATUS
+  01de3	83 c4 04	 add	 esp, 4
+  01de6	85 c0		 test	 eax, eax
+  01de8	75 f0		 jne	 SHORT $L37230
+$L37232:
+
+; 871  : 
+; 872  :          dwReturn = Blt32_DoBltS(ppdev, pbd, rop3, srcPixelFormat, dstPixelFormat);
+
+  01dea	8b 45 18	 mov	 eax, DWORD PTR _dstPixelFormat$[ebp]
+  01ded	50		 push	 eax
+  01dee	8b 4d 14	 mov	 ecx, DWORD PTR _srcPixelFormat$[ebp]
+  01df1	51		 push	 ecx
+  01df2	8b 55 10	 mov	 edx, DWORD PTR _rop3$[ebp]
+  01df5	52		 push	 edx
+  01df6	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  01df9	50		 push	 eax
+  01dfa	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  01dfd	51		 push	 ecx
+  01dfe	e8 00 00 00 00	 call	 _Blt32_DoBltS@20
+  01e03	89 45 d4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 873  : 
+; 874  :          // Swap the Address so that we use the AA Addr
+; 875  :          // But only for the destination!!!!!
+; 876  :          hwDstAddr = GET_HW_ADDR(pbd->lpDDDestSurface);
+
+  01e06	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01e09	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  01e0c	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  01e0f	8b 51 24	 mov	 edx, DWORD PTR [ecx+36]
+  01e12	8b 02		 mov	 eax, DWORD PTR [edx]
+  01e14	89 45 f4	 mov	 DWORD PTR _hwDstAddr$[ebp], eax
+
+; 877  :          SET_HW_ADDR(pbd->lpDDDestSurface, GET_AAHW_ADDR(pbd->lpDDDestSurface));
+
+  01e17	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01e1a	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  01e1d	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  01e20	8b 48 24	 mov	 ecx, DWORD PTR [eax+36]
+  01e23	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01e26	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  01e29	8b 50 04	 mov	 edx, DWORD PTR [eax+4]
+  01e2c	8b 42 24	 mov	 eax, DWORD PTR [edx+36]
+  01e2f	8b 49 30	 mov	 ecx, DWORD PTR [ecx+48]
+  01e32	89 08		 mov	 DWORD PTR [eax], ecx
+
+; 878  :          dwReturn = Blt32_DoBltS(ppdev, pbd, rop3, srcPixelFormat, dstPixelFormat);
+
+  01e34	8b 55 18	 mov	 edx, DWORD PTR _dstPixelFormat$[ebp]
+  01e37	52		 push	 edx
+  01e38	8b 45 14	 mov	 eax, DWORD PTR _srcPixelFormat$[ebp]
+  01e3b	50		 push	 eax
+  01e3c	8b 4d 10	 mov	 ecx, DWORD PTR _rop3$[ebp]
+  01e3f	51		 push	 ecx
+  01e40	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01e43	52		 push	 edx
+  01e44	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01e47	50		 push	 eax
+  01e48	e8 00 00 00 00	 call	 _Blt32_DoBltS@20
+  01e4d	89 45 d4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 879  :          SET_HW_ADDR(pbd->lpDDDestSurface, hwDstAddr);
+
+  01e50	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01e53	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  01e56	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  01e59	8b 48 24	 mov	 ecx, DWORD PTR [eax+36]
+  01e5c	8b 55 f4	 mov	 edx, DWORD PTR _hwDstAddr$[ebp]
+  01e5f	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 881  :       else
+
+  01e61	e9 e2 00 00 00	 jmp	 $L37248
+$L37228:
+
+; 883  : #ifndef WINNT
+; 884  :          // Using the 3D engine to perform Blts!
+; 885  : 		 // First we should test whether or not to use the 3D SW path
+; 886  : 		 if((rop3 != HIWORD(SRCCOPY)) || (pbd->dwFlags & DDBLT_KEYDESTOVERRIDE) ||
+; 887  :                ((srcPixelFormat != SSTG_PIXFMT_16BPP) && (srcPixelFormat != SSTG_PIXFMT_32BPP)))
+
+  01e66	81 7d 10 cc 00
+	00 00		 cmp	 DWORD PTR _rop3$[ebp], 204 ; 000000ccH
+  01e6d	75 22		 jne	 SHORT $L37242
+  01e6f	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  01e72	8b 48 2c	 mov	 ecx, DWORD PTR [eax+44]
+  01e75	81 e1 00 40 00
+	00		 and	 ecx, 16384		; 00004000H
+  01e7b	85 c9		 test	 ecx, ecx
+  01e7d	75 12		 jne	 SHORT $L37242
+  01e7f	81 7d 14 00 00
+	03 00		 cmp	 DWORD PTR _srcPixelFormat$[ebp], 196608 ; 00030000H
+  01e86	74 2c		 je	 SHORT $L37241
+  01e88	81 7d 14 00 00
+	05 00		 cmp	 DWORD PTR _srcPixelFormat$[ebp], 327680 ; 00050000H
+  01e8f	74 23		 je	 SHORT $L37241
+$L37242:
+
+; 888  : 	        dwReturn = sli_DoBltS(ppdev, pbd, rop3, srcPixelFormat, dstPixelFormat, vid2vid);
+
+  01e91	6a 00		 push	 0
+  01e93	8b 55 18	 mov	 edx, DWORD PTR _dstPixelFormat$[ebp]
+  01e96	52		 push	 edx
+  01e97	8b 45 14	 mov	 eax, DWORD PTR _srcPixelFormat$[ebp]
+  01e9a	50		 push	 eax
+  01e9b	8b 4d 10	 mov	 ecx, DWORD PTR _rop3$[ebp]
+  01e9e	51		 push	 ecx
+  01e9f	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01ea2	52		 push	 edx
+  01ea3	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01ea6	50		 push	 eax
+  01ea7	e8 00 00 00 00	 call	 _sli_DoBltS@24
+  01eac	89 45 d4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 889  :          else
+
+  01eaf	e9 94 00 00 00	 jmp	 $L37248
+$L37241:
+
+; 891  :             // Using the Pitch since the surface might already be promoted
+; 892  : 	        dstWidth = (DWORD) pbd->lpDDSrcSurface->lpGbl->lPitch;
+
+  01eb4	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01eb7	8b 51 18	 mov	 edx, DWORD PTR [ecx+24]
+  01eba	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  01ebd	8b 48 18	 mov	 ecx, DWORD PTR [eax+24]
+  01ec0	89 4d f8	 mov	 DWORD PTR _dstWidth$[ebp], ecx
+
+; 893  : 			// We need to see if the surface already is a power of two
+; 894  : 	        if( (dstWidth & (dstWidth-1)) )
+
+  01ec3	8b 55 f8	 mov	 edx, DWORD PTR _dstWidth$[ebp]
+  01ec6	83 ea 01	 sub	 edx, 1
+  01ec9	8b 45 f8	 mov	 eax, DWORD PTR _dstWidth$[ebp]
+  01ecc	23 c2		 and	 eax, edx
+  01ece	85 c0		 test	 eax, eax
+  01ed0	74 5a		 je	 SHORT $L37245
+
+; 896  : 			   // Promote the surface
+; 897  : 		       dwReturn = PromoteSrcToPower2Width(ppdev, pbd);
+
+  01ed2	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01ed5	51		 push	 ecx
+  01ed6	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  01ed9	52		 push	 edx
+  01eda	e8 00 00 00 00	 call	 _PromoteSrcToPower2Width@8
+  01edf	89 45 d4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 898  : 	           if(pbd->ddRVal != DD_OK)	
+
+  01ee2	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  01ee5	83 b8 98 00 00
+	00 00		 cmp	 DWORD PTR [eax+152], 0
+  01eec	74 20		 je	 SHORT $L37246
+
+; 899  : 	              dwReturn = sli_DoBltS(ppdev, pbd, rop3, srcPixelFormat, dstPixelFormat, vid2vid);
+
+  01eee	6a 00		 push	 0
+  01ef0	8b 4d 18	 mov	 ecx, DWORD PTR _dstPixelFormat$[ebp]
+  01ef3	51		 push	 ecx
+  01ef4	8b 55 14	 mov	 edx, DWORD PTR _srcPixelFormat$[ebp]
+  01ef7	52		 push	 edx
+  01ef8	8b 45 10	 mov	 eax, DWORD PTR _rop3$[ebp]
+  01efb	50		 push	 eax
+  01efc	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01eff	51		 push	 ecx
+  01f00	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  01f03	52		 push	 edx
+  01f04	e8 00 00 00 00	 call	 _sli_DoBltS@24
+  01f09	89 45 d4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 900  : 	           else
+
+  01f0c	eb 1c		 jmp	 SHORT $L37247
+$L37246:
+
+; 901  : 	              dwReturn = sli_3DDoBltS(ppdev, pbd, rop3, srcPixelFormat, dstPixelFormat);
+
+  01f0e	8b 45 18	 mov	 eax, DWORD PTR _dstPixelFormat$[ebp]
+  01f11	50		 push	 eax
+  01f12	8b 4d 14	 mov	 ecx, DWORD PTR _srcPixelFormat$[ebp]
+  01f15	51		 push	 ecx
+  01f16	8b 55 10	 mov	 edx, DWORD PTR _rop3$[ebp]
+  01f19	52		 push	 edx
+  01f1a	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  01f1d	50		 push	 eax
+  01f1e	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  01f21	51		 push	 ecx
+  01f22	e8 00 00 00 00	 call	 _sli_3DDoBltS@20
+  01f27	89 45 d4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+$L37247:
+
+; 903  : 		    else
+
+  01f2a	eb 1c		 jmp	 SHORT $L37248
+$L37245:
+
+; 904  : 	           dwReturn = sli_3DDoBltS(ppdev, pbd, rop3, srcPixelFormat, dstPixelFormat);
+
+  01f2c	8b 55 18	 mov	 edx, DWORD PTR _dstPixelFormat$[ebp]
+  01f2f	52		 push	 edx
+  01f30	8b 45 14	 mov	 eax, DWORD PTR _srcPixelFormat$[ebp]
+  01f33	50		 push	 eax
+  01f34	8b 4d 10	 mov	 ecx, DWORD PTR _rop3$[ebp]
+  01f37	51		 push	 ecx
+  01f38	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01f3b	52		 push	 edx
+  01f3c	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01f3f	50		 push	 eax
+  01f40	e8 00 00 00 00	 call	 _sli_3DDoBltS@20
+  01f45	89 45 d4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+$L37248:
+
+; 911  : 
+; 912  : #ifndef WINNT
+; 913  :    if (dwDrawCursor)
+
+  01f48	83 7d e0 00	 cmp	 DWORD PTR _dwDrawCursor$[ebp], 0
+  01f4c	74 13		 je	 SHORT $L37249
+
+; 914  :       HostDrawCursor(ppdev, pDstSurfaceData->lfbPtr);
+
+  01f4e	8b 4d dc	 mov	 ecx, DWORD PTR _pDstSurfaceData$[ebp]
+  01f51	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  01f54	52		 push	 edx
+  01f55	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01f58	50		 push	 eax
+  01f59	e8 00 00 00 00	 call	 _HostDrawCursor
+  01f5e	83 c4 08	 add	 esp, 8
+$L37249:
+
+; 915  : #endif
+; 916  : 
+; 917  :   return dwReturn;
+
+  01f61	8b 45 d4	 mov	 eax, DWORD PTR _dwReturn$[ebp]
+
+; 918  : }
+
+  01f64	8b e5		 mov	 esp, ebp
+  01f66	5d		 pop	 ebp
+  01f67	c3		 ret	 0
+_DdSli2DScn2Scn ENDP
+_TEXT	ENDS
+PUBLIC	_DdSli2DSystem2Scn
+EXTRN	_Blt32_SystemToVideo@24:NEAR
+_TEXT	SEGMENT
+_ppdev$ = 8
+_pbd$ = 12
+_rop$ = 16
+_srcPixelFormat$ = 20
+_srcBytePerPixel$ = 24
+_dstPixelFormat$ = 28
+_dwReturn$ = -24
+_pDstSurfaceData$ = -12
+_hwAddr$ = -20
+_dwDrawCursor$ = -8
+_cmdFifo$ = -16
+_hwIndex$ = -4
+_DdSli2DSystem2Scn PROC NEAR
+
+; 942  : {
+
+  01f68	55		 push	 ebp
+  01f69	8b ec		 mov	 ebp, esp
+  01f6b	83 ec 18	 sub	 esp, 24			; 00000018H
+
+; 943  :    DWORD dwReturn;
+; 944  :    FXSURFACEDATA * pDstSurfaceData;
+; 945  :    DWORD hwAddr;
+; 946  : #ifndef WINNT
+; 947  :    DWORD dwDrawCursor=FALSE;
+
+  01f6e	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _dwDrawCursor$[ebp], 0
+
+; 948  : #endif
+; 949  :    CMDFIFO_PROLOG(cmdFifo);
+
+  01f75	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01f78	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  01f7e	8b 51 0c	 mov	 edx, DWORD PTR [ecx+12]
+  01f81	89 55 f0	 mov	 DWORD PTR _cmdFifo$[ebp], edx
+  01f84	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$[ebp], 0
+
+; 950  : 
+; 951  :    pDstSurfaceData = (FXSURFACEDATA*) (pbd->lpDDDestSurface->lpGbl->dwReserved1);
+
+  01f8b	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  01f8e	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  01f91	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  01f94	8b 42 24	 mov	 eax, DWORD PTR [edx+36]
+  01f97	89 45 f4	 mov	 DWORD PTR _pDstSurfaceData$[ebp], eax
+
+; 952  : 
+; 953  : #ifndef WINNT
+; 954  :    if (_FF(CursorSurface) == pDstSurfaceData->lfbPtr)
+
+  01f9a	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  01f9d	8b 55 f4	 mov	 edx, DWORD PTR _pDstSurfaceData$[ebp]
+  01fa0	8b 81 78 04 00
+	00		 mov	 eax, DWORD PTR [ecx+1144]
+  01fa6	3b 42 04	 cmp	 eax, DWORD PTR [edx+4]
+  01fa9	75 77		 jne	 SHORT $L37275
+
+; 956  :       if (SDATA_GDIFLAGS_CURSOR_ENABLED == (_FF(gdiFlags) & (SDATA_GDIFLAGS_CURSOR_EXCLUDE | SDATA_GDIFLAGS_CURSOR_ENABLED)))
+
+  01fab	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  01fae	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  01fb1	81 e2 c0 00 00
+	00		 and	 edx, 192		; 000000c0H
+  01fb7	83 fa 40	 cmp	 edx, 64			; 00000040H
+  01fba	75 66		 jne	 SHORT $L37275
+
+; 958  :          if (DoIntersect(ppdev, pbd->rDest.left, pbd->rDest.top, pbd->rDest.right, pbd->rDest.bottom))
+
+  01fbc	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  01fbf	8b 48 14	 mov	 ecx, DWORD PTR [eax+20]
+  01fc2	51		 push	 ecx
+  01fc3	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  01fc6	8b 42 10	 mov	 eax, DWORD PTR [edx+16]
+  01fc9	50		 push	 eax
+  01fca	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  01fcd	8b 51 0c	 mov	 edx, DWORD PTR [ecx+12]
+  01fd0	52		 push	 edx
+  01fd1	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  01fd4	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  01fd7	51		 push	 ecx
+  01fd8	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  01fdb	52		 push	 edx
+  01fdc	e8 00 00 00 00	 call	 _DoIntersect
+  01fe1	83 c4 14	 add	 esp, 20			; 00000014H
+  01fe4	85 c0		 test	 eax, eax
+  01fe6	74 3a		 je	 SHORT $L37275
+
+; 960  :             HostRestoreCursor(ppdev, pDstSurfaceData->lfbPtr, _FF(LastCursorPosX), _FF(LastCursorPosY), _FF(HostcursorExclusionStart));
+
+  01fe8	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  01feb	8b 88 a8 04 00
+	00		 mov	 ecx, DWORD PTR [eax+1192]
+  01ff1	51		 push	 ecx
+  01ff2	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  01ff5	0f bf 82 6e 04
+	00 00		 movsx	 eax, WORD PTR [edx+1134]
+  01ffc	50		 push	 eax
+  01ffd	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  02000	0f bf 91 6c 04
+	00 00		 movsx	 edx, WORD PTR [ecx+1132]
+  02007	52		 push	 edx
+  02008	8b 45 f4	 mov	 eax, DWORD PTR _pDstSurfaceData$[ebp]
+  0200b	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  0200e	51		 push	 ecx
+  0200f	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  02012	52		 push	 edx
+  02013	e8 00 00 00 00	 call	 _HostRestoreCursor
+  02018	83 c4 14	 add	 esp, 20			; 00000014H
+
+; 961  :             dwDrawCursor = TRUE;
+
+  0201b	c7 45 f8 01 00
+	00 00		 mov	 DWORD PTR _dwDrawCursor$[ebp], 1
+$L37275:
+
+; 965  : #endif
+; 966  : 
+; 967  :    if (IS_TILED(pDstSurfaceData->hwPtr))
+
+  02022	8b 45 f4	 mov	 eax, DWORD PTR _pDstSurfaceData$[ebp]
+  02025	8b 08		 mov	 ecx, DWORD PTR [eax]
+  02027	81 e1 00 00 00
+	80		 and	 ecx, -2147483648	; 80000000H
+  0202d	f7 d9		 neg	 ecx
+  0202f	1b c9		 sbb	 ecx, ecx
+  02031	f7 d9		 neg	 ecx
+  02033	85 c9		 test	 ecx, ecx
+  02035	0f 84 cd 00 00
+	00		 je	 $L37276
+
+; 969  :       // ND to DD
+; 970  :       // If Just AA then we can doit
+; 971  :       // If this is a AA surface then do it twice
+; 972  :       if (!_DD(ddSLIModeEnabled) && _DD(ddAAModeEnabled))
+
+  0203b	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0203e	8b 82 14 18 00
+	00		 mov	 eax, DWORD PTR [edx+6164]
+  02044	83 b8 76 03 00
+	00 00		 cmp	 DWORD PTR [eax+886], 0
+  0204b	0f 85 97 00 00
+	00		 jne	 $L37279
+  02051	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  02054	8b 91 14 18 00
+	00		 mov	 edx, DWORD PTR [ecx+6164]
+  0205a	83 ba 86 03 00
+	00 00		 cmp	 DWORD PTR [edx+902], 0
+  02061	0f 84 81 00 00
+	00		 je	 $L37279
+
+; 974  :          dwReturn = Blt32_SystemToVideo(ppdev, pbd, rop, srcPixelFormat, srcBytePerPixel, dstPixelFormat);
+
+  02067	8b 45 1c	 mov	 eax, DWORD PTR _dstPixelFormat$[ebp]
+  0206a	50		 push	 eax
+  0206b	8b 4d 18	 mov	 ecx, DWORD PTR _srcBytePerPixel$[ebp]
+  0206e	51		 push	 ecx
+  0206f	8b 55 14	 mov	 edx, DWORD PTR _srcPixelFormat$[ebp]
+  02072	52		 push	 edx
+  02073	8b 45 10	 mov	 eax, DWORD PTR _rop$[ebp]
+  02076	50		 push	 eax
+  02077	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  0207a	51		 push	 ecx
+  0207b	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0207e	52		 push	 edx
+  0207f	e8 00 00 00 00	 call	 _Blt32_SystemToVideo@24
+  02084	89 45 e8	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 975  :          hwAddr = GET_HW_ADDR(pbd->lpDDDestSurface);
+
+  02087	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  0208a	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  0208d	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  02090	8b 42 24	 mov	 eax, DWORD PTR [edx+36]
+  02093	8b 08		 mov	 ecx, DWORD PTR [eax]
+  02095	89 4d ec	 mov	 DWORD PTR _hwAddr$[ebp], ecx
+
+; 976  :          SET_HW_ADDR(pbd->lpDDDestSurface, GET_AAHW_ADDR(pbd->lpDDDestSurface));
+
+  02098	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  0209b	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  0209e	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  020a1	8b 51 24	 mov	 edx, DWORD PTR [ecx+36]
+  020a4	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  020a7	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  020aa	8b 41 04	 mov	 eax, DWORD PTR [ecx+4]
+  020ad	8b 48 24	 mov	 ecx, DWORD PTR [eax+36]
+  020b0	8b 52 30	 mov	 edx, DWORD PTR [edx+48]
+  020b3	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 977  :          dwReturn = Blt32_SystemToVideo(ppdev, pbd, rop, srcPixelFormat, srcBytePerPixel, dstPixelFormat);
+
+  020b5	8b 45 1c	 mov	 eax, DWORD PTR _dstPixelFormat$[ebp]
+  020b8	50		 push	 eax
+  020b9	8b 4d 18	 mov	 ecx, DWORD PTR _srcBytePerPixel$[ebp]
+  020bc	51		 push	 ecx
+  020bd	8b 55 14	 mov	 edx, DWORD PTR _srcPixelFormat$[ebp]
+  020c0	52		 push	 edx
+  020c1	8b 45 10	 mov	 eax, DWORD PTR _rop$[ebp]
+  020c4	50		 push	 eax
+  020c5	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  020c8	51		 push	 ecx
+  020c9	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  020cc	52		 push	 edx
+  020cd	e8 00 00 00 00	 call	 _Blt32_SystemToVideo@24
+  020d2	89 45 e8	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 978  :          SET_HW_ADDR(pbd->lpDDDestSurface, hwAddr);
+
+  020d5	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  020d8	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  020db	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  020de	8b 42 24	 mov	 eax, DWORD PTR [edx+36]
+  020e1	8b 4d ec	 mov	 ecx, DWORD PTR _hwAddr$[ebp]
+  020e4	89 08		 mov	 DWORD PTR [eax], ecx
+
+; 980  :       else
+
+  020e6	eb 1e		 jmp	 SHORT $L37284
+$L37279:
+
+; 982  :          dwReturn = sli_DoBltS(ppdev, pbd, rop, srcPixelFormat, dstPixelFormat, mem2vid);
+
+  020e8	6a 01		 push	 1
+  020ea	8b 55 1c	 mov	 edx, DWORD PTR _dstPixelFormat$[ebp]
+  020ed	52		 push	 edx
+  020ee	8b 45 14	 mov	 eax, DWORD PTR _srcPixelFormat$[ebp]
+  020f1	50		 push	 eax
+  020f2	8b 4d 10	 mov	 ecx, DWORD PTR _rop$[ebp]
+  020f5	51		 push	 ecx
+  020f6	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  020f9	52		 push	 edx
+  020fa	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  020fd	50		 push	 eax
+  020fe	e8 00 00 00 00	 call	 _sli_DoBltS@24
+  02103	89 45 e8	 mov	 DWORD PTR _dwReturn$[ebp], eax
+$L37284:
+
+; 985  :    else
+
+  02106	eb 20		 jmp	 SHORT $L37285
+$L37276:
+
+; 987  :       // ND to ND
+; 988  :       dwReturn = Blt32_SystemToVideo(ppdev, pbd, rop, srcPixelFormat, srcBytePerPixel, dstPixelFormat);
+
+  02108	8b 4d 1c	 mov	 ecx, DWORD PTR _dstPixelFormat$[ebp]
+  0210b	51		 push	 ecx
+  0210c	8b 55 18	 mov	 edx, DWORD PTR _srcBytePerPixel$[ebp]
+  0210f	52		 push	 edx
+  02110	8b 45 14	 mov	 eax, DWORD PTR _srcPixelFormat$[ebp]
+  02113	50		 push	 eax
+  02114	8b 4d 10	 mov	 ecx, DWORD PTR _rop$[ebp]
+  02117	51		 push	 ecx
+  02118	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  0211b	52		 push	 edx
+  0211c	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0211f	50		 push	 eax
+  02120	e8 00 00 00 00	 call	 _Blt32_SystemToVideo@24
+  02125	89 45 e8	 mov	 DWORD PTR _dwReturn$[ebp], eax
+$L37285:
+
+; 990  :       
+; 991  : #ifndef WINNT
+; 992  :    if (dwDrawCursor)
+
+  02128	83 7d f8 00	 cmp	 DWORD PTR _dwDrawCursor$[ebp], 0
+  0212c	74 13		 je	 SHORT $L37286
+
+; 993  :       HostDrawCursor(ppdev, pDstSurfaceData->lfbPtr);
+
+  0212e	8b 4d f4	 mov	 ecx, DWORD PTR _pDstSurfaceData$[ebp]
+  02131	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  02134	52		 push	 edx
+  02135	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  02138	50		 push	 eax
+  02139	e8 00 00 00 00	 call	 _HostDrawCursor
+  0213e	83 c4 08	 add	 esp, 8
+$L37286:
+
+; 994  : #endif
+; 995  : 
+; 996  :    return dwReturn;
+
+  02141	8b 45 e8	 mov	 eax, DWORD PTR _dwReturn$[ebp]
+
+; 997  : }
+
+  02144	8b e5		 mov	 esp, ebp
+  02146	5d		 pop	 ebp
+  02147	c3		 ret	 0
+_DdSli2DSystem2Scn ENDP
+_TEXT	ENDS
+PUBLIC	_Dd2SampleColorFill
+_TEXT	SEGMENT
+_ppdev$ = 8
+_pbd$ = 12
+_dstPixelFormat$ = 16
+_pDstSurfaceData$ = -8
+_dwReturn$ = -12
+_dwDrawCursor$ = -4
+_Dd2SampleColorFill PROC NEAR
+
+; 1008 : {
+
+  02148	55		 push	 ebp
+  02149	8b ec		 mov	 ebp, esp
+  0214b	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 1009 :    FXSURFACEDATA * pDstSurfaceData;
+; 1010 :    DWORD dwReturn;
+; 1011 : #ifndef WINNT
+; 1012 :    DWORD dwDrawCursor=FALSE;
+
+  0214e	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _dwDrawCursor$[ebp], 0
+
+; 1013 : #endif
+; 1014 : 
+; 1015 :    pDstSurfaceData = (FXSURFACEDATA*) (pbd->lpDDDestSurface->lpGbl->dwReserved1);
+
+  02155	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  02158	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  0215b	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  0215e	8b 42 24	 mov	 eax, DWORD PTR [edx+36]
+  02161	89 45 f8	 mov	 DWORD PTR _pDstSurfaceData$[ebp], eax
+
+; 1016 : 
+; 1017 : #ifndef WINNT
+; 1018 :    if (_FF(CursorSurface) == pDstSurfaceData->lfbPtr)
+
+  02164	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  02167	8b 55 f8	 mov	 edx, DWORD PTR _pDstSurfaceData$[ebp]
+  0216a	8b 81 78 04 00
+	00		 mov	 eax, DWORD PTR [ecx+1144]
+  02170	3b 42 04	 cmp	 eax, DWORD PTR [edx+4]
+  02173	75 77		 jne	 SHORT $L37300
+
+; 1020 :       if (SDATA_GDIFLAGS_CURSOR_ENABLED == (_FF(gdiFlags) & (SDATA_GDIFLAGS_CURSOR_EXCLUDE | SDATA_GDIFLAGS_CURSOR_ENABLED)))
+
+  02175	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  02178	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  0217b	81 e2 c0 00 00
+	00		 and	 edx, 192		; 000000c0H
+  02181	83 fa 40	 cmp	 edx, 64			; 00000040H
+  02184	75 66		 jne	 SHORT $L37300
+
+; 1022 :          if (DoIntersect(ppdev, pbd->rDest.left, pbd->rDest.top, pbd->rDest.right, pbd->rDest.bottom))
+
+  02186	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  02189	8b 48 14	 mov	 ecx, DWORD PTR [eax+20]
+  0218c	51		 push	 ecx
+  0218d	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  02190	8b 42 10	 mov	 eax, DWORD PTR [edx+16]
+  02193	50		 push	 eax
+  02194	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  02197	8b 51 0c	 mov	 edx, DWORD PTR [ecx+12]
+  0219a	52		 push	 edx
+  0219b	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  0219e	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  021a1	51		 push	 ecx
+  021a2	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  021a5	52		 push	 edx
+  021a6	e8 00 00 00 00	 call	 _DoIntersect
+  021ab	83 c4 14	 add	 esp, 20			; 00000014H
+  021ae	85 c0		 test	 eax, eax
+  021b0	74 3a		 je	 SHORT $L37300
+
+; 1024 :             HostRestoreCursor(ppdev, pDstSurfaceData->lfbPtr, _FF(LastCursorPosX), _FF(LastCursorPosY), _FF(HostcursorExclusionStart));
+
+  021b2	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  021b5	8b 88 a8 04 00
+	00		 mov	 ecx, DWORD PTR [eax+1192]
+  021bb	51		 push	 ecx
+  021bc	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  021bf	0f bf 82 6e 04
+	00 00		 movsx	 eax, WORD PTR [edx+1134]
+  021c6	50		 push	 eax
+  021c7	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  021ca	0f bf 91 6c 04
+	00 00		 movsx	 edx, WORD PTR [ecx+1132]
+  021d1	52		 push	 edx
+  021d2	8b 45 f8	 mov	 eax, DWORD PTR _pDstSurfaceData$[ebp]
+  021d5	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  021d8	51		 push	 ecx
+  021d9	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  021dc	52		 push	 edx
+  021dd	e8 00 00 00 00	 call	 _HostRestoreCursor
+  021e2	83 c4 14	 add	 esp, 20			; 00000014H
+
+; 1025 :             dwDrawCursor = TRUE;
+
+  021e5	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _dwDrawCursor$[ebp], 1
+$L37300:
+
+; 1029 : #endif
+; 1030 : 
+; 1031 :    dwReturn = Blt32_ColorFill(ppdev, pbd, dstPixelFormat);
+
+  021ec	8b 45 10	 mov	 eax, DWORD PTR _dstPixelFormat$[ebp]
+  021ef	50		 push	 eax
+  021f0	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  021f3	51		 push	 ecx
+  021f4	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  021f7	52		 push	 edx
+  021f8	e8 00 00 00 00	 call	 _Blt32_ColorFill@12
+  021fd	89 45 f4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 1032 : 
+; 1033 : #ifndef WINNT
+; 1034 :    if (dwDrawCursor)
+
+  02200	83 7d fc 00	 cmp	 DWORD PTR _dwDrawCursor$[ebp], 0
+  02204	74 13		 je	 SHORT $L37301
+
+; 1035 :       HostDrawCursor(ppdev, pDstSurfaceData->lfbPtr);
+
+  02206	8b 45 f8	 mov	 eax, DWORD PTR _pDstSurfaceData$[ebp]
+  02209	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  0220c	51		 push	 ecx
+  0220d	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  02210	52		 push	 edx
+  02211	e8 00 00 00 00	 call	 _HostDrawCursor
+  02216	83 c4 08	 add	 esp, 8
+$L37301:
+
+; 1036 : #endif
+; 1037 : 
+; 1038 :    return dwReturn;
+
+  02219	8b 45 f4	 mov	 eax, DWORD PTR _dwReturn$[ebp]
+
+; 1039 : }
+
+  0221c	8b e5		 mov	 esp, ebp
+  0221e	5d		 pop	 ebp
+  0221f	c3		 ret	 0
+_Dd2SampleColorFill ENDP
+_TEXT	ENDS
+PUBLIC	_Dd2SampleBltNoSP
+_TEXT	SEGMENT
+_ppdev$ = 8
+_pbd$ = 12
+_rop3$ = 16
+_dstPixelFormat$ = 20
+_pDstSurfaceData$ = -8
+_dwReturn$ = -12
+_dwDrawCursor$ = -4
+_Dd2SampleBltNoSP PROC NEAR
+
+; 1050 : {
+
+  02220	55		 push	 ebp
+  02221	8b ec		 mov	 ebp, esp
+  02223	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 1051 :    FXSURFACEDATA * pDstSurfaceData;
+; 1052 :    DWORD dwReturn;
+; 1053 : #ifndef WINNT
+; 1054 :    DWORD dwDrawCursor=FALSE;
+
+  02226	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _dwDrawCursor$[ebp], 0
+
+; 1055 : #endif
+; 1056 : 
+; 1057 :    pDstSurfaceData = (FXSURFACEDATA*) (pbd->lpDDDestSurface->lpGbl->dwReserved1);
+
+  0222d	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  02230	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  02233	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  02236	8b 42 24	 mov	 eax, DWORD PTR [edx+36]
+  02239	89 45 f8	 mov	 DWORD PTR _pDstSurfaceData$[ebp], eax
+
+; 1058 : 
+; 1059 : #ifndef WINNT
+; 1060 :    if (_FF(CursorSurface) == pDstSurfaceData->lfbPtr)
+
+  0223c	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0223f	8b 55 f8	 mov	 edx, DWORD PTR _pDstSurfaceData$[ebp]
+  02242	8b 81 78 04 00
+	00		 mov	 eax, DWORD PTR [ecx+1144]
+  02248	3b 42 04	 cmp	 eax, DWORD PTR [edx+4]
+  0224b	75 77		 jne	 SHORT $L37317
+
+; 1062 :       if (SDATA_GDIFLAGS_CURSOR_ENABLED == (_FF(gdiFlags) & (SDATA_GDIFLAGS_CURSOR_EXCLUDE | SDATA_GDIFLAGS_CURSOR_ENABLED)))
+
+  0224d	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  02250	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  02253	81 e2 c0 00 00
+	00		 and	 edx, 192		; 000000c0H
+  02259	83 fa 40	 cmp	 edx, 64			; 00000040H
+  0225c	75 66		 jne	 SHORT $L37317
+
+; 1064 :          if (DoIntersect(ppdev, pbd->rDest.left, pbd->rDest.top, pbd->rDest.right, pbd->rDest.bottom))
+
+  0225e	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  02261	8b 48 14	 mov	 ecx, DWORD PTR [eax+20]
+  02264	51		 push	 ecx
+  02265	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  02268	8b 42 10	 mov	 eax, DWORD PTR [edx+16]
+  0226b	50		 push	 eax
+  0226c	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  0226f	8b 51 0c	 mov	 edx, DWORD PTR [ecx+12]
+  02272	52		 push	 edx
+  02273	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  02276	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  02279	51		 push	 ecx
+  0227a	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0227d	52		 push	 edx
+  0227e	e8 00 00 00 00	 call	 _DoIntersect
+  02283	83 c4 14	 add	 esp, 20			; 00000014H
+  02286	85 c0		 test	 eax, eax
+  02288	74 3a		 je	 SHORT $L37317
+
+; 1066 :             HostRestoreCursor(ppdev, pDstSurfaceData->lfbPtr, _FF(LastCursorPosX), _FF(LastCursorPosY), _FF(HostcursorExclusionStart));
+
+  0228a	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0228d	8b 88 a8 04 00
+	00		 mov	 ecx, DWORD PTR [eax+1192]
+  02293	51		 push	 ecx
+  02294	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  02297	0f bf 82 6e 04
+	00 00		 movsx	 eax, WORD PTR [edx+1134]
+  0229e	50		 push	 eax
+  0229f	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  022a2	0f bf 91 6c 04
+	00 00		 movsx	 edx, WORD PTR [ecx+1132]
+  022a9	52		 push	 edx
+  022aa	8b 45 f8	 mov	 eax, DWORD PTR _pDstSurfaceData$[ebp]
+  022ad	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  022b0	51		 push	 ecx
+  022b1	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  022b4	52		 push	 edx
+  022b5	e8 00 00 00 00	 call	 _HostRestoreCursor
+  022ba	83 c4 14	 add	 esp, 20			; 00000014H
+
+; 1067 :             dwDrawCursor = TRUE;
+
+  022bd	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _dwDrawCursor$[ebp], 1
+$L37317:
+
+; 1071 : #endif
+; 1072 : 
+; 1073 :    dwReturn = Blt32_DoBltNoSP(ppdev, pbd, rop3, dstPixelFormat);
+
+  022c4	8b 45 14	 mov	 eax, DWORD PTR _dstPixelFormat$[ebp]
+  022c7	50		 push	 eax
+  022c8	8b 4d 10	 mov	 ecx, DWORD PTR _rop3$[ebp]
+  022cb	51		 push	 ecx
+  022cc	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  022cf	52		 push	 edx
+  022d0	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  022d3	50		 push	 eax
+  022d4	e8 00 00 00 00	 call	 _Blt32_DoBltNoSP@16
+  022d9	89 45 f4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 1074 : 
+; 1075 : #ifndef WINNT
+; 1076 :    if (dwDrawCursor)
+
+  022dc	83 7d fc 00	 cmp	 DWORD PTR _dwDrawCursor$[ebp], 0
+  022e0	74 13		 je	 SHORT $L37318
+
+; 1077 :       HostDrawCursor(ppdev, pDstSurfaceData->lfbPtr);
+
+  022e2	8b 4d f8	 mov	 ecx, DWORD PTR _pDstSurfaceData$[ebp]
+  022e5	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  022e8	52		 push	 edx
+  022e9	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  022ec	50		 push	 eax
+  022ed	e8 00 00 00 00	 call	 _HostDrawCursor
+  022f2	83 c4 08	 add	 esp, 8
+$L37318:
+
+; 1078 : #endif
+; 1079 : 
+; 1080 :    return dwReturn;
+
+  022f5	8b 45 f4	 mov	 eax, DWORD PTR _dwReturn$[ebp]
+
+; 1081 : }
+
+  022f8	8b e5		 mov	 esp, ebp
+  022fa	5d		 pop	 ebp
+  022fb	c3		 ret	 0
+_Dd2SampleBltNoSP ENDP
+_TEXT	ENDS
+PUBLIC	_Dd2SampleBltS
+_TEXT	SEGMENT
+_ppdev$ = 8
+_pbd$ = 12
+_rop3$ = 16
+_srcPixelFormat$ = 20
+_dstPixelFormat$ = 24
+_pDstSurfaceData$ = -8
+_dwReturn$ = -12
+_dwDrawCursor$ = -4
+_Dd2SampleBltS PROC NEAR
+
+; 1092 : {
+
+  022fc	55		 push	 ebp
+  022fd	8b ec		 mov	 ebp, esp
+  022ff	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 1093 :    FXSURFACEDATA * pDstSurfaceData;
+; 1094 :    DWORD dwReturn;
+; 1095 : #ifndef WINNT
+; 1096 :    DWORD dwDrawCursor=FALSE;
+
+  02302	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _dwDrawCursor$[ebp], 0
+
+; 1097 : #endif
+; 1098 : 
+; 1099 :    pDstSurfaceData = (FXSURFACEDATA*) (pbd->lpDDDestSurface->lpGbl->dwReserved1);
+
+  02309	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  0230c	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  0230f	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  02312	8b 42 24	 mov	 eax, DWORD PTR [edx+36]
+  02315	89 45 f8	 mov	 DWORD PTR _pDstSurfaceData$[ebp], eax
+
+; 1100 : 
+; 1101 : #ifndef WINNT
+; 1102 :    if (_FF(CursorSurface) == pDstSurfaceData->lfbPtr)
+
+  02318	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0231b	8b 55 f8	 mov	 edx, DWORD PTR _pDstSurfaceData$[ebp]
+  0231e	8b 81 78 04 00
+	00		 mov	 eax, DWORD PTR [ecx+1144]
+  02324	3b 42 04	 cmp	 eax, DWORD PTR [edx+4]
+  02327	75 77		 jne	 SHORT $L37336
+
+; 1104 :       if (SDATA_GDIFLAGS_CURSOR_ENABLED == (_FF(gdiFlags) & (SDATA_GDIFLAGS_CURSOR_EXCLUDE | SDATA_GDIFLAGS_CURSOR_ENABLED)))
+
+  02329	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0232c	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  0232f	81 e2 c0 00 00
+	00		 and	 edx, 192		; 000000c0H
+  02335	83 fa 40	 cmp	 edx, 64			; 00000040H
+  02338	75 66		 jne	 SHORT $L37336
+
+; 1106 :          if (DoIntersect(ppdev, pbd->rDest.left, pbd->rDest.top, pbd->rDest.right, pbd->rDest.bottom))
+
+  0233a	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  0233d	8b 48 14	 mov	 ecx, DWORD PTR [eax+20]
+  02340	51		 push	 ecx
+  02341	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  02344	8b 42 10	 mov	 eax, DWORD PTR [edx+16]
+  02347	50		 push	 eax
+  02348	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  0234b	8b 51 0c	 mov	 edx, DWORD PTR [ecx+12]
+  0234e	52		 push	 edx
+  0234f	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  02352	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  02355	51		 push	 ecx
+  02356	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  02359	52		 push	 edx
+  0235a	e8 00 00 00 00	 call	 _DoIntersect
+  0235f	83 c4 14	 add	 esp, 20			; 00000014H
+  02362	85 c0		 test	 eax, eax
+  02364	74 3a		 je	 SHORT $L37336
+
+; 1108 :             HostRestoreCursor(ppdev, pDstSurfaceData->lfbPtr, _FF(LastCursorPosX), _FF(LastCursorPosY), _FF(HostcursorExclusionStart));
+
+  02366	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  02369	8b 88 a8 04 00
+	00		 mov	 ecx, DWORD PTR [eax+1192]
+  0236f	51		 push	 ecx
+  02370	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  02373	0f bf 82 6e 04
+	00 00		 movsx	 eax, WORD PTR [edx+1134]
+  0237a	50		 push	 eax
+  0237b	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0237e	0f bf 91 6c 04
+	00 00		 movsx	 edx, WORD PTR [ecx+1132]
+  02385	52		 push	 edx
+  02386	8b 45 f8	 mov	 eax, DWORD PTR _pDstSurfaceData$[ebp]
+  02389	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  0238c	51		 push	 ecx
+  0238d	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  02390	52		 push	 edx
+  02391	e8 00 00 00 00	 call	 _HostRestoreCursor
+  02396	83 c4 14	 add	 esp, 20			; 00000014H
+
+; 1109 :             dwDrawCursor = TRUE;
+
+  02399	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _dwDrawCursor$[ebp], 1
+$L37336:
+
+; 1113 : #endif
+; 1114 : 
+; 1115 :    dwReturn = Blt32_DoBltS(ppdev, pbd, rop3, srcPixelFormat, dstPixelFormat);
+
+  023a0	8b 45 18	 mov	 eax, DWORD PTR _dstPixelFormat$[ebp]
+  023a3	50		 push	 eax
+  023a4	8b 4d 14	 mov	 ecx, DWORD PTR _srcPixelFormat$[ebp]
+  023a7	51		 push	 ecx
+  023a8	8b 55 10	 mov	 edx, DWORD PTR _rop3$[ebp]
+  023ab	52		 push	 edx
+  023ac	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  023af	50		 push	 eax
+  023b0	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  023b3	51		 push	 ecx
+  023b4	e8 00 00 00 00	 call	 _Blt32_DoBltS@20
+  023b9	89 45 f4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 1116 : 
+; 1117 : #ifndef WINNT
+; 1118 :    if (dwDrawCursor)
+
+  023bc	83 7d fc 00	 cmp	 DWORD PTR _dwDrawCursor$[ebp], 0
+  023c0	74 13		 je	 SHORT $L37337
+
+; 1119 :       HostDrawCursor(ppdev, pDstSurfaceData->lfbPtr);
+
+  023c2	8b 55 f8	 mov	 edx, DWORD PTR _pDstSurfaceData$[ebp]
+  023c5	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  023c8	50		 push	 eax
+  023c9	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  023cc	51		 push	 ecx
+  023cd	e8 00 00 00 00	 call	 _HostDrawCursor
+  023d2	83 c4 08	 add	 esp, 8
+$L37337:
+
+; 1120 : #endif
+; 1121 : 
+; 1122 :    return dwReturn;
+
+  023d5	8b 45 f4	 mov	 eax, DWORD PTR _dwReturn$[ebp]
+
+; 1123 : }
+
+  023d8	8b e5		 mov	 esp, ebp
+  023da	5d		 pop	 ebp
+  023db	c3		 ret	 0
+_Dd2SampleBltS ENDP
+_TEXT	ENDS
+PUBLIC	_Dd2SampleSystemToVideo
+_TEXT	SEGMENT
+_ppdev$ = 8
+_pbd$ = 12
+_rop3$ = 16
+_srcPixelFormat$ = 20
+_pixelByteDepth$ = 24
+_dstPixelFormat$ = 28
+_pDstSurfaceData$ = -8
+_dwReturn$ = -12
+_dwDrawCursor$ = -4
+_Dd2SampleSystemToVideo PROC NEAR
+
+; 1134 : {
+
+  023dc	55		 push	 ebp
+  023dd	8b ec		 mov	 ebp, esp
+  023df	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 1135 :    FXSURFACEDATA * pDstSurfaceData;
+; 1136 :    DWORD dwReturn;
+; 1137 : #ifndef WINNT
+; 1138 :    DWORD dwDrawCursor=FALSE;
+
+  023e2	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _dwDrawCursor$[ebp], 0
+
+; 1139 : #endif
+; 1140 : 
+; 1141 :    pDstSurfaceData = (FXSURFACEDATA*) (pbd->lpDDDestSurface->lpGbl->dwReserved1);
+
+  023e9	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  023ec	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  023ef	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  023f2	8b 42 24	 mov	 eax, DWORD PTR [edx+36]
+  023f5	89 45 f8	 mov	 DWORD PTR _pDstSurfaceData$[ebp], eax
+
+; 1142 : 
+; 1143 : #ifndef WINNT
+; 1144 :    if (_FF(CursorSurface) == pDstSurfaceData->lfbPtr)
+
+  023f8	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  023fb	8b 55 f8	 mov	 edx, DWORD PTR _pDstSurfaceData$[ebp]
+  023fe	8b 81 78 04 00
+	00		 mov	 eax, DWORD PTR [ecx+1144]
+  02404	3b 42 04	 cmp	 eax, DWORD PTR [edx+4]
+  02407	75 77		 jne	 SHORT $L37357
+
+; 1146 :       if (SDATA_GDIFLAGS_CURSOR_ENABLED == (_FF(gdiFlags) & (SDATA_GDIFLAGS_CURSOR_EXCLUDE | SDATA_GDIFLAGS_CURSOR_ENABLED)))
+
+  02409	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0240c	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  0240f	81 e2 c0 00 00
+	00		 and	 edx, 192		; 000000c0H
+  02415	83 fa 40	 cmp	 edx, 64			; 00000040H
+  02418	75 66		 jne	 SHORT $L37357
+
+; 1148 :          if (DoIntersect(ppdev, pbd->rDest.left, pbd->rDest.top, pbd->rDest.right, pbd->rDest.bottom))
+
+  0241a	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  0241d	8b 48 14	 mov	 ecx, DWORD PTR [eax+20]
+  02420	51		 push	 ecx
+  02421	8b 55 0c	 mov	 edx, DWORD PTR _pbd$[ebp]
+  02424	8b 42 10	 mov	 eax, DWORD PTR [edx+16]
+  02427	50		 push	 eax
+  02428	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  0242b	8b 51 0c	 mov	 edx, DWORD PTR [ecx+12]
+  0242e	52		 push	 edx
+  0242f	8b 45 0c	 mov	 eax, DWORD PTR _pbd$[ebp]
+  02432	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  02435	51		 push	 ecx
+  02436	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  02439	52		 push	 edx
+  0243a	e8 00 00 00 00	 call	 _DoIntersect
+  0243f	83 c4 14	 add	 esp, 20			; 00000014H
+  02442	85 c0		 test	 eax, eax
+  02444	74 3a		 je	 SHORT $L37357
+
+; 1150 :             HostRestoreCursor(ppdev, pDstSurfaceData->lfbPtr, _FF(LastCursorPosX), _FF(LastCursorPosY), _FF(HostcursorExclusionStart));
+
+  02446	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  02449	8b 88 a8 04 00
+	00		 mov	 ecx, DWORD PTR [eax+1192]
+  0244f	51		 push	 ecx
+  02450	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  02453	0f bf 82 6e 04
+	00 00		 movsx	 eax, WORD PTR [edx+1134]
+  0245a	50		 push	 eax
+  0245b	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0245e	0f bf 91 6c 04
+	00 00		 movsx	 edx, WORD PTR [ecx+1132]
+  02465	52		 push	 edx
+  02466	8b 45 f8	 mov	 eax, DWORD PTR _pDstSurfaceData$[ebp]
+  02469	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  0246c	51		 push	 ecx
+  0246d	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  02470	52		 push	 edx
+  02471	e8 00 00 00 00	 call	 _HostRestoreCursor
+  02476	83 c4 14	 add	 esp, 20			; 00000014H
+
+; 1151 :             dwDrawCursor = TRUE;
+
+  02479	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _dwDrawCursor$[ebp], 1
+$L37357:
+
+; 1155 : #endif
+; 1156 : 
+; 1157 :    dwReturn = Blt32_SystemToVideo(ppdev, pbd, rop3, srcPixelFormat, pixelByteDepth, dstPixelFormat);
+
+  02480	8b 45 1c	 mov	 eax, DWORD PTR _dstPixelFormat$[ebp]
+  02483	50		 push	 eax
+  02484	8b 4d 18	 mov	 ecx, DWORD PTR _pixelByteDepth$[ebp]
+  02487	51		 push	 ecx
+  02488	8b 55 14	 mov	 edx, DWORD PTR _srcPixelFormat$[ebp]
+  0248b	52		 push	 edx
+  0248c	8b 45 10	 mov	 eax, DWORD PTR _rop3$[ebp]
+  0248f	50		 push	 eax
+  02490	8b 4d 0c	 mov	 ecx, DWORD PTR _pbd$[ebp]
+  02493	51		 push	 ecx
+  02494	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  02497	52		 push	 edx
+  02498	e8 00 00 00 00	 call	 _Blt32_SystemToVideo@24
+  0249d	89 45 f4	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 1158 : 
+; 1159 : #ifndef WINNT
+; 1160 :    if (dwDrawCursor)
+
+  024a0	83 7d fc 00	 cmp	 DWORD PTR _dwDrawCursor$[ebp], 0
+  024a4	74 13		 je	 SHORT $L37358
+
+; 1161 :       HostDrawCursor(ppdev, pDstSurfaceData->lfbPtr);
+
+  024a6	8b 45 f8	 mov	 eax, DWORD PTR _pDstSurfaceData$[ebp]
+  024a9	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  024ac	51		 push	 ecx
+  024ad	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  024b0	52		 push	 edx
+  024b1	e8 00 00 00 00	 call	 _HostDrawCursor
+  024b6	83 c4 08	 add	 esp, 8
+$L37358:
+
+; 1162 : #endif
+; 1163 : 
+; 1164 :    return dwReturn;
+
+  024b9	8b 45 f4	 mov	 eax, DWORD PTR _dwReturn$[ebp]
+
+; 1165 : }
+
+  024bc	8b e5		 mov	 esp, ebp
+  024be	5d		 pop	 ebp
+  024bf	c3		 ret	 0
+_Dd2SampleSystemToVideo ENDP
+_TEXT	ENDS
+END

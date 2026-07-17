@@ -1,0 +1,116 @@
+#
+# Copyright (c) 1996, 3Dfx Interactive, Inc.
+# All Rights Reserved.
+#
+# This is UNPUBLISHED PROPRIETARY SOURCE CODE of 3Dfx Interactive, Inc.;
+# the contents of this file may not be disclosed to third parties, copied or
+# duplicated in any form, in whole or in part, without the prior written
+# permission of 3Dfx Interactive, Inc.
+#
+# RESTRICTED RIGHTS LEGEND:
+# Use, duplication or disclosure by the Government is subject to restrictions
+# as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+# and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+# successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished  -
+# rights reserved under the Copyright Laws of the United States.
+#
+# $Revision: 18 $
+# $Date: 1/27/99 2:56p $
+
+LUA_TOP	= ..\lua
+MDIAG_TOP 	= ..
+ELIBDIR	= vgatst\lib
+GPLIBDIR	= gplay
+
+THISDIR = core
+
+# local defines, options, includes
+LCDEFS  = -DBUILD_DIAGS -DDIAG_BUILD
+LCOPTS  =
+LCINCS  = -I$(BUILD_ROOT_SWLIBS)\include -I$(BUILD_ROOT)\h5\include \
+		-I$(LUA_TOP)\include
+
+!if ("$(FX_TARGET)" == "DOS")
+SUBDIRS = vgatst gplay
+!endif
+
+!if ("$(DEBUG)" != "")
+LCDEFS = $(LCDEFS) -DDEBUG
+!endif
+
+# sources
+CFILES   = main.c errrpt.c pcibrd.c banshee.c init.c mdclua.c misc.c memerr.c \
+		memtst.c pcitst.c builtin.c version.c crc.c lm_ban.c lm_habn.c vgacore.c
+MODULES = $(MODULES) lm_ban lm_habn
+
+# only for DOS, add the glide and BIOS calls!
+!if ("$(FX_TARGET)" == "DOS")
+CFILES = $(CFILES) lm_glde.c lm_bios.c
+MODULES = $(MODULES) lm_glde lm_bios
+!else
+CFILES = $(CFILES) d_win.c lm_habn
+!endif
+
+
+LCDEFS = -DMDC_MODULES="$(MODULES)"
+ 
+# vgamisc.c vbemisc.c rmdgate.c vbedraw.c 
+
+
+PROGRAM = mdc.exe
+GLIDELIB	= 	glide2x.lib
+
+INSTALL_DESTINATION = $(MDIAG_TOP)
+
+LLDLIBS = $(BUILD_ROOT_SWLIBS)\lib\fxpci.lib $(LUA_TOP)\lib\llua.lib \
+		$(LUA_TOP)\lib\luaaux.lib $(BUILD_ROOT)\h5\lib\h3cinit.lib \
+		$(BUILD_ROOT_SWLIBS)\lib\fxmisc.lib
+
+
+!if ("$(FX_TARGET)" == "DOS")
+LLDLIBS = $(LLDLIBS) \
+		$(BUILD_ROOT)\h5\lib\$(GLIDELIB) \
+		$(ELIBDIR)\vgadata.lib \
+		$(ELIBDIR)\ediag.lib \
+		$(ELIBDIR)\ediag1.lib \
+		$(ELIBDIR)\vgacore.lib \
+		$(ELIBDIR)\elib.lib \
+		$(ELIBDIR)\repdev.lib \
+                $(GPLIBDIR)\gplay.lib
+!endif
+
+
+!include $(BUILD_ROOT_SWLIBS)\include\nmake\3dfx.mak
+
+default:: localall mod.def
+
+init.c: mod.def
+
+mod.def: makefile version.c
+	del mod.def
+	for $(VAR)i in ($(MODULES)) DO echo MOD_START($(VAR)i_init) >> mod.def
+
+localall:
+	attrib -r version.c        
+	touch version.c
+	attrib +r version.c
+
+#
+#localall: all install-lua
+#
+#install-lua:
+
+dist: all
+!if EXISTS (export\devel)
+	$(MDIAG_TOP)\btools\lua uniquef.lua
+!endif
+
+# compile a lua file into a c symbol file
+# we need to fix using a compiled lua string.
+
+builtin.luc: builtin.lua
+	$(MDIAG_TOP)\btools\luac -o builtin.luc builtin.lua 	
+
+builtin.c: builtin.lua
+	$(MDIAG_TOP)\btools\lua bytecomp.lua < builtin.lua > builtin.c
+

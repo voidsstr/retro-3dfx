@@ -1,0 +1,1580 @@
+	TITLE	..\power.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+_PTEXT	SEGMENT PARA USE32 PUBLIC 'PCODE'
+_PTEXT	ENDS
+_LTEXT	SEGMENT PARA USE32 PUBLIC 'LCODE'
+_LTEXT	ENDS
+_PDATA	SEGMENT DWORD USE32 PUBLIC 'PDATA'
+_PDATA	ENDS
+_LDATA	SEGMENT DWORD USE32 PUBLIC 'LCODE'
+_LDATA	ENDS
+FLAT	GROUP _DATA, CONST, _BSS, _PDATA, _LDATA
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+PUBLIC	_AdapterReturnState
+PUBLIC	_MonitorReturnState
+PUBLIC	_DacModeState
+PUBLIC	_VidProcCfgState
+PUBLIC	_PowerRegOffset
+PUBLIC	_PowerPCIOffset
+_PDATA	SEGMENT
+_PowerRegOffset DD 01cH
+	DD	018H
+	DD	010H
+	DD	034H
+	DD	014H
+	DD	020H
+	DD	044H
+	DD	048H
+	DD	04H
+	DD	024H
+	DD	028H
+	DD	02cH
+_PowerPCIOffset DD 010H
+	DD	014H
+	DD	018H
+	DD	04H
+	DD	048H
+_PDATA	ENDS
+_LDATA	SEGMENT
+_AdapterReturnState DD 01H
+	DD	01H
+	DD	01H
+	DD	01H
+	DD	01H
+	DD	01H
+	DD	01H
+	DD	01H
+	DD	01H
+_MonitorReturnState DD 01H
+	DD	00H
+	DD	00H
+	DD	01H
+	DD	00H
+	DD	01H
+	DD	01H
+	DD	01H
+	DD	00H
+_DacModeState DB 00H
+	DB	00H
+	DB	08H
+	DB	00H
+	DB	02H
+	DB	00H
+	DB	00H
+	DB	00H
+	DB	0aH
+	ORG $+3
+_VidProcCfgState DB 00H
+	DB	01H
+	DB	00H
+	DB	00H
+	DB	00H
+	DB	00H
+	DB	00H
+	DB	00H
+	DB	00H
+_LDATA	ENDS
+PUBLIC	_our_inp
+_LTEXT	SEGMENT
+_Addr$ = 8
+_dwReturn$ = -4
+_our_inp PROC NEAR
+
+; 347  : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	51		 push	 ecx
+
+; 348  :    DWORD dwReturn;
+; 349  : 
+; 350  :    _asm {mov   edx, Addr}
+
+  00004	8b 55 08	 mov	 edx, DWORD PTR _Addr$[ebp]
+
+; 351  :    _asm {xor   eax, eax}
+
+  00007	33 c0		 xor	 eax, eax
+
+; 352  :    _asm {in    al, dx}
+
+  00009	ec		 in	 al, dx
+
+; 353  :    _asm {mov   dwReturn, eax}
+
+  0000a	89 45 fc	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 354  : 
+; 355  :    return dwReturn;
+
+  0000d	8b 45 fc	 mov	 eax, DWORD PTR _dwReturn$[ebp]
+
+; 356  : }
+
+  00010	8b e5		 mov	 esp, ebp
+  00012	5d		 pop	 ebp
+  00013	c3		 ret	 0
+_our_inp ENDP
+_LTEXT	ENDS
+PUBLIC	_our_outp
+_LTEXT	SEGMENT
+_addr$ = 8
+_dwData$ = 12
+_our_outp PROC NEAR
+
+; 369  : {
+
+  00020	55		 push	 ebp
+  00021	8b ec		 mov	 ebp, esp
+
+; 370  :    _asm {mov   edx, addr}
+
+  00023	8b 55 08	 mov	 edx, DWORD PTR _addr$[ebp]
+
+; 371  :    _asm {mov   eax, dwData}
+
+  00026	8b 45 0c	 mov	 eax, DWORD PTR _dwData$[ebp]
+
+; 372  :    _asm {out   dx, al}
+
+  00029	ee		 out	 dx, al
+
+; 373  : }
+
+  0002a	5d		 pop	 ebp
+  0002b	c3		 ret	 0
+_our_outp ENDP
+_LTEXT	ENDS
+PUBLIC	_GetAdapterPowerStateCaps
+_LTEXT	SEGMENT
+_GetAdapterPowerStateCaps PROC NEAR
+
+; 417  :   return (CM_POWERSTATE_D0 | CM_POWERSTATE_D3 | CM_POWERSTATE_HIBERNATE );
+
+  00030	b8 19 00 00 00	 mov	 eax, 25			; 00000019H
+
+; 418  : }
+
+  00035	c3		 ret	 0
+_GetAdapterPowerStateCaps ENDP
+_LTEXT	ENDS
+PUBLIC	_GetMonitorPowerStateCaps
+_LTEXT	SEGMENT
+_GetMonitorPowerStateCaps PROC NEAR
+
+; 432  :    return CM_ALLSTATE;
+
+  00040	b8 0f 00 00 00	 mov	 eax, 15			; 0000000fH
+
+; 433  : }
+
+  00045	c3		 ret	 0
+_GetMonitorPowerStateCaps ENDP
+_LTEXT	ENDS
+PUBLIC	_SavePowerRegs
+PUBLIC	_RestorePowerRegs
+PUBLIC	_SetAdapterPowerState
+EXTRN	_FindPDEVFromDevNodeandUnitNum:NEAR
+EXTRN	_DevNodeandUnitNumtoIORegs:NEAR
+EXTRN	_h3InitVga:NEAR
+EXTRN	_h3InitSetVideoMode:NEAR
+EXTRN	_WaitTime:NEAR
+_LTEXT	SEGMENT
+_devnode$ = 8
+_PowerState$ = 12
+_dwUnitNum$ = 16
+_index$ = -12
+_vgaInit0$ = -8
+_iRet$ = -4
+_SetAdapterPowerState PROC NEAR
+
+; 476  : {
+
+  00050	83 ec 0c	 sub	 esp, 12			; 0000000cH
+  00053	53		 push	 ebx
+
+; 477  : #ifdef SLI_AA
+; 478  :    PDEVTABLE pDev = FindPDEVFromDevNodeandUnitNum(devnode, dwUnitNum);
+
+  00054	8b 5c 24 14	 mov	 ebx, DWORD PTR _devnode$[esp+12]
+  00058	55		 push	 ebp
+  00059	56		 push	 esi
+  0005a	57		 push	 edi
+  0005b	8b 7c 24 28	 mov	 edi, DWORD PTR _dwUnitNum$[esp+24]
+  0005f	57		 push	 edi
+  00060	53		 push	 ebx
+  00061	e8 00 00 00 00	 call	 _FindPDEVFromDevNodeandUnitNum
+
+; 479  :    SstIORegs *lpIORegs = DevNodeandUnitNumtoIORegs(devnode, dwUnitNum);
+
+  00066	57		 push	 edi
+  00067	53		 push	 ebx
+  00068	8b f0		 mov	 esi, eax
+  0006a	e8 00 00 00 00	 call	 _DevNodeandUnitNumtoIORegs
+  0006f	8b d8		 mov	 ebx, eax
+
+; 480  : #else
+; 481  :    PDEVTABLE pDev = FindPDEVFromDevNode(devnode);
+; 482  :    SstIORegs *lpIORegs = DevNodetoIORegs(devnode);
+; 483  : #endif
+; 484  :    int i;
+; 485  :    DWORD addr;
+; 486  :    DWORD index;
+; 487  :    DWORD vgaInit0;
+; 488  :    DWORD DoInit0;
+; 489  :    DWORD iRet = CR_SUCCESS;
+; 490  : 
+; 491  : 
+; 492  : //   if (PowerState > sizeof(AdapterReturnState)/sizeof(DWORD))
+; 493  : //      return CR_DEFAULT;
+; 494  : 
+; 495  :    // wait until we are idle
+; 496  :    // if old state was 1 then we must be going to a lower power state
+; 497  :    if (CM_POWERSTATE_D0 == pDev->bPowerState)
+
+  00071	8a 86 19 03 00
+	00		 mov	 al, BYTE PTR [esi+793]
+  00077	83 c4 10	 add	 esp, 16			; 00000010H
+  0007a	3c 01		 cmp	 al, 1
+  0007c	c7 44 24 18 00
+	00 00 00	 mov	 DWORD PTR _iRet$[esp+28], 0
+  00084	75 0e		 jne	 SHORT $L11323
+
+; 498  :       while (lpIORegs->status & SST_BUSY)
+
+  00086	8b 03		 mov	 eax, DWORD PTR [ebx]
+  00088	f6 c4 02	 test	 ah, 2
+  0008b	74 07		 je	 SHORT $L11323
+$L11322:
+  0008d	8b 03		 mov	 eax, DWORD PTR [ebx]
+  0008f	f6 c4 02	 test	 ah, 2
+  00092	75 f9		 jne	 SHORT $L11322
+$L11323:
+
+; 499  :          ;
+; 500  : 
+; 501  :    if (CM_POWERSTATE_D3 == PowerState || CM_POWERSTATE_HIBERNATE == PowerState)
+
+  00094	8b 44 24 24	 mov	 eax, DWORD PTR _PowerState$[esp+24]
+  00098	83 f8 08	 cmp	 eax, 8
+  0009b	74 09		 je	 SHORT $L11325
+  0009d	83 f8 10	 cmp	 eax, 16			; 00000010H
+  000a0	0f 85 a3 00 00
+	00		 jne	 $L11324
+$L11325:
+
+; 502  :       {
+; 503  :       SavePowerRegs(pDev, (PBYTE)lpIORegs);
+
+  000a6	53		 push	 ebx
+  000a7	56		 push	 esi
+  000a8	e8 00 00 00 00	 call	 _SavePowerRegs
+
+; 504  :       DoInit0 = vgaInit0 = lpIORegs->vgaInit0;
+
+  000ad	8b 43 28	 mov	 eax, DWORD PTR [ebx+40]
+  000b0	89 44 24 1c	 mov	 DWORD PTR _vgaInit0$[esp+36], eax
+
+; 505  :       DoInit0 |= SST_VGA0_EXTENSIONS;
+
+  000b4	0c 40		 or	 al, 64			; 00000040H
+
+; 506  :       lpIORegs->vgaInit0 = DoInit0;
+
+  000b6	89 43 28	 mov	 DWORD PTR [ebx+40], eax
+
+; 507  :       addr = (our_inp(pDev->IoBase + 0xCC) & 0x01) ? pDev->IoBase + 0xD4 : pDev->IoBase + 0xB4;
+
+  000b9	8b be 84 00 00
+	00		 mov	 edi, DWORD PTR [esi+132]
+  000bf	8d 87 cc 00 00
+	00		 lea	 eax, DWORD PTR [edi+204]
+  000c5	50		 push	 eax
+  000c6	e8 00 00 00 00	 call	 _our_inp
+  000cb	83 c4 0c	 add	 esp, 12			; 0000000cH
+  000ce	8d af d4 00 00
+	00		 lea	 ebp, DWORD PTR [edi+212]
+  000d4	a8 01		 test	 al, 1
+  000d6	75 06		 jne	 SHORT $L11477
+  000d8	8d af b4 00 00
+	00		 lea	 ebp, DWORD PTR [edi+180]
+$L11477:
+
+; 508  :       index = our_inp(addr);
+
+  000de	55		 push	 ebp
+  000df	e8 00 00 00 00	 call	 _our_inp
+  000e4	89 44 24 14	 mov	 DWORD PTR _index$[esp+32], eax
+
+; 509  :       for (i=0; i<4; i++)
+
+  000e8	b8 00 fd ff ff	 mov	 eax, -768		; fffffd00H
+  000ed	b9 e4 fc ff ff	 mov	 ecx, -796		; fffffce4H
+  000f2	83 c4 04	 add	 esp, 4
+  000f5	2b c6		 sub	 eax, esi
+  000f7	2b ce		 sub	 ecx, esi
+  000f9	8d be 1c 03 00
+	00		 lea	 edi, DWORD PTR [esi+796]
+  000ff	89 44 24 28	 mov	 DWORD PTR 16+[esp+24], eax
+  00103	89 4c 24 20	 mov	 DWORD PTR 8+[esp+24], ecx
+  00107	eb 04		 jmp	 SHORT $L11327
+$L11487:
+
+; 508  :       index = our_inp(addr);
+
+  00109	8b 44 24 28	 mov	 eax, DWORD PTR 16+[esp+24]
+$L11327:
+
+; 510  :          {
+; 511  :          our_outp(addr, 0x1C + i);
+
+  0010d	03 c7		 add	 eax, edi
+  0010f	50		 push	 eax
+  00110	55		 push	 ebp
+  00111	e8 00 00 00 00	 call	 _our_outp
+
+; 512  :          pDev->bScratchPad[i] = (BYTE)our_inp(addr+1);
+
+  00116	8d 45 01	 lea	 eax, DWORD PTR [ebp+1]
+  00119	50		 push	 eax
+  0011a	e8 00 00 00 00	 call	 _our_inp
+  0011f	8b 4c 24 2c	 mov	 ecx, DWORD PTR 8+[esp+36]
+  00123	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00126	88 07		 mov	 BYTE PTR [edi], al
+  00128	47		 inc	 edi
+  00129	03 cf		 add	 ecx, edi
+  0012b	83 f9 04	 cmp	 ecx, 4
+  0012e	7c d9		 jl	 SHORT $L11487
+
+; 513  :          }
+; 514  :       our_outp(addr, index);
+
+  00130	8b 54 24 10	 mov	 edx, DWORD PTR _index$[esp+28]
+  00134	52		 push	 edx
+  00135	55		 push	 ebp
+  00136	e8 00 00 00 00	 call	 _our_outp
+
+; 515  :       lpIORegs->vgaInit0 = vgaInit0;
+
+  0013b	8b 44 24 1c	 mov	 eax, DWORD PTR _vgaInit0$[esp+36]
+  0013f	83 c4 08	 add	 esp, 8
+  00142	89 43 28	 mov	 DWORD PTR [ebx+40], eax
+  00145	8b 44 24 24	 mov	 eax, DWORD PTR _PowerState$[esp+24]
+$L11324:
+
+; 516  :       }
+; 517  : 
+; 518  : 
+; 519  :    if (CM_POWERSTATE_D0 == PowerState)
+
+  00149	83 f8 01	 cmp	 eax, 1
+  0014c	0f 85 f8 00 00
+	00		 jne	 $L11484
+
+; 520  :       {
+; 521  :    	
+; 522  :    	  // initialize h3 hardware
+; 523  :    	
+; 524  :       if(CM_POWERSTATE_D3 == pDev->bPowerState) 
+
+  00152	80 be 19 03 00
+	00 08		 cmp	 BYTE PTR [esi+793], 8
+  00159	75 08		 jne	 SHORT $L11332
+
+; 525  :       	iRet = CR_DEFAULT;
+
+  0015b	c7 44 24 18 01
+	00 00 00	 mov	 DWORD PTR _iRet$[esp+28], 1
+$L11332:
+
+; 526  : 
+; 527  :       RestorePowerRegs(pDev, (PBYTE)lpIORegs);
+
+  00163	53		 push	 ebx
+  00164	56		 push	 esi
+  00165	e8 00 00 00 00	 call	 _RestorePowerRegs
+
+; 528  :       DoInit0 = vgaInit0 = lpIORegs->vgaInit0;
+
+  0016a	8b 43 28	 mov	 eax, DWORD PTR [ebx+40]
+  0016d	89 44 24 1c	 mov	 DWORD PTR _vgaInit0$[esp+36], eax
+
+; 529  :       DoInit0 |= SST_VGA0_EXTENSIONS;
+
+  00171	0c 40		 or	 al, 64			; 00000040H
+
+; 530  :       lpIORegs->vgaInit0 = DoInit0;
+
+  00173	89 43 28	 mov	 DWORD PTR [ebx+40], eax
+
+; 531  :       addr = pDev->IoBase;
+
+  00176	8b ae 84 00 00
+	00		 mov	 ebp, DWORD PTR [esi+132]
+
+; 532  :       // Hit 3c3
+; 533  :       our_outp(addr + 0xc3, 0x01);
+
+  0017c	6a 01		 push	 1
+  0017e	8d 8d c3 00 00
+	00		 lea	 ecx, DWORD PTR [ebp+195]
+  00184	51		 push	 ecx
+  00185	e8 00 00 00 00	 call	 _our_outp
+
+; 534  :       // Hit Misc Output
+; 535  :       our_outp(addr + 0xc2, 0x01);
+
+  0018a	8d 95 c2 00 00
+	00		 lea	 edx, DWORD PTR [ebp+194]
+  00190	6a 01		 push	 1
+  00192	52		 push	 edx
+  00193	e8 00 00 00 00	 call	 _our_outp
+
+; 536  :       addr = pDev->IoBase + 0xD4;
+
+  00198	81 c5 d4 00 00
+	00		 add	 ebp, 212		; 000000d4H
+
+; 537  :       index = our_inp(addr);
+
+  0019e	55		 push	 ebp
+  0019f	e8 00 00 00 00	 call	 _our_inp
+  001a4	89 44 24 2c	 mov	 DWORD PTR _index$[esp+56], eax
+
+; 538  :       for (i=0; i<4; i++)
+
+  001a8	b8 00 fd ff ff	 mov	 eax, -768		; fffffd00H
+  001ad	b9 e4 fc ff ff	 mov	 ecx, -796		; fffffce4H
+  001b2	83 c4 1c	 add	 esp, 28			; 0000001cH
+  001b5	2b c6		 sub	 eax, esi
+  001b7	2b ce		 sub	 ecx, esi
+  001b9	8d be 1c 03 00
+	00		 lea	 edi, DWORD PTR [esi+796]
+  001bf	89 44 24 28	 mov	 DWORD PTR 16+[esp+24], eax
+  001c3	89 4c 24 20	 mov	 DWORD PTR 8+[esp+24], ecx
+  001c7	eb 04		 jmp	 SHORT $L11334
+$L11485:
+
+; 526  : 
+; 527  :       RestorePowerRegs(pDev, (PBYTE)lpIORegs);
+
+  001c9	8b 44 24 28	 mov	 eax, DWORD PTR 16+[esp+24]
+$L11334:
+
+; 539  :          {
+; 540  :          our_outp(addr, 0x1C + i);
+
+  001cd	03 c7		 add	 eax, edi
+  001cf	50		 push	 eax
+  001d0	55		 push	 ebp
+  001d1	e8 00 00 00 00	 call	 _our_outp
+
+; 541  :          our_outp(addr+1, (DWORD)pDev->bScratchPad[i]);
+
+  001d6	33 c9		 xor	 ecx, ecx
+  001d8	8d 45 01	 lea	 eax, DWORD PTR [ebp+1]
+  001db	8a 0f		 mov	 cl, BYTE PTR [edi]
+  001dd	51		 push	 ecx
+  001de	50		 push	 eax
+  001df	e8 00 00 00 00	 call	 _our_outp
+  001e4	8b 54 24 30	 mov	 edx, DWORD PTR 8+[esp+40]
+  001e8	83 c4 10	 add	 esp, 16			; 00000010H
+  001eb	47		 inc	 edi
+  001ec	8d 04 17	 lea	 eax, DWORD PTR [edi+edx]
+  001ef	83 f8 04	 cmp	 eax, 4
+  001f2	7c d5		 jl	 SHORT $L11485
+
+; 542  :          }
+; 543  :       our_outp(addr, index);
+
+  001f4	8b 4c 24 10	 mov	 ecx, DWORD PTR _index$[esp+28]
+  001f8	51		 push	 ecx
+  001f9	55		 push	 ebp
+  001fa	e8 00 00 00 00	 call	 _our_outp
+
+; 544  :       lpIORegs->vgaInit0 = vgaInit0;
+
+  001ff	8b 54 24 1c	 mov	 edx, DWORD PTR _vgaInit0$[esp+36]
+  00203	83 c4 08	 add	 esp, 8
+  00206	89 53 28	 mov	 DWORD PTR [ebx+40], edx
+
+; 545  : 
+; 546  :       // Need to put a check in here to see if this is the VGA
+; 547  :       if (!(pDev->DispInfo.diInfoFlags & DEVICE_IS_NOT_VGA))
+
+  00209	f6 86 c7 01 00
+	00 08		 test	 BYTE PTR [esi+455], 8
+  00210	75 11		 jne	 SHORT $L11338
+
+; 548  :          h3InitVga(pDev->IoBase, 1);	 // enable VGA decode
+
+  00212	8b 86 84 00 00
+	00		 mov	 eax, DWORD PTR [esi+132]
+  00218	6a 01		 push	 1
+  0021a	50		 push	 eax
+  0021b	e8 00 00 00 00	 call	 _h3InitVga
+  00220	83 c4 08	 add	 esp, 8
+$L11338:
+
+; 549  : 
+; 550  :       // The next two lines were added so DDC would not fail
+; 551  :       // when returning from Low Power Mode
+; 552  :       // The mode does not matter cause we will change it latter on to
+; 553  :       // the right mode
+; 554  :       // This mode should work on every monitor in the world so if
+; 555  :       // the monitor was changed during Low Power Mode we should be ok
+; 556  :       h3InitSetVideoMode(pDev, 640, 480, 60, 1, 0);
+
+  00223	6a 00		 push	 0
+  00225	6a 01		 push	 1
+  00227	6a 3c		 push	 60			; 0000003cH
+  00229	68 e0 01 00 00	 push	 480			; 000001e0H
+  0022e	68 80 02 00 00	 push	 640			; 00000280H
+  00233	56		 push	 esi
+  00234	e8 00 00 00 00	 call	 _h3InitSetVideoMode
+
+; 557  :       // Wait 3/4 second for monitor to sync
+; 558  :       WaitTime(750000000);      
+
+  00239	68 80 17 b4 2c	 push	 750000000		; 2cb41780H
+  0023e	e8 00 00 00 00	 call	 _WaitTime
+
+; 559  :       }
+; 560  : 
+; 561  :    	pDev->bPowerState = (BYTE)PowerState;
+
+  00243	8a 44 24 40	 mov	 al, BYTE PTR _PowerState$[esp+52]
+  00247	83 c4 1c	 add	 esp, 28			; 0000001cH
+$L11484:
+  0024a	88 86 19 03 00
+	00		 mov	 BYTE PTR [esi+793], al
+
+; 562  : 
+; 563  : 	return iRet;
+
+  00250	8b 44 24 18	 mov	 eax, DWORD PTR _iRet$[esp+28]
+  00254	5f		 pop	 edi
+  00255	5e		 pop	 esi
+  00256	5d		 pop	 ebp
+  00257	5b		 pop	 ebx
+
+; 564  : 
+; 565  : //   return AdapterReturnState[PowerState];
+; 566  : }
+
+  00258	83 c4 0c	 add	 esp, 12			; 0000000cH
+  0025b	c3		 ret	 0
+_SetAdapterPowerState ENDP
+_LTEXT	ENDS
+PUBLIC	_SetMonitorPowerState
+_LTEXT	SEGMENT
+_devnode$ = 8
+_PowerState$ = 12
+_dwUnitNum$ = 16
+_NewState$ = 16
+_SetMonitorPowerState PROC NEAR
+
+; 635  : {
+
+  00260	53		 push	 ebx
+
+; 636  : #ifdef SLI_AA
+; 637  :    PDEVTABLE pDev = FindPDEVFromDevNodeandUnitNum(devnode, dwUnitNum);
+
+  00261	8b 5c 24 08	 mov	 ebx, DWORD PTR _devnode$[esp]
+  00265	56		 push	 esi
+  00266	8b 74 24 14	 mov	 esi, DWORD PTR _dwUnitNum$[esp+4]
+  0026a	57		 push	 edi
+  0026b	56		 push	 esi
+  0026c	53		 push	 ebx
+  0026d	e8 00 00 00 00	 call	 _FindPDEVFromDevNodeandUnitNum
+
+; 638  :    SstIORegs *lpIORegs = DevNodeandUnitNumtoIORegs(devnode, dwUnitNum);
+
+  00272	56		 push	 esi
+  00273	53		 push	 ebx
+  00274	8b f8		 mov	 edi, eax
+  00276	e8 00 00 00 00	 call	 _DevNodeandUnitNumtoIORegs
+
+; 639  : #else
+; 640  :    PDEVTABLE pDev = FindPDEVFromDevNode(devnode);
+; 641  :    SstIORegs *lpIORegs = DevNodetoIORegs(devnode);
+; 642  : #endif
+; 643  :    FxU32 dwData;
+; 644  :    BYTE NewState;
+; 645  : 
+; 646  :    if (PowerState > sizeof(MonitorReturnState)/sizeof(DWORD))
+
+  0027b	8b 54 24 24	 mov	 edx, DWORD PTR _PowerState$[esp+24]
+  0027f	83 c4 10	 add	 esp, 16			; 00000010H
+  00282	83 fa 09	 cmp	 edx, 9
+  00285	76 09		 jbe	 SHORT $L11360
+  00287	5f		 pop	 edi
+  00288	5e		 pop	 esi
+
+; 647  :       return CR_DEFAULT;
+
+  00289	b8 01 00 00 00	 mov	 eax, 1
+  0028e	5b		 pop	 ebx
+
+; 679  : }
+
+  0028f	c3		 ret	 0
+$L11360:
+
+; 648  : 
+; 649  :    // This works if we are set the Video Processor up correctly
+; 650  :    NewState = VidProcCfgState[PowerState];
+; 651  : 
+; 652  :    // Save the old state of Video Proc Enable since we need it when we restore
+; 653  :    // or fixup the NewState if we are going into D0
+; 654  :    if (CM_POWERSTATE_D0 == pDev->bMonitorState)
+
+  00290	8a 8f 1a 03 00
+	00		 mov	 cl, BYTE PTR [edi+794]
+  00296	8a 9a 00 00 00
+	00		 mov	 bl, BYTE PTR _VidProcCfgState[edx]
+  0029c	80 f9 01	 cmp	 cl, 1
+  0029f	88 5c 24 18	 mov	 BYTE PTR _NewState$[esp+8], bl
+  002a3	75 11		 jne	 SHORT $L11362
+
+; 655  :       {
+; 656  :       if (CM_POWERSTATE_D0 != PowerState)
+
+  002a5	83 fa 01	 cmp	 edx, 1
+  002a8	74 11		 je	 SHORT $L11489
+
+; 657  :          {
+; 658  :          dwData = lpIORegs->vidProcCfg;
+
+  002aa	8b 48 5c	 mov	 ecx, DWORD PTR [eax+92]
+
+; 659  :          pDev->bVideoProcEn = (BYTE)(dwData & SST_VIDEO_PROCESSOR_EN);
+
+  002ad	80 e1 01	 and	 cl, 1
+  002b0	88 8f 1b 03 00
+	00		 mov	 BYTE PTR [edi+795], cl
+$L11362:
+
+; 660  :          }
+; 661  :       }
+; 662  :    
+; 663  :    if (CM_POWERSTATE_D0 == PowerState)
+
+  002b6	83 fa 01	 cmp	 edx, 1
+  002b9	75 0a		 jne	 SHORT $L11364
+$L11489:
+
+; 664  :       NewState = NewState & pDev->bVideoProcEn;
+
+  002bb	22 9f 1b 03 00
+	00		 and	 bl, BYTE PTR [edi+795]
+  002c1	88 5c 24 18	 mov	 BYTE PTR _NewState$[esp+8], bl
+$L11364:
+
+; 665  : 
+; 666  :    dwData = lpIORegs->vidProcCfg;
+
+  002c5	8b 48 5c	 mov	 ecx, DWORD PTR [eax+92]
+
+; 667  :    dwData = (dwData & ~(SST_VIDEO_PROCESSOR_EN)) | NewState;
+; 668  :    lpIORegs->vidProcCfg = dwData;
+
+  002c8	8b 74 24 18	 mov	 esi, DWORD PTR _NewState$[esp+8]
+  002cc	83 e1 fe	 and	 ecx, -2			; fffffffeH
+  002cf	81 e6 ff 00 00
+	00		 and	 esi, 255		; 000000ffH
+  002d5	0b ce		 or	 ecx, esi
+  002d7	89 48 5c	 mov	 DWORD PTR [eax+92], ecx
+
+; 669  : 
+; 670  :    // Set DacMode
+; 671  :    NewState = DacModeState[PowerState];
+; 672  :    dwData = lpIORegs->dacMode;
+
+  002da	8b 70 4c	 mov	 esi, DWORD PTR [eax+76]
+
+; 673  :    dwData = (dwData & ~(DPMS_BITS)) | NewState;
+; 674  :    lpIORegs->dacMode = dwData;
+
+  002dd	33 c9		 xor	 ecx, ecx
+  002df	83 e6 e1	 and	 esi, -31		; ffffffe1H
+  002e2	8a 8a 00 00 00
+	00		 mov	 cl, BYTE PTR _DacModeState[edx]
+  002e8	0b ce		 or	 ecx, esi
+  002ea	89 48 4c	 mov	 DWORD PTR [eax+76], ecx
+
+; 675  : 
+; 676  :    // Keep track of what state we are in for restoration
+; 677  :    pDev->bMonitorState = (BYTE)PowerState;
+; 678  :    return MonitorReturnState[PowerState];
+
+  002ed	8b 04 95 00 00
+	00 00		 mov	 eax, DWORD PTR _MonitorReturnState[edx*4]
+  002f4	88 97 1a 03 00
+	00		 mov	 BYTE PTR [edi+794], dl
+  002fa	5f		 pop	 edi
+  002fb	5e		 pop	 esi
+  002fc	5b		 pop	 ebx
+
+; 679  : }
+
+  002fd	c3		 ret	 0
+_SetMonitorPowerState ENDP
+_LTEXT	ENDS
+PUBLIC	_SavePCISpace
+EXTRN	_PCI_Read_Config:NEAR
+EXTRN	_PCI_Write_Config:NEAR
+_LTEXT	SEGMENT
+_pDev$ = 8
+_SavePCISpace PROC NEAR
+
+; 691  : {
+
+  00300	53		 push	 ebx
+  00301	56		 push	 esi
+  00302	57		 push	 edi
+
+; 692  :    int i;
+; 693  : 
+; 694  :    for (i=0; i<POWERPCISIZE; i++)
+; 695  :       pDev->PCISaveSpace[i] = PCI_Read_Config(pDev->dwBus, pDev->dwDevFunc, PowerPCIOffset[i]);
+
+  00303	8b 7c 24 10	 mov	 edi, DWORD PTR _pDev$[esp+8]
+  00307	be 00 00 00 00	 mov	 esi, OFFSET FLAT:_PowerPCIOffset
+  0030c	8d 5f 34	 lea	 ebx, DWORD PTR [edi+52]
+$L11371:
+  0030f	8b 06		 mov	 eax, DWORD PTR [esi]
+  00311	8b 4f 0c	 mov	 ecx, DWORD PTR [edi+12]
+  00314	8b 57 08	 mov	 edx, DWORD PTR [edi+8]
+  00317	50		 push	 eax
+  00318	51		 push	 ecx
+  00319	52		 push	 edx
+  0031a	e8 00 00 00 00	 call	 _PCI_Read_Config
+  0031f	89 03		 mov	 DWORD PTR [ebx], eax
+  00321	83 c6 04	 add	 esi, 4
+  00324	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00327	83 c3 04	 add	 ebx, 4
+  0032a	81 fe 14 00 00
+	00		 cmp	 esi, OFFSET FLAT:_PowerPCIOffset+20
+  00330	7c dd		 jl	 SHORT $L11371
+
+; 696  : 
+; 697  :    // Turn off All Access
+; 698  :    PCI_Write_Config(pDev->dwBus, pDev->dwDevFunc, SST_PCI_COMMAND_ID, 0x0);
+
+  00332	8b 77 0c	 mov	 esi, DWORD PTR [edi+12]
+  00335	8b 7f 08	 mov	 edi, DWORD PTR [edi+8]
+  00338	6a 00		 push	 0
+  0033a	6a 04		 push	 4
+  0033c	56		 push	 esi
+  0033d	57		 push	 edi
+  0033e	e8 00 00 00 00	 call	 _PCI_Write_Config
+
+; 699  : 
+; 700  :    // Power Down
+; 701  :    PCI_Write_Config(pDev->dwBus, pDev->dwDevFunc, SST_PCI_ACPI_CTL, 0x03);
+
+  00343	6a 03		 push	 3
+  00345	6a 64		 push	 100			; 00000064H
+  00347	56		 push	 esi
+  00348	57		 push	 edi
+  00349	e8 00 00 00 00	 call	 _PCI_Write_Config
+  0034e	83 c4 20	 add	 esp, 32			; 00000020H
+  00351	5f		 pop	 edi
+  00352	5e		 pop	 esi
+  00353	5b		 pop	 ebx
+
+; 702  : }
+
+  00354	c3		 ret	 0
+_SavePCISpace ENDP
+_LTEXT	ENDS
+PUBLIC	_RestorePCISpace
+_LTEXT	SEGMENT
+_pDev$ = 8
+_cfgInitEnable$ = 8
+_RestorePCISpace PROC NEAR
+
+; 712  : {
+
+  00360	53		 push	 ebx
+  00361	55		 push	 ebp
+
+; 713  :    FxU32 cfgInitEnable;
+; 714  :    int i;
+; 715  : 
+; 716  :    // Turn on Park me anywhere
+; 717  :    cfgInitEnable = PCI_Read_Config(pDev->dwBus, pDev->dwDevFunc, CFG_INIT_ENABLE);
+
+  00362	8b 6c 24 0c	 mov	 ebp, DWORD PTR _pDev$[esp+4]
+  00366	56		 push	 esi
+  00367	57		 push	 edi
+  00368	6a 40		 push	 64			; 00000040H
+  0036a	8b 75 0c	 mov	 esi, DWORD PTR [ebp+12]
+  0036d	8b 7d 08	 mov	 edi, DWORD PTR [ebp+8]
+  00370	56		 push	 esi
+  00371	57		 push	 edi
+  00372	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00377	89 44 24 20	 mov	 DWORD PTR _cfgInitEnable$[esp+24], eax
+
+; 718  :    PCI_Write_Config(pDev->dwBus, pDev->dwDevFunc, CFG_INIT_ENABLE, cfgInitEnable | CFG_UPDATE_MEMBASE_LSBS);
+
+  0037b	80 cc 04	 or	 ah, 4
+  0037e	50		 push	 eax
+  0037f	6a 40		 push	 64			; 00000040H
+  00381	56		 push	 esi
+  00382	57		 push	 edi
+  00383	e8 00 00 00 00	 call	 _PCI_Write_Config
+
+; 719  : 
+; 720  :    // Power Up
+; 721  :    PCI_Write_Config(pDev->dwBus, pDev->dwDevFunc, SST_PCI_ACPI_CTL, 0x00);
+
+  00388	6a 00		 push	 0
+  0038a	6a 64		 push	 100			; 00000064H
+  0038c	56		 push	 esi
+  0038d	57		 push	 edi
+  0038e	e8 00 00 00 00	 call	 _PCI_Write_Config
+  00393	83 c4 2c	 add	 esp, 44			; 0000002cH
+  00396	bb 00 00 00 00	 mov	 ebx, OFFSET FLAT:_PowerPCIOffset
+  0039b	83 c5 34	 add	 ebp, 52			; 00000034H
+$L11380:
+
+; 722  : 
+; 723  :    //Restore
+; 724  :    for (i=0; i<POWERPCISIZE; i++)
+; 725  :       PCI_Write_Config(pDev->dwBus, pDev->dwDevFunc, PowerPCIOffset[i], pDev->PCISaveSpace[i]);
+
+  0039e	8b 45 00	 mov	 eax, DWORD PTR [ebp]
+  003a1	8b 0b		 mov	 ecx, DWORD PTR [ebx]
+  003a3	50		 push	 eax
+  003a4	51		 push	 ecx
+  003a5	56		 push	 esi
+  003a6	57		 push	 edi
+  003a7	e8 00 00 00 00	 call	 _PCI_Write_Config
+  003ac	83 c3 04	 add	 ebx, 4
+  003af	83 c4 10	 add	 esp, 16			; 00000010H
+  003b2	83 c5 04	 add	 ebp, 4
+  003b5	81 fb 14 00 00
+	00		 cmp	 ebx, OFFSET FLAT:_PowerPCIOffset+20
+  003bb	7c e1		 jl	 SHORT $L11380
+
+; 726  : 
+; 727  :    // Turn off Park me anywhere
+; 728  :    PCI_Write_Config(pDev->dwBus, pDev->dwDevFunc, CFG_INIT_ENABLE, cfgInitEnable);
+
+  003bd	8b 54 24 14	 mov	 edx, DWORD PTR _cfgInitEnable$[esp+12]
+  003c1	52		 push	 edx
+  003c2	6a 40		 push	 64			; 00000040H
+  003c4	56		 push	 esi
+  003c5	57		 push	 edi
+  003c6	e8 00 00 00 00	 call	 _PCI_Write_Config
+  003cb	83 c4 10	 add	 esp, 16			; 00000010H
+  003ce	5f		 pop	 edi
+  003cf	5e		 pop	 esi
+  003d0	5d		 pop	 ebp
+  003d1	5b		 pop	 ebx
+
+; 729  : }
+
+  003d2	c3		 ret	 0
+_RestorePCISpace ENDP
+_LTEXT	ENDS
+PUBLIC	_SetMasterAdapterPowerState
+EXTRN	_ClearBusyBit:NEAR
+EXTRN	_SetBusyBit:NEAR
+EXTRN	_FindPDEVFromDevNode:NEAR
+_LTEXT	SEGMENT
+_devnode$ = 8
+_PowerState$ = 12
+_SetMasterAdapterPowerState PROC NEAR
+
+; 742  : {
+
+  003e0	51		 push	 ecx
+
+; 743  :    PDEVTABLE pDev = FindPDEVFromDevNode(devnode);
+
+  003e1	8b 44 24 08	 mov	 eax, DWORD PTR _devnode$[esp]
+  003e5	55		 push	 ebp
+  003e6	56		 push	 esi
+  003e7	57		 push	 edi
+  003e8	50		 push	 eax
+  003e9	e8 00 00 00 00	 call	 _FindPDEVFromDevNode
+
+; 744  :    PDEVTABLE pSlave;
+; 745  : 
+; 746  :    // All we need to save/restore for the Master is CFG_PCI_DECODE
+; 747  :    if (IS_NAPALM(pDev->dwVendorDeviceID))
+
+  003ee	8b 6c 24 1c	 mov	 ebp, DWORD PTR _PowerState$[esp+16]
+  003f2	8b f8		 mov	 edi, eax
+  003f4	83 c4 04	 add	 esp, 4
+  003f7	8b 47 04	 mov	 eax, DWORD PTR [edi+4]
+  003fa	3d 1a 12 06 00	 cmp	 eax, 397850		; 0006121aH
+  003ff	74 3f		 je	 SHORT $L11398
+  00401	3d 1a 12 07 00	 cmp	 eax, 463386		; 0007121aH
+  00406	74 38		 je	 SHORT $L11398
+  00408	3d 1a 12 08 00	 cmp	 eax, 528922		; 0008121aH
+  0040d	74 31		 je	 SHORT $L11398
+  0040f	3d 1a 12 09 00	 cmp	 eax, 594458		; 0009121aH
+  00414	74 2a		 je	 SHORT $L11398
+  00416	3d 1a 12 0a 00	 cmp	 eax, 659994		; 000a121aH
+  0041b	74 23		 je	 SHORT $L11398
+  0041d	3d 1a 12 0b 00	 cmp	 eax, 725530		; 000b121aH
+  00422	74 1c		 je	 SHORT $L11398
+  00424	3d 1a 12 0c 00	 cmp	 eax, 791066		; 000c121aH
+  00429	74 15		 je	 SHORT $L11398
+  0042b	3d 1a 12 0d 00	 cmp	 eax, 856602		; 000d121aH
+  00430	74 0e		 je	 SHORT $L11398
+  00432	3d 1a 12 0e 00	 cmp	 eax, 922138		; 000e121aH
+  00437	74 07		 je	 SHORT $L11398
+  00439	3d 1a 12 0f 00	 cmp	 eax, 987674		; 000f121aH
+  0043e	75 37		 jne	 SHORT $L11401
+$L11398:
+
+; 748  :       {
+; 749  :       if (CM_POWERSTATE_D3 == PowerState)
+
+  00440	83 fd 08	 cmp	 ebp, 8
+  00443	75 17		 jne	 SHORT $L11399
+
+; 750  :          pDev->PCISaveSpace[0] = PCI_Read_Config(pDev->dwBus, pDev->dwDevFunc, CFG_PCI_DECODE);
+
+  00445	8b 4f 0c	 mov	 ecx, DWORD PTR [edi+12]
+  00448	8b 57 08	 mov	 edx, DWORD PTR [edi+8]
+  0044b	6a 48		 push	 72			; 00000048H
+  0044d	51		 push	 ecx
+  0044e	52		 push	 edx
+  0044f	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00454	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00457	89 47 34	 mov	 DWORD PTR [edi+52], eax
+
+; 751  :       else if (CM_POWERSTATE_D0 == PowerState)
+
+  0045a	eb 1b		 jmp	 SHORT $L11401
+$L11399:
+  0045c	83 fd 01	 cmp	 ebp, 1
+  0045f	75 16		 jne	 SHORT $L11401
+
+; 752  :          PCI_Write_Config(pDev->dwBus, pDev->dwDevFunc, CFG_PCI_DECODE, pDev->PCISaveSpace[0]);
+
+  00461	8b 47 34	 mov	 eax, DWORD PTR [edi+52]
+  00464	8b 4f 0c	 mov	 ecx, DWORD PTR [edi+12]
+  00467	8b 57 08	 mov	 edx, DWORD PTR [edi+8]
+  0046a	50		 push	 eax
+  0046b	6a 48		 push	 72			; 00000048H
+  0046d	51		 push	 ecx
+  0046e	52		 push	 edx
+  0046f	e8 00 00 00 00	 call	 _PCI_Write_Config
+  00474	83 c4 10	 add	 esp, 16			; 00000010H
+$L11401:
+
+; 753  :       }   
+; 754  : 
+; 755  :    if (SLI_AA_MASTER_DEVICE == pDev->dwType)
+
+  00477	83 7f 14 01	 cmp	 DWORD PTR [edi+20], 1
+  0047b	0f 85 c4 00 00
+	00		 jne	 $L11405
+
+; 756  :       {
+; 757  :       for (pSlave = pDev->pSlave; NULL != pSlave; pSlave = pSlave->pSlave)
+
+  00481	8b 77 18	 mov	 esi, DWORD PTR [edi+24]
+  00484	85 f6		 test	 esi, esi
+  00486	0f 84 b9 00 00
+	00		 je	 $L11405
+
+; 780  : 
+; 781  :          // Enable Master
+; 782  :          PCI_Write_Config(pDev->dwBus, pDev->dwDevFunc, SST_PCI_COMMAND_ID, 0x03);      
+
+  0048c	8b 47 0c	 mov	 eax, DWORD PTR [edi+12]
+  0048f	8b 4f 08	 mov	 ecx, DWORD PTR [edi+8]
+  00492	53		 push	 ebx
+  00493	89 44 24 1c	 mov	 DWORD PTR 12+[esp+16], eax
+  00497	89 4c 24 10	 mov	 DWORD PTR -4+[esp+20], ecx
+$L11403:
+
+; 758  :          {
+; 759  :          // Power Up the Adapter
+; 760  :          // Typically the OS does this
+; 761  :          if (CM_POWERSTATE_D0 == PowerState)
+
+  0049b	83 fd 01	 cmp	 ebp, 1
+  0049e	75 08		 jne	 SHORT $L11406
+
+; 762  :             RestorePCISpace(pSlave);
+
+  004a0	56		 push	 esi
+  004a1	e8 00 00 00 00	 call	 _RestorePCISpace
+
+; 763  :          else if (CM_POWERSTATE_D3 == PowerState)
+
+  004a6	eb 15		 jmp	 SHORT $L11505
+$L11406:
+  004a8	83 fd 08	 cmp	 ebp, 8
+  004ab	75 13		 jne	 SHORT $L11409
+
+; 764  :             {
+; 765  :             if (0x0 != pSlave->lpDriverData)
+
+  004ad	8b 86 14 02 00
+	00		 mov	 eax, DWORD PTR [esi+532]
+  004b3	85 c0		 test	 eax, eax
+  004b5	74 09		 je	 SHORT $L11409
+
+; 766  :                SetBusyBit(pSlave->lpDriverData);
+
+  004b7	50		 push	 eax
+  004b8	e8 00 00 00 00	 call	 _SetBusyBit
+$L11505:
+  004bd	83 c4 04	 add	 esp, 4
+$L11409:
+
+; 767  :             }
+; 768  : 
+; 769  :          // Disable Master
+; 770  :          PCI_Write_Config(pDev->dwBus, pDev->dwDevFunc, SST_PCI_COMMAND_ID, 0x02);      
+
+  004c0	8b 54 24 1c	 mov	 edx, DWORD PTR 12+[esp+16]
+  004c4	8b 44 24 10	 mov	 eax, DWORD PTR -4+[esp+20]
+  004c8	6a 02		 push	 2
+  004ca	6a 04		 push	 4
+  004cc	52		 push	 edx
+  004cd	50		 push	 eax
+  004ce	e8 00 00 00 00	 call	 _PCI_Write_Config
+
+; 771  : 
+; 772  :          // Enable Slave
+; 773  :          PCI_Write_Config(pSlave->dwBus, pSlave->dwDevFunc, SST_PCI_COMMAND_ID, 0x03);      
+
+  004d3	8b 7e 0c	 mov	 edi, DWORD PTR [esi+12]
+  004d6	8b 5e 08	 mov	 ebx, DWORD PTR [esi+8]
+  004d9	6a 03		 push	 3
+  004db	6a 04		 push	 4
+  004dd	57		 push	 edi
+  004de	53		 push	 ebx
+  004df	e8 00 00 00 00	 call	 _PCI_Write_Config
+
+; 774  : 
+; 775  :          // Get Ready for Power Up or Power Down
+; 776  :          SetAdapterPowerState(devnode, PowerState, pSlave->dwUnitNum);
+
+  004e4	8b 4e 10	 mov	 ecx, DWORD PTR [esi+16]
+  004e7	8b 54 24 38	 mov	 edx, DWORD PTR _devnode$[esp+48]
+  004eb	51		 push	 ecx
+  004ec	55		 push	 ebp
+  004ed	52		 push	 edx
+  004ee	e8 00 00 00 00	 call	 _SetAdapterPowerState
+
+; 777  :          
+; 778  :          // Disable Slave
+; 779  :          PCI_Write_Config(pSlave->dwBus, pSlave->dwDevFunc, SST_PCI_COMMAND_ID, 0x02);      
+
+  004f3	6a 02		 push	 2
+  004f5	6a 04		 push	 4
+  004f7	57		 push	 edi
+  004f8	53		 push	 ebx
+  004f9	e8 00 00 00 00	 call	 _PCI_Write_Config
+
+; 780  : 
+; 781  :          // Enable Master
+; 782  :          PCI_Write_Config(pDev->dwBus, pDev->dwDevFunc, SST_PCI_COMMAND_ID, 0x03);      
+
+  004fe	8b 44 24 58	 mov	 eax, DWORD PTR 12+[esp+76]
+  00502	8b 4c 24 4c	 mov	 ecx, DWORD PTR -4+[esp+80]
+  00506	6a 03		 push	 3
+  00508	6a 04		 push	 4
+  0050a	50		 push	 eax
+  0050b	51		 push	 ecx
+  0050c	e8 00 00 00 00	 call	 _PCI_Write_Config
+  00511	83 c4 4c	 add	 esp, 76			; 0000004cH
+
+; 783  : 
+; 784  :          // Power Down the Adapter
+; 785  :          // Typically the OS does this
+; 786  :          if (CM_POWERSTATE_D3 == PowerState)
+
+  00514	83 fd 08	 cmp	 ebp, 8
+  00517	75 08		 jne	 SHORT $L11410
+
+; 787  :             SavePCISpace(pSlave);
+
+  00519	56		 push	 esi
+  0051a	e8 00 00 00 00	 call	 _SavePCISpace
+
+; 788  :          else if (CM_POWERSTATE_D0 == PowerState)
+
+  0051f	eb 15		 jmp	 SHORT $L11506
+$L11410:
+  00521	83 fd 01	 cmp	 ebp, 1
+  00524	75 13		 jne	 SHORT $L11404
+
+; 789  :             {
+; 790  :             if (0x0 != pSlave->lpDriverData)
+
+  00526	8b 86 14 02 00
+	00		 mov	 eax, DWORD PTR [esi+532]
+  0052c	85 c0		 test	 eax, eax
+  0052e	74 09		 je	 SHORT $L11404
+
+; 791  :                ClearBusyBit(pSlave->lpDriverData);
+
+  00530	50		 push	 eax
+  00531	e8 00 00 00 00	 call	 _ClearBusyBit
+$L11506:
+  00536	83 c4 04	 add	 esp, 4
+$L11404:
+
+; 756  :       {
+; 757  :       for (pSlave = pDev->pSlave; NULL != pSlave; pSlave = pSlave->pSlave)
+
+  00539	8b 76 18	 mov	 esi, DWORD PTR [esi+24]
+  0053c	85 f6		 test	 esi, esi
+  0053e	0f 85 57 ff ff
+	ff		 jne	 $L11403
+  00544	5b		 pop	 ebx
+$L11405:
+
+; 792  :             }
+; 793  :          }
+; 794  :       }
+; 795  : 
+; 796  :    // Do Master Last
+; 797  :    return SetAdapterPowerState(devnode, PowerState, 0x0);
+
+  00545	8b 54 24 14	 mov	 edx, DWORD PTR _devnode$[esp+12]
+  00549	6a 00		 push	 0
+  0054b	55		 push	 ebp
+  0054c	52		 push	 edx
+  0054d	e8 00 00 00 00	 call	 _SetAdapterPowerState
+  00552	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00555	5f		 pop	 edi
+  00556	5e		 pop	 esi
+  00557	5d		 pop	 ebp
+
+; 798  : }
+
+  00558	59		 pop	 ecx
+  00559	c3		 ret	 0
+_SetMasterAdapterPowerState ENDP
+_LTEXT	ENDS
+PUBLIC	_SetMasterMonitorPowerState
+_LTEXT	SEGMENT
+_devnode$ = 8
+_PowerState$ = 12
+_SetMasterMonitorPowerState PROC NEAR
+
+; 812  : {
+
+  00560	53		 push	 ebx
+  00561	56		 push	 esi
+  00562	57		 push	 edi
+
+; 813  :    PDEVTABLE pDev = FindPDEVFromDevNode(devnode);
+
+  00563	8b 7c 24 10	 mov	 edi, DWORD PTR _devnode$[esp+8]
+  00567	57		 push	 edi
+  00568	e8 00 00 00 00	 call	 _FindPDEVFromDevNode
+
+; 814  :    PDEVTABLE pSlave;
+; 815  : 
+; 816  :    if (SLI_AA_MASTER_DEVICE == pDev->dwType)
+
+  0056d	8b 48 14	 mov	 ecx, DWORD PTR [eax+20]
+  00570	8b 5c 24 18	 mov	 ebx, DWORD PTR _PowerState$[esp+12]
+  00574	83 c4 04	 add	 esp, 4
+  00577	83 f9 01	 cmp	 ecx, 1
+  0057a	75 1c		 jne	 SHORT $L11425
+
+; 817  :       {
+; 818  :       for (pSlave = pDev->pSlave; NULL != pSlave; pSlave = pSlave->pSlave)
+
+  0057c	8b 70 18	 mov	 esi, DWORD PTR [eax+24]
+  0057f	85 f6		 test	 esi, esi
+  00581	74 15		 je	 SHORT $L11425
+$L11423:
+
+; 819  :          {
+; 820  :          // Power Down Monitor
+; 821  :          SetMonitorPowerState(devnode, PowerState, pSlave->dwUnitNum);
+
+  00583	8b 46 10	 mov	 eax, DWORD PTR [esi+16]
+  00586	50		 push	 eax
+  00587	53		 push	 ebx
+  00588	57		 push	 edi
+  00589	e8 00 00 00 00	 call	 _SetMonitorPowerState
+  0058e	8b 76 18	 mov	 esi, DWORD PTR [esi+24]
+  00591	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00594	85 f6		 test	 esi, esi
+  00596	75 eb		 jne	 SHORT $L11423
+$L11425:
+
+; 822  :          }
+; 823  :       }
+; 824  : 
+; 825  :    // Do Master Last
+; 826  :    return SetMonitorPowerState(devnode, PowerState, 0x0);
+
+  00598	6a 00		 push	 0
+  0059a	53		 push	 ebx
+  0059b	57		 push	 edi
+  0059c	e8 00 00 00 00	 call	 _SetMonitorPowerState
+  005a1	83 c4 0c	 add	 esp, 12			; 0000000cH
+  005a4	5f		 pop	 edi
+  005a5	5e		 pop	 esi
+  005a6	5b		 pop	 ebx
+
+; 827  : }
+
+  005a7	c3		 ret	 0
+_SetMasterMonitorPowerState ENDP
+_LTEXT	ENDS
+PUBLIC	_InitPower
+EXTRN	_CycleTime:NEAR
+_LTEXT	SEGMENT
+_pDispatch$ = -4
+_dwR$11513 = -12
+$T11515 = -8
+_InitPower PROC NEAR
+
+; 841  : {
+
+  005b0	55		 push	 ebp
+  005b1	8b ec		 mov	 ebp, esp
+  005b3	83 ec 0c	 sub	 esp, 12			; 0000000cH
+  005b6	53		 push	 ebx
+
+; 842  :    PDWORD pDispatch;
+; 843  :    DWORD dwNFunc;
+; 844  :    dwNFunc = VDD_Get_Mini_Dispatch_Table(&pDispatch);
+
+  005b7	8d 45 fc	 lea	 eax, DWORD PTR _pDispatch$[ebp]
+  005ba	56		 push	 esi
+  005bb	57		 push	 edi
+  005bc	89 45 f8	 mov	 DWORD PTR $T11515[ebp], eax
+  005bf	60		 pushad
+
+; 845  :    // If the dispatch table has these function then point to ours
+
+  005c0	cd		 DB	 -51			; ffffffcdH
+  005c1	20		 DB	 32			; 00000020H
+  005c2	0e		 DB	 14			; 0000000eH
+  005c3	00		 DB	 0
+  005c4	0a		 DB	 10			; 0000000aH
+  005c5	00		 DB	 0
+
+; 846  :    if (dwNFunc > GET_MONITOR_POWER_STATE_CAPS)
+
+  005c6	89 4d f4	 mov	 DWORD PTR _dwR$11513[ebp], ecx
+
+; 847  :       {
+
+  005c9	8b 45 f8	 mov	 eax, DWORD PTR $T11515[ebp]
+
+; 848  : #ifdef SLI_AA
+
+  005cc	89 38		 mov	 DWORD PTR [eax], edi
+
+; 849  : 	   pDispatch[SET_ADAPTER_POWER_STATE] = (DWORD)SetMasterAdapterPowerState;
+
+  005ce	61		 popad
+
+; 846  :    if (dwNFunc > GET_MONITOR_POWER_STATE_CAPS)
+
+  005cf	83 7d f4 37	 cmp	 DWORD PTR _dwR$11513[ebp], 55 ; 00000037H
+  005d3	76 39		 jbe	 SHORT $L11431
+
+; 849  : 	   pDispatch[SET_ADAPTER_POWER_STATE] = (DWORD)SetMasterAdapterPowerState;
+
+  005d5	8b 4d fc	 mov	 ecx, DWORD PTR _pDispatch$[ebp]
+  005d8	c7 81 d0 00 00
+	00 00 00 00 00	 mov	 DWORD PTR [ecx+208], OFFSET FLAT:_SetMasterAdapterPowerState
+
+; 850  : #else
+; 851  : 	   pDispatch[SET_ADAPTER_POWER_STATE] = (DWORD)SetAdapterPowerState;
+; 852  : #endif
+; 853  : 	   pDispatch[GET_ADAPTER_POWER_STATE_CAPS] = (DWORD)GetAdapterPowerStateCaps;
+
+  005e2	8b 55 fc	 mov	 edx, DWORD PTR _pDispatch$[ebp]
+  005e5	c7 82 d4 00 00
+	00 00 00 00 00	 mov	 DWORD PTR [edx+212], OFFSET FLAT:_GetAdapterPowerStateCaps
+
+; 854  : #ifdef SLI_AA
+; 855  : 	   pDispatch[SET_MONITOR_POWER_STATE] = (DWORD)SetMasterMonitorPowerState;
+
+  005ef	8b 45 fc	 mov	 eax, DWORD PTR _pDispatch$[ebp]
+  005f2	c7 80 d8 00 00
+	00 00 00 00 00	 mov	 DWORD PTR [eax+216], OFFSET FLAT:_SetMasterMonitorPowerState
+
+; 856  : #else
+; 857  : 	   pDispatch[SET_MONITOR_POWER_STATE] = (DWORD)SetMonitorPowerState;
+; 858  : #endif
+; 859  : 	   pDispatch[GET_MONITOR_POWER_STATE_CAPS] = (DWORD)GetMonitorPowerStateCaps;
+
+  005fc	8b 4d fc	 mov	 ecx, DWORD PTR _pDispatch$[ebp]
+  005ff	c7 81 dc 00 00
+	00 00 00 00 00	 mov	 DWORD PTR [ecx+220], OFFSET FLAT:_GetMonitorPowerStateCaps
+
+; 860  :       CycleTime();
+
+  00609	e8 00 00 00 00	 call	 _CycleTime
+$L11431:
+
+; 861  :       }
+; 862  : 
+; 863  : }
+
+  0060e	5f		 pop	 edi
+  0060f	5e		 pop	 esi
+  00610	5b		 pop	 ebx
+  00611	8b e5		 mov	 esp, ebp
+  00613	5d		 pop	 ebp
+  00614	c3		 ret	 0
+_InitPower ENDP
+_pDevTable$ = 8
+_pRegs$ = 12
+_SavePowerRegs PROC NEAR
+
+; 876  :    SstIORegs * lpIORegs = (SstIORegs *)pRegs;
+; 877  :    FxU32 miscInit0;
+; 878  :    int i;
+; 879  :    
+; 880  :    // Setup miscinit0
+; 881  :    // so that we can read the real miscInit1....
+; 882  :    if (IS_NAPALM(pDevTable->dwVendorDeviceID))
+
+  00620	8b 4c 24 04	 mov	 ecx, DWORD PTR _pDevTable$[esp-4]
+  00624	8b 54 24 08	 mov	 edx, DWORD PTR _pRegs$[esp-4]
+  00628	8b 41 04	 mov	 eax, DWORD PTR [ecx+4]
+  0062b	3d 1a 12 06 00	 cmp	 eax, 397850		; 0006121aH
+  00630	74 3f		 je	 SHORT $L11446
+  00632	3d 1a 12 07 00	 cmp	 eax, 463386		; 0007121aH
+  00637	74 38		 je	 SHORT $L11446
+  00639	3d 1a 12 08 00	 cmp	 eax, 528922		; 0008121aH
+  0063e	74 31		 je	 SHORT $L11446
+  00640	3d 1a 12 09 00	 cmp	 eax, 594458		; 0009121aH
+  00645	74 2a		 je	 SHORT $L11446
+  00647	3d 1a 12 0a 00	 cmp	 eax, 659994		; 000a121aH
+  0064c	74 23		 je	 SHORT $L11446
+  0064e	3d 1a 12 0b 00	 cmp	 eax, 725530		; 000b121aH
+  00653	74 1c		 je	 SHORT $L11446
+  00655	3d 1a 12 0c 00	 cmp	 eax, 791066		; 000c121aH
+  0065a	74 15		 je	 SHORT $L11446
+  0065c	3d 1a 12 0d 00	 cmp	 eax, 856602		; 000d121aH
+  00661	74 0e		 je	 SHORT $L11446
+  00663	3d 1a 12 0e 00	 cmp	 eax, 922138		; 000e121aH
+  00668	74 07		 je	 SHORT $L11446
+  0066a	3d 1a 12 0f 00	 cmp	 eax, 987674		; 000f121aH
+  0066f	75 0b		 jne	 SHORT $L11445
+$L11446:
+
+; 883  :       {
+; 884  :       miscInit0 = lpIORegs->miscInit0;
+
+  00671	8b 42 10	 mov	 eax, DWORD PTR [edx+16]
+
+; 885  :       miscInit0 &= ~(VIP2VMI_ACCESS);   
+
+  00674	25 ff ff ff bf	 and	 eax, -1073741825	; bfffffffH
+
+; 886  :       lpIORegs->miscInit0 = miscInit0;
+
+  00679	89 42 10	 mov	 DWORD PTR [edx+16], eax
+$L11445:
+  0067c	56		 push	 esi
+
+; 887  :       }
+; 888  : 
+; 889  :    for (i=0; i<POWERREGSIZE; i++)
+
+  0067d	b8 00 00 00 00	 mov	 eax, OFFSET FLAT:_PowerRegOffset
+  00682	81 c1 18 02 00
+	00		 add	 ecx, 536		; 00000218H
+$L11447:
+
+; 890  :       {
+; 891  :       // This is read from the BIOS at Enable Time
+; 892  :       if (SGRAMMODE_INDEX == i)
+
+  00688	3d 0c 00 00 00	 cmp	 eax, OFFSET FLAT:_PowerRegOffset+12
+  0068d	74 07		 je	 SHORT $L11448
+
+; 893  :          continue;
+; 894  :       pDevTable->dwPowerReg[i] = *(DWORD *)(pRegs + PowerRegOffset[i]);
+
+  0068f	8b 30		 mov	 esi, DWORD PTR [eax]
+  00691	8b 34 16	 mov	 esi, DWORD PTR [esi+edx]
+  00694	89 31		 mov	 DWORD PTR [ecx], esi
+$L11448:
+  00696	83 c0 04	 add	 eax, 4
+  00699	83 c1 04	 add	 ecx, 4
+  0069c	3d 30 00 00 00	 cmp	 eax, OFFSET FLAT:_PowerRegOffset+48
+  006a1	7c e5		 jl	 SHORT $L11447
+
+; 895  :       }
+; 896  :    
+; 897  :    return 0;
+
+  006a3	33 c0		 xor	 eax, eax
+  006a5	5e		 pop	 esi
+
+; 898  : }
+
+  006a6	c3		 ret	 0
+_SavePowerRegs ENDP
+_pDevTable$ = 8
+_pRegs$ = 12
+_RestorePowerRegs PROC NEAR
+
+; 911  :    SstIORegs * lpIORegs = (SstIORegs *)pRegs;
+; 912  :    int i;
+; 913  : 
+; 914  :    for (i=0; i<POWERREGSIZE; i++)
+
+  006b0	8b 44 24 08	 mov	 eax, DWORD PTR _pRegs$[esp-4]
+  006b4	8b 54 24 04	 mov	 edx, DWORD PTR _pDevTable$[esp-4]
+  006b8	53		 push	 ebx
+  006b9	55		 push	 ebp
+  006ba	56		 push	 esi
+  006bb	33 f6		 xor	 esi, esi
+  006bd	b9 0d 01 00 00	 mov	 ecx, 269		; 0000010dH
+$L11460:
+
+; 915  :       {
+; 916  :       if (SGRAMMODE_INDEX == i)
+
+  006c2	83 fe 03	 cmp	 esi, 3
+  006c5	75 4b		 jne	 SHORT $L11463
+
+; 917  :          {
+; 918  :          if (MEMTYPE_DDR == pDevTable->dwMemoryBus)
+
+  006c7	83 7a 4c 01	 cmp	 DWORD PTR [edx+76], 1
+  006cb	75 20		 jne	 SHORT $L11464
+
+; 919  :             {
+; 920  :             lpIORegs->dramData = DEFAULT_EXTENDED_MODE;
+
+  006cd	c7 40 34 01 20
+	00 00		 mov	 DWORD PTR [eax+52], 8193 ; 00002001H
+
+; 921  :             lpIORegs->dramCommand = H3_DRAMMODE_REG;
+
+  006d4	89 48 30	 mov	 DWORD PTR [eax+48], ecx
+
+; 922  :             lpIORegs->dramData = DEFAULT_RESET_DDRMODE;
+
+  006d7	c7 40 34 31 01
+	00 00		 mov	 DWORD PTR [eax+52], 305	; 00000131H
+
+; 923  :             lpIORegs->dramCommand = H3_DRAMMODE_REG;
+
+  006de	89 48 30	 mov	 DWORD PTR [eax+48], ecx
+
+; 924  :             lpIORegs->dramData = DEFAULT_DDRMODE;
+
+  006e1	c7 40 34 31 00
+	00 00		 mov	 DWORD PTR [eax+52], 49	; 00000031H
+
+; 925  :             lpIORegs->dramCommand = H3_DRAMMODE_REG;
+
+  006e8	89 48 30	 mov	 DWORD PTR [eax+48], ecx
+
+; 926  :             }
+; 927  :          else
+
+  006eb	eb 36		 jmp	 SHORT $L11461
+$L11464:
+
+; 928  :             {
+; 929  :             lpIORegs->dramData = pDevTable->dwPowerReg[i];
+
+  006ed	8b 9a 24 02 00
+	00		 mov	 ebx, DWORD PTR [edx+548]
+  006f3	89 58 34	 mov	 DWORD PTR [eax+52], ebx
+
+; 930  :             lpIORegs->dramCommand = H3_DRAMMODE_REG;
+
+  006f6	89 48 30	 mov	 DWORD PTR [eax+48], ecx
+
+; 931  :             // In the BIOS we set this bit if it is SGRAM
+; 932  :             if (!(lpIORegs->dramInit1 & SST_MCTL_TYPE_SDRAM))
+
+  006f9	f7 40 1c 00 00
+	00 40		 test	 DWORD PTR [eax+28], 1073741824 ; 40000000H
+  00700	75 21		 jne	 SHORT $L11461
+
+; 933  :                {
+; 934  :                lpIORegs->dramData = DEFAULT_SGRAMMASK;
+
+  00702	c7 40 34 ff ff
+	ff ff		 mov	 DWORD PTR [eax+52], -1
+
+; 935  :                lpIORegs->dramCommand = H3_DRAMMASK_REG;
+
+  00709	c7 40 30 0e 01
+	00 00		 mov	 DWORD PTR [eax+48], 270	; 0000010eH
+
+; 936  : #if 0
+; 937  :                // If we ever figure out a good value to cram into the color register we are locked and ready
+; 938  :                lpIORegs->dramData = DEFAULT_SGRAMCOLOR;
+; 939  :                lpIORegs->dramCommand = H3_DRAMCOLOR_REG;
+; 940  : #endif      
+; 941  :                }            
+; 942  :             }
+; 943  :          }
+; 944  :       else
+
+  00710	eb 11		 jmp	 SHORT $L11461
+$L11463:
+
+; 945  :          *(DWORD *)(pRegs + PowerRegOffset[i]) = pDevTable->dwPowerReg[i];
+
+  00712	8b 1c b5 00 00
+	00 00		 mov	 ebx, DWORD PTR _PowerRegOffset[esi*4]
+  00719	8b ac b2 18 02
+	00 00		 mov	 ebp, DWORD PTR [edx+esi*4+536]
+  00720	89 2c 03	 mov	 DWORD PTR [ebx+eax], ebp
+$L11461:
+  00723	46		 inc	 esi
+  00724	83 fe 0c	 cmp	 esi, 12			; 0000000cH
+  00727	7c 99		 jl	 SHORT $L11460
+  00729	5e		 pop	 esi
+  0072a	5d		 pop	 ebp
+
+; 946  :       }
+; 947  :  
+; 948  :    return 0;  
+
+  0072b	33 c0		 xor	 eax, eax
+  0072d	5b		 pop	 ebx
+
+; 949  : }
+
+  0072e	c3		 ret	 0
+_RestorePowerRegs ENDP
+_LTEXT	ENDS
+END

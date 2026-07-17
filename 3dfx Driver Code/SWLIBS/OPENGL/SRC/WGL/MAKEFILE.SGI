@@ -1,0 +1,48 @@
+TOP=..
+
+include ../make.config
+
+vpath %.obj $(OBJDIR)
+
+SRCS=\
+	wglcomm.c \
+	wglbuf.c \
+	wglddraw.c \
+	wgldci.c \
+	wgldebug.c \
+	wgldib.c \
+	wglfont.c \
+	wglfonto.c \
+	wglmem.c \
+	wglpxlfmt.c
+
+ifeq ($(DRIVER),sw)
+SRCS += wgldevice.c
+endif
+
+ICDSRCS = icdcmds.c
+STANDSRCS = wglcmds.c oglwrap.c
+
+OBJS=$(SRCS:.c=.obj)
+STANDOBJS=$(STANDSRCS:.c=.obj)
+ICDOBJS=$(ICDSRCS:.c=.obj)
+
+ifeq ($(MODEL),icd)
+OBJS += $(ICDOBJS)
+else
+OBJS += $(STANDOBJS)
+endif
+
+all: $(OBJS)
+
+
+$(OBJS): %.obj : %.c
+	$(CC) $(CFLAGS) -Fo$(OBJDIR)/$*.obj -c $*.c
+
+clean:
+	$(RM) $(OBJS:%=$(OBJDIR)/%) $(STANDOBJS:%=$(OBJDIR)/%) $(ICDOBJS:%=$(OBJDIR)/%)
+
+depend:
+	$(MKDEPEND) .depend $(SRCS) $(STANDSRCS) $(ICDSRCS)
+
+sinclude .depend

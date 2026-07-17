@@ -1,0 +1,113 @@
+Project Notes For Arcade Toolbox:
+
+
+Projected Textures:
+
+1st.  Need position of projector.
+When rendering object, render vertex from pov of projector to 
+compute texture coordinates.  
+Necessary Data:
+        Near Clip Distance
+        fovX
+        fovY
+        model to projector matrix       
+
+
+
+
+
+********************************************
+New material Notes:
+
+Need Amethyst Aware Initialization Code
+
+Update Light Workbench
+
+
+New Texture Nodes:
+
+
+********************************************
+Normal Representation
+
+Problem:
+To compress a floating point normal into one DWORD. 
+
+Requirements:
+Decompression time must be minimal
+Precision must be sufficient for Object space backface
+tests.
+
+Solution Options:
+A - 3 8-bit signed numbers
+B - 3 8-bit magnitudes and a Quadrant
+C - 3 9 or 10 bit signed numbers
+
+IEEE float - 
+1  Bit  of Sign
+8  Bits of Exponent
+23 Bits of Mantissa
+
+Solution A Implementation and Analysis:
+
+Possible implementations:
+
+1. Arithmetic:
+
+Representation is DWORD where:
+    31:24 Ignored
+    23    Sign bit of z component ( high == positive )
+    22:16 Magnitude of z component
+    15    Sign bit of y component ( high == positive )
+    14:8  Magnitude of y component
+    7     Sign bit of x component ( high == positive )
+    6:0   Magnitude of x component
+
+load packed value into EBX
+mov EBX to ECX
+shift ECX left 15
+and immediate 0x007F8000 to ECX
+add immediate 0xFF800000 to ECX
+and immediate 0x7 to ECX
+mov ECX to temp storage
+fld from temp storage
+mov EBX to ECX
+shift ECX left 7
+and immediate 0x007F8000
+add immediate 0xFF800000
+and immediate 0x7
+mov ECX to temp storage
+fld from temp storage
+mov EBX to ECX
+shift ECX right 1
+and immediate 0x007F8000
+add immediate 0xFF800000
+and immediate 0x7
+mov ECX to temp storage
+fld temp storage
+
+
+2. Table Based:
+
+Normal represented in DWORD where:
+    31:24 Ignored
+    23:16 Tabled z signed magnitude
+    15:8  Tabled y signed magnitude
+     7:0  Tabled x signed magnitude
+
+Generate 1K table in memory with this procedure:
+float table[256];
+int entry = 0;
+float value;
+for( int i = -128; i < 128; i++ ) {
+    value = 128.0f / (float)i;
+    table[entry++] = value;
+}
+
+
+
+3. Bit Munging:
+
+
+
+

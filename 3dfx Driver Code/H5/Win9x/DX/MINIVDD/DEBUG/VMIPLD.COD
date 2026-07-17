@@ -1,0 +1,1857 @@
+	TITLE	..\vmipld.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+_PTEXT	SEGMENT PARA USE32 PUBLIC 'PCODE'
+_PTEXT	ENDS
+_LTEXT	SEGMENT PARA USE32 PUBLIC 'LCODE'
+_LTEXT	ENDS
+_PDATA	SEGMENT DWORD USE32 PUBLIC 'PDATA'
+_PDATA	ENDS
+_LDATA	SEGMENT DWORD USE32 PUBLIC 'LCODE'
+_LDATA	ENDS
+FLAT	GROUP _DATA, CONST, _BSS, _PDATA, _LDATA
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+_DATA	SEGMENT
+COMM	_VDD_VMIWrite:DWORD
+COMM	_VDD_VMIRead:DWORD
+_DATA	ENDS
+PUBLIC	_PLD656_Init
+PUBLIC	_PLD656_Write
+PUBLIC	_VMIWriteData
+PUBLIC	_PLD656_Read
+PUBLIC	_VMIReadData
+PUBLIC	_VMIPLD_Available
+PUBLIC	_QueryForVMIPld
+_LTEXT	SEGMENT
+_pDev$ = 8
+_sstIOregs$ = -8
+_dwRet$ = -4
+_QueryForVMIPld PROC NEAR
+
+; 182  : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	83 ec 08	 sub	 esp, 8
+
+; 183  : #ifndef WINNT
+; 184  :     SstIORegs *sstIOregs = (void *)pDev->RegBase[HWINFO_SST_IOREGS_INDEX];
+
+  00006	8b 45 08	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00009	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  0000f	89 4d f8	 mov	 DWORD PTR _sstIOregs$[ebp], ecx
+
+; 185  : #else
+; 186  :    PH3_MEMBASE0 sstIOregs = (PH3_MEMBASE0) HwDeviceExtension->MappedAddress[SST_IO_REGS_INDEX];
+; 187  : #endif
+; 188  :     DWORD dwRet;
+; 189  : #ifndef WINNT
+; 190  :     if(IS_NAPALM(pDev->dwVendorDeviceID))
+
+  00012	8b 55 08	 mov	 edx, DWORD PTR _pDev$[ebp]
+  00015	81 7a 04 1a 12
+	06 00		 cmp	 DWORD PTR [edx+4], 397850 ; 0006121aH
+  0001c	74 6c		 je	 SHORT $L12077
+  0001e	8b 45 08	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00021	81 78 04 1a 12
+	07 00		 cmp	 DWORD PTR [eax+4], 463386 ; 0007121aH
+  00028	74 60		 je	 SHORT $L12077
+  0002a	8b 4d 08	 mov	 ecx, DWORD PTR _pDev$[ebp]
+  0002d	81 79 04 1a 12
+	08 00		 cmp	 DWORD PTR [ecx+4], 528922 ; 0008121aH
+  00034	74 54		 je	 SHORT $L12077
+  00036	8b 55 08	 mov	 edx, DWORD PTR _pDev$[ebp]
+  00039	81 7a 04 1a 12
+	09 00		 cmp	 DWORD PTR [edx+4], 594458 ; 0009121aH
+  00040	74 48		 je	 SHORT $L12077
+  00042	8b 45 08	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00045	81 78 04 1a 12
+	0a 00		 cmp	 DWORD PTR [eax+4], 659994 ; 000a121aH
+  0004c	74 3c		 je	 SHORT $L12077
+  0004e	8b 4d 08	 mov	 ecx, DWORD PTR _pDev$[ebp]
+  00051	81 79 04 1a 12
+	0b 00		 cmp	 DWORD PTR [ecx+4], 725530 ; 000b121aH
+  00058	74 30		 je	 SHORT $L12077
+  0005a	8b 55 08	 mov	 edx, DWORD PTR _pDev$[ebp]
+  0005d	81 7a 04 1a 12
+	0c 00		 cmp	 DWORD PTR [edx+4], 791066 ; 000c121aH
+  00064	74 24		 je	 SHORT $L12077
+  00066	8b 45 08	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00069	81 78 04 1a 12
+	0d 00		 cmp	 DWORD PTR [eax+4], 856602 ; 000d121aH
+  00070	74 18		 je	 SHORT $L12077
+  00072	8b 4d 08	 mov	 ecx, DWORD PTR _pDev$[ebp]
+  00075	81 79 04 1a 12
+	0e 00		 cmp	 DWORD PTR [ecx+4], 922138 ; 000e121aH
+  0007c	74 0c		 je	 SHORT $L12077
+  0007e	8b 55 08	 mov	 edx, DWORD PTR _pDev$[ebp]
+  00081	81 7a 04 1a 12
+	0f 00		 cmp	 DWORD PTR [edx+4], 987674 ; 000f121aH
+  00088	75 29		 jne	 SHORT $L12076
+$L12077:
+
+; 195  :       VMIWriteData((DWORD)sstIOregs,04, 0xff);
+
+  0008a	68 ff 00 00 00	 push	 255			; 000000ffH
+  0008f	6a 04		 push	 4
+  00091	8b 45 f8	 mov	 eax, DWORD PTR _sstIOregs$[ebp]
+  00094	50		 push	 eax
+  00095	e8 00 00 00 00	 call	 _VMIWriteData
+  0009a	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 196  :       VDD_VMIWrite = VMIWriteData;
+
+  0009d	c7 05 00 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _VDD_VMIWrite, OFFSET FLAT:_VMIWriteData
+
+; 197  :       VDD_VMIRead  = VMIReadData;
+
+  000a7	c7 05 00 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _VDD_VMIRead, OFFSET FLAT:_VMIReadData
+
+; 199  :     else
+
+  000b1	eb 20		 jmp	 SHORT $L12079
+$L12076:
+
+; 201  :    	  PLD656_Init( (DWORD)sstIOregs );
+
+  000b3	8b 4d f8	 mov	 ecx, DWORD PTR _sstIOregs$[ebp]
+  000b6	51		 push	 ecx
+  000b7	e8 00 00 00 00	 call	 _PLD656_Init
+  000bc	83 c4 04	 add	 esp, 4
+
+; 202  :       VDD_VMIWrite = PLD656_Write;
+
+  000bf	c7 05 00 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _VDD_VMIWrite, OFFSET FLAT:_PLD656_Write
+
+; 203  :       VDD_VMIRead = PLD656_Read;
+
+  000c9	c7 05 00 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _VDD_VMIRead, OFFSET FLAT:_PLD656_Read
+$L12079:
+
+; 205  :      dwRet =   (DWORD)VMIPLD_Available( (DWORD)sstIOregs,VDD_VMIRead);
+
+  000d3	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _VDD_VMIRead
+  000d9	52		 push	 edx
+  000da	8b 45 f8	 mov	 eax, DWORD PTR _sstIOregs$[ebp]
+  000dd	50		 push	 eax
+  000de	e8 00 00 00 00	 call	 _VMIPLD_Available
+  000e3	83 c4 08	 add	 esp, 8
+  000e6	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  000eb	89 45 fc	 mov	 DWORD PTR _dwRet$[ebp], eax
+
+; 206  : 
+; 207  :     return dwRet;
+
+  000ee	8b 45 fc	 mov	 eax, DWORD PTR _dwRet$[ebp]
+
+; 208  : 
+; 209  : }
+
+  000f1	8b e5		 mov	 esp, ebp
+  000f3	5d		 pop	 ebp
+  000f4	c3		 ret	 0
+_QueryForVMIPld ENDP
+_LTEXT	ENDS
+PUBLIC	_VMIPLD_ReadCommand
+PUBLIC	_VMIPLD_SetCommand
+PUBLIC	_VMIPLD_SetVbiMax
+PUBLIC	_VMIPLD_SetVidMax
+PUBLIC	_VMIPLD_ReadVidMax
+PUBLIC	_VMIPLD_ReadVbiMax
+PUBLIC	_VDDVMIFunctions@4
+_LTEXT	SEGMENT
+_lpParams$ = 8
+_ppdev$ = -16
+_sstIORegs$ = -12
+_dwFunctions$ = -8
+_dwInput$ = -4
+_lpOutput$ = -20
+_VDDVMIFunctions@4 PROC NEAR
+
+; 220  : {
+
+  000f5	55		 push	 ebp
+  000f6	8b ec		 mov	 ebp, esp
+  000f8	83 ec 18	 sub	 esp, 24			; 00000018H
+
+; 221  : #ifndef WINNT
+; 222  :    GLOBALDATA * ppdev =(GLOBALDATA *)(*((DWORD *)(lpParams->lpvInBuffer) + 2));
+
+  000fb	8b 45 08	 mov	 eax, DWORD PTR _lpParams$[ebp]
+  000fe	8b 48 10	 mov	 ecx, DWORD PTR [eax+16]
+  00101	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  00104	89 55 f0	 mov	 DWORD PTR _ppdev$[ebp], edx
+
+; 223  :    SstIORegs *sstIORegs  = (SstIORegs*)(_FF(regBase[HWINFO_SST_IOREGS_INDEX]));
+
+  00107	8b 45 f0	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0010a	8b 88 3c 17 00
+	00		 mov	 ecx, DWORD PTR [eax+5948]
+  00110	89 4d f4	 mov	 DWORD PTR _sstIORegs$[ebp], ecx
+
+; 224  :    DWORD dwFunctions =*(DWORD *)(lpParams->lpvInBuffer);
+
+  00113	8b 55 08	 mov	 edx, DWORD PTR _lpParams$[ebp]
+  00116	8b 42 10	 mov	 eax, DWORD PTR [edx+16]
+  00119	8b 08		 mov	 ecx, DWORD PTR [eax]
+  0011b	89 4d f8	 mov	 DWORD PTR _dwFunctions$[ebp], ecx
+
+; 225  :    DWORD dwInput = *((DWORD *)(lpParams->lpvInBuffer) + 1);
+
+  0011e	8b 55 08	 mov	 edx, DWORD PTR _lpParams$[ebp]
+  00121	8b 42 10	 mov	 eax, DWORD PTR [edx+16]
+  00124	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  00127	89 4d fc	 mov	 DWORD PTR _dwInput$[ebp], ecx
+
+; 226  :    DWORD *lpOutput = (DWORD *)(lpParams->lpvOutBuffer);
+
+  0012a	8b 55 08	 mov	 edx, DWORD PTR _lpParams$[ebp]
+  0012d	8b 42 18	 mov	 eax, DWORD PTR [edx+24]
+  00130	89 45 ec	 mov	 DWORD PTR _lpOutput$[ebp], eax
+
+; 227  :    lpParams->lpcbBytesReturned = 4;
+
+  00133	8b 4d 08	 mov	 ecx, DWORD PTR _lpParams$[ebp]
+  00136	c7 41 20 04 00
+	00 00		 mov	 DWORD PTR [ecx+32], 4
+
+; 228  : #else
+; 229  :    PH3_MEMBASE0 sstIORegs = (PH3_MEMBASE0) HwDeviceExtension->MappedAddress[SST_IO_REGS_INDEX];
+; 230  :    DWORD dwFunctions =*(DWORD *)(lpParams->InputBuffer);
+; 231  :    DWORD dwInput = *((DWORD *)(lpParams->InputBuffer) + 1);
+; 232  :    DWORD *lpOutput = (DWORD *)(lpParams->OutputBuffer);
+; 233  : 
+; 234  :    lpParams->StatusBlock->Information = sizeof( ULONG );
+; 235  : #endif
+; 236  : 
+; 237  :    switch(dwFunctions)
+; 238  :    {
+
+  0013d	8b 55 f8	 mov	 edx, DWORD PTR _dwFunctions$[ebp]
+  00140	89 55 e8	 mov	 DWORD PTR -24+[ebp], edx
+  00143	8b 45 e8	 mov	 eax, DWORD PTR -24+[ebp]
+  00146	83 e8 01	 sub	 eax, 1
+  00149	89 45 e8	 mov	 DWORD PTR -24+[ebp], eax
+  0014c	83 7d e8 08	 cmp	 DWORD PTR -24+[ebp], 8
+  00150	0f 87 29 01 00
+	00		 ja	 $L12127
+  00156	8b 4d e8	 mov	 ecx, DWORD PTR -24+[ebp]
+  00159	ff 24 8d 00 00
+	00 00		 jmp	 DWORD PTR $L12283[ecx*4]
+$L12102:
+
+; 239  :       case VMI_INIT:
+; 240  : 	   if(VDD_VMIRead == PLD656_Read)
+
+  00160	81 3d 00 00 00
+	00 00 00 00 00	 cmp	 DWORD PTR _VDD_VMIRead, OFFSET FLAT:_PLD656_Read
+  0016a	75 0e		 jne	 SHORT $L12103
+
+; 241  :         	PLD656_Init((DWORD)sstIORegs);
+
+  0016c	8b 55 f4	 mov	 edx, DWORD PTR _sstIORegs$[ebp]
+  0016f	52		 push	 edx
+  00170	e8 00 00 00 00	 call	 _PLD656_Init
+  00175	83 c4 04	 add	 esp, 4
+
+; 242  : 		else
+
+  00178	eb 13		 jmp	 SHORT $L12105
+$L12103:
+
+; 243  : 			VMIWriteData((DWORD)sstIORegs,4, 0xff);
+
+  0017a	68 ff 00 00 00	 push	 255			; 000000ffH
+  0017f	6a 04		 push	 4
+  00181	8b 45 f4	 mov	 eax, DWORD PTR _sstIORegs$[ebp]
+  00184	50		 push	 eax
+  00185	e8 00 00 00 00	 call	 _VMIWriteData
+  0018a	83 c4 0c	 add	 esp, 12			; 0000000cH
+$L12105:
+
+; 244  : 		
+; 245  :         break;
+
+  0018d	e9 f2 00 00 00	 jmp	 $L12099
+$L12107:
+
+; 246  : 
+; 247  :       case  VMI_SETVIDMAX:
+; 248  :         VMIPLD_SetVidMax((DWORD)sstIORegs, dwInput, VDD_VMIWrite);
+
+  00192	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _VDD_VMIWrite
+  00198	51		 push	 ecx
+  00199	8b 55 fc	 mov	 edx, DWORD PTR _dwInput$[ebp]
+  0019c	52		 push	 edx
+  0019d	8b 45 f4	 mov	 eax, DWORD PTR _sstIORegs$[ebp]
+  001a0	50		 push	 eax
+  001a1	e8 00 00 00 00	 call	 _VMIPLD_SetVidMax
+  001a6	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 249  :         break;
+
+  001a9	e9 d6 00 00 00	 jmp	 $L12099
+$L12109:
+
+; 250  : 
+; 251  :       case  VMI_SETVBIMAX:
+; 252  :         VMIPLD_SetVbiMax((DWORD)sstIORegs, dwInput, VDD_VMIWrite);
+
+  001ae	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _VDD_VMIWrite
+  001b4	51		 push	 ecx
+  001b5	8b 55 fc	 mov	 edx, DWORD PTR _dwInput$[ebp]
+  001b8	52		 push	 edx
+  001b9	8b 45 f4	 mov	 eax, DWORD PTR _sstIORegs$[ebp]
+  001bc	50		 push	 eax
+  001bd	e8 00 00 00 00	 call	 _VMIPLD_SetVbiMax
+  001c2	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 253  :         break;
+
+  001c5	e9 ba 00 00 00	 jmp	 $L12099
+$L12111:
+
+; 254  : 
+; 255  :       case  VMI_GETVIDMAX:
+; 256  :         VMIPLD_ReadVidMax((DWORD)sstIORegs,lpOutput, VDD_VMIRead);
+
+  001ca	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _VDD_VMIRead
+  001d0	51		 push	 ecx
+  001d1	8b 55 ec	 mov	 edx, DWORD PTR _lpOutput$[ebp]
+  001d4	52		 push	 edx
+  001d5	8b 45 f4	 mov	 eax, DWORD PTR _sstIORegs$[ebp]
+  001d8	50		 push	 eax
+  001d9	e8 00 00 00 00	 call	 _VMIPLD_ReadVidMax
+  001de	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 257  :         break;
+
+  001e1	e9 9e 00 00 00	 jmp	 $L12099
+$L12113:
+
+; 258  : 
+; 259  :       case  VMI_GETVBIMAX:
+; 260  :         VMIPLD_ReadVbiMax((DWORD)sstIORegs,lpOutput, VDD_VMIRead);
+
+  001e6	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _VDD_VMIRead
+  001ec	51		 push	 ecx
+  001ed	8b 55 ec	 mov	 edx, DWORD PTR _lpOutput$[ebp]
+  001f0	52		 push	 edx
+  001f1	8b 45 f4	 mov	 eax, DWORD PTR _sstIORegs$[ebp]
+  001f4	50		 push	 eax
+  001f5	e8 00 00 00 00	 call	 _VMIPLD_ReadVbiMax
+  001fa	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 261  :         break;
+
+  001fd	e9 82 00 00 00	 jmp	 $L12099
+$L12115:
+
+; 262  : 
+; 263  :       case VMI_SETCOMMAND:
+; 264  :         VMIPLD_SetCommand((DWORD)sstIORegs, (BYTE)dwInput,
+; 265  :                         VDD_VMIRead, VDD_VMIWrite);
+
+  00202	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _VDD_VMIWrite
+  00208	51		 push	 ecx
+  00209	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _VDD_VMIRead
+  0020f	52		 push	 edx
+  00210	8a 45 fc	 mov	 al, BYTE PTR _dwInput$[ebp]
+  00213	50		 push	 eax
+  00214	8b 4d f4	 mov	 ecx, DWORD PTR _sstIORegs$[ebp]
+  00217	51		 push	 ecx
+  00218	e8 00 00 00 00	 call	 _VMIPLD_SetCommand
+  0021d	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 266  :         break;
+
+  00220	eb 62		 jmp	 SHORT $L12099
+$L12118:
+
+; 267  : 
+; 268  :       case VMI_GETCOMMAND:
+; 269  :         *lpOutput  =
+; 270  :           (DWORD)VMIPLD_ReadCommand((DWORD)sstIORegs, VDD_VMIRead);
+
+  00222	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _VDD_VMIRead
+  00228	52		 push	 edx
+  00229	8b 45 f4	 mov	 eax, DWORD PTR _sstIORegs$[ebp]
+  0022c	50		 push	 eax
+  0022d	e8 00 00 00 00	 call	 _VMIPLD_ReadCommand
+  00232	83 c4 08	 add	 esp, 8
+  00235	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  0023a	8b 4d ec	 mov	 ecx, DWORD PTR _lpOutput$[ebp]
+  0023d	89 01		 mov	 DWORD PTR [ecx], eax
+
+; 271  :         break;
+
+  0023f	eb 43		 jmp	 SHORT $L12099
+$L12121:
+
+; 272  : 
+; 273  :       case VMI_GETSTATUS:
+; 274  :          *lpOutput =
+; 275  :            (DWORD)VMIPLD_ReadCommand((DWORD)sstIORegs, VDD_VMIRead);
+
+  00241	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _VDD_VMIRead
+  00247	52		 push	 edx
+  00248	8b 45 f4	 mov	 eax, DWORD PTR _sstIORegs$[ebp]
+  0024b	50		 push	 eax
+  0024c	e8 00 00 00 00	 call	 _VMIPLD_ReadCommand
+  00251	83 c4 08	 add	 esp, 8
+  00254	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00259	8b 4d ec	 mov	 ecx, DWORD PTR _lpOutput$[ebp]
+  0025c	89 01		 mov	 DWORD PTR [ecx], eax
+
+; 276  :         break;
+
+  0025e	eb 24		 jmp	 SHORT $L12099
+$L12124:
+
+; 277  : 
+; 278  :       case VMI_AVAILABLE:
+; 279  :         *lpOutput =
+; 280  :            (DWORD)VMIPLD_Available((DWORD)sstIORegs, VDD_VMIRead);
+
+  00260	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _VDD_VMIRead
+  00266	52		 push	 edx
+  00267	8b 45 f4	 mov	 eax, DWORD PTR _sstIORegs$[ebp]
+  0026a	50		 push	 eax
+  0026b	e8 00 00 00 00	 call	 _VMIPLD_Available
+  00270	83 c4 08	 add	 esp, 8
+  00273	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00278	8b 4d ec	 mov	 ecx, DWORD PTR _lpOutput$[ebp]
+  0027b	89 01		 mov	 DWORD PTR [ecx], eax
+
+; 281  :         break;
+
+  0027d	eb 05		 jmp	 SHORT $L12099
+$L12127:
+
+; 282  : 
+; 283  :       default:
+; 284  :         return -1;
+
+  0027f	83 c8 ff	 or	 eax, -1
+  00282	eb 02		 jmp	 SHORT $L12086
+$L12099:
+
+; 286  : #ifndef WINNT
+; 287  :    return 0;
+
+  00284	33 c0		 xor	 eax, eax
+$L12086:
+
+; 288  : #else
+; 289  :    return NO_ERROR;
+; 290  : #endif
+; 291  : }
+
+  00286	8b e5		 mov	 esp, ebp
+  00288	5d		 pop	 ebp
+  00289	c2 04 00	 ret	 4
+$L12283:
+  0028c	00 00 00 00	 DD	 $L12102
+  00290	00 00 00 00	 DD	 $L12107
+  00294	00 00 00 00	 DD	 $L12109
+  00298	00 00 00 00	 DD	 $L12111
+  0029c	00 00 00 00	 DD	 $L12113
+  002a0	00 00 00 00	 DD	 $L12115
+  002a4	00 00 00 00	 DD	 $L12118
+  002a8	00 00 00 00	 DD	 $L12121
+  002ac	00 00 00 00	 DD	 $L12124
+_VDDVMIFunctions@4 ENDP
+_sstIOregs$ = 8
+_VidSerialParallelPort$ = -4
+_dwReg$ = -8
+_PLD656_Init PROC NEAR
+
+; 294  : {
+
+  002b0	55		 push	 ebp
+  002b1	8b ec		 mov	 ebp, esp
+  002b3	83 ec 08	 sub	 esp, 8
+
+; 295  : #ifndef WINNT
+; 296  : 	volatile DWORD *VidSerialParallelPort = &(DWORD)(((SstIORegs *)sstIOregs)->vidSerialParallelPort);
+
+  002b6	8b 45 08	 mov	 eax, DWORD PTR _sstIOregs$[ebp]
+  002b9	83 c0 78	 add	 eax, 120		; 00000078H
+  002bc	89 45 fc	 mov	 DWORD PTR _VidSerialParallelPort$[ebp], eax
+
+; 297  : #else
+; 298  : 	volatile DWORD *VidSerialParallelPort = &(DWORD)(((PH3_MEMBASE0)sstIOregs)->vidSerialParallelPort);
+; 299  : #endif
+; 300  : 	DWORD dwReg;
+; 301  : 
+; 302  : 	dwReg = *VidSerialParallelPort;
+
+  002bf	8b 4d fc	 mov	 ecx, DWORD PTR _VidSerialParallelPort$[ebp]
+  002c2	8b 11		 mov	 edx, DWORD PTR [ecx]
+  002c4	89 55 f8	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 303  : 	dwReg &= ~VMI_HOST_MASK;
+
+  002c7	8b 45 f8	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  002ca	25 00 00 fc ff	 and	 eax, -262144		; fffc0000H
+  002cf	89 45 f8	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 304  : 	//  reset & idle
+; 305  : 	dwReg |= VMI_HOST_IDLE;
+
+  002d2	8b 4d f8	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  002d5	83 c9 2f	 or	 ecx, 47			; 0000002fH
+  002d8	89 4d f8	 mov	 DWORD PTR _dwReg$[ebp], ecx
+
+; 306  : 	dwReg &= ~VMI_HOST_RESET_N;
+
+  002db	8b 55 f8	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  002de	81 e2 ff ff ff
+	ef		 and	 edx, -268435457		; efffffffH
+  002e4	89 55 f8	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 307  : 	*VidSerialParallelPort = dwReg;
+
+  002e7	8b 45 fc	 mov	 eax, DWORD PTR _VidSerialParallelPort$[ebp]
+  002ea	8b 4d f8	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  002ed	89 08		 mov	 DWORD PTR [eax], ecx
+
+; 308  : 	// clear reset
+; 309  : 	dwReg |= VMI_HOST_RESET_N;
+
+  002ef	8b 55 f8	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  002f2	81 ca 00 00 00
+	10		 or	 edx, 268435456		; 10000000H
+  002f8	89 55 f8	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 310  : 	*VidSerialParallelPort = dwReg;
+
+  002fb	8b 45 fc	 mov	 eax, DWORD PTR _VidSerialParallelPort$[ebp]
+  002fe	8b 4d f8	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00301	89 08		 mov	 DWORD PTR [eax], ecx
+
+; 311  : }
+
+  00303	8b e5		 mov	 esp, ebp
+  00305	5d		 pop	 ebp
+  00306	c3		 ret	 0
+_PLD656_Init ENDP
+_sstIOregs$ = 8
+_addr$ = 12
+_data$ = 16
+_VidSerialParallelPort$ = -4
+_dwReg$ = -8
+_PLD656_Write PROC NEAR
+
+; 321  : {
+
+  00307	55		 push	 ebp
+  00308	8b ec		 mov	 ebp, esp
+  0030a	83 ec 08	 sub	 esp, 8
+
+; 322  : #ifndef WINNT
+; 323  : 	volatile DWORD *VidSerialParallelPort = &(DWORD)(((SstIORegs *)sstIOregs)->vidSerialParallelPort);
+
+  0030d	8b 45 08	 mov	 eax, DWORD PTR _sstIOregs$[ebp]
+  00310	83 c0 78	 add	 eax, 120		; 00000078H
+  00313	89 45 fc	 mov	 DWORD PTR _VidSerialParallelPort$[ebp], eax
+
+; 324  : #else
+; 325  :    volatile	DWORD *VidSerialParallelPort = &(DWORD)(((PH3_MEMBASE0)sstIOregs)->vidSerialParallelPort);
+; 326  : #endif
+; 327  : 	DWORD dwReg;			// note writes should use the command fifo
+; 328  : 
+; 329  : 	dwReg = *VidSerialParallelPort;
+
+  00316	8b 4d fc	 mov	 ecx, DWORD PTR _VidSerialParallelPort$[ebp]
+  00319	8b 11		 mov	 edx, DWORD PTR [ecx]
+  0031b	89 55 f8	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 330  : 	dwReg &= ~VMI_HOST_MASK;
+
+  0031e	8b 45 f8	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00321	25 00 00 fc ff	 and	 eax, -262144		; fffc0000H
+  00326	89 45 f8	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 331  : 	//  idle
+; 332  : 	dwReg |= VMI_HOST_IDLE;
+
+  00329	8b 4d f8	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  0032c	83 c9 2f	 or	 ecx, 47			; 0000002fH
+  0032f	89 4d f8	 mov	 DWORD PTR _dwReg$[ebp], ecx
+
+; 333  : 	*VidSerialParallelPort = dwReg;
+
+  00332	8b 55 fc	 mov	 edx, DWORD PTR _VidSerialParallelPort$[ebp]
+  00335	8b 45 f8	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00338	89 02		 mov	 DWORD PTR [edx], eax
+
+; 334  : 
+; 335  : 	// add data and addr
+; 336  : 	dwReg |= (addr << VMI_HOST_ADDR_SHIFT) | (data << VMI_HOST_DATA_SHIFT);
+
+  0033a	8b 4d 0c	 mov	 ecx, DWORD PTR _addr$[ebp]
+  0033d	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  00343	c1 e1 0e	 shl	 ecx, 14			; 0000000eH
+  00346	8b 55 10	 mov	 edx, DWORD PTR _data$[ebp]
+  00349	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  0034f	c1 e2 06	 shl	 edx, 6
+  00352	0b ca		 or	 ecx, edx
+  00354	8b 45 f8	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00357	0b c1		 or	 eax, ecx
+  00359	89 45 f8	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 337  : 	*VidSerialParallelPort = dwReg;
+
+  0035c	8b 4d fc	 mov	 ecx, DWORD PTR _VidSerialParallelPort$[ebp]
+  0035f	8b 55 f8	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00362	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 338  : 	// set cs active
+; 339  : 	dwReg &= ~VMI_HOST_CS_N;
+
+  00364	8b 45 f8	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00367	24 fd		 and	 al, -3			; fffffffdH
+  00369	89 45 f8	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 340  : 	*VidSerialParallelPort = dwReg;
+
+  0036c	8b 4d fc	 mov	 ecx, DWORD PTR _VidSerialParallelPort$[ebp]
+  0036f	8b 55 f8	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00372	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 341  : 	// set data active
+; 342  : 	dwReg &= ~VMI_HOST_DATA_OUT_DISABLE;
+
+  00374	8b 45 f8	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00377	24 df		 and	 al, -33			; ffffffdfH
+  00379	89 45 f8	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 343  : 	*VidSerialParallelPort = dwReg;
+
+  0037c	8b 4d fc	 mov	 ecx, DWORD PTR _VidSerialParallelPort$[ebp]
+  0037f	8b 55 f8	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00382	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 344  : 	// set wr active
+; 345  : 	dwReg &= ~VMI_HOST_WR_N;
+
+  00384	8b 45 f8	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00387	24 f7		 and	 al, -9			; fffffff7H
+  00389	89 45 f8	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 346  : 	*VidSerialParallelPort = dwReg;
+
+  0038c	8b 4d fc	 mov	 ecx, DWORD PTR _VidSerialParallelPort$[ebp]
+  0038f	8b 55 f8	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00392	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 347  : 	// should not require time here (5ns is spec)
+; 348  : 	// set wr inactive
+; 349  : 	dwReg |= VMI_HOST_WR_N;
+
+  00394	8b 45 f8	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00397	0c 08		 or	 al, 8
+  00399	89 45 f8	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 350  : 	*VidSerialParallelPort = dwReg;
+
+  0039c	8b 4d fc	 mov	 ecx, DWORD PTR _VidSerialParallelPort$[ebp]
+  0039f	8b 55 f8	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  003a2	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 351  : 	// set data inactive
+; 352  : 	dwReg |= VMI_HOST_DATA_OUT_DISABLE;
+
+  003a4	8b 45 f8	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  003a7	0c 20		 or	 al, 32			; 00000020H
+  003a9	89 45 f8	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 353  : 	*VidSerialParallelPort = dwReg;
+
+  003ac	8b 4d fc	 mov	 ecx, DWORD PTR _VidSerialParallelPort$[ebp]
+  003af	8b 55 f8	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  003b2	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 354  : 	// set cs inactive
+; 355  : 	dwReg |= VMI_HOST_CS_N;
+
+  003b4	8b 45 f8	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  003b7	0c 02		 or	 al, 2
+  003b9	89 45 f8	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 356  : 	*VidSerialParallelPort = dwReg;
+
+  003bc	8b 4d fc	 mov	 ecx, DWORD PTR _VidSerialParallelPort$[ebp]
+  003bf	8b 55 f8	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  003c2	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 357  : 	// turn off host interface
+; 358  : 	dwReg &= ~VMI_HOST_ENABLE;
+
+  003c4	8b 45 f8	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  003c7	24 fe		 and	 al, -2			; fffffffeH
+  003c9	89 45 f8	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 359  : 	*VidSerialParallelPort = dwReg;
+
+  003cc	8b 4d fc	 mov	 ecx, DWORD PTR _VidSerialParallelPort$[ebp]
+  003cf	8b 55 f8	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  003d2	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 360  : }
+
+  003d4	8b e5		 mov	 esp, ebp
+  003d6	5d		 pop	 ebp
+  003d7	c3		 ret	 0
+_PLD656_Write ENDP
+_sstIOregs$ = 8
+_addr$ = 12
+_data$ = 16
+_dwReg$ = -4
+_VMIWriteData PROC NEAR
+
+; 374  : {
+
+  003d8	55		 push	 ebp
+  003d9	8b ec		 mov	 ebp, esp
+  003db	83 ec 08	 sub	 esp, 8
+
+; 375  :    DWORD dwReg;                // note writes should use the command fifo
+; 376  : 
+; 377  :    // Read 'miscInit0' and enable access to 'vip2vmiCtrl' reg.
+; 378  : #ifndef WINNT
+; 379  :    dwReg = ((SstIORegs *)sstIOregs)->miscInit0;
+
+  003de	8b 45 08	 mov	 eax, DWORD PTR _sstIOregs$[ebp]
+  003e1	8b 48 10	 mov	 ecx, DWORD PTR [eax+16]
+  003e4	89 4d fc	 mov	 DWORD PTR _dwReg$[ebp], ecx
+
+; 380  :    dwReg |= VIP2VMI_ACCESS;
+
+  003e7	8b 55 fc	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  003ea	81 ca 00 00 00
+	40		 or	 edx, 1073741824		; 40000000H
+  003f0	89 55 fc	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 381  :    ((SstIORegs *)sstIOregs)->miscInit0 = dwReg;
+
+  003f3	8b 45 08	 mov	 eax, DWORD PTR _sstIOregs$[ebp]
+  003f6	8b 4d fc	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  003f9	89 48 10	 mov	 DWORD PTR [eax+16], ecx
+
+; 382  : 
+; 383  :    // 'miscInit1' now becomes the 'vip2vmiCtrl' register.  Read it.
+; 384  :    dwReg = ((SstIORegs *)sstIOregs)->miscInit1;
+
+  003fc	8b 55 08	 mov	 edx, DWORD PTR _sstIOregs$[ebp]
+  003ff	8b 42 14	 mov	 eax, DWORD PTR [edx+20]
+  00402	89 45 fc	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 385  : #else
+; 386  :    dwReg = ((PH3_MEMBASE0)sstIOregs)->miscInit0;
+; 387  :    dwReg |= VIP2VMI_ACCESS;
+; 388  : 
+; 389  :    ((PH3_MEMBASE0)sstIOregs)->miscInit0 = dwReg;
+; 390  : 
+; 391  :    // 'miscInit1' now becomes the 'vip2vmiCtrl' register.  Read it.
+; 392  :    dwReg = ((PH3_MEMBASE0)sstIOregs)->miscInit1;
+; 393  : #endif
+; 394  :    switch( addr )
+; 395  :    {
+
+  00405	8b 4d 0c	 mov	 ecx, DWORD PTR _addr$[ebp]
+  00408	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  0040e	89 4d f8	 mov	 DWORD PTR -8+[ebp], ecx
+  00411	83 7d f8 04	 cmp	 DWORD PTR -8+[ebp], 4
+  00415	0f 87 92 01 00
+	00		 ja	 $L12158
+  0041b	8b 55 f8	 mov	 edx, DWORD PTR -8+[ebp]
+  0041e	ff 24 95 00 00
+	00 00		 jmp	 DWORD PTR $L12287[edx*4]
+$L12161:
+
+; 396  :    case 0:                             // Access bits 2-0 in 'vip2vmictrl' reg.
+; 397  :       dwReg &= ~VIP2VMI_CMD_BITS;      // Clear bits 2-0.
+
+  00425	8b 45 fc	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00428	25 f8 ff ff 3f	 and	 eax, 1073741816		; 3ffffff8H
+  0042d	89 45 fc	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 398  :       dwReg |= (data & 0x07);        // Set bits 2-0 w/ 'dwData' values.
+
+  00430	8b 4d 10	 mov	 ecx, DWORD PTR _data$[ebp]
+  00433	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  00439	83 e1 07	 and	 ecx, 7
+  0043c	8b 55 fc	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  0043f	0b d1		 or	 edx, ecx
+  00441	89 55 fc	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 399  :       if( (data & 0x01) == 0)        // Enable VIP2VMI Translation
+
+  00444	8b 45 10	 mov	 eax, DWORD PTR _data$[ebp]
+  00447	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  0044c	83 e0 01	 and	 eax, 1
+  0044f	85 c0		 test	 eax, eax
+  00451	75 1a		 jne	 SHORT $L12162
+
+; 401  :          dwReg |= VIP2VMI_ENABLE;
+
+  00453	8b 4d fc	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00456	81 c9 00 00 00
+	80		 or	 ecx, -2147483648	; 80000000H
+  0045c	89 4d fc	 mov	 DWORD PTR _dwReg$[ebp], ecx
+
+; 402  :          dwReg &= ~VIP2VMI_RESET;
+
+  0045f	8b 55 fc	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00462	81 e2 ff ff f7
+	ff		 and	 edx, -524289		; fff7ffffH
+  00468	89 55 fc	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 404  :       else                             // Enable PassThru.
+
+  0046b	eb 17		 jmp	 SHORT $L12163
+$L12162:
+
+; 406  :          dwReg &= ~VIP2VMI_ENABLE;
+
+  0046d	8b 45 fc	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00470	25 ff ff ff 7f	 and	 eax, 2147483647		; 7fffffffH
+  00475	89 45 fc	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 407  :          dwReg |= VIP2VMI_RESET;
+
+  00478	8b 4d fc	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  0047b	81 c9 00 00 08
+	00		 or	 ecx, 524288		; 00080000H
+  00481	89 4d fc	 mov	 DWORD PTR _dwReg$[ebp], ecx
+$L12163:
+
+; 409  : 
+; 410  :    break;
+
+  00484	e9 24 01 00 00	 jmp	 $L12158
+$L12164:
+
+; 411  :    case 1:
+; 412  :       dwReg &= ~VIP2VMI_VBIMAX_BITS;
+
+  00489	8b 55 fc	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  0048c	81 e2 0f fe ff
+	ff		 and	 edx, -497		; fffffe0fH
+  00492	89 55 fc	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 413  :       dwReg |= ((data & 0x1F) << VBIMAX_SHIFT);
+
+  00495	8b 45 10	 mov	 eax, DWORD PTR _data$[ebp]
+  00498	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  0049d	83 e0 1f	 and	 eax, 31			; 0000001fH
+  004a0	c1 e0 04	 shl	 eax, 4
+  004a3	8b 4d fc	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  004a6	0b c8		 or	 ecx, eax
+  004a8	89 4d fc	 mov	 DWORD PTR _dwReg$[ebp], ecx
+
+; 414  :       if( (dwReg & 0x01) == 0)        // Enable VIP2VMI Translation
+
+  004ab	8b 55 fc	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  004ae	83 e2 01	 and	 edx, 1
+  004b1	85 d2		 test	 edx, edx
+  004b3	75 19		 jne	 SHORT $L12165
+
+; 416  :          dwReg |= VIP2VMI_ENABLE;
+
+  004b5	8b 45 fc	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  004b8	0d 00 00 00 80	 or	 eax, -2147483648	; 80000000H
+  004bd	89 45 fc	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 417  :          dwReg &= ~VIP2VMI_RESET;
+
+  004c0	8b 4d fc	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  004c3	81 e1 ff ff f7
+	ff		 and	 ecx, -524289		; fff7ffffH
+  004c9	89 4d fc	 mov	 DWORD PTR _dwReg$[ebp], ecx
+
+; 419  :       else                             // Enable PassThru.
+
+  004cc	eb 17		 jmp	 SHORT $L12166
+$L12165:
+
+; 421  :          dwReg &= ~VIP2VMI_ENABLE;
+
+  004ce	8b 55 fc	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  004d1	81 e2 ff ff ff
+	7f		 and	 edx, 2147483647		; 7fffffffH
+  004d7	89 55 fc	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 422  :          dwReg |= VIP2VMI_RESET;
+
+  004da	8b 45 fc	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  004dd	0d 00 00 08 00	 or	 eax, 524288		; 00080000H
+  004e2	89 45 fc	 mov	 DWORD PTR _dwReg$[ebp], eax
+$L12166:
+
+; 424  : 
+; 425  :    break;
+
+  004e5	e9 c3 00 00 00	 jmp	 $L12158
+$L12167:
+
+; 426  :    case 2:
+; 427  :       dwReg &= ~VIP2VMI_VIDMAXLO_BITS;
+
+  004ea	8b 4d fc	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  004ed	81 e1 ff 01 fe
+	ff		 and	 ecx, -130561		; fffe01ffH
+  004f3	89 4d fc	 mov	 DWORD PTR _dwReg$[ebp], ecx
+
+; 428  :       dwReg |= (data << VIDMAXLO_SHIFT);
+
+  004f6	8b 55 10	 mov	 edx, DWORD PTR _data$[ebp]
+  004f9	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  004ff	c1 e2 09	 shl	 edx, 9
+  00502	8b 45 fc	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00505	0b c2		 or	 eax, edx
+  00507	89 45 fc	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 429  :       if( (dwReg & 0x01) == 0)        // Enable VIP2VMI Translation
+
+  0050a	8b 4d fc	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  0050d	83 e1 01	 and	 ecx, 1
+  00510	85 c9		 test	 ecx, ecx
+  00512	75 19		 jne	 SHORT $L12168
+
+; 431  :          dwReg |= VIP2VMI_ENABLE;
+
+  00514	8b 55 fc	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00517	81 ca 00 00 00
+	80		 or	 edx, -2147483648	; 80000000H
+  0051d	89 55 fc	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 432  :          dwReg &= ~VIP2VMI_RESET;
+
+  00520	8b 45 fc	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00523	25 ff ff f7 ff	 and	 eax, -524289		; fff7ffffH
+  00528	89 45 fc	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 434  :       else                             // Enable PassThru.
+
+  0052b	eb 18		 jmp	 SHORT $L12169
+$L12168:
+
+; 436  :          dwReg &= ~VIP2VMI_ENABLE;
+
+  0052d	8b 4d fc	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00530	81 e1 ff ff ff
+	7f		 and	 ecx, 2147483647		; 7fffffffH
+  00536	89 4d fc	 mov	 DWORD PTR _dwReg$[ebp], ecx
+
+; 437  :          dwReg |= VIP2VMI_RESET;
+
+  00539	8b 55 fc	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  0053c	81 ca 00 00 08
+	00		 or	 edx, 524288		; 00080000H
+  00542	89 55 fc	 mov	 DWORD PTR _dwReg$[ebp], edx
+$L12169:
+
+; 439  : 
+; 440  :    break;
+
+  00545	eb 66		 jmp	 SHORT $L12158
+$L12170:
+
+; 441  :    case 3:
+; 442  :       dwReg &= ~VIP2VMI_VIDMAXHI_BITS;
+
+  00547	8b 45 fc	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  0054a	25 ff ff f9 ff	 and	 eax, -393217		; fff9ffffH
+  0054f	89 45 fc	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 443  :       dwReg |= ( (data & 0x03) << VIDMAXHI_SHIFT);
+
+  00552	8b 4d 10	 mov	 ecx, DWORD PTR _data$[ebp]
+  00555	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  0055b	83 e1 03	 and	 ecx, 3
+  0055e	c1 e1 11	 shl	 ecx, 17			; 00000011H
+  00561	8b 55 fc	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00564	0b d1		 or	 edx, ecx
+  00566	89 55 fc	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 444  :       if( (dwReg & 0x01) == 0)        // Enable VIP2VMI Translation
+
+  00569	8b 45 fc	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  0056c	83 e0 01	 and	 eax, 1
+  0056f	85 c0		 test	 eax, eax
+  00571	75 1a		 jne	 SHORT $L12171
+
+; 446  :          dwReg |= VIP2VMI_ENABLE;
+
+  00573	8b 4d fc	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00576	81 c9 00 00 00
+	80		 or	 ecx, -2147483648	; 80000000H
+  0057c	89 4d fc	 mov	 DWORD PTR _dwReg$[ebp], ecx
+
+; 447  :          dwReg &= ~VIP2VMI_RESET;
+
+  0057f	8b 55 fc	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00582	81 e2 ff ff f7
+	ff		 and	 edx, -524289		; fff7ffffH
+  00588	89 55 fc	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 449  :       else                             // Enable PassThru.
+
+  0058b	eb 17		 jmp	 SHORT $L12172
+$L12171:
+
+; 451  :          dwReg &= ~VIP2VMI_ENABLE;
+
+  0058d	8b 45 fc	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00590	25 ff ff ff 7f	 and	 eax, 2147483647		; 7fffffffH
+  00595	89 45 fc	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 452  :          dwReg |= VIP2VMI_RESET;
+
+  00598	8b 4d fc	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  0059b	81 c9 00 00 08
+	00		 or	 ecx, 524288		; 00080000H
+  005a1	89 4d fc	 mov	 DWORD PTR _dwReg$[ebp], ecx
+$L12172:
+
+; 454  :    break;
+
+  005a4	eb 07		 jmp	 SHORT $L12158
+$L12173:
+
+; 455  :    case 4:	  //set 656 port
+; 456  :       dwReg = VIP2VMI_VBIMAX_BITS | VIP2VMI_VIDMAXLO_BITS | 
+; 457  :       			VIP2VMI_VIDMAXHI_BITS | VIP2VMI_ENABLE;
+
+  005a6	c7 45 fc f0 ff
+	07 80		 mov	 DWORD PTR _dwReg$[ebp], -2146959376 ; 8007fff0H
+$L12158:
+
+; 460  : 
+; 461  : #ifndef WINNT
+; 462  :    ((SstIORegs *)sstIOregs)->miscInit1 = dwReg;
+
+  005ad	8b 55 08	 mov	 edx, DWORD PTR _sstIOregs$[ebp]
+  005b0	8b 45 fc	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  005b3	89 42 14	 mov	 DWORD PTR [edx+20], eax
+
+; 463  : 
+; 464  :    // Re-enable 'miscInit1'
+; 465  :    dwReg = ((SstIORegs *)sstIOregs)->miscInit0;
+
+  005b6	8b 4d 08	 mov	 ecx, DWORD PTR _sstIOregs$[ebp]
+  005b9	8b 51 10	 mov	 edx, DWORD PTR [ecx+16]
+  005bc	89 55 fc	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 466  :    dwReg &= ~VIP2VMI_ENABLE;      // Enable access to 'miscInit1' reg.
+
+  005bf	8b 45 fc	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  005c2	25 ff ff ff 7f	 and	 eax, 2147483647		; 7fffffffH
+  005c7	89 45 fc	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 467  :    ((SstIORegs *)sstIOregs)->miscInit0 = dwReg;
+
+  005ca	8b 4d 08	 mov	 ecx, DWORD PTR _sstIOregs$[ebp]
+  005cd	8b 55 fc	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  005d0	89 51 10	 mov	 DWORD PTR [ecx+16], edx
+
+; 468  : 
+; 469  : #else
+; 470  :    ((PH3_MEMBASE0)sstIOregs)->miscInit1 = dwReg;
+; 471  : 
+; 472  :    // Re-enable 'miscInit1'
+; 473  :    dwReg = ((PH3_MEMBASE0)sstIOregs)->miscInit0;
+; 474  :    dwReg &= ~VIP2VMI_ENABLE;      // Enable access to 'miscInit1' reg.
+; 475  :    ((PH3_MEMBASE0)sstIOregs)->miscInit0 = dwReg;
+; 476  : 
+; 477  : #endif
+; 478  : 
+; 479  : }
+
+  005d3	8b e5		 mov	 esp, ebp
+  005d5	5d		 pop	 ebp
+  005d6	c3		 ret	 0
+$L12287:
+  005d7	00 00 00 00	 DD	 $L12161
+  005db	00 00 00 00	 DD	 $L12164
+  005df	00 00 00 00	 DD	 $L12167
+  005e3	00 00 00 00	 DD	 $L12170
+  005e7	00 00 00 00	 DD	 $L12173
+_VMIWriteData ENDP
+_sstIOregs$ = 8
+_addr$ = 12
+_VidSerialParallelPort$ = -8
+_dwReg$ = -12
+_dwData$ = -16
+_data$ = -4
+_PLD656_Read PROC NEAR
+
+; 492  : {
+
+  005eb	55		 push	 ebp
+  005ec	8b ec		 mov	 ebp, esp
+  005ee	83 ec 10	 sub	 esp, 16			; 00000010H
+
+; 493  : #ifndef WINNT
+; 494  : 	volatile DWORD *VidSerialParallelPort = &(DWORD)(((SstIORegs *)sstIOregs)->vidSerialParallelPort);
+
+  005f1	8b 45 08	 mov	 eax, DWORD PTR _sstIOregs$[ebp]
+  005f4	83 c0 78	 add	 eax, 120		; 00000078H
+  005f7	89 45 f8	 mov	 DWORD PTR _VidSerialParallelPort$[ebp], eax
+
+; 495  : #else
+; 496  : 	volatile DWORD *VidSerialParallelPort = &(DWORD)(((PH3_MEMBASE0)sstIOregs)->vidSerialParallelPort);
+; 497  : #endif
+; 498  : 	DWORD dwReg;			// note writes should use the command fifo
+; 499  : 	DWORD dwData;
+; 500  : 	BYTE  data;
+; 501  : 	dwReg = *VidSerialParallelPort;
+
+  005fa	8b 4d f8	 mov	 ecx, DWORD PTR _VidSerialParallelPort$[ebp]
+  005fd	8b 11		 mov	 edx, DWORD PTR [ecx]
+  005ff	89 55 f4	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 502  : 	dwReg &= ~VMI_HOST_MASK;
+
+  00602	8b 45 f4	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00605	25 00 00 fc ff	 and	 eax, -262144		; fffc0000H
+  0060a	89 45 f4	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 503  : 	//  dle
+; 504  : 	dwReg |= VMI_HOST_IDLE;
+
+  0060d	8b 4d f4	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00610	83 c9 2f	 or	 ecx, 47			; 0000002fH
+  00613	89 4d f4	 mov	 DWORD PTR _dwReg$[ebp], ecx
+
+; 505  : 	*VidSerialParallelPort = dwReg;
+
+  00616	8b 55 f8	 mov	 edx, DWORD PTR _VidSerialParallelPort$[ebp]
+  00619	8b 45 f4	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  0061c	89 02		 mov	 DWORD PTR [edx], eax
+
+; 506  : 
+; 507  : 	// add data and addr
+; 508  : 	dwReg |= (addr << VMI_HOST_ADDR_SHIFT);
+
+  0061e	8b 4d 0c	 mov	 ecx, DWORD PTR _addr$[ebp]
+  00621	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  00627	c1 e1 0e	 shl	 ecx, 14			; 0000000eH
+  0062a	8b 55 f4	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  0062d	0b d1		 or	 edx, ecx
+  0062f	89 55 f4	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 509  : 	*VidSerialParallelPort = dwReg;
+
+  00632	8b 45 f8	 mov	 eax, DWORD PTR _VidSerialParallelPort$[ebp]
+  00635	8b 4d f4	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00638	89 08		 mov	 DWORD PTR [eax], ecx
+
+; 510  : 	// set cs active
+; 511  : 	dwReg &= ~VMI_HOST_CS_N;
+
+  0063a	8b 55 f4	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  0063d	83 e2 fd	 and	 edx, -3			; fffffffdH
+  00640	89 55 f4	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 512  : 	*VidSerialParallelPort = dwReg;
+
+  00643	8b 45 f8	 mov	 eax, DWORD PTR _VidSerialParallelPort$[ebp]
+  00646	8b 4d f4	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00649	89 08		 mov	 DWORD PTR [eax], ecx
+
+; 513  : 	// set rd active
+; 514  : 	dwReg &= ~VMI_HOST_RD_N;
+
+  0064b	8b 55 f4	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  0064e	83 e2 fb	 and	 edx, -5			; fffffffbH
+  00651	89 55 f4	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 515  : 	*VidSerialParallelPort = dwReg;
+
+  00654	8b 45 f8	 mov	 eax, DWORD PTR _VidSerialParallelPort$[ebp]
+  00657	8b 4d f4	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  0065a	89 08		 mov	 DWORD PTR [eax], ecx
+
+; 516  : 	// should not require time here (5ns is spec)
+; 517  : 
+; 518  : 	// read data
+; 519  : 	dwData = *((volatile DWORD *)VidSerialParallelPort);
+
+  0065c	8b 55 f8	 mov	 edx, DWORD PTR _VidSerialParallelPort$[ebp]
+  0065f	8b 02		 mov	 eax, DWORD PTR [edx]
+  00661	89 45 f0	 mov	 DWORD PTR _dwData$[ebp], eax
+
+; 520  : 	data = (BYTE)((dwData >> VMI_HOST_DATA_SHIFT) & 0xFF);
+
+  00664	8b 4d f0	 mov	 ecx, DWORD PTR _dwData$[ebp]
+  00667	c1 e9 06	 shr	 ecx, 6
+  0066a	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  00670	88 4d fc	 mov	 BYTE PTR _data$[ebp], cl
+
+; 521  : 	// set rd inactive
+; 522  : 	dwReg |= VMI_HOST_RD_N;
+
+  00673	8b 55 f4	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00676	83 ca 04	 or	 edx, 4
+  00679	89 55 f4	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 523  : 	*VidSerialParallelPort = dwReg;
+
+  0067c	8b 45 f8	 mov	 eax, DWORD PTR _VidSerialParallelPort$[ebp]
+  0067f	8b 4d f4	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00682	89 08		 mov	 DWORD PTR [eax], ecx
+
+; 524  : 	// set cs inactive
+; 525  : 	dwReg |= VMI_HOST_CS_N;
+
+  00684	8b 55 f4	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00687	83 ca 02	 or	 edx, 2
+  0068a	89 55 f4	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 526  : 	*VidSerialParallelPort = dwReg;
+
+  0068d	8b 45 f8	 mov	 eax, DWORD PTR _VidSerialParallelPort$[ebp]
+  00690	8b 4d f4	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00693	89 08		 mov	 DWORD PTR [eax], ecx
+
+; 527  : 	// turn off host interface
+; 528  : 	dwReg &= ~VMI_HOST_ENABLE;
+
+  00695	8b 55 f4	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00698	83 e2 fe	 and	 edx, -2			; fffffffeH
+  0069b	89 55 f4	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 529  : 	*VidSerialParallelPort = dwReg;
+
+  0069e	8b 45 f8	 mov	 eax, DWORD PTR _VidSerialParallelPort$[ebp]
+  006a1	8b 4d f4	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  006a4	89 08		 mov	 DWORD PTR [eax], ecx
+
+; 530  : 	return data;
+
+  006a6	8a 45 fc	 mov	 al, BYTE PTR _data$[ebp]
+
+; 531  : }
+
+  006a9	8b e5		 mov	 esp, ebp
+  006ab	5d		 pop	 ebp
+  006ac	c3		 ret	 0
+_PLD656_Read ENDP
+_sstIOregs$ = 8
+_addr$ = 12
+_dwReg$ = -8
+_dwData$ = -12
+_data$ = -4
+_VMIReadData PROC NEAR
+
+; 543  : {
+
+  006ad	55		 push	 ebp
+  006ae	8b ec		 mov	 ebp, esp
+  006b0	83 ec 10	 sub	 esp, 16			; 00000010H
+
+; 544  :    DWORD dwReg, dwData;                // note writes should use the command fifo
+; 545  :    BYTE  data;
+; 546  : 
+; 547  :    // Read 'miscInit0' and enable access to 'vip2vmiCtrl' reg.
+; 548  : #ifndef WINNT
+; 549  :    dwReg = ((SstIORegs *)sstIOregs)->miscInit0;
+
+  006b3	8b 45 08	 mov	 eax, DWORD PTR _sstIOregs$[ebp]
+  006b6	8b 48 10	 mov	 ecx, DWORD PTR [eax+16]
+  006b9	89 4d f8	 mov	 DWORD PTR _dwReg$[ebp], ecx
+
+; 550  :    dwReg |= VIP2VMI_ACCESS;
+
+  006bc	8b 55 f8	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  006bf	81 ca 00 00 00
+	40		 or	 edx, 1073741824		; 40000000H
+  006c5	89 55 f8	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 551  :    ((SstIORegs *)sstIOregs)->miscInit0 = dwReg;
+
+  006c8	8b 45 08	 mov	 eax, DWORD PTR _sstIOregs$[ebp]
+  006cb	8b 4d f8	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  006ce	89 48 10	 mov	 DWORD PTR [eax+16], ecx
+
+; 552  : 
+; 553  :    // 'miscInit1' now becomes the 'vip2vmiCtrl' register.  Read it.
+; 554  :    dwReg = ((SstIORegs *)sstIOregs)->miscInit1;
+
+  006d1	8b 55 08	 mov	 edx, DWORD PTR _sstIOregs$[ebp]
+  006d4	8b 42 14	 mov	 eax, DWORD PTR [edx+20]
+  006d7	89 45 f8	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 555  : 
+; 556  : #else
+; 557  :    dwReg = ((PH3_MEMBASE0)sstIOregs)->miscInit0;
+; 558  :    dwReg |= VIP2VMI_ACCESS;
+; 559  :    ((PH3_MEMBASE0)sstIOregs)->miscInit0 = dwReg;
+; 560  : 
+; 561  :    // 'miscInit1' now becomes the 'vip2vmiCtrl' register.  Read it.
+; 562  :    dwReg = ((PH3_MEMBASE0)sstIOregs)->miscInit1;
+; 563  : 
+; 564  : #endif
+; 565  : 
+; 566  :    switch( addr )
+; 567  :    {
+
+  006da	8b 4d 0c	 mov	 ecx, DWORD PTR _addr$[ebp]
+  006dd	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  006e3	89 4d f0	 mov	 DWORD PTR -16+[ebp], ecx
+  006e6	83 7d f0 03	 cmp	 DWORD PTR -16+[ebp], 3
+  006ea	0f 87 94 00 00
+	00		 ja	 $L12202
+  006f0	8b 55 f0	 mov	 edx, DWORD PTR -16+[ebp]
+  006f3	ff 24 95 00 00
+	00 00		 jmp	 DWORD PTR $L12290[edx*4]
+$L12205:
+
+; 568  :    case 0:
+; 569  :       dwData = (dwReg & VIP2VMI_CMD_BITS);
+
+  006fa	8b 45 f8	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  006fd	25 07 00 00 c0	 and	 eax, -1073741817	; c0000007H
+  00702	89 45 f4	 mov	 DWORD PTR _dwData$[ebp], eax
+
+; 570  :       dwData |= (dwReg >> INTR_FIELD_SHIFT);
+
+  00705	8b 4d f8	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00708	c1 e9 1a	 shr	 ecx, 26			; 0000001aH
+  0070b	8b 55 f4	 mov	 edx, DWORD PTR _dwData$[ebp]
+  0070e	0b d1		 or	 edx, ecx
+  00710	89 55 f4	 mov	 DWORD PTR _dwData$[ebp], edx
+
+; 571  :       // Copy to Output buffer of DeviceIOControl() call.
+; 572  : 	  data = (BYTE) (dwData & 0xFF);
+
+  00713	8b 45 f4	 mov	 eax, DWORD PTR _dwData$[ebp]
+  00716	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  0071b	88 45 fc	 mov	 BYTE PTR _data$[ebp], al
+
+; 573  :    break;
+
+  0071e	eb 64		 jmp	 SHORT $L12202
+$L12207:
+
+; 574  :    case 1:
+; 575  :       dwData = (dwReg & VIP2VMI_VBIMAX_BITS);
+
+  00720	8b 4d f8	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00723	81 e1 f0 01 00
+	00		 and	 ecx, 496		; 000001f0H
+  00729	89 4d f4	 mov	 DWORD PTR _dwData$[ebp], ecx
+
+; 576  :       dwData >>= VBIMAX_SHIFT;
+
+  0072c	8b 55 f4	 mov	 edx, DWORD PTR _dwData$[ebp]
+  0072f	c1 ea 04	 shr	 edx, 4
+  00732	89 55 f4	 mov	 DWORD PTR _dwData$[ebp], edx
+
+; 577  :       // Copy to Output buffer of DeviceIOControl() call.
+; 578  :       data = (BYTE)(dwData & 0xFF);
+
+  00735	8b 45 f4	 mov	 eax, DWORD PTR _dwData$[ebp]
+  00738	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  0073d	88 45 fc	 mov	 BYTE PTR _data$[ebp], al
+
+; 579  :    break;
+
+  00740	eb 42		 jmp	 SHORT $L12202
+$L12209:
+
+; 580  :    case 2:
+; 581  :       dwData = (dwReg & VIP2VMI_VIDMAXLO_BITS);
+
+  00742	8b 4d f8	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00745	81 e1 00 fe 01
+	00		 and	 ecx, 130560		; 0001fe00H
+  0074b	89 4d f4	 mov	 DWORD PTR _dwData$[ebp], ecx
+
+; 582  :       dwData >>= VIDMAXLO_SHIFT;
+
+  0074e	8b 55 f4	 mov	 edx, DWORD PTR _dwData$[ebp]
+  00751	c1 ea 09	 shr	 edx, 9
+  00754	89 55 f4	 mov	 DWORD PTR _dwData$[ebp], edx
+
+; 583  :       // Copy to Output buffer of DeviceIOControl() call.
+; 584  :       data = (BYTE) (dwData & 0xFF);
+
+  00757	8b 45 f4	 mov	 eax, DWORD PTR _dwData$[ebp]
+  0075a	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  0075f	88 45 fc	 mov	 BYTE PTR _data$[ebp], al
+
+; 585  :    break;
+
+  00762	eb 20		 jmp	 SHORT $L12202
+$L12211:
+
+; 586  :    case 3:
+; 587  :       dwData = (dwReg & VIP2VMI_VIDMAXHI_BITS);
+
+  00764	8b 4d f8	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00767	81 e1 00 00 06
+	00		 and	 ecx, 393216		; 00060000H
+  0076d	89 4d f4	 mov	 DWORD PTR _dwData$[ebp], ecx
+
+; 588  :       dwData >>= VIDMAXHI_SHIFT;
+
+  00770	8b 55 f4	 mov	 edx, DWORD PTR _dwData$[ebp]
+  00773	c1 ea 11	 shr	 edx, 17			; 00000011H
+  00776	89 55 f4	 mov	 DWORD PTR _dwData$[ebp], edx
+
+; 589  :       // Copy to Output buffer of DeviceIOControl() call.
+; 590  :       data = (BYTE)(dwData & 0xFF);
+
+  00779	8b 45 f4	 mov	 eax, DWORD PTR _dwData$[ebp]
+  0077c	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00781	88 45 fc	 mov	 BYTE PTR _data$[ebp], al
+$L12202:
+
+; 593  : 
+; 594  : #ifndef WINNT
+; 595  :    // Re-enable 'miscInit1'
+; 596  :    dwReg = ((SstIORegs *)sstIOregs)->miscInit0;
+
+  00784	8b 4d 08	 mov	 ecx, DWORD PTR _sstIOregs$[ebp]
+  00787	8b 51 10	 mov	 edx, DWORD PTR [ecx+16]
+  0078a	89 55 f8	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 597  :    dwReg &= ~VIP2VMI_ENABLE;      // Enable access to 'miscInit1' reg.
+
+  0078d	8b 45 f8	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00790	25 ff ff ff 7f	 and	 eax, 2147483647		; 7fffffffH
+  00795	89 45 f8	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 598  :    ((SstIORegs *)sstIOregs)->miscInit0 = dwReg;
+
+  00798	8b 4d 08	 mov	 ecx, DWORD PTR _sstIOregs$[ebp]
+  0079b	8b 55 f8	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  0079e	89 51 10	 mov	 DWORD PTR [ecx+16], edx
+
+; 599  : #else
+; 600  : 
+; 601  :    // Re-enable 'miscInit1'
+; 602  :    dwReg = ((PH3_MEMBASE0)sstIOregs)->miscInit0;
+; 603  :    dwReg &= ~VIP2VMI_ENABLE;      // Enable access to 'miscInit1' reg.
+; 604  :    ((PH3_MEMBASE0)sstIOregs)->miscInit0 = dwReg;
+; 605  : 
+; 606  : #endif
+; 607  :    return data;
+
+  007a1	8a 45 fc	 mov	 al, BYTE PTR _data$[ebp]
+
+; 608  : }
+
+  007a4	8b e5		 mov	 esp, ebp
+  007a6	5d		 pop	 ebp
+  007a7	c3		 ret	 0
+$L12290:
+  007a8	00 00 00 00	 DD	 $L12205
+  007ac	00 00 00 00	 DD	 $L12207
+  007b0	00 00 00 00	 DD	 $L12209
+  007b4	00 00 00 00	 DD	 $L12211
+_VMIReadData ENDP
+_sstIOregs$ = 8
+_dwLines$ = 12
+_VMIPLD_Write$ = 16
+_VMIPLD_SetVidMax PROC NEAR
+
+; 619  : {
+
+  007b8	55		 push	 ebp
+  007b9	8b ec		 mov	 ebp, esp
+
+; 620  : 	VMIPLD_Write(sstIOregs, 2, (BYTE)(dwLines & 0xFF));
+
+  007bb	8b 45 0c	 mov	 eax, DWORD PTR _dwLines$[ebp]
+  007be	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  007c3	50		 push	 eax
+  007c4	6a 02		 push	 2
+  007c6	8b 4d 08	 mov	 ecx, DWORD PTR _sstIOregs$[ebp]
+  007c9	51		 push	 ecx
+  007ca	ff 55 10	 call	 DWORD PTR _VMIPLD_Write$[ebp]
+  007cd	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 621  : 	VMIPLD_Write(sstIOregs, 3, (BYTE)((dwLines >> 8) & 0x03));
+
+  007d0	8b 55 0c	 mov	 edx, DWORD PTR _dwLines$[ebp]
+  007d3	c1 ea 08	 shr	 edx, 8
+  007d6	83 e2 03	 and	 edx, 3
+  007d9	52		 push	 edx
+  007da	6a 03		 push	 3
+  007dc	8b 45 08	 mov	 eax, DWORD PTR _sstIOregs$[ebp]
+  007df	50		 push	 eax
+  007e0	ff 55 10	 call	 DWORD PTR _VMIPLD_Write$[ebp]
+  007e3	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 622  : }
+
+  007e6	5d		 pop	 ebp
+  007e7	c3		 ret	 0
+_VMIPLD_SetVidMax ENDP
+_sstIOregs$ = 8
+_dwLines$ = 12
+_VMIPLD_Write$ = 16
+_VMIPLD_SetVbiMax PROC NEAR
+
+; 632  : {
+
+  007e8	55		 push	 ebp
+  007e9	8b ec		 mov	 ebp, esp
+
+; 633  : 	VMIPLD_Write(sstIOregs, 1, (BYTE)(dwLines & 0xFF));
+
+  007eb	8b 45 0c	 mov	 eax, DWORD PTR _dwLines$[ebp]
+  007ee	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  007f3	50		 push	 eax
+  007f4	6a 01		 push	 1
+  007f6	8b 4d 08	 mov	 ecx, DWORD PTR _sstIOregs$[ebp]
+  007f9	51		 push	 ecx
+  007fa	ff 55 10	 call	 DWORD PTR _VMIPLD_Write$[ebp]
+  007fd	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 634  : }
+
+  00800	5d		 pop	 ebp
+  00801	c3		 ret	 0
+_VMIPLD_SetVbiMax ENDP
+_sstIOregs$ = 8
+_dwLines$ = 12
+_VMIPLD_Read$ = 16
+_data1$ = -4
+_data2$ = -8
+_VMIPLD_ReadVidMax PROC NEAR
+
+; 646  : {
+
+  00802	55		 push	 ebp
+  00803	8b ec		 mov	 ebp, esp
+  00805	83 ec 08	 sub	 esp, 8
+
+; 647  : 	BYTE data1, data2;
+; 648  : 	data1 = VMIPLD_Read(sstIOregs, 2);
+
+  00808	6a 02		 push	 2
+  0080a	8b 45 08	 mov	 eax, DWORD PTR _sstIOregs$[ebp]
+  0080d	50		 push	 eax
+  0080e	ff 55 10	 call	 DWORD PTR _VMIPLD_Read$[ebp]
+  00811	83 c4 08	 add	 esp, 8
+  00814	88 45 fc	 mov	 BYTE PTR _data1$[ebp], al
+
+; 649  : 	data2 = VMIPLD_Read(sstIOregs, 3);
+
+  00817	6a 03		 push	 3
+  00819	8b 4d 08	 mov	 ecx, DWORD PTR _sstIOregs$[ebp]
+  0081c	51		 push	 ecx
+  0081d	ff 55 10	 call	 DWORD PTR _VMIPLD_Read$[ebp]
+  00820	83 c4 08	 add	 esp, 8
+  00823	88 45 f8	 mov	 BYTE PTR _data2$[ebp], al
+
+; 650  : 	*dwLines = data1 | ((data2 & 0x03) << 8);
+
+  00826	8b 55 fc	 mov	 edx, DWORD PTR _data1$[ebp]
+  00829	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  0082f	8b 45 f8	 mov	 eax, DWORD PTR _data2$[ebp]
+  00832	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00837	83 e0 03	 and	 eax, 3
+  0083a	c1 e0 08	 shl	 eax, 8
+  0083d	0b d0		 or	 edx, eax
+  0083f	8b 4d 0c	 mov	 ecx, DWORD PTR _dwLines$[ebp]
+  00842	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 651  : }
+
+  00844	8b e5		 mov	 esp, ebp
+  00846	5d		 pop	 ebp
+  00847	c3		 ret	 0
+_VMIPLD_ReadVidMax ENDP
+_sstIOregs$ = 8
+_dwLines$ = 12
+_VMIPLD_Read$ = 16
+_data$ = -4
+_VMIPLD_ReadVbiMax PROC NEAR
+
+; 662  : {
+
+  00848	55		 push	 ebp
+  00849	8b ec		 mov	 ebp, esp
+  0084b	51		 push	 ecx
+
+; 663  : 	BYTE data;
+; 664  : 	data = VMIPLD_Read(sstIOregs, 1);
+
+  0084c	6a 01		 push	 1
+  0084e	8b 45 08	 mov	 eax, DWORD PTR _sstIOregs$[ebp]
+  00851	50		 push	 eax
+  00852	ff 55 10	 call	 DWORD PTR _VMIPLD_Read$[ebp]
+  00855	83 c4 08	 add	 esp, 8
+  00858	88 45 fc	 mov	 BYTE PTR _data$[ebp], al
+
+; 665  : 	*dwLines = (data & 0x01F);
+
+  0085b	8b 4d fc	 mov	 ecx, DWORD PTR _data$[ebp]
+  0085e	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  00864	83 e1 1f	 and	 ecx, 31			; 0000001fH
+  00867	8b 55 0c	 mov	 edx, DWORD PTR _dwLines$[ebp]
+  0086a	89 0a		 mov	 DWORD PTR [edx], ecx
+
+; 666  : }
+
+  0086c	8b e5		 mov	 esp, ebp
+  0086e	5d		 pop	 ebp
+  0086f	c3		 ret	 0
+_VMIPLD_ReadVbiMax ENDP
+_sstIOregs$ = 8
+_bCommand$ = 12
+_VMIPLD_Read$ = 16
+_VMIPLD_Write$ = 20
+_reg$ = -4
+_VMIPLD_SetCommand PROC NEAR
+
+; 678  : {
+
+  00870	55		 push	 ebp
+  00871	8b ec		 mov	 ebp, esp
+  00873	51		 push	 ecx
+
+; 679  : 	BYTE reg;
+; 680  : 	reg = VMIPLD_Read(sstIOregs, 0);
+
+  00874	6a 00		 push	 0
+  00876	8b 45 08	 mov	 eax, DWORD PTR _sstIOregs$[ebp]
+  00879	50		 push	 eax
+  0087a	ff 55 10	 call	 DWORD PTR _VMIPLD_Read$[ebp]
+  0087d	83 c4 08	 add	 esp, 8
+  00880	88 45 fc	 mov	 BYTE PTR _reg$[ebp], al
+
+; 681  : 	reg &= 0xF8;
+
+  00883	8a 4d fc	 mov	 cl, BYTE PTR _reg$[ebp]
+  00886	80 e1 f8	 and	 cl, 248			; 000000f8H
+  00889	88 4d fc	 mov	 BYTE PTR _reg$[ebp], cl
+
+; 682  :  	reg |= bCommand;
+
+  0088c	8a 55 fc	 mov	 dl, BYTE PTR _reg$[ebp]
+  0088f	0a 55 0c	 or	 dl, BYTE PTR _bCommand$[ebp]
+  00892	88 55 fc	 mov	 BYTE PTR _reg$[ebp], dl
+
+; 683  : 	VMIPLD_Write(sstIOregs, 0, reg);
+
+  00895	8a 45 fc	 mov	 al, BYTE PTR _reg$[ebp]
+  00898	50		 push	 eax
+  00899	6a 00		 push	 0
+  0089b	8b 4d 08	 mov	 ecx, DWORD PTR _sstIOregs$[ebp]
+  0089e	51		 push	 ecx
+  0089f	ff 55 14	 call	 DWORD PTR _VMIPLD_Write$[ebp]
+  008a2	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 684  : }
+
+  008a5	8b e5		 mov	 esp, ebp
+  008a7	5d		 pop	 ebp
+  008a8	c3		 ret	 0
+_VMIPLD_SetCommand ENDP
+_sstIOregs$ = 8
+_VMIPLD_Read$ = 12
+_VMIPLD_ReadCommand PROC NEAR
+
+; 694  : {
+
+  008a9	55		 push	 ebp
+  008aa	8b ec		 mov	 ebp, esp
+
+; 695  : 	return VMIPLD_Read(sstIOregs, 0);
+
+  008ac	6a 00		 push	 0
+  008ae	8b 45 08	 mov	 eax, DWORD PTR _sstIOregs$[ebp]
+  008b1	50		 push	 eax
+  008b2	ff 55 0c	 call	 DWORD PTR _VMIPLD_Read$[ebp]
+  008b5	83 c4 08	 add	 esp, 8
+
+; 696  : }
+
+  008b8	5d		 pop	 ebp
+  008b9	c3		 ret	 0
+_VMIPLD_ReadCommand ENDP
+_LTEXT	ENDS
+PUBLIC	_VMIPLD_ReadStatus
+_LTEXT	SEGMENT
+_sstIOregs$ = 8
+_VMIPLD_Read$ = 12
+_VMIPLD_ReadStatus PROC NEAR
+
+; 705  : {
+
+  008ba	55		 push	 ebp
+  008bb	8b ec		 mov	 ebp, esp
+
+; 706  : 	return VMIPLD_Read(sstIOregs, 0);
+
+  008bd	6a 00		 push	 0
+  008bf	8b 45 08	 mov	 eax, DWORD PTR _sstIOregs$[ebp]
+  008c2	50		 push	 eax
+  008c3	ff 55 0c	 call	 DWORD PTR _VMIPLD_Read$[ebp]
+  008c6	83 c4 08	 add	 esp, 8
+
+; 707  : }
+
+  008c9	5d		 pop	 ebp
+  008ca	c3		 ret	 0
+_VMIPLD_ReadStatus ENDP
+_sstIOregs$ = 8
+_VMIPLD_Read$ = 12
+_data$ = -4
+_VMIPLD_Available PROC NEAR
+
+; 716  : {
+
+  008cb	55		 push	 ebp
+  008cc	8b ec		 mov	 ebp, esp
+  008ce	51		 push	 ecx
+
+; 717  : 	BYTE data;
+; 718  : 
+; 719  : 	if(VMIPLD_Read == PLD656_Read)
+
+  008cf	81 7d 0c 00 00
+	00 00		 cmp	 DWORD PTR _VMIPLD_Read$[ebp], OFFSET FLAT:_PLD656_Read
+  008d6	75 6f		 jne	 SHORT $L12275
+
+; 721  : 		data = VMIPLD_Read(sstIOregs, 1);
+
+  008d8	6a 01		 push	 1
+  008da	8b 45 08	 mov	 eax, DWORD PTR _sstIOregs$[ebp]
+  008dd	50		 push	 eax
+  008de	ff 55 0c	 call	 DWORD PTR _VMIPLD_Read$[ebp]
+  008e1	83 c4 08	 add	 esp, 8
+  008e4	88 45 fc	 mov	 BYTE PTR _data$[ebp], al
+
+; 722  : 
+; 723  : 		if ((data & 0xE0) != 0x80)
+
+  008e7	8b 4d fc	 mov	 ecx, DWORD PTR _data$[ebp]
+  008ea	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  008f0	81 e1 e0 00 00
+	00		 and	 ecx, 224		; 000000e0H
+  008f6	81 f9 80 00 00
+	00		 cmp	 ecx, 128		; 00000080H
+  008fc	74 04		 je	 SHORT $L12276
+
+; 724  : 			return 0;
+
+  008fe	32 c0		 xor	 al, al
+  00900	eb 4b		 jmp	 SHORT $L12273
+$L12276:
+
+; 725  : 		data = VMIPLD_Read(sstIOregs, 3);
+
+  00902	6a 03		 push	 3
+  00904	8b 55 08	 mov	 edx, DWORD PTR _sstIOregs$[ebp]
+  00907	52		 push	 edx
+  00908	ff 55 0c	 call	 DWORD PTR _VMIPLD_Read$[ebp]
+  0090b	83 c4 08	 add	 esp, 8
+  0090e	88 45 fc	 mov	 BYTE PTR _data$[ebp], al
+
+; 726  : 		data = ((data & 0xFC) >> 2);
+
+  00911	8b 45 fc	 mov	 eax, DWORD PTR _data$[ebp]
+  00914	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00919	25 fc 00 00 00	 and	 eax, 252		; 000000fcH
+  0091e	c1 f8 02	 sar	 eax, 2
+  00921	88 45 fc	 mov	 BYTE PTR _data$[ebp], al
+
+; 727  : 		if (data >= 1 && data < 0x3F)	// not all 1's
+
+  00924	8b 4d fc	 mov	 ecx, DWORD PTR _data$[ebp]
+  00927	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  0092d	83 f9 01	 cmp	 ecx, 1
+  00930	7c 13		 jl	 SHORT $L12277
+  00932	8b 55 fc	 mov	 edx, DWORD PTR _data$[ebp]
+  00935	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  0093b	83 fa 3f	 cmp	 edx, 63			; 0000003fH
+  0093e	7d 05		 jge	 SHORT $L12277
+
+; 728  : 			return data;
+
+  00940	8a 45 fc	 mov	 al, BYTE PTR _data$[ebp]
+  00943	eb 08		 jmp	 SHORT $L12273
+$L12277:
+
+; 730  : 	 else
+
+  00945	eb 04		 jmp	 SHORT $L12278
+$L12275:
+
+; 731  : 	 	return 2;		//for NAPALM
+
+  00947	b0 02		 mov	 al, 2
+  00949	eb 02		 jmp	 SHORT $L12273
+$L12278:
+
+; 732  : 
+; 733  : 	return 0;
+
+  0094b	32 c0		 xor	 al, al
+$L12273:
+
+; 734  : }
+
+  0094d	8b e5		 mov	 esp, ebp
+  0094f	5d		 pop	 ebp
+  00950	c3		 ret	 0
+_VMIPLD_Available ENDP
+_LTEXT	ENDS
+END

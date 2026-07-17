@@ -1,0 +1,65 @@
+# Sample makefile for DOS/4GW DLL and client programs
+#   (samples built and tested with Watcom 10.6 and 11.0á)
+# Copyright (c) 1996,1997 Dan Teven.  All rights reserved.
+
+HEADERS=dllload.h
+LIBRARIES=dllload.lib dllloads.obj
+
+INSTALL_DESTINATION=$(BUILD_ROOT_SWLIBS)
+
+all: incs libs 
+
+clean: 
+        if exist *.obj del *.obj 
+        if exist *.lib del *.lib 
+        if exist *.map del *.map 
+        if exist *.err del *.err
+
+clobber:
+	echo Clobber has been overridden in this directory
+
+CALLFLAGS=/5r
+
+CFLAGS=/W4 /ox /fpi87 /fp5 $(CALLFLAGS)
+!if "$(DEBUG)" != ""
+CDEBUG=/d2
+ADEBUG=/d2
+!else
+CDEBUG=-otexan
+ADEBUG=
+!endif
+
+AFLAGS=/W3
+
+.c.obj: 
+	wcc386 /mf $(CDEBUG) $(CFLAGS) $<
+
+.asm.obj: 
+	wasm $(ADEBUG) $(AFLAGS) $<
+
+
+#------------------------- DLL loader and API --------------------------------
+
+# We only have to build DLLLOAD.LIB one way, with register calling.
+
+dllload.obj: dllload.c 
+
+ldrcall.obj: ldrcall.asm 
+
+loadme.obj: loadme.asm 
+
+dllloads.obj: dllloads.asm 
+
+dllload.lib: dllload.obj ldrcall.obj loadme.obj
+        if exist dllload.lib del dllload.lib
+	wlib dllload.lib +dllload +ldrcall +loadme
+
+
+#-------------------------3Dfx.mak-like stuff--------------------------------
+bins:
+
+incs:
+	xcopy /d /k /r /i /s /q dllload.h $(INSTALL_DESTINATION)\include
+
+libs:	$(LIBRARIES)
+	for %i in ($(LIBRARIES)) do xcopy /d /k /r /i /s /q %i $(INSTALL_DESTINATION)\lib

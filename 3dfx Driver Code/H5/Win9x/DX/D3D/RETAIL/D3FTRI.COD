@@ -1,0 +1,1900 @@
+	TITLE	..\d3ftri.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+FLAT	GROUP _DATA, CONST, _BSS
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+_DATA	SEGMENT
+_f_255_reverse_lookup DD 0437f0000r		; 255
+	DD	0437e0000r			; 254
+	DD	0437d0000r			; 253
+	DD	0437c0000r			; 252
+	DD	0437b0000r			; 251
+	DD	0437a0000r			; 250
+	DD	043790000r			; 249
+	DD	043780000r			; 248
+	DD	043770000r			; 247
+	DD	043760000r			; 246
+	DD	043750000r			; 245
+	DD	043740000r			; 244
+	DD	043730000r			; 243
+	DD	043720000r			; 242
+	DD	043710000r			; 241
+	DD	043700000r			; 240
+	DD	0436f0000r			; 239
+	DD	0436e0000r			; 238
+	DD	0436d0000r			; 237
+	DD	0436c0000r			; 236
+	DD	0436b0000r			; 235
+	DD	0436a0000r			; 234
+	DD	043690000r			; 233
+	DD	043680000r			; 232
+	DD	043670000r			; 231
+	DD	043660000r			; 230
+	DD	043650000r			; 229
+	DD	043640000r			; 228
+	DD	043630000r			; 227
+	DD	043620000r			; 226
+	DD	043610000r			; 225
+	DD	043600000r			; 224
+	DD	0435f0000r			; 223
+	DD	0435e0000r			; 222
+	DD	0435d0000r			; 221
+	DD	0435c0000r			; 220
+	DD	0435b0000r			; 219
+	DD	0435a0000r			; 218
+	DD	043590000r			; 217
+	DD	043580000r			; 216
+	DD	043570000r			; 215
+	DD	043560000r			; 214
+	DD	043550000r			; 213
+	DD	043540000r			; 212
+	DD	043530000r			; 211
+	DD	043520000r			; 210
+	DD	043510000r			; 209
+	DD	043500000r			; 208
+	DD	0434f0000r			; 207
+	DD	0434e0000r			; 206
+	DD	0434d0000r			; 205
+	DD	0434c0000r			; 204
+	DD	0434b0000r			; 203
+	DD	0434a0000r			; 202
+	DD	043490000r			; 201
+	DD	043480000r			; 200
+	DD	043470000r			; 199
+	DD	043460000r			; 198
+	DD	043450000r			; 197
+	DD	043440000r			; 196
+	DD	043430000r			; 195
+	DD	043420000r			; 194
+	DD	043410000r			; 193
+	DD	043400000r			; 192
+	DD	0433f0000r			; 191
+	DD	0433e0000r			; 190
+	DD	0433d0000r			; 189
+	DD	0433c0000r			; 188
+	DD	0433b0000r			; 187
+	DD	0433a0000r			; 186
+	DD	043390000r			; 185
+	DD	043380000r			; 184
+	DD	043370000r			; 183
+	DD	043360000r			; 182
+	DD	043350000r			; 181
+	DD	043340000r			; 180
+	DD	043330000r			; 179
+	DD	043320000r			; 178
+	DD	043310000r			; 177
+	DD	043300000r			; 176
+	DD	0432f0000r			; 175
+	DD	0432e0000r			; 174
+	DD	0432d0000r			; 173
+	DD	0432c0000r			; 172
+	DD	0432b0000r			; 171
+	DD	0432a0000r			; 170
+	DD	043290000r			; 169
+	DD	043280000r			; 168
+	DD	043270000r			; 167
+	DD	043260000r			; 166
+	DD	043250000r			; 165
+	DD	043240000r			; 164
+	DD	043230000r			; 163
+	DD	043220000r			; 162
+	DD	043210000r			; 161
+	DD	043200000r			; 160
+	DD	0431f0000r			; 159
+	DD	0431e0000r			; 158
+	DD	0431d0000r			; 157
+	DD	0431c0000r			; 156
+	DD	0431b0000r			; 155
+	DD	0431a0000r			; 154
+	DD	043190000r			; 153
+	DD	043180000r			; 152
+	DD	043170000r			; 151
+	DD	043160000r			; 150
+	DD	043150000r			; 149
+	DD	043140000r			; 148
+	DD	043130000r			; 147
+	DD	043120000r			; 146
+	DD	043110000r			; 145
+	DD	043100000r			; 144
+	DD	0430f0000r			; 143
+	DD	0430e0000r			; 142
+	DD	0430d0000r			; 141
+	DD	0430c0000r			; 140
+	DD	0430b0000r			; 139
+	DD	0430a0000r			; 138
+	DD	043090000r			; 137
+	DD	043080000r			; 136
+	DD	043070000r			; 135
+	DD	043060000r			; 134
+	DD	043050000r			; 133
+	DD	043040000r			; 132
+	DD	043030000r			; 131
+	DD	043020000r			; 130
+	DD	043010000r			; 129
+	DD	043000000r			; 128
+	DD	042fe0000r			; 127
+	DD	042fc0000r			; 126
+	DD	042fa0000r			; 125
+	DD	042f80000r			; 124
+	DD	042f60000r			; 123
+	DD	042f40000r			; 122
+	DD	042f20000r			; 121
+	DD	042f00000r			; 120
+	DD	042ee0000r			; 119
+	DD	042ec0000r			; 118
+	DD	042ea0000r			; 117
+	DD	042e80000r			; 116
+	DD	042e60000r			; 115
+	DD	042e40000r			; 114
+	DD	042e20000r			; 113
+	DD	042e00000r			; 112
+	DD	042de0000r			; 111
+	DD	042dc0000r			; 110
+	DD	042da0000r			; 109
+	DD	042d80000r			; 108
+	DD	042d60000r			; 107
+	DD	042d40000r			; 106
+	DD	042d20000r			; 105
+	DD	042d00000r			; 104
+	DD	042ce0000r			; 103
+	DD	042cc0000r			; 102
+	DD	042ca0000r			; 101
+	DD	042c80000r			; 100
+	DD	042c60000r			; 99
+	DD	042c40000r			; 98
+	DD	042c20000r			; 97
+	DD	042c00000r			; 96
+	DD	042be0000r			; 95
+	DD	042bc0000r			; 94
+	DD	042ba0000r			; 93
+	DD	042b80000r			; 92
+	DD	042b60000r			; 91
+	DD	042b40000r			; 90
+	DD	042b20000r			; 89
+	DD	042b00000r			; 88
+	DD	042ae0000r			; 87
+	DD	042ac0000r			; 86
+	DD	042aa0000r			; 85
+	DD	042a80000r			; 84
+	DD	042a60000r			; 83
+	DD	042a40000r			; 82
+	DD	042a20000r			; 81
+	DD	042a00000r			; 80
+	DD	0429e0000r			; 79
+	DD	0429c0000r			; 78
+	DD	0429a0000r			; 77
+	DD	042980000r			; 76
+	DD	042960000r			; 75
+	DD	042940000r			; 74
+	DD	042920000r			; 73
+	DD	042900000r			; 72
+	DD	0428e0000r			; 71
+	DD	0428c0000r			; 70
+	DD	0428a0000r			; 69
+	DD	042880000r			; 68
+	DD	042860000r			; 67
+	DD	042840000r			; 66
+	DD	042820000r			; 65
+	DD	042800000r			; 64
+	DD	0427c0000r			; 63
+	DD	042780000r			; 62
+	DD	042740000r			; 61
+	DD	042700000r			; 60
+	DD	0426c0000r			; 59
+	DD	042680000r			; 58
+	DD	042640000r			; 57
+	DD	042600000r			; 56
+	DD	0425c0000r			; 55
+	DD	042580000r			; 54
+	DD	042540000r			; 53
+	DD	042500000r			; 52
+	DD	0424c0000r			; 51
+	DD	042480000r			; 50
+	DD	042440000r			; 49
+	DD	042400000r			; 48
+	DD	0423c0000r			; 47
+	DD	042380000r			; 46
+	DD	042340000r			; 45
+	DD	042300000r			; 44
+	DD	0422c0000r			; 43
+	DD	042280000r			; 42
+	DD	042240000r			; 41
+	DD	042200000r			; 40
+	DD	0421c0000r			; 39
+	DD	042180000r			; 38
+	DD	042140000r			; 37
+	DD	042100000r			; 36
+	DD	0420c0000r			; 35
+	DD	042080000r			; 34
+	DD	042040000r			; 33
+	DD	042000000r			; 32
+	DD	041f80000r			; 31
+	DD	041f00000r			; 30
+	DD	041e80000r			; 29
+	DD	041e00000r			; 28
+	DD	041d80000r			; 27
+	DD	041d00000r			; 26
+	DD	041c80000r			; 25
+	DD	041c00000r			; 24
+	DD	041b80000r			; 23
+	DD	041b00000r			; 22
+	DD	041a80000r			; 21
+	DD	041a00000r			; 20
+	DD	041980000r			; 19
+	DD	041900000r			; 18
+	DD	041880000r			; 17
+	DD	041800000r			; 16
+	DD	041700000r			; 15
+	DD	041600000r			; 14
+	DD	041500000r			; 13
+	DD	041400000r			; 12
+	DD	041300000r			; 11
+	DD	041200000r			; 10
+	DD	041100000r			; 9
+	DD	041000000r			; 8
+	DD	040e00000r			; 7
+	DD	040c00000r			; 6
+	DD	040a00000r			; 5
+	DD	040800000r			; 4
+	DD	040400000r			; 3
+	DD	040000000r			; 2
+	DD	03f800000r			; 1
+	DD	000000000r			; 0
+_DATA	ENDS
+PUBLIC	_fpFillTrianglePt@16
+EXTRN	__fltused:NEAR
+EXTRN	_fpDrawPoint@28:NEAR
+_TEXT	SEGMENT
+_pRc$ = 8
+_count$ = 12
+_tri$ = 16
+_vertices$ = 20
+_sign$ = -4
+_fpFillTrianglePt@16 PROC NEAR
+
+; 72   : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	83 e4 f8	 and	 esp, -8			; fffffff8H
+  00006	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 73   :   D3DTLVERTEX   *pA, *pB, *pC;
+; 74   :   int           sign;
+; 75   : 
+; 76   :   //---------------
+; 77   :   //
+; 78   :   // every triangle
+; 79   :   //
+; 80   :   //---------------
+; 81   :   for (; count > 0; --count)
+
+  00009	8b 45 0c	 mov	 eax, DWORD PTR _count$[ebp]
+  0000c	66 85 c0	 test	 ax, ax
+  0000f	53		 push	 ebx
+  00010	56		 push	 esi
+  00011	57		 push	 edi
+  00012	0f 86 d8 00 00
+	00		 jbe	 $L35996
+  00018	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  0001d	89 44 24 10	 mov	 DWORD PTR -8+[esp+24], eax
+$L35994:
+
+; 82   :   {
+; 83   :     pA    = &vertices[tri->v1];
+
+  00021	8b 45 10	 mov	 eax, DWORD PTR _tri$[ebp]
+  00024	8b 4d 14	 mov	 ecx, DWORD PTR _vertices$[ebp]
+  00027	33 ff		 xor	 edi, edi
+  00029	66 8b 38	 mov	 di, WORD PTR [eax]
+
+; 84   :     pB    = &vertices[tri->v2];
+
+  0002c	33 f6		 xor	 esi, esi
+  0002e	66 8b 70 02	 mov	 si, WORD PTR [eax+2]
+
+; 85   :     pC    = &vertices[tri->v3];
+
+  00032	33 db		 xor	 ebx, ebx
+  00034	66 8b 58 04	 mov	 bx, WORD PTR [eax+4]
+  00038	c1 e7 05	 shl	 edi, 5
+
+; 86   : 
+; 87   :     // draw each vertex
+; 88   :     ((float*)&sign)[0] = ((pA->sx - pB->sx) * (pB->sy - pC->sy)) -
+; 89   :                          ((pB->sx - pC->sx) * (pA->sy - pB->sy));
+
+  0003b	d9 04 0f	 fld	 DWORD PTR [edi+ecx]
+  0003e	03 f9		 add	 edi, ecx
+  00040	c1 e6 05	 shl	 esi, 5
+  00043	d8 24 0e	 fsub	 DWORD PTR [esi+ecx]
+  00046	03 f1		 add	 esi, ecx
+  00048	d9 46 04	 fld	 DWORD PTR [esi+4]
+  0004b	c1 e3 05	 shl	 ebx, 5
+  0004e	d8 64 0b 04	 fsub	 DWORD PTR [ebx+ecx+4]
+  00052	03 d9		 add	 ebx, ecx
+
+; 90   : 
+; 91   :     sign &= 0x80000000;
+; 92   : 
+; 93   :     if ((sign ^ pRc->cullMask) != 0x80000000)
+
+  00054	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  00057	de c9		 fmulp	 ST(1), ST(0)
+  00059	d9 47 04	 fld	 DWORD PTR [edi+4]
+  0005c	d8 66 04	 fsub	 DWORD PTR [esi+4]
+  0005f	d9 06		 fld	 DWORD PTR [esi]
+  00061	d8 23		 fsub	 DWORD PTR [ebx]
+  00063	de c9		 fmulp	 ST(1), ST(0)
+  00065	de e9		 fsubp	 ST(1), ST(0)
+  00067	d9 5c 24 14	 fstp	 DWORD PTR _sign$[esp+24]
+  0006b	8b 54 24 14	 mov	 edx, DWORD PTR _sign$[esp+24]
+  0006f	81 e2 00 00 00
+	80		 and	 edx, -2147483648	; 80000000H
+  00075	33 91 88 00 00
+	00		 xor	 edx, DWORD PTR [ecx+136]
+  0007b	81 fa 00 00 00
+	80		 cmp	 edx, -2147483648	; 80000000H
+  00081	74 5d		 je	 SHORT $L35998
+
+; 94   :     {
+; 95   :       fpDrawPoint(pA->sx, pA->sy, pA, pRc, pA->color);
+
+  00083	8b 47 10	 mov	 eax, DWORD PTR [edi+16]
+  00086	d9 47 04	 fld	 DWORD PTR [edi+4]
+  00089	50		 push	 eax
+  0008a	51		 push	 ecx
+  0008b	57		 push	 edi
+  0008c	83 ec 08	 sub	 esp, 8
+  0008f	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00092	83 ec 08	 sub	 esp, 8
+  00095	d9 07		 fld	 DWORD PTR [edi]
+  00097	dd 1c 24	 fstp	 QWORD PTR [esp]
+  0009a	e8 00 00 00 00	 call	 _fpDrawPoint@28
+
+; 96   :       fpDrawPoint(pB->sx, pB->sy, pB, pRc, pA->color);
+
+  0009f	8b 4f 10	 mov	 ecx, DWORD PTR [edi+16]
+  000a2	d9 46 04	 fld	 DWORD PTR [esi+4]
+  000a5	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  000a8	51		 push	 ecx
+  000a9	52		 push	 edx
+  000aa	56		 push	 esi
+  000ab	83 ec 08	 sub	 esp, 8
+  000ae	dd 1c 24	 fstp	 QWORD PTR [esp]
+  000b1	83 ec 08	 sub	 esp, 8
+  000b4	d9 06		 fld	 DWORD PTR [esi]
+  000b6	dd 1c 24	 fstp	 QWORD PTR [esp]
+  000b9	e8 00 00 00 00	 call	 _fpDrawPoint@28
+
+; 97   :       fpDrawPoint(pC->sx, pC->sy, pC, pRc, pA->color);
+
+  000be	8b 47 10	 mov	 eax, DWORD PTR [edi+16]
+  000c1	d9 43 04	 fld	 DWORD PTR [ebx+4]
+  000c4	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  000c7	50		 push	 eax
+  000c8	51		 push	 ecx
+  000c9	53		 push	 ebx
+  000ca	83 ec 08	 sub	 esp, 8
+  000cd	dd 1c 24	 fstp	 QWORD PTR [esp]
+  000d0	83 ec 08	 sub	 esp, 8
+  000d3	d9 03		 fld	 DWORD PTR [ebx]
+  000d5	dd 1c 24	 fstp	 QWORD PTR [esp]
+  000d8	e8 00 00 00 00	 call	 _fpDrawPoint@28
+  000dd	8b 45 10	 mov	 eax, DWORD PTR _tri$[ebp]
+$L35998:
+
+; 98   :     }
+; 99   : 
+; 100  :     ++tri;
+
+  000e0	83 c0 08	 add	 eax, 8
+  000e3	89 45 10	 mov	 DWORD PTR _tri$[ebp], eax
+  000e6	ff 4c 24 10	 dec	 DWORD PTR -8+[esp+24]
+  000ea	0f 85 31 ff ff
+	ff		 jne	 $L35994
+$L35996:
+
+; 101  : 
+; 102  :   } // every triangle
+; 103  : } // floating point triangle
+
+  000f0	5f		 pop	 edi
+  000f1	5e		 pop	 esi
+  000f2	5b		 pop	 ebx
+  000f3	8b e5		 mov	 esp, ebp
+  000f5	5d		 pop	 ebp
+  000f6	c2 10 00	 ret	 16			; 00000010H
+_fpFillTrianglePt@16 ENDP
+_TEXT	ENDS
+PUBLIC	_fpFillTriangleLine@16
+EXTRN	_fpDrawLine@16:NEAR
+_TEXT	SEGMENT
+_pRc$ = 8
+_count$ = 12
+_tri$ = 16
+_vertices$ = 20
+_sign$ = 16
+_fpFillTriangleLine@16 PROC NEAR
+
+; 114  :   D3DTLVERTEX   *pA, *pB, *pC;
+; 115  :   int           sign;
+; 116  : 
+; 117  :   //---------------
+; 118  :   //
+; 119  :   // every triangle
+; 120  :   //
+; 121  :   //---------------
+; 122  :   for (; count > 0; --count)
+
+  00100	8b 44 24 08	 mov	 eax, DWORD PTR _count$[esp-4]
+  00104	66 85 c0	 test	 ax, ax
+  00107	0f 86 d2 00 00
+	00		 jbe	 $L36014
+  0010d	53		 push	 ebx
+  0010e	55		 push	 ebp
+  0010f	8b 6c 24 14	 mov	 ebp, DWORD PTR _tri$[esp+4]
+  00113	56		 push	 esi
+  00114	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  00119	57		 push	 edi
+  0011a	89 44 24 18	 mov	 DWORD PTR 12+[esp+12], eax
+$L36012:
+
+; 123  :   {
+; 124  :     pA    = &vertices[tri->v1];
+
+  0011e	8b 44 24 20	 mov	 eax, DWORD PTR _vertices$[esp+12]
+
+; 125  :     pB    = &vertices[tri->v2];
+
+  00122	33 f6		 xor	 esi, esi
+  00124	66 8b 75 02	 mov	 si, WORD PTR [ebp+2]
+
+; 126  :     pC    = &vertices[tri->v3];
+
+  00128	33 db		 xor	 ebx, ebx
+  0012a	66 8b 5d 04	 mov	 bx, WORD PTR [ebp+4]
+  0012e	33 ff		 xor	 edi, edi
+  00130	66 8b 7d 00	 mov	 di, WORD PTR [ebp]
+  00134	c1 e6 05	 shl	 esi, 5
+
+; 127  : 
+; 128  :     ((float*)&sign)[0] = ((pA->sx - pB->sx) * (pB->sy - pC->sy)) -
+; 129  :                          ((pB->sx - pC->sx) * (pA->sy - pB->sy));
+
+  00137	d9 44 06 04	 fld	 DWORD PTR [esi+eax+4]
+  0013b	03 f0		 add	 esi, eax
+  0013d	c1 e3 05	 shl	 ebx, 5
+  00140	d8 64 03 04	 fsub	 DWORD PTR [ebx+eax+4]
+  00144	03 d8		 add	 ebx, eax
+  00146	c1 e7 05	 shl	 edi, 5
+  00149	d9 04 07	 fld	 DWORD PTR [edi+eax]
+  0014c	03 f8		 add	 edi, eax
+  0014e	d8 26		 fsub	 DWORD PTR [esi]
+
+; 130  : 
+; 131  :     sign &= 0x80000000;
+; 132  : 
+; 133  :     if ((sign ^ pRc->cullMask) != 0x80000000)
+
+  00150	8b 44 24 14	 mov	 eax, DWORD PTR _pRc$[esp+12]
+  00154	8b 90 88 00 00
+	00		 mov	 edx, DWORD PTR [eax+136]
+  0015a	de c9		 fmulp	 ST(1), ST(0)
+  0015c	d9 47 04	 fld	 DWORD PTR [edi+4]
+  0015f	d8 66 04	 fsub	 DWORD PTR [esi+4]
+  00162	d9 06		 fld	 DWORD PTR [esi]
+  00164	d8 23		 fsub	 DWORD PTR [ebx]
+  00166	de c9		 fmulp	 ST(1), ST(0)
+  00168	de e9		 fsubp	 ST(1), ST(0)
+  0016a	d9 5c 24 1c	 fstp	 DWORD PTR _sign$[esp+12]
+  0016e	8b 4c 24 1c	 mov	 ecx, DWORD PTR _sign$[esp+12]
+  00172	81 e1 00 00 00
+	80		 and	 ecx, -2147483648	; 80000000H
+  00178	33 ca		 xor	 ecx, edx
+  0017a	81 f9 00 00 00
+	80		 cmp	 ecx, -2147483648	; 80000000H
+  00180	74 47		 je	 SHORT $L36019
+
+; 134  :     {
+; 135  :       // draw each edge
+; 136  :       if (tri->wFlags & D3DTRIFLAG_EDGEENABLE1)
+
+  00182	66 8b 4d 06	 mov	 cx, WORD PTR [ebp+6]
+  00186	f6 c5 01	 test	 ch, 1
+  00189	74 10		 je	 SHORT $L36017
+
+; 137  :       {
+; 138  :         fpDrawLine( pA, pB, pRc, pA->color );
+
+  0018b	8b 57 10	 mov	 edx, DWORD PTR [edi+16]
+  0018e	52		 push	 edx
+  0018f	50		 push	 eax
+  00190	56		 push	 esi
+  00191	57		 push	 edi
+  00192	e8 00 00 00 00	 call	 _fpDrawLine@16
+  00197	8b 44 24 14	 mov	 eax, DWORD PTR _pRc$[esp+12]
+$L36017:
+
+; 139  :       }
+; 140  : 
+; 141  :       if (tri->wFlags & D3DTRIFLAG_EDGEENABLE2)
+
+  0019b	66 8b 4d 06	 mov	 cx, WORD PTR [ebp+6]
+  0019f	f6 c5 02	 test	 ch, 2
+  001a2	74 10		 je	 SHORT $L36018
+
+; 142  :       {
+; 143  :         fpDrawLine( pB, pC, pRc, pA->color );
+
+  001a4	8b 4f 10	 mov	 ecx, DWORD PTR [edi+16]
+  001a7	51		 push	 ecx
+  001a8	50		 push	 eax
+  001a9	53		 push	 ebx
+  001aa	56		 push	 esi
+  001ab	e8 00 00 00 00	 call	 _fpDrawLine@16
+  001b0	8b 44 24 14	 mov	 eax, DWORD PTR _pRc$[esp+12]
+$L36018:
+
+; 144  :       }
+; 145  : 
+; 146  :       if (tri->wFlags & D3DTRIFLAG_EDGEENABLE3)
+
+  001b4	66 8b 4d 06	 mov	 cx, WORD PTR [ebp+6]
+  001b8	f6 c5 04	 test	 ch, 4
+  001bb	74 0c		 je	 SHORT $L36019
+
+; 147  :       {
+; 148  :         fpDrawLine( pC, pA, pRc, pA->color );
+
+  001bd	8b 57 10	 mov	 edx, DWORD PTR [edi+16]
+  001c0	52		 push	 edx
+  001c1	50		 push	 eax
+  001c2	57		 push	 edi
+  001c3	53		 push	 ebx
+  001c4	e8 00 00 00 00	 call	 _fpDrawLine@16
+$L36019:
+  001c9	8b 44 24 18	 mov	 eax, DWORD PTR 12+[esp+12]
+
+; 149  :       }
+; 150  :     }
+; 151  : 
+; 152  :     ++tri;
+
+  001cd	83 c5 08	 add	 ebp, 8
+  001d0	48		 dec	 eax
+  001d1	89 44 24 18	 mov	 DWORD PTR 12+[esp+12], eax
+  001d5	0f 85 43 ff ff
+	ff		 jne	 $L36012
+  001db	5f		 pop	 edi
+  001dc	5e		 pop	 esi
+  001dd	5d		 pop	 ebp
+  001de	5b		 pop	 ebx
+$L36014:
+
+; 153  : 
+; 154  :   } // every triangle
+; 155  : } // floating point triangle
+
+  001df	c2 10 00	 ret	 16			; 00000010H
+_fpFillTriangleLine@16 ENDP
+_TEXT	ENDS
+PUBLIC	_fpFillIDrawTriangle@8
+_TEXT	SEGMENT
+_pRc$ = 8
+_lpdoipd$ = 12
+_sign$ = -20
+_vertices$ = -24
+_pB$ = -28
+_pC$ = -28
+_fillMode$ = -8
+_grab$ = -16
+_fpFillIDrawTriangle@8 PROC NEAR
+
+; 163  : {
+
+  001f0	55		 push	 ebp
+  001f1	8b ec		 mov	 ebp, esp
+  001f3	83 e4 f8	 and	 esp, -8			; fffffff8H
+  001f6	83 ec 1c	 sub	 esp, 28			; 0000001cH
+  001f9	53		 push	 ebx
+
+; 164  :   WORD             *tri = lpdoipd->lpwIndices;
+; 165  :   int               count = lpdoipd->dwNumIndices, sign;
+; 166  :   LPD3DTLVERTEX     vertices = (LPD3DTLVERTEX)lpdoipd->lpvVertices;
+; 167  :   D3DTLVERTEX      *pA, *pB, *pC;
+; 168  :   int               index = 0;
+; 169  :   DWORD             fillMode = pRc->fillMode;
+
+  001fa	8b 5d 08	 mov	 ebx, DWORD PTR _pRc$[ebp]
+  001fd	56		 push	 esi
+  001fe	8b 75 0c	 mov	 esi, DWORD PTR _lpdoipd$[ebp]
+  00201	8b 4e 10	 mov	 ecx, DWORD PTR [esi+16]
+  00204	8b 46 18	 mov	 eax, DWORD PTR [esi+24]
+  00207	8b 56 1c	 mov	 edx, DWORD PTR [esi+28]
+
+; 170  :   unsigned int      grab = 1;
+; 171  : 
+; 172  :   switch (lpdoipd->PrimitiveType)
+; 173  :   {
+
+  0020a	8b 76 08	 mov	 esi, DWORD PTR [esi+8]
+  0020d	83 ee 04	 sub	 esi, 4
+  00210	57		 push	 edi
+  00211	8b 7b 1c	 mov	 edi, DWORD PTR [ebx+28]
+  00214	89 4c 24 10	 mov	 DWORD PTR _vertices$[esp+40], ecx
+  00218	89 7c 24 20	 mov	 DWORD PTR _fillMode$[esp+40], edi
+  0021c	c7 44 24 18 01
+	00 00 00	 mov	 DWORD PTR _grab$[esp+40], 1
+  00224	0f 84 83 02 00
+	00		 je	 $L36041
+  0022a	4e		 dec	 esi
+  0022b	0f 84 28 01 00
+	00		 je	 $L36049
+  00231	4e		 dec	 esi
+  00232	0f 85 a8 03 00
+	00		 jne	 $L36044
+
+; 240  :           }
+; 241  :         }
+; 242  :       } // every triangle
+; 243  :       break;
+; 244  : 
+; 245  :   case D3DPT_TRIANGLEFAN:
+; 246  :       pA = vertices + tri[index++];
+
+  00238	33 f6		 xor	 esi, esi
+  0023a	66 8b 30	 mov	 si, WORD PTR [eax]
+
+; 247  :       pC = vertices + tri[index++];
+
+  0023d	33 ff		 xor	 edi, edi
+  0023f	66 8b 78 02	 mov	 di, WORD PTR [eax+2]
+
+; 248  :       count -=2 ;
+
+  00243	83 ea 02	 sub	 edx, 2
+  00246	c1 e6 05	 shl	 esi, 5
+  00249	03 f1		 add	 esi, ecx
+  0024b	c1 e7 05	 shl	 edi, 5
+  0024e	03 f9		 add	 edi, ecx
+
+; 249  :       for (; count > 0; --count)
+
+  00250	85 d2		 test	 edx, edx
+  00252	0f 8e 88 03 00
+	00		 jle	 $L36044
+  00258	83 c0 04	 add	 eax, 4
+  0025b	89 44 24 1c	 mov	 DWORD PTR -12+[esp+40], eax
+  0025f	89 54 24 18	 mov	 DWORD PTR -16+[esp+40], edx
+$L36060:
+
+; 250  :       {
+; 251  :         pB = pC;
+; 252  :         pC = vertices + tri[index++];
+
+  00263	8b 54 24 1c	 mov	 edx, DWORD PTR -12+[esp+40]
+
+; 253  : 
+; 254  :         ((float*)&sign)[0] = ((pA->sx - pB->sx) * (pB->sy - pC->sy)) -
+; 255  :                              ((pB->sx - pC->sx) * (pA->sy - pB->sy));
+
+  00267	d9 06		 fld	 DWORD PTR [esi]
+  00269	8b c7		 mov	 eax, edi
+  0026b	d8 20		 fsub	 DWORD PTR [eax]
+  0026d	33 ff		 xor	 edi, edi
+  0026f	66 8b 3a	 mov	 di, WORD PTR [edx]
+  00272	d9 40 04	 fld	 DWORD PTR [eax+4]
+  00275	83 c2 02	 add	 edx, 2
+  00278	89 54 24 1c	 mov	 DWORD PTR -12+[esp+40], edx
+  0027c	89 44 24 0c	 mov	 DWORD PTR _pB$[esp+40], eax
+  00280	c1 e7 05	 shl	 edi, 5
+  00283	d8 64 0f 04	 fsub	 DWORD PTR [edi+ecx+4]
+  00287	03 f9		 add	 edi, ecx
+  00289	de c9		 fmulp	 ST(1), ST(0)
+  0028b	d9 46 04	 fld	 DWORD PTR [esi+4]
+  0028e	d8 60 04	 fsub	 DWORD PTR [eax+4]
+  00291	d9 00		 fld	 DWORD PTR [eax]
+  00293	d8 27		 fsub	 DWORD PTR [edi]
+  00295	de c9		 fmulp	 ST(1), ST(0)
+  00297	de e9		 fsubp	 ST(1), ST(0)
+  00299	d9 5c 24 14	 fstp	 DWORD PTR _sign$[esp+40]
+
+; 256  : 
+; 257  :         sign &= 0x80000000;
+
+  0029d	8b 54 24 14	 mov	 edx, DWORD PTR _sign$[esp+40]
+  002a1	81 e2 00 00 00
+	80		 and	 edx, -2147483648	; 80000000H
+
+; 258  : 
+; 259  :         if ((sign ^ pRc->cullMask) != 0x80000000)
+
+  002a7	33 93 88 00 00
+	00		 xor	 edx, DWORD PTR [ebx+136]
+  002ad	81 fa 00 00 00
+	80		 cmp	 edx, -2147483648	; 80000000H
+  002b3	0f 84 8d 00 00
+	00		 je	 $L36061
+
+; 260  :         {
+; 261  :           if (fillMode == D3DFILL_WIREFRAME)
+
+  002b9	83 7c 24 20 02	 cmp	 DWORD PTR _fillMode$[esp+40], 2
+  002be	75 2a		 jne	 SHORT $L36065
+
+; 262  :           {
+; 263  :             fpDrawLine( pA, pB, pRc, pA->color );
+
+  002c0	8b 4e 10	 mov	 ecx, DWORD PTR [esi+16]
+  002c3	51		 push	 ecx
+  002c4	53		 push	 ebx
+  002c5	50		 push	 eax
+  002c6	56		 push	 esi
+  002c7	e8 00 00 00 00	 call	 _fpDrawLine@16
+
+; 264  :             fpDrawLine( pB, pC, pRc, pA->color );
+
+  002cc	8b 56 10	 mov	 edx, DWORD PTR [esi+16]
+  002cf	8b 44 24 0c	 mov	 eax, DWORD PTR _pB$[esp+40]
+  002d3	52		 push	 edx
+  002d4	53		 push	 ebx
+  002d5	57		 push	 edi
+  002d6	50		 push	 eax
+  002d7	e8 00 00 00 00	 call	 _fpDrawLine@16
+
+; 265  :             fpDrawLine( pC, pA, pRc, pA->color );
+
+  002dc	8b 4e 10	 mov	 ecx, DWORD PTR [esi+16]
+  002df	51		 push	 ecx
+  002e0	53		 push	 ebx
+  002e1	56		 push	 esi
+  002e2	57		 push	 edi
+  002e3	e8 00 00 00 00	 call	 _fpDrawLine@16
+
+; 266  :           }
+; 267  :           else
+
+  002e8	eb 58		 jmp	 SHORT $L36134
+$L36065:
+
+; 268  :           {
+; 269  :             fpDrawPoint( pA->sx, pA->sy, pA, pRc, pA->color );
+
+  002ea	8b 56 10	 mov	 edx, DWORD PTR [esi+16]
+  002ed	d9 46 04	 fld	 DWORD PTR [esi+4]
+  002f0	52		 push	 edx
+  002f1	53		 push	 ebx
+  002f2	56		 push	 esi
+  002f3	83 ec 08	 sub	 esp, 8
+  002f6	dd 1c 24	 fstp	 QWORD PTR [esp]
+  002f9	83 ec 08	 sub	 esp, 8
+  002fc	d9 06		 fld	 DWORD PTR [esi]
+  002fe	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00301	e8 00 00 00 00	 call	 _fpDrawPoint@28
+
+; 270  :             fpDrawPoint( pB->sx, pB->sy, pB, pRc, pA->color );
+
+  00306	8b 46 10	 mov	 eax, DWORD PTR [esi+16]
+  00309	50		 push	 eax
+  0030a	8b 44 24 10	 mov	 eax, DWORD PTR _pB$[esp+44]
+  0030e	d9 40 04	 fld	 DWORD PTR [eax+4]
+  00311	53		 push	 ebx
+  00312	50		 push	 eax
+  00313	83 ec 08	 sub	 esp, 8
+  00316	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00319	83 ec 08	 sub	 esp, 8
+  0031c	d9 00		 fld	 DWORD PTR [eax]
+  0031e	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00321	e8 00 00 00 00	 call	 _fpDrawPoint@28
+
+; 271  :             fpDrawPoint( pC->sx, pC->sy, pC, pRc, pA->color );
+
+  00326	8b 4e 10	 mov	 ecx, DWORD PTR [esi+16]
+  00329	d9 47 04	 fld	 DWORD PTR [edi+4]
+  0032c	51		 push	 ecx
+  0032d	53		 push	 ebx
+  0032e	57		 push	 edi
+  0032f	83 ec 08	 sub	 esp, 8
+  00332	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00335	83 ec 08	 sub	 esp, 8
+  00338	d9 07		 fld	 DWORD PTR [edi]
+  0033a	dd 1c 24	 fstp	 QWORD PTR [esp]
+  0033d	e8 00 00 00 00	 call	 _fpDrawPoint@28
+$L36134:
+  00342	8b 4c 24 10	 mov	 ecx, DWORD PTR _vertices$[esp+40]
+$L36061:
+
+; 249  :       for (; count > 0; --count)
+
+  00346	ff 4c 24 18	 dec	 DWORD PTR -16+[esp+40]
+  0034a	0f 85 13 ff ff
+	ff		 jne	 $L36060
+
+; 272  :           }
+; 273  :         }
+; 274  :       } // every triangle
+; 275  :       break;
+; 276  : 
+; 277  :   } // switch
+; 278  : }
+
+  00350	5f		 pop	 edi
+  00351	5e		 pop	 esi
+  00352	5b		 pop	 ebx
+  00353	8b e5		 mov	 esp, ebp
+  00355	5d		 pop	 ebp
+  00356	c2 08 00	 ret	 8
+$L36049:
+
+; 199  :           }
+; 200  :         }
+; 201  :       } // every triangle
+; 202  :       break;
+; 203  : 
+; 204  :     case D3DPT_TRIANGLESTRIP:
+; 205  :       count -=2 ;
+
+  00359	83 ea 02	 sub	 edx, 2
+
+; 206  :       for (; count > 0; --count)
+
+  0035c	85 d2		 test	 edx, edx
+  0035e	0f 8e 7c 02 00
+	00		 jle	 $L36044
+  00364	8b 7c 24 0c	 mov	 edi, DWORD PTR _pB$[esp+40]
+  00368	89 54 24 24	 mov	 DWORD PTR -4+[esp+40], edx
+$L36050:
+
+; 207  :       {
+; 208  :         if (grab)
+
+  0036c	8b 54 24 18	 mov	 edx, DWORD PTR _grab$[esp+40]
+  00370	85 d2		 test	 edx, edx
+  00372	74 2f		 je	 SHORT $L36053
+
+; 209  :         {
+; 210  :           pA = vertices + tri[index++];
+
+  00374	33 f6		 xor	 esi, esi
+  00376	66 8b 30	 mov	 si, WORD PTR [eax]
+
+; 211  :           pB = vertices + tri[index++];
+
+  00379	33 ff		 xor	 edi, edi
+  0037b	66 8b 78 02	 mov	 di, WORD PTR [eax+2]
+  0037f	83 c0 02	 add	 eax, 2
+
+; 212  :           pC = vertices + tri[index++];
+
+  00382	33 d2		 xor	 edx, edx
+  00384	66 8b 50 02	 mov	 dx, WORD PTR [eax+2]
+  00388	83 c0 02	 add	 eax, 2
+  0038b	c1 e6 05	 shl	 esi, 5
+  0038e	03 f1		 add	 esi, ecx
+  00390	c1 e7 05	 shl	 edi, 5
+  00393	03 f9		 add	 edi, ecx
+  00395	c1 e2 05	 shl	 edx, 5
+  00398	03 d1		 add	 edx, ecx
+  0039a	89 54 24 0c	 mov	 DWORD PTR _pC$[esp+40], edx
+  0039e	83 c0 02	 add	 eax, 2
+
+; 213  :         }
+; 214  :         else
+
+  003a1	eb 15		 jmp	 SHORT $L36135
+$L36053:
+
+; 215  :         {
+; 216  :           pA = pC;
+
+  003a3	8b 74 24 0c	 mov	 esi, DWORD PTR _pC$[esp+40]
+
+; 217  :           pB = pB;
+; 218  :           pC = vertices + tri[index--];
+
+  003a7	33 d2		 xor	 edx, edx
+  003a9	66 8b 10	 mov	 dx, WORD PTR [eax]
+  003ac	c1 e2 05	 shl	 edx, 5
+  003af	03 d1		 add	 edx, ecx
+  003b1	89 54 24 0c	 mov	 DWORD PTR _pC$[esp+40], edx
+  003b5	83 e8 02	 sub	 eax, 2
+$L36135:
+
+; 219  :         }
+; 220  :         grab ^= 1;
+
+  003b8	8b 54 24 18	 mov	 edx, DWORD PTR _grab$[esp+40]
+
+; 221  : 
+; 222  :         ((float*)&sign)[0] = ((pA->sx - pB->sx) * (pB->sy - pC->sy)) -
+; 223  :                              ((pB->sx - pC->sx) * (pA->sy - pB->sy));
+
+  003bc	d9 06		 fld	 DWORD PTR [esi]
+  003be	d8 27		 fsub	 DWORD PTR [edi]
+  003c0	83 f2 01	 xor	 edx, 1
+  003c3	d9 47 04	 fld	 DWORD PTR [edi+4]
+  003c6	89 54 24 18	 mov	 DWORD PTR _grab$[esp+40], edx
+  003ca	8b 54 24 0c	 mov	 edx, DWORD PTR _pC$[esp+40]
+  003ce	d8 62 04	 fsub	 DWORD PTR [edx+4]
+  003d1	89 44 24 1c	 mov	 DWORD PTR -12+[esp+40], eax
+  003d5	de c9		 fmulp	 ST(1), ST(0)
+  003d7	d9 46 04	 fld	 DWORD PTR [esi+4]
+  003da	d8 67 04	 fsub	 DWORD PTR [edi+4]
+  003dd	d9 07		 fld	 DWORD PTR [edi]
+  003df	d8 22		 fsub	 DWORD PTR [edx]
+  003e1	de c9		 fmulp	 ST(1), ST(0)
+  003e3	de e9		 fsubp	 ST(1), ST(0)
+  003e5	d9 5c 24 14	 fstp	 DWORD PTR _sign$[esp+40]
+
+; 224  : 
+; 225  :         sign &= 0x80000000;
+
+  003e9	8b 54 24 14	 mov	 edx, DWORD PTR _sign$[esp+40]
+  003ed	81 e2 00 00 00
+	80		 and	 edx, -2147483648	; 80000000H
+
+; 226  : 
+; 227  :         if ((sign ^ pRc->cullMask) != 0x80000000)
+
+  003f3	33 93 88 00 00
+	00		 xor	 edx, DWORD PTR [ebx+136]
+  003f9	81 fa 00 00 00
+	80		 cmp	 edx, -2147483648	; 80000000H
+  003ff	0f 84 95 00 00
+	00		 je	 $L36051
+
+; 228  :         {
+; 229  :           if (fillMode == D3DFILL_WIREFRAME)
+
+  00405	83 7c 24 20 02	 cmp	 DWORD PTR _fillMode$[esp+40], 2
+  0040a	75 2e		 jne	 SHORT $L36057
+
+; 230  :           {
+; 231  :             fpDrawLine( pA, pB, pRc, pA->color );
+
+  0040c	8b 46 10	 mov	 eax, DWORD PTR [esi+16]
+  0040f	50		 push	 eax
+  00410	53		 push	 ebx
+  00411	57		 push	 edi
+  00412	56		 push	 esi
+  00413	e8 00 00 00 00	 call	 _fpDrawLine@16
+
+; 232  :             fpDrawLine( pB, pC, pRc, pA->color );
+
+  00418	8b 4e 10	 mov	 ecx, DWORD PTR [esi+16]
+  0041b	8b 54 24 0c	 mov	 edx, DWORD PTR _pC$[esp+40]
+  0041f	51		 push	 ecx
+  00420	53		 push	 ebx
+  00421	52		 push	 edx
+  00422	57		 push	 edi
+  00423	e8 00 00 00 00	 call	 _fpDrawLine@16
+
+; 233  :             fpDrawLine( pC, pA, pRc, pA->color );
+
+  00428	8b 46 10	 mov	 eax, DWORD PTR [esi+16]
+  0042b	8b 4c 24 0c	 mov	 ecx, DWORD PTR _pC$[esp+40]
+  0042f	50		 push	 eax
+  00430	53		 push	 ebx
+  00431	56		 push	 esi
+  00432	51		 push	 ecx
+  00433	e8 00 00 00 00	 call	 _fpDrawLine@16
+
+; 234  :           }
+; 235  :           else
+
+  00438	eb 58		 jmp	 SHORT $L36136
+$L36057:
+
+; 236  :           {
+; 237  :             fpDrawPoint( pA->sx, pA->sy, pA, pRc, pA->color );
+
+  0043a	8b 56 10	 mov	 edx, DWORD PTR [esi+16]
+  0043d	d9 46 04	 fld	 DWORD PTR [esi+4]
+  00440	52		 push	 edx
+  00441	53		 push	 ebx
+  00442	56		 push	 esi
+  00443	83 ec 08	 sub	 esp, 8
+  00446	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00449	83 ec 08	 sub	 esp, 8
+  0044c	d9 06		 fld	 DWORD PTR [esi]
+  0044e	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00451	e8 00 00 00 00	 call	 _fpDrawPoint@28
+
+; 238  :             fpDrawPoint( pB->sx, pB->sy, pB, pRc, pA->color );
+
+  00456	8b 46 10	 mov	 eax, DWORD PTR [esi+16]
+  00459	d9 47 04	 fld	 DWORD PTR [edi+4]
+  0045c	50		 push	 eax
+  0045d	53		 push	 ebx
+  0045e	57		 push	 edi
+  0045f	83 ec 08	 sub	 esp, 8
+  00462	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00465	83 ec 08	 sub	 esp, 8
+  00468	d9 07		 fld	 DWORD PTR [edi]
+  0046a	dd 1c 24	 fstp	 QWORD PTR [esp]
+  0046d	e8 00 00 00 00	 call	 _fpDrawPoint@28
+
+; 239  :             fpDrawPoint( pC->sx, pC->sy, pC, pRc, pA->color );
+
+  00472	8b 4e 10	 mov	 ecx, DWORD PTR [esi+16]
+  00475	8b 44 24 0c	 mov	 eax, DWORD PTR _pC$[esp+40]
+  00479	d9 40 04	 fld	 DWORD PTR [eax+4]
+  0047c	51		 push	 ecx
+  0047d	53		 push	 ebx
+  0047e	50		 push	 eax
+  0047f	83 ec 08	 sub	 esp, 8
+  00482	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00485	83 ec 08	 sub	 esp, 8
+  00488	d9 00		 fld	 DWORD PTR [eax]
+  0048a	dd 1c 24	 fstp	 QWORD PTR [esp]
+  0048d	e8 00 00 00 00	 call	 _fpDrawPoint@28
+$L36136:
+  00492	8b 4c 24 10	 mov	 ecx, DWORD PTR _vertices$[esp+40]
+  00496	8b 44 24 1c	 mov	 eax, DWORD PTR -12+[esp+40]
+$L36051:
+  0049a	ff 4c 24 24	 dec	 DWORD PTR -4+[esp+40]
+  0049e	0f 85 c8 fe ff
+	ff		 jne	 $L36050
+
+; 272  :           }
+; 273  :         }
+; 274  :       } // every triangle
+; 275  :       break;
+; 276  : 
+; 277  :   } // switch
+; 278  : }
+
+  004a4	5f		 pop	 edi
+  004a5	5e		 pop	 esi
+  004a6	5b		 pop	 ebx
+  004a7	8b e5		 mov	 esp, ebp
+  004a9	5d		 pop	 ebp
+  004aa	c2 08 00	 ret	 8
+$L36041:
+
+; 174  :     case D3DPT_TRIANGLELIST:
+; 175  :       for (; count > 0; count-=3)
+
+  004ad	85 d2		 test	 edx, edx
+  004af	0f 8e 2b 01 00
+	00		 jle	 $L36044
+  004b5	8b f8		 mov	 edi, eax
+  004b7	83 c2 02	 add	 edx, 2
+  004ba	b8 ab aa aa aa	 mov	 eax, -1431655765	; aaaaaaabH
+  004bf	f7 e2		 mul	 edx
+  004c1	d1 ea		 shr	 edx, 1
+  004c3	89 54 24 24	 mov	 DWORD PTR -4+[esp+40], edx
+  004c7	eb 04		 jmp	 SHORT $L36042
+$L36130:
+  004c9	8b 7c 24 1c	 mov	 edi, DWORD PTR -12+[esp+40]
+$L36042:
+
+; 176  :       {
+; 177  :         pA = vertices + tri[index++];
+
+  004cd	33 f6		 xor	 esi, esi
+  004cf	66 8b 37	 mov	 si, WORD PTR [edi]
+
+; 178  :         pB = vertices + tri[index++];
+
+  004d2	33 d2		 xor	 edx, edx
+  004d4	66 8b 57 02	 mov	 dx, WORD PTR [edi+2]
+  004d8	83 c7 02	 add	 edi, 2
+  004db	89 7c 24 1c	 mov	 DWORD PTR -12+[esp+40], edi
+
+; 179  :         pC = vertices + tri[index++];
+
+  004df	33 c0		 xor	 eax, eax
+  004e1	c1 e6 05	 shl	 esi, 5
+
+; 180  : 
+; 181  :         ((float*)&sign)[0] = ((pA->sx - pB->sx) * (pB->sy - pC->sy)) -
+; 182  :                              ((pB->sx - pC->sx) * (pA->sy - pB->sy));
+
+  004e4	d9 04 0e	 fld	 DWORD PTR [esi+ecx]
+  004e7	03 f1		 add	 esi, ecx
+  004e9	8b fa		 mov	 edi, edx
+  004eb	8b 54 24 1c	 mov	 edx, DWORD PTR -12+[esp+40]
+  004ef	66 8b 42 02	 mov	 ax, WORD PTR [edx+2]
+  004f3	83 c2 02	 add	 edx, 2
+  004f6	c1 e7 05	 shl	 edi, 5
+  004f9	d8 24 0f	 fsub	 DWORD PTR [edi+ecx]
+  004fc	03 f9		 add	 edi, ecx
+  004fe	d9 47 04	 fld	 DWORD PTR [edi+4]
+  00501	83 c2 02	 add	 edx, 2
+  00504	89 54 24 1c	 mov	 DWORD PTR -12+[esp+40], edx
+
+; 183  : 
+; 184  :         sign &= 0x80000000;
+; 185  : 
+; 186  :         if ((sign ^ pRc->cullMask) != 0x80000000)
+
+  00508	8b 93 88 00 00
+	00		 mov	 edx, DWORD PTR [ebx+136]
+  0050e	c1 e0 05	 shl	 eax, 5
+  00511	d8 64 08 04	 fsub	 DWORD PTR [eax+ecx+4]
+  00515	03 c1		 add	 eax, ecx
+  00517	89 44 24 0c	 mov	 DWORD PTR _pC$[esp+40], eax
+  0051b	de c9		 fmulp	 ST(1), ST(0)
+  0051d	d9 46 04	 fld	 DWORD PTR [esi+4]
+  00520	d8 67 04	 fsub	 DWORD PTR [edi+4]
+  00523	d9 07		 fld	 DWORD PTR [edi]
+  00525	d8 20		 fsub	 DWORD PTR [eax]
+  00527	de c9		 fmulp	 ST(1), ST(0)
+  00529	de e9		 fsubp	 ST(1), ST(0)
+  0052b	d9 5c 24 14	 fstp	 DWORD PTR _sign$[esp+40]
+  0052f	8b 44 24 14	 mov	 eax, DWORD PTR _sign$[esp+40]
+  00533	25 00 00 00 80	 and	 eax, -2147483648	; 80000000H
+  00538	33 c2		 xor	 eax, edx
+  0053a	3d 00 00 00 80	 cmp	 eax, -2147483648	; 80000000H
+  0053f	0f 84 91 00 00
+	00		 je	 $L36043
+
+; 187  :         {
+; 188  :           if (fillMode == D3DFILL_WIREFRAME)
+
+  00545	83 7c 24 20 02	 cmp	 DWORD PTR _fillMode$[esp+40], 2
+  0054a	75 2e		 jne	 SHORT $L36047
+
+; 189  :           {
+; 190  :             fpDrawLine( pA, pB, pRc, pA->color );
+
+  0054c	8b 4e 10	 mov	 ecx, DWORD PTR [esi+16]
+  0054f	51		 push	 ecx
+  00550	53		 push	 ebx
+  00551	57		 push	 edi
+  00552	56		 push	 esi
+  00553	e8 00 00 00 00	 call	 _fpDrawLine@16
+
+; 191  :             fpDrawLine( pB, pC, pRc, pA->color );
+
+  00558	8b 56 10	 mov	 edx, DWORD PTR [esi+16]
+  0055b	8b 44 24 0c	 mov	 eax, DWORD PTR _pC$[esp+40]
+  0055f	52		 push	 edx
+  00560	53		 push	 ebx
+  00561	50		 push	 eax
+  00562	57		 push	 edi
+  00563	e8 00 00 00 00	 call	 _fpDrawLine@16
+
+; 192  :             fpDrawLine( pC, pA, pRc, pA->color );
+
+  00568	8b 4e 10	 mov	 ecx, DWORD PTR [esi+16]
+  0056b	8b 54 24 0c	 mov	 edx, DWORD PTR _pC$[esp+40]
+  0056f	51		 push	 ecx
+  00570	53		 push	 ebx
+  00571	56		 push	 esi
+  00572	52		 push	 edx
+  00573	e8 00 00 00 00	 call	 _fpDrawLine@16
+
+; 193  :           }
+; 194  :           else
+
+  00578	eb 58		 jmp	 SHORT $L36137
+$L36047:
+
+; 195  :           {
+; 196  :             fpDrawPoint( pA->sx, pA->sy, pA, pRc, pA->color );
+
+  0057a	8b 46 10	 mov	 eax, DWORD PTR [esi+16]
+  0057d	d9 46 04	 fld	 DWORD PTR [esi+4]
+  00580	50		 push	 eax
+  00581	53		 push	 ebx
+  00582	56		 push	 esi
+  00583	83 ec 08	 sub	 esp, 8
+  00586	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00589	83 ec 08	 sub	 esp, 8
+  0058c	d9 06		 fld	 DWORD PTR [esi]
+  0058e	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00591	e8 00 00 00 00	 call	 _fpDrawPoint@28
+
+; 197  :             fpDrawPoint( pB->sx, pB->sy, pB, pRc, pA->color );
+
+  00596	8b 4e 10	 mov	 ecx, DWORD PTR [esi+16]
+  00599	d9 47 04	 fld	 DWORD PTR [edi+4]
+  0059c	51		 push	 ecx
+  0059d	53		 push	 ebx
+  0059e	57		 push	 edi
+  0059f	83 ec 08	 sub	 esp, 8
+  005a2	dd 1c 24	 fstp	 QWORD PTR [esp]
+  005a5	83 ec 08	 sub	 esp, 8
+  005a8	d9 07		 fld	 DWORD PTR [edi]
+  005aa	dd 1c 24	 fstp	 QWORD PTR [esp]
+  005ad	e8 00 00 00 00	 call	 _fpDrawPoint@28
+
+; 198  :             fpDrawPoint( pC->sx, pC->sy, pC, pRc, pA->color );
+
+  005b2	8b 56 10	 mov	 edx, DWORD PTR [esi+16]
+  005b5	8b 44 24 0c	 mov	 eax, DWORD PTR _pC$[esp+40]
+  005b9	d9 40 04	 fld	 DWORD PTR [eax+4]
+  005bc	52		 push	 edx
+  005bd	53		 push	 ebx
+  005be	50		 push	 eax
+  005bf	83 ec 08	 sub	 esp, 8
+  005c2	dd 1c 24	 fstp	 QWORD PTR [esp]
+  005c5	83 ec 08	 sub	 esp, 8
+  005c8	d9 00		 fld	 DWORD PTR [eax]
+  005ca	dd 1c 24	 fstp	 QWORD PTR [esp]
+  005cd	e8 00 00 00 00	 call	 _fpDrawPoint@28
+$L36137:
+  005d2	8b 4c 24 10	 mov	 ecx, DWORD PTR _vertices$[esp+40]
+$L36043:
+
+; 174  :     case D3DPT_TRIANGLELIST:
+; 175  :       for (; count > 0; count-=3)
+
+  005d6	ff 4c 24 24	 dec	 DWORD PTR -4+[esp+40]
+  005da	0f 85 e9 fe ff
+	ff		 jne	 $L36130
+$L36044:
+
+; 272  :           }
+; 273  :         }
+; 274  :       } // every triangle
+; 275  :       break;
+; 276  : 
+; 277  :   } // switch
+; 278  : }
+
+  005e0	5f		 pop	 edi
+  005e1	5e		 pop	 esi
+  005e2	5b		 pop	 ebx
+  005e3	8b e5		 mov	 esp, ebp
+  005e5	5d		 pop	 ebp
+  005e6	c2 08 00	 ret	 8
+_fpFillIDrawTriangle@8 ENDP
+_TEXT	ENDS
+PUBLIC	_fpFillDrawTriangle@8
+_TEXT	SEGMENT
+_pRc$ = 8
+_lpdopd$ = 12
+_sign$ = -16
+_pB$ = -20
+_pC$ = -24
+_fillMode$ = -12
+_grab$ = -4
+_fpFillDrawTriangle@8 PROC NEAR
+
+; 284  : {
+
+  005f0	55		 push	 ebp
+  005f1	8b ec		 mov	 ebp, esp
+  005f3	83 e4 f8	 and	 esp, -8			; fffffff8H
+  005f6	83 ec 1c	 sub	 esp, 28			; 0000001cH
+
+; 285  :   int               count = lpdopd->dwNumVertices, sign;
+
+  005f9	8b 45 0c	 mov	 eax, DWORD PTR _lpdopd$[ebp]
+  005fc	8b 48 14	 mov	 ecx, DWORD PTR [eax+20]
+  005ff	53		 push	 ebx
+  00600	56		 push	 esi
+
+; 286  :   LPD3DTLVERTEX     vertices = (LPD3DTLVERTEX)lpdopd->lpvVertices;
+
+  00601	8b 70 10	 mov	 esi, DWORD PTR [eax+16]
+
+; 287  :   D3DTLVERTEX      *pA, *pB, *pC;
+; 288  :   DWORD             fillMode = pRc->fillMode;
+; 289  :   unsigned int      grab = 1;
+; 290  : 
+; 291  :   switch (lpdopd->PrimitiveType)
+; 292  :   {
+
+  00604	8b 40 08	 mov	 eax, DWORD PTR [eax+8]
+  00607	83 e8 04	 sub	 eax, 4
+  0060a	57		 push	 edi
+  0060b	8b 7d 08	 mov	 edi, DWORD PTR _pRc$[ebp]
+  0060e	8b 57 1c	 mov	 edx, DWORD PTR [edi+28]
+  00611	89 54 24 1c	 mov	 DWORD PTR _fillMode$[esp+40], edx
+  00615	ba 01 00 00 00	 mov	 edx, 1
+  0061a	0f 84 44 02 00
+	00		 je	 $L36086
+  00620	48		 dec	 eax
+  00621	0f 84 12 01 00
+	00		 je	 $L36094
+  00627	48		 dec	 eax
+  00628	0f 85 3b 03 00
+	00		 jne	 $L36089
+
+; 359  :           }
+; 360  :         }
+; 361  :       } // every triangle
+; 362  :       break;
+; 363  : 
+; 364  :     case D3DPT_TRIANGLEFAN:
+; 365  :       pA = vertices++;
+
+  0062e	8b de		 mov	 ebx, esi
+  00630	83 c6 20	 add	 esi, 32			; 00000020H
+
+; 366  :       pC = vertices++;
+
+  00633	8b c6		 mov	 eax, esi
+
+; 367  :       count -=2 ;
+
+  00635	83 e9 02	 sub	 ecx, 2
+  00638	83 c6 20	 add	 esi, 32			; 00000020H
+
+; 368  :       for (; count > 0; --count)
+
+  0063b	85 c9		 test	 ecx, ecx
+  0063d	0f 8e 26 03 00
+	00		 jle	 $L36089
+
+; 359  :           }
+; 360  :         }
+; 361  :       } // every triangle
+; 362  :       break;
+; 363  : 
+; 364  :     case D3DPT_TRIANGLEFAN:
+; 365  :       pA = vertices++;
+
+  00643	89 4c 24 20	 mov	 DWORD PTR -8+[esp+40], ecx
+  00647	eb 04		 jmp	 SHORT $L36105
+$L36145:
+  00649	8b 44 24 10	 mov	 eax, DWORD PTR _pC$[esp+40]
+$L36105:
+
+; 369  :       {
+; 370  :         pB = pC;
+; 371  :         pC = vertices++;
+; 372  : 
+; 373  :         ((float*)&sign)[0] = ((pA->sx - pB->sx) * (pB->sy - pC->sy)) -
+; 374  :                              ((pB->sx - pC->sx) * (pA->sy - pB->sy));
+
+  0064d	d9 03		 fld	 DWORD PTR [ebx]
+  0064f	8b ce		 mov	 ecx, esi
+  00651	d8 20		 fsub	 DWORD PTR [eax]
+
+; 375  : 
+; 376  :         sign &= 0x80000000;
+; 377  : 
+; 378  :         if ((sign ^ pRc->cullMask) != 0x80000000)
+
+  00653	8b 97 88 00 00
+	00		 mov	 edx, DWORD PTR [edi+136]
+  00659	d9 40 04	 fld	 DWORD PTR [eax+4]
+  0065c	89 4c 24 10	 mov	 DWORD PTR _pC$[esp+40], ecx
+  00660	d8 61 04	 fsub	 DWORD PTR [ecx+4]
+  00663	83 c6 20	 add	 esi, 32			; 00000020H
+  00666	89 44 24 14	 mov	 DWORD PTR _pB$[esp+40], eax
+  0066a	de c9		 fmulp	 ST(1), ST(0)
+  0066c	d9 43 04	 fld	 DWORD PTR [ebx+4]
+  0066f	d8 60 04	 fsub	 DWORD PTR [eax+4]
+  00672	d9 00		 fld	 DWORD PTR [eax]
+  00674	d8 21		 fsub	 DWORD PTR [ecx]
+  00676	de c9		 fmulp	 ST(1), ST(0)
+  00678	de e9		 fsubp	 ST(1), ST(0)
+  0067a	d9 5c 24 18	 fstp	 DWORD PTR _sign$[esp+40]
+  0067e	8b 4c 24 18	 mov	 ecx, DWORD PTR _sign$[esp+40]
+  00682	81 e1 00 00 00
+	80		 and	 ecx, -2147483648	; 80000000H
+  00688	33 ca		 xor	 ecx, edx
+  0068a	81 f9 00 00 00
+	80		 cmp	 ecx, -2147483648	; 80000000H
+  00690	0f 84 90 00 00
+	00		 je	 $L36106
+
+; 379  :         {
+; 380  :           if (fillMode == D3DFILL_WIREFRAME)
+; 381  :           {
+; 382  :             fpDrawLine( pA, pB, pRc, pA->color );
+
+  00696	8b 53 10	 mov	 edx, DWORD PTR [ebx+16]
+  00699	83 7c 24 1c 02	 cmp	 DWORD PTR _fillMode$[esp+40], 2
+  0069e	52		 push	 edx
+  0069f	57		 push	 edi
+  006a0	75 2d		 jne	 SHORT $L36110
+  006a2	50		 push	 eax
+  006a3	53		 push	 ebx
+  006a4	e8 00 00 00 00	 call	 _fpDrawLine@16
+
+; 383  :             fpDrawLine( pB, pC, pRc, pA->color );
+
+  006a9	8b 43 10	 mov	 eax, DWORD PTR [ebx+16]
+  006ac	8b 4c 24 10	 mov	 ecx, DWORD PTR _pC$[esp+40]
+  006b0	8b 54 24 14	 mov	 edx, DWORD PTR _pB$[esp+40]
+  006b4	50		 push	 eax
+  006b5	57		 push	 edi
+  006b6	51		 push	 ecx
+  006b7	52		 push	 edx
+  006b8	e8 00 00 00 00	 call	 _fpDrawLine@16
+
+; 384  :             fpDrawLine( pC, pA, pRc, pA->color );
+
+  006bd	8b 43 10	 mov	 eax, DWORD PTR [ebx+16]
+  006c0	8b 4c 24 10	 mov	 ecx, DWORD PTR _pC$[esp+40]
+  006c4	50		 push	 eax
+  006c5	57		 push	 edi
+  006c6	53		 push	 ebx
+  006c7	51		 push	 ecx
+  006c8	e8 00 00 00 00	 call	 _fpDrawLine@16
+
+; 385  :           }
+; 386  :           else
+
+  006cd	eb 57		 jmp	 SHORT $L36106
+$L36110:
+
+; 387  :           {
+; 388  :             fpDrawPoint( pA->sx, pA->sy, pA, pRc, pA->color );
+
+  006cf	d9 43 04	 fld	 DWORD PTR [ebx+4]
+  006d2	53		 push	 ebx
+  006d3	83 ec 08	 sub	 esp, 8
+  006d6	dd 1c 24	 fstp	 QWORD PTR [esp]
+  006d9	83 ec 08	 sub	 esp, 8
+  006dc	d9 03		 fld	 DWORD PTR [ebx]
+  006de	dd 1c 24	 fstp	 QWORD PTR [esp]
+  006e1	e8 00 00 00 00	 call	 _fpDrawPoint@28
+
+; 389  :             fpDrawPoint( pB->sx, pB->sy, pB, pRc, pA->color );
+
+  006e6	8b 43 10	 mov	 eax, DWORD PTR [ebx+16]
+  006e9	50		 push	 eax
+  006ea	8b 44 24 18	 mov	 eax, DWORD PTR _pB$[esp+44]
+  006ee	d9 40 04	 fld	 DWORD PTR [eax+4]
+  006f1	57		 push	 edi
+  006f2	50		 push	 eax
+  006f3	83 ec 08	 sub	 esp, 8
+  006f6	dd 1c 24	 fstp	 QWORD PTR [esp]
+  006f9	83 ec 08	 sub	 esp, 8
+  006fc	d9 00		 fld	 DWORD PTR [eax]
+  006fe	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00701	e8 00 00 00 00	 call	 _fpDrawPoint@28
+
+; 390  :             fpDrawPoint( pC->sx, pC->sy, pC, pRc, pA->color );
+
+  00706	8b 4b 10	 mov	 ecx, DWORD PTR [ebx+16]
+  00709	8b 44 24 10	 mov	 eax, DWORD PTR _pC$[esp+40]
+  0070d	d9 40 04	 fld	 DWORD PTR [eax+4]
+  00710	51		 push	 ecx
+  00711	57		 push	 edi
+  00712	50		 push	 eax
+  00713	83 ec 08	 sub	 esp, 8
+  00716	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00719	83 ec 08	 sub	 esp, 8
+  0071c	d9 00		 fld	 DWORD PTR [eax]
+  0071e	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00721	e8 00 00 00 00	 call	 _fpDrawPoint@28
+$L36106:
+  00726	ff 4c 24 20	 dec	 DWORD PTR -8+[esp+40]
+  0072a	0f 85 19 ff ff
+	ff		 jne	 $L36145
+
+; 391  :           }
+; 392  :         }
+; 393  :       } // every triangle
+; 394  :       break;
+; 395  : 
+; 396  :   } // switch
+; 397  : }
+
+  00730	5f		 pop	 edi
+  00731	5e		 pop	 esi
+  00732	5b		 pop	 ebx
+  00733	8b e5		 mov	 esp, ebp
+  00735	5d		 pop	 ebp
+  00736	c2 08 00	 ret	 8
+$L36094:
+
+; 318  :           }
+; 319  :         }
+; 320  :       } // every triangle
+; 321  :       break;
+; 322  : 
+; 323  :     case D3DPT_TRIANGLESTRIP:
+; 324  :       count -=2 ;
+
+  00739	83 e9 02	 sub	 ecx, 2
+
+; 325  :       for (; count > 0; --count)
+
+  0073c	85 c9		 test	 ecx, ecx
+  0073e	0f 8e 25 02 00
+	00		 jle	 $L36089
+
+; 318  :           }
+; 319  :         }
+; 320  :       } // every triangle
+; 321  :       break;
+; 322  : 
+; 323  :     case D3DPT_TRIANGLESTRIP:
+; 324  :       count -=2 ;
+
+  00744	89 4c 24 20	 mov	 DWORD PTR -8+[esp+40], ecx
+  00748	eb 04		 jmp	 SHORT $L36095
+$L36147:
+  0074a	8b 54 24 24	 mov	 edx, DWORD PTR _grab$[esp+40]
+$L36095:
+
+; 326  :       {
+; 327  :         if (grab)
+
+  0074e	85 d2		 test	 edx, edx
+  00750	74 19		 je	 SHORT $L36098
+
+; 328  :         {
+; 329  :           pA = vertices++;
+
+  00752	8b de		 mov	 ebx, esi
+  00754	83 c6 20	 add	 esi, 32			; 00000020H
+
+; 330  :           pB = vertices++;
+
+  00757	8b c6		 mov	 eax, esi
+  00759	83 c6 20	 add	 esi, 32			; 00000020H
+
+; 331  :           pC = vertices++;
+
+  0075c	8b ce		 mov	 ecx, esi
+  0075e	89 44 24 14	 mov	 DWORD PTR _pB$[esp+40], eax
+  00762	89 4c 24 10	 mov	 DWORD PTR _pC$[esp+40], ecx
+  00766	83 c6 20	 add	 esi, 32			; 00000020H
+
+; 332  :         }
+; 333  :         else
+
+  00769	eb 13		 jmp	 SHORT $L36099
+$L36098:
+
+; 334  :         {
+; 335  :           pA = pC;
+
+  0076b	8b 5c 24 10	 mov	 ebx, DWORD PTR _pC$[esp+40]
+
+; 336  :           pB = pB;
+; 337  :           pC = vertices--;
+
+  0076f	8b 44 24 14	 mov	 eax, DWORD PTR _pB$[esp+40]
+  00773	89 74 24 10	 mov	 DWORD PTR _pC$[esp+40], esi
+  00777	8b 4c 24 10	 mov	 ecx, DWORD PTR _pC$[esp+40]
+  0077b	83 ee 20	 sub	 esi, 32			; 00000020H
+$L36099:
+
+; 338  :         }
+; 339  :         grab ^= 1;
+; 340  : 
+; 341  :         ((float*)&sign)[0] = ((pA->sx - pB->sx) * (pB->sy - pC->sy)) -
+; 342  :                              ((pB->sx - pC->sx) * (pA->sy - pB->sy));
+
+  0077e	d9 03		 fld	 DWORD PTR [ebx]
+  00780	83 f2 01	 xor	 edx, 1
+  00783	d8 20		 fsub	 DWORD PTR [eax]
+  00785	89 54 24 24	 mov	 DWORD PTR _grab$[esp+40], edx
+  00789	d9 40 04	 fld	 DWORD PTR [eax+4]
+  0078c	d8 61 04	 fsub	 DWORD PTR [ecx+4]
+  0078f	de c9		 fmulp	 ST(1), ST(0)
+  00791	d9 43 04	 fld	 DWORD PTR [ebx+4]
+  00794	d8 60 04	 fsub	 DWORD PTR [eax+4]
+  00797	d9 00		 fld	 DWORD PTR [eax]
+  00799	d8 21		 fsub	 DWORD PTR [ecx]
+
+; 343  : 
+; 344  :         sign &= 0x80000000;
+; 345  : 
+; 346  :         if ((sign ^ pRc->cullMask) != 0x80000000)
+
+  0079b	8b 8f 88 00 00
+	00		 mov	 ecx, DWORD PTR [edi+136]
+  007a1	de c9		 fmulp	 ST(1), ST(0)
+  007a3	de e9		 fsubp	 ST(1), ST(0)
+  007a5	d9 5c 24 18	 fstp	 DWORD PTR _sign$[esp+40]
+  007a9	8b 54 24 18	 mov	 edx, DWORD PTR _sign$[esp+40]
+  007ad	81 e2 00 00 00
+	80		 and	 edx, -2147483648	; 80000000H
+  007b3	33 d1		 xor	 edx, ecx
+  007b5	81 fa 00 00 00
+	80		 cmp	 edx, -2147483648	; 80000000H
+  007bb	0f 84 90 00 00
+	00		 je	 $L36096
+
+; 347  :         {
+; 348  :           if (fillMode == D3DFILL_WIREFRAME)
+
+  007c1	83 7c 24 1c 02	 cmp	 DWORD PTR _fillMode$[esp+40], 2
+
+; 349  :           {
+; 350  :             fpDrawLine( pA, pB, pRc, pA->color );
+
+  007c6	8b 4b 10	 mov	 ecx, DWORD PTR [ebx+16]
+  007c9	51		 push	 ecx
+  007ca	57		 push	 edi
+  007cb	75 2d		 jne	 SHORT $L36102
+  007cd	50		 push	 eax
+  007ce	53		 push	 ebx
+  007cf	e8 00 00 00 00	 call	 _fpDrawLine@16
+
+; 351  :             fpDrawLine( pB, pC, pRc, pA->color );
+
+  007d4	8b 53 10	 mov	 edx, DWORD PTR [ebx+16]
+  007d7	8b 44 24 10	 mov	 eax, DWORD PTR _pC$[esp+40]
+  007db	8b 4c 24 14	 mov	 ecx, DWORD PTR _pB$[esp+40]
+  007df	52		 push	 edx
+  007e0	57		 push	 edi
+  007e1	50		 push	 eax
+  007e2	51		 push	 ecx
+  007e3	e8 00 00 00 00	 call	 _fpDrawLine@16
+
+; 352  :             fpDrawLine( pC, pA, pRc, pA->color );
+
+  007e8	8b 53 10	 mov	 edx, DWORD PTR [ebx+16]
+  007eb	8b 44 24 10	 mov	 eax, DWORD PTR _pC$[esp+40]
+  007ef	52		 push	 edx
+  007f0	57		 push	 edi
+  007f1	53		 push	 ebx
+  007f2	50		 push	 eax
+  007f3	e8 00 00 00 00	 call	 _fpDrawLine@16
+
+; 353  :           }
+; 354  :           else
+
+  007f8	eb 57		 jmp	 SHORT $L36096
+$L36102:
+
+; 355  :           {
+; 356  :             fpDrawPoint( pA->sx, pA->sy, pA, pRc, pA->color );
+
+  007fa	d9 43 04	 fld	 DWORD PTR [ebx+4]
+  007fd	53		 push	 ebx
+  007fe	83 ec 08	 sub	 esp, 8
+  00801	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00804	83 ec 08	 sub	 esp, 8
+  00807	d9 03		 fld	 DWORD PTR [ebx]
+  00809	dd 1c 24	 fstp	 QWORD PTR [esp]
+  0080c	e8 00 00 00 00	 call	 _fpDrawPoint@28
+
+; 357  :             fpDrawPoint( pB->sx, pB->sy, pB, pRc, pA->color );
+
+  00811	8b 53 10	 mov	 edx, DWORD PTR [ebx+16]
+  00814	8b 44 24 14	 mov	 eax, DWORD PTR _pB$[esp+40]
+  00818	d9 40 04	 fld	 DWORD PTR [eax+4]
+  0081b	52		 push	 edx
+  0081c	57		 push	 edi
+  0081d	50		 push	 eax
+  0081e	83 ec 08	 sub	 esp, 8
+  00821	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00824	83 ec 08	 sub	 esp, 8
+  00827	d9 00		 fld	 DWORD PTR [eax]
+  00829	dd 1c 24	 fstp	 QWORD PTR [esp]
+  0082c	e8 00 00 00 00	 call	 _fpDrawPoint@28
+
+; 358  :             fpDrawPoint( pC->sx, pC->sy, pC, pRc, pA->color );
+
+  00831	8b 43 10	 mov	 eax, DWORD PTR [ebx+16]
+  00834	50		 push	 eax
+  00835	8b 44 24 14	 mov	 eax, DWORD PTR _pC$[esp+44]
+  00839	d9 40 04	 fld	 DWORD PTR [eax+4]
+  0083c	57		 push	 edi
+  0083d	50		 push	 eax
+  0083e	83 ec 08	 sub	 esp, 8
+  00841	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00844	83 ec 08	 sub	 esp, 8
+  00847	d9 00		 fld	 DWORD PTR [eax]
+  00849	dd 1c 24	 fstp	 QWORD PTR [esp]
+  0084c	e8 00 00 00 00	 call	 _fpDrawPoint@28
+$L36096:
+  00851	ff 4c 24 20	 dec	 DWORD PTR -8+[esp+40]
+  00855	0f 85 ef fe ff
+	ff		 jne	 $L36147
+
+; 391  :           }
+; 392  :         }
+; 393  :       } // every triangle
+; 394  :       break;
+; 395  : 
+; 396  :   } // switch
+; 397  : }
+
+  0085b	5f		 pop	 edi
+  0085c	5e		 pop	 esi
+  0085d	5b		 pop	 ebx
+  0085e	8b e5		 mov	 esp, ebp
+  00860	5d		 pop	 ebp
+  00861	c2 08 00	 ret	 8
+$L36086:
+
+; 293  :     case D3DPT_TRIANGLELIST:
+; 294  :       for (; count > 0; count-=3)
+
+  00864	85 c9		 test	 ecx, ecx
+  00866	0f 8e fd 00 00
+	00		 jle	 $L36089
+  0086c	83 c1 02	 add	 ecx, 2
+  0086f	b8 ab aa aa aa	 mov	 eax, -1431655765	; aaaaaaabH
+  00874	f7 e1		 mul	 ecx
+  00876	d1 ea		 shr	 edx, 1
+  00878	89 54 24 20	 mov	 DWORD PTR -8+[esp+40], edx
+$L36087:
+
+; 295  :       {
+; 296  :         pA = vertices++;
+
+  0087c	8b de		 mov	 ebx, esi
+
+; 297  :         pB = vertices++;
+; 298  :         pC = vertices++;
+; 299  : 
+; 300  :         ((float*)&sign)[0] = ((pA->sx - pB->sx) * (pB->sy - pC->sy)) -
+; 301  :                              ((pB->sx - pC->sx) * (pA->sy - pB->sy));
+
+  0087e	d9 03		 fld	 DWORD PTR [ebx]
+  00880	83 c6 20	 add	 esi, 32			; 00000020H
+  00883	8b c6		 mov	 eax, esi
+  00885	d8 20		 fsub	 DWORD PTR [eax]
+  00887	83 c6 20	 add	 esi, 32			; 00000020H
+  0088a	d9 40 04	 fld	 DWORD PTR [eax+4]
+  0088d	8b ce		 mov	 ecx, esi
+  0088f	d8 61 04	 fsub	 DWORD PTR [ecx+4]
+
+; 302  : 
+; 303  :         sign &= 0x80000000;
+; 304  : 
+; 305  :         if ((sign ^ pRc->cullMask) != 0x80000000)
+
+  00892	8b 97 88 00 00
+	00		 mov	 edx, DWORD PTR [edi+136]
+  00898	89 4c 24 10	 mov	 DWORD PTR _pC$[esp+40], ecx
+  0089c	de c9		 fmulp	 ST(1), ST(0)
+  0089e	d9 43 04	 fld	 DWORD PTR [ebx+4]
+  008a1	83 c6 20	 add	 esi, 32			; 00000020H
+  008a4	d8 60 04	 fsub	 DWORD PTR [eax+4]
+  008a7	89 44 24 14	 mov	 DWORD PTR _pB$[esp+40], eax
+  008ab	d9 00		 fld	 DWORD PTR [eax]
+  008ad	d8 21		 fsub	 DWORD PTR [ecx]
+  008af	de c9		 fmulp	 ST(1), ST(0)
+  008b1	de e9		 fsubp	 ST(1), ST(0)
+  008b3	d9 5c 24 18	 fstp	 DWORD PTR _sign$[esp+40]
+  008b7	8b 4c 24 18	 mov	 ecx, DWORD PTR _sign$[esp+40]
+  008bb	81 e1 00 00 00
+	80		 and	 ecx, -2147483648	; 80000000H
+  008c1	33 ca		 xor	 ecx, edx
+  008c3	81 f9 00 00 00
+	80		 cmp	 ecx, -2147483648	; 80000000H
+  008c9	0f 84 90 00 00
+	00		 je	 $L36088
+
+; 306  :         {
+; 307  :           if (fillMode == D3DFILL_WIREFRAME)
+; 308  :           {
+; 309  :             fpDrawLine( pA, pB, pRc, pA->color );
+
+  008cf	8b 53 10	 mov	 edx, DWORD PTR [ebx+16]
+  008d2	83 7c 24 1c 02	 cmp	 DWORD PTR _fillMode$[esp+40], 2
+  008d7	52		 push	 edx
+  008d8	57		 push	 edi
+  008d9	75 2d		 jne	 SHORT $L36092
+  008db	50		 push	 eax
+  008dc	53		 push	 ebx
+  008dd	e8 00 00 00 00	 call	 _fpDrawLine@16
+
+; 310  :             fpDrawLine( pB, pC, pRc, pA->color );
+
+  008e2	8b 43 10	 mov	 eax, DWORD PTR [ebx+16]
+  008e5	8b 4c 24 10	 mov	 ecx, DWORD PTR _pC$[esp+40]
+  008e9	8b 54 24 14	 mov	 edx, DWORD PTR _pB$[esp+40]
+  008ed	50		 push	 eax
+  008ee	57		 push	 edi
+  008ef	51		 push	 ecx
+  008f0	52		 push	 edx
+  008f1	e8 00 00 00 00	 call	 _fpDrawLine@16
+
+; 311  :             fpDrawLine( pC, pA, pRc, pA->color );
+
+  008f6	8b 43 10	 mov	 eax, DWORD PTR [ebx+16]
+  008f9	8b 4c 24 10	 mov	 ecx, DWORD PTR _pC$[esp+40]
+  008fd	50		 push	 eax
+  008fe	57		 push	 edi
+  008ff	53		 push	 ebx
+  00900	51		 push	 ecx
+  00901	e8 00 00 00 00	 call	 _fpDrawLine@16
+
+; 312  :           }
+; 313  :           else
+
+  00906	eb 57		 jmp	 SHORT $L36088
+$L36092:
+
+; 314  :           {
+; 315  :             fpDrawPoint( pA->sx, pA->sy, pA, pRc, pA->color );
+
+  00908	d9 43 04	 fld	 DWORD PTR [ebx+4]
+  0090b	53		 push	 ebx
+  0090c	83 ec 08	 sub	 esp, 8
+  0090f	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00912	83 ec 08	 sub	 esp, 8
+  00915	d9 03		 fld	 DWORD PTR [ebx]
+  00917	dd 1c 24	 fstp	 QWORD PTR [esp]
+  0091a	e8 00 00 00 00	 call	 _fpDrawPoint@28
+
+; 316  :             fpDrawPoint( pB->sx, pB->sy, pB, pRc, pA->color );
+
+  0091f	8b 43 10	 mov	 eax, DWORD PTR [ebx+16]
+  00922	50		 push	 eax
+  00923	8b 44 24 18	 mov	 eax, DWORD PTR _pB$[esp+44]
+  00927	d9 40 04	 fld	 DWORD PTR [eax+4]
+  0092a	57		 push	 edi
+  0092b	50		 push	 eax
+  0092c	83 ec 08	 sub	 esp, 8
+  0092f	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00932	83 ec 08	 sub	 esp, 8
+  00935	d9 00		 fld	 DWORD PTR [eax]
+  00937	dd 1c 24	 fstp	 QWORD PTR [esp]
+  0093a	e8 00 00 00 00	 call	 _fpDrawPoint@28
+
+; 317  :             fpDrawPoint( pC->sx, pC->sy, pC, pRc, pA->color );
+
+  0093f	8b 4b 10	 mov	 ecx, DWORD PTR [ebx+16]
+  00942	8b 44 24 10	 mov	 eax, DWORD PTR _pC$[esp+40]
+  00946	d9 40 04	 fld	 DWORD PTR [eax+4]
+  00949	51		 push	 ecx
+  0094a	57		 push	 edi
+  0094b	50		 push	 eax
+  0094c	83 ec 08	 sub	 esp, 8
+  0094f	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00952	83 ec 08	 sub	 esp, 8
+  00955	d9 00		 fld	 DWORD PTR [eax]
+  00957	dd 1c 24	 fstp	 QWORD PTR [esp]
+  0095a	e8 00 00 00 00	 call	 _fpDrawPoint@28
+$L36088:
+  0095f	ff 4c 24 20	 dec	 DWORD PTR -8+[esp+40]
+  00963	0f 85 13 ff ff
+	ff		 jne	 $L36087
+$L36089:
+
+; 391  :           }
+; 392  :         }
+; 393  :       } // every triangle
+; 394  :       break;
+; 395  : 
+; 396  :   } // switch
+; 397  : }
+
+  00969	5f		 pop	 edi
+  0096a	5e		 pop	 esi
+  0096b	5b		 pop	 ebx
+  0096c	8b e5		 mov	 esp, ebp
+  0096e	5d		 pop	 ebp
+  0096f	c2 08 00	 ret	 8
+_fpFillDrawTriangle@8 ENDP
+_TEXT	ENDS
+END

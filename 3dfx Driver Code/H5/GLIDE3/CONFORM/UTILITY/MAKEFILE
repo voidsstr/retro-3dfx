@@ -1,0 +1,83 @@
+#
+# Copyright (c) 1995, 3Dfx Interactive, Inc.
+# All Rights Reserved.
+#
+# This is UNPUBLISHED PROPRIETARY SOURCE CODE of 3Dfx Interactive, Inc.;
+# the contents of this file may not be disclosed to third parties, copied or
+# duplicated in any form, in whole or in part, without the prior written
+# permission of 3Dfx Interactive, Inc.
+#
+# RESTRICTED RIGHTS LEGEND:
+# Use, duplication or disclosure by the Government is subject to restrictions
+# as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+# and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+# successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished  -
+# rights reserved under the Copyright Laws of the United States.
+#
+
+# local defines, options, includes
+
+LCDEFS = 
+
+!if "$(HWC_CSIM)" == "1"
+LCDEFS  = $(LCDEFS) -DHWC_CSIM
+LCINCS = -I$(BUILD_ROOT)\$(FX_GLIDE_HW)\glide3\src \
+         -I$(BUILD_ROOT)\$(FX_GLIDE_HW)\hwc \
+         -I$(BUILD_ROOT)\$(FX_GLIDE_HW)\csim \
+         -I$(BUILD_ROOT)\$(FX_GLIDE_HW)\include
+!endif
+
+#
+# Select the platform specific surface implementation. These files
+# deal with surface extension support.
+#
+!if "$(HWC_CSIM)" == "1"
+SURFACE_DEFS   =
+SURFACE_INCS   =
+SURFACE_FILES  = hwc_surf.cpp
+!else if "$(XLIB)" == "1"
+SURFACE_DEFS   =
+SURFACE_INCS   =
+SURFACE_FILES  = surface_stubs.cpp # add xlib surface implentation
+!else ifdef DXSDKROOT  
+SURFACE_DEFS   = -DDIRECTDRAW_AVAILABLE
+SURFACE_INCS   = -I$(DXSDKROOT)\include
+SURFACE_FILES  = win32_ddsurf.cpp
+!else 
+SURFACE_DEFS   =
+SURFACE_INCS   = 
+SURFACE_FILES  = surface_stubs.cpp
+!endif
+
+#
+# Select the platform specific windowing implementation. These
+# files create a window, handle events, etc. 
+#
+!if "$(XLIB)" == "1"
+WINDOWING_FILES = xlib.cpp
+!else
+WINDOWING_FILES = win32.cpp
+!endif
+
+LCDEFS = $(LCDEFS) $(SURFACE_DEFS)
+LCINCS = $(LCINCS) $(SURFACE_INCS)
+
+LCOPTS  =$(LCINCS)  -I$(BUILD_ROOT)\$(FX_GLIDE_HW)\include \
+	-I$(BUILD_ROOT)\$(FX_GLIDE_HW)\glide3\conform\include -WX
+
+# sources
+HEADERS             =
+
+INSTALL_DESTINATION = $(BUILD_ROOT)\$(FX_GLIDE_HW)\glide3\conform
+
+CPPFILES              = utility.cpp main.cpp log.cpp mode.cpp image.cpp \
+                        matrix.cpp data.cpp intrface.cpp checksum.cpp \
+                        vmglide.cpp \
+                        $(WINDOWING_FILES) \
+                        $(SURFACE_FILES)
+        
+# targets
+LIBRARIES = conform.lib
+
+!include $(BUILD_ROOT_SWLIBS)/include/nmake/3dfx.mak
+

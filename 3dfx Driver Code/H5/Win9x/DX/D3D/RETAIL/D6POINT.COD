@@ -1,0 +1,1545 @@
+	TITLE	..\d6point.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+FLAT	GROUP _DATA, CONST, _BSS
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+_DATA	SEGMENT
+_f_255_reverse_lookup DD 0437f0000r		; 255
+	DD	0437e0000r			; 254
+	DD	0437d0000r			; 253
+	DD	0437c0000r			; 252
+	DD	0437b0000r			; 251
+	DD	0437a0000r			; 250
+	DD	043790000r			; 249
+	DD	043780000r			; 248
+	DD	043770000r			; 247
+	DD	043760000r			; 246
+	DD	043750000r			; 245
+	DD	043740000r			; 244
+	DD	043730000r			; 243
+	DD	043720000r			; 242
+	DD	043710000r			; 241
+	DD	043700000r			; 240
+	DD	0436f0000r			; 239
+	DD	0436e0000r			; 238
+	DD	0436d0000r			; 237
+	DD	0436c0000r			; 236
+	DD	0436b0000r			; 235
+	DD	0436a0000r			; 234
+	DD	043690000r			; 233
+	DD	043680000r			; 232
+	DD	043670000r			; 231
+	DD	043660000r			; 230
+	DD	043650000r			; 229
+	DD	043640000r			; 228
+	DD	043630000r			; 227
+	DD	043620000r			; 226
+	DD	043610000r			; 225
+	DD	043600000r			; 224
+	DD	0435f0000r			; 223
+	DD	0435e0000r			; 222
+	DD	0435d0000r			; 221
+	DD	0435c0000r			; 220
+	DD	0435b0000r			; 219
+	DD	0435a0000r			; 218
+	DD	043590000r			; 217
+	DD	043580000r			; 216
+	DD	043570000r			; 215
+	DD	043560000r			; 214
+	DD	043550000r			; 213
+	DD	043540000r			; 212
+	DD	043530000r			; 211
+	DD	043520000r			; 210
+	DD	043510000r			; 209
+	DD	043500000r			; 208
+	DD	0434f0000r			; 207
+	DD	0434e0000r			; 206
+	DD	0434d0000r			; 205
+	DD	0434c0000r			; 204
+	DD	0434b0000r			; 203
+	DD	0434a0000r			; 202
+	DD	043490000r			; 201
+	DD	043480000r			; 200
+	DD	043470000r			; 199
+	DD	043460000r			; 198
+	DD	043450000r			; 197
+	DD	043440000r			; 196
+	DD	043430000r			; 195
+	DD	043420000r			; 194
+	DD	043410000r			; 193
+	DD	043400000r			; 192
+	DD	0433f0000r			; 191
+	DD	0433e0000r			; 190
+	DD	0433d0000r			; 189
+	DD	0433c0000r			; 188
+	DD	0433b0000r			; 187
+	DD	0433a0000r			; 186
+	DD	043390000r			; 185
+	DD	043380000r			; 184
+	DD	043370000r			; 183
+	DD	043360000r			; 182
+	DD	043350000r			; 181
+	DD	043340000r			; 180
+	DD	043330000r			; 179
+	DD	043320000r			; 178
+	DD	043310000r			; 177
+	DD	043300000r			; 176
+	DD	0432f0000r			; 175
+	DD	0432e0000r			; 174
+	DD	0432d0000r			; 173
+	DD	0432c0000r			; 172
+	DD	0432b0000r			; 171
+	DD	0432a0000r			; 170
+	DD	043290000r			; 169
+	DD	043280000r			; 168
+	DD	043270000r			; 167
+	DD	043260000r			; 166
+	DD	043250000r			; 165
+	DD	043240000r			; 164
+	DD	043230000r			; 163
+	DD	043220000r			; 162
+	DD	043210000r			; 161
+	DD	043200000r			; 160
+	DD	0431f0000r			; 159
+	DD	0431e0000r			; 158
+	DD	0431d0000r			; 157
+	DD	0431c0000r			; 156
+	DD	0431b0000r			; 155
+	DD	0431a0000r			; 154
+	DD	043190000r			; 153
+	DD	043180000r			; 152
+	DD	043170000r			; 151
+	DD	043160000r			; 150
+	DD	043150000r			; 149
+	DD	043140000r			; 148
+	DD	043130000r			; 147
+	DD	043120000r			; 146
+	DD	043110000r			; 145
+	DD	043100000r			; 144
+	DD	0430f0000r			; 143
+	DD	0430e0000r			; 142
+	DD	0430d0000r			; 141
+	DD	0430c0000r			; 140
+	DD	0430b0000r			; 139
+	DD	0430a0000r			; 138
+	DD	043090000r			; 137
+	DD	043080000r			; 136
+	DD	043070000r			; 135
+	DD	043060000r			; 134
+	DD	043050000r			; 133
+	DD	043040000r			; 132
+	DD	043030000r			; 131
+	DD	043020000r			; 130
+	DD	043010000r			; 129
+	DD	043000000r			; 128
+	DD	042fe0000r			; 127
+	DD	042fc0000r			; 126
+	DD	042fa0000r			; 125
+	DD	042f80000r			; 124
+	DD	042f60000r			; 123
+	DD	042f40000r			; 122
+	DD	042f20000r			; 121
+	DD	042f00000r			; 120
+	DD	042ee0000r			; 119
+	DD	042ec0000r			; 118
+	DD	042ea0000r			; 117
+	DD	042e80000r			; 116
+	DD	042e60000r			; 115
+	DD	042e40000r			; 114
+	DD	042e20000r			; 113
+	DD	042e00000r			; 112
+	DD	042de0000r			; 111
+	DD	042dc0000r			; 110
+	DD	042da0000r			; 109
+	DD	042d80000r			; 108
+	DD	042d60000r			; 107
+	DD	042d40000r			; 106
+	DD	042d20000r			; 105
+	DD	042d00000r			; 104
+	DD	042ce0000r			; 103
+	DD	042cc0000r			; 102
+	DD	042ca0000r			; 101
+	DD	042c80000r			; 100
+	DD	042c60000r			; 99
+	DD	042c40000r			; 98
+	DD	042c20000r			; 97
+	DD	042c00000r			; 96
+	DD	042be0000r			; 95
+	DD	042bc0000r			; 94
+	DD	042ba0000r			; 93
+	DD	042b80000r			; 92
+	DD	042b60000r			; 91
+	DD	042b40000r			; 90
+	DD	042b20000r			; 89
+	DD	042b00000r			; 88
+	DD	042ae0000r			; 87
+	DD	042ac0000r			; 86
+	DD	042aa0000r			; 85
+	DD	042a80000r			; 84
+	DD	042a60000r			; 83
+	DD	042a40000r			; 82
+	DD	042a20000r			; 81
+	DD	042a00000r			; 80
+	DD	0429e0000r			; 79
+	DD	0429c0000r			; 78
+	DD	0429a0000r			; 77
+	DD	042980000r			; 76
+	DD	042960000r			; 75
+	DD	042940000r			; 74
+	DD	042920000r			; 73
+	DD	042900000r			; 72
+	DD	0428e0000r			; 71
+	DD	0428c0000r			; 70
+	DD	0428a0000r			; 69
+	DD	042880000r			; 68
+	DD	042860000r			; 67
+	DD	042840000r			; 66
+	DD	042820000r			; 65
+	DD	042800000r			; 64
+	DD	0427c0000r			; 63
+	DD	042780000r			; 62
+	DD	042740000r			; 61
+	DD	042700000r			; 60
+	DD	0426c0000r			; 59
+	DD	042680000r			; 58
+	DD	042640000r			; 57
+	DD	042600000r			; 56
+	DD	0425c0000r			; 55
+	DD	042580000r			; 54
+	DD	042540000r			; 53
+	DD	042500000r			; 52
+	DD	0424c0000r			; 51
+	DD	042480000r			; 50
+	DD	042440000r			; 49
+	DD	042400000r			; 48
+	DD	0423c0000r			; 47
+	DD	042380000r			; 46
+	DD	042340000r			; 45
+	DD	042300000r			; 44
+	DD	0422c0000r			; 43
+	DD	042280000r			; 42
+	DD	042240000r			; 41
+	DD	042200000r			; 40
+	DD	0421c0000r			; 39
+	DD	042180000r			; 38
+	DD	042140000r			; 37
+	DD	042100000r			; 36
+	DD	0420c0000r			; 35
+	DD	042080000r			; 34
+	DD	042040000r			; 33
+	DD	042000000r			; 32
+	DD	041f80000r			; 31
+	DD	041f00000r			; 30
+	DD	041e80000r			; 29
+	DD	041e00000r			; 28
+	DD	041d80000r			; 27
+	DD	041d00000r			; 26
+	DD	041c80000r			; 25
+	DD	041c00000r			; 24
+	DD	041b80000r			; 23
+	DD	041b00000r			; 22
+	DD	041a80000r			; 21
+	DD	041a00000r			; 20
+	DD	041980000r			; 19
+	DD	041900000r			; 18
+	DD	041880000r			; 17
+	DD	041800000r			; 16
+	DD	041700000r			; 15
+	DD	041600000r			; 14
+	DD	041500000r			; 13
+	DD	041400000r			; 12
+	DD	041300000r			; 11
+	DD	041200000r			; 10
+	DD	041100000r			; 9
+	DD	041000000r			; 8
+	DD	040e00000r			; 7
+	DD	040c00000r			; 6
+	DD	040a00000r			; 5
+	DD	040800000r			; 4
+	DD	040400000r			; 3
+	DD	040000000r			; 2
+	DD	03f800000r			; 1
+	DD	000000000r			; 0
+_DATA	ENDS
+PUBLIC	_dp2Point
+PUBLIC	__real@4@3ffe8000000000000000
+EXTRN	_myAgpEpilog:NEAR
+EXTRN	_fvfOffsetTable:BYTE
+EXTRN	__fltused:NEAR
+EXTRN	_myWrapAgp:NEAR
+;	COMDAT __real@4@3ffe8000000000000000
+; File ..\..\inc\fifomgr.h
+CONST	SEGMENT
+__real@4@3ffe8000000000000000 DD 03f000000r	; 0.5
+CONST	ENDS
+_TEXT	SEGMENT
+_pRc$ = 8
+_pF$ = 12
+_pV$ = 16
+_ppdev$ = 8
+_aColor$ = -4
+_setupFlag$ = -8
+_s1$ = -20
+_t1$ = -24
+_s1a$ = -28
+_t1a$ = -32
+_z1$ = -16
+_w1$ = -12
+_fenceVar$36252 = 14
+_nNumChips$36290 = 16
+_dwCmdFifoMin$36292 = -40
+_nNumChips$36309 = -36
+_fenceVar$36326 = 14
+_dp2Point PROC NEAR
+
+; 128  : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	83 ec 44	 sub	 esp, 68			; 00000044H
+  00006	53		 push	 ebx
+
+; 129  :   SETUP_PPDEV(pRc)
+; 130  :   D3DCOLOR    aColor;
+; 131  :   FxU32       setupFlag = pRc->sst.sSetupMode & ~SST_SETUP_EN_CULLING;
+; 132  :   float       s1, t1;
+; 133  : #if (NUMTEXTUREUNITS > 1)
+; 134  :   float       s1a, t1a;
+; 135  : #endif
+; 136  :   float       z1, w1;
+; 137  : #ifdef DCT_FIX
+; 138  :   float 	  wb1;
+; 139  : #endif
+; 140  :   CMDFIFO_PROLOG(cmdFifo);
+; 141  : 
+; 142  :   if ( pRc->shadeMode == D3DSHADE_FLAT )
+
+  00007	8b 5d 10	 mov	 ebx, DWORD PTR _pV$[ebp]
+  0000a	56		 push	 esi
+  0000b	57		 push	 edi
+  0000c	8b 7d 08	 mov	 edi, DWORD PTR _pRc$[ebp]
+  0000f	8b 87 dc 04 00
+	00		 mov	 eax, DWORD PTR [edi+1244]
+  00015	8b 4f 08	 mov	 ecx, DWORD PTR [edi+8]
+  00018	25 ff ff fd ff	 and	 eax, -131073		; fffdffffH
+  0001d	89 45 f8	 mov	 DWORD PTR _setupFlag$[ebp], eax
+  00020	8b 81 a0 05 00
+	00		 mov	 eax, DWORD PTR [ecx+1440]
+  00026	8b 70 0c	 mov	 esi, DWORD PTR [eax+12]
+  00029	83 7f 14 01	 cmp	 DWORD PTR [edi+20], 1
+
+; 143  :   {
+; 144  :     if ( (pRc->specular) && (pRc->texture == 0) )
+
+  0002d	8b 87 a0 00 00
+	00		 mov	 eax, DWORD PTR [edi+160]
+  00033	89 4d 08	 mov	 DWORD PTR _ppdev$[ebp], ecx
+  00036	0f 85 8c 00 00
+	00		 jne	 $L36106
+  0003c	85 c0		 test	 eax, eax
+  0003e	74 66		 je	 SHORT $L36107
+  00040	8b 47 30	 mov	 eax, DWORD PTR [edi+48]
+  00043	85 c0		 test	 eax, eax
+  00045	75 5f		 jne	 SHORT $L36107
+
+; 145  :       CLAMP888( aColor, pF[FVFO_COLOR], pF[FVFO_SPECULAR] );
+
+  00047	8b 8f a0 05 00
+	00		 mov	 ecx, DWORD PTR [edi+1440]
+  0004d	8b 55 0c	 mov	 edx, DWORD PTR _pF$[ebp]
+  00050	8d 04 49	 lea	 eax, DWORD PTR [ecx+ecx*2]
+  00053	c1 e0 03	 shl	 eax, 3
+  00056	2b c1		 sub	 eax, ecx
+  00058	c1 e0 02	 shl	 eax, 2
+  0005b	8b 88 14 00 00
+	00		 mov	 ecx, DWORD PTR _fvfOffsetTable[eax+20]
+  00061	8b 0c 8a	 mov	 ecx, DWORD PTR [edx+ecx*4]
+  00064	81 e1 fe fe fe
+	fe		 and	 ecx, -16843010		; fefefefeH
+  0006a	89 4d 0c	 mov	 DWORD PTR 12+[ebp], ecx
+  0006d	8b 88 18 00 00
+	00		 mov	 ecx, DWORD PTR _fvfOffsetTable[eax+24]
+  00073	8b 14 8a	 mov	 edx, DWORD PTR [edx+ecx*4]
+  00076	8b 4d 0c	 mov	 ecx, DWORD PTR 12+[ebp]
+  00079	81 e2 fe fe fe
+	00		 and	 edx, 16711422		; 00fefefeH
+$L36352:
+  0007f	03 ca		 add	 ecx, edx
+  00081	89 4d fc	 mov	 DWORD PTR _aColor$[ebp], ecx
+  00084	c1 e9 08	 shr	 ecx, 8
+  00087	81 e1 01 01 01
+	00		 and	 ecx, 65793		; 00010101H
+  0008d	d1 e1		 shl	 ecx, 1
+  0008f	ba 00 01 01 00	 mov	 edx, 65792		; 00010100H
+  00094	2b d1		 sub	 edx, ecx
+  00096	8b 4d fc	 mov	 ecx, DWORD PTR _aColor$[ebp]
+  00099	81 e2 fe fe fe
+	00		 and	 edx, 16711422		; 00fefefeH
+  0009f	0b ca		 or	 ecx, edx
+  000a1	89 4d fc	 mov	 DWORD PTR _aColor$[ebp], ecx
+
+; 146  :     else
+
+  000a4	eb 7e		 jmp	 SHORT $L36117
+$L36107:
+
+; 147  :       aColor = pF[FVFO_COLOR];
+
+  000a6	8b 8f a0 05 00
+	00		 mov	 ecx, DWORD PTR [edi+1440]
+  000ac	8b 55 0c	 mov	 edx, DWORD PTR _pF$[ebp]
+  000af	8d 04 49	 lea	 eax, DWORD PTR [ecx+ecx*2]
+  000b2	c1 e0 03	 shl	 eax, 3
+  000b5	2b c1		 sub	 eax, ecx
+  000b7	c1 e0 02	 shl	 eax, 2
+  000ba	8b 88 14 00 00
+	00		 mov	 ecx, DWORD PTR _fvfOffsetTable[eax+20]
+  000c0	8b 0c 8a	 mov	 ecx, DWORD PTR [edx+ecx*4]
+  000c3	89 4d fc	 mov	 DWORD PTR _aColor$[ebp], ecx
+
+; 148  :   }
+; 149  :   else
+
+  000c6	eb 5c		 jmp	 SHORT $L36117
+$L36106:
+
+; 150  :   {
+; 151  :     if ( (pRc->specular) && (pRc->texture == 0) )
+
+  000c8	85 c0		 test	 eax, eax
+  000ca	74 3b		 je	 SHORT $L36113
+  000cc	8b 47 30	 mov	 eax, DWORD PTR [edi+48]
+  000cf	85 c0		 test	 eax, eax
+  000d1	75 34		 jne	 SHORT $L36113
+
+; 152  :       CLAMP888(aColor, pV[FVFO_COLOR], pV[FVFO_SPECULAR]);
+
+  000d3	8b 8f a0 05 00
+	00		 mov	 ecx, DWORD PTR [edi+1440]
+  000d9	8d 04 49	 lea	 eax, DWORD PTR [ecx+ecx*2]
+  000dc	c1 e0 03	 shl	 eax, 3
+  000df	2b c1		 sub	 eax, ecx
+  000e1	c1 e0 02	 shl	 eax, 2
+  000e4	8b 90 14 00 00
+	00		 mov	 edx, DWORD PTR _fvfOffsetTable[eax+20]
+  000ea	8b 0c 93	 mov	 ecx, DWORD PTR [ebx+edx*4]
+  000ed	8b 90 18 00 00
+	00		 mov	 edx, DWORD PTR _fvfOffsetTable[eax+24]
+  000f3	8b 14 93	 mov	 edx, DWORD PTR [ebx+edx*4]
+  000f6	81 e1 fe fe fe
+	fe		 and	 ecx, -16843010		; fefefefeH
+  000fc	81 e2 fe fe fe
+	00		 and	 edx, 16711422		; 00fefefeH
+
+; 153  :     else
+
+  00102	e9 78 ff ff ff	 jmp	 $L36352
+$L36113:
+
+; 154  :       aColor = pV[FVFO_COLOR];
+
+  00107	8b 8f a0 05 00
+	00		 mov	 ecx, DWORD PTR [edi+1440]
+  0010d	8d 04 49	 lea	 eax, DWORD PTR [ecx+ecx*2]
+  00110	c1 e0 03	 shl	 eax, 3
+  00113	2b c1		 sub	 eax, ecx
+  00115	c1 e0 02	 shl	 eax, 2
+  00118	8b 88 14 00 00
+	00		 mov	 ecx, DWORD PTR _fvfOffsetTable[eax+20]
+  0011e	8b 14 8b	 mov	 edx, DWORD PTR [ebx+ecx*4]
+  00121	89 55 fc	 mov	 DWORD PTR _aColor$[ebp], edx
+$L36117:
+
+; 155  :   }
+; 156  : 
+; 157  : #ifdef DCT_FIX
+; 158  :   w1 = FLTP(pV)[FVFO_RHW] * pRc->scaleW;
+; 159  : #endif
+; 160  : 
+; 161  :   if( pRc->state & STATE_REQUIRES_WBUFFER )
+
+  00124	8b 8f ac 00 00
+	00		 mov	 ecx, DWORD PTR [edi+172]
+  0012a	f7 c1 00 00 02
+	00		 test	 ecx, 131072		; 00020000H
+  00130	74 45		 je	 SHORT $L36118
+
+; 162  :   {
+; 163  : #ifdef DCT_FIX
+; 164  : 	wb1 = w1;
+; 165  : #else
+; 166  :     w1 = WSCALE( FLTP(pV)[FVFO_RHW] );
+; 167  : #endif
+; 168  : 
+; 169  :     if (pRc->state & STATE_REQUIRES_VERTEXFOG)
+
+  00132	f6 c5 08	 test	 ch, 8
+  00135	8b 90 10 00 00
+	00		 mov	 edx, DWORD PTR _fvfOffsetTable[eax+16]
+  0013b	d9 04 93	 fld	 DWORD PTR [ebx+edx*4]
+  0013e	d8 8f 64 04 00
+	00		 fmul	 DWORD PTR [edi+1124]
+  00144	d8 87 68 04 00
+	00		 fadd	 DWORD PTR [edi+1128]
+  0014a	d9 5d f4	 fstp	 DWORD PTR _w1$[ebp]
+  0014d	74 62		 je	 SHORT $L36126
+
+; 170  :       z1 = (float)((255 - RGBA_GETALPHA(pV[FVFO_SPECULAR])) << 8);
+
+  0014f	8b 88 18 00 00
+	00		 mov	 ecx, DWORD PTR _fvfOffsetTable[eax+24]
+  00155	8b 14 8b	 mov	 edx, DWORD PTR [ebx+ecx*4]
+  00158	c1 ea 18	 shr	 edx, 24			; 00000018H
+  0015b	c1 e2 08	 shl	 edx, 8
+  0015e	b9 00 ff 00 00	 mov	 ecx, 65280		; 0000ff00H
+  00163	2b ca		 sub	 ecx, edx
+  00165	89 4d bc	 mov	 DWORD PTR -68+[ebp], ecx
+  00168	c7 45 c0 00 00
+	00 00		 mov	 DWORD PTR -68+[ebp+4], 0
+  0016f	df 6d bc	 fild	 QWORD PTR -68+[ebp]
+  00172	d9 5d f0	 fstp	 DWORD PTR _z1$[ebp]
+
+; 171  :   }
+; 172  :   else
+
+  00175	eb 3a		 jmp	 SHORT $L36126
+$L36118:
+
+; 173  :   {
+; 174  :     z1 = ZSCALE( FLTP(pV)[FVFO_SZ] );
+; 175  : 
+; 176  :     if (pRc->state & STATE_REQUIRES_VERTEXFOG)
+
+  00177	f6 c5 08	 test	 ch, 8
+  0017a	8b 90 0c 00 00
+	00		 mov	 edx, DWORD PTR _fvfOffsetTable[eax+12]
+  00180	d9 04 93	 fld	 DWORD PTR [ebx+edx*4]
+  00183	d8 4f 2c	 fmul	 DWORD PTR [edi+44]
+  00186	d9 5d f0	 fstp	 DWORD PTR _z1$[ebp]
+  00189	74 15		 je	 SHORT $L36124
+
+; 177  : #ifdef DCT_FIX
+; 178  :       wb1 = (float)(255 - RGBA_GETALPHA(pV[FVFO_SPECULAR]));
+; 179  : #else
+; 180  : #ifdef PERF_USE_255_LOOKUP_TABLE
+; 181  : //  faster here to use a lookup vs. letting fpu do conversion -mls
+; 182  :       w1 = f_255_reverse_lookup[RGBA_GETALPHA(pV[FVFO_SPECULAR])];
+
+  0018b	8b 88 18 00 00
+	00		 mov	 ecx, DWORD PTR _fvfOffsetTable[eax+24]
+  00191	8b 14 8b	 mov	 edx, DWORD PTR [ebx+ecx*4]
+  00194	c1 ea 18	 shr	 edx, 24			; 00000018H
+  00197	d9 04 95 00 00
+	00 00		 fld	 DWORD PTR _f_255_reverse_lookup[edx*4]
+
+; 183  : #else
+; 184  : #pragma message("note - NOT compiling with performance opt for int to float conversion")
+; 185  :       w1 = (float)(255 - RGBA_GETALPHA(pV[FVFO_SPECULAR]));
+; 186  : #endif // perf_use_255_lookup_table
+; 187  : #endif // dct_fix
+; 188  :     else if (pRc->state & STATE_REQUIRES_HWFOG)
+
+  0019e	eb 0e		 jmp	 SHORT $L36353
+$L36124:
+  001a0	f6 c5 20	 test	 ch, 32			; 00000020H
+  001a3	74 0c		 je	 SHORT $L36126
+
+; 189  : #ifdef DCT_FIX
+; 190  :       wb1 = w1;
+; 191  : #else
+; 192  :       w1 = FLTP(pV)[FVFO_RHW];
+
+  001a5	8b 88 10 00 00
+	00		 mov	 ecx, DWORD PTR _fvfOffsetTable[eax+16]
+  001ab	d9 04 8b	 fld	 DWORD PTR [ebx+ecx*4]
+$L36353:
+  001ae	d9 5d f4	 fstp	 DWORD PTR _w1$[ebp]
+$L36126:
+
+; 193  : #endif
+; 194  :   }
+; 195  : 
+; 196  :   // First texture stage
+; 197  :   if( pRc->state & STATE_REQUIRES_ST_TMU0 )
+
+  001b1	8b 8f ac 00 00
+	00		 mov	 ecx, DWORD PTR [edi+172]
+  001b7	f6 c1 80	 test	 cl, 128			; 00000080H
+  001ba	0f 84 88 00 00
+	00		 je	 $L36134
+
+; 198  :   {
+; 199  :     // NOTE: D3D passes in S, T and 1/W and we need S/W, T/W and 1/W
+; 200  :     if( pRc->state & STATE_REQUIRES_PERSPECTIVE )
+
+  001c0	f6 c5 80	 test	 ch, -128		; ffffff80H
+
+; 201  :     {
+; 202  : #ifdef DCT_FIX
+; 203  :       s1 = ((FLTP(pV)[FVFO_TU + pRc->t0CoordIndex] * pRc->sst.scaleS) + TEXEL_SOFFSET) * w1;
+; 204  :       t1 = ((FLTP(pV)[FVFO_TV + pRc->t0CoordIndex] * pRc->sst.scaleT) + TEXEL_TOFFSET) * w1;
+; 205  : #else
+; 206  :       s1 = ((FLTP(pV)[FVFO_TU + pRc->t0CoordIndex] * pRc->sst.scaleS) + TEXEL_SOFFSET) * FLTP(pV)[FVFO_RHW];
+
+  001c3	8b 8f 4c 04 00
+	00		 mov	 ecx, DWORD PTR [edi+1100]
+  001c9	74 49		 je	 SHORT $L36129
+  001cb	8b 90 10 00 00
+	00		 mov	 edx, DWORD PTR _fvfOffsetTable[eax+16]
+  001d1	8d 14 93	 lea	 edx, DWORD PTR [ebx+edx*4]
+  001d4	89 55 0c	 mov	 DWORD PTR 12+[ebp], edx
+  001d7	8b 90 1c 00 00
+	00		 mov	 edx, DWORD PTR _fvfOffsetTable[eax+28]
+  001dd	03 d1		 add	 edx, ecx
+  001df	d9 04 93	 fld	 DWORD PTR [ebx+edx*4]
+  001e2	8b 55 0c	 mov	 edx, DWORD PTR 12+[ebp]
+  001e5	d8 8f bc 04 00
+	00		 fmul	 DWORD PTR [edi+1212]
+  001eb	d8 87 c4 04 00
+	00		 fadd	 DWORD PTR [edi+1220]
+  001f1	d8 0a		 fmul	 DWORD PTR [edx]
+
+; 207  :       t1 = ((FLTP(pV)[FVFO_TV + pRc->t0CoordIndex] * pRc->sst.scaleT) + TEXEL_TOFFSET) * FLTP(pV)[FVFO_RHW];
+
+  001f3	8b 90 20 00 00
+	00		 mov	 edx, DWORD PTR _fvfOffsetTable[eax+32]
+  001f9	03 d1		 add	 edx, ecx
+  001fb	8b 4d 0c	 mov	 ecx, DWORD PTR 12+[ebp]
+  001fe	d9 5d ec	 fstp	 DWORD PTR _s1$[ebp]
+  00201	d9 04 93	 fld	 DWORD PTR [ebx+edx*4]
+  00204	d8 8f c0 04 00
+	00		 fmul	 DWORD PTR [edi+1216]
+  0020a	d8 87 c8 04 00
+	00		 fadd	 DWORD PTR [edi+1224]
+  00210	d8 09		 fmul	 DWORD PTR [ecx]
+
+; 208  : #endif
+; 209  :     }
+; 210  :     // if the texture is not prespective correct then the w is effectively equal to 1
+; 211  :     else
+
+  00212	eb 31		 jmp	 SHORT $L36354
+$L36129:
+
+; 212  :     {
+; 213  : #ifdef DCT_FIX
+; 214  :       s1 = (FLTP(pV)[FVFO_TU + pRc->t0CoordIndex] * pRc->sst.scaleS) + TEXEL_SOFFSET;
+; 215  :       t1 = (FLTP(pV)[FVFO_TV + pRc->t0CoordIndex] * pRc->sst.scaleT) + TEXEL_TOFFSET;
+; 216  : #else
+; 217  :       s1 = (FLTP(pV)[FVFO_TU + pRc->t0CoordIndex] * pRc->sst.scaleS) + TEXEL_SOFFSET;
+
+  00214	8b 90 1c 00 00
+	00		 mov	 edx, DWORD PTR _fvfOffsetTable[eax+28]
+  0021a	03 d1		 add	 edx, ecx
+  0021c	d9 04 93	 fld	 DWORD PTR [ebx+edx*4]
+
+; 218  :       t1 = (FLTP(pV)[FVFO_TV + pRc->t0CoordIndex] * pRc->sst.scaleT) + TEXEL_TOFFSET;
+
+  0021f	8b 90 20 00 00
+	00		 mov	 edx, DWORD PTR _fvfOffsetTable[eax+32]
+  00225	d8 8f bc 04 00
+	00		 fmul	 DWORD PTR [edi+1212]
+  0022b	03 d1		 add	 edx, ecx
+  0022d	d8 87 c4 04 00
+	00		 fadd	 DWORD PTR [edi+1220]
+  00233	d9 5d ec	 fstp	 DWORD PTR _s1$[ebp]
+  00236	d9 04 93	 fld	 DWORD PTR [ebx+edx*4]
+  00239	d8 8f c0 04 00
+	00		 fmul	 DWORD PTR [edi+1216]
+  0023f	d8 87 c8 04 00
+	00		 fadd	 DWORD PTR [edi+1224]
+$L36354:
+  00245	d9 5d e8	 fstp	 DWORD PTR _t1$[ebp]
+$L36134:
+
+; 219  : #endif
+; 220  :     }
+; 221  :   } // texture
+; 222  : 
+; 223  : #if (NUMTEXTUREUNITS > 1)
+; 224  :   // Second texture stage
+; 225  :   if( pRc->state & STATE_REQUIRES_ST_TMU1 )
+
+  00248	8b 8f ac 00 00
+	00		 mov	 ecx, DWORD PTR [edi+172]
+  0024e	f6 c5 02	 test	 ch, 2
+  00251	0f 84 8b 00 00
+	00		 je	 $L36143
+
+; 226  :   {
+; 227  :     // NOTE: D3D passes in S, T and 1/W and we need S/W, T/W and 1/W
+; 228  :     if( pRc->state & STATE_REQUIRES_PERSPECTIVE )
+
+  00257	f6 c5 80	 test	 ch, -128		; ffffff80H
+  0025a	74 4c		 je	 SHORT $L36138
+
+; 229  :     {
+; 230  : #ifdef DCT_FIX
+; 231  :       s1a = ((FLTP(pV)[FVFO_TU + pRc->t1CoordIndex] * pRc->sst.scaleS1) + TEXEL_S1OFFSET) * w1;
+; 232  :       t1a = ((FLTP(pV)[FVFO_TV + pRc->t1CoordIndex] * pRc->sst.scaleT1) + TEXEL_T1OFFSET) * w1;
+; 233  : #else
+; 234  :       s1a = ((FLTP(pV)[FVFO_TU + pRc->t1CoordIndex] * pRc->sst.scaleS1) + TEXEL_S1OFFSET) * FLTP(pV)[FVFO_RHW];
+
+  0025c	8b 88 10 00 00
+	00		 mov	 ecx, DWORD PTR _fvfOffsetTable[eax+16]
+  00262	8b 97 50 04 00
+	00		 mov	 edx, DWORD PTR [edi+1104]
+  00268	8d 0c 8b	 lea	 ecx, DWORD PTR [ebx+ecx*4]
+  0026b	89 4d 0c	 mov	 DWORD PTR 12+[ebp], ecx
+  0026e	8b 88 1c 00 00
+	00		 mov	 ecx, DWORD PTR _fvfOffsetTable[eax+28]
+
+; 235  :       t1a = ((FLTP(pV)[FVFO_TV + pRc->t1CoordIndex] * pRc->sst.scaleT1) + TEXEL_T1OFFSET) * FLTP(pV)[FVFO_RHW];
+
+  00274	8b 80 20 00 00
+	00		 mov	 eax, DWORD PTR _fvfOffsetTable[eax+32]
+  0027a	03 ca		 add	 ecx, edx
+  0027c	d9 04 8b	 fld	 DWORD PTR [ebx+ecx*4]
+  0027f	8b 4d 0c	 mov	 ecx, DWORD PTR 12+[ebp]
+  00282	d8 8f cc 04 00
+	00		 fmul	 DWORD PTR [edi+1228]
+  00288	03 c2		 add	 eax, edx
+  0028a	d8 87 d4 04 00
+	00		 fadd	 DWORD PTR [edi+1236]
+  00290	d8 09		 fmul	 DWORD PTR [ecx]
+  00292	d9 5d e4	 fstp	 DWORD PTR _s1a$[ebp]
+  00295	d9 04 83	 fld	 DWORD PTR [ebx+eax*4]
+  00298	d8 8f d0 04 00
+	00		 fmul	 DWORD PTR [edi+1232]
+  0029e	d8 87 d8 04 00
+	00		 fadd	 DWORD PTR [edi+1240]
+  002a4	d8 09		 fmul	 DWORD PTR [ecx]
+
+; 236  : #endif
+; 237  :     }
+; 238  :     // if the texture is not prespective correct then the w is effectively equal to 1
+; 239  :     else
+
+  002a6	eb 37		 jmp	 SHORT $L36355
+$L36138:
+
+; 240  :     {
+; 241  :       s1a = (FLTP(pV)[FVFO_TU + pRc->t1CoordIndex] * pRc->sst.scaleS1) + TEXEL_S1OFFSET;
+
+  002a8	8b 90 1c 00 00
+	00		 mov	 edx, DWORD PTR _fvfOffsetTable[eax+28]
+  002ae	8b 8f 50 04 00
+	00		 mov	 ecx, DWORD PTR [edi+1104]
+
+; 242  :       t1a = (FLTP(pV)[FVFO_TV + pRc->t1CoordIndex] * pRc->sst.scaleT1) + TEXEL_T1OFFSET;
+
+  002b4	8b 80 20 00 00
+	00		 mov	 eax, DWORD PTR _fvfOffsetTable[eax+32]
+  002ba	03 d1		 add	 edx, ecx
+  002bc	d9 04 93	 fld	 DWORD PTR [ebx+edx*4]
+  002bf	03 c1		 add	 eax, ecx
+  002c1	d8 8f cc 04 00
+	00		 fmul	 DWORD PTR [edi+1228]
+  002c7	d8 87 d4 04 00
+	00		 fadd	 DWORD PTR [edi+1236]
+  002cd	d9 5d e4	 fstp	 DWORD PTR _s1a$[ebp]
+  002d0	d9 04 83	 fld	 DWORD PTR [ebx+eax*4]
+  002d3	d8 8f d0 04 00
+	00		 fmul	 DWORD PTR [edi+1232]
+  002d9	d8 87 d8 04 00
+	00		 fadd	 DWORD PTR [edi+1240]
+$L36355:
+  002df	d9 5d e0	 fstp	 DWORD PTR _t1a$[ebp]
+$L36143:
+
+; 243  :     }
+; 244  :   } // texture
+; 245  : #endif
+; 246  : 
+; 247  : #if (NUMTEXTUREUNITS > 1)
+; 248  :   CMDFIFO_CHECKROOM( cmdFifo, PH3_SIZE + (10 * 4) );
+
+  002e2	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  002e5	8b 81 a0 05 00
+	00		 mov	 eax, DWORD PTR [ecx+1440]
+  002eb	ba 29 00 00 00	 mov	 edx, 41			; 00000029H
+  002f0	01 50 28	 add	 DWORD PTR [eax+40], edx
+  002f3	81 78 28 ff ff
+	00 00		 cmp	 DWORD PTR [eax+40], 65535 ; 0000ffffH
+  002fa	72 21		 jb	 SHORT $L36153
+
+; 146  :     else
+
+  002fc	66 87 45 0e	 xchg	 ax, WORD PTR _fenceVar$36252[ebp]
+
+; 243  :     }
+; 244  :   } // texture
+; 245  : #endif
+; 246  : 
+; 247  : #if (NUMTEXTUREUNITS > 1)
+; 248  :   CMDFIFO_CHECKROOM( cmdFifo, PH3_SIZE + (10 * 4) );
+
+  00300	8b 81 a0 05 00
+	00		 mov	 eax, DWORD PTR [ecx+1440]
+  00306	89 50 28	 mov	 DWORD PTR [eax+40], edx
+  00309	8b 81 f0 17 00
+	00		 mov	 eax, DWORD PTR [ecx+6128]
+  0030f	85 c0		 test	 eax, eax
+  00311	74 0a		 je	 SHORT $L36153
+  00313	56		 push	 esi
+  00314	51		 push	 ecx
+  00315	e8 00 00 00 00	 call	 _myAgpEpilog
+  0031a	83 c4 08	 add	 esp, 8
+$L36153:
+  0031d	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00320	8b 8a a0 05 00
+	00		 mov	 ecx, DWORD PTR [edx+1440]
+  00326	8b 41 14	 mov	 eax, DWORD PTR [ecx+20]
+  00329	83 f8 29	 cmp	 eax, 41			; 00000029H
+  0032c	89 4d d0	 mov	 DWORD PTR -48+[ebp], ecx
+  0032f	89 41 14	 mov	 DWORD PTR [ecx+20], eax
+  00332	0f 83 3e 01 00
+	00		 jae	 $L36286
+  00338	8b 41 08	 mov	 eax, DWORD PTR [ecx+8]
+  0033b	8d 96 a4 00 00
+	00		 lea	 edx, DWORD PTR [esi+164]
+  00341	3b d0		 cmp	 edx, eax
+  00343	0f 86 a7 00 00
+	00		 jbe	 $L36293
+  00349	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0034c	8b 5a 08	 mov	 ebx, DWORD PTR [edx+8]
+  0034f	f6 c7 20	 test	 bh, 32			; 00000020H
+  00352	74 0b		 je	 SHORT $L36311
+  00354	8b 92 d0 04 00
+	00		 mov	 edx, DWORD PTR [edx+1232]
+  0035a	89 55 dc	 mov	 DWORD PTR _nNumChips$36309[ebp], edx
+  0035d	eb 07		 jmp	 SHORT $L36312
+$L36311:
+  0035f	c7 45 dc 01 00
+	00 00		 mov	 DWORD PTR _nNumChips$36309[ebp], 1
+$L36312:
+  00366	8b d8		 mov	 ebx, eax
+  00368	8b 45 dc	 mov	 eax, DWORD PTR _nNumChips$36309[ebp]
+  0036b	33 d2		 xor	 edx, edx
+  0036d	85 c0		 test	 eax, eax
+  0036f	7e 31		 jle	 SHORT $L36315
+  00371	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00374	05 40 17 00 00	 add	 eax, 5952		; 00001740H
+  00379	89 45 0c	 mov	 DWORD PTR 12+[ebp], eax
+$L36316:
+  0037c	8b 45 0c	 mov	 eax, DWORD PTR 12+[ebp]
+  0037f	8b 00		 mov	 eax, DWORD PTR [eax]
+  00381	8b 40 2c	 mov	 eax, DWORD PTR [eax+44]
+  00384	03 41 10	 add	 eax, DWORD PTR [ecx+16]
+  00387	3b c6		 cmp	 eax, esi
+  00389	77 f1		 ja	 SHORT $L36316
+  0038b	3b 41 04	 cmp	 eax, DWORD PTR [ecx+4]
+  0038e	74 ec		 je	 SHORT $L36316
+  00390	3b d8		 cmp	 ebx, eax
+  00392	72 02		 jb	 SHORT $L36323
+  00394	8b d8		 mov	 ebx, eax
+$L36323:
+  00396	83 45 0c 10	 add	 DWORD PTR 12+[ebp], 16	; 00000010H
+  0039a	8b 45 dc	 mov	 eax, DWORD PTR _nNumChips$36309[ebp]
+  0039d	42		 inc	 edx
+  0039e	3b d0		 cmp	 edx, eax
+  003a0	7c da		 jl	 SHORT $L36316
+$L36315:
+  003a2	8b 51 18	 mov	 edx, DWORD PTR [ecx+24]
+  003a5	89 16		 mov	 DWORD PTR [esi], edx
+  003a7	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  003aa	8b 82 f0 17 00
+	00		 mov	 eax, DWORD PTR [edx+6128]
+  003b0	85 c0		 test	 eax, eax
+  003b2	74 06		 je	 SHORT $L36319
+  003b4	8b 41 1c	 mov	 eax, DWORD PTR [ecx+28]
+  003b7	89 46 04	 mov	 DWORD PTR [esi+4], eax
+$L36319:
+
+; 146  :     else
+
+  003ba	66 87 45 0e	 xchg	 ax, WORD PTR _fenceVar$36326[ebp]
+
+; 243  :     }
+; 244  :   } // texture
+; 245  : #endif
+; 246  : 
+; 247  : #if (NUMTEXTUREUNITS > 1)
+; 248  :   CMDFIFO_CHECKROOM( cmdFifo, PH3_SIZE + (10 * 4) );
+
+  003be	8b 82 f0 17 00
+	00		 mov	 eax, DWORD PTR [edx+6128]
+  003c4	85 c0		 test	 eax, eax
+  003c6	74 0d		 je	 SHORT $L36320
+  003c8	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  003cb	56		 push	 esi
+  003cc	51		 push	 ecx
+  003cd	e8 00 00 00 00	 call	 _myWrapAgp
+  003d2	83 c4 08	 add	 esp, 8
+$L36320:
+  003d5	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  003d8	8b 8a a0 05 00
+	00		 mov	 ecx, DWORD PTR [edx+1440]
+  003de	8b 71 04	 mov	 esi, DWORD PTR [ecx+4]
+  003e1	2b de		 sub	 ebx, esi
+  003e3	c1 fb 02	 sar	 ebx, 2
+  003e6	4b		 dec	 ebx
+  003e7	89 59 14	 mov	 DWORD PTR [ecx+20], ebx
+  003ea	8b 5d 10	 mov	 ebx, DWORD PTR _pV$[ebp]
+  003ed	89 4d d0	 mov	 DWORD PTR -48+[ebp], ecx
+$L36293:
+  003f0	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  003f3	8b 50 08	 mov	 edx, DWORD PTR [eax+8]
+  003f6	f6 c6 20	 test	 dh, 32			; 00000020H
+  003f9	74 08		 je	 SHORT $L36294
+  003fb	8b 80 d0 04 00
+	00		 mov	 eax, DWORD PTR [eax+1232]
+  00401	eb 05		 jmp	 SHORT $L36356
+$L36294:
+  00403	b8 01 00 00 00	 mov	 eax, 1
+$L36356:
+  00408	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  0040b	2b 51 04	 sub	 edx, DWORD PTR [ecx+4]
+  0040e	89 45 10	 mov	 DWORD PTR _nNumChips$36290[ebp], eax
+  00411	42		 inc	 edx
+  00412	85 c0		 test	 eax, eax
+  00414	89 55 d8	 mov	 DWORD PTR _dwCmdFifoMin$36292[ebp], edx
+  00417	7e 5a		 jle	 SHORT $L36298
+  00419	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0041c	05 40 17 00 00	 add	 eax, 5952		; 00001740H
+  00421	89 45 0c	 mov	 DWORD PTR 12+[ebp], eax
+  00424	8b 45 10	 mov	 eax, DWORD PTR _nNumChips$36290[ebp]
+  00427	89 45 10	 mov	 DWORD PTR 16+[ebp], eax
+$L36296:
+  0042a	8b 41 14	 mov	 eax, DWORD PTR [ecx+20]
+  0042d	83 f8 29	 cmp	 eax, 41			; 00000029H
+  00430	73 2f		 jae	 SHORT $L36300
+  00432	8b 55 0c	 mov	 edx, DWORD PTR 12+[ebp]
+  00435	8b 02		 mov	 eax, DWORD PTR [edx]
+  00437	8b 51 10	 mov	 edx, DWORD PTR [ecx+16]
+  0043a	89 45 d4	 mov	 DWORD PTR -44+[ebp], eax
+$L36299:
+  0043d	8b 45 d4	 mov	 eax, DWORD PTR -44+[ebp]
+  00440	8b 40 2c	 mov	 eax, DWORD PTR [eax+44]
+  00443	03 c2		 add	 eax, edx
+  00445	3b c6		 cmp	 eax, esi
+  00447	77 0a		 ja	 SHORT $L36301
+  00449	8b 41 08	 mov	 eax, DWORD PTR [ecx+8]
+  0044c	2b c6		 sub	 eax, esi
+  0044e	c1 f8 02	 sar	 eax, 2
+  00451	eb 06		 jmp	 SHORT $L36302
+$L36301:
+  00453	2b c6		 sub	 eax, esi
+  00455	c1 f8 02	 sar	 eax, 2
+  00458	48		 dec	 eax
+$L36302:
+  00459	83 f8 29	 cmp	 eax, 41			; 00000029H
+  0045c	72 df		 jb	 SHORT $L36299
+  0045e	8b 55 d8	 mov	 edx, DWORD PTR _dwCmdFifoMin$36292[ebp]
+$L36300:
+  00461	3b d0		 cmp	 edx, eax
+  00463	72 05		 jb	 SHORT $L36305
+  00465	8b d0		 mov	 edx, eax
+  00467	89 55 d8	 mov	 DWORD PTR _dwCmdFifoMin$36292[ebp], edx
+$L36305:
+  0046a	83 45 0c 10	 add	 DWORD PTR 12+[ebp], 16	; 00000010H
+  0046e	ff 4d 10	 dec	 DWORD PTR 16+[ebp]
+  00471	75 b7		 jne	 SHORT $L36296
+$L36298:
+  00473	89 51 14	 mov	 DWORD PTR [ecx+20], edx
+$L36286:
+
+; 249  : #else
+; 250  :   CMDFIFO_CHECKROOM( cmdFifo, PH3_SIZE + (8 * 4) );
+; 251  : #endif
+; 252  : 
+; 253  : #ifdef CMDFIFO
+; 254  :   SETPH( cmdFifo, CMDFIFO_BUILD_PK3( CMD_START, 4, setupFlag, 1 ) );
+
+  00476	8b 55 f8	 mov	 edx, DWORD PTR _setupFlag$[ebp]
+  00479	8b ca		 mov	 ecx, edx
+  0047b	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  00481	c1 e1 04	 shl	 ecx, 4
+  00484	8b c2		 mov	 eax, edx
+  00486	25 00 00 0f 00	 and	 eax, 983040		; 000f0000H
+  0048b	0b c8		 or	 ecx, eax
+  0048d	c1 e1 06	 shl	 ecx, 6
+  00490	81 c9 0b 01 00
+	10		 or	 ecx, 268435723		; 1000010bH
+  00496	89 0e		 mov	 DWORD PTR [esi], ecx
+
+; 255  : #else
+; 256  :   SET( cmdFifo, ghw0->sSetupMode, setupFlag);
+; 257  : #endif
+; 258  : 
+; 259  :   SETFPD( cmdFifo, ghw0->sVx, FLTP(pV)[FVFO_SX] - 0.5f + PIXEL_OFFSET );
+
+  00498	8b 87 a0 05 00
+	00		 mov	 eax, DWORD PTR [edi+1440]
+  0049e	8d 0c 40	 lea	 ecx, DWORD PTR [eax+eax*2]
+  004a1	c1 e1 03	 shl	 ecx, 3
+  004a4	2b c8		 sub	 ecx, eax
+  004a6	c1 e1 02	 shl	 ecx, 2
+  004a9	8b 81 04 00 00
+	00		 mov	 eax, DWORD PTR _fvfOffsetTable[ecx+4]
+  004af	d9 04 83	 fld	 DWORD PTR [ebx+eax*4]
+  004b2	8d 04 83	 lea	 eax, DWORD PTR [ebx+eax*4]
+  004b5	d8 25 00 00 00
+	00		 fsub	 DWORD PTR __real@4@3ffe8000000000000000
+  004bb	89 45 cc	 mov	 DWORD PTR -52+[ebp], eax
+  004be	d8 87 f0 04 00
+	00		 fadd	 DWORD PTR [edi+1264]
+  004c4	d9 55 c4	 fst	 DWORD PTR -60+[ebp]
+  004c7	d9 5e 04	 fstp	 DWORD PTR [esi+4]
+
+; 260  :   SETFPD( cmdFifo, ghw0->sVy, FLTP(pV)[FVFO_SY] - 0.5f + PIXEL_OFFSET );
+
+  004ca	8b 81 08 00 00
+	00		 mov	 eax, DWORD PTR _fvfOffsetTable[ecx+8]
+  004d0	d9 04 83	 fld	 DWORD PTR [ebx+eax*4]
+  004d3	8d 04 83	 lea	 eax, DWORD PTR [ebx+eax*4]
+  004d6	d8 25 00 00 00
+	00		 fsub	 DWORD PTR __real@4@3ffe8000000000000000
+  004dc	89 45 c0	 mov	 DWORD PTR -64+[ebp], eax
+  004df	d8 87 f0 04 00
+	00		 fadd	 DWORD PTR [edi+1264]
+  004e5	d9 55 c8	 fst	 DWORD PTR -56+[ebp]
+  004e8	d9 5e 08	 fstp	 DWORD PTR [esi+8]
+  004eb	b8 03 00 00 00	 mov	 eax, 3
+
+; 261  :   if(setupFlag & (SST_SETUP_RGB | SST_SETUP_A))
+
+  004f0	23 d0		 and	 edx, eax
+  004f2	89 55 d4	 mov	 DWORD PTR -44+[ebp], edx
+  004f5	74 0b		 je	 SHORT $L36165
+
+; 262  :     SETPD( cmdFifo, ghw0->sARGB, aColor );
+
+  004f7	8b 55 fc	 mov	 edx, DWORD PTR _aColor$[ebp]
+  004fa	89 56 0c	 mov	 DWORD PTR [esi+12], edx
+  004fd	b8 04 00 00 00	 mov	 eax, 4
+$L36165:
+
+; 263  :   if(setupFlag & SST_SETUP_Z)
+
+  00502	8b 55 f8	 mov	 edx, DWORD PTR _setupFlag$[ebp]
+  00505	83 e2 04	 and	 edx, 4
+  00508	89 55 0c	 mov	 DWORD PTR 12+[ebp], edx
+  0050b	74 07		 je	 SHORT $L36167
+
+; 264  :     SETFPD( cmdFifo, ghw0->sVz, z1 );
+
+  0050d	d9 45 f0	 fld	 DWORD PTR _z1$[ebp]
+  00510	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  00513	40		 inc	 eax
+$L36167:
+
+; 265  :   if(setupFlag & SST_SETUP_Wfbi)
+
+  00514	8b 55 f8	 mov	 edx, DWORD PTR _setupFlag$[ebp]
+  00517	83 e2 08	 and	 edx, 8
+  0051a	89 55 10	 mov	 DWORD PTR 16+[ebp], edx
+  0051d	74 07		 je	 SHORT $L36169
+
+; 266  : #ifdef DCT_FIX
+; 267  :     SETFPD( cmdFifo, ghw0->sOowfbi, wb1 );
+; 268  : #else
+; 269  :     SETFPD( cmdFifo, ghw0->sOowfbi, w1 );
+
+  0051f	d9 45 f4	 fld	 DWORD PTR _w1$[ebp]
+  00522	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  00525	40		 inc	 eax
+$L36169:
+
+; 270  : #endif
+; 271  :   if(setupFlag & SST_SETUP_W0)
+
+  00526	8b 55 f8	 mov	 edx, DWORD PTR _setupFlag$[ebp]
+  00529	83 e2 10	 and	 edx, 16			; 00000010H
+  0052c	89 55 dc	 mov	 DWORD PTR -36+[ebp], edx
+  0052f	74 0d		 je	 SHORT $L36171
+
+; 272  : #ifdef DCT_FIX
+; 273  :     SETFPD( cmdFifo, ghw0->sOow0, w1 );
+; 274  : #else
+; 275  :     SETFPD( cmdFifo, ghw0->sOow0, FLTP(pV)[FVFO_RHW] );
+
+  00531	8b 91 10 00 00
+	00		 mov	 edx, DWORD PTR _fvfOffsetTable[ecx+16]
+  00537	d9 04 93	 fld	 DWORD PTR [ebx+edx*4]
+  0053a	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  0053d	40		 inc	 eax
+$L36171:
+
+; 276  : #endif
+; 277  :   if(setupFlag & SST_SETUP_ST0)
+
+  0053e	8b 55 f8	 mov	 edx, DWORD PTR _setupFlag$[ebp]
+  00541	83 e2 20	 and	 edx, 32			; 00000020H
+  00544	89 55 d8	 mov	 DWORD PTR -40+[ebp], edx
+  00547	74 0e		 je	 SHORT $L36174
+
+; 278  :   {
+; 279  :     SETFPD( cmdFifo, ghw0->sSow0, s1 );
+
+  00549	d9 45 ec	 fld	 DWORD PTR _s1$[ebp]
+  0054c	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  0054f	40		 inc	 eax
+
+; 280  :     SETFPD( cmdFifo, ghw0->sTow0, t1 );
+
+  00550	d9 45 e8	 fld	 DWORD PTR _t1$[ebp]
+  00553	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  00556	40		 inc	 eax
+$L36174:
+
+; 281  :   }
+; 282  : #if (NUMTEXTUREUNITS > 1)
+; 283  :   if(setupFlag & SST_SETUP_ST1)
+
+  00557	8b 55 f8	 mov	 edx, DWORD PTR _setupFlag$[ebp]
+  0055a	81 e2 80 00 00
+	00		 and	 edx, 128		; 00000080H
+  00560	89 55 f8	 mov	 DWORD PTR -8+[ebp], edx
+  00563	74 0e		 je	 SHORT $L36177
+
+; 284  :   {
+; 285  :     SETFPD( cmdFifo, ghw0->sSow1, s1a );
+
+  00565	d9 45 e4	 fld	 DWORD PTR _s1a$[ebp]
+  00568	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  0056b	40		 inc	 eax
+
+; 286  :     SETFPD( cmdFifo, ghw0->sTow1, t1a );
+
+  0056c	d9 45 e0	 fld	 DWORD PTR _t1a$[ebp]
+  0056f	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  00572	40		 inc	 eax
+$L36177:
+
+; 287  :   }
+; 288  : #endif
+; 289  : #ifndef CMDFIFO
+; 290  :   if(_MM(drawGlobal))
+; 291  :     SET( cmdFifo, ghw0->sBeginTriCMD, 0 );
+; 292  : #endif
+; 293  : 
+; 294  :   SETFPD( cmdFifo, ghw0->sVx, FLTP(pV)[FVFO_SX] + 0.5f + PIXEL_OFFSET );
+
+  00573	8b 55 cc	 mov	 edx, DWORD PTR -52+[ebp]
+  00576	d9 02		 fld	 DWORD PTR [edx]
+  00578	d8 87 f0 04 00
+	00		 fadd	 DWORD PTR [edi+1264]
+  0057e	d8 05 00 00 00
+	00		 fadd	 DWORD PTR __real@4@3ffe8000000000000000
+  00584	d9 14 86	 fst	 DWORD PTR [esi+eax*4]
+  00587	40		 inc	 eax
+
+; 295  :   SETFPD( cmdFifo, ghw0->sVy, FLTP(pV)[FVFO_SY] - 0.5f + PIXEL_OFFSET );
+
+  00588	d9 45 c8	 fld	 DWORD PTR -56+[ebp]
+  0058b	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+
+; 296  :   if(setupFlag & (SST_SETUP_RGB | SST_SETUP_A))
+
+  0058e	8b 55 d4	 mov	 edx, DWORD PTR -44+[ebp]
+  00591	40		 inc	 eax
+  00592	85 d2		 test	 edx, edx
+  00594	74 07		 je	 SHORT $L36184
+
+; 297  :     SETPD( cmdFifo, ghw0->sARGB, aColor );
+
+  00596	8b 55 fc	 mov	 edx, DWORD PTR _aColor$[ebp]
+  00599	89 14 86	 mov	 DWORD PTR [esi+eax*4], edx
+  0059c	40		 inc	 eax
+$L36184:
+
+; 298  :   if(setupFlag & SST_SETUP_Z)
+
+  0059d	8b 55 0c	 mov	 edx, DWORD PTR 12+[ebp]
+  005a0	85 d2		 test	 edx, edx
+  005a2	74 07		 je	 SHORT $L36186
+
+; 299  :     SETFPD( cmdFifo, ghw0->sVz, z1 );
+
+  005a4	d9 45 f0	 fld	 DWORD PTR _z1$[ebp]
+  005a7	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  005aa	40		 inc	 eax
+$L36186:
+
+; 300  :   if(setupFlag & SST_SETUP_Wfbi)
+
+  005ab	8b 55 10	 mov	 edx, DWORD PTR 16+[ebp]
+  005ae	85 d2		 test	 edx, edx
+  005b0	74 07		 je	 SHORT $L36188
+
+; 301  : #ifdef DCT_FIX
+; 302  :     SETFPD( cmdFifo, ghw0->sOowfbi, wb1 );
+; 303  : #else
+; 304  :     SETFPD( cmdFifo, ghw0->sOowfbi, w1 );
+
+  005b2	d9 45 f4	 fld	 DWORD PTR _w1$[ebp]
+  005b5	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  005b8	40		 inc	 eax
+$L36188:
+
+; 305  : #endif
+; 306  :   if(setupFlag & SST_SETUP_W0)
+
+  005b9	8b 55 dc	 mov	 edx, DWORD PTR -36+[ebp]
+  005bc	85 d2		 test	 edx, edx
+  005be	74 0d		 je	 SHORT $L36190
+
+; 307  : #ifdef DCT_FIX
+; 308  :     SETFPD( cmdFifo, ghw0->sOow0, w1 );
+; 309  : #else
+; 310  :     SETFPD( cmdFifo, ghw0->sOow0, FLTP(pV)[FVFO_RHW] );
+
+  005c0	8b 91 10 00 00
+	00		 mov	 edx, DWORD PTR _fvfOffsetTable[ecx+16]
+  005c6	d9 04 93	 fld	 DWORD PTR [ebx+edx*4]
+  005c9	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  005cc	40		 inc	 eax
+$L36190:
+
+; 311  : #endif
+; 312  :   if(setupFlag & SST_SETUP_ST0)
+
+  005cd	8b 55 d8	 mov	 edx, DWORD PTR -40+[ebp]
+  005d0	85 d2		 test	 edx, edx
+  005d2	74 0e		 je	 SHORT $L36193
+
+; 313  :   {
+; 314  :     SETFPD( cmdFifo, ghw0->sSow0, s1 );
+
+  005d4	d9 45 ec	 fld	 DWORD PTR _s1$[ebp]
+  005d7	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  005da	40		 inc	 eax
+
+; 315  :     SETFPD( cmdFifo, ghw0->sTow0, t1 );
+
+  005db	d9 45 e8	 fld	 DWORD PTR _t1$[ebp]
+  005de	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  005e1	40		 inc	 eax
+$L36193:
+
+; 316  :   }
+; 317  : #if (NUMTEXTUREUNITS > 1)
+; 318  :   if(setupFlag & SST_SETUP_ST1)
+
+  005e2	8b 55 f8	 mov	 edx, DWORD PTR -8+[ebp]
+  005e5	85 d2		 test	 edx, edx
+  005e7	74 0e		 je	 SHORT $L36196
+
+; 319  :   {
+; 320  :     SETFPD( cmdFifo, ghw0->sSow1, s1a );
+
+  005e9	d9 45 e4	 fld	 DWORD PTR _s1a$[ebp]
+  005ec	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  005ef	40		 inc	 eax
+
+; 321  :     SETFPD( cmdFifo, ghw0->sTow1, t1a );
+
+  005f0	d9 45 e0	 fld	 DWORD PTR _t1a$[ebp]
+  005f3	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  005f6	40		 inc	 eax
+$L36196:
+
+; 322  :   }
+; 323  : #endif
+; 324  : #ifndef CMDFIFO
+; 325  :   if(_MM(drawGlobal))
+; 326  :     SET( cmdFifo, ghw0->sDrawTriCMD, 0 );
+; 327  : #endif
+; 328  : 
+; 329  :   SETFPD( cmdFifo, ghw0->sVx, FLTP(pV)[FVFO_SX] - 0.5f + PIXEL_OFFSET );
+
+  005f7	d9 45 c4	 fld	 DWORD PTR -60+[ebp]
+  005fa	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+
+; 330  :   SETFPD( cmdFifo, ghw0->sVy, FLTP(pV)[FVFO_SY] + 0.5f + PIXEL_OFFSET );
+
+  005fd	8b 55 c0	 mov	 edx, DWORD PTR -64+[ebp]
+  00600	d9 87 f0 04 00
+	00		 fld	 DWORD PTR [edi+1264]
+  00606	40		 inc	 eax
+  00607	d8 02		 fadd	 DWORD PTR [edx]
+  00609	d8 05 00 00 00
+	00		 fadd	 DWORD PTR __real@4@3ffe8000000000000000
+  0060f	d9 14 86	 fst	 DWORD PTR [esi+eax*4]
+
+; 331  :   if(setupFlag & (SST_SETUP_RGB | SST_SETUP_A))
+
+  00612	8b 7d d4	 mov	 edi, DWORD PTR -44+[ebp]
+  00615	40		 inc	 eax
+  00616	85 ff		 test	 edi, edi
+  00618	74 07		 je	 SHORT $L36203
+
+; 332  :     SETPD( cmdFifo, ghw0->sARGB, aColor );
+
+  0061a	8b 55 fc	 mov	 edx, DWORD PTR _aColor$[ebp]
+  0061d	89 14 86	 mov	 DWORD PTR [esi+eax*4], edx
+  00620	40		 inc	 eax
+$L36203:
+
+; 333  :   if(setupFlag & SST_SETUP_Z)
+
+  00621	8b 55 0c	 mov	 edx, DWORD PTR 12+[ebp]
+  00624	85 d2		 test	 edx, edx
+  00626	74 07		 je	 SHORT $L36205
+
+; 334  :     SETFPD( cmdFifo, ghw0->sVz, z1 );
+
+  00628	d9 45 f0	 fld	 DWORD PTR _z1$[ebp]
+  0062b	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  0062e	40		 inc	 eax
+$L36205:
+
+; 335  :   if(setupFlag & SST_SETUP_Wfbi)
+
+  0062f	8b 55 10	 mov	 edx, DWORD PTR 16+[ebp]
+  00632	85 d2		 test	 edx, edx
+  00634	74 07		 je	 SHORT $L36207
+
+; 336  : #ifdef DCT_FIX
+; 337  :     SETFPD( cmdFifo, ghw0->sOowfbi, wb1 );
+; 338  : #else
+; 339  :     SETFPD( cmdFifo, ghw0->sOowfbi, w1 );
+
+  00636	d9 45 f4	 fld	 DWORD PTR _w1$[ebp]
+  00639	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  0063c	40		 inc	 eax
+$L36207:
+
+; 340  : #endif
+; 341  :   if(setupFlag & SST_SETUP_W0)
+
+  0063d	8b 55 dc	 mov	 edx, DWORD PTR -36+[ebp]
+  00640	85 d2		 test	 edx, edx
+  00642	74 0d		 je	 SHORT $L36209
+
+; 342  : #ifdef DCT_FIX
+; 343  :     SETFPD( cmdFifo, ghw0->sOow0, w1 );
+; 344  : #else
+; 345  :     SETFPD( cmdFifo, ghw0->sOow0, FLTP(pV)[FVFO_RHW] );
+
+  00644	8b 91 10 00 00
+	00		 mov	 edx, DWORD PTR _fvfOffsetTable[ecx+16]
+  0064a	d9 04 93	 fld	 DWORD PTR [ebx+edx*4]
+  0064d	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  00650	40		 inc	 eax
+$L36209:
+
+; 346  : #endif
+; 347  :   if(setupFlag & SST_SETUP_ST0)
+
+  00651	8b 55 d8	 mov	 edx, DWORD PTR -40+[ebp]
+  00654	85 d2		 test	 edx, edx
+  00656	74 0e		 je	 SHORT $L36212
+
+; 348  :   {
+; 349  :     SETFPD( cmdFifo, ghw0->sSow0, s1 );
+
+  00658	d9 45 ec	 fld	 DWORD PTR _s1$[ebp]
+  0065b	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  0065e	40		 inc	 eax
+
+; 350  :     SETFPD( cmdFifo, ghw0->sTow0, t1 );
+
+  0065f	d9 45 e8	 fld	 DWORD PTR _t1$[ebp]
+  00662	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  00665	40		 inc	 eax
+$L36212:
+
+; 351  :   }
+; 352  : #if (NUMTEXTUREUNITS > 1)
+; 353  :   if(setupFlag & SST_SETUP_ST1)
+
+  00666	8b 55 f8	 mov	 edx, DWORD PTR -8+[ebp]
+  00669	85 d2		 test	 edx, edx
+  0066b	74 0e		 je	 SHORT $L36215
+
+; 354  :   {
+; 355  :     SETFPD( cmdFifo, ghw0->sSow1, s1a );
+
+  0066d	d9 45 e4	 fld	 DWORD PTR _s1a$[ebp]
+  00670	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  00673	40		 inc	 eax
+
+; 356  :     SETFPD( cmdFifo, ghw0->sTow1, t1a );
+
+  00674	d9 45 e0	 fld	 DWORD PTR _t1a$[ebp]
+  00677	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  0067a	40		 inc	 eax
+$L36215:
+
+; 357  :   }
+; 358  : #endif
+; 359  : #ifndef CMDFIFO
+; 360  :   if(_MM(drawGlobal))
+; 361  :     SET( cmdFifo, ghw0->sDrawTriCMD, 0 );
+; 362  : #endif
+; 363  : 
+; 364  :   SETFPD( cmdFifo, ghw0->sVx, FLTP(pV)[FVFO_SX] + 0.5f + PIXEL_OFFSET );
+
+  0067b	d9 c9		 fxch	 ST(1)
+  0067d	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  00680	40		 inc	 eax
+
+; 365  :   SETFPD( cmdFifo, ghw0->sVy, FLTP(pV)[FVFO_SY] + 0.5f + PIXEL_OFFSET );
+
+  00681	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  00684	40		 inc	 eax
+
+; 366  :   if(setupFlag & (SST_SETUP_RGB | SST_SETUP_A))
+
+  00685	85 ff		 test	 edi, edi
+  00687	74 07		 je	 SHORT $L36222
+
+; 367  :     SETPD( cmdFifo, ghw0->sARGB, aColor );
+
+  00689	8b 7d fc	 mov	 edi, DWORD PTR _aColor$[ebp]
+  0068c	89 3c 86	 mov	 DWORD PTR [esi+eax*4], edi
+  0068f	40		 inc	 eax
+$L36222:
+
+; 368  :   if(setupFlag & SST_SETUP_Z)
+
+  00690	8b 7d 0c	 mov	 edi, DWORD PTR 12+[ebp]
+  00693	85 ff		 test	 edi, edi
+  00695	74 07		 je	 SHORT $L36224
+
+; 369  :     SETFPD( cmdFifo, ghw0->sVz, z1 );
+
+  00697	d9 45 f0	 fld	 DWORD PTR _z1$[ebp]
+  0069a	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  0069d	40		 inc	 eax
+$L36224:
+
+; 370  :   if(setupFlag & SST_SETUP_Wfbi)
+
+  0069e	8b 7d 10	 mov	 edi, DWORD PTR 16+[ebp]
+  006a1	85 ff		 test	 edi, edi
+  006a3	74 07		 je	 SHORT $L36226
+
+; 371  : #ifdef DCT_FIX
+; 372  :     SETFPD( cmdFifo, ghw0->sOowfbi, wb1 );
+; 373  : #else
+; 374  :     SETFPD( cmdFifo, ghw0->sOowfbi, w1 );
+
+  006a5	d9 45 f4	 fld	 DWORD PTR _w1$[ebp]
+  006a8	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  006ab	40		 inc	 eax
+$L36226:
+
+; 375  : #endif
+; 376  :   if(setupFlag & SST_SETUP_W0)
+
+  006ac	8b 7d dc	 mov	 edi, DWORD PTR -36+[ebp]
+  006af	85 ff		 test	 edi, edi
+  006b1	74 0d		 je	 SHORT $L36228
+
+; 377  : #ifdef DCT_FIX
+; 378  :     SETFPD( cmdFifo, ghw0->sOow0, w1 );
+; 379  : #else
+; 380  :     SETFPD( cmdFifo, ghw0->sOow0, FLTP(pV)[FVFO_RHW] );
+
+  006b3	8b 89 10 00 00
+	00		 mov	 ecx, DWORD PTR _fvfOffsetTable[ecx+16]
+  006b9	d9 04 8b	 fld	 DWORD PTR [ebx+ecx*4]
+  006bc	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  006bf	40		 inc	 eax
+$L36228:
+
+; 381  : #endif
+; 382  :   if(setupFlag & SST_SETUP_ST0)
+
+  006c0	8b 4d d8	 mov	 ecx, DWORD PTR -40+[ebp]
+  006c3	85 c9		 test	 ecx, ecx
+  006c5	74 0e		 je	 SHORT $L36231
+
+; 383  :   {
+; 384  :     SETFPD( cmdFifo, ghw0->sSow0, s1 );
+
+  006c7	d9 45 ec	 fld	 DWORD PTR _s1$[ebp]
+  006ca	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  006cd	40		 inc	 eax
+
+; 385  :     SETFPD( cmdFifo, ghw0->sTow0, t1 );
+
+  006ce	d9 45 e8	 fld	 DWORD PTR _t1$[ebp]
+  006d1	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  006d4	40		 inc	 eax
+$L36231:
+
+; 386  :   }
+; 387  : #if (NUMTEXTUREUNITS > 1)
+; 388  :   if(setupFlag & SST_SETUP_ST1)
+
+  006d5	85 d2		 test	 edx, edx
+  006d7	74 0e		 je	 SHORT $L36234
+
+; 389  :   {
+; 390  :     SETFPD( cmdFifo, ghw0->sSow1, s1a );
+
+  006d9	d9 45 e4	 fld	 DWORD PTR _s1a$[ebp]
+  006dc	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  006df	40		 inc	 eax
+
+; 391  :     SETFPD( cmdFifo, ghw0->sTow1, t1a );
+
+  006e0	d9 45 e0	 fld	 DWORD PTR _t1a$[ebp]
+  006e3	d9 1c 86	 fstp	 DWORD PTR [esi+eax*4]
+  006e6	40		 inc	 eax
+$L36234:
+
+; 392  :   }
+; 393  : #endif
+; 394  : #ifndef CMDFIFO
+; 395  :   if(_MM(drawGlobal))
+; 396  :     SET( cmdFifo, ghw0->sDrawTriCMD, 0 );
+; 397  : #endif
+; 398  : 
+; 399  :   CMDFIFO_EPILOG( cmdFifo );
+
+  006e7	8b 4d d0	 mov	 ecx, DWORD PTR -48+[ebp]
+  006ea	8d 34 86	 lea	 esi, DWORD PTR [esi+eax*4]
+  006ed	89 71 0c	 mov	 DWORD PTR [ecx+12], esi
+  006f0	29 41 14	 sub	 DWORD PTR [ecx+20], eax
+  006f3	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  006f6	8b 82 f0 17 00
+	00		 mov	 eax, DWORD PTR [edx+6128]
+  006fc	85 c0		 test	 eax, eax
+  006fe	74 0c		 je	 SHORT $L36242
+  00700	8b c2		 mov	 eax, edx
+  00702	56		 push	 esi
+  00703	50		 push	 eax
+  00704	e8 00 00 00 00	 call	 _myAgpEpilog
+  00709	83 c4 08	 add	 esp, 8
+$L36242:
+  0070c	5f		 pop	 edi
+  0070d	5e		 pop	 esi
+  0070e	5b		 pop	 ebx
+
+; 400  : }
+
+  0070f	8b e5		 mov	 esp, ebp
+  00711	5d		 pop	 ebp
+  00712	c3		 ret	 0
+_dp2Point ENDP
+_TEXT	ENDS
+END

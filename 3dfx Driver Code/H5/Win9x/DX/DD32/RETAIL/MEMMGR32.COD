@@ -1,0 +1,423 @@
+	TITLE	..\memmgr32.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+FLAT	GROUP _DATA, CONST, _BSS
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+_DATA	SEGMENT
+_f_255_reverse_lookup DD 0437f0000r		; 255
+	DD	0437e0000r			; 254
+	DD	0437d0000r			; 253
+	DD	0437c0000r			; 252
+	DD	0437b0000r			; 251
+	DD	0437a0000r			; 250
+	DD	043790000r			; 249
+	DD	043780000r			; 248
+	DD	043770000r			; 247
+	DD	043760000r			; 246
+	DD	043750000r			; 245
+	DD	043740000r			; 244
+	DD	043730000r			; 243
+	DD	043720000r			; 242
+	DD	043710000r			; 241
+	DD	043700000r			; 240
+	DD	0436f0000r			; 239
+	DD	0436e0000r			; 238
+	DD	0436d0000r			; 237
+	DD	0436c0000r			; 236
+	DD	0436b0000r			; 235
+	DD	0436a0000r			; 234
+	DD	043690000r			; 233
+	DD	043680000r			; 232
+	DD	043670000r			; 231
+	DD	043660000r			; 230
+	DD	043650000r			; 229
+	DD	043640000r			; 228
+	DD	043630000r			; 227
+	DD	043620000r			; 226
+	DD	043610000r			; 225
+	DD	043600000r			; 224
+	DD	0435f0000r			; 223
+	DD	0435e0000r			; 222
+	DD	0435d0000r			; 221
+	DD	0435c0000r			; 220
+	DD	0435b0000r			; 219
+	DD	0435a0000r			; 218
+	DD	043590000r			; 217
+	DD	043580000r			; 216
+	DD	043570000r			; 215
+	DD	043560000r			; 214
+	DD	043550000r			; 213
+	DD	043540000r			; 212
+	DD	043530000r			; 211
+	DD	043520000r			; 210
+	DD	043510000r			; 209
+	DD	043500000r			; 208
+	DD	0434f0000r			; 207
+	DD	0434e0000r			; 206
+	DD	0434d0000r			; 205
+	DD	0434c0000r			; 204
+	DD	0434b0000r			; 203
+	DD	0434a0000r			; 202
+	DD	043490000r			; 201
+	DD	043480000r			; 200
+	DD	043470000r			; 199
+	DD	043460000r			; 198
+	DD	043450000r			; 197
+	DD	043440000r			; 196
+	DD	043430000r			; 195
+	DD	043420000r			; 194
+	DD	043410000r			; 193
+	DD	043400000r			; 192
+	DD	0433f0000r			; 191
+	DD	0433e0000r			; 190
+	DD	0433d0000r			; 189
+	DD	0433c0000r			; 188
+	DD	0433b0000r			; 187
+	DD	0433a0000r			; 186
+	DD	043390000r			; 185
+	DD	043380000r			; 184
+	DD	043370000r			; 183
+	DD	043360000r			; 182
+	DD	043350000r			; 181
+	DD	043340000r			; 180
+	DD	043330000r			; 179
+	DD	043320000r			; 178
+	DD	043310000r			; 177
+	DD	043300000r			; 176
+	DD	0432f0000r			; 175
+	DD	0432e0000r			; 174
+	DD	0432d0000r			; 173
+	DD	0432c0000r			; 172
+	DD	0432b0000r			; 171
+	DD	0432a0000r			; 170
+	DD	043290000r			; 169
+	DD	043280000r			; 168
+	DD	043270000r			; 167
+	DD	043260000r			; 166
+	DD	043250000r			; 165
+	DD	043240000r			; 164
+	DD	043230000r			; 163
+	DD	043220000r			; 162
+	DD	043210000r			; 161
+	DD	043200000r			; 160
+	DD	0431f0000r			; 159
+	DD	0431e0000r			; 158
+	DD	0431d0000r			; 157
+	DD	0431c0000r			; 156
+	DD	0431b0000r			; 155
+	DD	0431a0000r			; 154
+	DD	043190000r			; 153
+	DD	043180000r			; 152
+	DD	043170000r			; 151
+	DD	043160000r			; 150
+	DD	043150000r			; 149
+	DD	043140000r			; 148
+	DD	043130000r			; 147
+	DD	043120000r			; 146
+	DD	043110000r			; 145
+	DD	043100000r			; 144
+	DD	0430f0000r			; 143
+	DD	0430e0000r			; 142
+	DD	0430d0000r			; 141
+	DD	0430c0000r			; 140
+	DD	0430b0000r			; 139
+	DD	0430a0000r			; 138
+	DD	043090000r			; 137
+	DD	043080000r			; 136
+	DD	043070000r			; 135
+	DD	043060000r			; 134
+	DD	043050000r			; 133
+	DD	043040000r			; 132
+	DD	043030000r			; 131
+	DD	043020000r			; 130
+	DD	043010000r			; 129
+	DD	043000000r			; 128
+	DD	042fe0000r			; 127
+	DD	042fc0000r			; 126
+	DD	042fa0000r			; 125
+	DD	042f80000r			; 124
+	DD	042f60000r			; 123
+	DD	042f40000r			; 122
+	DD	042f20000r			; 121
+	DD	042f00000r			; 120
+	DD	042ee0000r			; 119
+	DD	042ec0000r			; 118
+	DD	042ea0000r			; 117
+	DD	042e80000r			; 116
+	DD	042e60000r			; 115
+	DD	042e40000r			; 114
+	DD	042e20000r			; 113
+	DD	042e00000r			; 112
+	DD	042de0000r			; 111
+	DD	042dc0000r			; 110
+	DD	042da0000r			; 109
+	DD	042d80000r			; 108
+	DD	042d60000r			; 107
+	DD	042d40000r			; 106
+	DD	042d20000r			; 105
+	DD	042d00000r			; 104
+	DD	042ce0000r			; 103
+	DD	042cc0000r			; 102
+	DD	042ca0000r			; 101
+	DD	042c80000r			; 100
+	DD	042c60000r			; 99
+	DD	042c40000r			; 98
+	DD	042c20000r			; 97
+	DD	042c00000r			; 96
+	DD	042be0000r			; 95
+	DD	042bc0000r			; 94
+	DD	042ba0000r			; 93
+	DD	042b80000r			; 92
+	DD	042b60000r			; 91
+	DD	042b40000r			; 90
+	DD	042b20000r			; 89
+	DD	042b00000r			; 88
+	DD	042ae0000r			; 87
+	DD	042ac0000r			; 86
+	DD	042aa0000r			; 85
+	DD	042a80000r			; 84
+	DD	042a60000r			; 83
+	DD	042a40000r			; 82
+	DD	042a20000r			; 81
+	DD	042a00000r			; 80
+	DD	0429e0000r			; 79
+	DD	0429c0000r			; 78
+	DD	0429a0000r			; 77
+	DD	042980000r			; 76
+	DD	042960000r			; 75
+	DD	042940000r			; 74
+	DD	042920000r			; 73
+	DD	042900000r			; 72
+	DD	0428e0000r			; 71
+	DD	0428c0000r			; 70
+	DD	0428a0000r			; 69
+	DD	042880000r			; 68
+	DD	042860000r			; 67
+	DD	042840000r			; 66
+	DD	042820000r			; 65
+	DD	042800000r			; 64
+	DD	0427c0000r			; 63
+	DD	042780000r			; 62
+	DD	042740000r			; 61
+	DD	042700000r			; 60
+	DD	0426c0000r			; 59
+	DD	042680000r			; 58
+	DD	042640000r			; 57
+	DD	042600000r			; 56
+	DD	0425c0000r			; 55
+	DD	042580000r			; 54
+	DD	042540000r			; 53
+	DD	042500000r			; 52
+	DD	0424c0000r			; 51
+	DD	042480000r			; 50
+	DD	042440000r			; 49
+	DD	042400000r			; 48
+	DD	0423c0000r			; 47
+	DD	042380000r			; 46
+	DD	042340000r			; 45
+	DD	042300000r			; 44
+	DD	0422c0000r			; 43
+	DD	042280000r			; 42
+	DD	042240000r			; 41
+	DD	042200000r			; 40
+	DD	0421c0000r			; 39
+	DD	042180000r			; 38
+	DD	042140000r			; 37
+	DD	042100000r			; 36
+	DD	0420c0000r			; 35
+	DD	042080000r			; 34
+	DD	042040000r			; 33
+	DD	042000000r			; 32
+	DD	041f80000r			; 31
+	DD	041f00000r			; 30
+	DD	041e80000r			; 29
+	DD	041e00000r			; 28
+	DD	041d80000r			; 27
+	DD	041d00000r			; 26
+	DD	041c80000r			; 25
+	DD	041c00000r			; 24
+	DD	041b80000r			; 23
+	DD	041b00000r			; 22
+	DD	041a80000r			; 21
+	DD	041a00000r			; 20
+	DD	041980000r			; 19
+	DD	041900000r			; 18
+	DD	041880000r			; 17
+	DD	041800000r			; 16
+	DD	041700000r			; 15
+	DD	041600000r			; 14
+	DD	041500000r			; 13
+	DD	041400000r			; 12
+	DD	041300000r			; 11
+	DD	041200000r			; 10
+	DD	041100000r			; 9
+	DD	041000000r			; 8
+	DD	040e00000r			; 7
+	DD	040c00000r			; 6
+	DD	040a00000r			; 5
+	DD	040800000r			; 4
+	DD	040400000r			; 3
+	DD	040000000r			; 2
+	DD	03f800000r			; 1
+	DD	000000000r			; 0
+_DATA	ENDS
+PUBLIC	_mmEvict32
+EXTRN	_QT_Thunk:NEAR
+_TEXT	SEGMENT
+_ppdev$ = 8
+_fpVidMemStart32$ = 12
+_fpVidMemEnd32$ = 16
+_dwBlockSize$ = 20
+_Addr1616$ = 8
+_mmEvict32 PROC NEAR
+
+; 62   : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+
+; 63   :    // QT_Thunk is documented in Windows 95 System Programming
+; 64   :    //   Secrets, Pietrek.  pp. 191-195, 208-211.
+; 65   :    // NOTE that QT_Thunk will die without fixing up EBP.  I
+; 66   :    //   don't know exactly how big the stack should be but
+; 67   :    //   it appears the more the 16:16 uses, the larger it must be!
+; 68   : 
+; 69   :    DWORD Addr1616;
+; 70   : 
+; 71   :    // Get 16:16 function address from shared data
+; 72   :    Addr1616 = _FF(mmEvictAddr);
+
+  00003	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00006	8b 88 24 18 00
+	00		 mov	 ecx, DWORD PTR [eax+6180]
+  0000c	89 4d 08	 mov	 DWORD PTR _Addr1616$[ebp], ecx
+
+; 73   : 
+; 74   :    // QT_Thunk will do all the fixups and pass control to
+; 75   :    //   the 16:16 in edx.
+; 76   :    _asm
+; 77   :       {
+; 78   :       push  DWORD PTR fpVidMemStart32
+
+  0000f	ff 75 0c	 push	 DWORD PTR _fpVidMemStart32$[ebp]
+
+; 79   :       push  DWORD PTR fpVidMemEnd32
+
+  00012	ff 75 10	 push	 DWORD PTR _fpVidMemEnd32$[ebp]
+
+; 80   :       push  DWORD PTR dwBlockSize
+
+  00015	ff 75 14	 push	 DWORD PTR _dwBlockSize$[ebp]
+
+; 81   :       mov   edx,Addr1616     ; QT_Thunk expects 16:16 proc addr in EDX
+
+  00018	8b 55 08	 mov	 edx, DWORD PTR _Addr1616$[ebp]
+
+; 82   :       sub   ebp,200h         ; QT_Thunk builds convoluted 16:16 stack frame
+
+  0001b	81 ed 00 02 00
+	00		 sub	 ebp, 512		; 00000200H
+
+; 83   :       call  QT_Thunk
+
+  00021	e8 00 00 00 00	 call	 _QT_Thunk
+
+; 84   :       add   ebp,200h         ; QT_Thunk stack stuff
+
+  00026	81 c5 00 02 00
+	00		 add	 ebp, 512		; 00000200H
+
+; 85   :       and   eax,0ffffh       ; mask off high word
+
+  0002c	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+
+; 86   :       }
+; 87   : 
+; 88   :     return;                  // return code in eax
+; 89   : }
+
+  00031	5d		 pop	 ebp
+  00032	c3		 ret	 0
+_mmEvict32 ENDP
+_TEXT	ENDS
+PUBLIC	_mmReclaim32
+_TEXT	SEGMENT
+_ppdev$ = 8
+_fpVidMemAddr32$ = 12
+_Addr1616$ = 8
+_mmReclaim32 PROC NEAR
+
+; 102  : {
+
+  00040	55		 push	 ebp
+  00041	8b ec		 mov	 ebp, esp
+
+; 103  :    DWORD Addr1616;
+; 104  : 
+; 105  :    // Get 16:16 function address from shared data
+; 106  :    Addr1616 = _FF(mmReclaimAddr);
+
+  00043	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00046	8b 88 28 18 00
+	00		 mov	 ecx, DWORD PTR [eax+6184]
+  0004c	89 4d 08	 mov	 DWORD PTR _Addr1616$[ebp], ecx
+
+; 107  : 
+; 108  :    // QT_Thunk will do all the fixups and pass control to
+; 109  :    //   the 16:16 in edx.
+; 110  :    _asm
+; 111  :       {
+; 112  :       push  DWORD PTR fpVidMemAddr32   ; pass our parms
+
+  0004f	ff 75 0c	 push	 DWORD PTR _fpVidMemAddr32$[ebp]
+
+; 113  :       mov   edx,Addr1616     ; QT_Thunk expects 16:16 proc addr in EDX
+
+  00052	8b 55 08	 mov	 edx, DWORD PTR _Addr1616$[ebp]
+
+; 114  :       sub   ebp,200h         ; QT_Thunk builds convoluted 16:16 stack frame
+
+  00055	81 ed 00 02 00
+	00		 sub	 ebp, 512		; 00000200H
+
+; 115  :       call  QT_Thunk
+
+  0005b	e8 00 00 00 00	 call	 _QT_Thunk
+
+; 116  :       add   ebp,200h         ; QT_Thunk stack stuff
+
+  00060	81 c5 00 02 00
+	00		 add	 ebp, 512		; 00000200H
+
+; 117  :       and   eax,0ffffh       ; mask off high word
+
+  00066	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+
+; 118  :       }
+; 119  : 
+; 120  :     return;                  // return code in eax
+; 121  : }
+
+  0006b	5d		 pop	 ebp
+  0006c	c3		 ret	 0
+_mmReclaim32 ENDP
+_TEXT	ENDS
+END

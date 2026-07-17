@@ -1,0 +1,4461 @@
+	TITLE	..\debug.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+_DB2DATA	SEGMENT DWORD USE32 PUBLIC 'DBOCODE'
+_DB2DATA	ENDS
+_DB1CODE	SEGMENT PARA USE32 PUBLIC 'DBOCODE'
+_DB1CODE	ENDS
+_PTEXT	SEGMENT PARA USE32 PUBLIC 'PCODE'
+_PTEXT	ENDS
+_LTEXT	SEGMENT PARA USE32 PUBLIC 'LCODE'
+_LTEXT	ENDS
+_PDATA	SEGMENT DWORD USE32 PUBLIC 'PDATA'
+_PDATA	ENDS
+_LDATA	SEGMENT DWORD USE32 PUBLIC 'LCODE'
+_LDATA	ENDS
+FLAT	GROUP _DATA, CONST, _BSS, _DB2DATA, _PDATA, _LDATA
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+PUBLIC	_Clock_Command
+PUBLIC	_Debug_Prompt
+PUBLIC	_Help_Fmt
+PUBLIC	_Unknown_Arg
+PUBLIC	_Unknown_Fmt
+PUBLIC	_PCI_Hlp
+PUBLIC	_WR_Hlp
+PUBLIC	_SLI_Hlp
+PUBLIC	_Exit_Hlp
+PUBLIC	_Help_Hlp
+PUBLIC	_Quit_Hlp
+PUBLIC	_Reg_Hlp
+PUBLIC	_Mode_Hlp
+PUBLIC	_Mtrr_Hlp
+PUBLIC	_Agp_Hlp
+PUBLIC	_Clock_Hlp
+PUBLIC	_Delimiter_Table
+PUBLIC	_Command_Table
+PUBLIC	_Jump_Table
+PUBLIC	_Help_Table
+PUBLIC	_PCIOffset
+PUBLIC	_ppDeviceStr
+PUBLIC	_PCI_Command
+PUBLIC	_WR_Command
+PUBLIC	_SLI_Command
+PUBLIC	_Exit_Command
+PUBLIC	_Help_Command
+PUBLIC	_Quit_Command
+PUBLIC	_Reg_Command
+PUBLIC	_Mode_Command
+PUBLIC	_Mtrr_Command
+PUBLIC	_AGP_Command
+_DATA	SEGMENT
+COMM	_Debug_Buffer:BYTE:080H
+COMM	_Parm_Buffer:BYTE:080H
+_DATA	ENDS
+_DB2DATA	SEGMENT
+_Debug_Prompt DB 0aH, 'Napalm>', 00H
+	ORG $+3
+_Help_Fmt DD	FLAT:$SG11271
+	DD	FLAT:$SG11272
+	DD	FLAT:$SG11273
+	DD	FLAT:$SG11274
+	DD	FLAT:$SG11275
+	DD	FLAT:$SG11276
+	DD	FLAT:$SG11277
+	DD	FLAT:$SG11278
+	DD	FLAT:$SG11279
+	DD	FLAT:$SG11280
+	DD	FLAT:$SG11281
+_Unknown_Arg DD	FLAT:_Parm_Buffer
+_Unknown_Fmt DB	0aH, 'Unknown command "%s"!', 00H
+	ORG $+1
+_PCI_Hlp DB	0aH, 'Pci <Bus#> <Dev#>           - Dump PCI Info', 00H
+	ORG $+3
+_WR_Hlp	DB	0aH, 'Wr Bus# Dev# Func# Reg# Value             - Wr PCI '
+	DB	'Info', 00H
+	ORG $+3
+_SLI_Hlp DB	0aH, 'SLI <Bus#> <Dev#> - Dump the hidden SLI Config Regi'
+	DB	'ster for the Device', 00H
+_Exit_Hlp DB	0aH, 'Exit           - Exits control back to the debugger'
+	DB	00H
+	ORG $+3
+_Help_Hlp DB	0aH, 'Help           - Prints the general help message', 0aH
+	DB	'Help Command   - Prints command specific help', 00H
+_Quit_Hlp DB	0aH, 'Quit           - Quits back to the debugger', 00H
+	ORG $+3
+_Reg_Hlp DB	0aH, 'Reg            - Dump VGA Registers', 00H
+	ORG $+3
+_Mode_Hlp DB	0aH, 'Mode           - Resets the last mode', 00H
+	ORG $+1
+_Mtrr_Hlp DB	0aH, 'Mtrr           - Print MTRRs', 00H
+	ORG $+2
+_Agp_Hlp DB	0aH, 'Agp            - Print AGP Registers', 00H
+	ORG $+2
+_Clock_Hlp DB	0aH, 'Clock s v r    - Reprogram the ICS 307', 00H
+_Delimiter_Table DB 020H
+	DB	09H
+	DB	03aH
+	DB	03bH
+	DB	02cH
+	DB	00H
+	DB	01aH
+	ORG $+1
+_Command_Table DB 08H
+	DB	01H
+	DB	050H
+	DB	043H
+	DB	049H
+	DB	020H
+	DB	020H
+	DB	020H
+	DB	020H
+	DB	01H
+	DB	057H
+	DB	052H
+	DB	020H
+	DB	020H
+	DB	020H
+	DB	020H
+	DB	020H
+	DB	01H
+	DB	053H
+	DB	04cH
+	DB	049H
+	DB	020H
+	DB	020H
+	DB	020H
+	DB	020H
+	DB	01H
+	DB	045H
+	DB	058H
+	DB	049H
+	DB	054H
+	DB	020H
+	DB	020H
+	DB	020H
+	DB	01H
+	DB	048H
+	DB	045H
+	DB	04cH
+	DB	050H
+	DB	020H
+	DB	020H
+	DB	020H
+	DB	01H
+	DB	051H
+	DB	055H
+	DB	049H
+	DB	054H
+	DB	020H
+	DB	020H
+	DB	020H
+	DB	01H
+	DB	052H
+	DB	045H
+	DB	047H
+	DB	053H
+	DB	020H
+	DB	020H
+	DB	020H
+	DB	02H
+	DB	04dH
+	DB	04fH
+	DB	044H
+	DB	045H
+	DB	020H
+	DB	020H
+	DB	020H
+	DB	02H
+	DB	04dH
+	DB	054H
+	DB	052H
+	DB	052H
+	DB	020H
+	DB	020H
+	DB	020H
+	DB	01H
+	DB	041H
+	DB	047H
+	DB	050H
+	DB	020H
+	DB	020H
+	DB	020H
+	DB	020H
+	DB	01H
+	DB	043H
+	DB	04cH
+	DB	04fH
+	DB	043H
+	DB	04bH
+	DB	020H
+	DB	020H
+	DB	01aH
+	ORG $+2
+_Jump_Table DD	FLAT:_PCI_Command
+	DD	FLAT:_WR_Command
+	DD	FLAT:_SLI_Command
+	DD	FLAT:_Exit_Command
+	DD	FLAT:_Help_Command
+	DD	FLAT:_Quit_Command
+	DD	FLAT:_Reg_Command
+	DD	FLAT:_Mode_Command
+	DD	FLAT:_Mtrr_Command
+	DD	FLAT:_AGP_Command
+	DD	FLAT:_Clock_Command
+_Help_Table DD	FLAT:_PCI_Hlp
+	DD	FLAT:_WR_Hlp
+	DD	FLAT:_SLI_Hlp
+	DD	FLAT:_Exit_Hlp
+	DD	FLAT:_Help_Hlp
+	DD	FLAT:_Quit_Hlp
+	DD	FLAT:_Reg_Hlp
+	DD	FLAT:_Mode_Hlp
+	DD	FLAT:_Mtrr_Hlp
+	DD	FLAT:_Agp_Hlp
+_PCIOffset DD	00H
+	DD	04H
+	DD	08H
+	DD	0cH
+	DD	010H
+	DD	014H
+	DD	018H
+	DD	02cH
+	DD	030H
+	DD	034H
+	DD	03cH
+	DD	040H
+	DD	044H
+	DD	048H
+	DD	04cH
+	DD	050H
+	DD	054H
+	DD	058H
+	DD	05cH
+	DD	060H
+	DD	064H
+	DD	080H
+	DD	084H
+	DD	088H
+	DD	08cH
+	DD	090H
+	DD	094H
+	DD	098H
+	DD	09cH
+	DD	0a0H
+	DD	0a4H
+	DD	0a8H
+	DD	0acH
+_ppDeviceStr DD	FLAT:$SG11480
+	DD	FLAT:$SG11481
+	DD	FLAT:$SG11482
+	DD	FLAT:$SG11483
+	DD	FLAT:$SG11484
+	DD	FLAT:$SG11485
+	DD	FLAT:$SG11486
+	DD	FLAT:$SG11487
+	DD	FLAT:$SG11488
+	DD	FLAT:$SG11489
+	DD	FLAT:$SG11490
+	DD	FLAT:$SG11491
+	DD	FLAT:$SG11492
+	DD	FLAT:$SG11493
+	DD	FLAT:$SG11494
+	DD	FLAT:$SG11495
+	DD	FLAT:$SG11496
+	DD	FLAT:$SG11497
+	DD	FLAT:$SG11498
+	DD	FLAT:$SG11499
+	DD	FLAT:$SG11500
+	DD	FLAT:$SG11501
+	DD	FLAT:$SG11502
+	DD	FLAT:$SG11503
+	DD	FLAT:$SG11504
+	DD	FLAT:$SG11505
+	DD	FLAT:$SG11506
+	DD	FLAT:$SG11507
+	DD	FLAT:$SG11508
+	DD	FLAT:$SG11509
+	DD	FLAT:$SG11510
+	DD	FLAT:$SG11511
+	DD	FLAT:$SG11512
+$SG11271 DB	0aH, 'Napalm Debug Command Summary', 0aH, 0aH, 00H
+$SG11272 DB	'P[CI] <Bus#> <Dev#>              - Display PCI Info for '
+	DB	'Device', 0aH, 00H
+$SG11273 DB	'W[r] Bus# Dev# Func# Reg# Value  - Toggles int1 in the c'
+	DB	'ode', 0aH, 00H
+	ORG $+3
+$SG11274 DB	'S[LI] <Bus#> <Dev#>              - Display PCI SLI Info '
+	DB	'for Device', 0aH, 00H
+$SG11275 DB	'E[xit]                           - Exits back to debugge'
+	DB	'r', 0aH, 00H
+	ORG $+1
+$SG11276 DB	'H[elp] [Command]                 - Prints Help Informati'
+	DB	'on', 0aH, 00H
+$SG11277 DB	'Q[uit]                           - Quits back to debugge'
+	DB	'r', 0aH, 00H
+	ORG $+1
+$SG11278 DB	'R[eg]                            - Dumps VGA registers', 0aH
+	DB	00H
+$SG11279 DB	'M[ode]                           - Resets the last mode', 0aH
+	DB	00H
+	ORG $+3
+$SG11280 DB	'A[gp]                            - Dump the AGP register'
+	DB	's', 0aH, 00H
+	ORG $+1
+$SG11281 DB	'C[lock] s v r                    - Program the ICS 307 C'
+	DB	'lock', 0aH, 00H
+	ORG $+2
+$SG11480 DB	'Device ID/Vendor ID %08x', 0aH, 00H
+	ORG $+2
+$SG11481 DB	'Status/Command %08x', 0aH, 00H
+	ORG $+3
+$SG11482 DB	'Class_Code/Revision ID %08x', 0aH, 00H
+	ORG $+3
+$SG11483 DB	'BIST/Header Type/Latency Timer/Cache_line_size %08x', 0aH
+	DB	00H
+	ORG $+3
+$SG11484 DB	'memBaseAddr0 %08x', 0aH, 00H
+	ORG $+1
+$SG11485 DB	'memBaseAddr1 %08x', 0aH, 00H
+	ORG $+1
+$SG11486 DB	'IoBaseAddr %08x', 0aH, 00H
+	ORG $+3
+$SG11487 DB	'SubSystemID/SubVendorID %08x', 0aH, 00H
+	ORG $+2
+$SG11488 DB	'RomBaseAddr %08x', 0aH, 00H
+	ORG $+2
+$SG11489 DB	'Cap Ptr %08x', 0aH, 00H
+	ORG $+2
+$SG11490 DB	'Max_lat/Min_gnt/Interrupt_Pin/Interrupt_Line %08x', 0aH, 00H
+	ORG $+1
+$SG11491 DB	'cfgInitEnable/FABID %08x', 0aH, 00H
+	ORG $+2
+$SG11492 DB	'ACPI Reset %08x', 0aH, 00H
+	ORG $+3
+$SG11493 DB	'cfgPciDecode %08x', 0aH, 00H
+	ORG $+1
+$SG11494 DB	'CfgStatus %08x', 0aH, 00H
+$SG11495 DB	'CfgScratch %08x', 0aH, 00H
+	ORG $+3
+$SG11496 DB	'AGP CAP_ID %08x', 0aH, 00H
+	ORG $+3
+$SG11497 DB	'AGP status %08x', 0aH, 00H
+	ORG $+3
+$SG11498 DB	'AGP_Cmd %08x', 0aH, 00H
+	ORG $+2
+$SG11499 DB	'ACPI Cap ID %08x', 0aH, 00H
+	ORG $+2
+$SG11500 DB	'ACPI cntrl/status %08x', 0aH, 00H
+$SG11501 DB	'cfgVideoCtrl0 %08x', 0aH, 00H
+$SG11502 DB	'cfgVideoCtrl1 %08x', 0aH, 00H
+$SG11503 DB	'cfgVideoCtrl2  %08x', 0aH, 00H
+	ORG $+3
+$SG11504 DB	'cfgSliLfbCtrl %08x', 0aH, 00H
+$SG11505 DB	'cfgAaDepthBufferAperture %08x', 0aH, 00H
+	ORG $+1
+$SG11506 DB	'cfgAALfbCtrl %08x', 0aH, 00H
+	ORG $+1
+$SG11507 DB	'agpTestCtrl %08x', 0aH, 00H
+	ORG $+2
+$SG11508 DB	'agpTestData0 %08x', 0aH, 00H
+	ORG $+1
+$SG11509 DB	'agpTestData1 %08x', 0aH, 00H
+	ORG $+1
+$SG11510 DB	'agpTestData2 %08x', 0aH, 00H
+	ORG $+1
+$SG11511 DB	'agpTestData3 %08x', 0aH, 00H
+	ORG $+1
+$SG11512 DB	'cfgSliAAmisc %08x', 0aH, 00H
+_DB2DATA	ENDS
+PUBLIC	_Upper_Case
+_DB1CODE	SEGMENT
+_bLength$ = 8
+_pStr$ = 12
+_Upper_Case PROC NEAR
+
+; 250  : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	51		 push	 ecx
+
+; 251  :    for (;bLength != 0; bLength--)
+
+  00004	eb 08		 jmp	 SHORT $L11315
+$L11316:
+  00006	8a 45 08	 mov	 al, BYTE PTR _bLength$[ebp]
+  00009	2c 01		 sub	 al, 1
+  0000b	88 45 08	 mov	 BYTE PTR _bLength$[ebp], al
+$L11315:
+  0000e	8b 4d 08	 mov	 ecx, DWORD PTR _bLength$[ebp]
+  00011	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  00017	85 c9		 test	 ecx, ecx
+  00019	74 44		 je	 SHORT $L11317
+
+; 253  :       TOUPPER(*pStr);
+
+  0001b	8b 55 0c	 mov	 edx, DWORD PTR _pStr$[ebp]
+  0001e	33 c0		 xor	 eax, eax
+  00020	8a 02		 mov	 al, BYTE PTR [edx]
+  00022	83 f8 61	 cmp	 eax, 97			; 00000061H
+  00025	7c 1b		 jl	 SHORT $L11758
+  00027	8b 4d 0c	 mov	 ecx, DWORD PTR _pStr$[ebp]
+  0002a	33 d2		 xor	 edx, edx
+  0002c	8a 11		 mov	 dl, BYTE PTR [ecx]
+  0002e	83 fa 7a	 cmp	 edx, 122		; 0000007aH
+  00031	7f 0f		 jg	 SHORT $L11758
+  00033	8b 45 0c	 mov	 eax, DWORD PTR _pStr$[ebp]
+  00036	33 c9		 xor	 ecx, ecx
+  00038	8a 08		 mov	 cl, BYTE PTR [eax]
+  0003a	83 e9 20	 sub	 ecx, 32			; 00000020H
+  0003d	89 4d fc	 mov	 DWORD PTR -4+[ebp], ecx
+  00040	eb 0a		 jmp	 SHORT $L11759
+$L11758:
+  00042	8b 55 0c	 mov	 edx, DWORD PTR _pStr$[ebp]
+  00045	33 c0		 xor	 eax, eax
+  00047	8a 02		 mov	 al, BYTE PTR [edx]
+  00049	89 45 fc	 mov	 DWORD PTR -4+[ebp], eax
+$L11759:
+  0004c	8b 4d 0c	 mov	 ecx, DWORD PTR _pStr$[ebp]
+  0004f	8a 55 fc	 mov	 dl, BYTE PTR -4+[ebp]
+  00052	88 11		 mov	 BYTE PTR [ecx], dl
+
+; 254  :       pStr++;
+
+  00054	8b 45 0c	 mov	 eax, DWORD PTR _pStr$[ebp]
+  00057	83 c0 01	 add	 eax, 1
+  0005a	89 45 0c	 mov	 DWORD PTR _pStr$[ebp], eax
+
+; 255  :       }
+
+  0005d	eb a7		 jmp	 SHORT $L11316
+$L11317:
+
+; 256  : }
+
+  0005f	8b e5		 mov	 esp, ebp
+  00061	5d		 pop	 ebp
+  00062	c3		 ret	 0
+_Upper_Case ENDP
+_DB1CODE	ENDS
+PUBLIC	_Get_Parameter
+_DB1CODE	SEGMENT
+_input$ = 8
+_inOffset$ = 12
+_delimTable$ = 20
+_buffTerm$ = 24
+_output$ = 28
+_outBuffLen$ = 32
+_maxParamLen$ = 36
+_actualDelim$ = 40
+_pIn$ = -12
+_pOut$ = -8
+_pDelim$ = -4
+_Get_Parameter PROC NEAR
+
+; 272  : {
+
+  00063	55		 push	 ebp
+  00064	8b ec		 mov	 ebp, esp
+  00066	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 273  :    BYTE *pIn;
+; 274  :    BYTE *pOut;
+; 275  :    BYTE *pDelim;
+; 276  : 
+; 277  :    pIn = input + *inOffset;
+
+  00069	8b 45 0c	 mov	 eax, DWORD PTR _inOffset$[ebp]
+  0006c	33 c9		 xor	 ecx, ecx
+  0006e	8a 08		 mov	 cl, BYTE PTR [eax]
+  00070	8b 55 08	 mov	 edx, DWORD PTR _input$[ebp]
+  00073	03 d1		 add	 edx, ecx
+  00075	89 55 f4	 mov	 DWORD PTR _pIn$[ebp], edx
+
+; 278  :    pOut = output;
+
+  00078	8b 45 1c	 mov	 eax, DWORD PTR _output$[ebp]
+  0007b	89 45 f8	 mov	 DWORD PTR _pOut$[ebp], eax
+
+; 279  :         
+; 280  :    if(outBuffLen > 1)
+
+  0007e	8b 4d 20	 mov	 ecx, DWORD PTR _outBuffLen$[ebp]
+  00081	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  00087	83 f9 01	 cmp	 ecx, 1
+  0008a	0f 8e 1f 01 00
+	00		 jle	 $L11341
+$L11343:
+
+; 282  :       while((*pIn == ASCII_SPACE) || (*pIn == ASCII_HT))
+
+  00090	8b 55 f4	 mov	 edx, DWORD PTR _pIn$[ebp]
+  00093	33 c0		 xor	 eax, eax
+  00095	8a 02		 mov	 al, BYTE PTR [edx]
+  00097	83 f8 20	 cmp	 eax, 32			; 00000020H
+  0009a	74 0c		 je	 SHORT $L11345
+  0009c	8b 4d f4	 mov	 ecx, DWORD PTR _pIn$[ebp]
+  0009f	33 d2		 xor	 edx, edx
+  000a1	8a 11		 mov	 dl, BYTE PTR [ecx]
+  000a3	83 fa 09	 cmp	 edx, 9
+  000a6	75 0b		 jne	 SHORT $L11344
+$L11345:
+
+; 283  :          pIn++;
+
+  000a8	8b 45 f4	 mov	 eax, DWORD PTR _pIn$[ebp]
+  000ab	83 c0 01	 add	 eax, 1
+  000ae	89 45 f4	 mov	 DWORD PTR _pIn$[ebp], eax
+  000b1	eb dd		 jmp	 SHORT $L11343
+$L11344:
+
+; 284  : 
+; 285  :       if(maxParamLen == 0)
+
+  000b3	8b 4d 24	 mov	 ecx, DWORD PTR _maxParamLen$[ebp]
+  000b6	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  000bc	85 c9		 test	 ecx, ecx
+  000be	75 06		 jne	 SHORT $L11346
+
+; 286  :          maxParamLen = outBuffLen;
+
+  000c0	8a 55 20	 mov	 dl, BYTE PTR _outBuffLen$[ebp]
+  000c3	88 55 24	 mov	 BYTE PTR _maxParamLen$[ebp], dl
+$L11346:
+
+; 287  : 
+; 288  :       while(*input != buffTerm)
+
+  000c6	8b 45 08	 mov	 eax, DWORD PTR _input$[ebp]
+  000c9	33 c9		 xor	 ecx, ecx
+  000cb	8a 08		 mov	 cl, BYTE PTR [eax]
+  000cd	8b 55 18	 mov	 edx, DWORD PTR _buffTerm$[ebp]
+  000d0	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  000d6	3b ca		 cmp	 ecx, edx
+  000d8	0f 84 a6 00 00
+	00		 je	 $L11349
+
+; 290  :          pDelim = delimTable;
+
+  000de	8b 45 14	 mov	 eax, DWORD PTR _delimTable$[ebp]
+  000e1	89 45 fc	 mov	 DWORD PTR _pDelim$[ebp], eax
+$L11351:
+
+; 291  :          while((*pDelim != TAB_END) && (*pDelim != *pIn))
+
+  000e4	8b 4d fc	 mov	 ecx, DWORD PTR _pDelim$[ebp]
+  000e7	33 d2		 xor	 edx, edx
+  000e9	8a 11		 mov	 dl, BYTE PTR [ecx]
+  000eb	83 fa 1a	 cmp	 edx, 26			; 0000001aH
+  000ee	74 1d		 je	 SHORT $L11352
+  000f0	8b 45 fc	 mov	 eax, DWORD PTR _pDelim$[ebp]
+  000f3	33 c9		 xor	 ecx, ecx
+  000f5	8a 08		 mov	 cl, BYTE PTR [eax]
+  000f7	8b 55 f4	 mov	 edx, DWORD PTR _pIn$[ebp]
+  000fa	33 c0		 xor	 eax, eax
+  000fc	8a 02		 mov	 al, BYTE PTR [edx]
+  000fe	3b c8		 cmp	 ecx, eax
+  00100	74 0b		 je	 SHORT $L11352
+
+; 292  :             pDelim++;
+
+  00102	8b 4d fc	 mov	 ecx, DWORD PTR _pDelim$[ebp]
+  00105	83 c1 01	 add	 ecx, 1
+  00108	89 4d fc	 mov	 DWORD PTR _pDelim$[ebp], ecx
+  0010b	eb d7		 jmp	 SHORT $L11351
+$L11352:
+
+; 293  : 
+; 294  :          if(*pDelim == TAB_END)
+
+  0010d	8b 55 fc	 mov	 edx, DWORD PTR _pDelim$[ebp]
+  00110	33 c0		 xor	 eax, eax
+  00112	8a 02		 mov	 al, BYTE PTR [edx]
+  00114	83 f8 1a	 cmp	 eax, 26			; 0000001aH
+  00117	75 64		 jne	 SHORT $L11353
+
+; 296  :             if((*pIn != ASCII_SPACE) && (*pIn != ASCII_HT))
+
+  00119	8b 4d f4	 mov	 ecx, DWORD PTR _pIn$[ebp]
+  0011c	33 d2		 xor	 edx, edx
+  0011e	8a 11		 mov	 dl, BYTE PTR [ecx]
+  00120	83 fa 20	 cmp	 edx, 32			; 00000020H
+  00123	74 4d		 je	 SHORT $L11356
+  00125	8b 45 f4	 mov	 eax, DWORD PTR _pIn$[ebp]
+  00128	33 c9		 xor	 ecx, ecx
+  0012a	8a 08		 mov	 cl, BYTE PTR [eax]
+  0012c	83 f9 09	 cmp	 ecx, 9
+  0012f	74 41		 je	 SHORT $L11356
+
+; 298  :                if(outBuffLen > 1)
+
+  00131	8b 55 20	 mov	 edx, DWORD PTR _outBuffLen$[ebp]
+  00134	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  0013a	83 fa 01	 cmp	 edx, 1
+  0013d	7e 33		 jle	 SHORT $L11356
+
+; 300  :                   *pOut++ = *pIn;
+
+  0013f	8b 45 f8	 mov	 eax, DWORD PTR _pOut$[ebp]
+  00142	8b 4d f4	 mov	 ecx, DWORD PTR _pIn$[ebp]
+  00145	8a 11		 mov	 dl, BYTE PTR [ecx]
+  00147	88 10		 mov	 BYTE PTR [eax], dl
+  00149	8b 45 f8	 mov	 eax, DWORD PTR _pOut$[ebp]
+  0014c	83 c0 01	 add	 eax, 1
+  0014f	89 45 f8	 mov	 DWORD PTR _pOut$[ebp], eax
+
+; 301  :                   outBuffLen--;
+
+  00152	8a 4d 20	 mov	 cl, BYTE PTR _outBuffLen$[ebp]
+  00155	80 e9 01	 sub	 cl, 1
+  00158	88 4d 20	 mov	 BYTE PTR _outBuffLen$[ebp], cl
+
+; 302  :                   if(--maxParamLen == 0)
+
+  0015b	8a 55 24	 mov	 dl, BYTE PTR _maxParamLen$[ebp]
+  0015e	80 ea 01	 sub	 dl, 1
+  00161	88 55 24	 mov	 BYTE PTR _maxParamLen$[ebp], dl
+  00164	8b 45 24	 mov	 eax, DWORD PTR _maxParamLen$[ebp]
+  00167	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  0016c	85 c0		 test	 eax, eax
+  0016e	75 02		 jne	 SHORT $L11356
+
+; 303  :                      break;
+
+  00170	eb 12		 jmp	 SHORT $L11349
+$L11356:
+
+; 306  :                                 
+; 307  :             pIn++;
+
+  00172	8b 4d f4	 mov	 ecx, DWORD PTR _pIn$[ebp]
+  00175	83 c1 01	 add	 ecx, 1
+  00178	89 4d f4	 mov	 DWORD PTR _pIn$[ebp], ecx
+
+; 309  :          else
+
+  0017b	eb 02		 jmp	 SHORT $L11357
+$L11353:
+
+; 310  :             break;
+
+  0017d	eb 05		 jmp	 SHORT $L11349
+$L11357:
+
+; 311  :          }
+
+  0017f	e9 42 ff ff ff	 jmp	 $L11346
+$L11349:
+
+; 312  :                 
+; 313  :          *pOut = buffTerm;
+
+  00184	8b 55 f8	 mov	 edx, DWORD PTR _pOut$[ebp]
+  00187	8a 45 18	 mov	 al, BYTE PTR _buffTerm$[ebp]
+  0018a	88 02		 mov	 BYTE PTR [edx], al
+
+; 314  :          if(actualDelim != NULL)
+
+  0018c	83 7d 28 00	 cmp	 DWORD PTR _actualDelim$[ebp], 0
+  00190	74 0a		 je	 SHORT $L11358
+
+; 315  :             *actualDelim = *input;
+
+  00192	8b 4d 28	 mov	 ecx, DWORD PTR _actualDelim$[ebp]
+  00195	8b 55 08	 mov	 edx, DWORD PTR _input$[ebp]
+  00198	8a 02		 mov	 al, BYTE PTR [edx]
+  0019a	88 01		 mov	 BYTE PTR [ecx], al
+$L11358:
+
+; 316  :          *inOffset = (BYTE)((DWORD)pIn - (DWORD)input);
+
+  0019c	8b 4d f4	 mov	 ecx, DWORD PTR _pIn$[ebp]
+  0019f	2b 4d 08	 sub	 ecx, DWORD PTR _input$[ebp]
+  001a2	8b 55 0c	 mov	 edx, DWORD PTR _inOffset$[ebp]
+  001a5	88 0a		 mov	 BYTE PTR [edx], cl
+
+; 317  :          return (BYTE)((DWORD)pOut - (DWORD)output);
+
+  001a7	8b 45 f8	 mov	 eax, DWORD PTR _pOut$[ebp]
+  001aa	2b 45 1c	 sub	 eax, DWORD PTR _output$[ebp]
+  001ad	eb 2f		 jmp	 SHORT $L11337
+$L11341:
+
+; 319  :         
+; 320  :    if(outBuffLen > 0)
+
+  001af	8b 45 20	 mov	 eax, DWORD PTR _outBuffLen$[ebp]
+  001b2	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  001b7	85 c0		 test	 eax, eax
+  001b9	7e 08		 jle	 SHORT $L11365
+
+; 321  :       *output = buffTerm;
+
+  001bb	8b 4d 1c	 mov	 ecx, DWORD PTR _output$[ebp]
+  001be	8a 55 18	 mov	 dl, BYTE PTR _buffTerm$[ebp]
+  001c1	88 11		 mov	 BYTE PTR [ecx], dl
+$L11365:
+
+; 322  :    if(actualDelim != NULL)
+
+  001c3	83 7d 28 00	 cmp	 DWORD PTR _actualDelim$[ebp], 0
+  001c7	74 08		 je	 SHORT $L11366
+
+; 323  :       *actualDelim = buffTerm;
+
+  001c9	8b 45 28	 mov	 eax, DWORD PTR _actualDelim$[ebp]
+  001cc	8a 4d 18	 mov	 cl, BYTE PTR _buffTerm$[ebp]
+  001cf	88 08		 mov	 BYTE PTR [eax], cl
+$L11366:
+
+; 324  :    *inOffset = (BYTE)((DWORD)pIn - (DWORD)input);
+
+  001d1	8b 55 f4	 mov	 edx, DWORD PTR _pIn$[ebp]
+  001d4	2b 55 08	 sub	 edx, DWORD PTR _input$[ebp]
+  001d7	8b 45 0c	 mov	 eax, DWORD PTR _inOffset$[ebp]
+  001da	88 10		 mov	 BYTE PTR [eax], dl
+
+; 325  :    return 0;
+
+  001dc	32 c0		 xor	 al, al
+$L11337:
+
+; 326  : }
+
+  001de	8b e5		 mov	 esp, ebp
+  001e0	5d		 pop	 ebp
+  001e1	c3		 ret	 0
+_Get_Parameter ENDP
+_DB1CODE	ENDS
+PUBLIC	_Match
+_DB1CODE	SEGMENT
+_terminator$ = 8
+_table$ = 12
+_str$ = 16
+_len$ = 20
+_pEntry$ = -16
+_nEntry$ = -24
+_strLen$ = -8
+_i$ = -20
+_bMatch$ = -12
+_size$ = -4
+_Match	PROC NEAR
+
+; 369  : {
+
+  001e2	55		 push	 ebp
+  001e3	8b ec		 mov	 ebp, esp
+  001e5	83 ec 18	 sub	 esp, 24			; 00000018H
+
+; 370  :    BYTE* pEntry;
+; 371  :    BYTE nEntry;
+; 372  :    DWORD strLen;
+; 373  :    DWORD i;
+; 374  :    BOOL bMatch;
+; 375  :    BYTE size;
+; 376  : 
+; 377  :    for(strLen=0; str[strLen]!=terminator; strLen++)
+
+  001e8	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _strLen$[ebp], 0
+  001ef	eb 09		 jmp	 SHORT $L11386
+$L11387:
+  001f1	8b 45 f8	 mov	 eax, DWORD PTR _strLen$[ebp]
+  001f4	83 c0 01	 add	 eax, 1
+  001f7	89 45 f8	 mov	 DWORD PTR _strLen$[ebp], eax
+$L11386:
+  001fa	8b 4d 10	 mov	 ecx, DWORD PTR _str$[ebp]
+  001fd	03 4d f8	 add	 ecx, DWORD PTR _strLen$[ebp]
+  00200	33 d2		 xor	 edx, edx
+  00202	8a 11		 mov	 dl, BYTE PTR [ecx]
+  00204	8b 45 08	 mov	 eax, DWORD PTR _terminator$[ebp]
+  00207	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  0020c	3b d0		 cmp	 edx, eax
+  0020e	74 02		 je	 SHORT $L11388
+
+; 378  :       ;
+
+  00210	eb df		 jmp	 SHORT $L11387
+$L11388:
+
+; 379  : 
+; 380  :    size = table[0];
+
+  00212	8b 4d 0c	 mov	 ecx, DWORD PTR _table$[ebp]
+  00215	8a 11		 mov	 dl, BYTE PTR [ecx]
+  00217	88 55 fc	 mov	 BYTE PTR _size$[ebp], dl
+
+; 381  :    nEntry = 0;
+
+  0021a	c6 45 e8 00	 mov	 BYTE PTR _nEntry$[ebp], 0
+
+; 382  :    pEntry = table + 1;
+
+  0021e	8b 45 0c	 mov	 eax, DWORD PTR _table$[ebp]
+  00221	83 c0 01	 add	 eax, 1
+  00224	89 45 f0	 mov	 DWORD PTR _pEntry$[ebp], eax
+$L11389:
+
+; 385  :       bMatch = TRUE;
+
+  00227	c7 45 f4 01 00
+	00 00		 mov	 DWORD PTR _bMatch$[ebp], 1
+
+; 386  :       for(i=0; (i<strLen)&&(i<pEntry[0]); i++)
+
+  0022e	c7 45 ec 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  00235	eb 09		 jmp	 SHORT $L11392
+$L11393:
+  00237	8b 4d ec	 mov	 ecx, DWORD PTR _i$[ebp]
+  0023a	83 c1 01	 add	 ecx, 1
+  0023d	89 4d ec	 mov	 DWORD PTR _i$[ebp], ecx
+$L11392:
+  00240	8b 55 ec	 mov	 edx, DWORD PTR _i$[ebp]
+  00243	3b 55 f8	 cmp	 edx, DWORD PTR _strLen$[ebp]
+  00246	73 30		 jae	 SHORT $L11394
+  00248	8b 45 f0	 mov	 eax, DWORD PTR _pEntry$[ebp]
+  0024b	33 c9		 xor	 ecx, ecx
+  0024d	8a 08		 mov	 cl, BYTE PTR [eax]
+  0024f	39 4d ec	 cmp	 DWORD PTR _i$[ebp], ecx
+  00252	73 24		 jae	 SHORT $L11394
+
+; 388  :          if(pEntry[i+1] != str[i])
+
+  00254	8b 55 f0	 mov	 edx, DWORD PTR _pEntry$[ebp]
+  00257	03 55 ec	 add	 edx, DWORD PTR _i$[ebp]
+  0025a	33 c0		 xor	 eax, eax
+  0025c	8a 42 01	 mov	 al, BYTE PTR [edx+1]
+  0025f	8b 4d 10	 mov	 ecx, DWORD PTR _str$[ebp]
+  00262	03 4d ec	 add	 ecx, DWORD PTR _i$[ebp]
+  00265	33 d2		 xor	 edx, edx
+  00267	8a 11		 mov	 dl, BYTE PTR [ecx]
+  00269	3b c2		 cmp	 eax, edx
+  0026b	74 09		 je	 SHORT $L11395
+
+; 390  :             bMatch = FALSE;
+
+  0026d	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _bMatch$[ebp], 0
+
+; 391  :             break;
+
+  00274	eb 02		 jmp	 SHORT $L11394
+$L11395:
+
+; 393  :          }
+
+  00276	eb bf		 jmp	 SHORT $L11393
+$L11394:
+
+; 394  : 
+; 395  :       if(bMatch)
+
+  00278	83 7d f4 00	 cmp	 DWORD PTR _bMatch$[ebp], 0
+  0027c	74 15		 je	 SHORT $L11396
+
+; 397  :          if(len != NULL)
+
+  0027e	83 7d 14 00	 cmp	 DWORD PTR _len$[ebp], 0
+  00282	74 0a		 je	 SHORT $L11397
+
+; 398  :             *len = pEntry[0];
+
+  00284	8b 45 14	 mov	 eax, DWORD PTR _len$[ebp]
+  00287	8b 4d f0	 mov	 ecx, DWORD PTR _pEntry$[ebp]
+  0028a	8a 11		 mov	 dl, BYTE PTR [ecx]
+  0028c	88 10		 mov	 BYTE PTR [eax], dl
+$L11397:
+
+; 399  : 
+; 400  :          return nEntry;
+
+  0028e	8a 45 e8	 mov	 al, BYTE PTR _nEntry$[ebp]
+  00291	eb 39		 jmp	 SHORT $L11379
+$L11396:
+
+; 402  : 
+; 403  :       nEntry++;
+
+  00293	8a 45 e8	 mov	 al, BYTE PTR _nEntry$[ebp]
+  00296	04 01		 add	 al, 1
+  00298	88 45 e8	 mov	 BYTE PTR _nEntry$[ebp], al
+
+; 404  :       pEntry = table + (nEntry * size) + 1;
+
+  0029b	8b 4d e8	 mov	 ecx, DWORD PTR _nEntry$[ebp]
+  0029e	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  002a4	8b 55 fc	 mov	 edx, DWORD PTR _size$[ebp]
+  002a7	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  002ad	0f af ca	 imul	 ecx, edx
+  002b0	8b 45 0c	 mov	 eax, DWORD PTR _table$[ebp]
+  002b3	8d 4c 08 01	 lea	 ecx, DWORD PTR [eax+ecx+1]
+  002b7	89 4d f0	 mov	 DWORD PTR _pEntry$[ebp], ecx
+
+; 406  : 
+; 407  :    while(*pEntry != ASCII_EOF)
+; 408  :       ;
+
+  002ba	8b 55 f0	 mov	 edx, DWORD PTR _pEntry$[ebp]
+  002bd	33 c0		 xor	 eax, eax
+  002bf	8a 02		 mov	 al, BYTE PTR [edx]
+  002c1	83 f8 1a	 cmp	 eax, 26			; 0000001aH
+  002c4	0f 85 5d ff ff
+	ff		 jne	 $L11389
+
+; 409  : 
+; 410  :    return 0xff;
+
+  002ca	0c ff		 or	 al, 255			; 000000ffH
+$L11379:
+
+; 411  : }
+
+  002cc	8b e5		 mov	 esp, ebp
+  002ce	5d		 pop	 ebp
+  002cf	c3		 ret	 0
+_Match	ENDP
+_DB1CODE	ENDS
+PUBLIC	_Napalm_Debug
+PUBLIC	_Debug_Input
+EXTRN	_CCODE__Debug_Printf_Service:NEAR
+_DB1CODE	SEGMENT
+_length$ = -8
+_paramLen$ = -4
+_offset$ = -12
+_entry$ = -16
+_Napalm_Debug PROC NEAR
+
+; 445  : {
+
+  002d0	55		 push	 ebp
+  002d1	8b ec		 mov	 ebp, esp
+  002d3	83 ec 10	 sub	 esp, 16			; 00000010H
+$L11404:
+
+; 446  :    DWORD length;
+; 447  :    DWORD paramLen;
+; 448  :    BYTE offset;
+; 449  :    BYTE entry;
+; 450  :         
+; 451  :    while(1)
+
+  002d6	b8 01 00 00 00	 mov	 eax, 1
+  002db	85 c0		 test	 eax, eax
+  002dd	0f 84 e2 00 00
+	00		 je	 $L11405
+
+; 453  :       PF(Debug_Prompt);
+
+  002e3	68 00 00 00 00	 push	 OFFSET FLAT:_Debug_Prompt
+  002e8	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  002ed	83 c4 04	 add	 esp, 4
+
+; 454  :       if(Debug_Input(DEBUG_LENGTH, Debug_Buffer, &length))
+
+  002f0	8d 4d f8	 lea	 ecx, DWORD PTR _length$[ebp]
+  002f3	51		 push	 ecx
+  002f4	68 00 00 00 00	 push	 OFFSET FLAT:_Debug_Buffer
+  002f9	68 80 00 00 00	 push	 128			; 00000080H
+  002fe	e8 00 00 00 00	 call	 _Debug_Input
+  00303	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00306	85 c0		 test	 eax, eax
+  00308	0f 84 b0 00 00
+	00		 je	 $L11406
+
+; 456  :          if(length > 0)
+
+  0030e	83 7d f8 00	 cmp	 DWORD PTR _length$[ebp], 0
+  00312	0f 86 a4 00 00
+	00		 jbe	 $L11412
+
+; 458  :             offset = 0;
+
+  00318	c6 45 f4 00	 mov	 BYTE PTR _offset$[ebp], 0
+
+; 459  :                                 
+; 460  :             paramLen = Get_Parameter(Debug_Buffer, &offset, 0, Delimiter_Table, 0, Parm_Buffer, DEBUG_LENGTH - 1, 0, NULL);
+
+  0031c	6a 00		 push	 0
+  0031e	6a 00		 push	 0
+  00320	6a 7f		 push	 127			; 0000007fH
+  00322	68 00 00 00 00	 push	 OFFSET FLAT:_Parm_Buffer
+  00327	6a 00		 push	 0
+  00329	68 00 00 00 00	 push	 OFFSET FLAT:_Delimiter_Table
+  0032e	6a 00		 push	 0
+  00330	8d 55 f4	 lea	 edx, DWORD PTR _offset$[ebp]
+  00333	52		 push	 edx
+  00334	68 00 00 00 00	 push	 OFFSET FLAT:_Debug_Buffer
+  00339	e8 00 00 00 00	 call	 _Get_Parameter
+  0033e	83 c4 24	 add	 esp, 36			; 00000024H
+  00341	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00346	89 45 fc	 mov	 DWORD PTR _paramLen$[ebp], eax
+
+; 461  :             if(paramLen > 0)
+
+  00349	83 7d fc 00	 cmp	 DWORD PTR _paramLen$[ebp], 0
+  0034d	76 6d		 jbe	 SHORT $L11412
+
+; 463  :                Upper_Case((BYTE)paramLen, Parm_Buffer);
+
+  0034f	68 00 00 00 00	 push	 OFFSET FLAT:_Parm_Buffer
+  00354	8a 45 fc	 mov	 al, BYTE PTR _paramLen$[ebp]
+  00357	50		 push	 eax
+  00358	e8 00 00 00 00	 call	 _Upper_Case
+  0035d	83 c4 08	 add	 esp, 8
+
+; 464  :                entry = Match(0, Command_Table, Parm_Buffer, NULL);
+
+  00360	6a 00		 push	 0
+  00362	68 00 00 00 00	 push	 OFFSET FLAT:_Parm_Buffer
+  00367	68 00 00 00 00	 push	 OFFSET FLAT:_Command_Table
+  0036c	6a 00		 push	 0
+  0036e	e8 00 00 00 00	 call	 _Match
+  00373	83 c4 10	 add	 esp, 16			; 00000010H
+  00376	88 45 f0	 mov	 BYTE PTR _entry$[ebp], al
+
+; 465  :                if(entry != 0xff)
+
+  00379	8b 4d f0	 mov	 ecx, DWORD PTR _entry$[ebp]
+  0037c	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  00382	81 f9 ff 00 00
+	00		 cmp	 ecx, 255		; 000000ffH
+  00388	74 1e		 je	 SHORT $L11410
+
+; 467  :                   if(Jump_Table[entry](offset))
+
+  0038a	8a 55 f4	 mov	 dl, BYTE PTR _offset$[ebp]
+  0038d	52		 push	 edx
+  0038e	8b 45 f0	 mov	 eax, DWORD PTR _entry$[ebp]
+  00391	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00396	ff 14 85 00 00
+	00 00		 call	 DWORD PTR _Jump_Table[eax*4]
+  0039d	83 c4 04	 add	 esp, 4
+  003a0	85 c0		 test	 eax, eax
+  003a2	74 02		 je	 SHORT $L11411
+
+; 468  :                      return;
+
+  003a4	eb 1f		 jmp	 SHORT $L11405
+$L11411:
+
+; 470  :                else
+
+  003a6	eb 14		 jmp	 SHORT $L11412
+$L11410:
+
+; 472  :                   PF(Unknown_Fmt, *Unknown_Arg);
+
+  003a8	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _Unknown_Arg
+  003ae	51		 push	 ecx
+  003af	68 00 00 00 00	 push	 OFFSET FLAT:_Unknown_Fmt
+  003b4	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  003b9	83 c4 08	 add	 esp, 8
+$L11412:
+
+; 477  :       else
+
+  003bc	eb 02		 jmp	 SHORT $L11413
+$L11406:
+
+; 478  :          return;
+
+  003be	eb 05		 jmp	 SHORT $L11405
+$L11413:
+
+; 479  :       }
+
+  003c0	e9 11 ff ff ff	 jmp	 $L11404
+$L11405:
+
+; 480  : }
+
+  003c5	8b e5		 mov	 esp, ebp
+  003c7	5d		 pop	 ebp
+  003c8	c3		 ret	 0
+_Napalm_Debug ENDP
+_buffLen$ = 8
+_pBuff$ = 12
+_pInLen$ = 16
+_inLen$ = -8
+_c$ = -4
+_Debug_Input PROC NEAR
+
+; 525  : {
+
+  003c9	55		 push	 ebp
+  003ca	8b ec		 mov	 ebp, esp
+  003cc	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 526  :    DWORD inLen;
+; 527  :    char c;
+; 528  : 
+; 529  :    inLen = 0;
+
+  003cf	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _inLen$[ebp], 0
+$L11423:
+
+; 533  :       c = (BYTE)Get_Input();
+
+  003d6	e8 00 00 00 00	 call	 _Get_Input
+  003db	88 45 fc	 mov	 BYTE PTR _c$[ebp], al
+
+; 534  :       switch(c)
+; 535  :          {
+
+  003de	0f be 45 fc	 movsx	 eax, BYTE PTR _c$[ebp]
+  003e2	89 45 f4	 mov	 DWORD PTR -12+[ebp], eax
+  003e5	83 7d f4 1b	 cmp	 DWORD PTR -12+[ebp], 27	; 0000001bH
+  003e9	77 60		 ja	 SHORT $L11437
+  003eb	8b 55 f4	 mov	 edx, DWORD PTR -12+[ebp]
+  003ee	33 c9		 xor	 ecx, ecx
+  003f0	8a 8a 00 00 00
+	00		 mov	 cl, BYTE PTR $L11764[edx]
+  003f6	ff 24 8d 00 00
+	00 00		 jmp	 DWORD PTR $L11765[ecx*4]
+$L11431:
+
+; 536  :          case ASCII_NULL:
+; 537  :             if(pInLen != NULL)
+
+  003fd	83 7d 10 00	 cmp	 DWORD PTR _pInLen$[ebp], 0
+  00401	74 08		 je	 SHORT $L11432
+
+; 538  :                *pInLen = inLen;
+
+  00403	8b 45 10	 mov	 eax, DWORD PTR _pInLen$[ebp]
+  00406	8b 4d f8	 mov	 ecx, DWORD PTR _inLen$[ebp]
+  00409	89 08		 mov	 DWORD PTR [eax], ecx
+$L11432:
+
+; 539  :             return FALSE;
+
+  0040b	33 c0		 xor	 eax, eax
+  0040d	e9 90 00 00 00	 jmp	 $L11420
+$L11433:
+
+; 540  :       
+; 541  :          case ASCII_ESCAPE:
+; 542  :             inLen = 0;
+
+  00412	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _inLen$[ebp], 0
+
+; 543  :             c = ASCII_NULL;
+
+  00419	c6 45 fc 00	 mov	 BYTE PTR _c$[ebp], 0
+
+; 544  :             break;
+
+  0041d	eb 5b		 jmp	 SHORT $L11428
+$L11434:
+
+; 545  : 
+; 546  :          case ASCII_CR:
+; 547  :             c = ASCII_NULL;
+
+  0041f	c6 45 fc 00	 mov	 BYTE PTR _c$[ebp], 0
+
+; 548  :             break;
+
+  00423	eb 55		 jmp	 SHORT $L11428
+$L11435:
+
+; 549  : 
+; 550  :          case ASCII_BS:
+; 551  :             if(inLen > 0)
+
+  00425	83 7d f8 00	 cmp	 DWORD PTR _inLen$[ebp], 0
+  00429	76 1e		 jbe	 SHORT $L11436
+
+; 553  :                inLen--;
+
+  0042b	8b 55 f8	 mov	 edx, DWORD PTR _inLen$[ebp]
+  0042e	83 ea 01	 sub	 edx, 1
+  00431	89 55 f8	 mov	 DWORD PTR _inLen$[ebp], edx
+
+; 554  :                buffLen++;
+
+  00434	8b 45 08	 mov	 eax, DWORD PTR _buffLen$[ebp]
+  00437	83 c0 01	 add	 eax, 1
+  0043a	89 45 08	 mov	 DWORD PTR _buffLen$[ebp], eax
+
+; 555  :                Output_Debug_Chr(c);
+
+  0043d	8a 4d fc	 mov	 cl, BYTE PTR _c$[ebp]
+  00440	51		 push	 ecx
+  00441	e8 00 00 00 00	 call	 _Output_Debug_Chr
+  00446	83 c4 04	 add	 esp, 4
+$L11436:
+
+; 557  :             break;
+
+  00449	eb 2f		 jmp	 SHORT $L11428
+$L11437:
+
+; 558  : 
+; 559  :          default:
+; 560  :             if(buffLen > 0)
+
+  0044b	83 7d 08 00	 cmp	 DWORD PTR _buffLen$[ebp], 0
+  0044f	76 29		 jbe	 SHORT $L11438
+
+; 562  :                pBuff[inLen] = c;
+
+  00451	8b 55 0c	 mov	 edx, DWORD PTR _pBuff$[ebp]
+  00454	03 55 f8	 add	 edx, DWORD PTR _inLen$[ebp]
+  00457	8a 45 fc	 mov	 al, BYTE PTR _c$[ebp]
+  0045a	88 02		 mov	 BYTE PTR [edx], al
+
+; 563  :                inLen++;
+
+  0045c	8b 4d f8	 mov	 ecx, DWORD PTR _inLen$[ebp]
+  0045f	83 c1 01	 add	 ecx, 1
+  00462	89 4d f8	 mov	 DWORD PTR _inLen$[ebp], ecx
+
+; 564  :                buffLen--;
+
+  00465	8b 55 08	 mov	 edx, DWORD PTR _buffLen$[ebp]
+  00468	83 ea 01	 sub	 edx, 1
+  0046b	89 55 08	 mov	 DWORD PTR _buffLen$[ebp], edx
+
+; 565  :                Output_Debug_Chr(c);
+
+  0046e	8a 45 fc	 mov	 al, BYTE PTR _c$[ebp]
+  00471	50		 push	 eax
+  00472	e8 00 00 00 00	 call	 _Output_Debug_Chr
+  00477	83 c4 04	 add	 esp, 4
+$L11438:
+$L11428:
+
+; 569  :    while(c != ASCII_NULL);
+
+  0047a	0f be 4d fc	 movsx	 ecx, BYTE PTR _c$[ebp]
+  0047e	85 c9		 test	 ecx, ecx
+  00480	0f 85 50 ff ff
+	ff		 jne	 $L11423
+
+; 570  : 
+; 571  :    pBuff[inLen] = ASCII_NULL;
+
+  00486	8b 55 0c	 mov	 edx, DWORD PTR _pBuff$[ebp]
+  00489	03 55 f8	 add	 edx, DWORD PTR _inLen$[ebp]
+  0048c	c6 02 00	 mov	 BYTE PTR [edx], 0
+
+; 572  :    if(pInLen != NULL)
+
+  0048f	83 7d 10 00	 cmp	 DWORD PTR _pInLen$[ebp], 0
+  00493	74 08		 je	 SHORT $L11439
+
+; 573  :       *pInLen = inLen;
+
+  00495	8b 45 10	 mov	 eax, DWORD PTR _pInLen$[ebp]
+  00498	8b 4d f8	 mov	 ecx, DWORD PTR _inLen$[ebp]
+  0049b	89 08		 mov	 DWORD PTR [eax], ecx
+$L11439:
+
+; 574  : 
+; 575  :    return TRUE;
+
+  0049d	b8 01 00 00 00	 mov	 eax, 1
+$L11420:
+
+; 576  : }
+
+  004a2	8b e5		 mov	 esp, ebp
+  004a4	5d		 pop	 ebp
+  004a5	c3		 ret	 0
+$L11765:
+  004a6	00 00 00 00	 DD	 $L11431
+  004aa	00 00 00 00	 DD	 $L11435
+  004ae	00 00 00 00	 DD	 $L11434
+  004b2	00 00 00 00	 DD	 $L11433
+  004b6	00 00 00 00	 DD	 $L11437
+$L11764:
+  004ba	00		 DB	 0
+  004bb	04		 DB	 4
+  004bc	04		 DB	 4
+  004bd	04		 DB	 4
+  004be	04		 DB	 4
+  004bf	04		 DB	 4
+  004c0	04		 DB	 4
+  004c1	04		 DB	 4
+  004c2	01		 DB	 1
+  004c3	04		 DB	 4
+  004c4	04		 DB	 4
+  004c5	04		 DB	 4
+  004c6	04		 DB	 4
+  004c7	02		 DB	 2
+  004c8	04		 DB	 4
+  004c9	04		 DB	 4
+  004ca	04		 DB	 4
+  004cb	04		 DB	 4
+  004cc	04		 DB	 4
+  004cd	04		 DB	 4
+  004ce	04		 DB	 4
+  004cf	04		 DB	 4
+  004d0	04		 DB	 4
+  004d1	04		 DB	 4
+  004d2	04		 DB	 4
+  004d3	04		 DB	 4
+  004d4	04		 DB	 4
+  004d5	03		 DB	 3
+_Debug_Input ENDP
+_dwReturn$ = -4
+_Get_Input PROC NEAR
+
+; 195  : {
+
+  004d6	55		 push	 ebp
+  004d7	8b ec		 mov	 ebp, esp
+  004d9	51		 push	 ecx
+  004da	53		 push	 ebx
+  004db	56		 push	 esi
+  004dc	57		 push	 edi
+
+; 196  :    DWORD dwReturn;
+; 197  : 
+; 198  :    __asm mov     eax,GET_INPUT
+
+  004dd	b8 01 00 00 00	 mov	 eax, 1
+
+; 199  :    __asm int     DEBUG_KERNEL
+
+  004e2	cd 41		 int	 65			; 00000041H
+
+; 200  :    __asm mov     dwReturn, eax
+
+  004e4	89 45 fc	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 201  :    return (dwReturn);
+
+  004e7	8b 45 fc	 mov	 eax, DWORD PTR _dwReturn$[ebp]
+
+; 202  : }
+
+  004ea	5f		 pop	 edi
+  004eb	5e		 pop	 esi
+  004ec	5b		 pop	 ebx
+  004ed	8b e5		 mov	 esp, ebp
+  004ef	5d		 pop	 ebp
+  004f0	c3		 ret	 0
+_Get_Input ENDP
+_bCh$ = 8
+_Output_Debug_Chr PROC NEAR
+
+; 233  : {
+
+  004f1	55		 push	 ebp
+  004f2	8b ec		 mov	 ebp, esp
+  004f4	53		 push	 ebx
+  004f5	56		 push	 esi
+  004f6	57		 push	 edi
+
+; 234  :    __asm mov     al, bCh
+
+  004f7	8a 45 08	 mov	 al, BYTE PTR _bCh$[ebp]
+
+; 235  :    VMMCall (Out_Debug_Chr);
+
+  004fa	cd		 DB	 -51			; ffffffcdH
+  004fb	20		 DB	 32			; 00000020H
+  004fc	c3		 DB	 -61			; ffffffc3H
+  004fd	00		 DB	 0
+  004fe	01		 DB	 1
+  004ff	00		 DB	 0
+
+; 236  :    return;
+; 237  : }
+
+  00500	5f		 pop	 edi
+  00501	5e		 pop	 esi
+  00502	5b		 pop	 ebx
+  00503	5d		 pop	 ebp
+  00504	c3		 ret	 0
+_Output_Debug_Chr ENDP
+_DB1CODE	ENDS
+PUBLIC	_Check_Abort
+_DB1CODE	SEGMENT
+_Check_Abort PROC NEAR
+
+; 596  : {
+
+  00505	55		 push	 ebp
+  00506	8b ec		 mov	 ebp, esp
+
+; 597  :    return Check_Input() == ASCII_ESCAPE;
+
+  00508	e8 00 00 00 00	 call	 _Check_Input
+  0050d	33 c9		 xor	 ecx, ecx
+  0050f	83 f8 1b	 cmp	 eax, 27			; 0000001bH
+  00512	0f 94 c1	 sete	 cl
+  00515	8b c1		 mov	 eax, ecx
+
+; 598  : }
+
+  00517	5d		 pop	 ebp
+  00518	c3		 ret	 0
+_Check_Abort ENDP
+_dwReturn$ = -4
+_Check_Input PROC NEAR
+
+; 214  : {
+
+  00519	55		 push	 ebp
+  0051a	8b ec		 mov	 ebp, esp
+  0051c	51		 push	 ecx
+  0051d	53		 push	 ebx
+  0051e	56		 push	 esi
+  0051f	57		 push	 edi
+
+; 215  :    DWORD dwReturn;
+; 216  : 
+; 217  :    __asm mov     eax,CHECK_INPUT
+
+  00520	b8 03 00 00 00	 mov	 eax, 3
+
+; 218  :    __asm int     DEBUG_KERNEL
+
+  00525	cd 41		 int	 65			; 00000041H
+
+; 219  :    __asm mov     dwReturn, eax
+
+  00527	89 45 fc	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 220  :    return (dwReturn);
+
+  0052a	8b 45 fc	 mov	 eax, DWORD PTR _dwReturn$[ebp]
+
+; 221  : }
+
+  0052d	5f		 pop	 edi
+  0052e	5e		 pop	 esi
+  0052f	5b		 pop	 ebx
+  00530	8b e5		 mov	 esp, ebp
+  00532	5d		 pop	 ebp
+  00533	c3		 ret	 0
+_Check_Input ENDP
+_Exit_Command PROC NEAR
+
+; 616  : {
+
+  00534	55		 push	 ebp
+  00535	8b ec		 mov	 ebp, esp
+
+; 617  :    return TRUE;
+
+  00537	b8 01 00 00 00	 mov	 eax, 1
+
+; 618  : }
+
+  0053c	5d		 pop	 ebp
+  0053d	c3		 ret	 0
+_Exit_Command ENDP
+_DB1CODE	ENDS
+_DB2DATA	SEGMENT
+	ORG $+1
+$SG11458 DB	'%s', 00H
+_DB2DATA	ENDS
+_DB1CODE	SEGMENT
+_inOffset$ = 8
+_length$ = -4
+_entry$ = -12
+_i$ = -8
+_Help_Command PROC NEAR
+
+; 648  : {
+
+  0053e	55		 push	 ebp
+  0053f	8b ec		 mov	 ebp, esp
+  00541	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 649  :    BYTE length;
+; 650  :    BYTE entry;
+; 651  :    int i;         
+; 652  : 
+; 653  :    length = Get_Parameter(Debug_Buffer, &inOffset, 0, Delimiter_Table,
+; 654  :                           0,
+; 655  :                           Parm_Buffer, DEBUG_LENGTH - 1, 0, NULL);
+
+  00544	6a 00		 push	 0
+  00546	6a 00		 push	 0
+  00548	6a 7f		 push	 127			; 0000007fH
+  0054a	68 00 00 00 00	 push	 OFFSET FLAT:_Parm_Buffer
+  0054f	6a 00		 push	 0
+  00551	68 00 00 00 00	 push	 OFFSET FLAT:_Delimiter_Table
+  00556	6a 00		 push	 0
+  00558	8d 45 08	 lea	 eax, DWORD PTR _inOffset$[ebp]
+  0055b	50		 push	 eax
+  0055c	68 00 00 00 00	 push	 OFFSET FLAT:_Debug_Buffer
+  00561	e8 00 00 00 00	 call	 _Get_Parameter
+  00566	83 c4 24	 add	 esp, 36			; 00000024H
+  00569	88 45 fc	 mov	 BYTE PTR _length$[ebp], al
+
+; 656  : 
+; 657  :    if (length > 0)
+
+  0056c	8b 4d fc	 mov	 ecx, DWORD PTR _length$[ebp]
+  0056f	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  00575	85 c9		 test	 ecx, ecx
+  00577	7e 6e		 jle	 SHORT $L11450
+
+; 659  :       Upper_Case(length, Parm_Buffer);
+
+  00579	68 00 00 00 00	 push	 OFFSET FLAT:_Parm_Buffer
+  0057e	8a 55 fc	 mov	 dl, BYTE PTR _length$[ebp]
+  00581	52		 push	 edx
+  00582	e8 00 00 00 00	 call	 _Upper_Case
+  00587	83 c4 08	 add	 esp, 8
+
+; 660  :       entry = Match(0, Command_Table, Parm_Buffer, &length);
+
+  0058a	8d 45 fc	 lea	 eax, DWORD PTR _length$[ebp]
+  0058d	50		 push	 eax
+  0058e	68 00 00 00 00	 push	 OFFSET FLAT:_Parm_Buffer
+  00593	68 00 00 00 00	 push	 OFFSET FLAT:_Command_Table
+  00598	6a 00		 push	 0
+  0059a	e8 00 00 00 00	 call	 _Match
+  0059f	83 c4 10	 add	 esp, 16			; 00000010H
+  005a2	88 45 f4	 mov	 BYTE PTR _entry$[ebp], al
+
+; 661  :       if (entry != 0xff)
+
+  005a5	8b 4d f4	 mov	 ecx, DWORD PTR _entry$[ebp]
+  005a8	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  005ae	81 f9 ff 00 00
+	00		 cmp	 ecx, 255		; 000000ffH
+  005b4	74 1b		 je	 SHORT $L11451
+
+; 663  :          PF(Help_Table[entry]);
+
+  005b6	8b 55 f4	 mov	 edx, DWORD PTR _entry$[ebp]
+  005b9	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  005bf	8b 04 95 00 00
+	00 00		 mov	 eax, DWORD PTR _Help_Table[edx*4]
+  005c6	50		 push	 eax
+  005c7	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  005cc	83 c4 04	 add	 esp, 4
+
+; 665  :       else
+
+  005cf	eb 14		 jmp	 SHORT $L11452
+$L11451:
+
+; 667  :          PF(Unknown_Fmt, *Unknown_Arg);
+
+  005d1	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _Unknown_Arg
+  005d7	51		 push	 ecx
+  005d8	68 00 00 00 00	 push	 OFFSET FLAT:_Unknown_Fmt
+  005dd	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  005e2	83 c4 08	 add	 esp, 8
+$L11452:
+
+; 670  :    else
+
+  005e5	eb 32		 jmp	 SHORT $L11457
+$L11450:
+
+; 672  :       for (i=0; i<sizeof(Help_Fmt)/sizeof(char *); i++)
+
+  005e7	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  005ee	eb 09		 jmp	 SHORT $L11455
+$L11456:
+  005f0	8b 55 f8	 mov	 edx, DWORD PTR _i$[ebp]
+  005f3	83 c2 01	 add	 edx, 1
+  005f6	89 55 f8	 mov	 DWORD PTR _i$[ebp], edx
+$L11455:
+  005f9	83 7d f8 0b	 cmp	 DWORD PTR _i$[ebp], 11	; 0000000bH
+  005fd	73 1a		 jae	 SHORT $L11457
+
+; 673  :          PF("%s", Help_Fmt[i]);
+
+  005ff	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  00602	8b 0c 85 00 00
+	00 00		 mov	 ecx, DWORD PTR _Help_Fmt[eax*4]
+  00609	51		 push	 ecx
+  0060a	68 00 00 00 00	 push	 OFFSET FLAT:$SG11458
+  0060f	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00614	83 c4 08	 add	 esp, 8
+  00617	eb d7		 jmp	 SHORT $L11456
+$L11457:
+
+; 675  : 
+; 676  :    return FALSE;
+
+  00619	33 c0		 xor	 eax, eax
+
+; 677  : }
+
+  0061b	8b e5		 mov	 esp, ebp
+  0061d	5d		 pop	 ebp
+  0061e	c3		 ret	 0
+_Help_Command ENDP
+_Quit_Command PROC NEAR
+
+; 695  : {
+
+  0061f	55		 push	 ebp
+  00620	8b ec		 mov	 ebp, esp
+
+; 696  :    return TRUE;
+
+  00622	b8 01 00 00 00	 mov	 eax, 1
+
+; 697  : }
+
+  00627	5d		 pop	 ebp
+  00628	c3		 ret	 0
+_Quit_Command ENDP
+_DB1CODE	ENDS
+PUBLIC	_ConvertHex
+_DB1CODE	SEGMENT
+_pBuffer$ = 8
+_dwLength$ = 12
+_dwReturn$ = -4
+_ConvertHex PROC NEAR
+
+; 710  : {
+
+  00629	55		 push	 ebp
+  0062a	8b ec		 mov	 ebp, esp
+  0062c	51		 push	 ecx
+
+; 711  :    DWORD dwReturn;
+; 712  :    for (dwReturn = 0; dwLength!=0; dwLength--)
+
+  0062d	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _dwReturn$[ebp], 0
+  00634	eb 09		 jmp	 SHORT $L11469
+$L11470:
+  00636	8b 45 0c	 mov	 eax, DWORD PTR _dwLength$[ebp]
+  00639	83 e8 01	 sub	 eax, 1
+  0063c	89 45 0c	 mov	 DWORD PTR _dwLength$[ebp], eax
+$L11469:
+  0063f	83 7d 0c 00	 cmp	 DWORD PTR _dwLength$[ebp], 0
+  00643	0f 84 a6 00 00
+	00		 je	 $L11471
+
+; 714  :       dwReturn <<= 4;
+
+  00649	8b 4d fc	 mov	 ecx, DWORD PTR _dwReturn$[ebp]
+  0064c	c1 e1 04	 shl	 ecx, 4
+  0064f	89 4d fc	 mov	 DWORD PTR _dwReturn$[ebp], ecx
+
+; 715  : 
+; 716  :       if (RANGE('a', *pBuffer, 'f'))
+
+  00652	8b 55 08	 mov	 edx, DWORD PTR _pBuffer$[ebp]
+  00655	33 c0		 xor	 eax, eax
+  00657	8a 02		 mov	 al, BYTE PTR [edx]
+  00659	83 f8 61	 cmp	 eax, 97			; 00000061H
+  0065c	7c 1f		 jl	 SHORT $L11472
+  0065e	8b 4d 08	 mov	 ecx, DWORD PTR _pBuffer$[ebp]
+  00661	33 d2		 xor	 edx, edx
+  00663	8a 11		 mov	 dl, BYTE PTR [ecx]
+  00665	83 fa 66	 cmp	 edx, 102		; 00000066H
+  00668	7f 13		 jg	 SHORT $L11472
+
+; 717  :          dwReturn += (*pBuffer - 'a' + 10);
+
+  0066a	8b 45 08	 mov	 eax, DWORD PTR _pBuffer$[ebp]
+  0066d	33 c9		 xor	 ecx, ecx
+  0066f	8a 08		 mov	 cl, BYTE PTR [eax]
+  00671	8b 55 fc	 mov	 edx, DWORD PTR _dwReturn$[ebp]
+  00674	8d 44 0a a9	 lea	 eax, DWORD PTR [edx+ecx-87]
+  00678	89 45 fc	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 718  :       else if (RANGE('A', *pBuffer, 'F'))
+
+  0067b	eb 64		 jmp	 SHORT $L11477
+$L11472:
+  0067d	8b 4d 08	 mov	 ecx, DWORD PTR _pBuffer$[ebp]
+  00680	33 d2		 xor	 edx, edx
+  00682	8a 11		 mov	 dl, BYTE PTR [ecx]
+  00684	83 fa 41	 cmp	 edx, 65			; 00000041H
+  00687	7c 1f		 jl	 SHORT $L11474
+  00689	8b 45 08	 mov	 eax, DWORD PTR _pBuffer$[ebp]
+  0068c	33 c9		 xor	 ecx, ecx
+  0068e	8a 08		 mov	 cl, BYTE PTR [eax]
+  00690	83 f9 46	 cmp	 ecx, 70			; 00000046H
+  00693	7f 13		 jg	 SHORT $L11474
+
+; 719  :          dwReturn += (*pBuffer - 'A' + 10);
+
+  00695	8b 55 08	 mov	 edx, DWORD PTR _pBuffer$[ebp]
+  00698	33 c0		 xor	 eax, eax
+  0069a	8a 02		 mov	 al, BYTE PTR [edx]
+  0069c	8b 4d fc	 mov	 ecx, DWORD PTR _dwReturn$[ebp]
+  0069f	8d 54 01 c9	 lea	 edx, DWORD PTR [ecx+eax-55]
+  006a3	89 55 fc	 mov	 DWORD PTR _dwReturn$[ebp], edx
+
+; 720  :       else if (RANGE('0', *pBuffer, '9'))
+
+  006a6	eb 39		 jmp	 SHORT $L11477
+$L11474:
+  006a8	8b 45 08	 mov	 eax, DWORD PTR _pBuffer$[ebp]
+  006ab	33 c9		 xor	 ecx, ecx
+  006ad	8a 08		 mov	 cl, BYTE PTR [eax]
+  006af	83 f9 30	 cmp	 ecx, 48			; 00000030H
+  006b2	7c 1f		 jl	 SHORT $L11476
+  006b4	8b 55 08	 mov	 edx, DWORD PTR _pBuffer$[ebp]
+  006b7	33 c0		 xor	 eax, eax
+  006b9	8a 02		 mov	 al, BYTE PTR [edx]
+  006bb	83 f8 39	 cmp	 eax, 57			; 00000039H
+  006be	7f 13		 jg	 SHORT $L11476
+
+; 721  :          dwReturn += (*pBuffer - '0');
+
+  006c0	8b 4d 08	 mov	 ecx, DWORD PTR _pBuffer$[ebp]
+  006c3	33 d2		 xor	 edx, edx
+  006c5	8a 11		 mov	 dl, BYTE PTR [ecx]
+  006c7	8b 45 fc	 mov	 eax, DWORD PTR _dwReturn$[ebp]
+  006ca	8d 4c 10 d0	 lea	 ecx, DWORD PTR [eax+edx-48]
+  006ce	89 4d fc	 mov	 DWORD PTR _dwReturn$[ebp], ecx
+
+; 722  :       else
+
+  006d1	eb 0e		 jmp	 SHORT $L11477
+$L11476:
+
+; 724  :          dwReturn = 0xFFFFFFFF;
+
+  006d3	c7 45 fc ff ff
+	ff ff		 mov	 DWORD PTR _dwReturn$[ebp], -1
+
+; 725  :          dwLength = 1;
+
+  006da	c7 45 0c 01 00
+	00 00		 mov	 DWORD PTR _dwLength$[ebp], 1
+$L11477:
+
+; 727  : 
+; 728  :       pBuffer++;
+
+  006e1	8b 55 08	 mov	 edx, DWORD PTR _pBuffer$[ebp]
+  006e4	83 c2 01	 add	 edx, 1
+  006e7	89 55 08	 mov	 DWORD PTR _pBuffer$[ebp], edx
+
+; 729  :       }
+
+  006ea	e9 47 ff ff ff	 jmp	 $L11470
+$L11471:
+
+; 730  : 
+; 731  :    return (dwReturn);
+
+  006ef	8b 45 fc	 mov	 eax, DWORD PTR _dwReturn$[ebp]
+
+; 732  : }
+
+  006f2	8b e5		 mov	 esp, ebp
+  006f4	5d		 pop	 ebp
+  006f5	c3		 ret	 0
+_ConvertHex ENDP
+_DB1CODE	ENDS
+PUBLIC	_DevicePrint
+EXTRN	_PCI_Read_Config:NEAR
+_DB1CODE	SEGMENT
+_dwBusNum$ = 8
+_dwDevNum$ = 12
+_dwFunc$ = -4
+_dwDevID$ = -8
+_dwReg$ = -20
+_dwDevFunc$ = -16
+_i$ = -12
+_DevicePrint PROC NEAR
+
+; 817  : {
+
+  006f6	55		 push	 ebp
+  006f7	8b ec		 mov	 ebp, esp
+  006f9	83 ec 14	 sub	 esp, 20			; 00000014H
+
+; 818  :    DWORD dwFunc;
+; 819  :    DWORD dwDevID;
+; 820  :    DWORD dwReg;
+; 821  :    DWORD dwDevFunc;
+; 822  :    DWORD i;
+; 823  : 
+; 824  : 
+; 825  :    for (dwFunc = 0; dwFunc < 8; dwFunc++)
+
+  006fc	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _dwFunc$[ebp], 0
+  00703	eb 09		 jmp	 SHORT $L11524
+$L11525:
+  00705	8b 45 fc	 mov	 eax, DWORD PTR _dwFunc$[ebp]
+  00708	83 c0 01	 add	 eax, 1
+  0070b	89 45 fc	 mov	 DWORD PTR _dwFunc$[ebp], eax
+$L11524:
+  0070e	83 7d fc 08	 cmp	 DWORD PTR _dwFunc$[ebp], 8
+  00712	0f 83 e4 00 00
+	00		 jae	 $L11526
+
+; 827  :       dwDevID = PCI_Read_Config(dwBusNum, (dwDevNum << 3) | dwFunc, 0x0);
+
+  00718	6a 00		 push	 0
+  0071a	8b 4d 0c	 mov	 ecx, DWORD PTR _dwDevNum$[ebp]
+  0071d	c1 e1 03	 shl	 ecx, 3
+  00720	0b 4d fc	 or	 ecx, DWORD PTR _dwFunc$[ebp]
+  00723	51		 push	 ecx
+  00724	8b 55 08	 mov	 edx, DWORD PTR _dwBusNum$[ebp]
+  00727	52		 push	 edx
+  00728	e8 00 00 00 00	 call	 _PCI_Read_Config
+  0072d	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00730	89 45 f8	 mov	 DWORD PTR _dwDevID$[ebp], eax
+
+; 828  :       if (IS_NAPALM(dwDevID) || IS_VOODOO3(dwDevID))
+
+  00733	81 7d f8 1a 12
+	06 00		 cmp	 DWORD PTR _dwDevID$[ebp], 397850 ; 0006121aH
+  0073a	74 5a		 je	 SHORT $L11528
+  0073c	81 7d f8 1a 12
+	07 00		 cmp	 DWORD PTR _dwDevID$[ebp], 463386 ; 0007121aH
+  00743	74 51		 je	 SHORT $L11528
+  00745	81 7d f8 1a 12
+	08 00		 cmp	 DWORD PTR _dwDevID$[ebp], 528922 ; 0008121aH
+  0074c	74 48		 je	 SHORT $L11528
+  0074e	81 7d f8 1a 12
+	09 00		 cmp	 DWORD PTR _dwDevID$[ebp], 594458 ; 0009121aH
+  00755	74 3f		 je	 SHORT $L11528
+  00757	81 7d f8 1a 12
+	0a 00		 cmp	 DWORD PTR _dwDevID$[ebp], 659994 ; 000a121aH
+  0075e	74 36		 je	 SHORT $L11528
+  00760	81 7d f8 1a 12
+	0b 00		 cmp	 DWORD PTR _dwDevID$[ebp], 725530 ; 000b121aH
+  00767	74 2d		 je	 SHORT $L11528
+  00769	81 7d f8 1a 12
+	0c 00		 cmp	 DWORD PTR _dwDevID$[ebp], 791066 ; 000c121aH
+  00770	74 24		 je	 SHORT $L11528
+  00772	81 7d f8 1a 12
+	0d 00		 cmp	 DWORD PTR _dwDevID$[ebp], 856602 ; 000d121aH
+  00779	74 1b		 je	 SHORT $L11528
+  0077b	81 7d f8 1a 12
+	0e 00		 cmp	 DWORD PTR _dwDevID$[ebp], 922138 ; 000e121aH
+  00782	74 12		 je	 SHORT $L11528
+  00784	81 7d f8 1a 12
+	0f 00		 cmp	 DWORD PTR _dwDevID$[ebp], 987674 ; 000f121aH
+  0078b	74 09		 je	 SHORT $L11528
+  0078d	81 7d f8 1a 12
+	05 00		 cmp	 DWORD PTR _dwDevID$[ebp], 332314 ; 0005121aH
+  00794	75 61		 jne	 SHORT $L11532
+$L11528:
+
+; 830  :          dwDevFunc = (dwDevNum << 3) | dwFunc;
+
+  00796	8b 45 0c	 mov	 eax, DWORD PTR _dwDevNum$[ebp]
+  00799	c1 e0 03	 shl	 eax, 3
+  0079c	0b 45 fc	 or	 eax, DWORD PTR _dwFunc$[ebp]
+  0079f	89 45 f0	 mov	 DWORD PTR _dwDevFunc$[ebp], eax
+
+; 831  :          for (i=0; i<sizeof(PCIOffset)/sizeof(DWORD); i++)
+
+  007a2	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  007a9	eb 09		 jmp	 SHORT $L11530
+$L11531:
+  007ab	8b 4d f4	 mov	 ecx, DWORD PTR _i$[ebp]
+  007ae	83 c1 01	 add	 ecx, 1
+  007b1	89 4d f4	 mov	 DWORD PTR _i$[ebp], ecx
+$L11530:
+  007b4	83 7d f4 21	 cmp	 DWORD PTR _i$[ebp], 33	; 00000021H
+  007b8	73 3d		 jae	 SHORT $L11532
+
+; 833  :             dwReg = PCI_Read_Config(dwBusNum, (dwDevNum << 3) | dwFunc, PCIOffset[i]);
+
+  007ba	8b 55 f4	 mov	 edx, DWORD PTR _i$[ebp]
+  007bd	8b 04 95 00 00
+	00 00		 mov	 eax, DWORD PTR _PCIOffset[edx*4]
+  007c4	50		 push	 eax
+  007c5	8b 4d 0c	 mov	 ecx, DWORD PTR _dwDevNum$[ebp]
+  007c8	c1 e1 03	 shl	 ecx, 3
+  007cb	0b 4d fc	 or	 ecx, DWORD PTR _dwFunc$[ebp]
+  007ce	51		 push	 ecx
+  007cf	8b 55 08	 mov	 edx, DWORD PTR _dwBusNum$[ebp]
+  007d2	52		 push	 edx
+  007d3	e8 00 00 00 00	 call	 _PCI_Read_Config
+  007d8	83 c4 0c	 add	 esp, 12			; 0000000cH
+  007db	89 45 ec	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 834  :             PF(ppDeviceStr[i], dwReg);
+
+  007de	8b 45 ec	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  007e1	50		 push	 eax
+  007e2	8b 4d f4	 mov	 ecx, DWORD PTR _i$[ebp]
+  007e5	8b 14 8d 00 00
+	00 00		 mov	 edx, DWORD PTR _ppDeviceStr[ecx*4]
+  007ec	52		 push	 edx
+  007ed	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  007f2	83 c4 08	 add	 esp, 8
+
+; 835  :             }
+
+  007f5	eb b4		 jmp	 SHORT $L11531
+$L11532:
+
+; 837  :       }
+
+  007f7	e9 09 ff ff ff	 jmp	 $L11525
+$L11526:
+
+; 838  : }
+
+  007fc	8b e5		 mov	 esp, ebp
+  007fe	5d		 pop	 ebp
+  007ff	c3		 ret	 0
+_DevicePrint ENDP
+_DB1CODE	ENDS
+PUBLIC	_PCIPrint
+_DB1CODE	SEGMENT
+_dwBusNum$ = 8
+_dwDevNum$ = 12
+_dwBus$ = -4
+_dwDevFunc$ = -12
+_dwDevID$ = -8
+_PCIPrint PROC NEAR
+
+; 850  : {
+
+  00800	55		 push	 ebp
+  00801	8b ec		 mov	 ebp, esp
+  00803	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 851  :    DWORD dwBus;
+; 852  :    DWORD dwDevFunc;
+; 853  :    DWORD dwDevID;
+; 854  : 
+; 855  :    if ((0xFFFFFFFF != dwBusNum) && (0xFFFFFFFF != dwDevNum))
+
+  00806	83 7d 08 ff	 cmp	 DWORD PTR _dwBusNum$[ebp], -1
+  0080a	74 1b		 je	 SHORT $L11542
+  0080c	83 7d 0c ff	 cmp	 DWORD PTR _dwDevNum$[ebp], -1
+  00810	74 15		 je	 SHORT $L11542
+
+; 857  :       DevicePrint(dwBusNum, dwDevNum);
+
+  00812	8b 45 0c	 mov	 eax, DWORD PTR _dwDevNum$[ebp]
+  00815	50		 push	 eax
+  00816	8b 4d 08	 mov	 ecx, DWORD PTR _dwBusNum$[ebp]
+  00819	51		 push	 ecx
+  0081a	e8 00 00 00 00	 call	 _DevicePrint
+  0081f	83 c4 08	 add	 esp, 8
+
+; 859  :   else
+
+  00822	e9 d3 00 00 00	 jmp	 $L11546
+$L11542:
+
+; 861  :       for (dwBus = 0; dwBus < 256; dwBus++)
+
+  00827	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _dwBus$[ebp], 0
+  0082e	eb 09		 jmp	 SHORT $L11544
+$L11545:
+  00830	8b 55 fc	 mov	 edx, DWORD PTR _dwBus$[ebp]
+  00833	83 c2 01	 add	 edx, 1
+  00836	89 55 fc	 mov	 DWORD PTR _dwBus$[ebp], edx
+$L11544:
+  00839	81 7d fc 00 01
+	00 00		 cmp	 DWORD PTR _dwBus$[ebp], 256 ; 00000100H
+  00840	0f 83 b4 00 00
+	00		 jae	 $L11546
+
+; 862  :          for (dwDevFunc = 0; dwDevFunc<0x100; dwDevFunc += 0x08)
+
+  00846	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _dwDevFunc$[ebp], 0
+  0084d	eb 09		 jmp	 SHORT $L11547
+$L11548:
+  0084f	8b 45 f4	 mov	 eax, DWORD PTR _dwDevFunc$[ebp]
+  00852	83 c0 08	 add	 eax, 8
+  00855	89 45 f4	 mov	 DWORD PTR _dwDevFunc$[ebp], eax
+$L11547:
+  00858	81 7d f4 00 01
+	00 00		 cmp	 DWORD PTR _dwDevFunc$[ebp], 256 ; 00000100H
+  0085f	0f 83 90 00 00
+	00		 jae	 $L11549
+
+; 864  :             dwDevID = PCI_Read_Config(dwBus, dwDevFunc, 0x0);
+
+  00865	6a 00		 push	 0
+  00867	8b 4d f4	 mov	 ecx, DWORD PTR _dwDevFunc$[ebp]
+  0086a	51		 push	 ecx
+  0086b	8b 55 fc	 mov	 edx, DWORD PTR _dwBus$[ebp]
+  0086e	52		 push	 edx
+  0086f	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00874	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00877	89 45 f8	 mov	 DWORD PTR _dwDevID$[ebp], eax
+
+; 865  :             if (IS_NAPALM(dwDevID) || IS_VOODOO3(dwDevID))
+
+  0087a	81 7d f8 1a 12
+	06 00		 cmp	 DWORD PTR _dwDevID$[ebp], 397850 ; 0006121aH
+  00881	74 5a		 je	 SHORT $L11551
+  00883	81 7d f8 1a 12
+	07 00		 cmp	 DWORD PTR _dwDevID$[ebp], 463386 ; 0007121aH
+  0088a	74 51		 je	 SHORT $L11551
+  0088c	81 7d f8 1a 12
+	08 00		 cmp	 DWORD PTR _dwDevID$[ebp], 528922 ; 0008121aH
+  00893	74 48		 je	 SHORT $L11551
+  00895	81 7d f8 1a 12
+	09 00		 cmp	 DWORD PTR _dwDevID$[ebp], 594458 ; 0009121aH
+  0089c	74 3f		 je	 SHORT $L11551
+  0089e	81 7d f8 1a 12
+	0a 00		 cmp	 DWORD PTR _dwDevID$[ebp], 659994 ; 000a121aH
+  008a5	74 36		 je	 SHORT $L11551
+  008a7	81 7d f8 1a 12
+	0b 00		 cmp	 DWORD PTR _dwDevID$[ebp], 725530 ; 000b121aH
+  008ae	74 2d		 je	 SHORT $L11551
+  008b0	81 7d f8 1a 12
+	0c 00		 cmp	 DWORD PTR _dwDevID$[ebp], 791066 ; 000c121aH
+  008b7	74 24		 je	 SHORT $L11551
+  008b9	81 7d f8 1a 12
+	0d 00		 cmp	 DWORD PTR _dwDevID$[ebp], 856602 ; 000d121aH
+  008c0	74 1b		 je	 SHORT $L11551
+  008c2	81 7d f8 1a 12
+	0e 00		 cmp	 DWORD PTR _dwDevID$[ebp], 922138 ; 000e121aH
+  008c9	74 12		 je	 SHORT $L11551
+  008cb	81 7d f8 1a 12
+	0f 00		 cmp	 DWORD PTR _dwDevID$[ebp], 987674 ; 000f121aH
+  008d2	74 09		 je	 SHORT $L11551
+  008d4	81 7d f8 1a 12
+	05 00		 cmp	 DWORD PTR _dwDevID$[ebp], 332314 ; 0005121aH
+  008db	75 13		 jne	 SHORT $L11550
+$L11551:
+
+; 866  :                DevicePrint(dwBus, dwDevFunc >> 3);
+
+  008dd	8b 45 f4	 mov	 eax, DWORD PTR _dwDevFunc$[ebp]
+  008e0	c1 e8 03	 shr	 eax, 3
+  008e3	50		 push	 eax
+  008e4	8b 4d fc	 mov	 ecx, DWORD PTR _dwBus$[ebp]
+  008e7	51		 push	 ecx
+  008e8	e8 00 00 00 00	 call	 _DevicePrint
+  008ed	83 c4 08	 add	 esp, 8
+$L11550:
+
+; 867  :             }
+
+  008f0	e9 5a ff ff ff	 jmp	 $L11548
+$L11549:
+  008f5	e9 36 ff ff ff	 jmp	 $L11545
+$L11546:
+
+; 869  : }     
+
+  008fa	8b e5		 mov	 esp, ebp
+  008fc	5d		 pop	 ebp
+  008fd	c3		 ret	 0
+_PCIPrint ENDP
+_inOffset$ = 8
+_length$ = -4
+_BusNum$ = -8
+_DevNum$ = -12
+_PCI_Command PROC NEAR
+
+; 887  : {
+
+  008fe	55		 push	 ebp
+  008ff	8b ec		 mov	 ebp, esp
+  00901	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 888  :    DWORD length;
+; 889  :    DWORD BusNum;
+; 890  :    DWORD DevNum;
+; 891  : 
+; 892  :    BusNum = 0xFFFFFFFF;
+
+  00904	c7 45 f8 ff ff
+	ff ff		 mov	 DWORD PTR _BusNum$[ebp], -1
+
+; 893  :    DevNum = 0xFFFFFFFF;
+
+  0090b	c7 45 f4 ff ff
+	ff ff		 mov	 DWORD PTR _DevNum$[ebp], -1
+
+; 894  :    length = Get_Parameter( Debug_Buffer, &inOffset, 0, Delimiter_Table,
+; 895  :                                 0,
+; 896  :                                 Parm_Buffer, DEBUG_LENGTH - 1, 0, NULL);
+
+  00912	6a 00		 push	 0
+  00914	6a 00		 push	 0
+  00916	6a 7f		 push	 127			; 0000007fH
+  00918	68 00 00 00 00	 push	 OFFSET FLAT:_Parm_Buffer
+  0091d	6a 00		 push	 0
+  0091f	68 00 00 00 00	 push	 OFFSET FLAT:_Delimiter_Table
+  00924	6a 00		 push	 0
+  00926	8d 45 08	 lea	 eax, DWORD PTR _inOffset$[ebp]
+  00929	50		 push	 eax
+  0092a	68 00 00 00 00	 push	 OFFSET FLAT:_Debug_Buffer
+  0092f	e8 00 00 00 00	 call	 _Get_Parameter
+  00934	83 c4 24	 add	 esp, 36			; 00000024H
+  00937	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  0093c	89 45 fc	 mov	 DWORD PTR _length$[ebp], eax
+
+; 897  : 
+; 898  :    if (length > 0)
+
+  0093f	83 7d fc 00	 cmp	 DWORD PTR _length$[ebp], 0
+  00943	76 5b		 jbe	 SHORT $L11559
+
+; 900  :       BusNum = ConvertHex(Parm_Buffer, length);
+
+  00945	8b 4d fc	 mov	 ecx, DWORD PTR _length$[ebp]
+  00948	51		 push	 ecx
+  00949	68 00 00 00 00	 push	 OFFSET FLAT:_Parm_Buffer
+  0094e	e8 00 00 00 00	 call	 _ConvertHex
+  00953	83 c4 08	 add	 esp, 8
+  00956	89 45 f8	 mov	 DWORD PTR _BusNum$[ebp], eax
+
+; 901  : 
+; 902  :       length = Get_Parameter( Debug_Buffer, &inOffset, 0, Delimiter_Table,
+; 903  :                                    0,
+; 904  :                                    Parm_Buffer, DEBUG_LENGTH - 1, 0, NULL);
+
+  00959	6a 00		 push	 0
+  0095b	6a 00		 push	 0
+  0095d	6a 7f		 push	 127			; 0000007fH
+  0095f	68 00 00 00 00	 push	 OFFSET FLAT:_Parm_Buffer
+  00964	6a 00		 push	 0
+  00966	68 00 00 00 00	 push	 OFFSET FLAT:_Delimiter_Table
+  0096b	6a 00		 push	 0
+  0096d	8d 55 08	 lea	 edx, DWORD PTR _inOffset$[ebp]
+  00970	52		 push	 edx
+  00971	68 00 00 00 00	 push	 OFFSET FLAT:_Debug_Buffer
+  00976	e8 00 00 00 00	 call	 _Get_Parameter
+  0097b	83 c4 24	 add	 esp, 36			; 00000024H
+  0097e	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00983	89 45 fc	 mov	 DWORD PTR _length$[ebp], eax
+
+; 905  : 
+; 906  :       if (length > 0)
+
+  00986	83 7d fc 00	 cmp	 DWORD PTR _length$[ebp], 0
+  0098a	76 14		 jbe	 SHORT $L11559
+
+; 908  :          DevNum = ConvertHex(Parm_Buffer, length);
+
+  0098c	8b 45 fc	 mov	 eax, DWORD PTR _length$[ebp]
+  0098f	50		 push	 eax
+  00990	68 00 00 00 00	 push	 OFFSET FLAT:_Parm_Buffer
+  00995	e8 00 00 00 00	 call	 _ConvertHex
+  0099a	83 c4 08	 add	 esp, 8
+  0099d	89 45 f4	 mov	 DWORD PTR _DevNum$[ebp], eax
+$L11559:
+
+; 911  :       
+; 912  :     PCIPrint(BusNum, DevNum);
+
+  009a0	8b 4d f4	 mov	 ecx, DWORD PTR _DevNum$[ebp]
+  009a3	51		 push	 ecx
+  009a4	8b 55 f8	 mov	 edx, DWORD PTR _BusNum$[ebp]
+  009a7	52		 push	 edx
+  009a8	e8 00 00 00 00	 call	 _PCIPrint
+  009ad	83 c4 08	 add	 esp, 8
+
+; 913  :       
+; 914  :     return FALSE;
+
+  009b0	33 c0		 xor	 eax, eax
+
+; 915  : }
+
+  009b2	8b e5		 mov	 esp, ebp
+  009b4	5d		 pop	 ebp
+  009b5	c3		 ret	 0
+_PCI_Command ENDP
+_DB1CODE	ENDS
+EXTRN	_PCI_Write_Config:NEAR
+_DB2DATA	SEGMENT
+	ORG $+1
+$SG11580 DB	0aH, 'PCI Bus %08x Device %08x Func %08x Register %08x wa'
+	DB	's %08x set to %08x is %08x', 0aH, 00H
+$SG11582 DB	0aH, 'Error in Parameter PCI Bus %08x Device %08x Func %0'
+	DB	'8x Register %08x', 0aH, 00H
+_DB2DATA	ENDS
+_DB1CODE	SEGMENT
+_inOffset$ = 8
+_length$ = -32
+_BusNum$ = -52
+_DevNum$ = -60
+_FuncNum$ = -8
+_RegNum$ = -44
+_Value$ = -4
+_dwWrite$ = -36
+_dwReg1$ = -48
+_dwReg2$ = -56
+_i$ = -40
+_dwP$ = -28
+_WR_Command PROC NEAR
+
+; 935  : {
+
+  009b6	55		 push	 ebp
+  009b7	8b ec		 mov	 ebp, esp
+  009b9	83 ec 3c	 sub	 esp, 60			; 0000003cH
+
+; 936  :    DWORD length;
+; 937  :    DWORD BusNum;
+; 938  :    DWORD DevNum;
+; 939  :    DWORD FuncNum;
+; 940  :    DWORD RegNum;
+; 941  :    DWORD Value;
+; 942  :    DWORD dwWrite;
+; 943  :    DWORD dwReg1;
+; 944  :    DWORD dwReg2;
+; 945  :    DWORD i;
+; 946  :    DWORD * dwP[5] = {&BusNum, &DevNum, &FuncNum, &RegNum, &Value};
+
+  009bc	8d 45 cc	 lea	 eax, DWORD PTR _BusNum$[ebp]
+  009bf	89 45 e4	 mov	 DWORD PTR _dwP$[ebp], eax
+  009c2	8d 4d c4	 lea	 ecx, DWORD PTR _DevNum$[ebp]
+  009c5	89 4d e8	 mov	 DWORD PTR _dwP$[ebp+4], ecx
+  009c8	8d 55 f8	 lea	 edx, DWORD PTR _FuncNum$[ebp]
+  009cb	89 55 ec	 mov	 DWORD PTR _dwP$[ebp+8], edx
+  009ce	8d 45 d4	 lea	 eax, DWORD PTR _RegNum$[ebp]
+  009d1	89 45 f0	 mov	 DWORD PTR _dwP$[ebp+12], eax
+  009d4	8d 4d fc	 lea	 ecx, DWORD PTR _Value$[ebp]
+  009d7	89 4d f4	 mov	 DWORD PTR _dwP$[ebp+16], ecx
+
+; 947  : 
+; 948  :    dwWrite = 1;
+
+  009da	c7 45 dc 01 00
+	00 00		 mov	 DWORD PTR _dwWrite$[ebp], 1
+
+; 949  :    for (i=0; i<5; i++)
+
+  009e1	c7 45 d8 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  009e8	eb 09		 jmp	 SHORT $L11574
+$L11575:
+  009ea	8b 55 d8	 mov	 edx, DWORD PTR _i$[ebp]
+  009ed	83 c2 01	 add	 edx, 1
+  009f0	89 55 d8	 mov	 DWORD PTR _i$[ebp], edx
+$L11574:
+  009f3	83 7d d8 05	 cmp	 DWORD PTR _i$[ebp], 5
+  009f7	73 6f		 jae	 SHORT $L11576
+
+; 951  :       *dwP[i] = 0xFFFFFFFF;
+
+  009f9	8b 45 d8	 mov	 eax, DWORD PTR _i$[ebp]
+  009fc	8b 4c 85 e4	 mov	 ecx, DWORD PTR _dwP$[ebp+eax*4]
+  00a00	c7 01 ff ff ff
+	ff		 mov	 DWORD PTR [ecx], -1
+
+; 952  :       length = Get_Parameter( Debug_Buffer, &inOffset, 0, Delimiter_Table,
+; 953  :                                 0,
+; 954  :                                 Parm_Buffer, DEBUG_LENGTH - 1, 0, NULL);
+
+  00a06	6a 00		 push	 0
+  00a08	6a 00		 push	 0
+  00a0a	6a 7f		 push	 127			; 0000007fH
+  00a0c	68 00 00 00 00	 push	 OFFSET FLAT:_Parm_Buffer
+  00a11	6a 00		 push	 0
+  00a13	68 00 00 00 00	 push	 OFFSET FLAT:_Delimiter_Table
+  00a18	6a 00		 push	 0
+  00a1a	8d 55 08	 lea	 edx, DWORD PTR _inOffset$[ebp]
+  00a1d	52		 push	 edx
+  00a1e	68 00 00 00 00	 push	 OFFSET FLAT:_Debug_Buffer
+  00a23	e8 00 00 00 00	 call	 _Get_Parameter
+  00a28	83 c4 24	 add	 esp, 36			; 00000024H
+  00a2b	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00a30	89 45 e0	 mov	 DWORD PTR _length$[ebp], eax
+
+; 955  :       if (length > 0)
+
+  00a33	83 7d e0 00	 cmp	 DWORD PTR _length$[ebp], 0
+  00a37	76 1a		 jbe	 SHORT $L11577
+
+; 956  :          *dwP[i] = ConvertHex(Parm_Buffer, length);
+
+  00a39	8b 45 e0	 mov	 eax, DWORD PTR _length$[ebp]
+  00a3c	50		 push	 eax
+  00a3d	68 00 00 00 00	 push	 OFFSET FLAT:_Parm_Buffer
+  00a42	e8 00 00 00 00	 call	 _ConvertHex
+  00a47	83 c4 08	 add	 esp, 8
+  00a4a	8b 4d d8	 mov	 ecx, DWORD PTR _i$[ebp]
+  00a4d	8b 54 8d e4	 mov	 edx, DWORD PTR _dwP$[ebp+ecx*4]
+  00a51	89 02		 mov	 DWORD PTR [edx], eax
+$L11577:
+
+; 957  :       if (0xFFFFFFFF == *dwP[i])
+
+  00a53	8b 45 d8	 mov	 eax, DWORD PTR _i$[ebp]
+  00a56	8b 4c 85 e4	 mov	 ecx, DWORD PTR _dwP$[ebp+eax*4]
+  00a5a	83 39 ff	 cmp	 DWORD PTR [ecx], -1
+  00a5d	75 07		 jne	 SHORT $L11578
+
+; 958  :          dwWrite = 0x0;
+
+  00a5f	c7 45 dc 00 00
+	00 00		 mov	 DWORD PTR _dwWrite$[ebp], 0
+$L11578:
+
+; 959  :       }
+
+  00a66	eb 82		 jmp	 SHORT $L11575
+$L11576:
+
+; 960  : 
+; 961  :    if (dwWrite)
+
+  00a68	83 7d dc 00	 cmp	 DWORD PTR _dwWrite$[ebp], 0
+  00a6c	0f 84 83 00 00
+	00		 je	 $L11579
+
+; 963  :       dwReg1 = PCI_Read_Config(BusNum, (DevNum << 3) | FuncNum, RegNum);
+
+  00a72	8b 55 d4	 mov	 edx, DWORD PTR _RegNum$[ebp]
+  00a75	52		 push	 edx
+  00a76	8b 45 c4	 mov	 eax, DWORD PTR _DevNum$[ebp]
+  00a79	c1 e0 03	 shl	 eax, 3
+  00a7c	0b 45 f8	 or	 eax, DWORD PTR _FuncNum$[ebp]
+  00a7f	50		 push	 eax
+  00a80	8b 4d cc	 mov	 ecx, DWORD PTR _BusNum$[ebp]
+  00a83	51		 push	 ecx
+  00a84	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00a89	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00a8c	89 45 d0	 mov	 DWORD PTR _dwReg1$[ebp], eax
+
+; 964  :       PCI_Write_Config(BusNum, (DevNum << 3) | FuncNum, RegNum, Value);
+
+  00a8f	8b 55 fc	 mov	 edx, DWORD PTR _Value$[ebp]
+  00a92	52		 push	 edx
+  00a93	8b 45 d4	 mov	 eax, DWORD PTR _RegNum$[ebp]
+  00a96	50		 push	 eax
+  00a97	8b 4d c4	 mov	 ecx, DWORD PTR _DevNum$[ebp]
+  00a9a	c1 e1 03	 shl	 ecx, 3
+  00a9d	0b 4d f8	 or	 ecx, DWORD PTR _FuncNum$[ebp]
+  00aa0	51		 push	 ecx
+  00aa1	8b 55 cc	 mov	 edx, DWORD PTR _BusNum$[ebp]
+  00aa4	52		 push	 edx
+  00aa5	e8 00 00 00 00	 call	 _PCI_Write_Config
+  00aaa	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 965  :       dwReg2 = PCI_Read_Config(BusNum, (DevNum << 3) | FuncNum, RegNum);
+
+  00aad	8b 45 d4	 mov	 eax, DWORD PTR _RegNum$[ebp]
+  00ab0	50		 push	 eax
+  00ab1	8b 4d c4	 mov	 ecx, DWORD PTR _DevNum$[ebp]
+  00ab4	c1 e1 03	 shl	 ecx, 3
+  00ab7	0b 4d f8	 or	 ecx, DWORD PTR _FuncNum$[ebp]
+  00aba	51		 push	 ecx
+  00abb	8b 55 cc	 mov	 edx, DWORD PTR _BusNum$[ebp]
+  00abe	52		 push	 edx
+  00abf	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00ac4	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00ac7	89 45 c8	 mov	 DWORD PTR _dwReg2$[ebp], eax
+
+; 966  :       PF("\nPCI Bus %08x Device %08x Func %08x Register %08x was %08x set to %08x is %08x\n",
+; 967  :          BusNum, DevNum, FuncNum, RegNum, dwReg1, Value, dwReg2);
+
+  00aca	8b 45 c8	 mov	 eax, DWORD PTR _dwReg2$[ebp]
+  00acd	50		 push	 eax
+  00ace	8b 4d fc	 mov	 ecx, DWORD PTR _Value$[ebp]
+  00ad1	51		 push	 ecx
+  00ad2	8b 55 d0	 mov	 edx, DWORD PTR _dwReg1$[ebp]
+  00ad5	52		 push	 edx
+  00ad6	8b 45 d4	 mov	 eax, DWORD PTR _RegNum$[ebp]
+  00ad9	50		 push	 eax
+  00ada	8b 4d f8	 mov	 ecx, DWORD PTR _FuncNum$[ebp]
+  00add	51		 push	 ecx
+  00ade	8b 55 c4	 mov	 edx, DWORD PTR _DevNum$[ebp]
+  00ae1	52		 push	 edx
+  00ae2	8b 45 cc	 mov	 eax, DWORD PTR _BusNum$[ebp]
+  00ae5	50		 push	 eax
+  00ae6	68 00 00 00 00	 push	 OFFSET FLAT:$SG11580
+  00aeb	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00af0	83 c4 20	 add	 esp, 32			; 00000020H
+
+; 969  :    else
+
+  00af3	eb 1d		 jmp	 SHORT $L11581
+$L11579:
+
+; 971  :       PF("\nError in Parameter PCI Bus %08x Device %08x Func %08x Register %08x\n",
+; 972  :          BusNum, DevNum, FuncNum, RegNum);
+
+  00af5	8b 4d d4	 mov	 ecx, DWORD PTR _RegNum$[ebp]
+  00af8	51		 push	 ecx
+  00af9	8b 55 f8	 mov	 edx, DWORD PTR _FuncNum$[ebp]
+  00afc	52		 push	 edx
+  00afd	8b 45 c4	 mov	 eax, DWORD PTR _DevNum$[ebp]
+  00b00	50		 push	 eax
+  00b01	8b 4d cc	 mov	 ecx, DWORD PTR _BusNum$[ebp]
+  00b04	51		 push	 ecx
+  00b05	68 00 00 00 00	 push	 OFFSET FLAT:$SG11582
+  00b0a	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00b0f	83 c4 14	 add	 esp, 20			; 00000014H
+$L11581:
+
+; 974  :     return FALSE;
+
+  00b12	33 c0		 xor	 eax, eax
+
+; 975  : }
+
+  00b14	8b e5		 mov	 esp, ebp
+  00b16	5d		 pop	 ebp
+  00b17	c3		 ret	 0
+_WR_Command ENDP
+_DB1CODE	ENDS
+PUBLIC	_SLIDevicePrint
+_DB2DATA	SEGMENT
+	ORG $+2
+$SG11598 DB	0aH, 'Bus %d Device %d Function %d', 0aH, 00H
+	ORG $+1
+$SG11599 DB	'Memory Config Base0 %08x Base1 %08x IoBase %08x', 0aH, 00H
+	ORG $+3
+$SG11600 DB	'cfgInitEnabled %08x', 0aH, 00H
+	ORG $+3
+$SG11601 DB	'Enable HW Init Writes %x PCI Fifo %x MemSize %x Snooped '
+	DB	'HW Init %x Disable LFB read Cache %x', 0aH, 00H
+	ORG $+2
+$SG11602 DB	'Address Snoop Enable %x MemBase0 %x MemBase1 %x Master/S'
+	DB	'lave %x', 0aH, 00H
+	ORG $+3
+$SG11603 DB	'Snoop Address 0 %08x', 0aH, 00H
+	ORG $+2
+$SG11604 DB	'Swap Buffer Algorithm %x Swap Master %x Quick Sample %x '
+	DB	'PCI Multi Func bit %x', 0aH, 00H
+	ORG $+1
+$SG11605 DB	'cfgPciDecode %08x', 0aH, 'Size: MemBase0 %x MemBase1 %x '
+	DB	'IOBase %x', 0aH, 'Snoop Size: Membase0 %x Membase1 %x', 0aH, 'S'
+	DB	'noop Address 1 %x', 0aH, 00H
+	ORG $+2
+$SG11606 DB	'cfgVideoCtrl0 %08x', 0aH, 'Enhanced Video Enable %x Slav'
+	DB	'e %x TV Output %x Local Mux Sel %x', 0aH, 00H
+$SG11607 DB	'OtherMux Sel True %x False %x', 0aH, 'SLI Compare Invert'
+	DB	' Fetch %x CRT %x AAFifo %x VidPll %x', 0aH, 00H
+	ORG $+2
+$SG11608 DB	'Divide Video %x Always Drive AABus %x Vsync Ref %x DAC T'
+	DB	'riState Vsync %x Hsync %x', 0aH, 00H
+	ORG $+1
+$SG11609 DB	'cfgVideoCtrl1 %08x', 0aH, 'SLI Fetch RenderMask %x Compa'
+	DB	'reMask %x', 0aH, 'SLI CRT RenderMask %x CompareMask %x', 0aH, 00H
+$SG11610 DB	'cfgVideoCtrl2 %08x', 0aH, 'SLI Fetch AAFifo RenderMask %'
+	DB	'x CompareMask %x', 0aH, 00H
+	ORG $+2
+$SG11611 DB	'cfgSliLfbCtrl %08x', 0aH, 'SLI Lfb Masks Render %x Compa'
+	DB	're %x Scan %x NumChips Log2 %x', 0aH, 'SLI LFB Enable CPU %x '
+	DB	'Dispatch %x Rd %x', 0aH, 00H
+$SG11612 DB	'cfgAaDepthBufferAperature %08x', 0aH, 'Begin %x End %x', 0aH
+	DB	00H
+$SG11613 DB	'cgfAALfbCtrl %08x', 0aH, 'Base Addr %x', 0aH, 'Write Ena'
+	DB	'ble CPU %x Dispatch %x Rd %x', 0aH, 'Format %x Divide By 4 %x'
+	DB	0aH, 00H
+	ORG $+1
+$SG11614 DB	'cfgSliAaMisc %08x', 0aH, 'Vga Vsync Offset %x', 0aH, 'Ho'
+	DB	't Plug %x HotPlug Pin %x Wait for AA %x', 0aH, 00H
+_DB2DATA	ENDS
+_DB1CODE	SEGMENT
+_dwBusNum$ = 8
+_dwDevNum$ = 12
+_dwFunc$ = -4
+_dwDevID$ = -8
+_dwReg$ = -16
+_dwDevFunc$ = -12
+_SLIDevicePrint PROC NEAR
+
+; 988  : {
+
+  00b18	55		 push	 ebp
+  00b19	8b ec		 mov	 ebp, esp
+  00b1b	83 ec 10	 sub	 esp, 16			; 00000010H
+
+; 989  :    DWORD dwFunc;
+; 990  :    DWORD dwDevID;
+; 991  :    DWORD dwReg;
+; 992  :    DWORD dwDevFunc;
+; 993  : 
+; 994  :    for (dwFunc = 0; dwFunc < 8; dwFunc++)
+
+  00b1e	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _dwFunc$[ebp], 0
+  00b25	eb 09		 jmp	 SHORT $L11593
+$L11594:
+  00b27	8b 45 fc	 mov	 eax, DWORD PTR _dwFunc$[ebp]
+  00b2a	83 c0 01	 add	 eax, 1
+  00b2d	89 45 fc	 mov	 DWORD PTR _dwFunc$[ebp], eax
+$L11593:
+  00b30	83 7d fc 08	 cmp	 DWORD PTR _dwFunc$[ebp], 8
+  00b34	0f 83 15 05 00
+	00		 jae	 $L11595
+
+; 996  :       dwDevID = PCI_Read_Config(dwBusNum, (dwDevNum << 3) | dwFunc, 0x0);
+
+  00b3a	6a 00		 push	 0
+  00b3c	8b 4d 0c	 mov	 ecx, DWORD PTR _dwDevNum$[ebp]
+  00b3f	c1 e1 03	 shl	 ecx, 3
+  00b42	0b 4d fc	 or	 ecx, DWORD PTR _dwFunc$[ebp]
+  00b45	51		 push	 ecx
+  00b46	8b 55 08	 mov	 edx, DWORD PTR _dwBusNum$[ebp]
+  00b49	52		 push	 edx
+  00b4a	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00b4f	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00b52	89 45 f8	 mov	 DWORD PTR _dwDevID$[ebp], eax
+
+; 997  :       if (IS_NAPALM(dwDevID) || IS_VOODOO3(dwDevID))
+
+  00b55	81 7d f8 1a 12
+	06 00		 cmp	 DWORD PTR _dwDevID$[ebp], 397850 ; 0006121aH
+  00b5c	74 5e		 je	 SHORT $L11597
+  00b5e	81 7d f8 1a 12
+	07 00		 cmp	 DWORD PTR _dwDevID$[ebp], 463386 ; 0007121aH
+  00b65	74 55		 je	 SHORT $L11597
+  00b67	81 7d f8 1a 12
+	08 00		 cmp	 DWORD PTR _dwDevID$[ebp], 528922 ; 0008121aH
+  00b6e	74 4c		 je	 SHORT $L11597
+  00b70	81 7d f8 1a 12
+	09 00		 cmp	 DWORD PTR _dwDevID$[ebp], 594458 ; 0009121aH
+  00b77	74 43		 je	 SHORT $L11597
+  00b79	81 7d f8 1a 12
+	0a 00		 cmp	 DWORD PTR _dwDevID$[ebp], 659994 ; 000a121aH
+  00b80	74 3a		 je	 SHORT $L11597
+  00b82	81 7d f8 1a 12
+	0b 00		 cmp	 DWORD PTR _dwDevID$[ebp], 725530 ; 000b121aH
+  00b89	74 31		 je	 SHORT $L11597
+  00b8b	81 7d f8 1a 12
+	0c 00		 cmp	 DWORD PTR _dwDevID$[ebp], 791066 ; 000c121aH
+  00b92	74 28		 je	 SHORT $L11597
+  00b94	81 7d f8 1a 12
+	0d 00		 cmp	 DWORD PTR _dwDevID$[ebp], 856602 ; 000d121aH
+  00b9b	74 1f		 je	 SHORT $L11597
+  00b9d	81 7d f8 1a 12
+	0e 00		 cmp	 DWORD PTR _dwDevID$[ebp], 922138 ; 000e121aH
+  00ba4	74 16		 je	 SHORT $L11597
+  00ba6	81 7d f8 1a 12
+	0f 00		 cmp	 DWORD PTR _dwDevID$[ebp], 987674 ; 000f121aH
+  00bad	74 0d		 je	 SHORT $L11597
+  00baf	81 7d f8 1a 12
+	05 00		 cmp	 DWORD PTR _dwDevID$[ebp], 332314 ; 0005121aH
+  00bb6	0f 85 8e 04 00
+	00		 jne	 $L11596
+$L11597:
+
+; 999  :          dwDevFunc = (dwDevNum << 3) | dwFunc;
+
+  00bbc	8b 45 0c	 mov	 eax, DWORD PTR _dwDevNum$[ebp]
+  00bbf	c1 e0 03	 shl	 eax, 3
+  00bc2	0b 45 fc	 or	 eax, DWORD PTR _dwFunc$[ebp]
+  00bc5	89 45 f4	 mov	 DWORD PTR _dwDevFunc$[ebp], eax
+
+; 1000 :          PF("\nBus %d Device %d Function %d\n", dwBusNum, dwDevNum, dwFunc);
+
+  00bc8	8b 4d fc	 mov	 ecx, DWORD PTR _dwFunc$[ebp]
+  00bcb	51		 push	 ecx
+  00bcc	8b 55 0c	 mov	 edx, DWORD PTR _dwDevNum$[ebp]
+  00bcf	52		 push	 edx
+  00bd0	8b 45 08	 mov	 eax, DWORD PTR _dwBusNum$[ebp]
+  00bd3	50		 push	 eax
+  00bd4	68 00 00 00 00	 push	 OFFSET FLAT:$SG11598
+  00bd9	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00bde	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 1001 :          PF("Memory Config Base0 %08x Base1 %08x IoBase %08x\n", PCI_Read_Config(dwBusNum, dwDevFunc, 0x10), PCI_Read_Config(dwBusNum, dwDevFunc, 0x14), PCI_Read_Config(dwBusNum, dwDevFunc, 0x18));
+
+  00be1	6a 18		 push	 24			; 00000018H
+  00be3	8b 4d f4	 mov	 ecx, DWORD PTR _dwDevFunc$[ebp]
+  00be6	51		 push	 ecx
+  00be7	8b 55 08	 mov	 edx, DWORD PTR _dwBusNum$[ebp]
+  00bea	52		 push	 edx
+  00beb	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00bf0	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00bf3	50		 push	 eax
+  00bf4	6a 14		 push	 20			; 00000014H
+  00bf6	8b 45 f4	 mov	 eax, DWORD PTR _dwDevFunc$[ebp]
+  00bf9	50		 push	 eax
+  00bfa	8b 4d 08	 mov	 ecx, DWORD PTR _dwBusNum$[ebp]
+  00bfd	51		 push	 ecx
+  00bfe	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00c03	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00c06	50		 push	 eax
+  00c07	6a 10		 push	 16			; 00000010H
+  00c09	8b 55 f4	 mov	 edx, DWORD PTR _dwDevFunc$[ebp]
+  00c0c	52		 push	 edx
+  00c0d	8b 45 08	 mov	 eax, DWORD PTR _dwBusNum$[ebp]
+  00c10	50		 push	 eax
+  00c11	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00c16	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00c19	50		 push	 eax
+  00c1a	68 00 00 00 00	 push	 OFFSET FLAT:$SG11599
+  00c1f	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00c24	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 1002 :          dwReg = PCI_Read_Config(dwBusNum, dwDevFunc, CFG_INIT_ENABLE);
+
+  00c27	6a 40		 push	 64			; 00000040H
+  00c29	8b 4d f4	 mov	 ecx, DWORD PTR _dwDevFunc$[ebp]
+  00c2c	51		 push	 ecx
+  00c2d	8b 55 08	 mov	 edx, DWORD PTR _dwBusNum$[ebp]
+  00c30	52		 push	 edx
+  00c31	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00c36	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00c39	89 45 f0	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 1003 :          PF("cfgInitEnabled %08x\n", dwReg);
+
+  00c3c	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00c3f	50		 push	 eax
+  00c40	68 00 00 00 00	 push	 OFFSET FLAT:$SG11600
+  00c45	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00c4a	83 c4 08	 add	 esp, 8
+
+; 1004 :          PF("Enable HW Init Writes %x PCI Fifo %x MemSize %x Snooped HW Init %x Disable LFB read Cache %x\n", FIELD(dwReg,8,1) , FIELD(dwReg,9,1), FIELD(dwReg,10,1), FIELD(dwReg,30,1), FIELD(dwReg,29,1));
+
+  00c4d	8b 4d f0	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00c50	c1 e9 1d	 shr	 ecx, 29			; 0000001dH
+  00c53	83 e1 01	 and	 ecx, 1
+  00c56	51		 push	 ecx
+  00c57	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00c5a	c1 ea 1e	 shr	 edx, 30			; 0000001eH
+  00c5d	83 e2 01	 and	 edx, 1
+  00c60	52		 push	 edx
+  00c61	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00c64	c1 e8 0a	 shr	 eax, 10			; 0000000aH
+  00c67	83 e0 01	 and	 eax, 1
+  00c6a	50		 push	 eax
+  00c6b	8b 4d f0	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00c6e	c1 e9 09	 shr	 ecx, 9
+  00c71	83 e1 01	 and	 ecx, 1
+  00c74	51		 push	 ecx
+  00c75	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00c78	c1 ea 08	 shr	 edx, 8
+  00c7b	83 e2 01	 and	 edx, 1
+  00c7e	52		 push	 edx
+  00c7f	68 00 00 00 00	 push	 OFFSET FLAT:$SG11601
+  00c84	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00c89	83 c4 18	 add	 esp, 24			; 00000018H
+
+; 1005 :          PF("Address Snoop Enable %x MemBase0 %x MemBase1 %x Master/Slave %x\n", FIELD(dwReg, 11, 1), FIELD(dwReg, 12, 1), FIELD(dwReg, 13, 1), FIELD(dwReg, 14, 1));
+
+  00c8c	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00c8f	c1 e8 0e	 shr	 eax, 14			; 0000000eH
+  00c92	83 e0 01	 and	 eax, 1
+  00c95	50		 push	 eax
+  00c96	8b 4d f0	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00c99	c1 e9 0d	 shr	 ecx, 13			; 0000000dH
+  00c9c	83 e1 01	 and	 ecx, 1
+  00c9f	51		 push	 ecx
+  00ca0	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00ca3	c1 ea 0c	 shr	 edx, 12			; 0000000cH
+  00ca6	83 e2 01	 and	 edx, 1
+  00ca9	52		 push	 edx
+  00caa	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00cad	c1 e8 0b	 shr	 eax, 11			; 0000000bH
+  00cb0	83 e0 01	 and	 eax, 1
+  00cb3	50		 push	 eax
+  00cb4	68 00 00 00 00	 push	 OFFSET FLAT:$SG11602
+  00cb9	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00cbe	83 c4 14	 add	 esp, 20			; 00000014H
+
+; 1006 :          PF("Snoop Address 0 %08x\n", FIELD(dwReg, 15, 0x3FF));         
+
+  00cc1	8b 4d f0	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00cc4	c1 e9 0f	 shr	 ecx, 15			; 0000000fH
+  00cc7	81 e1 ff 03 00
+	00		 and	 ecx, 1023		; 000003ffH
+  00ccd	51		 push	 ecx
+  00cce	68 00 00 00 00	 push	 OFFSET FLAT:$SG11603
+  00cd3	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00cd8	83 c4 08	 add	 esp, 8
+
+; 1007 :          PF("Swap Buffer Algorithm %x Swap Master %x Quick Sample %x PCI Multi Func bit %x\n", FIELD(dwReg, 25, 1), FIELD(dwReg, 26, 1), FIELD(dwReg, 27, 1), FIELD(dwReg, 28, 1));         
+
+  00cdb	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00cde	c1 ea 1c	 shr	 edx, 28			; 0000001cH
+  00ce1	83 e2 01	 and	 edx, 1
+  00ce4	52		 push	 edx
+  00ce5	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00ce8	c1 e8 1b	 shr	 eax, 27			; 0000001bH
+  00ceb	83 e0 01	 and	 eax, 1
+  00cee	50		 push	 eax
+  00cef	8b 4d f0	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00cf2	c1 e9 1a	 shr	 ecx, 26			; 0000001aH
+  00cf5	83 e1 01	 and	 ecx, 1
+  00cf8	51		 push	 ecx
+  00cf9	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00cfc	c1 ea 19	 shr	 edx, 25			; 00000019H
+  00cff	83 e2 01	 and	 edx, 1
+  00d02	52		 push	 edx
+  00d03	68 00 00 00 00	 push	 OFFSET FLAT:$SG11604
+  00d08	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00d0d	83 c4 14	 add	 esp, 20			; 00000014H
+
+; 1008 :          dwReg = PCI_Read_Config(dwBusNum, dwDevFunc, CFG_PCI_DECODE);
+
+  00d10	6a 48		 push	 72			; 00000048H
+  00d12	8b 45 f4	 mov	 eax, DWORD PTR _dwDevFunc$[ebp]
+  00d15	50		 push	 eax
+  00d16	8b 4d 08	 mov	 ecx, DWORD PTR _dwBusNum$[ebp]
+  00d19	51		 push	 ecx
+  00d1a	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00d1f	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00d22	89 45 f0	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 1009 :          PF("cfgPciDecode %08x\nSize: MemBase0 %x MemBase1 %x IOBase %x\nSnoop Size: Membase0 %x Membase1 %x\nSnoop Address 1 %x\n", dwReg,
+; 1010 :             FIELD(dwReg, 0, 0x0F), FIELD(dwReg, 4, 0x0F), FIELD(dwReg, 8, 0x07), FIELD(dwReg, 10, 0x0F), FIELD(dwReg, 14, 0x0F), 
+; 1011 :             FIELD(dwReg, 18, 0x3FF));
+
+  00d25	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00d28	c1 ea 12	 shr	 edx, 18			; 00000012H
+  00d2b	81 e2 ff 03 00
+	00		 and	 edx, 1023		; 000003ffH
+  00d31	52		 push	 edx
+  00d32	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00d35	c1 e8 0e	 shr	 eax, 14			; 0000000eH
+  00d38	83 e0 0f	 and	 eax, 15			; 0000000fH
+  00d3b	50		 push	 eax
+  00d3c	8b 4d f0	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00d3f	c1 e9 0a	 shr	 ecx, 10			; 0000000aH
+  00d42	83 e1 0f	 and	 ecx, 15			; 0000000fH
+  00d45	51		 push	 ecx
+  00d46	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00d49	c1 ea 08	 shr	 edx, 8
+  00d4c	83 e2 07	 and	 edx, 7
+  00d4f	52		 push	 edx
+  00d50	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00d53	c1 e8 04	 shr	 eax, 4
+  00d56	83 e0 0f	 and	 eax, 15			; 0000000fH
+  00d59	50		 push	 eax
+  00d5a	8b 4d f0	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00d5d	83 e1 0f	 and	 ecx, 15			; 0000000fH
+  00d60	51		 push	 ecx
+  00d61	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00d64	52		 push	 edx
+  00d65	68 00 00 00 00	 push	 OFFSET FLAT:$SG11605
+  00d6a	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00d6f	83 c4 20	 add	 esp, 32			; 00000020H
+
+; 1012 :          dwReg = PCI_Read_Config(dwBusNum, dwDevFunc, CFG_VIDEO_CTRL0);
+
+  00d72	68 80 00 00 00	 push	 128			; 00000080H
+  00d77	8b 45 f4	 mov	 eax, DWORD PTR _dwDevFunc$[ebp]
+  00d7a	50		 push	 eax
+  00d7b	8b 4d 08	 mov	 ecx, DWORD PTR _dwBusNum$[ebp]
+  00d7e	51		 push	 ecx
+  00d7f	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00d84	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00d87	89 45 f0	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 1013 :          PF("cfgVideoCtrl0 %08x\nEnhanced Video Enable %x Slave %x TV Output %x Local Mux Sel %x\n",
+; 1014 :             dwReg, FIELD(dwReg, 0, 1), FIELD(dwReg, 1, 1), FIELD(dwReg, 2, 1), FIELD(dwReg, 3, 1));
+
+  00d8a	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00d8d	c1 ea 03	 shr	 edx, 3
+  00d90	83 e2 01	 and	 edx, 1
+  00d93	52		 push	 edx
+  00d94	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00d97	c1 e8 02	 shr	 eax, 2
+  00d9a	83 e0 01	 and	 eax, 1
+  00d9d	50		 push	 eax
+  00d9e	8b 4d f0	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00da1	d1 e9		 shr	 ecx, 1
+  00da3	83 e1 01	 and	 ecx, 1
+  00da6	51		 push	 ecx
+  00da7	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00daa	83 e2 01	 and	 edx, 1
+  00dad	52		 push	 edx
+  00dae	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00db1	50		 push	 eax
+  00db2	68 00 00 00 00	 push	 OFFSET FLAT:$SG11606
+  00db7	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00dbc	83 c4 18	 add	 esp, 24			; 00000018H
+
+; 1015 :          PF("OtherMux Sel True %x False %x\nSLI Compare Invert Fetch %x CRT %x AAFifo %x VidPll %x\n",
+; 1016 :             FIELD(dwReg, 4, 3), FIELD(dwReg, 6, 3), FIELD(dwReg, 8, 1), FIELD(dwReg, 9, 1), FIELD(dwReg, 10, 1), FIELD(dwReg, 11, 1));
+
+  00dbf	8b 4d f0	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00dc2	c1 e9 0b	 shr	 ecx, 11			; 0000000bH
+  00dc5	83 e1 01	 and	 ecx, 1
+  00dc8	51		 push	 ecx
+  00dc9	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00dcc	c1 ea 0a	 shr	 edx, 10			; 0000000aH
+  00dcf	83 e2 01	 and	 edx, 1
+  00dd2	52		 push	 edx
+  00dd3	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00dd6	c1 e8 09	 shr	 eax, 9
+  00dd9	83 e0 01	 and	 eax, 1
+  00ddc	50		 push	 eax
+  00ddd	8b 4d f0	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00de0	c1 e9 08	 shr	 ecx, 8
+  00de3	83 e1 01	 and	 ecx, 1
+  00de6	51		 push	 ecx
+  00de7	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00dea	c1 ea 06	 shr	 edx, 6
+  00ded	83 e2 03	 and	 edx, 3
+  00df0	52		 push	 edx
+  00df1	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00df4	c1 e8 04	 shr	 eax, 4
+  00df7	83 e0 03	 and	 eax, 3
+  00dfa	50		 push	 eax
+  00dfb	68 00 00 00 00	 push	 OFFSET FLAT:$SG11607
+  00e00	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00e05	83 c4 1c	 add	 esp, 28			; 0000001cH
+
+; 1017 :          PF("Divide Video %x Always Drive AABus %x Vsync Ref %x DAC TriState Vsync %x Hsync %x\n",
+; 1018 :             FIELD(dwReg, 12, 0x7), FIELD(dwReg, 15, 1), FIELD(dwReg, 16, 0x0F), FIELD(dwReg, 24, 1), FIELD(dwReg, 25, 1));
+
+  00e08	8b 4d f0	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00e0b	c1 e9 19	 shr	 ecx, 25			; 00000019H
+  00e0e	83 e1 01	 and	 ecx, 1
+  00e11	51		 push	 ecx
+  00e12	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00e15	c1 ea 18	 shr	 edx, 24			; 00000018H
+  00e18	83 e2 01	 and	 edx, 1
+  00e1b	52		 push	 edx
+  00e1c	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00e1f	c1 e8 10	 shr	 eax, 16			; 00000010H
+  00e22	83 e0 0f	 and	 eax, 15			; 0000000fH
+  00e25	50		 push	 eax
+  00e26	8b 4d f0	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00e29	c1 e9 0f	 shr	 ecx, 15			; 0000000fH
+  00e2c	83 e1 01	 and	 ecx, 1
+  00e2f	51		 push	 ecx
+  00e30	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00e33	c1 ea 0c	 shr	 edx, 12			; 0000000cH
+  00e36	83 e2 07	 and	 edx, 7
+  00e39	52		 push	 edx
+  00e3a	68 00 00 00 00	 push	 OFFSET FLAT:$SG11608
+  00e3f	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00e44	83 c4 18	 add	 esp, 24			; 00000018H
+
+; 1019 :          dwReg = PCI_Read_Config(dwBusNum, dwDevFunc, CFG_VIDEO_CTRL1);
+
+  00e47	68 84 00 00 00	 push	 132			; 00000084H
+  00e4c	8b 45 f4	 mov	 eax, DWORD PTR _dwDevFunc$[ebp]
+  00e4f	50		 push	 eax
+  00e50	8b 4d 08	 mov	 ecx, DWORD PTR _dwBusNum$[ebp]
+  00e53	51		 push	 ecx
+  00e54	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00e59	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00e5c	89 45 f0	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 1020 :          PF("cfgVideoCtrl1 %08x\nSLI Fetch RenderMask %x CompareMask %x\nSLI CRT RenderMask %x CompareMask %x\n", dwReg, FIELD(dwReg, 0, 0xFF), FIELD(dwReg, 8, 0xFF), FIELD(dwReg, 16, 0xFF), FIELD(dwReg, 24, 0xFF));
+
+  00e5f	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00e62	c1 ea 18	 shr	 edx, 24			; 00000018H
+  00e65	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00e6b	52		 push	 edx
+  00e6c	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00e6f	c1 e8 10	 shr	 eax, 16			; 00000010H
+  00e72	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00e77	50		 push	 eax
+  00e78	8b 4d f0	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00e7b	c1 e9 08	 shr	 ecx, 8
+  00e7e	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  00e84	51		 push	 ecx
+  00e85	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00e88	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00e8e	52		 push	 edx
+  00e8f	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00e92	50		 push	 eax
+  00e93	68 00 00 00 00	 push	 OFFSET FLAT:$SG11609
+  00e98	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00e9d	83 c4 18	 add	 esp, 24			; 00000018H
+
+; 1021 :          dwReg = PCI_Read_Config(dwBusNum, dwDevFunc, CFG_VIDEO_CTRL2);
+
+  00ea0	68 88 00 00 00	 push	 136			; 00000088H
+  00ea5	8b 4d f4	 mov	 ecx, DWORD PTR _dwDevFunc$[ebp]
+  00ea8	51		 push	 ecx
+  00ea9	8b 55 08	 mov	 edx, DWORD PTR _dwBusNum$[ebp]
+  00eac	52		 push	 edx
+  00ead	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00eb2	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00eb5	89 45 f0	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 1022 :          PF("cfgVideoCtrl2 %08x\nSLI Fetch AAFifo RenderMask %x CompareMask %x\n", dwReg, FIELD(dwReg, 0, 0xFF), FIELD(dwReg, 8, 0xFF));
+
+  00eb8	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00ebb	c1 e8 08	 shr	 eax, 8
+  00ebe	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00ec3	50		 push	 eax
+  00ec4	8b 4d f0	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00ec7	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  00ecd	51		 push	 ecx
+  00ece	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00ed1	52		 push	 edx
+  00ed2	68 00 00 00 00	 push	 OFFSET FLAT:$SG11610
+  00ed7	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00edc	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 1023 :          dwReg = PCI_Read_Config(dwBusNum, dwDevFunc, CFG_SLI_LFB_CTRL);
+
+  00edf	68 8c 00 00 00	 push	 140			; 0000008cH
+  00ee4	8b 45 f4	 mov	 eax, DWORD PTR _dwDevFunc$[ebp]
+  00ee7	50		 push	 eax
+  00ee8	8b 4d 08	 mov	 ecx, DWORD PTR _dwBusNum$[ebp]
+  00eeb	51		 push	 ecx
+  00eec	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00ef1	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00ef4	89 45 f0	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 1024 :          PF("cfgSliLfbCtrl %08x\nSLI Lfb Masks Render %x Compare %x Scan %x NumChips Log2 %x\nSLI LFB Enable CPU %x Dispatch %x Rd %x\n",
+; 1025 :             dwReg, FIELD(dwReg, 0, 0xFF), FIELD(dwReg, 16, 0xFF), FIELD(dwReg, 24, 0xFF), FIELD(dwReg, 24, 3), FIELD(dwReg, 1, 26), FIELD(dwReg, 27, 1), FIELD(dwReg, 28, 1));
+
+  00ef7	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00efa	c1 ea 1c	 shr	 edx, 28			; 0000001cH
+  00efd	83 e2 01	 and	 edx, 1
+  00f00	52		 push	 edx
+  00f01	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00f04	c1 e8 1b	 shr	 eax, 27			; 0000001bH
+  00f07	83 e0 01	 and	 eax, 1
+  00f0a	50		 push	 eax
+  00f0b	8b 4d f0	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00f0e	d1 e9		 shr	 ecx, 1
+  00f10	83 e1 1a	 and	 ecx, 26			; 0000001aH
+  00f13	51		 push	 ecx
+  00f14	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00f17	c1 ea 18	 shr	 edx, 24			; 00000018H
+  00f1a	83 e2 03	 and	 edx, 3
+  00f1d	52		 push	 edx
+  00f1e	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00f21	c1 e8 18	 shr	 eax, 24			; 00000018H
+  00f24	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00f29	50		 push	 eax
+  00f2a	8b 4d f0	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00f2d	c1 e9 10	 shr	 ecx, 16			; 00000010H
+  00f30	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  00f36	51		 push	 ecx
+  00f37	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00f3a	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00f40	52		 push	 edx
+  00f41	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00f44	50		 push	 eax
+  00f45	68 00 00 00 00	 push	 OFFSET FLAT:$SG11611
+  00f4a	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00f4f	83 c4 24	 add	 esp, 36			; 00000024H
+
+; 1026 :          dwReg = PCI_Read_Config(dwBusNum, dwDevFunc, CFG_AA_ZBUFF_APERTURE);
+
+  00f52	68 90 00 00 00	 push	 144			; 00000090H
+  00f57	8b 4d f4	 mov	 ecx, DWORD PTR _dwDevFunc$[ebp]
+  00f5a	51		 push	 ecx
+  00f5b	8b 55 08	 mov	 edx, DWORD PTR _dwBusNum$[ebp]
+  00f5e	52		 push	 edx
+  00f5f	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00f64	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00f67	89 45 f0	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 1027 :          PF("cfgAaDepthBufferAperature %08x\nBegin %x End %x\n", dwReg, FIELD(dwReg, 0, 0x7FFF), FIELD(dwReg, 16, 0xFFFF));
+
+  00f6a	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00f6d	c1 e8 10	 shr	 eax, 16			; 00000010H
+  00f70	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  00f75	50		 push	 eax
+  00f76	8b 4d f0	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00f79	81 e1 ff 7f 00
+	00		 and	 ecx, 32767		; 00007fffH
+  00f7f	51		 push	 ecx
+  00f80	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00f83	52		 push	 edx
+  00f84	68 00 00 00 00	 push	 OFFSET FLAT:$SG11612
+  00f89	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00f8e	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 1028 :          dwReg = PCI_Read_Config(dwBusNum, dwDevFunc, CFG_AA_LFB_CTRL);
+
+  00f91	68 94 00 00 00	 push	 148			; 00000094H
+  00f96	8b 45 f4	 mov	 eax, DWORD PTR _dwDevFunc$[ebp]
+  00f99	50		 push	 eax
+  00f9a	8b 4d 08	 mov	 ecx, DWORD PTR _dwBusNum$[ebp]
+  00f9d	51		 push	 ecx
+  00f9e	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00fa3	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00fa6	89 45 f0	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 1029 :          PF("cgfAALfbCtrl %08x\nBase Addr %x\nWrite Enable CPU %x Dispatch %x Rd %x\nFormat %x Divide By 4 %x\n",
+; 1030 :             dwReg, FIELD(dwReg, 3, 0x3FFFFF), FIELD(dwReg, 26, 1), FIELD(dwReg, 27, 1), FIELD(dwReg, 28, 1), FIELD(dwReg, 29, 3), FIELD(dwReg, 31, 1));
+
+  00fa9	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00fac	c1 ea 1f	 shr	 edx, 31			; 0000001fH
+  00faf	83 e2 01	 and	 edx, 1
+  00fb2	52		 push	 edx
+  00fb3	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00fb6	c1 e8 1d	 shr	 eax, 29			; 0000001dH
+  00fb9	83 e0 03	 and	 eax, 3
+  00fbc	50		 push	 eax
+  00fbd	8b 4d f0	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00fc0	c1 e9 1c	 shr	 ecx, 28			; 0000001cH
+  00fc3	83 e1 01	 and	 ecx, 1
+  00fc6	51		 push	 ecx
+  00fc7	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00fca	c1 ea 1b	 shr	 edx, 27			; 0000001bH
+  00fcd	83 e2 01	 and	 edx, 1
+  00fd0	52		 push	 edx
+  00fd1	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00fd4	c1 e8 1a	 shr	 eax, 26			; 0000001aH
+  00fd7	83 e0 01	 and	 eax, 1
+  00fda	50		 push	 eax
+  00fdb	8b 4d f0	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00fde	c1 e9 03	 shr	 ecx, 3
+  00fe1	81 e1 ff ff 3f
+	00		 and	 ecx, 4194303		; 003fffffH
+  00fe7	51		 push	 ecx
+  00fe8	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00feb	52		 push	 edx
+  00fec	68 00 00 00 00	 push	 OFFSET FLAT:$SG11613
+  00ff1	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00ff6	83 c4 20	 add	 esp, 32			; 00000020H
+
+; 1031 :          dwReg = PCI_Read_Config(dwBusNum, dwDevFunc, CFG_SLI_AA_MISC);
+
+  00ff9	68 ac 00 00 00	 push	 172			; 000000acH
+  00ffe	8b 45 f4	 mov	 eax, DWORD PTR _dwDevFunc$[ebp]
+  01001	50		 push	 eax
+  01002	8b 4d 08	 mov	 ecx, DWORD PTR _dwBusNum$[ebp]
+  01005	51		 push	 ecx
+  01006	e8 00 00 00 00	 call	 _PCI_Read_Config
+  0100b	83 c4 0c	 add	 esp, 12			; 0000000cH
+  0100e	89 45 f0	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 1032 :          PF("cfgSliAaMisc %08x\nVga Vsync Offset %x\nHot Plug %x HotPlug Pin %x Wait for AA %x\n",
+; 1033 :             dwReg, FIELD(dwReg, 0, 0x1FF), FIELD(dwReg, 9, 3), FIELD(dwReg, 11, 1), FIELD(dwReg, 12, 1));
+
+  01011	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  01014	c1 ea 0c	 shr	 edx, 12			; 0000000cH
+  01017	83 e2 01	 and	 edx, 1
+  0101a	52		 push	 edx
+  0101b	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  0101e	c1 e8 0b	 shr	 eax, 11			; 0000000bH
+  01021	83 e0 01	 and	 eax, 1
+  01024	50		 push	 eax
+  01025	8b 4d f0	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  01028	c1 e9 09	 shr	 ecx, 9
+  0102b	83 e1 03	 and	 ecx, 3
+  0102e	51		 push	 ecx
+  0102f	8b 55 f0	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  01032	81 e2 ff 01 00
+	00		 and	 edx, 511		; 000001ffH
+  01038	52		 push	 edx
+  01039	8b 45 f0	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  0103c	50		 push	 eax
+  0103d	68 00 00 00 00	 push	 OFFSET FLAT:$SG11614
+  01042	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  01047	83 c4 18	 add	 esp, 24			; 00000018H
+$L11596:
+
+; 1035 :       }
+
+  0104a	e9 d8 fa ff ff	 jmp	 $L11594
+$L11595:
+
+; 1036 : }
+
+  0104f	8b e5		 mov	 esp, ebp
+  01051	5d		 pop	 ebp
+  01052	c3		 ret	 0
+_SLIDevicePrint ENDP
+_DB1CODE	ENDS
+PUBLIC	_SLIPrint
+_DB1CODE	SEGMENT
+_dwBusNum$ = 8
+_dwDevNum$ = 12
+_dwBus$ = -4
+_dwDevFunc$ = -12
+_dwDevID$ = -8
+_SLIPrint PROC NEAR
+
+; 1048 : {
+
+  01053	55		 push	 ebp
+  01054	8b ec		 mov	 ebp, esp
+  01056	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 1049 :    DWORD dwBus;
+; 1050 :    DWORD dwDevFunc;
+; 1051 :    DWORD dwDevID;
+; 1052 : 
+; 1053 :    if ((0xFFFFFFFF != dwBusNum) && (0xFFFFFFFF != dwDevNum))
+
+  01059	83 7d 08 ff	 cmp	 DWORD PTR _dwBusNum$[ebp], -1
+  0105d	74 1b		 je	 SHORT $L11624
+  0105f	83 7d 0c ff	 cmp	 DWORD PTR _dwDevNum$[ebp], -1
+  01063	74 15		 je	 SHORT $L11624
+
+; 1055 :       SLIDevicePrint(dwBusNum, dwDevNum);
+
+  01065	8b 45 0c	 mov	 eax, DWORD PTR _dwDevNum$[ebp]
+  01068	50		 push	 eax
+  01069	8b 4d 08	 mov	 ecx, DWORD PTR _dwBusNum$[ebp]
+  0106c	51		 push	 ecx
+  0106d	e8 00 00 00 00	 call	 _SLIDevicePrint
+  01072	83 c4 08	 add	 esp, 8
+
+; 1057 :   else
+
+  01075	e9 d3 00 00 00	 jmp	 $L11628
+$L11624:
+
+; 1059 :       for (dwBus = 0; dwBus < 256; dwBus++)
+
+  0107a	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _dwBus$[ebp], 0
+  01081	eb 09		 jmp	 SHORT $L11626
+$L11627:
+  01083	8b 55 fc	 mov	 edx, DWORD PTR _dwBus$[ebp]
+  01086	83 c2 01	 add	 edx, 1
+  01089	89 55 fc	 mov	 DWORD PTR _dwBus$[ebp], edx
+$L11626:
+  0108c	81 7d fc 00 01
+	00 00		 cmp	 DWORD PTR _dwBus$[ebp], 256 ; 00000100H
+  01093	0f 83 b4 00 00
+	00		 jae	 $L11628
+
+; 1060 :          for (dwDevFunc = 0; dwDevFunc<0x100; dwDevFunc += 0x08)
+
+  01099	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _dwDevFunc$[ebp], 0
+  010a0	eb 09		 jmp	 SHORT $L11629
+$L11630:
+  010a2	8b 45 f4	 mov	 eax, DWORD PTR _dwDevFunc$[ebp]
+  010a5	83 c0 08	 add	 eax, 8
+  010a8	89 45 f4	 mov	 DWORD PTR _dwDevFunc$[ebp], eax
+$L11629:
+  010ab	81 7d f4 00 01
+	00 00		 cmp	 DWORD PTR _dwDevFunc$[ebp], 256 ; 00000100H
+  010b2	0f 83 90 00 00
+	00		 jae	 $L11631
+
+; 1062 :             dwDevID = PCI_Read_Config(dwBus, dwDevFunc, 0x0);
+
+  010b8	6a 00		 push	 0
+  010ba	8b 4d f4	 mov	 ecx, DWORD PTR _dwDevFunc$[ebp]
+  010bd	51		 push	 ecx
+  010be	8b 55 fc	 mov	 edx, DWORD PTR _dwBus$[ebp]
+  010c1	52		 push	 edx
+  010c2	e8 00 00 00 00	 call	 _PCI_Read_Config
+  010c7	83 c4 0c	 add	 esp, 12			; 0000000cH
+  010ca	89 45 f8	 mov	 DWORD PTR _dwDevID$[ebp], eax
+
+; 1063 :             if (IS_NAPALM(dwDevID) || IS_VOODOO3(dwDevID))
+
+  010cd	81 7d f8 1a 12
+	06 00		 cmp	 DWORD PTR _dwDevID$[ebp], 397850 ; 0006121aH
+  010d4	74 5a		 je	 SHORT $L11633
+  010d6	81 7d f8 1a 12
+	07 00		 cmp	 DWORD PTR _dwDevID$[ebp], 463386 ; 0007121aH
+  010dd	74 51		 je	 SHORT $L11633
+  010df	81 7d f8 1a 12
+	08 00		 cmp	 DWORD PTR _dwDevID$[ebp], 528922 ; 0008121aH
+  010e6	74 48		 je	 SHORT $L11633
+  010e8	81 7d f8 1a 12
+	09 00		 cmp	 DWORD PTR _dwDevID$[ebp], 594458 ; 0009121aH
+  010ef	74 3f		 je	 SHORT $L11633
+  010f1	81 7d f8 1a 12
+	0a 00		 cmp	 DWORD PTR _dwDevID$[ebp], 659994 ; 000a121aH
+  010f8	74 36		 je	 SHORT $L11633
+  010fa	81 7d f8 1a 12
+	0b 00		 cmp	 DWORD PTR _dwDevID$[ebp], 725530 ; 000b121aH
+  01101	74 2d		 je	 SHORT $L11633
+  01103	81 7d f8 1a 12
+	0c 00		 cmp	 DWORD PTR _dwDevID$[ebp], 791066 ; 000c121aH
+  0110a	74 24		 je	 SHORT $L11633
+  0110c	81 7d f8 1a 12
+	0d 00		 cmp	 DWORD PTR _dwDevID$[ebp], 856602 ; 000d121aH
+  01113	74 1b		 je	 SHORT $L11633
+  01115	81 7d f8 1a 12
+	0e 00		 cmp	 DWORD PTR _dwDevID$[ebp], 922138 ; 000e121aH
+  0111c	74 12		 je	 SHORT $L11633
+  0111e	81 7d f8 1a 12
+	0f 00		 cmp	 DWORD PTR _dwDevID$[ebp], 987674 ; 000f121aH
+  01125	74 09		 je	 SHORT $L11633
+  01127	81 7d f8 1a 12
+	05 00		 cmp	 DWORD PTR _dwDevID$[ebp], 332314 ; 0005121aH
+  0112e	75 13		 jne	 SHORT $L11632
+$L11633:
+
+; 1064 :                SLIDevicePrint(dwBus, dwDevFunc >> 3);
+
+  01130	8b 45 f4	 mov	 eax, DWORD PTR _dwDevFunc$[ebp]
+  01133	c1 e8 03	 shr	 eax, 3
+  01136	50		 push	 eax
+  01137	8b 4d fc	 mov	 ecx, DWORD PTR _dwBus$[ebp]
+  0113a	51		 push	 ecx
+  0113b	e8 00 00 00 00	 call	 _SLIDevicePrint
+  01140	83 c4 08	 add	 esp, 8
+$L11632:
+
+; 1065 :             }
+
+  01143	e9 5a ff ff ff	 jmp	 $L11630
+$L11631:
+  01148	e9 36 ff ff ff	 jmp	 $L11627
+$L11628:
+
+; 1067 : }     
+
+  0114d	8b e5		 mov	 esp, ebp
+  0114f	5d		 pop	 ebp
+  01150	c3		 ret	 0
+_SLIPrint ENDP
+_inOffset$ = 8
+_length$ = -4
+_BusNum$ = -8
+_DevNum$ = -12
+_SLI_Command PROC NEAR
+
+; 1085 : {
+
+  01151	55		 push	 ebp
+  01152	8b ec		 mov	 ebp, esp
+  01154	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 1086 :    DWORD length;
+; 1087 :    DWORD BusNum;
+; 1088 :    DWORD DevNum;
+; 1089 : 
+; 1090 :    BusNum = 0xFFFFFFFF;
+
+  01157	c7 45 f8 ff ff
+	ff ff		 mov	 DWORD PTR _BusNum$[ebp], -1
+
+; 1091 :    DevNum = 0xFFFFFFFF;
+
+  0115e	c7 45 f4 ff ff
+	ff ff		 mov	 DWORD PTR _DevNum$[ebp], -1
+
+; 1092 :    length = Get_Parameter( Debug_Buffer, &inOffset, 0, Delimiter_Table,
+; 1093 :                                 0,
+; 1094 :                                 Parm_Buffer, DEBUG_LENGTH - 1, 0, NULL);
+
+  01165	6a 00		 push	 0
+  01167	6a 00		 push	 0
+  01169	6a 7f		 push	 127			; 0000007fH
+  0116b	68 00 00 00 00	 push	 OFFSET FLAT:_Parm_Buffer
+  01170	6a 00		 push	 0
+  01172	68 00 00 00 00	 push	 OFFSET FLAT:_Delimiter_Table
+  01177	6a 00		 push	 0
+  01179	8d 45 08	 lea	 eax, DWORD PTR _inOffset$[ebp]
+  0117c	50		 push	 eax
+  0117d	68 00 00 00 00	 push	 OFFSET FLAT:_Debug_Buffer
+  01182	e8 00 00 00 00	 call	 _Get_Parameter
+  01187	83 c4 24	 add	 esp, 36			; 00000024H
+  0118a	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  0118f	89 45 fc	 mov	 DWORD PTR _length$[ebp], eax
+
+; 1095 : 
+; 1096 :    if (length > 0)
+
+  01192	83 7d fc 00	 cmp	 DWORD PTR _length$[ebp], 0
+  01196	76 5b		 jbe	 SHORT $L11641
+
+; 1098 :       BusNum = ConvertHex(Parm_Buffer, length);
+
+  01198	8b 4d fc	 mov	 ecx, DWORD PTR _length$[ebp]
+  0119b	51		 push	 ecx
+  0119c	68 00 00 00 00	 push	 OFFSET FLAT:_Parm_Buffer
+  011a1	e8 00 00 00 00	 call	 _ConvertHex
+  011a6	83 c4 08	 add	 esp, 8
+  011a9	89 45 f8	 mov	 DWORD PTR _BusNum$[ebp], eax
+
+; 1099 : 
+; 1100 :       length = Get_Parameter( Debug_Buffer, &inOffset, 0, Delimiter_Table,
+; 1101 :                                    0,
+; 1102 :                                    Parm_Buffer, DEBUG_LENGTH - 1, 0, NULL);
+
+  011ac	6a 00		 push	 0
+  011ae	6a 00		 push	 0
+  011b0	6a 7f		 push	 127			; 0000007fH
+  011b2	68 00 00 00 00	 push	 OFFSET FLAT:_Parm_Buffer
+  011b7	6a 00		 push	 0
+  011b9	68 00 00 00 00	 push	 OFFSET FLAT:_Delimiter_Table
+  011be	6a 00		 push	 0
+  011c0	8d 55 08	 lea	 edx, DWORD PTR _inOffset$[ebp]
+  011c3	52		 push	 edx
+  011c4	68 00 00 00 00	 push	 OFFSET FLAT:_Debug_Buffer
+  011c9	e8 00 00 00 00	 call	 _Get_Parameter
+  011ce	83 c4 24	 add	 esp, 36			; 00000024H
+  011d1	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  011d6	89 45 fc	 mov	 DWORD PTR _length$[ebp], eax
+
+; 1103 : 
+; 1104 :       if (length > 0)
+
+  011d9	83 7d fc 00	 cmp	 DWORD PTR _length$[ebp], 0
+  011dd	76 14		 jbe	 SHORT $L11641
+
+; 1106 :          DevNum = ConvertHex(Parm_Buffer, length);
+
+  011df	8b 45 fc	 mov	 eax, DWORD PTR _length$[ebp]
+  011e2	50		 push	 eax
+  011e3	68 00 00 00 00	 push	 OFFSET FLAT:_Parm_Buffer
+  011e8	e8 00 00 00 00	 call	 _ConvertHex
+  011ed	83 c4 08	 add	 esp, 8
+  011f0	89 45 f4	 mov	 DWORD PTR _DevNum$[ebp], eax
+$L11641:
+
+; 1109 :       
+; 1110 :     SLIPrint(BusNum, DevNum);
+
+  011f3	8b 4d f4	 mov	 ecx, DWORD PTR _DevNum$[ebp]
+  011f6	51		 push	 ecx
+  011f7	8b 55 f8	 mov	 edx, DWORD PTR _BusNum$[ebp]
+  011fa	52		 push	 edx
+  011fb	e8 00 00 00 00	 call	 _SLIPrint
+  01200	83 c4 08	 add	 esp, 8
+
+; 1111 :       
+; 1112 :     return FALSE;
+
+  01203	33 c0		 xor	 eax, eax
+
+; 1113 : }
+
+  01205	8b e5		 mov	 esp, ebp
+  01207	5d		 pop	 ebp
+  01208	c3		 ret	 0
+_SLI_Command ENDP
+_DB1CODE	ENDS
+PUBLIC	_our_outpb
+_DB1CODE	SEGMENT
+_addr$ = 8
+_dwData$ = 12
+_our_outpb PROC NEAR
+
+; 1127 : {
+
+  01209	55		 push	 ebp
+  0120a	8b ec		 mov	 ebp, esp
+  0120c	53		 push	 ebx
+  0120d	56		 push	 esi
+  0120e	57		 push	 edi
+
+; 1128 :    _asm {mov   edx, addr}
+
+  0120f	8b 55 08	 mov	 edx, DWORD PTR _addr$[ebp]
+
+; 1129 :    _asm {mov   eax, dwData}
+
+  01212	8b 45 0c	 mov	 eax, DWORD PTR _dwData$[ebp]
+
+; 1130 :    _asm {out   dx, al}
+
+  01215	ee		 out	 dx, al
+
+; 1131 : }
+
+  01216	5f		 pop	 edi
+  01217	5e		 pop	 esi
+  01218	5b		 pop	 ebx
+  01219	5d		 pop	 ebp
+  0121a	c3		 ret	 0
+_our_outpb ENDP
+_DB1CODE	ENDS
+PUBLIC	_our_inpb
+_DB1CODE	SEGMENT
+_Addr$ = 8
+_bReturn$ = -4
+_our_inpb PROC NEAR
+
+; 1144 : {
+
+  0121b	55		 push	 ebp
+  0121c	8b ec		 mov	 ebp, esp
+  0121e	51		 push	 ecx
+  0121f	53		 push	 ebx
+  01220	56		 push	 esi
+  01221	57		 push	 edi
+
+; 1145 :    BYTE bReturn;
+; 1146 : 
+; 1147 :    _asm {mov   edx, Addr}
+
+  01222	8b 55 08	 mov	 edx, DWORD PTR _Addr$[ebp]
+
+; 1148 :    _asm {xor   eax, eax}
+
+  01225	33 c0		 xor	 eax, eax
+
+; 1149 :    _asm {in    al, dx}
+
+  01227	ec		 in	 al, dx
+
+; 1150 :    _asm {mov   bReturn, al}
+
+  01228	88 45 fc	 mov	 BYTE PTR _bReturn$[ebp], al
+
+; 1151 : 
+; 1152 :    return bReturn;
+
+  0122b	8a 45 fc	 mov	 al, BYTE PTR _bReturn$[ebp]
+
+; 1153 : }
+
+  0122e	5f		 pop	 edi
+  0122f	5e		 pop	 esi
+  01230	5b		 pop	 ebx
+  01231	8b e5		 mov	 esp, ebp
+  01233	5d		 pop	 ebp
+  01234	c3		 ret	 0
+_our_inpb ENDP
+_DB1CODE	ENDS
+_DB2DATA	SEGMENT
+	ORG $+3
+$SG11658 DB	0aH, 'CRT Registers', 0aH, 00H
+$SG11663 DB	'CR%02x=%02x%c', 00H
+	ORG $+2
+$SG11664 DB	0aH, 'SR Registers', 0aH, 00H
+	ORG $+1
+$SG11668 DB	'SR%02x=%02x%c', 00H
+	ORG $+2
+$SG11669 DB	0aH, 'GR Registers', 0aH, 00H
+	ORG $+1
+$SG11673 DB	'GR%02x=%02x%c', 00H
+	ORG $+2
+$SG11674 DB	0aH, 'AR Registers', 0aH, 00H
+	ORG $+1
+$SG11678 DB	'AR%02x=%02x%c', 00H
+	ORG $+2
+$SG11679 DB	0aH, 'Misc Output %02x', 0aH, 00H
+_DB2DATA	ENDS
+_DB1CODE	SEGMENT
+_i$ = -8
+_iByte$ = -4
+_Reg_Command PROC NEAR
+
+; 1172 : {
+
+  01235	55		 push	 ebp
+  01236	8b ec		 mov	 ebp, esp
+  01238	83 ec 08	 sub	 esp, 8
+
+; 1173 :    int i;
+; 1174 :    BYTE iByte;
+; 1175 : 
+; 1176 :    PF("\nCRT Registers\n");
+
+  0123b	68 00 00 00 00	 push	 OFFSET FLAT:$SG11658
+  01240	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  01245	83 c4 04	 add	 esp, 4
+
+; 1177 :    for (i=0; i<0x1C; i++)
+
+  01248	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  0124f	eb 09		 jmp	 SHORT $L11659
+$L11660:
+  01251	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  01254	83 c0 01	 add	 eax, 1
+  01257	89 45 f8	 mov	 DWORD PTR _i$[ebp], eax
+$L11659:
+  0125a	83 7d f8 1c	 cmp	 DWORD PTR _i$[ebp], 28	; 0000001cH
+  0125e	7d 5f		 jge	 SHORT $L11661
+
+; 1179 :       if (0x19 == i)
+
+  01260	83 7d f8 19	 cmp	 DWORD PTR _i$[ebp], 25	; 00000019H
+  01264	75 02		 jne	 SHORT $L11662
+
+; 1180 :          continue;
+
+  01266	eb e9		 jmp	 SHORT $L11660
+$L11662:
+
+; 1181 :       our_outpb(0x3d4, i);
+
+  01268	8b 4d f8	 mov	 ecx, DWORD PTR _i$[ebp]
+  0126b	51		 push	 ecx
+  0126c	68 d4 03 00 00	 push	 980			; 000003d4H
+  01271	e8 00 00 00 00	 call	 _our_outpb
+  01276	83 c4 08	 add	 esp, 8
+
+; 1182 :       iByte = our_inpb(0x3d5);
+
+  01279	68 d5 03 00 00	 push	 981			; 000003d5H
+  0127e	e8 00 00 00 00	 call	 _our_inpb
+  01283	83 c4 04	 add	 esp, 4
+  01286	88 45 fc	 mov	 BYTE PTR _iByte$[ebp], al
+
+; 1183 :       PF("CR%02x=%02x%c", i, iByte, ((i+1)%11==0)? '\n':' ');
+
+  01289	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  0128c	83 c0 01	 add	 eax, 1
+  0128f	99		 cdq
+  01290	b9 0b 00 00 00	 mov	 ecx, 11			; 0000000bH
+  01295	f7 f9		 idiv	 ecx
+  01297	f7 da		 neg	 edx
+  01299	1b d2		 sbb	 edx, edx
+  0129b	83 e2 16	 and	 edx, 22			; 00000016H
+  0129e	83 c2 0a	 add	 edx, 10			; 0000000aH
+  012a1	52		 push	 edx
+  012a2	8b 55 fc	 mov	 edx, DWORD PTR _iByte$[ebp]
+  012a5	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  012ab	52		 push	 edx
+  012ac	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  012af	50		 push	 eax
+  012b0	68 00 00 00 00	 push	 OFFSET FLAT:$SG11663
+  012b5	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  012ba	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 1184 :       }
+
+  012bd	eb 92		 jmp	 SHORT $L11660
+$L11661:
+
+; 1185 : 
+; 1186 :    PF("\nSR Registers\n");
+
+  012bf	68 00 00 00 00	 push	 OFFSET FLAT:$SG11664
+  012c4	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  012c9	83 c4 04	 add	 esp, 4
+
+; 1187 :    for (i=0; i<0x4; i++)
+
+  012cc	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  012d3	eb 09		 jmp	 SHORT $L11665
+$L11666:
+  012d5	8b 4d f8	 mov	 ecx, DWORD PTR _i$[ebp]
+  012d8	83 c1 01	 add	 ecx, 1
+  012db	89 4d f8	 mov	 DWORD PTR _i$[ebp], ecx
+$L11665:
+  012de	83 7d f8 04	 cmp	 DWORD PTR _i$[ebp], 4
+  012e2	7d 57		 jge	 SHORT $L11667
+
+; 1189 :       our_outpb(0x3c4, i);
+
+  012e4	8b 55 f8	 mov	 edx, DWORD PTR _i$[ebp]
+  012e7	52		 push	 edx
+  012e8	68 c4 03 00 00	 push	 964			; 000003c4H
+  012ed	e8 00 00 00 00	 call	 _our_outpb
+  012f2	83 c4 08	 add	 esp, 8
+
+; 1190 :       iByte = our_inpb(0x3c5);
+
+  012f5	68 c5 03 00 00	 push	 965			; 000003c5H
+  012fa	e8 00 00 00 00	 call	 _our_inpb
+  012ff	83 c4 04	 add	 esp, 4
+  01302	88 45 fc	 mov	 BYTE PTR _iByte$[ebp], al
+
+; 1191 :       PF("SR%02x=%02x%c", i, iByte, ((i+1)%11==0)? '\n':' ');
+
+  01305	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  01308	83 c0 01	 add	 eax, 1
+  0130b	99		 cdq
+  0130c	b9 0b 00 00 00	 mov	 ecx, 11			; 0000000bH
+  01311	f7 f9		 idiv	 ecx
+  01313	f7 da		 neg	 edx
+  01315	1b d2		 sbb	 edx, edx
+  01317	83 e2 16	 and	 edx, 22			; 00000016H
+  0131a	83 c2 0a	 add	 edx, 10			; 0000000aH
+  0131d	52		 push	 edx
+  0131e	8b 55 fc	 mov	 edx, DWORD PTR _iByte$[ebp]
+  01321	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  01327	52		 push	 edx
+  01328	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  0132b	50		 push	 eax
+  0132c	68 00 00 00 00	 push	 OFFSET FLAT:$SG11668
+  01331	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  01336	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 1192 :       }
+
+  01339	eb 9a		 jmp	 SHORT $L11666
+$L11667:
+
+; 1193 : 
+; 1194 :    PF("\nGR Registers\n");
+
+  0133b	68 00 00 00 00	 push	 OFFSET FLAT:$SG11669
+  01340	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  01345	83 c4 04	 add	 esp, 4
+
+; 1195 :    for (i=0; i<0x8; i++)
+
+  01348	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  0134f	eb 09		 jmp	 SHORT $L11670
+$L11671:
+  01351	8b 4d f8	 mov	 ecx, DWORD PTR _i$[ebp]
+  01354	83 c1 01	 add	 ecx, 1
+  01357	89 4d f8	 mov	 DWORD PTR _i$[ebp], ecx
+$L11670:
+  0135a	83 7d f8 08	 cmp	 DWORD PTR _i$[ebp], 8
+  0135e	7d 57		 jge	 SHORT $L11672
+
+; 1197 :       our_outpb(0x3ce, i);
+
+  01360	8b 55 f8	 mov	 edx, DWORD PTR _i$[ebp]
+  01363	52		 push	 edx
+  01364	68 ce 03 00 00	 push	 974			; 000003ceH
+  01369	e8 00 00 00 00	 call	 _our_outpb
+  0136e	83 c4 08	 add	 esp, 8
+
+; 1198 :       iByte = our_inpb(0x3cf);
+
+  01371	68 cf 03 00 00	 push	 975			; 000003cfH
+  01376	e8 00 00 00 00	 call	 _our_inpb
+  0137b	83 c4 04	 add	 esp, 4
+  0137e	88 45 fc	 mov	 BYTE PTR _iByte$[ebp], al
+
+; 1199 :       PF("GR%02x=%02x%c", i, iByte, ((i+1)%11==0)? '\n':' ');
+
+  01381	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  01384	83 c0 01	 add	 eax, 1
+  01387	99		 cdq
+  01388	b9 0b 00 00 00	 mov	 ecx, 11			; 0000000bH
+  0138d	f7 f9		 idiv	 ecx
+  0138f	f7 da		 neg	 edx
+  01391	1b d2		 sbb	 edx, edx
+  01393	83 e2 16	 and	 edx, 22			; 00000016H
+  01396	83 c2 0a	 add	 edx, 10			; 0000000aH
+  01399	52		 push	 edx
+  0139a	8b 55 fc	 mov	 edx, DWORD PTR _iByte$[ebp]
+  0139d	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  013a3	52		 push	 edx
+  013a4	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  013a7	50		 push	 eax
+  013a8	68 00 00 00 00	 push	 OFFSET FLAT:$SG11673
+  013ad	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  013b2	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 1200 :       }
+
+  013b5	eb 9a		 jmp	 SHORT $L11671
+$L11672:
+
+; 1201 : 
+; 1202 :    PF("\nAR Registers\n");
+
+  013b7	68 00 00 00 00	 push	 OFFSET FLAT:$SG11674
+  013bc	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  013c1	83 c4 04	 add	 esp, 4
+
+; 1203 :    for (i=0; i<0x14; i++)
+
+  013c4	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  013cb	eb 09		 jmp	 SHORT $L11675
+$L11676:
+  013cd	8b 4d f8	 mov	 ecx, DWORD PTR _i$[ebp]
+  013d0	83 c1 01	 add	 ecx, 1
+  013d3	89 4d f8	 mov	 DWORD PTR _i$[ebp], ecx
+$L11675:
+  013d6	83 7d f8 14	 cmp	 DWORD PTR _i$[ebp], 20	; 00000014H
+  013da	7d 64		 jge	 SHORT $L11677
+
+; 1205 :       our_inpb(0x3da);
+
+  013dc	68 da 03 00 00	 push	 986			; 000003daH
+  013e1	e8 00 00 00 00	 call	 _our_inpb
+  013e6	83 c4 04	 add	 esp, 4
+
+; 1206 :       our_outpb(0x3c0, i);
+
+  013e9	8b 55 f8	 mov	 edx, DWORD PTR _i$[ebp]
+  013ec	52		 push	 edx
+  013ed	68 c0 03 00 00	 push	 960			; 000003c0H
+  013f2	e8 00 00 00 00	 call	 _our_outpb
+  013f7	83 c4 08	 add	 esp, 8
+
+; 1207 :       iByte = our_inpb(0x3c1);
+
+  013fa	68 c1 03 00 00	 push	 961			; 000003c1H
+  013ff	e8 00 00 00 00	 call	 _our_inpb
+  01404	83 c4 04	 add	 esp, 4
+  01407	88 45 fc	 mov	 BYTE PTR _iByte$[ebp], al
+
+; 1208 :       PF("AR%02x=%02x%c", i, iByte, ((i+1)%11==0)? '\n':' ');
+
+  0140a	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  0140d	83 c0 01	 add	 eax, 1
+  01410	99		 cdq
+  01411	b9 0b 00 00 00	 mov	 ecx, 11			; 0000000bH
+  01416	f7 f9		 idiv	 ecx
+  01418	f7 da		 neg	 edx
+  0141a	1b d2		 sbb	 edx, edx
+  0141c	83 e2 16	 and	 edx, 22			; 00000016H
+  0141f	83 c2 0a	 add	 edx, 10			; 0000000aH
+  01422	52		 push	 edx
+  01423	8b 55 fc	 mov	 edx, DWORD PTR _iByte$[ebp]
+  01426	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  0142c	52		 push	 edx
+  0142d	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  01430	50		 push	 eax
+  01431	68 00 00 00 00	 push	 OFFSET FLAT:$SG11678
+  01436	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  0143b	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 1209 :       }
+
+  0143e	eb 8d		 jmp	 SHORT $L11676
+$L11677:
+
+; 1210 : 
+; 1211 :    PF("\nMisc Output %02x\n", our_inpb(0x3cc));
+
+  01440	68 cc 03 00 00	 push	 972			; 000003ccH
+  01445	e8 00 00 00 00	 call	 _our_inpb
+  0144a	83 c4 04	 add	 esp, 4
+  0144d	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  01452	50		 push	 eax
+  01453	68 00 00 00 00	 push	 OFFSET FLAT:$SG11679
+  01458	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  0145d	83 c4 08	 add	 esp, 8
+
+; 1212 : 
+; 1213 :    return FALSE;
+
+  01460	33 c0		 xor	 eax, eax
+
+; 1214 : }
+
+  01462	8b e5		 mov	 esp, ebp
+  01464	5d		 pop	 ebp
+  01465	c3		 ret	 0
+_Reg_Command ENDP
+_DB1CODE	ENDS
+EXTRN	_SetVideoMode:NEAR
+EXTRN	_DevTable:BYTE
+EXTRN	_DevNodeandUnitNumtoIORegs:NEAR
+EXTRN	_h3InitSetVideoMode:NEAR
+_DB1CODE	SEGMENT
+_i$ = -1040
+_vidProcCfg$ = -1036
+_Palette$ = -1024
+_dacData$ = -1044
+_dacAddr$ = -1032
+_lpIORegs$ = -1028
+_Mode_Command PROC NEAR
+
+; 1235 : {
+
+  01466	55		 push	 ebp
+  01467	8b ec		 mov	 ebp, esp
+  01469	81 ec 14 04 00
+	00		 sub	 esp, 1044		; 00000414H
+
+; 1236 : #ifdef SLI_AA
+; 1237 :    int i;
+; 1238 :    DWORD vidProcCfg;
+; 1239 :    DWORD Palette[256];
+; 1240 :    DWORD dacData;
+; 1241 :    DWORD dacAddr;
+; 1242 :    SstIORegs *lpIORegs = DevNodeandUnitNumtoIORegs(DevTable[0].dwDevNode, 0x0);
+
+  0146f	6a 00		 push	 0
+  01471	a1 00 00 00 00	 mov	 eax, DWORD PTR _DevTable
+  01476	50		 push	 eax
+  01477	e8 00 00 00 00	 call	 _DevNodeandUnitNumtoIORegs
+  0147c	83 c4 08	 add	 esp, 8
+  0147f	89 85 fc fb ff
+	ff		 mov	 DWORD PTR _lpIORegs$[ebp], eax
+
+; 1243 :    
+; 1244 :    vidProcCfg = lpIORegs->vidProcCfg;
+
+  01485	8b 8d fc fb ff
+	ff		 mov	 ecx, DWORD PTR _lpIORegs$[ebp]
+  0148b	8b 51 5c	 mov	 edx, DWORD PTR [ecx+92]
+  0148e	89 95 f4 fb ff
+	ff		 mov	 DWORD PTR _vidProcCfg$[ebp], edx
+
+; 1245 : 
+; 1246 :    for (i=0; i<256; i++)
+
+  01494	c7 85 f0 fb ff
+	ff 00 00 00 00	 mov	 DWORD PTR _i$[ebp], 0
+  0149e	eb 0f		 jmp	 SHORT $L11694
+$L11695:
+  014a0	8b 85 f0 fb ff
+	ff		 mov	 eax, DWORD PTR _i$[ebp]
+  014a6	83 c0 01	 add	 eax, 1
+  014a9	89 85 f0 fb ff
+	ff		 mov	 DWORD PTR _i$[ebp], eax
+$L11694:
+  014af	81 bd f0 fb ff
+	ff 00 01 00 00	 cmp	 DWORD PTR _i$[ebp], 256	; 00000100H
+  014b9	7d 45		 jge	 SHORT $L11696
+
+; 1248 :       lpIORegs->dacAddr = i;
+
+  014bb	8b 8d fc fb ff
+	ff		 mov	 ecx, DWORD PTR _lpIORegs$[ebp]
+  014c1	8b 95 f0 fb ff
+	ff		 mov	 edx, DWORD PTR _i$[ebp]
+  014c7	89 51 50	 mov	 DWORD PTR [ecx+80], edx
+
+; 1249 :       dacAddr = lpIORegs->dacAddr;
+
+  014ca	8b 85 fc fb ff
+	ff		 mov	 eax, DWORD PTR _lpIORegs$[ebp]
+  014d0	8b 48 50	 mov	 ecx, DWORD PTR [eax+80]
+  014d3	89 8d f8 fb ff
+	ff		 mov	 DWORD PTR _dacAddr$[ebp], ecx
+
+; 1250 :       Palette[i] = lpIORegs->dacData;
+
+  014d9	8b 95 f0 fb ff
+	ff		 mov	 edx, DWORD PTR _i$[ebp]
+  014df	8b 85 fc fb ff
+	ff		 mov	 eax, DWORD PTR _lpIORegs$[ebp]
+  014e5	8b 48 54	 mov	 ecx, DWORD PTR [eax+84]
+  014e8	89 8c 95 00 fc
+	ff ff		 mov	 DWORD PTR _Palette$[ebp+edx*4], ecx
+
+; 1251 :       dacData = lpIORegs->dacData;
+
+  014ef	8b 95 fc fb ff
+	ff		 mov	 edx, DWORD PTR _lpIORegs$[ebp]
+  014f5	8b 42 54	 mov	 eax, DWORD PTR [edx+84]
+  014f8	89 85 ec fb ff
+	ff		 mov	 DWORD PTR _dacData$[ebp], eax
+
+; 1252 :       }
+
+  014fe	eb a0		 jmp	 SHORT $L11695
+$L11696:
+
+; 1253 :    
+; 1254 :    h3InitSetVideoMode(&DevTable[0], 640, 480, 60, 0x0, 0);
+
+  01500	6a 00		 push	 0
+  01502	6a 00		 push	 0
+  01504	6a 3c		 push	 60			; 0000003cH
+  01506	68 e0 01 00 00	 push	 480			; 000001e0H
+  0150b	68 80 02 00 00	 push	 640			; 00000280H
+  01510	68 00 00 00 00	 push	 OFFSET FLAT:_DevTable
+  01515	e8 00 00 00 00	 call	 _h3InitSetVideoMode
+  0151a	83 c4 18	 add	 esp, 24			; 00000018H
+
+; 1255 :    SetVideoMode(&DevTable[0].Vpc, &DevTable[0]);
+
+  0151d	68 00 00 00 00	 push	 OFFSET FLAT:_DevTable
+  01522	68 48 02 00 00	 push	 OFFSET FLAT:_DevTable+584
+  01527	e8 00 00 00 00	 call	 _SetVideoMode
+  0152c	83 c4 08	 add	 esp, 8
+
+; 1256 :    lpIORegs->vidProcCfg = vidProcCfg;
+
+  0152f	8b 8d fc fb ff
+	ff		 mov	 ecx, DWORD PTR _lpIORegs$[ebp]
+  01535	8b 95 f4 fb ff
+	ff		 mov	 edx, DWORD PTR _vidProcCfg$[ebp]
+  0153b	89 51 5c	 mov	 DWORD PTR [ecx+92], edx
+
+; 1257 : 
+; 1258 :    for (i=0; i<256; i++)
+
+  0153e	c7 85 f0 fb ff
+	ff 00 00 00 00	 mov	 DWORD PTR _i$[ebp], 0
+  01548	eb 0f		 jmp	 SHORT $L11697
+$L11698:
+  0154a	8b 85 f0 fb ff
+	ff		 mov	 eax, DWORD PTR _i$[ebp]
+  01550	83 c0 01	 add	 eax, 1
+  01553	89 85 f0 fb ff
+	ff		 mov	 DWORD PTR _i$[ebp], eax
+$L11697:
+  01559	81 bd f0 fb ff
+	ff 00 01 00 00	 cmp	 DWORD PTR _i$[ebp], 256	; 00000100H
+  01563	7d 45		 jge	 SHORT $L11699
+
+; 1260 :       lpIORegs->dacAddr = i;
+
+  01565	8b 8d fc fb ff
+	ff		 mov	 ecx, DWORD PTR _lpIORegs$[ebp]
+  0156b	8b 95 f0 fb ff
+	ff		 mov	 edx, DWORD PTR _i$[ebp]
+  01571	89 51 50	 mov	 DWORD PTR [ecx+80], edx
+
+; 1261 :       dacAddr = lpIORegs->dacAddr;
+
+  01574	8b 85 fc fb ff
+	ff		 mov	 eax, DWORD PTR _lpIORegs$[ebp]
+  0157a	8b 48 50	 mov	 ecx, DWORD PTR [eax+80]
+  0157d	89 8d f8 fb ff
+	ff		 mov	 DWORD PTR _dacAddr$[ebp], ecx
+
+; 1262 :       lpIORegs->dacData = Palette[i];
+
+  01583	8b 95 fc fb ff
+	ff		 mov	 edx, DWORD PTR _lpIORegs$[ebp]
+  01589	8b 85 f0 fb ff
+	ff		 mov	 eax, DWORD PTR _i$[ebp]
+  0158f	8b 8c 85 00 fc
+	ff ff		 mov	 ecx, DWORD PTR _Palette$[ebp+eax*4]
+  01596	89 4a 54	 mov	 DWORD PTR [edx+84], ecx
+
+; 1263 :       dacData = lpIORegs->dacData;
+
+  01599	8b 95 fc fb ff
+	ff		 mov	 edx, DWORD PTR _lpIORegs$[ebp]
+  0159f	8b 42 54	 mov	 eax, DWORD PTR [edx+84]
+  015a2	89 85 ec fb ff
+	ff		 mov	 DWORD PTR _dacData$[ebp], eax
+
+; 1264 :       }
+
+  015a8	eb a0		 jmp	 SHORT $L11698
+$L11699:
+
+; 1265 :  #endif
+; 1266 :    return FALSE;
+
+  015aa	33 c0		 xor	 eax, eax
+
+; 1267 : }
+
+  015ac	8b e5		 mov	 esp, ebp
+  015ae	5d		 pop	 ebp
+  015af	c3		 ret	 0
+_Mode_Command ENDP
+_DB1CODE	ENDS
+EXTRN	_cpuFeatures:BYTE
+EXTRN	_GetMTRR:NEAR
+_DB2DATA	SEGMENT
+	ORG $+1
+$SG11710 DB	'Processor does not support P6-style MTRRs', 0aH, 00H
+	ORG $+1
+$SG11712 DB	0aH, 00H
+	ORG $+2
+$SG11716 DB	'%08x %08x %08x', 0aH, '%08x %08x %08x', 0aH, 00H
+_DB2DATA	ENDS
+_DB1CODE	SEGMENT
+_Mtrr$ = -8
+_mtrr1Lo$ = -20
+_mtrr1Hi$ = -4
+_mtrr2Lo$ = -16
+_mtrr2Hi$ = -12
+_Mtrr_Command PROC NEAR
+
+; 1291 : {
+
+  015b0	55		 push	 ebp
+  015b1	8b ec		 mov	 ebp, esp
+  015b3	83 ec 14	 sub	 esp, 20			; 00000014H
+
+; 1292 :    DWORD Mtrr;
+; 1293 :    DWORD mtrr1Lo;
+; 1294 :    DWORD mtrr1Hi;
+; 1295 :    DWORD mtrr2Lo;
+; 1296 :    DWORD mtrr2Hi;
+; 1297 : 
+; 1298 : #ifdef WINNT	// OLD CPUID CODE
+; 1299 :    if (!isP6)
+; 1300 :       {
+; 1301 :       PF("Processor is not a P6 or greater\n");
+; 1302 :       }
+; 1303 :    else if (isP6 == P6_AMDK6_MTRRS)
+; 1304 :       {
+; 1305 :       PF("Processor is not a Genuine Intel or greater\n");
+; 1306 :       }
+; 1307 : #else
+; 1308 :    if (! (cpuFeatures.dwCpuFlags & CPU_FEATURE_P6_MTRR))
+
+  015b6	a1 00 00 00 00	 mov	 eax, DWORD PTR _cpuFeatures
+  015bb	25 00 08 00 00	 and	 eax, 2048		; 00000800H
+  015c0	85 c0		 test	 eax, eax
+  015c2	75 0f		 jne	 SHORT $L11709
+
+; 1310 :       PF("Processor does not support P6-style MTRRs\n");
+
+  015c4	68 00 00 00 00	 push	 OFFSET FLAT:$SG11710
+  015c9	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  015ce	83 c4 04	 add	 esp, 4
+
+; 1312 : #endif
+; 1313 :    else
+
+  015d1	eb 7d		 jmp	 SHORT $L11715
+$L11709:
+
+; 1315 :       PF("\n");
+
+  015d3	68 00 00 00 00	 push	 OFFSET FLAT:$SG11712
+  015d8	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  015dd	83 c4 04	 add	 esp, 4
+
+; 1316 :       for (Mtrr = 0x200; Mtrr <=0x20e; Mtrr+=2)
+
+  015e0	c7 45 f8 00 02
+	00 00		 mov	 DWORD PTR _Mtrr$[ebp], 512 ; 00000200H
+  015e7	eb 09		 jmp	 SHORT $L11713
+$L11714:
+  015e9	8b 4d f8	 mov	 ecx, DWORD PTR _Mtrr$[ebp]
+  015ec	83 c1 02	 add	 ecx, 2
+  015ef	89 4d f8	 mov	 DWORD PTR _Mtrr$[ebp], ecx
+$L11713:
+  015f2	81 7d f8 0e 02
+	00 00		 cmp	 DWORD PTR _Mtrr$[ebp], 526 ; 0000020eH
+  015f9	77 55		 ja	 SHORT $L11715
+
+; 1318 : 		   GetMTRR(Mtrr, &mtrr1Lo, &mtrr1Hi);
+
+  015fb	8d 55 fc	 lea	 edx, DWORD PTR _mtrr1Hi$[ebp]
+  015fe	52		 push	 edx
+  015ff	8d 45 ec	 lea	 eax, DWORD PTR _mtrr1Lo$[ebp]
+  01602	50		 push	 eax
+  01603	8b 4d f8	 mov	 ecx, DWORD PTR _Mtrr$[ebp]
+  01606	51		 push	 ecx
+  01607	e8 00 00 00 00	 call	 _GetMTRR
+  0160c	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 1319 : 		   GetMTRR(Mtrr + 1, &mtrr2Lo, &mtrr2Hi);    
+
+  0160f	8d 55 f4	 lea	 edx, DWORD PTR _mtrr2Hi$[ebp]
+  01612	52		 push	 edx
+  01613	8d 45 f0	 lea	 eax, DWORD PTR _mtrr2Lo$[ebp]
+  01616	50		 push	 eax
+  01617	8b 4d f8	 mov	 ecx, DWORD PTR _Mtrr$[ebp]
+  0161a	83 c1 01	 add	 ecx, 1
+  0161d	51		 push	 ecx
+  0161e	e8 00 00 00 00	 call	 _GetMTRR
+  01623	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 1320 :          PF("%08x %08x %08x\n%08x %08x %08x\n", Mtrr, mtrr1Lo, mtrr1Hi, Mtrr+1, mtrr2Lo, mtrr2Hi);
+
+  01626	8b 55 f4	 mov	 edx, DWORD PTR _mtrr2Hi$[ebp]
+  01629	52		 push	 edx
+  0162a	8b 45 f0	 mov	 eax, DWORD PTR _mtrr2Lo$[ebp]
+  0162d	50		 push	 eax
+  0162e	8b 4d f8	 mov	 ecx, DWORD PTR _Mtrr$[ebp]
+  01631	83 c1 01	 add	 ecx, 1
+  01634	51		 push	 ecx
+  01635	8b 55 fc	 mov	 edx, DWORD PTR _mtrr1Hi$[ebp]
+  01638	52		 push	 edx
+  01639	8b 45 ec	 mov	 eax, DWORD PTR _mtrr1Lo$[ebp]
+  0163c	50		 push	 eax
+  0163d	8b 4d f8	 mov	 ecx, DWORD PTR _Mtrr$[ebp]
+  01640	51		 push	 ecx
+  01641	68 00 00 00 00	 push	 OFFSET FLAT:$SG11716
+  01646	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  0164b	83 c4 1c	 add	 esp, 28			; 0000001cH
+
+; 1321 :          }
+
+  0164e	eb 99		 jmp	 SHORT $L11714
+$L11715:
+
+; 1323 :    return FALSE;
+
+  01650	33 c0		 xor	 eax, eax
+
+; 1324 : }
+
+  01652	8b e5		 mov	 esp, ebp
+  01654	5d		 pop	 ebp
+  01655	c3		 ret	 0
+_Mtrr_Command ENDP
+_DB1CODE	ENDS
+_DB2DATA	SEGMENT
+	ORG $+1
+$SG11723 DB	0aH, 'Host Chip Set %08x', 0aH, 00H
+	ORG $+3
+$SG11724 DB	'AGP Cap %08x', 0aH, 00H
+	ORG $+2
+$SG11725 DB	'AGP Status %08x', 0aH, 00H
+	ORG $+3
+$SG11726 DB	'AGP Command %08x', 0aH, 00H
+	ORG $+2
+$SG11732 DB	'AGP Card Found Bus %x DevFunc %x', 0aH, 00H
+	ORG $+2
+$SG11733 DB	'AGP Status %x', 0aH, 00H
+	ORG $+1
+$SG11734 DB	'AGP Command %x', 0aH, 00H
+_DB2DATA	ENDS
+_DB1CODE	SEGMENT
+_pDev$ = -4
+_dwData$ = -12
+_i$ = -8
+_AGP_Command PROC NEAR
+
+; 1341 : {
+
+  01656	55		 push	 ebp
+  01657	8b ec		 mov	 ebp, esp
+  01659	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 1342 :    PDEVTABLE pDev;
+; 1343 :    DWORD dwData;
+; 1344 :    int i;
+; 1345 :    
+; 1346 :    PF("\nHost Chip Set %08x\n", PCI_Read_Config(0x0, 0x0,  0x0));
+
+  0165c	6a 00		 push	 0
+  0165e	6a 00		 push	 0
+  01660	6a 00		 push	 0
+  01662	e8 00 00 00 00	 call	 _PCI_Read_Config
+  01667	83 c4 0c	 add	 esp, 12			; 0000000cH
+  0166a	50		 push	 eax
+  0166b	68 00 00 00 00	 push	 OFFSET FLAT:$SG11723
+  01670	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  01675	83 c4 08	 add	 esp, 8
+
+; 1347 :    PF("AGP Cap %08x\n", PCI_Read_Config(0x0, 0x0,  0xA0));
+
+  01678	68 a0 00 00 00	 push	 160			; 000000a0H
+  0167d	6a 00		 push	 0
+  0167f	6a 00		 push	 0
+  01681	e8 00 00 00 00	 call	 _PCI_Read_Config
+  01686	83 c4 0c	 add	 esp, 12			; 0000000cH
+  01689	50		 push	 eax
+  0168a	68 00 00 00 00	 push	 OFFSET FLAT:$SG11724
+  0168f	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  01694	83 c4 08	 add	 esp, 8
+
+; 1348 :    PF("AGP Status %08x\n", PCI_Read_Config(0x0, 0x0,  0xA4));
+
+  01697	68 a4 00 00 00	 push	 164			; 000000a4H
+  0169c	6a 00		 push	 0
+  0169e	6a 00		 push	 0
+  016a0	e8 00 00 00 00	 call	 _PCI_Read_Config
+  016a5	83 c4 0c	 add	 esp, 12			; 0000000cH
+  016a8	50		 push	 eax
+  016a9	68 00 00 00 00	 push	 OFFSET FLAT:$SG11725
+  016ae	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  016b3	83 c4 08	 add	 esp, 8
+
+; 1349 :    PF("AGP Command %08x\n", PCI_Read_Config(0x0, 0x0,  0xA8));
+
+  016b6	68 a8 00 00 00	 push	 168			; 000000a8H
+  016bb	6a 00		 push	 0
+  016bd	6a 00		 push	 0
+  016bf	e8 00 00 00 00	 call	 _PCI_Read_Config
+  016c4	83 c4 0c	 add	 esp, 12			; 0000000cH
+  016c7	50		 push	 eax
+  016c8	68 00 00 00 00	 push	 OFFSET FLAT:$SG11726
+  016cd	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  016d2	83 c4 08	 add	 esp, 8
+
+; 1350 : 
+; 1351 :    for (i=0; i<MAX_BANSHEE_DEVICES; i++)
+
+  016d5	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  016dc	eb 09		 jmp	 SHORT $L11727
+$L11728:
+  016de	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  016e1	83 c0 01	 add	 eax, 1
+  016e4	89 45 f8	 mov	 DWORD PTR _i$[ebp], eax
+$L11727:
+  016e7	83 7d f8 10	 cmp	 DWORD PTR _i$[ebp], 16	; 00000010H
+  016eb	0f 8d 9b 00 00
+	00		 jge	 $L11729
+
+; 1353 :       pDev = &DevTable[i];
+
+  016f1	8b 4d f8	 mov	 ecx, DWORD PTR _i$[ebp]
+  016f4	69 c9 4c 06 00
+	00		 imul	 ecx, 1612		; 0000064cH
+  016fa	81 c1 00 00 00
+	00		 add	 ecx, OFFSET FLAT:_DevTable
+  01700	89 4d fc	 mov	 DWORD PTR _pDev$[ebp], ecx
+
+; 1354 :       if (0x0 != pDev->dwDevNode)
+
+  01703	8b 55 fc	 mov	 edx, DWORD PTR _pDev$[ebp]
+  01706	83 3a 00	 cmp	 DWORD PTR [edx], 0
+  01709	74 7c		 je	 SHORT $L11731
+
+; 1356 :          if (0x0 == pDev->dwPCI)
+
+  0170b	8b 45 fc	 mov	 eax, DWORD PTR _pDev$[ebp]
+  0170e	83 78 50 00	 cmp	 DWORD PTR [eax+80], 0
+  01712	75 73		 jne	 SHORT $L11731
+
+; 1358 :             PF("AGP Card Found Bus %x DevFunc %x\n", pDev->dwBus, pDev->dwDevFunc);
+
+  01714	8b 4d fc	 mov	 ecx, DWORD PTR _pDev$[ebp]
+  01717	8b 51 0c	 mov	 edx, DWORD PTR [ecx+12]
+  0171a	52		 push	 edx
+  0171b	8b 45 fc	 mov	 eax, DWORD PTR _pDev$[ebp]
+  0171e	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  01721	51		 push	 ecx
+  01722	68 00 00 00 00	 push	 OFFSET FLAT:$SG11732
+  01727	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  0172c	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 1359 :             dwData = PCI_Read_Config(pDev->dwBus, pDev->dwDevFunc,  0x58);
+
+  0172f	6a 58		 push	 88			; 00000058H
+  01731	8b 55 fc	 mov	 edx, DWORD PTR _pDev$[ebp]
+  01734	8b 42 0c	 mov	 eax, DWORD PTR [edx+12]
+  01737	50		 push	 eax
+  01738	8b 4d fc	 mov	 ecx, DWORD PTR _pDev$[ebp]
+  0173b	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  0173e	52		 push	 edx
+  0173f	e8 00 00 00 00	 call	 _PCI_Read_Config
+  01744	83 c4 0c	 add	 esp, 12			; 0000000cH
+  01747	89 45 f4	 mov	 DWORD PTR _dwData$[ebp], eax
+
+; 1360 :             PF("AGP Status %x\n", dwData);
+
+  0174a	8b 45 f4	 mov	 eax, DWORD PTR _dwData$[ebp]
+  0174d	50		 push	 eax
+  0174e	68 00 00 00 00	 push	 OFFSET FLAT:$SG11733
+  01753	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  01758	83 c4 08	 add	 esp, 8
+
+; 1361 :             dwData = PCI_Read_Config(pDev->dwBus, pDev->dwDevFunc,  0x5c);
+
+  0175b	6a 5c		 push	 92			; 0000005cH
+  0175d	8b 4d fc	 mov	 ecx, DWORD PTR _pDev$[ebp]
+  01760	8b 51 0c	 mov	 edx, DWORD PTR [ecx+12]
+  01763	52		 push	 edx
+  01764	8b 45 fc	 mov	 eax, DWORD PTR _pDev$[ebp]
+  01767	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  0176a	51		 push	 ecx
+  0176b	e8 00 00 00 00	 call	 _PCI_Read_Config
+  01770	83 c4 0c	 add	 esp, 12			; 0000000cH
+  01773	89 45 f4	 mov	 DWORD PTR _dwData$[ebp], eax
+
+; 1362 :             PF("AGP Command %x\n", dwData);
+
+  01776	8b 55 f4	 mov	 edx, DWORD PTR _dwData$[ebp]
+  01779	52		 push	 edx
+  0177a	68 00 00 00 00	 push	 OFFSET FLAT:$SG11734
+  0177f	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  01784	83 c4 08	 add	 esp, 8
+$L11731:
+
+; 1365 :       }
+
+  01787	e9 52 ff ff ff	 jmp	 $L11728
+$L11729:
+
+; 1366 :    return FALSE;
+
+  0178c	33 c0		 xor	 eax, eax
+
+; 1367 : }
+
+  0178e	8b e5		 mov	 esp, ebp
+  01790	5d		 pop	 ebp
+  01791	c3		 ret	 0
+_AGP_Command ENDP
+_DB1CODE	ENDS
+EXTRN	_Output_Clock:NEAR
+EXTRN	_S2S1S0:BYTE
+_DB2DATA	SEGMENT
+$SG11752 DB	0aH, 'New Clock s=%x v=%x r=%x', 0aH, 00H
+	ORG $+1
+$SG11754 DB	0aH, 'Error in Parameter Clock s=%08x v=%08x r=%08x', 0aH
+	DB	00H
+_DB2DATA	ENDS
+_DB1CODE	SEGMENT
+_inOffset$ = 8
+_length$ = -28
+_dwWrite$ = -32
+_s$ = -8
+_v$ = -24
+_r$ = -4
+_i$ = -36
+_dwP$ = -20
+_Clock_Command PROC NEAR
+
+; 1385 : {
+
+  01792	55		 push	 ebp
+  01793	8b ec		 mov	 ebp, esp
+  01795	83 ec 24	 sub	 esp, 36			; 00000024H
+
+; 1386 :    DWORD length;
+; 1387 :    DWORD dwWrite;
+; 1388 :    DWORD s;
+; 1389 :    DWORD v;
+; 1390 :    DWORD r;
+; 1391 :    DWORD i;
+; 1392 :    DWORD * dwP[3] = {&s, &v, &r};
+
+  01798	8d 45 f8	 lea	 eax, DWORD PTR _s$[ebp]
+  0179b	89 45 ec	 mov	 DWORD PTR _dwP$[ebp], eax
+  0179e	8d 4d e8	 lea	 ecx, DWORD PTR _v$[ebp]
+  017a1	89 4d f0	 mov	 DWORD PTR _dwP$[ebp+4], ecx
+  017a4	8d 55 fc	 lea	 edx, DWORD PTR _r$[ebp]
+  017a7	89 55 f4	 mov	 DWORD PTR _dwP$[ebp+8], edx
+
+; 1393 :    extern DWORD S2S1S0[];
+; 1394 : 
+; 1395 :    dwWrite = 1;
+
+  017aa	c7 45 e0 01 00
+	00 00		 mov	 DWORD PTR _dwWrite$[ebp], 1
+
+; 1396 :    for (i=0; i<3; i++)
+
+  017b1	c7 45 dc 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  017b8	eb 09		 jmp	 SHORT $L11746
+$L11747:
+  017ba	8b 45 dc	 mov	 eax, DWORD PTR _i$[ebp]
+  017bd	83 c0 01	 add	 eax, 1
+  017c0	89 45 dc	 mov	 DWORD PTR _i$[ebp], eax
+$L11746:
+  017c3	83 7d dc 03	 cmp	 DWORD PTR _i$[ebp], 3
+  017c7	73 6f		 jae	 SHORT $L11748
+
+; 1398 :       *dwP[i] = 0xFFFFFFFF;
+
+  017c9	8b 4d dc	 mov	 ecx, DWORD PTR _i$[ebp]
+  017cc	8b 54 8d ec	 mov	 edx, DWORD PTR _dwP$[ebp+ecx*4]
+  017d0	c7 02 ff ff ff
+	ff		 mov	 DWORD PTR [edx], -1
+
+; 1399 :       length = Get_Parameter( Debug_Buffer, &inOffset, 0, Delimiter_Table,
+; 1400 :                                 0,
+; 1401 :                                 Parm_Buffer, DEBUG_LENGTH - 1, 0, NULL);
+
+  017d6	6a 00		 push	 0
+  017d8	6a 00		 push	 0
+  017da	6a 7f		 push	 127			; 0000007fH
+  017dc	68 00 00 00 00	 push	 OFFSET FLAT:_Parm_Buffer
+  017e1	6a 00		 push	 0
+  017e3	68 00 00 00 00	 push	 OFFSET FLAT:_Delimiter_Table
+  017e8	6a 00		 push	 0
+  017ea	8d 45 08	 lea	 eax, DWORD PTR _inOffset$[ebp]
+  017ed	50		 push	 eax
+  017ee	68 00 00 00 00	 push	 OFFSET FLAT:_Debug_Buffer
+  017f3	e8 00 00 00 00	 call	 _Get_Parameter
+  017f8	83 c4 24	 add	 esp, 36			; 00000024H
+  017fb	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  01800	89 45 e4	 mov	 DWORD PTR _length$[ebp], eax
+
+; 1402 :       if (length > 0)
+
+  01803	83 7d e4 00	 cmp	 DWORD PTR _length$[ebp], 0
+  01807	76 1a		 jbe	 SHORT $L11749
+
+; 1403 :          *dwP[i] = ConvertHex(Parm_Buffer, length);
+
+  01809	8b 4d e4	 mov	 ecx, DWORD PTR _length$[ebp]
+  0180c	51		 push	 ecx
+  0180d	68 00 00 00 00	 push	 OFFSET FLAT:_Parm_Buffer
+  01812	e8 00 00 00 00	 call	 _ConvertHex
+  01817	83 c4 08	 add	 esp, 8
+  0181a	8b 55 dc	 mov	 edx, DWORD PTR _i$[ebp]
+  0181d	8b 4c 95 ec	 mov	 ecx, DWORD PTR _dwP$[ebp+edx*4]
+  01821	89 01		 mov	 DWORD PTR [ecx], eax
+$L11749:
+
+; 1404 :       if (0xFFFFFFFF == *dwP[i])
+
+  01823	8b 55 dc	 mov	 edx, DWORD PTR _i$[ebp]
+  01826	8b 44 95 ec	 mov	 eax, DWORD PTR _dwP$[ebp+edx*4]
+  0182a	83 38 ff	 cmp	 DWORD PTR [eax], -1
+  0182d	75 07		 jne	 SHORT $L11750
+
+; 1405 :          dwWrite = 0x0;
+
+  0182f	c7 45 e0 00 00
+	00 00		 mov	 DWORD PTR _dwWrite$[ebp], 0
+$L11750:
+
+; 1406 :       }
+
+  01836	eb 82		 jmp	 SHORT $L11747
+$L11748:
+
+; 1407 : 
+; 1408 :    if (dwWrite)
+
+  01838	83 7d e0 00	 cmp	 DWORD PTR _dwWrite$[ebp], 0
+  0183c	74 48		 je	 SHORT $L11751
+
+; 1410 :       Output_Clock(&DevTable[0], 0x0, 0x1, 0x0, S2S1S0[s], v, r);
+
+  0183e	8b 4d fc	 mov	 ecx, DWORD PTR _r$[ebp]
+  01841	51		 push	 ecx
+  01842	8b 55 e8	 mov	 edx, DWORD PTR _v$[ebp]
+  01845	52		 push	 edx
+  01846	8b 45 f8	 mov	 eax, DWORD PTR _s$[ebp]
+  01849	8b 0c 85 00 00
+	00 00		 mov	 ecx, DWORD PTR _S2S1S0[eax*4]
+  01850	51		 push	 ecx
+  01851	6a 00		 push	 0
+  01853	6a 01		 push	 1
+  01855	6a 00		 push	 0
+  01857	68 00 00 00 00	 push	 OFFSET FLAT:_DevTable
+  0185c	e8 00 00 00 00	 call	 _Output_Clock
+  01861	83 c4 1c	 add	 esp, 28			; 0000001cH
+
+; 1411 :       PF("\nNew Clock s=%x v=%x r=%x\n", S2S1S0[s], v, r);
+
+  01864	8b 55 fc	 mov	 edx, DWORD PTR _r$[ebp]
+  01867	52		 push	 edx
+  01868	8b 45 e8	 mov	 eax, DWORD PTR _v$[ebp]
+  0186b	50		 push	 eax
+  0186c	8b 4d f8	 mov	 ecx, DWORD PTR _s$[ebp]
+  0186f	8b 14 8d 00 00
+	00 00		 mov	 edx, DWORD PTR _S2S1S0[ecx*4]
+  01876	52		 push	 edx
+  01877	68 00 00 00 00	 push	 OFFSET FLAT:$SG11752
+  0187c	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  01881	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 1413 :    else
+
+  01884	eb 19		 jmp	 SHORT $L11753
+$L11751:
+
+; 1415 :       PF("\nError in Parameter Clock s=%08x v=%08x r=%08x\n",
+; 1416 :          s, v, r);
+
+  01886	8b 45 fc	 mov	 eax, DWORD PTR _r$[ebp]
+  01889	50		 push	 eax
+  0188a	8b 4d e8	 mov	 ecx, DWORD PTR _v$[ebp]
+  0188d	51		 push	 ecx
+  0188e	8b 55 f8	 mov	 edx, DWORD PTR _s$[ebp]
+  01891	52		 push	 edx
+  01892	68 00 00 00 00	 push	 OFFSET FLAT:$SG11754
+  01897	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  0189c	83 c4 10	 add	 esp, 16			; 00000010H
+$L11753:
+
+; 1418 :     return FALSE;
+
+  0189f	33 c0		 xor	 eax, eax
+
+; 1419 : }
+
+  018a1	8b e5		 mov	 esp, ebp
+  018a3	5d		 pop	 ebp
+  018a4	c3		 ret	 0
+_Clock_Command ENDP
+_DB1CODE	ENDS
+END

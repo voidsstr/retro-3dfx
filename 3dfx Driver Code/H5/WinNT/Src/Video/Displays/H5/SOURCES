@@ -1,0 +1,190 @@
+# allow external enviroment variable to control file name; to support velocity, voodoo3, etc.
+!IF "$(DISPNAME)"==""
+
+!if "$(H4VEL)"==""
+TARGETNAME=3dfxvsn
+!ELSE
+TARGETNAME=3dfxvsn
+!ENDIF
+
+!IFNDEF LOCAL_TARGET
+# if LOCAL_TARGET isn't specified
+# let TARGETPATH be the old default location
+TARGETPATH=$(BASEDIR)\lib
+!ELSE
+TARGETPATH=obj
+# tweak the TARGETNAME so the dll actually ends up in the obj\i386 directory
+TARGETNAME=..\$(TARGETNAME)
+!ENDIF
+
+!ELSE
+TARGETNAME=$(DISPNAME)
+TARGETPATH=$(_OBJ_DIR)
+!ENDIF
+
+TARGETTYPE=GDI_DRIVER
+
+DLLBASE=0x62200000
+
+!IFNDEF MSC_WARNING_LEVEL
+MSC_WARNING_LEVEL=/W3
+!ENDIF
+MSC_WARNING_LEVEL=$(MSC_WARNING_LEVEL) /WX
+
+X86_CPU_OPTIMIZATION=/G5
+X86_CPU_OPTMIZATION=$(X86_CPU_OPTIMIZATION)
+
+!IF "$(NTDEBUG)"=="retail" || "$(NTDEBUG)"==""
+MSC_OPTIMIZATION=/Ox /Ow
+!ELSE
+MSC_OPTIMIZATION=/Ox
+!ENDIF
+
+!IFNDEF HR
+# HR = hardware revision
+# default to B0
+HR=B0
+!ENDIF
+
+C_DEFINES = -DUSE_D3D_CODE -DA0_SILICON -D__MSC__ -DH3_$(HR) -DINCSTBPERF
+#C_DEFINES = -DH3_FIFO -DA0_SILICON -D__MSC__ -DH4 -DH3_$(HR) -DCMDFIFO -DINCSTBPERF
+#C_DEFINES = -DCSIM -DINCLUDE_BUFFER_EXPANSION_CODE -DH3_FIFO -DS3_INIT -DUSE_DDRAW_CODE -D__MSC__
+#C_DEFINES = -DCSIM -DINCLUDE_BUFFER_EXPANSION_CODE -DH3_FIFO -DS3_INIT -D__MSC__
+
+# setup for cmdfifo build or direct write build
+# default is cmdfifo build
+!IFNDEF CF
+CF=1
+!ENDIF
+!IF $(CF) != 0
+C_DEFINES = $(C_DEFINES) -DH3_FIFO -DCMDFIFO
+!ENDIF
+
+# setup for hw build or csim build
+#default is hw build
+!IFNDEF CSIM
+CSIM=0
+!ENDIF
+!IF $(CSIM) != 0
+C_DEFINES = $(C_DEFINES) -DCSIM
+!ENDIF
+
+# see if we want to enable ddraw support
+# default to ddraw support enabled
+!IFNDEF DD
+DD=1
+!ENDIF
+!IF $(DD) != 0
+C_DEFINES = $(C_DEFINES) -DUSE_DDRAW_CODE
+!ENDIF
+!IFNDEF SA
+SA=1
+!ENDIF
+!IF $(SA) != 0
+C_DEFINES = $(C_DEFINES) -DSLI_AA
+!ENDIF
+
+# see if we need to enable command fifo debug
+!IFNDEF DF
+DF=0
+!ENDIF
+!IF $(DF) != 0
+C_DEFINES = $(C_DEFINES) -DDEBUGFIFO=1
+!ENDIF
+
+# if H4VEL is specified build with "velocity" names
+!if "$(H4VEL)"!=""
+C_DEFINES = $(C_DEFINES) -DH4VEL=1
+!ENDIF
+
+!IFNDEF COD_FILES
+COD_FILES=0
+!ENDIF
+
+!IF $(COD_FILES) != 0
+USER_C_FLAGS = /FAsc /Fa$O\$(@B).cod
+LINKER_FLAGS = $(LINKER_FLAGS) -map:$O\$(@B).map
+!ENDIF
+
+!IFNDEF MEMCHK
+MEMCHK=0
+!ENDIF
+
+!IF $(MEMCHK) != 0
+C_DEFINES = $(C_DEFINES) -DMEMCHECK
+!ENDIF
+
+!IFNDEF LF
+LF=0
+!ENDIF
+
+!IF $(LF) != 0
+C_DEFINES = $(C_DEFINES) -DENABLE_LOG_FILE=$(LF)
+!ENDIF
+
+# For OPENGL_ICD
+USE_LIBCNTPR = 1
+!IFNDEF OGL
+#OGL=0
+OGL=1
+!ENDIF
+!IF $(OGL) != 0
+C_DEFINES = $(C_DEFINES) -DOPENGL_ICD
+!ENDIF
+
+INCLUDES=..\..\inc;$(BUILD_ROOT)\H5\include;$(BUILD_ROOT)\swlibs\include;$(NTMAKEENV)
+
+!IF $(CSIM) != 0
+TARGETLIBS=h4hal.lib h4csim.lib $(BASEDIR)\lib\*\$(DDKBUILDENV)\libcntpr.lib
+!ELSE
+TARGETLIBS=$(BASEDIR)\lib\*\$(DDKBUILDENV)\libcntpr.lib
+!ENDIF
+
+NTPROFILEINPUT=yes
+
+SOURCES=\
+	bitblt.c		\
+	bltmm.c 		\
+	brush.c 		\
+	cfifo.c 		\
+	color.c 		\
+	colorapi.c 		\
+	debug.c 		\
+	dfpapi.c        \
+	edgeesc.c 		\
+	enable.c		\
+	escape.c		\
+	fastfill.c		\
+	fillpath.c		\
+	funcapi.c 		\
+	glicd.c			\
+	heap.c			\
+	hwcext.c		\
+	lines.c 		\
+	lineto.c		\
+	logfile.c		\
+	memcheck.c		\
+	misc.c			\
+	multi.c 		\
+	paint.c 		\
+	palette.c		\
+	pointer.c		\
+	qmodes.c	    \
+	stretch.c		\
+	strips.c		\
+	textout.c		\
+	thunk.c 		\
+	tvout.c 		\
+	ddfxnt.c		\
+	ddinit.c		\
+	ddsurf.c		\
+	ddblt32.c		\
+	ddflip.c		\
+	ddovl32.c		\
+	ddstubs.c		\
+	fxfdbg.c		\
+	res.rc
+
+PRECOMPILED_INCLUDE=precomp.h
+PRECOMPILED_PCH=precomp.pch
+PRECOMPILED_OBJ=precomp.obj

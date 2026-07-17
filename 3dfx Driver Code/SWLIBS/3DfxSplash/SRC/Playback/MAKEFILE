@@ -1,0 +1,156 @@
+
+# Setting up NULL
+!IF "$(OS)" == "Windows_NT"
+NULL=
+!ELSE 
+NULL=nul
+!ENDIF
+
+# Special case rush because its built off of the sst1 tree
+!if "$(FX_GLIDE_HW)" == "SST96"
+GLIDE_ROOT      =       $(BUILD_ROOT)\sst1
+!else
+GLIDE_ROOT      =       $(BUILD_ROOT)\$(FX_GLIDE_HW)
+!endif
+
+LCINCS  = $(LCINCS)  -I$(GLIDE_ROOT)\include -WX
+
+# Include directories...
+HEADERS=$(GLIDE_ROOT)\include
+LIBINCLUDE=$(BUILD_ROOT_SWLIBS)\include
+ALLINCS=/I $(HEADERS) /I $(LIBINCLUDE) /I "..\common"
+
+# Library directories
+GLIDELIB=$(GLIDE_ROOT)\lib
+ALLLIBS=/libpath:$(GLIDELIB)
+
+# Environment...
+!if "$(FX_SPLASH_BUILD)" == "2x"
+DLLNAME=3dfxSpl2.dll
+!else
+DLLNAME=3dfxSpl3.dll
+!endif
+
+# Output dir and intermediate files dir
+!if "$(FX_SPLASH_BUILD)" == "2x"
+OUTDIR=.\3dfxSplash2
+INTDIR=.\3dfxSplash2
+!else
+OUTDIR=.\3dfxSplash3
+INTDIR=.\3dfxSplash3
+!endif
+
+
+ALL : "$(OUTDIR)\$(DLLNAME)"
+
+CLEAN : 
+	deltree.exe /y "$(INTDIR)"
+
+"$(OUTDIR)":
+	if not exist "$(OUTDIR)\$(NULL)" mkdir "$(OUTDIR)"
+
+# Compiling preferences...
+
+CPP=cl.exe
+
+!if "$(FX_SPLASH_BUILD)" == "2x"
+CPP_PROJ=/nologo /ML /W3 /GX /O2 /Ob2 $(ALLINCS)\
+ /D "PLAYBACK" /D "WIN32" /D\
+ "_WINDOWS" /D "_MBCS" /D "__MSC__" /D "SPLASH_DLL"\
+ /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+
+CPP_OBJS=".\3dfxSplash2x/"
+!else
+CPP_PROJ=/nologo /ML /W3 /GX /O2 /Ob2 $(ALLINCS)\
+ /D "USE_GLIDE3" /D "PLAYBACK" /D "WIN32" /D\
+ "_WINDOWS" /D "_MBCS" /D "__MSC__" /D "SPLASH_DLL"\
+ /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+
+CPP_OBJS=".\3dfxSplash3x/"
+!endif
+
+.c{$(CPP_OBJS)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cpp{$(CPP_OBJS)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+# Resources...
+RSC=rc.exe
+RSC_PROJ=/l 0x409 /fo"$(INTDIR)\3dfxSplash.res" /d "NDEBUG" 
+
+# Linker...
+
+LINK32=link.exe
+
+!if "$(FX_SPLASH_BUILD)" == "2x"
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib\
+ advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib\
+ odbccp32.lib largeint.lib winmm.lib glide2x.lib /nologo /dll /incremental:no\
+ /machine:I386 /out:"$(OUTDIR)\$(DLLNAME)" /implib:"$(OUTDIR)\3dfxSpl3.lib"\
+ $(ALLLIBS)
+!else
+LINK32_FLAGS=kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib\
+ advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib\
+ odbccp32.lib largeint.lib winmm.lib glide3x.lib /nologo /dll /incremental:no\
+ /machine:I386 /out:"$(OUTDIR)\$(DLLNAME)" /implib:"$(OUTDIR)\3dfxSpl3.lib"\
+ $(ALLLIBS)
+!endif
+
+LINK32_OBJS= \
+	"$(INTDIR)\3dfxSplash.res" \
+	"$(INTDIR)\convexhull.obj" \
+	"$(INTDIR)\GlideGraphics.obj" \
+	"$(INTDIR)\Main.obj" \
+	"$(INTDIR)\RevPoint.obj" \
+	"$(INTDIR)\clip.obj" \
+	"$(INTDIR)\texcache.obj"
+
+"$(OUTDIR)\$(DLLNAME)" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
+    $(LINK32) @<<
+  $(LINK32_FLAGS) $(LINK32_OBJS)
+<<
+
+# Start doing stuff...
+DEP_FILES = \
+	".\resource.h"\
+
+SOURCE=.\3dfxSplash.rc
+DST=3dfxSplash.res
+"$(INTDIR)\$(DST)" : $(SOURCE) "$(INTDIR)"
+	$(RSC) $(RSC_PROJ) $(SOURCE)
+
+SOURCE=..\common\convexhull.cpp
+DST=convexhull.obj
+"$(INTDIR)\$(DST)" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+SOURCE=..\common\GlideGraphics.cpp
+DST=GlideGraphics.obj
+"$(INTDIR)\$(DST)" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+SOURCE=.\Main.cpp
+DST=Main.obj
+"$(INTDIR)\$(DST)" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+SOURCE=..\common\RevPoint.cpp
+DST=RevPoint.obj
+"$(INTDIR)\$(DST)" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+SOURCE=..\common\texcache.cpp
+DST=texcache.obj
+"$(INTDIR)\$(DST)" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+SOURCE=..\common\clip.cpp
+DST=clip.obj
+"$(INTDIR)\$(DST)" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+

@@ -1,0 +1,2740 @@
+	TITLE	..\textout.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+FLAT	GROUP _DATA, CONST, _BSS
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+_DATA	SEGMENT
+COMM	_hwBitBltSS:DWORD
+COMM	_hwBitBltPS:DWORD
+COMM	_hwBitBltHS:DWORD
+_DATA	ENDS
+PUBLIC	_FxExtTextOut
+EXTRN	_ResetInvariantState:NEAR
+EXTRN	_lpDriverData:DWORD
+EXTRN	_DoIntersect:NEAR
+EXTRN	__SrcFormat:DWORD
+EXTRN	_DoKMTV:NEAR
+EXTRN	_myAgpEpilog:NEAR
+EXTRN	_dwLdtPtr:DWORD
+EXTRN	_bPunt:DWORD
+EXTRN	_CurrentDstAddr:DWORD
+EXTRN	_CurrentDstFormat:DWORD
+EXTRN	_FxBeginAccess32:NEAR
+EXTRN	_FxEndAccess32:NEAR
+_TEXT	SEGMENT
+_lp$ = 8
+_lpDst$ = -32
+_lpClipRect$ = -16
+_lpString$ = -48
+_lpFontInfo$ = -44
+_lpOpaqueRect$ = -4
+_lpTextXForm$ = -20
+_lpDrawMode$ = -40
+_lpCharWidths$ = -12
+_height$ = -36
+_width$ = -8
+_cf$ = -24
+_hwIndex$ = -28
+_tf$3300 = -52
+_tf$3305 = -56
+_tf$3310 = -60
+_tf$3315 = -64
+_tf$3320 = -68
+_srcFormat$3322 = -104
+_srcAddr$3323 = -92
+_dstFormat$3324 = -88
+_dstAddr$3325 = -84
+_srcIsDevBit$3326 = -80
+_dstIsDevBit$3327 = -76
+_doSecondRect$3328 = -100
+_mylpSrc$3329 = -72
+_pDeFlags$3331 = -96
+_tf$3464 = -108
+_tf$3469 = -112
+_tf$3474 = -116
+_FxExtTextOut PROC NEAR
+
+; 303  : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	83 ec 7c	 sub	 esp, 124		; 0000007cH
+  00006	53		 push	 ebx
+  00007	56		 push	 esi
+  00008	57		 push	 edi
+
+; 304  : #   define WIN4X_FONT (ETO_BYTE_PACKED | ETO_BIT_PACKED)
+; 305  : #   define lpNewFontSeg ((NewFontSeg *)lpFontInfo)
+; 306  : #   define lpStringBoundingBox ((RECT *)lpTextXForm)
+; 307  :     
+; 308  :     DEFINE_FLAT_POINTER(DIBENGINE, lpDst);
+; 309  :     DEFINE_FLAT_POINTER(RECT,      lpClipRect);
+; 310  :     DEFINE_FLAT_POINTER(char,      lpString);
+; 311  :     DEFINE_FLAT_POINTER(FONTINFO,  lpFontInfo);
+; 312  :     DEFINE_FLAT_POINTER(RECT,      lpOpaqueRect);
+; 313  :     DEFINE_FLAT_POINTER(RECT,      lpTextXForm);
+; 314  :     DEFINE_FLAT_POINTER(DRAWMODE,  lpDrawMode);
+; 315  :     DEFINE_FLAT_POINTER(short,     lpCharWidths);
+; 316  :     int height, width;
+; 317  :     CMDFIFO_PROLOG(cf);
+; 318  : 
+; 319  :     DEBUG_FIX;
+
+  00009	0f b7 ed	 movzx	 ebp, bp
+  0000c	8b 45 00	 mov	 eax, DWORD PTR [ebp]
+  0000f	0f b7 c0	 movzx	 eax, ax
+  00012	89 45 00	 mov	 DWORD PTR [ebp], eax
+
+; 320  : 
+; 321  :     if (lp->wCount < 0)
+
+  00015	8b 45 08	 mov	 eax, DWORD PTR _lp$[ebp]
+  00018	33 c9		 xor	 ecx, ecx
+  0001a	66 8b 48 16	 mov	 cx, WORD PTR [eax+22]
+  0001e	85 c9		 test	 ecx, ecx
+  00020	7d 0f		 jge	 SHORT $L3291
+
+; 323  :         FXPUNT(FXPUNT_NORMAL);
+
+  00022	c7 05 00 00 00
+	00 01 00 00 00	 mov	 DWORD PTR _bPunt, 1
+  0002c	e9 22 0e 00 00	 jmp	 $Use_DibEng$3292
+$L3291:
+
+; 325  :     else if (lp->wCount > 0)
+
+  00031	8b 55 08	 mov	 edx, DWORD PTR _lp$[ebp]
+  00034	33 c0		 xor	 eax, eax
+  00036	66 8b 42 16	 mov	 ax, WORD PTR [edx+22]
+  0003a	85 c0		 test	 eax, eax
+  0003c	7e 44		 jle	 SHORT $L3295
+
+; 327  :         /* We only want new fonts, only byte packed, and not antialiased */
+; 328  :         if ( !(lp->wOptions & WIN4X_FONT) ||
+; 329  : 	     (lp->wOptions & ETO_BIT_PACKED) ||
+; 330  : 	     (lp->wOptions & ETO_LEVEL_MODE) )
+
+  0003e	8b 4d 08	 mov	 ecx, DWORD PTR _lp$[ebp]
+  00041	33 d2		 xor	 edx, edx
+  00043	66 8b 11	 mov	 dx, WORD PTR [ecx]
+  00046	81 e2 00 03 00
+	00		 and	 edx, 768		; 00000300H
+  0004c	85 d2		 test	 edx, edx
+  0004e	74 23		 je	 SHORT $L3296
+  00050	8b 45 08	 mov	 eax, DWORD PTR _lp$[ebp]
+  00053	33 c9		 xor	 ecx, ecx
+  00055	66 8b 08	 mov	 cx, WORD PTR [eax]
+  00058	81 e1 00 02 00
+	00		 and	 ecx, 512		; 00000200H
+  0005e	85 c9		 test	 ecx, ecx
+  00060	75 11		 jne	 SHORT $L3296
+  00062	8b 55 08	 mov	 edx, DWORD PTR _lp$[ebp]
+  00065	33 c0		 xor	 eax, eax
+  00067	66 8b 02	 mov	 ax, WORD PTR [edx]
+  0006a	25 00 10 00 00	 and	 eax, 4096		; 00001000H
+  0006f	85 c0		 test	 eax, eax
+  00071	74 0f		 je	 SHORT $L3295
+$L3296:
+
+; 332  :             FXPUNT(FXPUNT_EXTTEXTEXT);
+
+  00073	c7 05 00 00 00
+	00 02 00 00 00	 mov	 DWORD PTR _bPunt, 2
+  0007d	e9 d1 0d 00 00	 jmp	 $Use_DibEng$3292
+$L3295:
+
+; 335  : 
+; 336  :     /* Don't convert lpDst until obvious punts are checked. Conversion
+; 337  :      * is expensive, so avoid if we can.
+; 338  :      */
+; 339  :     FLATTEN_POINTER(lpDst);
+
+  00082	8b 4d 08	 mov	 ecx, DWORD PTR _lp$[ebp]
+  00085	83 79 24 00	 cmp	 DWORD PTR [ecx+36], 0
+  00089	75 09		 jne	 SHORT $L3297
+  0008b	c7 45 e0 00 00
+	00 00		 mov	 DWORD PTR _lpDst$[ebp], 0
+  00092	eb 43		 jmp	 SHORT $L3299
+$L3297:
+  00094	8b 55 08	 mov	 edx, DWORD PTR _lp$[ebp]
+  00097	8b 42 24	 mov	 eax, DWORD PTR [edx+36]
+  0009a	89 45 cc	 mov	 DWORD PTR _tf$3300[ebp], eax
+  0009d	8b 1d 00 00 00
+	00		 mov	 ebx, DWORD PTR _dwLdtPtr
+  000a3	8b 45 cc	 mov	 eax, DWORD PTR _tf$3300[ebp]
+  000a6	c1 e8 10	 shr	 eax, 16			; 00000010H
+  000a9	83 e0 f8	 and	 eax, -8			; fffffff8H
+  000ac	03 d8		 add	 ebx, eax
+  000ae	8b 43 04	 mov	 eax, DWORD PTR [ebx+4]
+  000b1	8b c8		 mov	 ecx, eax
+  000b3	25 00 00 00 ff	 and	 eax, -16777216		; ff000000H
+  000b8	c1 e1 10	 shl	 ecx, 16			; 00000010H
+  000bb	81 e1 00 00 ff
+	00		 and	 ecx, 16711680		; 00ff0000H
+  000c1	0b c1		 or	 eax, ecx
+  000c3	8b 4b 02	 mov	 ecx, DWORD PTR [ebx+2]
+  000c6	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  000cc	0b c1		 or	 eax, ecx
+  000ce	0f b7 5d cc	 movzx	 ebx, WORD PTR _tf$3300[ebp]
+  000d2	03 c3		 add	 eax, ebx
+  000d4	89 45 e0	 mov	 DWORD PTR _lpDst$[ebp], eax
+$L3299:
+
+; 340  :     FLATTEN_POINTER(lpTextXForm);
+
+  000d7	8b 4d 08	 mov	 ecx, DWORD PTR _lp$[ebp]
+  000da	83 79 0a 00	 cmp	 DWORD PTR [ecx+10], 0
+  000de	75 09		 jne	 SHORT $L3302
+  000e0	c7 45 ec 00 00
+	00 00		 mov	 DWORD PTR _lpTextXForm$[ebp], 0
+  000e7	eb 43		 jmp	 SHORT $L3304
+$L3302:
+  000e9	8b 55 08	 mov	 edx, DWORD PTR _lp$[ebp]
+  000ec	8b 42 0a	 mov	 eax, DWORD PTR [edx+10]
+  000ef	89 45 c8	 mov	 DWORD PTR _tf$3305[ebp], eax
+  000f2	8b 1d 00 00 00
+	00		 mov	 ebx, DWORD PTR _dwLdtPtr
+  000f8	8b 45 c8	 mov	 eax, DWORD PTR _tf$3305[ebp]
+  000fb	c1 e8 10	 shr	 eax, 16			; 00000010H
+  000fe	83 e0 f8	 and	 eax, -8			; fffffff8H
+  00101	03 d8		 add	 ebx, eax
+  00103	8b 43 04	 mov	 eax, DWORD PTR [ebx+4]
+  00106	8b c8		 mov	 ecx, eax
+  00108	25 00 00 00 ff	 and	 eax, -16777216		; ff000000H
+  0010d	c1 e1 10	 shl	 ecx, 16			; 00000010H
+  00110	81 e1 00 00 ff
+	00		 and	 ecx, 16711680		; 00ff0000H
+  00116	0b c1		 or	 eax, ecx
+  00118	8b 4b 02	 mov	 ecx, DWORD PTR [ebx+2]
+  0011b	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  00121	0b c1		 or	 eax, ecx
+  00123	0f b7 5d c8	 movzx	 ebx, WORD PTR _tf$3305[ebp]
+  00127	03 c3		 add	 eax, ebx
+  00129	89 45 ec	 mov	 DWORD PTR _lpTextXForm$[ebp], eax
+$L3304:
+
+; 341  :     FLATTEN_POINTER(lpClipRect);
+
+  0012c	8b 4d 08	 mov	 ecx, DWORD PTR _lp$[ebp]
+  0012f	83 79 1c 00	 cmp	 DWORD PTR [ecx+28], 0
+  00133	75 09		 jne	 SHORT $L3307
+  00135	c7 45 f0 00 00
+	00 00		 mov	 DWORD PTR _lpClipRect$[ebp], 0
+  0013c	eb 43		 jmp	 SHORT $L3309
+$L3307:
+  0013e	8b 55 08	 mov	 edx, DWORD PTR _lp$[ebp]
+  00141	8b 42 1c	 mov	 eax, DWORD PTR [edx+28]
+  00144	89 45 c4	 mov	 DWORD PTR _tf$3310[ebp], eax
+  00147	8b 1d 00 00 00
+	00		 mov	 ebx, DWORD PTR _dwLdtPtr
+  0014d	8b 45 c4	 mov	 eax, DWORD PTR _tf$3310[ebp]
+  00150	c1 e8 10	 shr	 eax, 16			; 00000010H
+  00153	83 e0 f8	 and	 eax, -8			; fffffff8H
+  00156	03 d8		 add	 ebx, eax
+  00158	8b 43 04	 mov	 eax, DWORD PTR [ebx+4]
+  0015b	8b c8		 mov	 ecx, eax
+  0015d	25 00 00 00 ff	 and	 eax, -16777216		; ff000000H
+  00162	c1 e1 10	 shl	 ecx, 16			; 00000010H
+  00165	81 e1 00 00 ff
+	00		 and	 ecx, 16711680		; 00ff0000H
+  0016b	0b c1		 or	 eax, ecx
+  0016d	8b 4b 02	 mov	 ecx, DWORD PTR [ebx+2]
+  00170	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  00176	0b c1		 or	 eax, ecx
+  00178	0f b7 5d c4	 movzx	 ebx, WORD PTR _tf$3310[ebp]
+  0017c	03 c3		 add	 eax, ebx
+  0017e	89 45 f0	 mov	 DWORD PTR _lpClipRect$[ebp], eax
+$L3309:
+
+; 342  :     FLATTEN_POINTER(lpOpaqueRect);
+
+  00181	8b 4d 08	 mov	 ecx, DWORD PTR _lp$[ebp]
+  00184	83 79 02 00	 cmp	 DWORD PTR [ecx+2], 0
+  00188	75 09		 jne	 SHORT $L3312
+  0018a	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _lpOpaqueRect$[ebp], 0
+  00191	eb 43		 jmp	 SHORT $L3314
+$L3312:
+  00193	8b 55 08	 mov	 edx, DWORD PTR _lp$[ebp]
+  00196	8b 42 02	 mov	 eax, DWORD PTR [edx+2]
+  00199	89 45 c0	 mov	 DWORD PTR _tf$3315[ebp], eax
+  0019c	8b 1d 00 00 00
+	00		 mov	 ebx, DWORD PTR _dwLdtPtr
+  001a2	8b 45 c0	 mov	 eax, DWORD PTR _tf$3315[ebp]
+  001a5	c1 e8 10	 shr	 eax, 16			; 00000010H
+  001a8	83 e0 f8	 and	 eax, -8			; fffffff8H
+  001ab	03 d8		 add	 ebx, eax
+  001ad	8b 43 04	 mov	 eax, DWORD PTR [ebx+4]
+  001b0	8b c8		 mov	 ecx, eax
+  001b2	25 00 00 00 ff	 and	 eax, -16777216		; ff000000H
+  001b7	c1 e1 10	 shl	 ecx, 16			; 00000010H
+  001ba	81 e1 00 00 ff
+	00		 and	 ecx, 16711680		; 00ff0000H
+  001c0	0b c1		 or	 eax, ecx
+  001c2	8b 4b 02	 mov	 ecx, DWORD PTR [ebx+2]
+  001c5	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  001cb	0b c1		 or	 eax, ecx
+  001cd	0f b7 5d c0	 movzx	 ebx, WORD PTR _tf$3315[ebp]
+  001d1	03 c3		 add	 eax, ebx
+  001d3	89 45 fc	 mov	 DWORD PTR _lpOpaqueRect$[ebp], eax
+$L3314:
+
+; 343  :     FLATTEN_POINTER(lpDrawMode);
+
+  001d6	8b 4d 08	 mov	 ecx, DWORD PTR _lp$[ebp]
+  001d9	83 79 0e 00	 cmp	 DWORD PTR [ecx+14], 0
+  001dd	75 09		 jne	 SHORT $L3317
+  001df	c7 45 d8 00 00
+	00 00		 mov	 DWORD PTR _lpDrawMode$[ebp], 0
+  001e6	eb 43		 jmp	 SHORT $L3319
+$L3317:
+  001e8	8b 55 08	 mov	 edx, DWORD PTR _lp$[ebp]
+  001eb	8b 42 0e	 mov	 eax, DWORD PTR [edx+14]
+  001ee	89 45 bc	 mov	 DWORD PTR _tf$3320[ebp], eax
+  001f1	8b 1d 00 00 00
+	00		 mov	 ebx, DWORD PTR _dwLdtPtr
+  001f7	8b 45 bc	 mov	 eax, DWORD PTR _tf$3320[ebp]
+  001fa	c1 e8 10	 shr	 eax, 16			; 00000010H
+  001fd	83 e0 f8	 and	 eax, -8			; fffffff8H
+  00200	03 d8		 add	 ebx, eax
+  00202	8b 43 04	 mov	 eax, DWORD PTR [ebx+4]
+  00205	8b c8		 mov	 ecx, eax
+  00207	25 00 00 00 ff	 and	 eax, -16777216		; ff000000H
+  0020c	c1 e1 10	 shl	 ecx, 16			; 00000010H
+  0020f	81 e1 00 00 ff
+	00		 and	 ecx, 16711680		; 00ff0000H
+  00215	0b c1		 or	 eax, ecx
+  00217	8b 4b 02	 mov	 ecx, DWORD PTR [ebx+2]
+  0021a	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  00220	0b c1		 or	 eax, ecx
+  00222	0f b7 5d bc	 movzx	 ebx, WORD PTR _tf$3320[ebp]
+  00226	03 c3		 add	 eax, ebx
+  00228	89 45 d8	 mov	 DWORD PTR _lpDrawMode$[ebp], eax
+$L3319:
+
+; 349  : 	    cf, lpDst, FXENTER_NO_SRC, FXENTER_NO_SRCFORMAT,
+; 350  : 	    FXENTER_RECT, lpTextXForm->left,lpTextXForm->top, 
+; 351  :         lpTextXForm->right, lpTextXForm->bottom,
+; 352  : 	    FXENTER_RECT, lpOpaqueRect->left, lpOpaqueRect->top, 
+; 353  :         lpOpaqueRect->right, lpOpaqueRect->bottom  );
+
+  0022b	c7 45 b8 00 00
+	00 00		 mov	 DWORD PTR _mylpSrc$3329[ebp], 0
+  00232	33 c9		 xor	 ecx, ecx
+  00234	85 c9		 test	 ecx, ecx
+  00236	74 07		 je	 SHORT $L3332
+  00238	c7 45 b8 00 00
+	00 00		 mov	 DWORD PTR _mylpSrc$3329[ebp], 0
+$L3332:
+  0023f	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  00245	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  00248	8b 08		 mov	 ecx, DWORD PTR [eax]
+  0024a	81 e1 10 10 00
+	00		 and	 ecx, 4112		; 00001010H
+  00250	85 c9		 test	 ecx, ecx
+  00252	75 12		 jne	 SHORT $L3334
+  00254	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  0025a	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  0025d	25 00 20 00 00	 and	 eax, 8192		; 00002000H
+  00262	85 c0		 test	 eax, eax
+  00264	74 05		 je	 SHORT $L3333
+$L3334:
+  00266	e9 e8 0b 00 00	 jmp	 $Use_DibEng$3292
+$L3333:
+  0026b	8b 4d e0	 mov	 ecx, DWORD PTR _lpDst$[ebp]
+  0026e	33 d2		 xor	 edx, edx
+  00270	66 8b 51 1c	 mov	 dx, WORD PTR [ecx+28]
+  00274	81 e2 00 80 00
+	00		 and	 edx, 32768		; 00008000H
+  0027a	85 d2		 test	 edx, edx
+  0027c	75 05		 jne	 SHORT $L3335
+  0027e	e9 d0 0b 00 00	 jmp	 $Use_DibEng$3292
+$L3335:
+  00283	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  00288	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  0028b	89 4d a0	 mov	 DWORD PTR _pDeFlags$3331[ebp], ecx
+  0028e	8b 5d a0	 mov	 ebx, DWORD PTR _pDeFlags$3331[ebp]
+  00291	e8 00 00 00 00	 call	 _mySetBusy
+  00296	85 c0		 test	 eax, eax
+  00298	74 05		 je	 SHORT $L3336
+  0029a	e9 b4 0b 00 00	 jmp	 $Use_DibEng$3292
+$L3336:
+  0029f	8b 55 e0	 mov	 edx, DWORD PTR _lpDst$[ebp]
+  002a2	33 c0		 xor	 eax, eax
+  002a4	66 8b 42 1c	 mov	 ax, WORD PTR [edx+28]
+  002a8	83 e0 08	 and	 eax, 8
+  002ab	89 45 b4	 mov	 DWORD PTR _dstIsDevBit$3327[ebp], eax
+  002ae	83 7d b8 00	 cmp	 DWORD PTR _mylpSrc$3329[ebp], 0
+  002b2	74 22		 je	 SHORT $L3520
+  002b4	8b 4d b8	 mov	 ecx, DWORD PTR _mylpSrc$3329[ebp]
+  002b7	33 d2		 xor	 edx, edx
+  002b9	66 8b 51 1c	 mov	 dx, WORD PTR [ecx+28]
+  002bd	81 e2 08 80 00
+	00		 and	 edx, 32776		; 00008008H
+  002c3	81 f2 08 80 00
+	00		 xor	 edx, 32776		; 00008008H
+  002c9	85 d2		 test	 edx, edx
+  002cb	75 09		 jne	 SHORT $L3520
+  002cd	c7 45 88 01 00
+	00 00		 mov	 DWORD PTR -120+[ebp], 1
+  002d4	eb 07		 jmp	 SHORT $L3521
+$L3520:
+  002d6	c7 45 88 00 00
+	00 00		 mov	 DWORD PTR -120+[ebp], 0
+$L3521:
+  002dd	8b 45 88	 mov	 eax, DWORD PTR -120+[ebp]
+  002e0	89 45 b0	 mov	 DWORD PTR _srcIsDevBit$3326[ebp], eax
+  002e3	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  002e9	83 79 08 00	 cmp	 DWORD PTR [ecx+8], 0
+  002ed	0f 84 6c 01 00
+	00		 je	 $L3354
+  002f3	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  002f9	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  002fc	25 08 40 00 00	 and	 eax, 16392		; 00004008H
+  00301	85 c0		 test	 eax, eax
+  00303	74 22		 je	 SHORT $L3338
+  00305	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  0030b	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  0030e	8b 02		 mov	 eax, DWORD PTR [edx]
+  00310	24 ef		 and	 al, -17			; ffffffefH
+  00312	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  00318	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  0031b	89 02		 mov	 DWORD PTR [edx], eax
+  0031d	b8 01 00 00 00	 mov	 eax, 1
+  00322	e9 55 0b 00 00	 jmp	 $L3278
+$L3338:
+  00327	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  0032c	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  0032f	83 e1 02	 and	 ecx, 2
+  00332	85 c9		 test	 ecx, ecx
+  00334	74 1e		 je	 SHORT $L3339
+  00336	6a 07		 push	 7
+  00338	e8 00 00 00 00	 call	 _ResetInvariantState
+  0033d	83 c4 04	 add	 esp, 4
+  00340	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  00346	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  00349	24 cd		 and	 al, -51			; ffffffcdH
+  0034b	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  00351	89 41 08	 mov	 DWORD PTR [ecx+8], eax
+$L3339:
+  00354	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  0035a	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  0035d	83 e0 10	 and	 eax, 16			; 00000010H
+  00360	85 c0		 test	 eax, eax
+  00362	74 24		 je	 SHORT $L3340
+  00364	83 7d b4 00	 cmp	 DWORD PTR _dstIsDevBit$3327[ebp], 0
+  00368	75 1e		 jne	 SHORT $L3340
+  0036a	6a 01		 push	 1
+  0036c	e8 00 00 00 00	 call	 _ResetInvariantState
+  00371	83 c4 04	 add	 esp, 4
+  00374	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  0037a	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  0037d	83 e2 ef	 and	 edx, -17		; ffffffefH
+  00380	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  00385	89 50 08	 mov	 DWORD PTR [eax+8], edx
+$L3340:
+  00388	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  0038e	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  00391	83 e2 20	 and	 edx, 32			; 00000020H
+  00394	85 d2		 test	 edx, edx
+  00396	74 24		 je	 SHORT $L3341
+  00398	83 7d b0 00	 cmp	 DWORD PTR _srcIsDevBit$3326[ebp], 0
+  0039c	75 1e		 jne	 SHORT $L3341
+  0039e	6a 02		 push	 2
+  003a0	e8 00 00 00 00	 call	 _ResetInvariantState
+  003a5	83 c4 04	 add	 esp, 4
+  003a8	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  003ad	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  003b0	83 e1 df	 and	 ecx, -33		; ffffffdfH
+  003b3	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  003b9	89 4a 08	 mov	 DWORD PTR [edx+8], ecx
+$L3341:
+  003bc	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  003c1	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  003c4	83 e1 04	 and	 ecx, 4
+  003c7	85 c9		 test	 ecx, ecx
+  003c9	0f 84 90 00 00
+	00		 je	 $L3354
+  003cf	c7 45 9c 01 00
+	00 00		 mov	 DWORD PTR _doSecondRect$3328[ebp], 1
+  003d6	ba 01 00 00 00	 mov	 edx, 1
+  003db	85 d2		 test	 edx, edx
+  003dd	74 3c		 je	 SHORT $L3348
+  003df	8b 45 ec	 mov	 eax, DWORD PTR _lpTextXForm$[ebp]
+  003e2	0f bf 48 06	 movsx	 ecx, WORD PTR [eax+6]
+  003e6	51		 push	 ecx
+  003e7	8b 55 ec	 mov	 edx, DWORD PTR _lpTextXForm$[ebp]
+  003ea	0f bf 42 04	 movsx	 eax, WORD PTR [edx+4]
+  003ee	50		 push	 eax
+  003ef	8b 4d ec	 mov	 ecx, DWORD PTR _lpTextXForm$[ebp]
+  003f2	0f bf 51 02	 movsx	 edx, WORD PTR [ecx+2]
+  003f6	52		 push	 edx
+  003f7	8b 45 ec	 mov	 eax, DWORD PTR _lpTextXForm$[ebp]
+  003fa	0f bf 08	 movsx	 ecx, WORD PTR [eax]
+  003fd	51		 push	 ecx
+  003fe	e8 00 00 00 00	 call	 _DoIntersect
+  00403	83 c4 10	 add	 esp, 16			; 00000010H
+  00406	85 c0		 test	 eax, eax
+  00408	74 11		 je	 SHORT $L3348
+  0040a	6a 08		 push	 8
+  0040c	e8 00 00 00 00	 call	 _FxBeginAccess32
+  00411	83 c4 04	 add	 esp, 4
+  00414	c7 45 9c 00 00
+	00 00		 mov	 DWORD PTR _doSecondRect$3328[ebp], 0
+$L3348:
+  0041b	ba 01 00 00 00	 mov	 edx, 1
+  00420	85 d2		 test	 edx, edx
+  00422	74 3b		 je	 SHORT $L3354
+  00424	83 7d 9c 00	 cmp	 DWORD PTR _doSecondRect$3328[ebp], 0
+  00428	74 35		 je	 SHORT $L3354
+  0042a	8b 45 fc	 mov	 eax, DWORD PTR _lpOpaqueRect$[ebp]
+  0042d	0f bf 48 06	 movsx	 ecx, WORD PTR [eax+6]
+  00431	51		 push	 ecx
+  00432	8b 55 fc	 mov	 edx, DWORD PTR _lpOpaqueRect$[ebp]
+  00435	0f bf 42 04	 movsx	 eax, WORD PTR [edx+4]
+  00439	50		 push	 eax
+  0043a	8b 4d fc	 mov	 ecx, DWORD PTR _lpOpaqueRect$[ebp]
+  0043d	0f bf 51 02	 movsx	 edx, WORD PTR [ecx+2]
+  00441	52		 push	 edx
+  00442	8b 45 fc	 mov	 eax, DWORD PTR _lpOpaqueRect$[ebp]
+  00445	0f bf 08	 movsx	 ecx, WORD PTR [eax]
+  00448	51		 push	 ecx
+  00449	e8 00 00 00 00	 call	 _DoIntersect
+  0044e	83 c4 10	 add	 esp, 16			; 00000010H
+  00451	85 c0		 test	 eax, eax
+  00453	74 0a		 je	 SHORT $L3354
+  00455	6a 08		 push	 8
+  00457	e8 00 00 00 00	 call	 _FxBeginAccess32
+  0045c	83 c4 04	 add	 esp, 4
+$L3354:
+  0045f	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  00465	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  0046b	8b 48 0c	 mov	 ecx, DWORD PTR [eax+12]
+  0046e	89 4d e8	 mov	 DWORD PTR _cf$[ebp], ecx
+  00471	c7 45 e4 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$[ebp], 0
+  00478	83 7d b0 00	 cmp	 DWORD PTR _srcIsDevBit$3326[ebp], 0
+  0047c	0f 84 5f 01 00
+	00		 je	 $L3357
+  00482	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  00488	8b 82 ec 04 00
+	00		 mov	 eax, DWORD PTR [edx+1260]
+  0048e	25 00 c0 ff ff	 and	 eax, -16384		; ffffc000H
+  00493	89 45 98	 mov	 DWORD PTR _srcFormat$3322[ebp], eax
+  00496	8b 4d b8	 mov	 ecx, DWORD PTR _mylpSrc$3329[ebp]
+  00499	8b 51 0e	 mov	 edx, DWORD PTR [ecx+14]
+  0049c	81 e2 ff 3f 00
+	00		 and	 edx, 16383		; 00003fffH
+  004a2	8b 45 98	 mov	 eax, DWORD PTR _srcFormat$3322[ebp]
+  004a5	0b c2		 or	 eax, edx
+  004a7	89 45 98	 mov	 DWORD PTR _srcFormat$3322[ebp], eax
+  004aa	8b 4d b8	 mov	 ecx, DWORD PTR _mylpSrc$3329[ebp]
+  004ad	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  004b3	8b 41 16	 mov	 eax, DWORD PTR [ecx+22]
+  004b6	2b 82 7c 17 00
+	00		 sub	 eax, DWORD PTR [edx+6012]
+  004bc	89 45 a4	 mov	 DWORD PTR _srcAddr$3323[ebp], eax
+  004bf	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  004c5	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  004cb	8b 42 28	 mov	 eax, DWORD PTR [edx+40]
+  004ce	83 c0 03	 add	 eax, 3
+  004d1	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  004d7	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  004dd	89 42 28	 mov	 DWORD PTR [edx+40], eax
+  004e0	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  004e5	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  004eb	81 79 28 ff ff
+	00 00		 cmp	 DWORD PTR [ecx+40], 65535 ; 0000ffffH
+  004f2	72 33		 jb	 SHORT $L3365
+  004f4	e8 00 00 00 00	 call	 __p6fencer
+  004f9	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  004ff	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00505	c7 40 28 03 00
+	00 00		 mov	 DWORD PTR [eax+40], 3
+  0050c	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  00512	83 b9 f0 17 00
+	00 00		 cmp	 DWORD PTR [ecx+6128], 0
+  00519	74 0c		 je	 SHORT $L3365
+  0051b	8b 55 e8	 mov	 edx, DWORD PTR _cf$[ebp]
+  0051e	52		 push	 edx
+  0051f	e8 00 00 00 00	 call	 _myAgpEpilog
+  00524	83 c4 04	 add	 esp, 4
+$L3365:
+  00527	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  0052c	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00532	8b 51 14	 mov	 edx, DWORD PTR [ecx+20]
+  00535	2b 55 e4	 sub	 edx, DWORD PTR _hwIndex$[ebp]
+  00538	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  0053d	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00543	89 51 14	 mov	 DWORD PTR [ecx+20], edx
+  00546	8b 55 e4	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  00549	8b 45 e8	 mov	 eax, DWORD PTR _cf$[ebp]
+  0054c	8d 0c 90	 lea	 ecx, DWORD PTR [eax+edx*4]
+  0054f	89 4d e8	 mov	 DWORD PTR _cf$[ebp], ecx
+  00552	c7 45 e4 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$[ebp], 0
+  00559	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  0055f	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00565	83 78 14 03	 cmp	 DWORD PTR [eax+20], 3
+  00569	73 11		 jae	 SHORT $L3372
+  0056b	6a 03		 push	 3
+  0056d	8b 4d e8	 mov	 ecx, DWORD PTR _cf$[ebp]
+  00570	51		 push	 ecx
+  00571	e8 00 00 00 00	 call	 _fifo_MakeRoom
+  00576	83 c4 08	 add	 esp, 8
+  00579	89 45 e8	 mov	 DWORD PTR _cf$[ebp], eax
+$L3372:
+  0057c	8b 55 e4	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  0057f	8b 45 e8	 mov	 eax, DWORD PTR _cf$[ebp]
+  00582	c7 04 90 02 40
+	40 00		 mov	 DWORD PTR [eax+edx*4], 4210690 ; 00404002H
+  00589	8b 4d e4	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  0058c	83 c1 01	 add	 ecx, 1
+  0058f	89 4d e4	 mov	 DWORD PTR _hwIndex$[ebp], ecx
+  00592	8b 55 e4	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  00595	8b 45 e8	 mov	 eax, DWORD PTR _cf$[ebp]
+  00598	8b 4d a4	 mov	 ecx, DWORD PTR _srcAddr$3323[ebp]
+  0059b	89 0c 90	 mov	 DWORD PTR [eax+edx*4], ecx
+  0059e	8b 55 e4	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  005a1	83 c2 01	 add	 edx, 1
+  005a4	89 55 e4	 mov	 DWORD PTR _hwIndex$[ebp], edx
+  005a7	8b 45 e4	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  005aa	8b 4d e8	 mov	 ecx, DWORD PTR _cf$[ebp]
+  005ad	8b 55 98	 mov	 edx, DWORD PTR _srcFormat$3322[ebp]
+  005b0	89 14 81	 mov	 DWORD PTR [ecx+eax*4], edx
+  005b3	8b 45 e4	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  005b6	83 c0 01	 add	 eax, 1
+  005b9	89 45 e4	 mov	 DWORD PTR _hwIndex$[ebp], eax
+  005bc	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  005c2	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  005c5	83 ca 20	 or	 edx, 32			; 00000020H
+  005c8	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  005cd	89 50 08	 mov	 DWORD PTR [eax+8], edx
+  005d0	33 c9		 xor	 ecx, ecx
+  005d2	85 c9		 test	 ecx, ecx
+  005d4	74 09		 je	 SHORT $L3376
+  005d6	8b 55 98	 mov	 edx, DWORD PTR _srcFormat$3322[ebp]
+  005d9	89 15 00 00 00
+	00		 mov	 DWORD PTR __SrcFormat, edx
+$L3376:
+  005df	eb 18		 jmp	 SHORT $L3378
+$L3357:
+  005e1	33 c0		 xor	 eax, eax
+  005e3	85 c0		 test	 eax, eax
+  005e5	74 12		 je	 SHORT $L3378
+  005e7	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  005ed	8b 91 ec 04 00
+	00		 mov	 edx, DWORD PTR [ecx+1260]
+  005f3	89 15 00 00 00
+	00		 mov	 DWORD PTR __SrcFormat, edx
+$L3378:
+  005f9	83 7d b4 00	 cmp	 DWORD PTR _dstIsDevBit$3327[ebp], 0
+  005fd	0f 84 b2 01 00
+	00		 je	 $L3379
+  00603	8b 45 e0	 mov	 eax, DWORD PTR _lpDst$[ebp]
+  00606	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  0060c	8b 50 16	 mov	 edx, DWORD PTR [eax+22]
+  0060f	2b 91 7c 17 00
+	00		 sub	 edx, DWORD PTR [ecx+6012]
+  00615	89 55 ac	 mov	 DWORD PTR _dstAddr$3325[ebp], edx
+  00618	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  0061d	8b 88 ec 04 00
+	00		 mov	 ecx, DWORD PTR [eax+1260]
+  00623	81 e1 00 00 07
+	00		 and	 ecx, 458752		; 00070000H
+  00629	89 4d a8	 mov	 DWORD PTR _dstFormat$3324[ebp], ecx
+  0062c	8b 55 a8	 mov	 edx, DWORD PTR _dstFormat$3324[ebp]
+  0062f	89 55 a8	 mov	 DWORD PTR _dstFormat$3324[ebp], edx
+  00632	8b 45 e0	 mov	 eax, DWORD PTR _lpDst$[ebp]
+  00635	8b 48 0e	 mov	 ecx, DWORD PTR [eax+14]
+  00638	81 e1 ff 3f 00
+	00		 and	 ecx, 16383		; 00003fffH
+  0063e	8b 55 a8	 mov	 edx, DWORD PTR _dstFormat$3324[ebp]
+  00641	0b d1		 or	 edx, ecx
+  00643	89 55 a8	 mov	 DWORD PTR _dstFormat$3324[ebp], edx
+  00646	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  0064b	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00651	8b 51 28	 mov	 edx, DWORD PTR [ecx+40]
+  00654	83 c2 05	 add	 edx, 5
+  00657	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  0065c	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00662	89 51 28	 mov	 DWORD PTR [ecx+40], edx
+  00665	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  0066b	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00671	81 78 28 ff ff
+	00 00		 cmp	 DWORD PTR [eax+40], 65535 ; 0000ffffH
+  00678	72 32		 jb	 SHORT $L3387
+  0067a	e8 00 00 00 00	 call	 __p6fencer
+  0067f	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  00685	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  0068b	c7 42 28 05 00
+	00 00		 mov	 DWORD PTR [edx+40], 5
+  00692	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  00697	83 b8 f0 17 00
+	00 00		 cmp	 DWORD PTR [eax+6128], 0
+  0069e	74 0c		 je	 SHORT $L3387
+  006a0	8b 4d e8	 mov	 ecx, DWORD PTR _cf$[ebp]
+  006a3	51		 push	 ecx
+  006a4	e8 00 00 00 00	 call	 _myAgpEpilog
+  006a9	83 c4 04	 add	 esp, 4
+$L3387:
+  006ac	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  006b2	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  006b8	8b 48 14	 mov	 ecx, DWORD PTR [eax+20]
+  006bb	2b 4d e4	 sub	 ecx, DWORD PTR _hwIndex$[ebp]
+  006be	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  006c4	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  006ca	89 48 14	 mov	 DWORD PTR [eax+20], ecx
+  006cd	8b 4d e4	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  006d0	8b 55 e8	 mov	 edx, DWORD PTR _cf$[ebp]
+  006d3	8d 04 8a	 lea	 eax, DWORD PTR [edx+ecx*4]
+  006d6	89 45 e8	 mov	 DWORD PTR _cf$[ebp], eax
+  006d9	c7 45 e4 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$[ebp], 0
+  006e0	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  006e6	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  006ec	83 7a 14 05	 cmp	 DWORD PTR [edx+20], 5
+  006f0	73 11		 jae	 SHORT $L3394
+  006f2	6a 05		 push	 5
+  006f4	8b 45 e8	 mov	 eax, DWORD PTR _cf$[ebp]
+  006f7	50		 push	 eax
+  006f8	e8 00 00 00 00	 call	 _fifo_MakeRoom
+  006fd	83 c4 08	 add	 esp, 8
+  00700	89 45 e8	 mov	 DWORD PTR _cf$[ebp], eax
+$L3394:
+  00703	8b 4d e4	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  00706	8b 55 e8	 mov	 edx, DWORD PTR _cf$[ebp]
+  00709	c7 04 8a 7a 00
+	00 00		 mov	 DWORD PTR [edx+ecx*4], 122 ; 0000007aH
+  00710	8b 45 e4	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  00713	83 c0 01	 add	 eax, 1
+  00716	89 45 e4	 mov	 DWORD PTR _hwIndex$[ebp], eax
+  00719	8b 4d e4	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  0071c	8b 55 e8	 mov	 edx, DWORD PTR _cf$[ebp]
+  0071f	c7 04 8a 00 00
+	00 00		 mov	 DWORD PTR [edx+ecx*4], 0
+  00726	8b 45 e4	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  00729	83 c0 01	 add	 eax, 1
+  0072c	89 45 e4	 mov	 DWORD PTR _hwIndex$[ebp], eax
+  0072f	8b 4d e0	 mov	 ecx, DWORD PTR _lpDst$[ebp]
+  00732	33 d2		 xor	 edx, edx
+  00734	66 8b 51 04	 mov	 dx, WORD PTR [ecx+4]
+  00738	c1 e2 10	 shl	 edx, 16			; 00000010H
+  0073b	8b 45 e0	 mov	 eax, DWORD PTR _lpDst$[ebp]
+  0073e	33 c9		 xor	 ecx, ecx
+  00740	66 8b 48 02	 mov	 cx, WORD PTR [eax+2]
+  00744	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  0074a	0b d1		 or	 edx, ecx
+  0074c	8b 45 e4	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  0074f	8b 4d e8	 mov	 ecx, DWORD PTR _cf$[ebp]
+  00752	89 14 81	 mov	 DWORD PTR [ecx+eax*4], edx
+  00755	8b 55 e4	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  00758	83 c2 01	 add	 edx, 1
+  0075b	89 55 e4	 mov	 DWORD PTR _hwIndex$[ebp], edx
+  0075e	8b 45 e4	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  00761	8b 4d e8	 mov	 ecx, DWORD PTR _cf$[ebp]
+  00764	8b 55 ac	 mov	 edx, DWORD PTR _dstAddr$3325[ebp]
+  00767	89 14 81	 mov	 DWORD PTR [ecx+eax*4], edx
+  0076a	8b 45 e4	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  0076d	83 c0 01	 add	 eax, 1
+  00770	89 45 e4	 mov	 DWORD PTR _hwIndex$[ebp], eax
+  00773	8b 4d e4	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  00776	8b 55 e8	 mov	 edx, DWORD PTR _cf$[ebp]
+  00779	8b 45 a8	 mov	 eax, DWORD PTR _dstFormat$3324[ebp]
+  0077c	89 04 8a	 mov	 DWORD PTR [edx+ecx*4], eax
+  0077f	8b 4d e4	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  00782	83 c1 01	 add	 ecx, 1
+  00785	89 4d e4	 mov	 DWORD PTR _hwIndex$[ebp], ecx
+  00788	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  0078e	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  00791	0c 10		 or	 al, 16			; 00000010H
+  00793	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  00799	89 41 08	 mov	 DWORD PTR [ecx+8], eax
+  0079c	33 d2		 xor	 edx, edx
+  0079e	85 d2		 test	 edx, edx
+  007a0	74 11		 je	 SHORT $L3402
+  007a2	8b 45 ac	 mov	 eax, DWORD PTR _dstAddr$3325[ebp]
+  007a5	a3 00 00 00 00	 mov	 DWORD PTR _CurrentDstAddr, eax
+  007aa	8b 4d a8	 mov	 ecx, DWORD PTR _dstFormat$3324[ebp]
+  007ad	89 0d 00 00 00
+	00		 mov	 DWORD PTR _CurrentDstFormat, ecx
+$L3402:
+  007b3	eb 28		 jmp	 SHORT $L3404
+$L3379:
+  007b5	33 d2		 xor	 edx, edx
+  007b7	85 d2		 test	 edx, edx
+  007b9	74 22		 je	 SHORT $L3404
+  007bb	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  007c0	8b 88 38 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1336]
+  007c6	89 0d 00 00 00
+	00		 mov	 DWORD PTR _CurrentDstAddr, ecx
+  007cc	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  007d2	8b 82 ec 04 00
+	00		 mov	 eax, DWORD PTR [edx+1260]
+  007d8	a3 00 00 00 00	 mov	 DWORD PTR _CurrentDstFormat, eax
+$L3404:
+  007dd	b9 01 00 00 00	 mov	 ecx, 1
+  007e2	85 c9		 test	 ecx, ecx
+  007e4	74 13		 je	 SHORT $L3405
+  007e6	8b 55 ec	 mov	 edx, DWORD PTR _lpTextXForm$[ebp]
+  007e9	0f bf 42 06	 movsx	 eax, WORD PTR [edx+6]
+  007ed	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  007f3	89 81 7c 1a 00
+	00		 mov	 DWORD PTR [ecx+6780], eax
+$L3405:
+
+; 354  : 
+; 355  :     /* Set clip rectangle */
+; 356  :     CMDFIFO_CHECKROOM(cf, 3);
+
+  007f9	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  007ff	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00805	8b 48 28	 mov	 ecx, DWORD PTR [eax+40]
+  00808	83 c1 03	 add	 ecx, 3
+  0080b	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  00811	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00817	89 48 28	 mov	 DWORD PTR [eax+40], ecx
+  0081a	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  00820	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00826	81 7a 28 ff ff
+	00 00		 cmp	 DWORD PTR [edx+40], 65535 ; 0000ffffH
+  0082d	72 32		 jb	 SHORT $L3413
+  0082f	e8 00 00 00 00	 call	 __p6fencer
+  00834	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  00839	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  0083f	c7 41 28 03 00
+	00 00		 mov	 DWORD PTR [ecx+40], 3
+  00846	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  0084c	83 ba f0 17 00
+	00 00		 cmp	 DWORD PTR [edx+6128], 0
+  00853	74 0c		 je	 SHORT $L3413
+  00855	8b 45 e8	 mov	 eax, DWORD PTR _cf$[ebp]
+  00858	50		 push	 eax
+  00859	e8 00 00 00 00	 call	 _myAgpEpilog
+  0085e	83 c4 04	 add	 esp, 4
+$L3413:
+  00861	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  00867	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  0086d	8b 42 14	 mov	 eax, DWORD PTR [edx+20]
+  00870	2b 45 e4	 sub	 eax, DWORD PTR _hwIndex$[ebp]
+  00873	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  00879	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  0087f	89 42 14	 mov	 DWORD PTR [edx+20], eax
+  00882	8b 45 e4	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  00885	8b 4d e8	 mov	 ecx, DWORD PTR _cf$[ebp]
+  00888	8d 14 81	 lea	 edx, DWORD PTR [ecx+eax*4]
+  0088b	89 55 e8	 mov	 DWORD PTR _cf$[ebp], edx
+  0088e	c7 45 e4 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$[ebp], 0
+  00895	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  0089a	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  008a0	83 79 14 03	 cmp	 DWORD PTR [ecx+20], 3
+  008a4	73 11		 jae	 SHORT $L3420
+  008a6	6a 03		 push	 3
+  008a8	8b 55 e8	 mov	 edx, DWORD PTR _cf$[ebp]
+  008ab	52		 push	 edx
+  008ac	e8 00 00 00 00	 call	 _fifo_MakeRoom
+  008b1	83 c4 08	 add	 esp, 8
+  008b4	89 45 e8	 mov	 DWORD PTR _cf$[ebp], eax
+$L3420:
+
+; 357  :     SETPH(cf, (SSTCP_PKT2 |
+; 358  : 	       clip1minBit |
+; 359  : 	       clip1maxBit));
+
+  008b7	8b 45 e4	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  008ba	8b 4d e8	 mov	 ecx, DWORD PTR _cf$[ebp]
+  008bd	c7 04 81 02 00
+	30 00		 mov	 DWORD PTR [ecx+eax*4], 3145730 ; 00300002H
+  008c4	8b 55 e4	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  008c7	83 c2 01	 add	 edx, 1
+  008ca	89 55 e4	 mov	 DWORD PTR _hwIndex$[ebp], edx
+
+; 360  :     SET(cf, _FF(lpGRegs)->clip1min, RECT_TOP_LEFT(lpClipRect));
+
+  008cd	8b 45 e4	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  008d0	8b 4d e8	 mov	 ecx, DWORD PTR _cf$[ebp]
+  008d3	8b 55 f0	 mov	 edx, DWORD PTR _lpClipRect$[ebp]
+  008d6	8b 12		 mov	 edx, DWORD PTR [edx]
+  008d8	89 14 81	 mov	 DWORD PTR [ecx+eax*4], edx
+  008db	8b 45 e4	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  008de	83 c0 01	 add	 eax, 1
+  008e1	89 45 e4	 mov	 DWORD PTR _hwIndex$[ebp], eax
+
+; 361  :     SET(cf, _FF(lpGRegs)->clip1max, RECT_BOTTOM_RIGHT(lpClipRect));
+
+  008e4	8b 4d e4	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  008e7	8b 55 e8	 mov	 edx, DWORD PTR _cf$[ebp]
+  008ea	8b 45 f0	 mov	 eax, DWORD PTR _lpClipRect$[ebp]
+  008ed	8b 40 04	 mov	 eax, DWORD PTR [eax+4]
+  008f0	89 04 8a	 mov	 DWORD PTR [edx+ecx*4], eax
+  008f3	8b 4d e4	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  008f6	83 c1 01	 add	 ecx, 1
+  008f9	89 4d e4	 mov	 DWORD PTR _hwIndex$[ebp], ecx
+
+; 362  :     BUMP(3);
+; 363  : 
+; 364  :     /* Draw opaqueing rectangle list. It is possible to factor out the
+; 365  :      * setting of colorFore, but it isn't advisable, since most all
+; 366  :      * calls are for a single rectangle.
+; 367  :      */
+; 368  : 
+; 369  : 
+; 370  :     if ( lpOpaqueRect != NULL )
+
+  008fc	83 7d fc 00	 cmp	 DWORD PTR _lpOpaqueRect$[ebp], 0
+  00900	0f 84 b6 01 00
+	00		 je	 $L3432
+
+; 371  : 	for (; !END_OF_RECT_LIST(lpOpaqueRect); ++lpOpaqueRect )
+
+  00906	eb 09		 jmp	 SHORT $L3430
+$L3431:
+  00908	8b 55 fc	 mov	 edx, DWORD PTR _lpOpaqueRect$[ebp]
+  0090b	83 c2 08	 add	 edx, 8
+  0090e	89 55 fc	 mov	 DWORD PTR _lpOpaqueRect$[ebp], edx
+$L3430:
+  00911	8b 45 fc	 mov	 eax, DWORD PTR _lpOpaqueRect$[ebp]
+  00914	83 38 00	 cmp	 DWORD PTR [eax], 0
+  00917	75 0d		 jne	 SHORT $L3433
+  00919	8b 4d fc	 mov	 ecx, DWORD PTR _lpOpaqueRect$[ebp]
+  0091c	83 79 04 00	 cmp	 DWORD PTR [ecx+4], 0
+  00920	0f 84 96 01 00
+	00		 je	 $L3432
+$L3433:
+
+; 373  : 		// STB-MDM
+; 374  : 		// PRS #4945 Signed short is overloading then sign extended to an integer.
+; 375  : 		// Convert to an integer so 32 bit integer subtraction will occur.
+; 376  : 		// Removed fixes for PRS 2486, 1929, and 1623.  Now fixed with this
+; 377  : 		// code modification.
+; 378  : 	    height = ((int)lpOpaqueRect->bottom) - lpOpaqueRect->top;
+
+  00926	8b 55 fc	 mov	 edx, DWORD PTR _lpOpaqueRect$[ebp]
+  00929	0f bf 42 06	 movsx	 eax, WORD PTR [edx+6]
+  0092d	8b 4d fc	 mov	 ecx, DWORD PTR _lpOpaqueRect$[ebp]
+  00930	0f bf 51 02	 movsx	 edx, WORD PTR [ecx+2]
+  00934	2b c2		 sub	 eax, edx
+  00936	89 45 dc	 mov	 DWORD PTR _height$[ebp], eax
+
+; 379  : 	    width = ((int)lpOpaqueRect->right) - lpOpaqueRect->left;
+
+  00939	8b 45 fc	 mov	 eax, DWORD PTR _lpOpaqueRect$[ebp]
+  0093c	0f bf 48 04	 movsx	 ecx, WORD PTR [eax+4]
+  00940	8b 55 fc	 mov	 edx, DWORD PTR _lpOpaqueRect$[ebp]
+  00943	0f bf 02	 movsx	 eax, WORD PTR [edx]
+  00946	2b c8		 sub	 ecx, eax
+  00948	89 4d f8	 mov	 DWORD PTR _width$[ebp], ecx
+
+; 380  : 
+; 381  : 		width = min ( width, 0x0fff );
+
+  0094b	81 7d f8 ff 0f
+	00 00		 cmp	 DWORD PTR _width$[ebp], 4095 ; 00000fffH
+  00952	7d 08		 jge	 SHORT $L3522
+  00954	8b 4d f8	 mov	 ecx, DWORD PTR _width$[ebp]
+  00957	89 4d 84	 mov	 DWORD PTR -124+[ebp], ecx
+  0095a	eb 07		 jmp	 SHORT $L3523
+$L3522:
+  0095c	c7 45 84 ff 0f
+	00 00		 mov	 DWORD PTR -124+[ebp], 4095 ; 00000fffH
+$L3523:
+  00963	8b 55 84	 mov	 edx, DWORD PTR -124+[ebp]
+  00966	89 55 f8	 mov	 DWORD PTR _width$[ebp], edx
+
+; 382  : 
+; 383  : 	    /* PRS 2486 - In notepad we have found a case where
+; 384  : 	     * the opqaue rect passed is fff7 0130 7fff 013f. Once
+; 385  : 	     * we compute the width, it is greater than 32767, and
+; 386  : 	     * this cannot be sent to the hardware! (its a negative
+; 387  : 	     * 16 bit integer). So clamp height and width to 32k
+; 388  : 	     * maximum.
+; 389  : 	     */
+; 390  : /*	    height = min(height, 0x7fff);
+; 391  : 	    width = min(width, 0x7fff);
+; 392  : 
+; 393  :         // Circumvent HW bug that doesn't allow drawing spans
+; 394  :         // of more than 16k bytes at 32-bpp (#1623 and #1929).
+; 395  :         if ((_FF(bpp) == 32) && (width > 0x1000))
+; 396  :             width = 0x1000;
+; 397  : */
+; 398  : 	    if ((height > 0) && (width > 0))
+
+  00969	83 7d dc 00	 cmp	 DWORD PTR _height$[ebp], 0
+  0096d	0f 8e 44 01 00
+	00		 jle	 $L3436
+  00973	83 7d f8 00	 cmp	 DWORD PTR _width$[ebp], 0
+  00977	0f 8e 3a 01 00
+	00		 jle	 $L3436
+
+; 400  : 		CMDFIFO_CHECKROOM(cf, 5);
+
+  0097d	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  00982	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00988	8b 51 28	 mov	 edx, DWORD PTR [ecx+40]
+  0098b	83 c2 05	 add	 edx, 5
+  0098e	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  00993	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00999	89 51 28	 mov	 DWORD PTR [ecx+40], edx
+  0099c	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  009a2	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  009a8	81 78 28 ff ff
+	00 00		 cmp	 DWORD PTR [eax+40], 65535 ; 0000ffffH
+  009af	72 32		 jb	 SHORT $L3444
+  009b1	e8 00 00 00 00	 call	 __p6fencer
+  009b6	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  009bc	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  009c2	c7 42 28 05 00
+	00 00		 mov	 DWORD PTR [edx+40], 5
+  009c9	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  009ce	83 b8 f0 17 00
+	00 00		 cmp	 DWORD PTR [eax+6128], 0
+  009d5	74 0c		 je	 SHORT $L3444
+  009d7	8b 4d e8	 mov	 ecx, DWORD PTR _cf$[ebp]
+  009da	51		 push	 ecx
+  009db	e8 00 00 00 00	 call	 _myAgpEpilog
+  009e0	83 c4 04	 add	 esp, 4
+$L3444:
+  009e3	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  009e9	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  009ef	8b 48 14	 mov	 ecx, DWORD PTR [eax+20]
+  009f2	2b 4d e4	 sub	 ecx, DWORD PTR _hwIndex$[ebp]
+  009f5	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  009fb	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00a01	89 48 14	 mov	 DWORD PTR [eax+20], ecx
+  00a04	8b 4d e4	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  00a07	8b 55 e8	 mov	 edx, DWORD PTR _cf$[ebp]
+  00a0a	8d 04 8a	 lea	 eax, DWORD PTR [edx+ecx*4]
+  00a0d	89 45 e8	 mov	 DWORD PTR _cf$[ebp], eax
+  00a10	c7 45 e4 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$[ebp], 0
+  00a17	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  00a1d	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00a23	83 7a 14 05	 cmp	 DWORD PTR [edx+20], 5
+  00a27	73 11		 jae	 SHORT $L3451
+  00a29	6a 05		 push	 5
+  00a2b	8b 45 e8	 mov	 eax, DWORD PTR _cf$[ebp]
+  00a2e	50		 push	 eax
+  00a2f	e8 00 00 00 00	 call	 _fifo_MakeRoom
+  00a34	83 c4 08	 add	 esp, 8
+  00a37	89 45 e8	 mov	 DWORD PTR _cf$[ebp], eax
+$L3451:
+
+; 401  : 		SETPH(cf, (SSTCP_PKT2 | colorForeBit | dstSizeBit |
+; 402  : 			   dstXYBit | commandBit));
+
+  00a3a	8b 4d e4	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  00a3d	8b 55 e8	 mov	 edx, DWORD PTR _cf$[ebp]
+  00a40	c7 04 8a 02 00
+	00 3c		 mov	 DWORD PTR [edx+ecx*4], 1006632962 ; 3c000002H
+  00a47	8b 45 e4	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  00a4a	83 c0 01	 add	 eax, 1
+  00a4d	89 45 e4	 mov	 DWORD PTR _hwIndex$[ebp], eax
+
+; 403  : 		SET(cf, _FF(lpGRegs)->colorFore, lpDrawMode->bkColor);
+
+  00a50	8b 4d e4	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  00a53	8b 55 e8	 mov	 edx, DWORD PTR _cf$[ebp]
+  00a56	8b 45 d8	 mov	 eax, DWORD PTR _lpDrawMode$[ebp]
+  00a59	8b 40 04	 mov	 eax, DWORD PTR [eax+4]
+  00a5c	89 04 8a	 mov	 DWORD PTR [edx+ecx*4], eax
+  00a5f	8b 4d e4	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  00a62	83 c1 01	 add	 ecx, 1
+  00a65	89 4d e4	 mov	 DWORD PTR _hwIndex$[ebp], ecx
+
+; 404  : 		SET(cf, _FF(lpGRegs)->dstSize, R32(height, width));
+
+  00a68	8b 55 dc	 mov	 edx, DWORD PTR _height$[ebp]
+  00a6b	c1 e2 10	 shl	 edx, 16			; 00000010H
+  00a6e	8b 45 f8	 mov	 eax, DWORD PTR _width$[ebp]
+  00a71	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  00a76	0b d0		 or	 edx, eax
+  00a78	8b 4d e4	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  00a7b	8b 45 e8	 mov	 eax, DWORD PTR _cf$[ebp]
+  00a7e	89 14 88	 mov	 DWORD PTR [eax+ecx*4], edx
+  00a81	8b 4d e4	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  00a84	83 c1 01	 add	 ecx, 1
+  00a87	89 4d e4	 mov	 DWORD PTR _hwIndex$[ebp], ecx
+
+; 405  : 		SET(cf, _FF(lpGRegs)->dstXY, RECT_TOP_LEFT(lpOpaqueRect));
+
+  00a8a	8b 55 e4	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  00a8d	8b 45 e8	 mov	 eax, DWORD PTR _cf$[ebp]
+  00a90	8b 4d fc	 mov	 ecx, DWORD PTR _lpOpaqueRect$[ebp]
+  00a93	8b 09		 mov	 ecx, DWORD PTR [ecx]
+  00a95	89 0c 90	 mov	 DWORD PTR [eax+edx*4], ecx
+  00a98	8b 55 e4	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  00a9b	83 c2 01	 add	 edx, 1
+  00a9e	89 55 e4	 mov	 DWORD PTR _hwIndex$[ebp], edx
+
+; 406  : 		SETC(cf, _FF(lpGRegs)->command, (SSTG_ROP_SRCCOPY |
+; 407  : 						SSTG_CLIPSELECT |
+; 408  : 						SSTG_GO | SSTG_RECTFILL));
+
+  00aa1	8b 45 e4	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  00aa4	8b 4d e8	 mov	 ecx, DWORD PTR _cf$[ebp]
+  00aa7	c7 04 81 05 01
+	80 cc		 mov	 DWORD PTR [ecx+eax*4], -864026363 ; cc800105H
+  00aae	8b 55 e4	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  00ab1	83 c2 01	 add	 edx, 1
+  00ab4	89 55 e4	 mov	 DWORD PTR _hwIndex$[ebp], edx
+$L3436:
+
+; 411  : 	}
+
+  00ab7	e9 4c fe ff ff	 jmp	 $L3431
+$L3432:
+
+; 412  : 
+; 413  :     /* lp->wCount > 0, we have characters to draw */
+; 414  :     if ( lp->wCount > 0 )
+
+  00abc	8b 45 08	 mov	 eax, DWORD PTR _lp$[ebp]
+  00abf	33 c9		 xor	 ecx, ecx
+  00ac1	66 8b 48 16	 mov	 cx, WORD PTR [eax+22]
+  00ac5	85 c9		 test	 ecx, ecx
+  00ac7	0f 8e c7 02 00
+	00		 jle	 $L3460
+
+; 416  : 	FLATTEN_POINTER(lpString);
+
+  00acd	8b 55 08	 mov	 edx, DWORD PTR _lp$[ebp]
+  00ad0	83 7a 18 00	 cmp	 DWORD PTR [edx+24], 0
+  00ad4	75 09		 jne	 SHORT $L3461
+  00ad6	c7 45 d0 00 00
+	00 00		 mov	 DWORD PTR _lpString$[ebp], 0
+  00add	eb 43		 jmp	 SHORT $L3463
+$L3461:
+  00adf	8b 45 08	 mov	 eax, DWORD PTR _lp$[ebp]
+  00ae2	8b 48 18	 mov	 ecx, DWORD PTR [eax+24]
+  00ae5	89 4d 94	 mov	 DWORD PTR _tf$3464[ebp], ecx
+  00ae8	8b 1d 00 00 00
+	00		 mov	 ebx, DWORD PTR _dwLdtPtr
+  00aee	8b 45 94	 mov	 eax, DWORD PTR _tf$3464[ebp]
+  00af1	c1 e8 10	 shr	 eax, 16			; 00000010H
+  00af4	83 e0 f8	 and	 eax, -8			; fffffff8H
+  00af7	03 d8		 add	 ebx, eax
+  00af9	8b 43 04	 mov	 eax, DWORD PTR [ebx+4]
+  00afc	8b c8		 mov	 ecx, eax
+  00afe	25 00 00 00 ff	 and	 eax, -16777216		; ff000000H
+  00b03	c1 e1 10	 shl	 ecx, 16			; 00000010H
+  00b06	81 e1 00 00 ff
+	00		 and	 ecx, 16711680		; 00ff0000H
+  00b0c	0b c1		 or	 eax, ecx
+  00b0e	8b 4b 02	 mov	 ecx, DWORD PTR [ebx+2]
+  00b11	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  00b17	0b c1		 or	 eax, ecx
+  00b19	0f b7 5d 94	 movzx	 ebx, WORD PTR _tf$3464[ebp]
+  00b1d	03 c3		 add	 eax, ebx
+  00b1f	89 45 d0	 mov	 DWORD PTR _lpString$[ebp], eax
+$L3463:
+
+; 417  : 	lp->lpFontInfo &= 0xFFFF0000;  /* Strip offset from pointer */
+
+  00b22	8b 55 08	 mov	 edx, DWORD PTR _lp$[ebp]
+  00b25	8b 42 12	 mov	 eax, DWORD PTR [edx+18]
+  00b28	25 00 00 ff ff	 and	 eax, -65536		; ffff0000H
+  00b2d	8b 4d 08	 mov	 ecx, DWORD PTR _lp$[ebp]
+  00b30	89 41 12	 mov	 DWORD PTR [ecx+18], eax
+
+; 418  : 	FLATTEN_POINTER(lpFontInfo);
+
+  00b33	8b 55 08	 mov	 edx, DWORD PTR _lp$[ebp]
+  00b36	83 7a 12 00	 cmp	 DWORD PTR [edx+18], 0
+  00b3a	75 09		 jne	 SHORT $L3466
+  00b3c	c7 45 d4 00 00
+	00 00		 mov	 DWORD PTR _lpFontInfo$[ebp], 0
+  00b43	eb 43		 jmp	 SHORT $L3468
+$L3466:
+  00b45	8b 45 08	 mov	 eax, DWORD PTR _lp$[ebp]
+  00b48	8b 48 12	 mov	 ecx, DWORD PTR [eax+18]
+  00b4b	89 4d 90	 mov	 DWORD PTR _tf$3469[ebp], ecx
+  00b4e	8b 1d 00 00 00
+	00		 mov	 ebx, DWORD PTR _dwLdtPtr
+  00b54	8b 45 90	 mov	 eax, DWORD PTR _tf$3469[ebp]
+  00b57	c1 e8 10	 shr	 eax, 16			; 00000010H
+  00b5a	83 e0 f8	 and	 eax, -8			; fffffff8H
+  00b5d	03 d8		 add	 ebx, eax
+  00b5f	8b 43 04	 mov	 eax, DWORD PTR [ebx+4]
+  00b62	8b c8		 mov	 ecx, eax
+  00b64	25 00 00 00 ff	 and	 eax, -16777216		; ff000000H
+  00b69	c1 e1 10	 shl	 ecx, 16			; 00000010H
+  00b6c	81 e1 00 00 ff
+	00		 and	 ecx, 16711680		; 00ff0000H
+  00b72	0b c1		 or	 eax, ecx
+  00b74	8b 4b 02	 mov	 ecx, DWORD PTR [ebx+2]
+  00b77	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  00b7d	0b c1		 or	 eax, ecx
+  00b7f	0f b7 5d 90	 movzx	 ebx, WORD PTR _tf$3469[ebp]
+  00b83	03 c3		 add	 eax, ebx
+  00b85	89 45 d4	 mov	 DWORD PTR _lpFontInfo$[ebp], eax
+$L3468:
+
+; 419  : 	FLATTEN_POINTER(lpCharWidths);
+
+  00b88	8b 55 08	 mov	 edx, DWORD PTR _lp$[ebp]
+  00b8b	83 7a 06 00	 cmp	 DWORD PTR [edx+6], 0
+  00b8f	75 09		 jne	 SHORT $L3471
+  00b91	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _lpCharWidths$[ebp], 0
+  00b98	eb 43		 jmp	 SHORT $L3473
+$L3471:
+  00b9a	8b 45 08	 mov	 eax, DWORD PTR _lp$[ebp]
+  00b9d	8b 48 06	 mov	 ecx, DWORD PTR [eax+6]
+  00ba0	89 4d 8c	 mov	 DWORD PTR _tf$3474[ebp], ecx
+  00ba3	8b 1d 00 00 00
+	00		 mov	 ebx, DWORD PTR _dwLdtPtr
+  00ba9	8b 45 8c	 mov	 eax, DWORD PTR _tf$3474[ebp]
+  00bac	c1 e8 10	 shr	 eax, 16			; 00000010H
+  00baf	83 e0 f8	 and	 eax, -8			; fffffff8H
+  00bb2	03 d8		 add	 ebx, eax
+  00bb4	8b 43 04	 mov	 eax, DWORD PTR [ebx+4]
+  00bb7	8b c8		 mov	 ecx, eax
+  00bb9	25 00 00 00 ff	 and	 eax, -16777216		; ff000000H
+  00bbe	c1 e1 10	 shl	 ecx, 16			; 00000010H
+  00bc1	81 e1 00 00 ff
+	00		 and	 ecx, 16711680		; 00ff0000H
+  00bc7	0b c1		 or	 eax, ecx
+  00bc9	8b 4b 02	 mov	 ecx, DWORD PTR [ebx+2]
+  00bcc	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  00bd2	0b c1		 or	 eax, ecx
+  00bd4	0f b7 5d 8c	 movzx	 ebx, WORD PTR _tf$3474[ebp]
+  00bd8	03 c3		 add	 eax, ebx
+  00bda	89 45 f4	 mov	 DWORD PTR _lpCharWidths$[ebp], eax
+$L3473:
+
+; 420  : 
+; 421  : 	/* Program in foreground color. Because we are always transparent,
+; 422  : 	 * we don't need to set background color. We also set the source
+; 423  : 	 * format (monochrome), packing and initial rotation (0).
+; 424  : 	 */
+; 425  : 	CMDFIFO_CHECKROOM(cf, 4);
+
+  00bdd	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  00be3	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00be9	8b 48 28	 mov	 ecx, DWORD PTR [eax+40]
+  00bec	83 c1 04	 add	 ecx, 4
+  00bef	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  00bf5	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00bfb	89 48 28	 mov	 DWORD PTR [eax+40], ecx
+  00bfe	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  00c04	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00c0a	81 7a 28 ff ff
+	00 00		 cmp	 DWORD PTR [edx+40], 65535 ; 0000ffffH
+  00c11	72 32		 jb	 SHORT $L3483
+  00c13	e8 00 00 00 00	 call	 __p6fencer
+  00c18	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  00c1d	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00c23	c7 41 28 04 00
+	00 00		 mov	 DWORD PTR [ecx+40], 4
+  00c2a	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  00c30	83 ba f0 17 00
+	00 00		 cmp	 DWORD PTR [edx+6128], 0
+  00c37	74 0c		 je	 SHORT $L3483
+  00c39	8b 45 e8	 mov	 eax, DWORD PTR _cf$[ebp]
+  00c3c	50		 push	 eax
+  00c3d	e8 00 00 00 00	 call	 _myAgpEpilog
+  00c42	83 c4 04	 add	 esp, 4
+$L3483:
+  00c45	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  00c4b	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00c51	8b 42 14	 mov	 eax, DWORD PTR [edx+20]
+  00c54	2b 45 e4	 sub	 eax, DWORD PTR _hwIndex$[ebp]
+  00c57	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  00c5d	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00c63	89 42 14	 mov	 DWORD PTR [edx+20], eax
+  00c66	8b 45 e4	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  00c69	8b 4d e8	 mov	 ecx, DWORD PTR _cf$[ebp]
+  00c6c	8d 14 81	 lea	 edx, DWORD PTR [ecx+eax*4]
+  00c6f	89 55 e8	 mov	 DWORD PTR _cf$[ebp], edx
+  00c72	c7 45 e4 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$[ebp], 0
+  00c79	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  00c7e	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00c84	83 79 14 04	 cmp	 DWORD PTR [ecx+20], 4
+  00c88	73 11		 jae	 SHORT $L3490
+  00c8a	6a 04		 push	 4
+  00c8c	8b 55 e8	 mov	 edx, DWORD PTR _cf$[ebp]
+  00c8f	52		 push	 edx
+  00c90	e8 00 00 00 00	 call	 _fifo_MakeRoom
+  00c95	83 c4 08	 add	 esp, 8
+  00c98	89 45 e8	 mov	 DWORD PTR _cf$[ebp], eax
+$L3490:
+
+; 426  : 	SETPH(cf, SSTCP_PKT2 | srcFormatBit | srcXYBit | colorForeBit);
+
+  00c9b	8b 45 e4	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  00c9e	8b 4d e8	 mov	 ecx, DWORD PTR _cf$[ebp]
+  00ca1	c7 04 81 02 00
+	40 05		 mov	 DWORD PTR [ecx+eax*4], 88080386 ; 05400002H
+  00ca8	8b 55 e4	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  00cab	83 c2 01	 add	 edx, 1
+  00cae	89 55 e4	 mov	 DWORD PTR _hwIndex$[ebp], edx
+
+; 427  : 	SET(cf, _FF(lpGRegs)->srcFormat, (SSTG_PIXFMT_1BPP |
+; 428  : 					  SSTG_SRC_PACK_8));
+
+  00cb1	8b 45 e4	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  00cb4	8b 4d e8	 mov	 ecx, DWORD PTR _cf$[ebp]
+  00cb7	c7 04 81 00 00
+	40 00		 mov	 DWORD PTR [ecx+eax*4], 4194304 ; 00400000H
+  00cbe	8b 55 e4	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  00cc1	83 c2 01	 add	 edx, 1
+  00cc4	89 55 e4	 mov	 DWORD PTR _hwIndex$[ebp], edx
+
+; 429  : 	SET(cf, _FF(lpGRegs)->srcXY, R32(0, 0));
+
+  00cc7	8b 45 e4	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  00cca	8b 4d e8	 mov	 ecx, DWORD PTR _cf$[ebp]
+  00ccd	c7 04 81 00 00
+	00 00		 mov	 DWORD PTR [ecx+eax*4], 0
+  00cd4	8b 55 e4	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  00cd7	83 c2 01	 add	 edx, 1
+  00cda	89 55 e4	 mov	 DWORD PTR _hwIndex$[ebp], edx
+
+; 430  : 	SET(cf, _FF(lpGRegs)->colorFore, lpDrawMode->TextColor);
+
+  00cdd	8b 45 e4	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  00ce0	8b 4d e8	 mov	 ecx, DWORD PTR _cf$[ebp]
+  00ce3	8b 55 d8	 mov	 edx, DWORD PTR _lpDrawMode$[ebp]
+  00ce6	8b 52 08	 mov	 edx, DWORD PTR [edx+8]
+  00ce9	89 14 81	 mov	 DWORD PTR [ecx+eax*4], edx
+  00cec	8b 45 e4	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  00cef	83 c0 01	 add	 eax, 1
+  00cf2	89 45 e4	 mov	 DWORD PTR _hwIndex$[ebp], eax
+
+; 431  : 	BUMP(4);
+; 432  : 
+; 433  : 	/* Unleash the draw */
+; 434  : 	CMDFIFO_SAVE(cf);
+
+  00cf5	8b 4d e4	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  00cf8	8b 55 e8	 mov	 edx, DWORD PTR _cf$[ebp]
+  00cfb	8d 04 8a	 lea	 eax, DWORD PTR [edx+ecx*4]
+  00cfe	89 45 e8	 mov	 DWORD PTR _cf$[ebp], eax
+  00d01	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  00d07	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00d0d	8b 42 14	 mov	 eax, DWORD PTR [edx+20]
+  00d10	2b 45 e4	 sub	 eax, DWORD PTR _hwIndex$[ebp]
+  00d13	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  00d19	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00d1f	89 42 14	 mov	 DWORD PTR [edx+20], eax
+  00d22	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  00d27	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00d2d	8b 55 e8	 mov	 edx, DWORD PTR _cf$[ebp]
+  00d30	89 51 0c	 mov	 DWORD PTR [ecx+12], edx
+
+; 435  : 	draw_text((signed short)lp->wDestXOrg,   /* base of string */
+; 436  : 		  (signed short)lp->wDestYOrg,
+; 437  : 		  lpString,                         /* string */
+; 438  : 		  lp->wCount,
+; 439  : 		  lpNewFontSeg,                     /* font */
+; 440  : 		  lpCharWidths,                     /* escapements */
+; 441  : 		  lp->wOptions & ETO_GLYPH_INDEX,       /* dbcs */
+; 442  : 		  (signed short)lpClipRect->left,   /* clip edges */
+; 443  : 		  (signed short)lpClipRect->right);
+
+  00d33	8b 45 f0	 mov	 eax, DWORD PTR _lpClipRect$[ebp]
+  00d36	0f bf 48 04	 movsx	 ecx, WORD PTR [eax+4]
+  00d3a	51		 push	 ecx
+  00d3b	8b 55 f0	 mov	 edx, DWORD PTR _lpClipRect$[ebp]
+  00d3e	0f bf 02	 movsx	 eax, WORD PTR [edx]
+  00d41	50		 push	 eax
+  00d42	8b 4d 08	 mov	 ecx, DWORD PTR _lp$[ebp]
+  00d45	33 d2		 xor	 edx, edx
+  00d47	66 8b 11	 mov	 dx, WORD PTR [ecx]
+  00d4a	83 e2 10	 and	 edx, 16			; 00000010H
+  00d4d	52		 push	 edx
+  00d4e	8b 45 f4	 mov	 eax, DWORD PTR _lpCharWidths$[ebp]
+  00d51	50		 push	 eax
+  00d52	8b 4d d4	 mov	 ecx, DWORD PTR _lpFontInfo$[ebp]
+  00d55	51		 push	 ecx
+  00d56	8b 55 08	 mov	 edx, DWORD PTR _lp$[ebp]
+  00d59	33 c0		 xor	 eax, eax
+  00d5b	66 8b 42 16	 mov	 ax, WORD PTR [edx+22]
+  00d5f	50		 push	 eax
+  00d60	8b 4d d0	 mov	 ecx, DWORD PTR _lpString$[ebp]
+  00d63	51		 push	 ecx
+  00d64	8b 55 08	 mov	 edx, DWORD PTR _lp$[ebp]
+  00d67	0f bf 42 20	 movsx	 eax, WORD PTR [edx+32]
+  00d6b	50		 push	 eax
+  00d6c	8b 4d 08	 mov	 ecx, DWORD PTR _lp$[ebp]
+  00d6f	0f bf 51 22	 movsx	 edx, WORD PTR [ecx+34]
+  00d73	52		 push	 edx
+  00d74	e8 00 00 00 00	 call	 _draw_text
+  00d79	83 c4 24	 add	 esp, 36			; 00000024H
+
+; 444  : 	CMDFIFO_RELOAD(cf);
+
+  00d7c	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  00d81	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00d87	8b 51 0c	 mov	 edx, DWORD PTR [ecx+12]
+  00d8a	89 55 e8	 mov	 DWORD PTR _cf$[ebp], edx
+  00d8d	c7 45 e4 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$[ebp], 0
+$L3460:
+
+; 446  : 	
+; 447  :     FXLEAVE("FxExtTextOut", cf, lpDst);
+
+  00d94	8b 45 e4	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  00d97	8b 4d e8	 mov	 ecx, DWORD PTR _cf$[ebp]
+  00d9a	8d 14 81	 lea	 edx, DWORD PTR [ecx+eax*4]
+  00d9d	89 55 e8	 mov	 DWORD PTR _cf$[ebp], edx
+  00da0	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  00da5	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00dab	8b 51 14	 mov	 edx, DWORD PTR [ecx+20]
+  00dae	2b 55 e4	 sub	 edx, DWORD PTR _hwIndex$[ebp]
+  00db1	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  00db6	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00dbc	89 51 14	 mov	 DWORD PTR [ecx+20], edx
+  00dbf	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  00dc5	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00dcb	8b 4d e8	 mov	 ecx, DWORD PTR _cf$[ebp]
+  00dce	89 48 0c	 mov	 DWORD PTR [eax+12], ecx
+  00dd1	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  00dd7	83 ba f0 17 00
+	00 00		 cmp	 DWORD PTR [edx+6128], 0
+  00dde	74 0c		 je	 SHORT $L3512
+  00de0	8b 45 e8	 mov	 eax, DWORD PTR _cf$[ebp]
+  00de3	50		 push	 eax
+  00de4	e8 00 00 00 00	 call	 _myAgpEpilog
+  00de9	83 c4 04	 add	 esp, 4
+$L3512:
+  00dec	c7 45 e4 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$[ebp], 0
+  00df3	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  00df9	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  00dfc	81 e2 04 01 00
+	00		 and	 edx, 260		; 00000104H
+  00e02	81 fa 04 01 00
+	00		 cmp	 edx, 260		; 00000104H
+  00e08	75 0a		 jne	 SHORT $L3514
+  00e0a	6a 08		 push	 8
+  00e0c	e8 00 00 00 00	 call	 _FxEndAccess32
+  00e11	83 c4 04	 add	 esp, 4
+$L3514:
+  00e14	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  00e19	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  00e1c	81 e1 00 10 00
+	00		 and	 ecx, 4096		; 00001000H
+  00e22	85 c9		 test	 ecx, ecx
+  00e24	74 0f		 je	 SHORT $L3515
+  00e26	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  00e2c	52		 push	 edx
+  00e2d	e8 00 00 00 00	 call	 _DoKMTV
+  00e32	83 c4 04	 add	 esp, 4
+$L3515:
+  00e35	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  00e3a	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  00e3d	8b 11		 mov	 edx, DWORD PTR [ecx]
+  00e3f	83 e2 ef	 and	 edx, -17		; ffffffefH
+  00e42	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  00e47	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  00e4a	89 11		 mov	 DWORD PTR [ecx], edx
+  00e4c	b8 01 00 00 00	 mov	 eax, 1
+  00e51	eb 29		 jmp	 SHORT $L3278
+$Use_DibEng$3292:
+  00e53	c7 05 00 00 00
+	00 01 00 00 00	 mov	 DWORD PTR _bPunt, 1
+  00e5d	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  00e63	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  00e66	83 e0 02	 and	 eax, 2
+  00e69	85 c0		 test	 eax, eax
+  00e6b	74 0a		 je	 SHORT $L3516
+  00e6d	6a 04		 push	 4
+  00e6f	e8 00 00 00 00	 call	 _ResetInvariantState
+  00e74	83 c4 04	 add	 esp, 4
+$L3516:
+  00e77	b8 01 00 00 00	 mov	 eax, 1
+$L3278:
+
+; 448  : }
+
+  00e7c	5f		 pop	 edi
+  00e7d	5e		 pop	 esi
+  00e7e	5b		 pop	 ebx
+  00e7f	8b e5		 mov	 esp, ebp
+  00e81	5d		 pop	 ebp
+  00e82	c3		 ret	 0
+_FxExtTextOut ENDP
+_fenceVar$ = -4
+__p6fencer PROC NEAR
+
+; 474  : {
+
+  00e83	55		 push	 ebp
+  00e84	8b ec		 mov	 ebp, esp
+  00e86	51		 push	 ecx
+  00e87	53		 push	 ebx
+  00e88	56		 push	 esi
+  00e89	57		 push	 edi
+
+; 475  :   volatile WORD fenceVar;
+; 476  : 
+; 477  : #if defined(THUNK32)
+; 478  : #ifdef DEBUG
+; 479  :   // Debug Fix
+; 480  :   __asm
+; 481  :   {
+; 482  :      movzx   ebp, bp;
+
+  00e8a	0f b7 ed	 movzx	 ebp, bp
+
+; 483  :      mov     eax, [ebp];
+
+  00e8d	8b 45 00	 mov	 eax, DWORD PTR [ebp]
+
+; 484  :      movzx   eax, ax;
+
+  00e90	0f b7 c0	 movzx	 eax, ax
+
+; 485  :      mov     [ebp], eax;
+
+  00e93	89 45 00	 mov	 DWORD PTR [ebp], eax
+
+; 486  :   }
+; 487  : #endif //#ifdef DEBUG
+; 488  : #endif //#if defined(THUNK32)
+; 489  : 
+; 490  :   __asm
+; 491  :   {
+; 492  :     xchg ax, fenceVar;
+
+  00e96	66 87 45 fc	 xchg	 ax, WORD PTR _fenceVar$[ebp]
+
+; 493  :   }
+; 494  : }
+
+  00e9a	5f		 pop	 edi
+  00e9b	5e		 pop	 esi
+  00e9c	5b		 pop	 ebx
+  00e9d	8b e5		 mov	 esp, ebp
+  00e9f	5d		 pop	 ebp
+  00ea0	c3		 ret	 0
+__p6fencer ENDP
+_hwPtr$ = 8
+_n$ = 12
+_rdPtr$ = -20
+_i$ = -8
+_nNumChips$ = -4
+_dwCmdFifoSpace$ = -12
+_dwCmdFifoMin$ = -16
+_fifo_MakeRoom PROC NEAR
+
+; 741  :   {
+
+  00ea1	55		 push	 ebp
+  00ea2	8b ec		 mov	 ebp, esp
+  00ea4	83 ec 18	 sub	 esp, 24			; 00000018H
+  00ea7	53		 push	 ebx
+  00ea8	56		 push	 esi
+  00ea9	57		 push	 edi
+
+; 742  :     DWORD rdPtr;
+; 743  : #if defined (SLI_AA) && !defined(WIN_CSIM)
+; 744  :    int i;
+; 745  :    int nNumChips;
+; 746  :    FxU32 dwCmdFifoSpace;
+; 747  :    FxU32 dwCmdFifoMin;
+; 748  : #endif
+; 749  : 
+; 750  :     DEBUG_FIX;
+
+  00eaa	0f b7 ed	 movzx	 ebp, bp
+  00ead	8b 45 00	 mov	 eax, DWORD PTR [ebp]
+  00eb0	0f b7 c0	 movzx	 eax, ax
+  00eb3	89 45 00	 mov	 DWORD PTR [ebp], eax
+
+; 751  : 
+; 752  :     if ((hwPtr + (n*4)) >= CMDFIFOEND)
+
+  00eb6	8b 45 0c	 mov	 eax, DWORD PTR _n$[ebp]
+  00eb9	8b 4d 08	 mov	 ecx, DWORD PTR _hwPtr$[ebp]
+  00ebc	8d 14 81	 lea	 edx, DWORD PTR [ecx+eax*4]
+  00ebf	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  00ec4	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00eca	3b 51 08	 cmp	 edx, DWORD PTR [ecx+8]
+  00ecd	72 0f		 jb	 SHORT $L2447
+
+; 754  :       hwPtr = fifo_Wrap(hwPtr);
+
+  00ecf	8b 55 08	 mov	 edx, DWORD PTR _hwPtr$[ebp]
+  00ed2	52		 push	 edx
+  00ed3	e8 00 00 00 00	 call	 _fifo_Wrap
+  00ed8	83 c4 04	 add	 esp, 4
+  00edb	89 45 08	 mov	 DWORD PTR _hwPtr$[ebp], eax
+$L2447:
+
+; 756  : 
+; 757  : #if defined (SLI_AA) && !defined(WIN_CSIM)
+; 758  :     
+; 759  :    if (_FF(gdiFlags) & SDATA_GDIFLAGS_SLI_AA_MASTER)
+
+  00ede	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  00ee3	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  00ee6	81 e1 00 20 00
+	00		 and	 ecx, 8192		; 00002000H
+  00eec	85 c9		 test	 ecx, ecx
+  00eee	74 11		 je	 SHORT $L2448
+
+; 760  :       nNumChips = (int)_FF(dwNumUnits);
+
+  00ef0	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  00ef6	8b 82 d0 04 00
+	00		 mov	 eax, DWORD PTR [edx+1232]
+  00efc	89 45 fc	 mov	 DWORD PTR _nNumChips$[ebp], eax
+
+; 761  :    else 
+
+  00eff	eb 07		 jmp	 SHORT $L2450
+$L2448:
+
+; 762  :       nNumChips = 1;
+
+  00f01	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _nNumChips$[ebp], 1
+$L2450:
+
+; 763  : 
+; 764  :    dwCmdFifoMin = CMDFIFOEND - CMDFIFOSTART + 1;
+
+  00f08	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  00f0e	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00f14	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  00f19	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00f1f	8b 52 08	 mov	 edx, DWORD PTR [edx+8]
+  00f22	2b 51 04	 sub	 edx, DWORD PTR [ecx+4]
+  00f25	83 c2 01	 add	 edx, 1
+  00f28	89 55 f0	 mov	 DWORD PTR _dwCmdFifoMin$[ebp], edx
+
+; 765  :    for (i=0; i<nNumChips; i++)
+
+  00f2b	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  00f32	eb 09		 jmp	 SHORT $L2455
+$L2456:
+  00f34	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  00f37	83 c0 01	 add	 eax, 1
+  00f3a	89 45 f8	 mov	 DWORD PTR _i$[ebp], eax
+$L2455:
+  00f3d	8b 4d f8	 mov	 ecx, DWORD PTR _i$[ebp]
+  00f40	3b 4d fc	 cmp	 ecx, DWORD PTR _nNumChips$[ebp]
+  00f43	0f 8d b2 00 00
+	00		 jge	 $L2457
+
+; 767  :       dwCmdFifoSpace = CMDFIFOSPACE;
+
+  00f49	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  00f4f	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00f55	8b 48 14	 mov	 ecx, DWORD PTR [eax+20]
+  00f58	89 4d f4	 mov	 DWORD PTR _dwCmdFifoSpace$[ebp], ecx
+$L2461:
+
+; 768  :       while (dwCmdFifoSpace < n)
+
+  00f5b	8b 55 f4	 mov	 edx, DWORD PTR _dwCmdFifoSpace$[ebp]
+  00f5e	3b 55 0c	 cmp	 edx, DWORD PTR _n$[ebp]
+  00f61	73 77		 jae	 SHORT $L2462
+
+; 770  :          rdPtr = LOAD_CMDFIFO_RDPTR(_FF(regBase[i * HWINFO_SST_MAX_NUM_CHIPS + HWINFO_SST_CMDFIFOREGS_INDEX])) + CMDFIFOOFFSET;
+
+  00f63	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  00f66	c1 e0 02	 shl	 eax, 2
+  00f69	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  00f6f	8b 94 81 40 17
+	00 00		 mov	 edx, DWORD PTR [ecx+eax*4+5952]
+  00f76	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  00f7b	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00f81	8b 52 2c	 mov	 edx, DWORD PTR [edx+44]
+  00f84	03 51 10	 add	 edx, DWORD PTR [ecx+16]
+  00f87	89 55 ec	 mov	 DWORD PTR _rdPtr$[ebp], edx
+
+; 771  :          if (rdPtr <= hwPtr)
+
+  00f8a	8b 45 ec	 mov	 eax, DWORD PTR _rdPtr$[ebp]
+  00f8d	3b 45 08	 cmp	 eax, DWORD PTR _hwPtr$[ebp]
+  00f90	77 37		 ja	 SHORT $L2467
+
+; 773  :             if ((dwCmdFifoSpace = (FxU32)((CMDFIFOEND - hwPtr))/4) < n)
+
+  00f92	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  00f98	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00f9e	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  00fa1	2b 45 08	 sub	 eax, DWORD PTR _hwPtr$[ebp]
+  00fa4	c1 e8 02	 shr	 eax, 2
+  00fa7	89 45 f4	 mov	 DWORD PTR _dwCmdFifoSpace$[ebp], eax
+  00faa	8b 4d f4	 mov	 ecx, DWORD PTR _dwCmdFifoSpace$[ebp]
+  00fad	3b 4d 0c	 cmp	 ecx, DWORD PTR _n$[ebp]
+  00fb0	73 15		 jae	 SHORT $L2472
+
+; 775  :                // Don't need a wrap per chip ... only on first
+; 776  :                if (0 == i)
+
+  00fb2	83 7d f8 00	 cmp	 DWORD PTR _i$[ebp], 0
+  00fb6	75 0f		 jne	 SHORT $L2472
+
+; 777  :                   hwPtr = fifo_Wrap(hwPtr);
+
+  00fb8	8b 55 08	 mov	 edx, DWORD PTR _hwPtr$[ebp]
+  00fbb	52		 push	 edx
+  00fbc	e8 00 00 00 00	 call	 _fifo_Wrap
+  00fc1	83 c4 04	 add	 esp, 4
+  00fc4	89 45 08	 mov	 DWORD PTR _hwPtr$[ebp], eax
+$L2472:
+
+; 780  :          else 
+
+  00fc7	eb 0f		 jmp	 SHORT $L2473
+$L2467:
+
+; 782  :             dwCmdFifoSpace = (FxU32)((rdPtr - hwPtr)/4) - 1;
+
+  00fc9	8b 45 ec	 mov	 eax, DWORD PTR _rdPtr$[ebp]
+  00fcc	2b 45 08	 sub	 eax, DWORD PTR _hwPtr$[ebp]
+  00fcf	c1 e8 02	 shr	 eax, 2
+  00fd2	83 e8 01	 sub	 eax, 1
+  00fd5	89 45 f4	 mov	 DWORD PTR _dwCmdFifoSpace$[ebp], eax
+$L2473:
+
+; 784  :          }
+
+  00fd8	eb 81		 jmp	 SHORT $L2461
+$L2462:
+
+; 785  :       dwCmdFifoMin = FIFO_MIN(dwCmdFifoMin, dwCmdFifoSpace);
+
+  00fda	8b 4d f0	 mov	 ecx, DWORD PTR _dwCmdFifoMin$[ebp]
+  00fdd	3b 4d f4	 cmp	 ecx, DWORD PTR _dwCmdFifoSpace$[ebp]
+  00fe0	73 08		 jae	 SHORT $L3526
+  00fe2	8b 55 f0	 mov	 edx, DWORD PTR _dwCmdFifoMin$[ebp]
+  00fe5	89 55 e8	 mov	 DWORD PTR -24+[ebp], edx
+  00fe8	eb 06		 jmp	 SHORT $L3527
+$L3526:
+  00fea	8b 45 f4	 mov	 eax, DWORD PTR _dwCmdFifoSpace$[ebp]
+  00fed	89 45 e8	 mov	 DWORD PTR -24+[ebp], eax
+$L3527:
+  00ff0	8b 4d e8	 mov	 ecx, DWORD PTR -24+[ebp]
+  00ff3	89 4d f0	 mov	 DWORD PTR _dwCmdFifoMin$[ebp], ecx
+
+; 786  :       }
+
+  00ff6	e9 39 ff ff ff	 jmp	 $L2456
+$L2457:
+
+; 787  :    CMDFIFOSPACE = dwCmdFifoMin;
+
+  00ffb	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  01001	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  01007	8b 4d f0	 mov	 ecx, DWORD PTR _dwCmdFifoMin$[ebp]
+  0100a	89 48 14	 mov	 DWORD PTR [eax+20], ecx
+
+; 788  : #else       
+; 789  :     while (CMDFIFOSPACE < n)
+; 790  :     {
+; 791  :       rdPtr = LOAD_CMDFIFO_RDPTR(_FF(lpCRegs)) + CMDFIFOOFFSET;
+; 792  :       if (rdPtr <= hwPtr)
+; 793  :       {
+; 794  :         if ((CMDFIFOSPACE = (FxU32)((CMDFIFOEND - hwPtr))/4) < n)
+; 795  :         {
+; 796  :           hwPtr = fifo_Wrap(hwPtr);
+; 797  :         }
+; 798  :       }
+; 799  :       else 
+; 800  :       {
+; 801  :         CMDFIFOSPACE = (FxU32)((rdPtr - hwPtr)/4) - 1;
+; 802  :       }
+; 803  :     }
+; 804  : #endif
+; 805  : 
+; 806  :     return (hwPtr);
+
+  0100d	8b 45 08	 mov	 eax, DWORD PTR _hwPtr$[ebp]
+
+; 807  :   }
+
+  01010	5f		 pop	 edi
+  01011	5e		 pop	 esi
+  01012	5b		 pop	 ebx
+  01013	8b e5		 mov	 esp, ebp
+  01015	5d		 pop	 ebp
+  01016	c3		 ret	 0
+_fifo_MakeRoom ENDP
+_TEXT	ENDS
+EXTRN	_myWrapAgp:NEAR
+_TEXT	SEGMENT
+_hwPtr$ = 8
+_rdPtr$ = -16
+_i$ = -8
+_nNumChips$ = -4
+_rdPtrMin$ = -12
+_fifo_Wrap PROC NEAR
+
+; 677  :   {
+
+  01017	55		 push	 ebp
+  01018	8b ec		 mov	 ebp, esp
+  0101a	83 ec 14	 sub	 esp, 20			; 00000014H
+  0101d	53		 push	 ebx
+  0101e	56		 push	 esi
+  0101f	57		 push	 edi
+
+; 678  :     FxU32 rdPtr;
+; 679  : #if defined (SLI_AA) && !defined(WIN_CSIM)
+; 680  :    int i;
+; 681  :    int nNumChips;
+; 682  :    FxU32 rdPtrMin;
+; 683  : #endif
+; 684  : 
+; 685  :     DEBUG_FIX;
+
+  01020	0f b7 ed	 movzx	 ebp, bp
+  01023	8b 45 00	 mov	 eax, DWORD PTR [ebp]
+  01026	0f b7 c0	 movzx	 eax, ax
+  01029	89 45 00	 mov	 DWORD PTR [ebp], eax
+
+; 686  : 
+; 687  : #if defined(SLI_AA) && !defined(WIN_CSIM)
+; 688  :    // If SLI or AA is enabled then check all Chip's CMDFIFO
+; 689  :    if (_FF(gdiFlags) & SDATA_GDIFLAGS_SLI_AA_MASTER)
+
+  0102c	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  01031	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  01034	81 e1 00 20 00
+	00		 and	 ecx, 8192		; 00002000H
+  0103a	85 c9		 test	 ecx, ecx
+  0103c	74 11		 je	 SHORT $L2404
+
+; 690  :       nNumChips = (int)_FF(dwNumUnits);
+
+  0103e	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  01044	8b 82 d0 04 00
+	00		 mov	 eax, DWORD PTR [edx+1232]
+  0104a	89 45 fc	 mov	 DWORD PTR _nNumChips$[ebp], eax
+
+; 691  :    else 
+
+  0104d	eb 07		 jmp	 SHORT $L2406
+$L2404:
+
+; 692  :       nNumChips = 1;
+
+  0104f	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _nNumChips$[ebp], 1
+$L2406:
+
+; 693  : 
+; 694  :    rdPtrMin = CMDFIFOEND;
+
+  01056	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  0105c	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  01062	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  01065	89 45 f4	 mov	 DWORD PTR _rdPtrMin$[ebp], eax
+
+; 695  :    for (i=0; i<nNumChips; i++)
+
+  01068	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  0106f	eb 09		 jmp	 SHORT $L2409
+$L2410:
+  01071	8b 4d f8	 mov	 ecx, DWORD PTR _i$[ebp]
+  01074	83 c1 01	 add	 ecx, 1
+  01077	89 4d f8	 mov	 DWORD PTR _i$[ebp], ecx
+$L2409:
+  0107a	8b 55 f8	 mov	 edx, DWORD PTR _i$[ebp]
+  0107d	3b 55 fc	 cmp	 edx, DWORD PTR _nNumChips$[ebp]
+  01080	7d 61		 jge	 SHORT $L2411
+$L2412:
+
+; 699  :          rdPtr = LOAD_CMDFIFO_RDPTR(_FF(regBase[i * HWINFO_SST_MAX_NUM_CHIPS + HWINFO_SST_CMDFIFOREGS_INDEX])) + CMDFIFOOFFSET;
+
+  01082	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  01085	c1 e0 02	 shl	 eax, 2
+  01088	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  0108e	8b 94 81 40 17
+	00 00		 mov	 edx, DWORD PTR [ecx+eax*4+5952]
+  01095	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  0109a	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  010a0	8b 52 2c	 mov	 edx, DWORD PTR [edx+44]
+  010a3	03 51 10	 add	 edx, DWORD PTR [ecx+16]
+  010a6	89 55 f0	 mov	 DWORD PTR _rdPtr$[ebp], edx
+
+; 701  :       while( (rdPtr > hwPtr) || (rdPtr == CMDFIFOSTART) );
+
+  010a9	8b 45 f0	 mov	 eax, DWORD PTR _rdPtr$[ebp]
+  010ac	3b 45 08	 cmp	 eax, DWORD PTR _hwPtr$[ebp]
+  010af	77 d1		 ja	 SHORT $L2412
+  010b1	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  010b7	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  010bd	8b 45 f0	 mov	 eax, DWORD PTR _rdPtr$[ebp]
+  010c0	3b 42 04	 cmp	 eax, DWORD PTR [edx+4]
+  010c3	74 bd		 je	 SHORT $L2412
+
+; 702  :       rdPtrMin = FIFO_MIN(rdPtrMin, rdPtr);
+
+  010c5	8b 4d f4	 mov	 ecx, DWORD PTR _rdPtrMin$[ebp]
+  010c8	3b 4d f0	 cmp	 ecx, DWORD PTR _rdPtr$[ebp]
+  010cb	73 08		 jae	 SHORT $L3529
+  010cd	8b 55 f4	 mov	 edx, DWORD PTR _rdPtrMin$[ebp]
+  010d0	89 55 ec	 mov	 DWORD PTR -20+[ebp], edx
+  010d3	eb 06		 jmp	 SHORT $L3530
+$L3529:
+  010d5	8b 45 f0	 mov	 eax, DWORD PTR _rdPtr$[ebp]
+  010d8	89 45 ec	 mov	 DWORD PTR -20+[ebp], eax
+$L3530:
+  010db	8b 4d ec	 mov	 ecx, DWORD PTR -20+[ebp]
+  010de	89 4d f4	 mov	 DWORD PTR _rdPtrMin$[ebp], ecx
+
+; 703  :       }
+
+  010e1	eb 8e		 jmp	 SHORT $L2410
+$L2411:
+
+; 704  :    rdPtr = rdPtrMin;
+
+  010e3	8b 55 f4	 mov	 edx, DWORD PTR _rdPtrMin$[ebp]
+  010e6	89 55 f0	 mov	 DWORD PTR _rdPtr$[ebp], edx
+
+; 705  : #else
+; 706  :     do
+; 707  :     {
+; 708  :       rdPtr = LOAD_CMDFIFO_RDPTR(_FF(lpCRegs)) + CMDFIFOOFFSET;
+; 709  :     } while ((rdPtr > hwPtr) || (rdPtr == CMDFIFOSTART));
+; 710  : #endif
+; 711  : 
+; 712  :     #ifndef THUNK32
+; 713  :       h3WRITE(NULL, (DWORD *)(hwPtr), CMDFIFOJMP); 
+; 714  :       #ifdef AGP_CMDFIFO
+; 715  :         if (_FF(doAgpCF))
+; 716  : 		  h3WRITE(NULL, ((DWORD *)(hwPtr))+1, CMDFIFOJMP2); 
+; 717  :       #endif // AGP_CMDFIFO 
+; 718  :     #else // !THUNK32
+; 719  :       *(volatile FxU32 *)(hwPtr) = CMDFIFOJMP;
+
+  010e9	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  010ee	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  010f4	8b 55 08	 mov	 edx, DWORD PTR _hwPtr$[ebp]
+  010f7	8b 41 18	 mov	 eax, DWORD PTR [ecx+24]
+  010fa	89 02		 mov	 DWORD PTR [edx], eax
+
+; 720  :       #ifdef AGP_CMDFIFO
+; 721  :         if (_FF(doAgpCF))
+
+  010fc	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  01102	83 b9 f0 17 00
+	00 00		 cmp	 DWORD PTR [ecx+6128], 0
+  01109	74 15		 je	 SHORT $L2424
+
+; 722  : 		  *((volatile FxU32 *)(hwPtr)+1) = CMDFIFOJMP2;
+
+  0110b	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  01111	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  01117	8b 4d 08	 mov	 ecx, DWORD PTR _hwPtr$[ebp]
+  0111a	8b 50 1c	 mov	 edx, DWORD PTR [eax+28]
+  0111d	89 51 04	 mov	 DWORD PTR [ecx+4], edx
+$L2424:
+
+; 723  :       #endif // AGP_CMDFIFO 
+; 724  :     #endif // !THUNK32
+; 725  : 
+; 726  :     P6FENCE;
+
+  01120	e8 00 00 00 00	 call	 __p6fencer
+
+; 727  : 
+; 728  :     #ifdef AGP_CMDFIFO
+; 729  :       if (_FF(doAgpCF))
+
+  01125	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  0112a	83 b8 f0 17 00
+	00 00		 cmp	 DWORD PTR [eax+6128], 0
+  01131	74 0c		 je	 SHORT $L2428
+
+; 730  : 	    MYWRAPAGP(ppdev, (DWORD)hwPtr);
+
+  01133	8b 4d 08	 mov	 ecx, DWORD PTR _hwPtr$[ebp]
+  01136	51		 push	 ecx
+  01137	e8 00 00 00 00	 call	 _myWrapAgp
+  0113c	83 c4 04	 add	 esp, 4
+$L2428:
+
+; 731  :     #endif // AGP_CMDFIFO 
+; 732  : 
+; 733  :     hwPtr = CMDFIFOSTART;
+
+  0113f	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  01145	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  0114b	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  0114e	89 4d 08	 mov	 DWORD PTR _hwPtr$[ebp], ecx
+
+; 734  : 
+; 735  :     CMDFIFOSPACE = ((rdPtr - hwPtr)/4) - 1;
+
+  01151	8b 55 f0	 mov	 edx, DWORD PTR _rdPtr$[ebp]
+  01154	2b 55 08	 sub	 edx, DWORD PTR _hwPtr$[ebp]
+  01157	c1 ea 02	 shr	 edx, 2
+  0115a	83 ea 01	 sub	 edx, 1
+  0115d	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  01162	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  01168	89 51 14	 mov	 DWORD PTR [ecx+20], edx
+
+; 736  : 
+; 737  :     return (hwPtr);
+
+  0116b	8b 45 08	 mov	 eax, DWORD PTR _hwPtr$[ebp]
+
+; 738  :   }
+
+  0116e	5f		 pop	 edi
+  0116f	5e		 pop	 esi
+  01170	5b		 pop	 ebx
+  01171	8b e5		 mov	 esp, ebp
+  01173	5d		 pop	 ebp
+  01174	c3		 ret	 0
+_fifo_Wrap ENDP
+_mySetBusy PROC NEAR
+
+; 300  : {
+
+  01175	55		 push	 ebp
+  01176	8b ec		 mov	 ebp, esp
+  01178	53		 push	 ebx
+  01179	56		 push	 esi
+  0117a	57		 push	 edi
+
+; 301  :     // ebx set to pointer to deFlags by caller
+; 302  :     __asm
+; 303  :     {
+; 304  :         xor     eax, eax
+
+  0117b	33 c0		 xor	 eax, eax
+
+; 305  :         bts     WORD PTR [ebx], BUSY_BIT
+
+  0117d	66 0f ba 2b 04	 bts	 WORD PTR [ebx], 4
+
+; 306  :         setc    al
+
+  01182	0f 92 c0	 setb	 al
+
+; 307  :     }
+; 308  : }
+
+  01185	5f		 pop	 edi
+  01186	5e		 pop	 esi
+  01187	5b		 pop	 ebx
+  01188	5d		 pop	 ebp
+  01189	c3		 ret	 0
+_mySetBusy ENDP
+_wDestXOrg$ = 8
+_wDestYOrg$ = 12
+_lpString$ = 16
+_wCount$ = 20
+_lpFont$ = 24
+_lpCharWidths$ = 28
+_dbcs$ = 32
+_clip_left$ = 36
+_clip_right$ = 40
+_glyph$ = -4
+_l$ = -48
+_org_x$ = -56
+_org_y$ = -60
+_width$ = -12
+_height$ = -52
+_x$ = -20
+_y$ = -32
+_i$ = -28
+_glyph_stride$ = -16
+_glyph_dwords$ = -8
+_nchars$ = -36
+_glyph_index$ = -44
+_cmdFifo$ = -40
+_hwIndex$ = -24
+_draw_text PROC NEAR
+
+; 162  : {
+
+  0118a	55		 push	 ebp
+  0118b	8b ec		 mov	 ebp, esp
+  0118d	83 ec 3c	 sub	 esp, 60			; 0000003cH
+  01190	53		 push	 ebx
+  01191	56		 push	 esi
+  01192	57		 push	 edi
+
+; 163  :     char *glyph;
+; 164  :     DWORD l;
+; 165  : #   define FONTSEGT(offset, t) ((t)((char *)lpFont + lpFont->offset))
+; 166  : #   define FONTSEG(offset) ((char *)lpFont + offset)
+; 167  :     int org_x, org_y, width, height;
+; 168  :     int x, y, i, glyph_stride, glyph_dwords;
+; 169  :     int nchars, glyph_index;
+; 170  :     CMDFIFO_PROLOG(cmdFifo);
+; 171  : 
+; 172  :     DEBUG_FIX;
+
+  01193	0f b7 ed	 movzx	 ebp, bp
+  01196	8b 45 00	 mov	 eax, DWORD PTR [ebp]
+  01199	0f b7 c0	 movzx	 eax, ax
+  0119c	89 45 00	 mov	 DWORD PTR [ebp], eax
+
+; 173  : 
+; 174  :     CMDFIFO_SETUP(cmdFifo);
+
+  0119f	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  011a4	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  011aa	8b 51 0c	 mov	 edx, DWORD PTR [ecx+12]
+  011ad	89 55 d8	 mov	 DWORD PTR _cmdFifo$[ebp], edx
+  011b0	c7 45 e8 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$[ebp], 0
+
+; 175  : 
+; 176  :     for ( nchars = 0; nchars < wCount; ++nchars )
+
+  011b7	c7 45 dc 00 00
+	00 00		 mov	 DWORD PTR _nchars$[ebp], 0
+  011be	eb 09		 jmp	 SHORT $L3193
+$L3194:
+  011c0	8b 45 dc	 mov	 eax, DWORD PTR _nchars$[ebp]
+  011c3	83 c0 01	 add	 eax, 1
+  011c6	89 45 dc	 mov	 DWORD PTR _nchars$[ebp], eax
+$L3193:
+  011c9	8b 4d dc	 mov	 ecx, DWORD PTR _nchars$[ebp]
+  011cc	3b 4d 14	 cmp	 ecx, DWORD PTR _wCount$[ebp]
+  011cf	0f 8d 0a 03 00
+	00		 jge	 $L3195
+
+; 178  :         /* Fetch the glyph index */
+; 179  :         if ( dbcs )
+
+  011d5	83 7d 20 00	 cmp	 DWORD PTR _dbcs$[ebp], 0
+  011d9	74 11		 je	 SHORT $L3196
+
+; 180  :             glyph_index = ((WORD *)lpString)[nchars];
+
+  011db	8b 55 dc	 mov	 edx, DWORD PTR _nchars$[ebp]
+  011de	8b 45 10	 mov	 eax, DWORD PTR _lpString$[ebp]
+  011e1	33 c9		 xor	 ecx, ecx
+  011e3	66 8b 0c 50	 mov	 cx, WORD PTR [eax+edx*2]
+  011e7	89 4d d4	 mov	 DWORD PTR _glyph_index$[ebp], ecx
+
+; 181  :         else
+
+  011ea	eb 0d		 jmp	 SHORT $L3198
+$L3196:
+
+; 182  :             glyph_index = ((unsigned char *)lpString)[nchars];
+
+  011ec	8b 55 10	 mov	 edx, DWORD PTR _lpString$[ebp]
+  011ef	03 55 dc	 add	 edx, DWORD PTR _nchars$[ebp]
+  011f2	33 c0		 xor	 eax, eax
+  011f4	8a 02		 mov	 al, BYTE PTR [edx]
+  011f6	89 45 d4	 mov	 DWORD PTR _glyph_index$[ebp], eax
+$L3198:
+
+; 183  : 
+; 184  :         /* If the glyph offset is larger than the number of glyphs in the font,
+; 185  :          * then skip this character.
+; 186  :          */
+; 187  :         //PARANOID( glyph_index < lpFont->nfNumGlyphs, continue );
+; 188  : 
+; 189  :         /* Get glyph information */
+; 190  :         if ( lpFont->nfFormat & NF_LARGE )
+
+  011f9	8b 4d 18	 mov	 ecx, DWORD PTR _lpFont$[ebp]
+  011fc	33 d2		 xor	 edx, edx
+  011fe	66 8b 51 02	 mov	 dx, WORD PTR [ecx+2]
+  01202	81 e2 80 00 00
+	00		 and	 edx, 128		; 00000080H
+  01208	85 d2		 test	 edx, edx
+  0120a	74 51		 je	 SHORT $L3200
+
+; 192  :             l = FONTSEGT(nfGlyphOffset, DWORD *)[glyph_index];
+
+  0120c	8b 45 18	 mov	 eax, DWORD PTR _lpFont$[ebp]
+  0120f	8b 4d 18	 mov	 ecx, DWORD PTR _lpFont$[ebp]
+  01212	03 48 06	 add	 ecx, DWORD PTR [eax+6]
+  01215	8b 55 d4	 mov	 edx, DWORD PTR _glyph_index$[ebp]
+  01218	8b 04 91	 mov	 eax, DWORD PTR [ecx+edx*4]
+  0121b	89 45 d0	 mov	 DWORD PTR _l$[ebp], eax
+
+; 193  :             glyph = FONTSEG(l);
+
+  0121e	8b 4d 18	 mov	 ecx, DWORD PTR _lpFont$[ebp]
+  01221	03 4d d0	 add	 ecx, DWORD PTR _l$[ebp]
+  01224	89 4d fc	 mov	 DWORD PTR _glyph$[ebp], ecx
+
+; 194  :             org_x  = (signed short)  ((LARGEROWGLYPH *)glyph)->lrgOrgX;
+
+  01227	8b 55 fc	 mov	 edx, DWORD PTR _glyph$[ebp]
+  0122a	0f bf 02	 movsx	 eax, WORD PTR [edx]
+  0122d	89 45 c8	 mov	 DWORD PTR _org_x$[ebp], eax
+
+; 195  :             org_y  = (signed short)  ((LARGEROWGLYPH *)glyph)->lrgOrgY;
+
+  01230	8b 4d fc	 mov	 ecx, DWORD PTR _glyph$[ebp]
+  01233	0f bf 51 02	 movsx	 edx, WORD PTR [ecx+2]
+  01237	89 55 c4	 mov	 DWORD PTR _org_y$[ebp], edx
+
+; 196  :             width  = (unsigned short)((LARGEROWGLYPH *)glyph)->lrgWidth;
+
+  0123a	8b 45 fc	 mov	 eax, DWORD PTR _glyph$[ebp]
+  0123d	33 c9		 xor	 ecx, ecx
+  0123f	66 8b 48 04	 mov	 cx, WORD PTR [eax+4]
+  01243	89 4d f4	 mov	 DWORD PTR _width$[ebp], ecx
+
+; 197  :             height = (unsigned short)((LARGEROWGLYPH *)glyph)->lrgHeight;
+
+  01246	8b 55 fc	 mov	 edx, DWORD PTR _glyph$[ebp]
+  01249	33 c0		 xor	 eax, eax
+  0124b	66 8b 42 06	 mov	 ax, WORD PTR [edx+6]
+  0124f	89 45 cc	 mov	 DWORD PTR _height$[ebp], eax
+
+; 198  :             glyph += sizeof(LARGEROWGLYPH);
+
+  01252	8b 4d fc	 mov	 ecx, DWORD PTR _glyph$[ebp]
+  01255	83 c1 08	 add	 ecx, 8
+  01258	89 4d fc	 mov	 DWORD PTR _glyph$[ebp], ecx
+
+; 201  :         else
+
+  0125b	eb 50		 jmp	 SHORT $L3215
+$L3200:
+
+; 203  :             l = FONTSEGT(nfGlyphOffset, WORD *)[glyph_index];
+
+  0125d	8b 55 18	 mov	 edx, DWORD PTR _lpFont$[ebp]
+  01260	8b 45 18	 mov	 eax, DWORD PTR _lpFont$[ebp]
+  01263	03 42 06	 add	 eax, DWORD PTR [edx+6]
+  01266	8b 4d d4	 mov	 ecx, DWORD PTR _glyph_index$[ebp]
+  01269	33 d2		 xor	 edx, edx
+  0126b	66 8b 14 48	 mov	 dx, WORD PTR [eax+ecx*2]
+  0126f	89 55 d0	 mov	 DWORD PTR _l$[ebp], edx
+
+; 204  :             glyph = FONTSEG(l);
+
+  01272	8b 45 18	 mov	 eax, DWORD PTR _lpFont$[ebp]
+  01275	03 45 d0	 add	 eax, DWORD PTR _l$[ebp]
+  01278	89 45 fc	 mov	 DWORD PTR _glyph$[ebp], eax
+
+; 205  :             org_x  = (signed char)  (((SMALLROWGLYPH *)glyph)->srgOrgX);
+
+  0127b	8b 4d fc	 mov	 ecx, DWORD PTR _glyph$[ebp]
+  0127e	0f be 11	 movsx	 edx, BYTE PTR [ecx]
+  01281	89 55 c8	 mov	 DWORD PTR _org_x$[ebp], edx
+
+; 206  :             org_y  = (signed char)  (((SMALLROWGLYPH *)glyph)->srgOrgY);
+
+  01284	8b 45 fc	 mov	 eax, DWORD PTR _glyph$[ebp]
+  01287	0f be 48 01	 movsx	 ecx, BYTE PTR [eax+1]
+  0128b	89 4d c4	 mov	 DWORD PTR _org_y$[ebp], ecx
+
+; 207  :             width  = (unsigned char)(((SMALLROWGLYPH *)glyph)->srgWidth);
+
+  0128e	8b 55 fc	 mov	 edx, DWORD PTR _glyph$[ebp]
+  01291	33 c0		 xor	 eax, eax
+  01293	8a 42 02	 mov	 al, BYTE PTR [edx+2]
+  01296	89 45 f4	 mov	 DWORD PTR _width$[ebp], eax
+
+; 208  :             height = (unsigned char)(((SMALLROWGLYPH *)glyph)->srgHeight);
+
+  01299	8b 4d fc	 mov	 ecx, DWORD PTR _glyph$[ebp]
+  0129c	33 d2		 xor	 edx, edx
+  0129e	8a 51 03	 mov	 dl, BYTE PTR [ecx+3]
+  012a1	89 55 cc	 mov	 DWORD PTR _height$[ebp], edx
+
+; 209  :             glyph += sizeof(SMALLROWGLYPH);
+
+  012a4	8b 45 fc	 mov	 eax, DWORD PTR _glyph$[ebp]
+  012a7	83 c0 04	 add	 eax, 4
+  012aa	89 45 fc	 mov	 DWORD PTR _glyph$[ebp], eax
+$L3215:
+
+; 212  : 
+; 213  :         /* Position character */
+; 214  :         x = wDestXOrg + org_x;
+
+  012ad	8b 4d 08	 mov	 ecx, DWORD PTR _wDestXOrg$[ebp]
+  012b0	03 4d c8	 add	 ecx, DWORD PTR _org_x$[ebp]
+  012b3	89 4d ec	 mov	 DWORD PTR _x$[ebp], ecx
+
+; 215  :         y = wDestYOrg - org_y;
+
+  012b6	8b 55 0c	 mov	 edx, DWORD PTR _wDestYOrg$[ebp]
+  012b9	2b 55 c4	 sub	 edx, DWORD PTR _org_y$[ebp]
+  012bc	89 55 e0	 mov	 DWORD PTR _y$[ebp], edx
+
+; 216  : 
+; 217  :         /* Don't draw an empty glyph, or a completely clipped glyph. Note that
+; 218  :          * this code is conservative. We could speed things up a bit by
+; 219  :          * assuming that if a right clip occurs in a string then the rest of
+; 220  :          * the string can be ignored. But, there is a possibility that a very
+; 221  :          * string TrueType font could have a character that images WAY over to
+; 222  :          * the left.
+; 223  :          */
+; 224  :         if ( ((height != 0) && (width != 0)) &&
+; 225  :              ((x + width) >= clip_left) &&
+; 226  :              (x < clip_right) )
+
+  012bf	83 7d cc 00	 cmp	 DWORD PTR _height$[ebp], 0
+  012c3	0f 84 df 01 00
+	00		 je	 $L3261
+  012c9	83 7d f4 00	 cmp	 DWORD PTR _width$[ebp], 0
+  012cd	0f 84 d5 01 00
+	00		 je	 $L3261
+  012d3	8b 45 ec	 mov	 eax, DWORD PTR _x$[ebp]
+  012d6	03 45 f4	 add	 eax, DWORD PTR _width$[ebp]
+  012d9	3b 45 24	 cmp	 eax, DWORD PTR _clip_left$[ebp]
+  012dc	0f 8c c6 01 00
+	00		 jl	 $L3261
+  012e2	8b 4d ec	 mov	 ecx, DWORD PTR _x$[ebp]
+  012e5	3b 4d 28	 cmp	 ecx, DWORD PTR _clip_right$[ebp]
+  012e8	0f 8d ba 01 00
+	00		 jge	 $L3261
+
+; 228  :             /* Compute number of bytes required by glyph row. 0 is not a valid
+; 229  :              * width, so this works.
+; 230  :              */
+; 231  :             glyph_stride = (width + 7) >> 3;
+
+  012ee	8b 55 f4	 mov	 edx, DWORD PTR _width$[ebp]
+  012f1	83 c2 07	 add	 edx, 7
+  012f4	c1 fa 03	 sar	 edx, 3
+  012f7	89 55 f0	 mov	 DWORD PTR _glyph_stride$[ebp], edx
+
+; 232  : 
+; 233  :             /* Compute number of dwords to transfer. Because 0 is not a valid
+; 234  :              * height, at least 1 dword will be transfered.
+; 235  :              */
+; 236  :             glyph_dwords = ((glyph_stride * height) + 3) >> 2;
+
+  012fa	8b 45 f0	 mov	 eax, DWORD PTR _glyph_stride$[ebp]
+  012fd	0f af 45 cc	 imul	 eax, DWORD PTR _height$[ebp]
+  01301	83 c0 03	 add	 eax, 3
+  01304	c1 f8 02	 sar	 eax, 2
+  01307	89 45 f8	 mov	 DWORD PTR _glyph_dwords$[ebp], eax
+
+; 237  : 
+; 238  :             /* Set up to transfer bitmap */
+; 239  :             CMDFIFO_CHECKROOM(cmdFifo, (unsigned)(glyph_dwords + 5));
+
+  0130a	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  01310	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  01316	8b 42 28	 mov	 eax, DWORD PTR [edx+40]
+  01319	8b 4d f8	 mov	 ecx, DWORD PTR _glyph_dwords$[ebp]
+  0131c	8d 54 08 05	 lea	 edx, DWORD PTR [eax+ecx+5]
+  01320	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  01325	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  0132b	89 51 28	 mov	 DWORD PTR [ecx+40], edx
+  0132e	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  01334	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  0133a	81 78 28 ff ff
+	00 00		 cmp	 DWORD PTR [eax+40], 65535 ; 0000ffffH
+  01341	72 35		 jb	 SHORT $L3240
+  01343	e8 00 00 00 00	 call	 __p6fencer
+  01348	8b 4d f8	 mov	 ecx, DWORD PTR _glyph_dwords$[ebp]
+  0134b	83 c1 05	 add	 ecx, 5
+  0134e	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  01354	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  0135a	89 48 28	 mov	 DWORD PTR [eax+40], ecx
+  0135d	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  01363	83 b9 f0 17 00
+	00 00		 cmp	 DWORD PTR [ecx+6128], 0
+  0136a	74 0c		 je	 SHORT $L3240
+  0136c	8b 55 d8	 mov	 edx, DWORD PTR _cmdFifo$[ebp]
+  0136f	52		 push	 edx
+  01370	e8 00 00 00 00	 call	 _myAgpEpilog
+  01375	83 c4 04	 add	 esp, 4
+$L3240:
+  01378	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  0137d	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  01383	8b 51 14	 mov	 edx, DWORD PTR [ecx+20]
+  01386	2b 55 e8	 sub	 edx, DWORD PTR _hwIndex$[ebp]
+  01389	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  0138e	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  01394	89 51 14	 mov	 DWORD PTR [ecx+20], edx
+  01397	8b 55 e8	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  0139a	8b 45 d8	 mov	 eax, DWORD PTR _cmdFifo$[ebp]
+  0139d	8d 0c 90	 lea	 ecx, DWORD PTR [eax+edx*4]
+  013a0	89 4d d8	 mov	 DWORD PTR _cmdFifo$[ebp], ecx
+  013a3	c7 45 e8 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$[ebp], 0
+  013aa	8b 55 f8	 mov	 edx, DWORD PTR _glyph_dwords$[ebp]
+  013ad	83 c2 05	 add	 edx, 5
+  013b0	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  013b5	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  013bb	3b 51 14	 cmp	 edx, DWORD PTR [ecx+20]
+  013be	76 16		 jbe	 SHORT $L3248
+  013c0	8b 55 f8	 mov	 edx, DWORD PTR _glyph_dwords$[ebp]
+  013c3	83 c2 05	 add	 edx, 5
+  013c6	52		 push	 edx
+  013c7	8b 45 d8	 mov	 eax, DWORD PTR _cmdFifo$[ebp]
+  013ca	50		 push	 eax
+  013cb	e8 00 00 00 00	 call	 _fifo_MakeRoom
+  013d0	83 c4 08	 add	 esp, 8
+  013d3	89 45 d8	 mov	 DWORD PTR _cmdFifo$[ebp], eax
+$L3248:
+
+; 240  :             SETPH(cmdFifo, SSTCP_PKT2 | dstSizeBit | dstXYBit | commandBit);
+
+  013d6	8b 4d e8	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  013d9	8b 55 d8	 mov	 edx, DWORD PTR _cmdFifo$[ebp]
+  013dc	c7 04 8a 02 00
+	00 38		 mov	 DWORD PTR [edx+ecx*4], 939524098 ; 38000002H
+  013e3	8b 45 e8	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  013e6	83 c0 01	 add	 eax, 1
+  013e9	89 45 e8	 mov	 DWORD PTR _hwIndex$[ebp], eax
+
+; 241  :             SET(cmdFifo, _FF(lpGRegs)->dstSize, R32(height, width));
+
+  013ec	8b 4d cc	 mov	 ecx, DWORD PTR _height$[ebp]
+  013ef	c1 e1 10	 shl	 ecx, 16			; 00000010H
+  013f2	8b 55 f4	 mov	 edx, DWORD PTR _width$[ebp]
+  013f5	81 e2 ff ff 00
+	00		 and	 edx, 65535		; 0000ffffH
+  013fb	0b ca		 or	 ecx, edx
+  013fd	8b 45 e8	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  01400	8b 55 d8	 mov	 edx, DWORD PTR _cmdFifo$[ebp]
+  01403	89 0c 82	 mov	 DWORD PTR [edx+eax*4], ecx
+  01406	8b 45 e8	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  01409	83 c0 01	 add	 eax, 1
+  0140c	89 45 e8	 mov	 DWORD PTR _hwIndex$[ebp], eax
+
+; 242  :             SET(cmdFifo, _FF(lpGRegs)->dstXY, R32(y, x));
+
+  0140f	8b 4d e0	 mov	 ecx, DWORD PTR _y$[ebp]
+  01412	c1 e1 10	 shl	 ecx, 16			; 00000010H
+  01415	8b 55 ec	 mov	 edx, DWORD PTR _x$[ebp]
+  01418	81 e2 ff ff 00
+	00		 and	 edx, 65535		; 0000ffffH
+  0141e	0b ca		 or	 ecx, edx
+  01420	8b 45 e8	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  01423	8b 55 d8	 mov	 edx, DWORD PTR _cmdFifo$[ebp]
+  01426	89 0c 82	 mov	 DWORD PTR [edx+eax*4], ecx
+  01429	8b 45 e8	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  0142c	83 c0 01	 add	 eax, 1
+  0142f	89 45 e8	 mov	 DWORD PTR _hwIndex$[ebp], eax
+
+; 243  :             SETC(cmdFifo, _FF(lpGRegs)->command, (SSTG_ROP_SRCCOPY |
+; 244  : 						 SSTG_CLIPSELECT |
+; 245  : 						 SSTG_TRANSPARENT |
+; 246  : 						 SSTG_HOST_BLT));
+
+  01432	8b 4d e8	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  01435	8b 55 d8	 mov	 edx, DWORD PTR _cmdFifo$[ebp]
+  01438	c7 04 8a 03 00
+	81 cc		 mov	 DWORD PTR [edx+ecx*4], -863961085 ; cc810003H
+  0143f	8b 45 e8	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  01442	83 c0 01	 add	 eax, 1
+  01445	89 45 e8	 mov	 DWORD PTR _hwIndex$[ebp], eax
+
+; 247  :             /* Transfer host data (glyph bitmap) */
+; 248  :             SETPH(cmdFifo, (SSTCP_PKT1 |
+; 249  : 			    SSTCP_PKT1_2D |
+; 250  : 			    (LAUNCH_REG_1 << SSTCP_REGBASE_SHIFT) |
+; 251  : 			    (glyph_dwords << SSTCP_PKT1_NWORDS_SHIFT)));
+
+  01448	8b 4d f8	 mov	 ecx, DWORD PTR _glyph_dwords$[ebp]
+  0144b	c1 e1 10	 shl	 ecx, 16			; 00000010H
+  0144e	81 c9 01 41 00
+	00		 or	 ecx, 16641		; 00004101H
+  01454	8b 55 e8	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  01457	8b 45 d8	 mov	 eax, DWORD PTR _cmdFifo$[ebp]
+  0145a	89 0c 90	 mov	 DWORD PTR [eax+edx*4], ecx
+  0145d	8b 4d e8	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  01460	83 c1 01	 add	 ecx, 1
+  01463	89 4d e8	 mov	 DWORD PTR _hwIndex$[ebp], ecx
+
+; 252  : 	    
+; 253  :             for ( i = 1; i <= glyph_dwords; ++i )
+
+  01466	c7 45 e4 01 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 1
+  0146d	eb 09		 jmp	 SHORT $L3259
+$L3260:
+  0146f	8b 55 e4	 mov	 edx, DWORD PTR _i$[ebp]
+  01472	83 c2 01	 add	 edx, 1
+  01475	89 55 e4	 mov	 DWORD PTR _i$[ebp], edx
+$L3259:
+  01478	8b 45 e4	 mov	 eax, DWORD PTR _i$[ebp]
+  0147b	3b 45 f8	 cmp	 eax, DWORD PTR _glyph_dwords$[ebp]
+  0147e	7f 28		 jg	 SHORT $L3261
+
+; 255  :                 l = *(DWORD *)glyph;
+
+  01480	8b 4d fc	 mov	 ecx, DWORD PTR _glyph$[ebp]
+  01483	8b 11		 mov	 edx, DWORD PTR [ecx]
+  01485	89 55 d0	 mov	 DWORD PTR _l$[ebp], edx
+
+; 256  :                 glyph += 4;
+
+  01488	8b 45 fc	 mov	 eax, DWORD PTR _glyph$[ebp]
+  0148b	83 c0 04	 add	 eax, 4
+  0148e	89 45 fc	 mov	 DWORD PTR _glyph$[ebp], eax
+
+; 257  :                 SET(cmdFifo, _FF(lpGRegs)->launch[0], l);
+
+  01491	8b 4d e8	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  01494	8b 55 d8	 mov	 edx, DWORD PTR _cmdFifo$[ebp]
+  01497	8b 45 d0	 mov	 eax, DWORD PTR _l$[ebp]
+  0149a	89 04 8a	 mov	 DWORD PTR [edx+ecx*4], eax
+  0149d	8b 4d e8	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  014a0	83 c1 01	 add	 ecx, 1
+  014a3	89 4d e8	 mov	 DWORD PTR _hwIndex$[ebp], ecx
+
+; 258  : 	    }
+
+  014a6	eb c7		 jmp	 SHORT $L3260
+$L3261:
+
+; 261  : 
+; 262  :         /* Compute escapement to next glyph */
+; 263  :         if ( lpCharWidths != NULL )
+
+  014a8	83 7d 1c 00	 cmp	 DWORD PTR _lpCharWidths$[ebp], 0
+  014ac	74 14		 je	 SHORT $L3265
+
+; 264  :             wDestXOrg += (short)lpCharWidths[nchars];
+
+  014ae	8b 55 dc	 mov	 edx, DWORD PTR _nchars$[ebp]
+  014b1	8b 45 1c	 mov	 eax, DWORD PTR _lpCharWidths$[ebp]
+  014b4	0f bf 0c 50	 movsx	 ecx, WORD PTR [eax+edx*2]
+  014b8	8b 55 08	 mov	 edx, DWORD PTR _wDestXOrg$[ebp]
+  014bb	03 d1		 add	 edx, ecx
+  014bd	89 55 08	 mov	 DWORD PTR _wDestXOrg$[ebp], edx
+
+; 265  :         else
+
+  014c0	eb 18		 jmp	 SHORT $L3267
+$L3265:
+
+; 266  :             wDestXOrg += FONTSEGT(nfAWTable, short *)[glyph_index];
+
+  014c2	8b 45 18	 mov	 eax, DWORD PTR _lpFont$[ebp]
+  014c5	8b 4d 18	 mov	 ecx, DWORD PTR _lpFont$[ebp]
+  014c8	03 48 0a	 add	 ecx, DWORD PTR [eax+10]
+  014cb	8b 55 d4	 mov	 edx, DWORD PTR _glyph_index$[ebp]
+  014ce	0f bf 04 51	 movsx	 eax, WORD PTR [ecx+edx*2]
+  014d2	8b 4d 08	 mov	 ecx, DWORD PTR _wDestXOrg$[ebp]
+  014d5	03 c8		 add	 ecx, eax
+  014d7	89 4d 08	 mov	 DWORD PTR _wDestXOrg$[ebp], ecx
+$L3267:
+
+; 267  :     }
+
+  014da	e9 e1 fc ff ff	 jmp	 $L3194
+$L3195:
+
+; 268  : 
+; 269  :     CMDFIFO_EPILOG(cmdFifo);
+
+  014df	8b 55 e8	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  014e2	8b 45 d8	 mov	 eax, DWORD PTR _cmdFifo$[ebp]
+  014e5	8d 0c 90	 lea	 ecx, DWORD PTR [eax+edx*4]
+  014e8	89 4d d8	 mov	 DWORD PTR _cmdFifo$[ebp], ecx
+  014eb	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  014f1	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  014f7	8b 48 14	 mov	 ecx, DWORD PTR [eax+20]
+  014fa	2b 4d e8	 sub	 ecx, DWORD PTR _hwIndex$[ebp]
+  014fd	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lpDriverData
+  01503	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  01509	89 48 14	 mov	 DWORD PTR [eax+20], ecx
+  0150c	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  01512	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  01518	8b 45 d8	 mov	 eax, DWORD PTR _cmdFifo$[ebp]
+  0151b	89 42 0c	 mov	 DWORD PTR [edx+12], eax
+  0151e	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lpDriverData
+  01524	83 b9 f0 17 00
+	00 00		 cmp	 DWORD PTR [ecx+6128], 0
+  0152b	74 0c		 je	 SHORT $L3274
+  0152d	8b 55 d8	 mov	 edx, DWORD PTR _cmdFifo$[ebp]
+  01530	52		 push	 edx
+  01531	e8 00 00 00 00	 call	 _myAgpEpilog
+  01536	83 c4 04	 add	 esp, 4
+$L3274:
+  01539	c7 45 e8 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$[ebp], 0
+
+; 270  : }
+
+  01540	5f		 pop	 edi
+  01541	5e		 pop	 esi
+  01542	5b		 pop	 ebx
+  01543	8b e5		 mov	 esp, ebp
+  01545	5d		 pop	 ebp
+  01546	c3		 ret	 0
+_draw_text ENDP
+_TEXT	ENDS
+END

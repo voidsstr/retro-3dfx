@@ -1,0 +1,216 @@
+
+                              README for GLUT-NT
+                              ------------------
+
+
+VERSION:
+
+	This is GLUT-NT version 3.1 as of 12/18/96.  It is a BETA version.
+	See the COPYRIGHT section for distribution and copyright notices.
+	Send all bug reports/questions to Nate Robins (narobins@es.com).
+
+
+NOTES:
+
+	o  To compile, use nmake -f glut.mak or use the developer studio
+
+	o  GLUT-NT supports color index mode ONLY in a paletted display mode 
+	   (i.e., 256 or 16 color mode).
+
+	o  Overlay support is currently not implemented.  From what I
+	   understand, hardware must support overlays, and I don't have any
+	   hardware that supports overlays (yet), so I haven't implemented it.
+
+	o  DLL version of the library is coming (as soon as I figure out
+	   how to do it -- if you know, let me know).
+
+	o  To customize the windows icon, you can use the resource name
+	   GLUT_ICON.  For example, create an icon named "glut.ico", and
+	   create a file called glut.rc that contains the following:
+	   GLUT_ICON ICON glut.ico
+	   then compile the glut.rc file with the following:
+	   rc /r glut
+           and link the resulting glut.res file into your executable.
+
+	o  If you expect to see error messages output by glut, and your
+	   application doesn't have a console window, then you must create
+	   one.
+
+
+CHANGES/FIXES:
+
+	(9/8/96)
+	o  Changed the glutGetModifiers code to produce an error if not
+	   called in the core input callbacks.
+
+	(9/11/96)
+	o  If the alt key is pressed with more than one other modifier key
+	   it acts as if it is stuck -- it stays selected until pressed
+	   and released again.
+	x  Fixed. 
+
+	(9/12/96)
+	o  When a submenu is attached to a menu, sometimes a GPF occurs.
+	   Fixed.  Needed to set the submenu before referencing it's members.
+
+	o  Kenny: Also, one little problem, I attached the menu to the 
+	   right-button, but when the left-button is pressed I detach
+	   it to give the right-button new meaning; if I pop-up the menu and I
+	   don't want to select anything, like most users, I click off of the
+	   menu to make it disappear. When I do this, I get a GLUT error and 
+	   the program terminates because I am altering the menu attachment 
+	   from within the button press while the menu is active. 
+	x  Fixed.  Needed to finish the menu when the user presses the button,
+	   not just when a button is released.
+
+	o  GLUT-NT emulates a middle mouse button by checking if both mouse
+	   buttons are down.  This causes a lot of problems with the menu
+	   and other multiple mouse button things.  
+	x  Fixed.  No more middle mouse button emulation.  Perhaps it would
+	   be a good idea to emulate the middle mouse button (if not present)
+	   with a key?
+
+	(9/15/96)
+	o  Added code to accept a user defined icon.  If no icon is provided,
+	   a default icon is loaded.
+
+	(9/19/96)
+	o  Shane: Command line options seem to be screwed up. (9/13)
+	x  Fixed.  The geometry command line was broken, and so was the
+	   gldebug command line.
+
+	o  Fixed a bug in the default glut reshape.  It was looking for the
+	   parent of the current window and GPF'ing if there wasn't a parent.
+	   Put in a check for a parent, and if none is there, use the
+	   child.
+
+	o  Idle function sucks up all processor cycles. (9/8/96)
+	x  I don't know if this is avoidable.  If you have a tight rendering
+	   loop, it may be that the processor time is going to be sucked up
+	   no matter what.  You can add a sleep() to the end of your render
+	   loop if you would like to yeild to other processes and you don't
+	   care too much about the speed of your rendering loop.  If you have
+	   Hardware that supports OpenGL (like a 3Dpro card, or GLint card) 
+	   then this should be less of a problem, since it won't be rendering
+	   in software. (9/11/96)
+
+	o  If a window is fully obscured by another window, the visibility
+	   callback is NOT called.  As far as I can tell, this is a limitation
+	   of the WIN32 api, but a workaround is being searched for. (9/8/96)
+	x  Limitation of the WIN32 API
+
+	o  Fixed the entry functions.  They only work if the keyboard focus
+	   changes.  Therefore, in most NT/95 systems, the mouse must be
+	   pressed outside of the window to get a GLUT_LEFT message and
+	   then pressed inside the window for a GLUT_ENTERED message.
+
+	o  Alt modifier key doesn't work with keyboard callback. (9/8/96)
+	x  Probably okay, because the glut spec says that these keys can
+	   be intercepted by the system (which the alt key is...) (9/11/96)
+
+	(11/17/96)
+	o  glutRemoveMenuItem() not working properly.
+	x  Thanks to Gary (grc@maple.civeng.rutgers.edu) for the fix to
+	   this one.
+
+	o  Timer functions are messed up.
+	x  Thanks to Joseph Galbraith for the fix to this one.
+
+	(12/9/96)
+	o  One (minor) difference came up between the X version of glut
+	   and the nt one which you should know about. It is not a new
+	   problem, and it concerns co-ords returned to the pointer
+	   callbacks. (glutMotionFunc, glutMouseFunc)
+	   Under X, you get co-ords in the range 0 +/- 2^15, under NT
+	   you get 0..2^16. This is only really a problem when moving
+	   above or to the left of the window.
+	   eg dragging one pixel ABOVE the window will give :-
+	   under x11 :      y = -1
+	   under nt  :      y = 2^16 -1
+	x  Put in fix provided by Shane Clauson.
+
+	(12/17/96)
+	o  Idle functions not working properly for multiple windows.
+	x  Fixed this by posting an idle message to every window in the 
+	   window list when idle.
+
+	(12/18/96)
+	o  glutSetCursor() was misbehaving (lthomas@cco.caltech.edu).
+	x  Win32 requires that the hCursor member of the window class
+           be set to NULL when the class is registered or whenever the
+           mouse is moved, the original cursor is replaced (go
+           figure!).  Now sets the cursor whenever a WM_MOUSEMOVE message
+	   is received, because the WM_SETCURSOR event resets the cursor
+	   even when in the decoration area.
+
+	o  Geometry is not being handled quite right.  The numbers don't
+	   take into account the window decorations.  That is, if I say
+	   make a window 100x100, then the WHOLE window (not just the
+	   client area) is 100x100.  Therefore, the client (opengl) area
+	   is smaller than 100x100. (9/8/96)
+	x  Fixed.  Added code to subtract the decoration size on glutGet()
+	   and add the decoration size on glutReshapeWindow().
+
+	o  Multiple glutPostRedisplay() calls are NOT being combined.
+	   To get round the "coalesce" problem on glutPostRedisplay,
+	   the easiest solution is to roll-your-own coalesce by
+	   keeping a global "dirty" flag in the app (eg replace all
+	   calls to glutPostRedisplay with image_dirty=TRUE;), and to
+	   handle image_dirty with a single glutPostRedisplay in the
+	   idle callback when required.  (erk - but increases
+	   performance for my particular app (a rendering engine on
+	   the end of a pipleine with a stream of graphics updates) by
+	   a couple of orders of magnitude ! ) (9/8/96)
+	x Added code to coalesce redisplays.  Every idle cycle, a
+	  check is made to see which windows need redisplay, if they
+	  need it, a redisplay is posted.  The glutPostRedisplay()
+	  call is just a stub that sets a flag.
+
+
+BUGS:
+
+	(9/8/96)
+
+	o  On initial bringup apps are getting 2 display callbacks.
+
+	o  Some multiple window (not subwindow) functionality is messed up.
+           See the sphere.exe program.
+
+	o  Menu's are modal.  That is, they don't allow any other events
+	   notable idle events down the pipe while they are up.  This is not
+	   the way that GLUT-X behaves.
+
+
+THANKS:
+
+	Special thanks to the following diligent BETA testers:
+
+	Kenny Hoff (hoff@cs.unc.edu) [ also provided the Borland IDE file ]
+	Shane Clauson (sc@datamine.co.uk)  [ also provided the GLUT bug icon ]
+	Richard Readings (readings@reo.dec.com)
+	Paul McQuesten (paulmcq@cs.utexas.edu)
+	Philip Winston (winston@cs.unc.edu)	
+	JaeWoo Ahn (jaewoo@violet.seri.re.kr)
+	Gary ? (grc@maple.civeng.rutgers.edu)
+	Joseph Galbraith (galb@unm.edu)
+	Paula Higgins (paulah@unm.edu)
+
+	and many others...
+
+
+COPYRIGHT:
+
+The OpenGL Utility Toolkit distribution for Windows NT (GLUT-NT)
+contains source code modified from the original source code for GLUT
+version 3.1 which was developed by Mark J. Kilgard.  The original source code
+for glut is Copyright 1996 by Mark J. Kilgard.  GLUT-NT is Copyright 1996 by
+Nate Robins and is not in the public domain, but it is freely distributable
+without licensing fees.  It is provided without guarantee or warrantee
+expressed or implied.  It was ported with the permission of Mark J. Kilgard 
+by Nate Robins & Paul Mayfield.
+
+THIS SOURCE CODE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER
+EXPRESS OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OR MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+OpenGL (R) is a registered trademark of Silicon Graphics, Inc.

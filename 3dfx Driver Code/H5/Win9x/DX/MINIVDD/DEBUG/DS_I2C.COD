@@ -1,0 +1,1057 @@
+	TITLE	..\i2c\ds_i2c.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+_PTEXT	SEGMENT PARA USE32 PUBLIC 'PCODE'
+_PTEXT	ENDS
+_LTEXT	SEGMENT PARA USE32 PUBLIC 'LCODE'
+_LTEXT	ENDS
+_PDATA	SEGMENT DWORD USE32 PUBLIC 'PDATA'
+_PDATA	ENDS
+_LDATA	SEGMENT DWORD USE32 PUBLIC 'LCODE'
+_LDATA	ENDS
+FLAT	GROUP _DATA, CONST, _BSS, _PDATA, _LDATA
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+PUBLIC	_MUX_Napalm
+EXTRN	_CCODE__Debug_Printf_Service:NEAR
+_PDATA	SEGMENT
+$SG10402 DB	'I2C: i2c_getaccess("Access granted for MONITOR DDC purpo'
+	DB	'ses.")', 0aH, 00H
+$SG10407 DB	'I2C: i2c_getaccess("Access granted for FLATPANEL DDC pur'
+	DB	'poses.")', 0aH, 00H
+_PDATA	ENDS
+_PTEXT	SEGMENT
+_pContext$ = 8
+_value$ = 12
+_MUX_Napalm PROC NEAR
+
+; 61   : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	51		 push	 ecx
+
+; 62   :   //RYAN@TODO,990902:  The polarity and the actual bit for this mux is not yet known.
+; 63   :   //srogers,000116: It looks like from the schematics, I've seen, we should at least
+; 64   :   // set the DDC Enable on.  Also, the schematics say to set GPIO_1 to 0 for monitor
+; 65   :   // detection and set GPIO_1 to 1 for FLATPANEL detection
+; 66   :   I2C_REGBASEPTR(pContext)->vidSerialParallelPort |= SST_SERPAR_DDC_EN;
+
+  00004	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00007	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  0000d	8b 51 78	 mov	 edx, DWORD PTR [ecx+120]
+  00010	81 ca 00 00 04
+	00		 or	 edx, 262144		; 00040000H
+  00016	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00019	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  0001f	89 51 78	 mov	 DWORD PTR [ecx+120], edx
+
+; 67   :   switch (value)
+; 68   :   {
+
+  00022	8b 55 0c	 mov	 edx, DWORD PTR _value$[ebp]
+  00025	89 55 fc	 mov	 DWORD PTR -4+[ebp], edx
+  00028	83 7d fc 02	 cmp	 DWORD PTR -4+[ebp], 2
+  0002c	74 08		 je	 SHORT $L10398
+  0002e	83 7d fc 03	 cmp	 DWORD PTR -4+[ebp], 3
+  00032	74 38		 je	 SHORT $L10403
+  00034	eb 6c		 jmp	 SHORT $L10408
+$L10398:
+
+; 69   :     case MUX_MONITORDDC:
+; 70   :       I2C_REGBASEPTR(pContext)->vidSerialParallelPort &= ~SST_SERPAR_GPIO_1;
+
+  00036	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00039	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  0003f	8b 51 78	 mov	 edx, DWORD PTR [ecx+120]
+  00042	81 e2 ff ff ff
+	df		 and	 edx, -536870913		; dfffffffH
+  00048	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  0004b	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  00051	89 51 78	 mov	 DWORD PTR [ecx+120], edx
+
+; 71   :       DEBUGI2C(1, ("I2C: i2c_getaccess(\"Access granted for MONITOR DDC purposes.\")\n"));
+
+  00054	ba 01 00 00 00	 mov	 edx, 1
+  00059	85 d2		 test	 edx, edx
+  0005b	74 0d		 je	 SHORT $L10401
+  0005d	68 00 00 00 00	 push	 OFFSET FLAT:$SG10402
+  00062	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00067	83 c4 04	 add	 esp, 4
+$L10401:
+
+; 72   :       break;
+
+  0006a	eb 3a		 jmp	 SHORT $L10395
+$L10403:
+
+; 73   : 
+; 74   :     case MUX_FLATPANELDDC:
+; 75   :       I2C_REGBASEPTR(pContext)->vidSerialParallelPort |= SST_SERPAR_GPIO_1;
+
+  0006c	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  0006f	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  00075	8b 51 78	 mov	 edx, DWORD PTR [ecx+120]
+  00078	81 ca 00 00 00
+	20		 or	 edx, 536870912		; 20000000H
+  0007e	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00081	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  00087	89 51 78	 mov	 DWORD PTR [ecx+120], edx
+
+; 76   :       DEBUGI2C(1, ("I2C: i2c_getaccess(\"Access granted for FLATPANEL DDC purposes.\")\n"));
+
+  0008a	ba 01 00 00 00	 mov	 edx, 1
+  0008f	85 d2		 test	 edx, edx
+  00091	74 0d		 je	 SHORT $L10406
+  00093	68 00 00 00 00	 push	 OFFSET FLAT:$SG10407
+  00098	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  0009d	83 c4 04	 add	 esp, 4
+$L10406:
+
+; 77   :       break;
+
+  000a0	eb 04		 jmp	 SHORT $L10395
+$L10408:
+
+; 78   : 
+; 79   :     default:
+; 80   :       return I2C_FAILURE;
+
+  000a2	33 c0		 xor	 eax, eax
+  000a4	eb 05		 jmp	 SHORT $L10391
+$L10395:
+
+; 82   : 
+; 83   :   return I2C_SUCCESS;
+
+  000a6	b8 01 00 00 00	 mov	 eax, 1
+$L10391:
+
+; 84   : }
+
+  000ab	8b e5		 mov	 esp, ebp
+  000ad	5d		 pop	 ebp
+  000ae	c3		 ret	 0
+_MUX_Napalm ENDP
+_PTEXT	ENDS
+PUBLIC	_MUX_Avenger
+_PDATA	SEGMENT
+	ORG $+2
+$SG10423 DB	'I2C: i2c_getaccess("Access granted for MONITOR DDC purpo'
+	DB	'ses.")', 0aH, 00H
+$SG10430 DB	'I2C: i2c_getaccess("Access granted for GENERAL I2C purpo'
+	DB	'ses.")', 0aH, 00H
+$SG10437 DB	'I2C: i2c_getaccess("Access granted for FLATPANEL DDC pur'
+	DB	'poses.")', 0aH, 00H
+	ORG $+2
+$SG10440 DB	'PEDANTIC', 00H
+	ORG $+3
+$SG10441 DB	'I2C: i2c_getaccess("I2C error-detect mode is %s.")', 0aH
+	DB	00H
+_PDATA	ENDS
+_PTEXT	SEGMENT
+_pContext$ = 8
+_value$ = 12
+_MUX_Avenger PROC NEAR
+
+; 89   : {
+
+  000af	55		 push	 ebp
+  000b0	8b ec		 mov	 ebp, esp
+  000b2	51		 push	 ecx
+
+; 90   :   switch (value)
+; 91   :   {
+
+  000b3	8b 45 0c	 mov	 eax, DWORD PTR _value$[ebp]
+  000b6	89 45 fc	 mov	 DWORD PTR -4+[ebp], eax
+  000b9	83 7d fc 01	 cmp	 DWORD PTR -4+[ebp], 1
+  000bd	74 4d		 je	 SHORT $L10424
+  000bf	83 7d fc 02	 cmp	 DWORD PTR -4+[ebp], 2
+  000c3	74 0f		 je	 SHORT $L10419
+  000c5	83 7d fc 03	 cmp	 DWORD PTR -4+[ebp], 3
+  000c9	0f 84 90 00 00
+	00		 je	 $L10431
+  000cf	e9 df 00 00 00	 jmp	 $L10438
+$L10419:
+
+; 92   :     case MUX_MONITORDDC:
+; 93   :       // this is not really a mux; just ensures the port is enabled.
+; 94   :       I2C_REGBASEPTR(pContext)->vidSerialParallelPort |= SST_SERPAR_DDC_EN;
+
+  000d4	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  000d7	8b 91 90 00 00
+	00		 mov	 edx, DWORD PTR [ecx+144]
+  000dd	8b 42 78	 mov	 eax, DWORD PTR [edx+120]
+  000e0	0d 00 00 04 00	 or	 eax, 262144		; 00040000H
+  000e5	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  000e8	8b 91 90 00 00
+	00		 mov	 edx, DWORD PTR [ecx+144]
+  000ee	89 42 78	 mov	 DWORD PTR [edx+120], eax
+
+; 95   :       DEBUGI2C(1, ("I2C: i2c_getaccess(\"Access granted for MONITOR DDC purposes.\")\n"));
+
+  000f1	b8 01 00 00 00	 mov	 eax, 1
+  000f6	85 c0		 test	 eax, eax
+  000f8	74 0d		 je	 SHORT $L10422
+  000fa	68 00 00 00 00	 push	 OFFSET FLAT:$SG10423
+  000ff	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00104	83 c4 04	 add	 esp, 4
+$L10422:
+
+; 96   :       break;
+
+  00107	e9 ab 00 00 00	 jmp	 $L10416
+$L10424:
+
+; 97   : 
+; 98   :     case MUX_I2CDEVICES:
+; 99   :       I2C_REGBASEPTR(pContext)->vidSerialParallelPort |= SST_SERPAR_I2C_EN;  //ensure port is enabled
+
+  0010c	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  0010f	8b 91 90 00 00
+	00		 mov	 edx, DWORD PTR [ecx+144]
+  00115	8b 42 78	 mov	 eax, DWORD PTR [edx+120]
+  00118	0d 00 00 80 00	 or	 eax, 8388608		; 00800000H
+  0011d	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00120	8b 91 90 00 00
+	00		 mov	 edx, DWORD PTR [ecx+144]
+  00126	89 42 78	 mov	 DWORD PTR [edx+120], eax
+
+; 100  :       I2C_REGBASEPTR(pContext)->vidSerialParallelPort &= ~SST_SERPAR_GPIO_1;
+
+  00129	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  0012c	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  00132	8b 51 78	 mov	 edx, DWORD PTR [ecx+120]
+  00135	81 e2 ff ff ff
+	df		 and	 edx, -536870913		; dfffffffH
+  0013b	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  0013e	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  00144	89 51 78	 mov	 DWORD PTR [ecx+120], edx
+
+; 101  :       DEBUGI2C(1, ("I2C: i2c_getaccess(\"Access granted for GENERAL I2C purposes.\")\n"));
+
+  00147	ba 01 00 00 00	 mov	 edx, 1
+  0014c	85 d2		 test	 edx, edx
+  0014e	74 0d		 je	 SHORT $L10429
+  00150	68 00 00 00 00	 push	 OFFSET FLAT:$SG10430
+  00155	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  0015a	83 c4 04	 add	 esp, 4
+$L10429:
+
+; 102  :       break;
+
+  0015d	eb 58		 jmp	 SHORT $L10416
+$L10431:
+
+; 103  : 
+; 104  :     case MUX_FLATPANELDDC:
+; 105  :       I2C_REGBASEPTR(pContext)->vidSerialParallelPort |= SST_SERPAR_I2C_EN;  //ensure port is enabled
+
+  0015f	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00162	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  00168	8b 51 78	 mov	 edx, DWORD PTR [ecx+120]
+  0016b	81 ca 00 00 80
+	00		 or	 edx, 8388608		; 00800000H
+  00171	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00174	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  0017a	89 51 78	 mov	 DWORD PTR [ecx+120], edx
+
+; 106  :       I2C_REGBASEPTR(pContext)->vidSerialParallelPort |= SST_SERPAR_GPIO_1;
+
+  0017d	8b 55 08	 mov	 edx, DWORD PTR _pContext$[ebp]
+  00180	8b 82 90 00 00
+	00		 mov	 eax, DWORD PTR [edx+144]
+  00186	8b 48 78	 mov	 ecx, DWORD PTR [eax+120]
+  00189	81 c9 00 00 00
+	20		 or	 ecx, 536870912		; 20000000H
+  0018f	8b 55 08	 mov	 edx, DWORD PTR _pContext$[ebp]
+  00192	8b 82 90 00 00
+	00		 mov	 eax, DWORD PTR [edx+144]
+  00198	89 48 78	 mov	 DWORD PTR [eax+120], ecx
+
+; 107  :       DEBUGI2C(1, ("I2C: i2c_getaccess(\"Access granted for FLATPANEL DDC purposes.\")\n"));
+
+  0019b	b9 01 00 00 00	 mov	 ecx, 1
+  001a0	85 c9		 test	 ecx, ecx
+  001a2	74 0d		 je	 SHORT $L10436
+  001a4	68 00 00 00 00	 push	 OFFSET FLAT:$SG10437
+  001a9	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  001ae	83 c4 04	 add	 esp, 4
+$L10436:
+
+; 108  :       break;
+
+  001b1	eb 04		 jmp	 SHORT $L10416
+$L10438:
+
+; 109  : 
+; 110  :     default:
+; 111  :       return I2C_FAILURE;
+
+  001b3	33 c0		 xor	 eax, eax
+  001b5	eb 20		 jmp	 SHORT $L10414
+$L10416:
+
+; 113  : 
+; 114  :   DEBUGI2C(1, ("I2C: i2c_getaccess(\"I2C error-detect mode is %s.\")\n", I2C_PEDANTIC ? "PEDANTIC" : "LAX"));
+
+  001b7	ba 01 00 00 00	 mov	 edx, 1
+  001bc	85 d2		 test	 edx, edx
+  001be	74 12		 je	 SHORT $L10439
+  001c0	68 00 00 00 00	 push	 OFFSET FLAT:$SG10440
+  001c5	68 00 00 00 00	 push	 OFFSET FLAT:$SG10441
+  001ca	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  001cf	83 c4 08	 add	 esp, 8
+$L10439:
+
+; 115  :   return I2C_SUCCESS;
+
+  001d2	b8 01 00 00 00	 mov	 eax, 1
+$L10414:
+
+; 116  : }
+
+  001d7	8b e5		 mov	 esp, ebp
+  001d9	5d		 pop	 ebp
+  001da	c3		 ret	 0
+_MUX_Avenger ENDP
+_PTEXT	ENDS
+PUBLIC	_DDC_GetSDA
+_PTEXT	SEGMENT
+_pContext$ = 8
+_DDC_GetSDA PROC NEAR
+
+; 121  : {
+
+  001db	55		 push	 ebp
+  001dc	8b ec		 mov	 ebp, esp
+
+; 122  :   return (FxU8)!!(I2C_REGBASEPTR(pContext)->vidSerialParallelPort & SST_SERPAR_DDC_DDA_IN);
+
+  001de	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  001e1	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  001e7	8b 41 78	 mov	 eax, DWORD PTR [ecx+120]
+  001ea	25 00 00 40 00	 and	 eax, 4194304		; 00400000H
+  001ef	f7 d8		 neg	 eax
+  001f1	1b c0		 sbb	 eax, eax
+  001f3	f7 d8		 neg	 eax
+
+; 123  : }
+
+  001f5	5d		 pop	 ebp
+  001f6	c3		 ret	 0
+_DDC_GetSDA ENDP
+_PTEXT	ENDS
+PUBLIC	_DDC_GetSCL
+_PTEXT	SEGMENT
+_pContext$ = 8
+_DDC_GetSCL PROC NEAR
+
+; 128  : {
+
+  001f7	55		 push	 ebp
+  001f8	8b ec		 mov	 ebp, esp
+
+; 129  :   return (FxU8)!!(I2C_REGBASEPTR(pContext)->vidSerialParallelPort & SST_SERPAR_DDC_DCK_IN);
+
+  001fa	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  001fd	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  00203	8b 41 78	 mov	 eax, DWORD PTR [ecx+120]
+  00206	25 00 00 20 00	 and	 eax, 2097152		; 00200000H
+  0020b	f7 d8		 neg	 eax
+  0020d	1b c0		 sbb	 eax, eax
+  0020f	f7 d8		 neg	 eax
+
+; 130  : }
+
+  00211	5d		 pop	 ebp
+  00212	c3		 ret	 0
+_DDC_GetSCL ENDP
+_PTEXT	ENDS
+PUBLIC	_DDC_SetSDA
+_PTEXT	SEGMENT
+_pContext$ = 8
+_state$ = 12
+_value$ = -8
+_pRegister$ = -4
+_DDC_SetSDA PROC NEAR
+
+; 135  : {
+
+  00213	55		 push	 ebp
+  00214	8b ec		 mov	 ebp, esp
+  00216	83 ec 08	 sub	 esp, 8
+
+; 136  :   FxU32 value;
+; 137  :   volatile FxU32* pRegister;
+; 138  : 
+; 139  :   // since "I2C_REGBASEPTR" could be a function, only use it once.
+; 140  :   pRegister = &(I2C_REGBASEPTR(pContext)->vidSerialParallelPort);
+
+  00219	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  0021c	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  00222	83 c1 78	 add	 ecx, 120		; 00000078H
+  00225	89 4d fc	 mov	 DWORD PTR _pRegister$[ebp], ecx
+
+; 141  : 
+; 142  :   value = *pRegister;
+
+  00228	8b 55 fc	 mov	 edx, DWORD PTR _pRegister$[ebp]
+  0022b	8b 02		 mov	 eax, DWORD PTR [edx]
+  0022d	89 45 f8	 mov	 DWORD PTR _value$[ebp], eax
+
+; 143  :   value &= ~SST_SERPAR_DDC_DDA_OUT;
+
+  00230	8b 4d f8	 mov	 ecx, DWORD PTR _value$[ebp]
+  00233	81 e1 ff ff ef
+	ff		 and	 ecx, -1048577		; ffefffffH
+  00239	89 4d f8	 mov	 DWORD PTR _value$[ebp], ecx
+
+; 144  :   value |= (state ? SST_SERPAR_DDC_DDA_OUT : 0);
+
+  0023c	8b 55 0c	 mov	 edx, DWORD PTR _state$[ebp]
+  0023f	f7 da		 neg	 edx
+  00241	1b d2		 sbb	 edx, edx
+  00243	81 e2 00 00 10
+	00		 and	 edx, 1048576		; 00100000H
+  00249	8b 45 f8	 mov	 eax, DWORD PTR _value$[ebp]
+  0024c	0b c2		 or	 eax, edx
+  0024e	89 45 f8	 mov	 DWORD PTR _value$[ebp], eax
+
+; 145  :   *pRegister = value;
+
+  00251	8b 4d fc	 mov	 ecx, DWORD PTR _pRegister$[ebp]
+  00254	8b 55 f8	 mov	 edx, DWORD PTR _value$[ebp]
+  00257	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 146  : }
+
+  00259	8b e5		 mov	 esp, ebp
+  0025b	5d		 pop	 ebp
+  0025c	c3		 ret	 0
+_DDC_SetSDA ENDP
+_PTEXT	ENDS
+PUBLIC	_DDC_SetSCL
+_PTEXT	SEGMENT
+_pContext$ = 8
+_state$ = 12
+_value$ = -8
+_pRegister$ = -4
+_DDC_SetSCL PROC NEAR
+
+; 150  : {
+
+  0025d	55		 push	 ebp
+  0025e	8b ec		 mov	 ebp, esp
+  00260	83 ec 08	 sub	 esp, 8
+
+; 151  :   FxU32 value;
+; 152  :   volatile FxU32* pRegister;
+; 153  : 
+; 154  :   // since "I2C_REGBASEPTR" could be a function, only use it once.
+; 155  :   pRegister = &(I2C_REGBASEPTR(pContext)->vidSerialParallelPort);
+
+  00263	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00266	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  0026c	83 c1 78	 add	 ecx, 120		; 00000078H
+  0026f	89 4d fc	 mov	 DWORD PTR _pRegister$[ebp], ecx
+
+; 156  : 
+; 157  :   value = *pRegister;
+
+  00272	8b 55 fc	 mov	 edx, DWORD PTR _pRegister$[ebp]
+  00275	8b 02		 mov	 eax, DWORD PTR [edx]
+  00277	89 45 f8	 mov	 DWORD PTR _value$[ebp], eax
+
+; 158  :   value &= ~SST_SERPAR_DDC_DCK_OUT;
+
+  0027a	8b 4d f8	 mov	 ecx, DWORD PTR _value$[ebp]
+  0027d	81 e1 ff ff f7
+	ff		 and	 ecx, -524289		; fff7ffffH
+  00283	89 4d f8	 mov	 DWORD PTR _value$[ebp], ecx
+
+; 159  :   value |= (state ? SST_SERPAR_DDC_DCK_OUT : 0);
+
+  00286	8b 55 0c	 mov	 edx, DWORD PTR _state$[ebp]
+  00289	f7 da		 neg	 edx
+  0028b	1b d2		 sbb	 edx, edx
+  0028d	81 e2 00 00 08
+	00		 and	 edx, 524288		; 00080000H
+  00293	8b 45 f8	 mov	 eax, DWORD PTR _value$[ebp]
+  00296	0b c2		 or	 eax, edx
+  00298	89 45 f8	 mov	 DWORD PTR _value$[ebp], eax
+
+; 160  :   *pRegister = value;
+
+  0029b	8b 4d fc	 mov	 ecx, DWORD PTR _pRegister$[ebp]
+  0029e	8b 55 f8	 mov	 edx, DWORD PTR _value$[ebp]
+  002a1	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 161  : }
+
+  002a3	8b e5		 mov	 esp, ebp
+  002a5	5d		 pop	 ebp
+  002a6	c3		 ret	 0
+_DDC_SetSCL ENDP
+_PTEXT	ENDS
+PUBLIC	_I2C_GetSDA
+_PTEXT	SEGMENT
+_pContext$ = 8
+_I2C_GetSDA PROC NEAR
+
+; 166  : {
+
+  002a7	55		 push	 ebp
+  002a8	8b ec		 mov	 ebp, esp
+
+; 167  :   return (FxU8)!!(I2C_REGBASEPTR(pContext)->vidSerialParallelPort & SST_SERPAR_I2C_DSA_IN);
+
+  002aa	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  002ad	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  002b3	8b 41 78	 mov	 eax, DWORD PTR [ecx+120]
+  002b6	25 00 00 00 08	 and	 eax, 134217728		; 08000000H
+  002bb	f7 d8		 neg	 eax
+  002bd	1b c0		 sbb	 eax, eax
+  002bf	f7 d8		 neg	 eax
+
+; 168  : }
+
+  002c1	5d		 pop	 ebp
+  002c2	c3		 ret	 0
+_I2C_GetSDA ENDP
+_PTEXT	ENDS
+PUBLIC	_I2C_GetSCL
+_PTEXT	SEGMENT
+_pContext$ = 8
+_I2C_GetSCL PROC NEAR
+
+; 173  : {
+
+  002c3	55		 push	 ebp
+  002c4	8b ec		 mov	 ebp, esp
+
+; 174  :   return (FxU8)!!(I2C_REGBASEPTR(pContext)->vidSerialParallelPort & SST_SERPAR_I2C_SCK_IN);
+
+  002c6	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  002c9	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  002cf	8b 41 78	 mov	 eax, DWORD PTR [ecx+120]
+  002d2	25 00 00 00 04	 and	 eax, 67108864		; 04000000H
+  002d7	f7 d8		 neg	 eax
+  002d9	1b c0		 sbb	 eax, eax
+  002db	f7 d8		 neg	 eax
+
+; 175  : }
+
+  002dd	5d		 pop	 ebp
+  002de	c3		 ret	 0
+_I2C_GetSCL ENDP
+_PTEXT	ENDS
+PUBLIC	_I2C_SetSDA
+_PTEXT	SEGMENT
+_pContext$ = 8
+_state$ = 12
+_value$ = -8
+_pRegister$ = -4
+_I2C_SetSDA PROC NEAR
+
+; 180  : {
+
+  002df	55		 push	 ebp
+  002e0	8b ec		 mov	 ebp, esp
+  002e2	83 ec 08	 sub	 esp, 8
+
+; 181  :   FxU32 value;
+; 182  :   volatile FxU32* pRegister;
+; 183  : 
+; 184  :   // since "I2C_REGBASEPTR" could be a function, only use it once.
+; 185  :   pRegister = &(I2C_REGBASEPTR(pContext)->vidSerialParallelPort);
+
+  002e5	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  002e8	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  002ee	83 c1 78	 add	 ecx, 120		; 00000078H
+  002f1	89 4d fc	 mov	 DWORD PTR _pRegister$[ebp], ecx
+
+; 186  : 
+; 187  :   value = *pRegister;
+
+  002f4	8b 55 fc	 mov	 edx, DWORD PTR _pRegister$[ebp]
+  002f7	8b 02		 mov	 eax, DWORD PTR [edx]
+  002f9	89 45 f8	 mov	 DWORD PTR _value$[ebp], eax
+
+; 188  :   value &= ~SST_SERPAR_I2C_DSA_OUT;
+
+  002fc	8b 4d f8	 mov	 ecx, DWORD PTR _value$[ebp]
+  002ff	81 e1 ff ff ff
+	fd		 and	 ecx, -33554433		; fdffffffH
+  00305	89 4d f8	 mov	 DWORD PTR _value$[ebp], ecx
+
+; 189  :   value |= (state ? SST_SERPAR_I2C_DSA_OUT : 0);
+
+  00308	8b 55 0c	 mov	 edx, DWORD PTR _state$[ebp]
+  0030b	f7 da		 neg	 edx
+  0030d	1b d2		 sbb	 edx, edx
+  0030f	81 e2 00 00 00
+	02		 and	 edx, 33554432		; 02000000H
+  00315	8b 45 f8	 mov	 eax, DWORD PTR _value$[ebp]
+  00318	0b c2		 or	 eax, edx
+  0031a	89 45 f8	 mov	 DWORD PTR _value$[ebp], eax
+
+; 190  :   *pRegister = value;
+
+  0031d	8b 4d fc	 mov	 ecx, DWORD PTR _pRegister$[ebp]
+  00320	8b 55 f8	 mov	 edx, DWORD PTR _value$[ebp]
+  00323	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 191  : }
+
+  00325	8b e5		 mov	 esp, ebp
+  00327	5d		 pop	 ebp
+  00328	c3		 ret	 0
+_I2C_SetSDA ENDP
+_PTEXT	ENDS
+PUBLIC	_I2C_SetSCL
+_PTEXT	SEGMENT
+_pContext$ = 8
+_state$ = 12
+_value$ = -8
+_pRegister$ = -4
+_I2C_SetSCL PROC NEAR
+
+; 196  : {
+
+  00329	55		 push	 ebp
+  0032a	8b ec		 mov	 ebp, esp
+  0032c	83 ec 08	 sub	 esp, 8
+
+; 197  :   FxU32 value;
+; 198  :   volatile FxU32* pRegister;
+; 199  : 
+; 200  :   // since "I2C_REGBASEPTR" could be a function, only use it once.
+; 201  :   pRegister = &(I2C_REGBASEPTR(pContext)->vidSerialParallelPort);
+
+  0032f	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00332	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  00338	83 c1 78	 add	 ecx, 120		; 00000078H
+  0033b	89 4d fc	 mov	 DWORD PTR _pRegister$[ebp], ecx
+
+; 202  : 
+; 203  :   value = *pRegister;
+
+  0033e	8b 55 fc	 mov	 edx, DWORD PTR _pRegister$[ebp]
+  00341	8b 02		 mov	 eax, DWORD PTR [edx]
+  00343	89 45 f8	 mov	 DWORD PTR _value$[ebp], eax
+
+; 204  :   value &= ~SST_SERPAR_I2C_SCK_OUT;
+
+  00346	8b 4d f8	 mov	 ecx, DWORD PTR _value$[ebp]
+  00349	81 e1 ff ff ff
+	fe		 and	 ecx, -16777217		; feffffffH
+  0034f	89 4d f8	 mov	 DWORD PTR _value$[ebp], ecx
+
+; 205  :   value |= (state ? SST_SERPAR_I2C_SCK_OUT : 0);
+
+  00352	8b 55 0c	 mov	 edx, DWORD PTR _state$[ebp]
+  00355	f7 da		 neg	 edx
+  00357	1b d2		 sbb	 edx, edx
+  00359	81 e2 00 00 00
+	01		 and	 edx, 16777216		; 01000000H
+  0035f	8b 45 f8	 mov	 eax, DWORD PTR _value$[ebp]
+  00362	0b c2		 or	 eax, edx
+  00364	89 45 f8	 mov	 DWORD PTR _value$[ebp], eax
+
+; 206  :   *pRegister = value;
+
+  00367	8b 4d fc	 mov	 ecx, DWORD PTR _pRegister$[ebp]
+  0036a	8b 55 f8	 mov	 edx, DWORD PTR _value$[ebp]
+  0036d	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 207  : }
+
+  0036f	8b e5		 mov	 esp, ebp
+  00371	5d		 pop	 ebp
+  00372	c3		 ret	 0
+_I2C_SetSCL ENDP
+_PTEXT	ENDS
+PUBLIC	_ConfigureI2C
+EXTRN	_SetUsageI2C:NEAR
+EXTRN	_InstantiateBusI2C:NEAR
+EXTRN	_InstantiateMuxI2C:NEAR
+EXTRN	_AssociateBusToMuxI2C:NEAR
+_PTEXT	SEGMENT
+_pContext$ = 8
+_busid$ = -8
+_muxid$ = -4
+_ConfigureI2C PROC NEAR
+
+; 212  : {
+
+  00373	55		 push	 ebp
+  00374	8b ec		 mov	 ebp, esp
+  00376	83 ec 08	 sub	 esp, 8
+
+; 213  :   I2CBUS busid;
+; 214  :   I2CMUX muxid;
+; 215  : 
+; 216  : 
+; 217  :   if (IsVoodoo3(pContext))  // RYAN@HACK, since we have to support two different board designs.
+
+  00379	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  0037c	50		 push	 eax
+  0037d	e8 00 00 00 00	 call	 _IsVoodoo3
+  00382	83 c4 04	 add	 esp, 4
+  00385	85 c0		 test	 eax, eax
+  00387	0f 84 1e 01 00
+	00		 je	 $L10515
+
+; 219  :     muxid = InstantiateMuxI2C(pContext, MUX_Avenger);
+
+  0038d	68 00 00 00 00	 push	 OFFSET FLAT:_MUX_Avenger
+  00392	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00395	51		 push	 ecx
+  00396	e8 00 00 00 00	 call	 _InstantiateMuxI2C
+  0039b	83 c4 08	 add	 esp, 8
+  0039e	89 45 fc	 mov	 DWORD PTR _muxid$[ebp], eax
+
+; 220  : 
+; 221  :     busid = InstantiateBusI2C(pContext, DDC_GetSDA, DDC_GetSCL, DDC_SetSDA, DDC_SetSCL);
+
+  003a1	68 00 00 00 00	 push	 OFFSET FLAT:_DDC_SetSCL
+  003a6	68 00 00 00 00	 push	 OFFSET FLAT:_DDC_SetSDA
+  003ab	68 00 00 00 00	 push	 OFFSET FLAT:_DDC_GetSCL
+  003b0	68 00 00 00 00	 push	 OFFSET FLAT:_DDC_GetSDA
+  003b5	8b 55 08	 mov	 edx, DWORD PTR _pContext$[ebp]
+  003b8	52		 push	 edx
+  003b9	e8 00 00 00 00	 call	 _InstantiateBusI2C
+  003be	83 c4 14	 add	 esp, 20			; 00000014H
+  003c1	89 45 f8	 mov	 DWORD PTR _busid$[ebp], eax
+
+; 222  :     SetUsageI2C(pContext, busid, I2C_MONITORDDC);
+
+  003c4	6a 02		 push	 2
+  003c6	8b 45 f8	 mov	 eax, DWORD PTR _busid$[ebp]
+  003c9	50		 push	 eax
+  003ca	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  003cd	51		 push	 ecx
+  003ce	e8 00 00 00 00	 call	 _SetUsageI2C
+  003d3	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 223  :     AssociateBusToMuxI2C(pContext, busid, muxid, MUX_MONITORDDC); //last param cannot be zero
+
+  003d6	6a 02		 push	 2
+  003d8	8b 55 fc	 mov	 edx, DWORD PTR _muxid$[ebp]
+  003db	52		 push	 edx
+  003dc	8b 45 f8	 mov	 eax, DWORD PTR _busid$[ebp]
+  003df	50		 push	 eax
+  003e0	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  003e3	51		 push	 ecx
+  003e4	e8 00 00 00 00	 call	 _AssociateBusToMuxI2C
+  003e9	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 224  :     
+; 225  :     busid = InstantiateBusI2C(pContext, I2C_GetSDA, I2C_GetSCL, I2C_SetSDA, I2C_SetSCL);
+
+  003ec	68 00 00 00 00	 push	 OFFSET FLAT:_I2C_SetSCL
+  003f1	68 00 00 00 00	 push	 OFFSET FLAT:_I2C_SetSDA
+  003f6	68 00 00 00 00	 push	 OFFSET FLAT:_I2C_GetSCL
+  003fb	68 00 00 00 00	 push	 OFFSET FLAT:_I2C_GetSDA
+  00400	8b 55 08	 mov	 edx, DWORD PTR _pContext$[ebp]
+  00403	52		 push	 edx
+  00404	e8 00 00 00 00	 call	 _InstantiateBusI2C
+  00409	83 c4 14	 add	 esp, 20			; 00000014H
+  0040c	89 45 f8	 mov	 DWORD PTR _busid$[ebp], eax
+
+; 226  :     SetUsageI2C(pContext, busid, I2C_FLATPANELDDC);
+
+  0040f	6a 04		 push	 4
+  00411	8b 45 f8	 mov	 eax, DWORD PTR _busid$[ebp]
+  00414	50		 push	 eax
+  00415	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00418	51		 push	 ecx
+  00419	e8 00 00 00 00	 call	 _SetUsageI2C
+  0041e	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 227  :     AssociateBusToMuxI2C(pContext, busid, muxid, MUX_FLATPANELDDC); //last param cannot be zero 
+
+  00421	6a 03		 push	 3
+  00423	8b 55 fc	 mov	 edx, DWORD PTR _muxid$[ebp]
+  00426	52		 push	 edx
+  00427	8b 45 f8	 mov	 eax, DWORD PTR _busid$[ebp]
+  0042a	50		 push	 eax
+  0042b	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  0042e	51		 push	 ecx
+  0042f	e8 00 00 00 00	 call	 _AssociateBusToMuxI2C
+  00434	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 228  : 
+; 229  :     busid = InstantiateBusI2C(pContext, I2C_GetSDA, I2C_GetSCL, I2C_SetSDA, I2C_SetSCL);
+
+  00437	68 00 00 00 00	 push	 OFFSET FLAT:_I2C_SetSCL
+  0043c	68 00 00 00 00	 push	 OFFSET FLAT:_I2C_SetSDA
+  00441	68 00 00 00 00	 push	 OFFSET FLAT:_I2C_GetSCL
+  00446	68 00 00 00 00	 push	 OFFSET FLAT:_I2C_GetSDA
+  0044b	8b 55 08	 mov	 edx, DWORD PTR _pContext$[ebp]
+  0044e	52		 push	 edx
+  0044f	e8 00 00 00 00	 call	 _InstantiateBusI2C
+  00454	83 c4 14	 add	 esp, 20			; 00000014H
+  00457	89 45 f8	 mov	 DWORD PTR _busid$[ebp], eax
+
+; 230  : 	SetUsageI2C(pContext, busid, I2C_MULTIMEDIA);
+
+  0045a	6a 03		 push	 3
+  0045c	8b 45 f8	 mov	 eax, DWORD PTR _busid$[ebp]
+  0045f	50		 push	 eax
+  00460	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00463	51		 push	 ecx
+  00464	e8 00 00 00 00	 call	 _SetUsageI2C
+  00469	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 231  :     SetUsageI2C(pContext, busid, I2C_TVENCODER);
+
+  0046c	6a 01		 push	 1
+  0046e	8b 55 f8	 mov	 edx, DWORD PTR _busid$[ebp]
+  00471	52		 push	 edx
+  00472	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00475	50		 push	 eax
+  00476	e8 00 00 00 00	 call	 _SetUsageI2C
+  0047b	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 232  : //???obsolete    SetUsageI2C(pContext, busid, I2C_LCDSCALER);
+; 233  :     SetUsageI2C(pContext, busid, I2C_SERIALEEPROM);
+
+  0047e	6a 05		 push	 5
+  00480	8b 4d f8	 mov	 ecx, DWORD PTR _busid$[ebp]
+  00483	51		 push	 ecx
+  00484	8b 55 08	 mov	 edx, DWORD PTR _pContext$[ebp]
+  00487	52		 push	 edx
+  00488	e8 00 00 00 00	 call	 _SetUsageI2C
+  0048d	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 234  :     AssociateBusToMuxI2C(pContext, busid, muxid, MUX_I2CDEVICES); //last param cannot be zero
+
+  00490	6a 01		 push	 1
+  00492	8b 45 fc	 mov	 eax, DWORD PTR _muxid$[ebp]
+  00495	50		 push	 eax
+  00496	8b 4d f8	 mov	 ecx, DWORD PTR _busid$[ebp]
+  00499	51		 push	 ecx
+  0049a	8b 55 08	 mov	 edx, DWORD PTR _pContext$[ebp]
+  0049d	52		 push	 edx
+  0049e	e8 00 00 00 00	 call	 _AssociateBusToMuxI2C
+  004a3	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 236  :   else
+
+  004a6	e9 03 01 00 00	 jmp	 $L10516
+$L10515:
+
+; 238  :     muxid = InstantiateMuxI2C(pContext, MUX_Napalm);
+
+  004ab	68 00 00 00 00	 push	 OFFSET FLAT:_MUX_Napalm
+  004b0	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  004b3	50		 push	 eax
+  004b4	e8 00 00 00 00	 call	 _InstantiateMuxI2C
+  004b9	83 c4 08	 add	 esp, 8
+  004bc	89 45 fc	 mov	 DWORD PTR _muxid$[ebp], eax
+
+; 239  : 
+; 240  :     busid = InstantiateBusI2C(pContext, DDC_GetSDA, DDC_GetSCL, DDC_SetSDA, DDC_SetSCL);
+
+  004bf	68 00 00 00 00	 push	 OFFSET FLAT:_DDC_SetSCL
+  004c4	68 00 00 00 00	 push	 OFFSET FLAT:_DDC_SetSDA
+  004c9	68 00 00 00 00	 push	 OFFSET FLAT:_DDC_GetSCL
+  004ce	68 00 00 00 00	 push	 OFFSET FLAT:_DDC_GetSDA
+  004d3	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  004d6	51		 push	 ecx
+  004d7	e8 00 00 00 00	 call	 _InstantiateBusI2C
+  004dc	83 c4 14	 add	 esp, 20			; 00000014H
+  004df	89 45 f8	 mov	 DWORD PTR _busid$[ebp], eax
+
+; 241  :     SetUsageI2C(pContext, busid, I2C_MONITORDDC);
+
+  004e2	6a 02		 push	 2
+  004e4	8b 55 f8	 mov	 edx, DWORD PTR _busid$[ebp]
+  004e7	52		 push	 edx
+  004e8	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  004eb	50		 push	 eax
+  004ec	e8 00 00 00 00	 call	 _SetUsageI2C
+  004f1	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 242  :     AssociateBusToMuxI2C(pContext, busid, muxid, MUX_MONITORDDC); //last param cannot be zero 
+
+  004f4	6a 02		 push	 2
+  004f6	8b 4d fc	 mov	 ecx, DWORD PTR _muxid$[ebp]
+  004f9	51		 push	 ecx
+  004fa	8b 55 f8	 mov	 edx, DWORD PTR _busid$[ebp]
+  004fd	52		 push	 edx
+  004fe	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00501	50		 push	 eax
+  00502	e8 00 00 00 00	 call	 _AssociateBusToMuxI2C
+  00507	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 243  : 
+; 244  :     busid = InstantiateBusI2C(pContext, DDC_GetSDA, DDC_GetSCL, DDC_SetSDA, DDC_SetSCL);
+
+  0050a	68 00 00 00 00	 push	 OFFSET FLAT:_DDC_SetSCL
+  0050f	68 00 00 00 00	 push	 OFFSET FLAT:_DDC_SetSDA
+  00514	68 00 00 00 00	 push	 OFFSET FLAT:_DDC_GetSCL
+  00519	68 00 00 00 00	 push	 OFFSET FLAT:_DDC_GetSDA
+  0051e	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00521	51		 push	 ecx
+  00522	e8 00 00 00 00	 call	 _InstantiateBusI2C
+  00527	83 c4 14	 add	 esp, 20			; 00000014H
+  0052a	89 45 f8	 mov	 DWORD PTR _busid$[ebp], eax
+
+; 245  :     SetUsageI2C(pContext, busid, I2C_FLATPANELDDC);
+
+  0052d	6a 04		 push	 4
+  0052f	8b 55 f8	 mov	 edx, DWORD PTR _busid$[ebp]
+  00532	52		 push	 edx
+  00533	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00536	50		 push	 eax
+  00537	e8 00 00 00 00	 call	 _SetUsageI2C
+  0053c	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 246  :     AssociateBusToMuxI2C(pContext, busid, muxid, MUX_FLATPANELDDC); //last param cannot be zero
+
+  0053f	6a 03		 push	 3
+  00541	8b 4d fc	 mov	 ecx, DWORD PTR _muxid$[ebp]
+  00544	51		 push	 ecx
+  00545	8b 55 f8	 mov	 edx, DWORD PTR _busid$[ebp]
+  00548	52		 push	 edx
+  00549	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  0054c	50		 push	 eax
+  0054d	e8 00 00 00 00	 call	 _AssociateBusToMuxI2C
+  00552	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 247  : 
+; 248  :     busid = InstantiateBusI2C(pContext, I2C_GetSDA, I2C_GetSCL, I2C_SetSDA, I2C_SetSCL);
+
+  00555	68 00 00 00 00	 push	 OFFSET FLAT:_I2C_SetSCL
+  0055a	68 00 00 00 00	 push	 OFFSET FLAT:_I2C_SetSDA
+  0055f	68 00 00 00 00	 push	 OFFSET FLAT:_I2C_GetSCL
+  00564	68 00 00 00 00	 push	 OFFSET FLAT:_I2C_GetSDA
+  00569	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  0056c	51		 push	 ecx
+  0056d	e8 00 00 00 00	 call	 _InstantiateBusI2C
+  00572	83 c4 14	 add	 esp, 20			; 00000014H
+  00575	89 45 f8	 mov	 DWORD PTR _busid$[ebp], eax
+
+; 249  :     SetUsageI2C(pContext, busid, I2C_TVENCODER);
+
+  00578	6a 01		 push	 1
+  0057a	8b 55 f8	 mov	 edx, DWORD PTR _busid$[ebp]
+  0057d	52		 push	 edx
+  0057e	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00581	50		 push	 eax
+  00582	e8 00 00 00 00	 call	 _SetUsageI2C
+  00587	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 250  : //???obsolete    SetUsageI2C(pContext, busid, I2C_LCDSCALER);
+; 251  :     SetUsageI2C(pContext, busid, I2C_SERIALEEPROM);
+
+  0058a	6a 05		 push	 5
+  0058c	8b 4d f8	 mov	 ecx, DWORD PTR _busid$[ebp]
+  0058f	51		 push	 ecx
+  00590	8b 55 08	 mov	 edx, DWORD PTR _pContext$[ebp]
+  00593	52		 push	 edx
+  00594	e8 00 00 00 00	 call	 _SetUsageI2C
+  00599	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 252  : 	SetUsageI2C(pContext, busid, I2C_MULTIMEDIA);
+
+  0059c	6a 03		 push	 3
+  0059e	8b 45 f8	 mov	 eax, DWORD PTR _busid$[ebp]
+  005a1	50		 push	 eax
+  005a2	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  005a5	51		 push	 ecx
+  005a6	e8 00 00 00 00	 call	 _SetUsageI2C
+  005ab	83 c4 0c	 add	 esp, 12			; 0000000cH
+$L10516:
+
+; 254  : 
+; 255  :   
+; 256  :   return I2C_SUCCESS;
+
+  005ae	b8 01 00 00 00	 mov	 eax, 1
+
+; 257  : }
+
+  005b3	8b e5		 mov	 esp, ebp
+  005b5	5d		 pop	 ebp
+  005b6	c3		 ret	 0
+_ConfigureI2C ENDP
+_pContext$ = 8
+_pDev$ = -4
+_IsVoodoo3 PROC NEAR
+
+; 75   : {
+
+  005b7	55		 push	 ebp
+  005b8	8b ec		 mov	 ebp, esp
+  005ba	83 ec 08	 sub	 esp, 8
+
+; 76   :   PDEVTABLE pDev = (PDEVTABLE)pContext;
+
+  005bd	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  005c0	89 45 fc	 mov	 DWORD PTR _pDev$[ebp], eax
+
+; 77   :   return (pDev ? IS_VOODOO3(pDev->dwVendorDeviceID) : 0);
+
+  005c3	83 7d fc 00	 cmp	 DWORD PTR _pDev$[ebp], 0
+  005c7	74 14		 je	 SHORT $L10531
+  005c9	8b 4d fc	 mov	 ecx, DWORD PTR _pDev$[ebp]
+  005cc	33 d2		 xor	 edx, edx
+  005ce	81 79 04 1a 12
+	05 00		 cmp	 DWORD PTR [ecx+4], 332314 ; 0005121aH
+  005d5	0f 94 c2	 sete	 dl
+  005d8	89 55 f8	 mov	 DWORD PTR -8+[ebp], edx
+  005db	eb 07		 jmp	 SHORT $L10532
+$L10531:
+  005dd	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR -8+[ebp], 0
+$L10532:
+  005e4	8b 45 f8	 mov	 eax, DWORD PTR -8+[ebp]
+
+; 78   : }
+
+  005e7	8b e5		 mov	 esp, ebp
+  005e9	5d		 pop	 ebp
+  005ea	c3		 ret	 0
+_IsVoodoo3 ENDP
+_PTEXT	ENDS
+END

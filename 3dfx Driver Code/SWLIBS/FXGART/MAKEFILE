@@ -1,0 +1,72 @@
+#****************************************************************************
+#                                                                           *
+# THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY     *
+# KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE       *
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR     *
+# PURPOSE.                                                                  *
+#                                                                           *
+# Copyright 1993-95  Microsoft Corporation.  All Rights Reserved.           *
+#                                                                           *
+#****************************************************************************
+
+!ifdef MASTER_MAKE
+BUILD_BITS=32
+BUILD_TYPE=base
+!INCLUDE $(DDKROOT)\master.mk
+!endif
+
+LVXDCFLAGS = -I$(DXDDK)\inc -I$(MSSDK)\include -I$(W95DDK)\inc32
+CFLAGS     = $(LVXDCFLAGS) -DWIN32 -DCON -Di386 -D_X86_ -D_NTWIN -W3 -Gs -D_DEBUG -Z7
+CVXDFLAGS  = $(LVXDCFLAGS) -Gs -c -DIS_32 -Z7 -DDEBLEVEL=1 -DDEBUG 
+LFLAGS     = -machine:i386 -debug -subsystem:console kernel32.lib 
+LAINCS    = -I$(DXDDK)\inc -I$(MSSDK)\include -I$(W95DDK)\inc32
+AFLAGS     = $(LAINCS) -coff -DBLD_COFF -DIS_32 -W2 -Zd -c -Cx -DMASM6 -DDEBLEVEL=1 -DDEBUG -DWIN40COMPAT
+
+all: direxist bin\con_samp.exe bin\3dfxgart.vxd
+
+direxist:
+        if not exist bin\nul    md bin
+
+bin\cvxdsamp.obj: cvxdsamp.c
+        cl $(CVXDFLAGS) -Fo$@ %s
+
+bin\cvxdctrl.obj: cvxdctrl.asm
+        ml $(AFLAGS) -Fo$@ %s
+
+bin\vkdgko.obj: vkdgko.asm
+        ml $(LAINCS) -coff -DBLD_COFF -W2 -c -Cx -DMASM6 -DSEGNUM=1 -Fo$@ %s
+
+bin\3dfxgart.vxd: bin\cvxdsamp.obj bin\cvxdctrl.obj bin\vkdgko.obj \
+                  cvxdsamp.def
+        echo >NUL @<<cvxdsamp.crf
+-MACHINE:i386 -DEBUG -debugtype:cv -PDB:"cvxdsamp.pdb"
+-DEF:cvxdsamp.def -OUT:bin\3dfxgart.vxd -MAP:bin\cvxdsamp.map
+-VXD $(W95DDK)\lib\vxdwraps.clb bin\cvxdsamp.obj bin\cvxdctrl.obj bin\vkdgko.obj
+<<
+        link @cvxdsamp.crf
+        cd bin
+        $(SIW95)\nmsym /source:.;..; /prompt /trans:package,always 3dfxgart.vxd
+        cd ..
+
+bin\con_samp.obj: con_samp.c 
+        cl $(CFLAGS) -c -Fo$@ %s
+
+bin\con_samp.exe: bin\con_samp.obj
+        echo >NUL @<<con_samp.crf
+$(LFLAGS)
+-PDB:NONE -OUT:bin\con_samp.exe -MAP:bin\con_samp.map bin\con_samp.obj 
+<<
+        link @con_samp.crf
+        $(SIW95)\nmsym /prompt /trans:package,always bin\con_samp.exe
+
+clean:
+                -@del bin\*.obj
+                -@del bin\*.vxd
+                -@del bin\*.exe
+                -@del bin\*.exp
+                -@del bin\*.map
+                -@del bin\*.sym
+                -@del bin\*.lib
+                -@rd  bin
+                -@del *.pdb
+        

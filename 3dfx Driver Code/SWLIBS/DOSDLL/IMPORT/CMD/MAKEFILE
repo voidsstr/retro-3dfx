@@ -1,0 +1,100 @@
+# Sample makefile for DOS/4GW DLL and client programs
+#   (samples built and tested with Watcom 10.6 and 11.0á)
+# Copyright (c) 1996,1997 Dan Teven.  All rights reserved.
+
+all: dllstub.exe sample.ovl testi.exe testx.exe
+
+CFLAGS=/W4 /ox /fpi87 /fp5 /5
+CDEBUG=/d2
+AFLAGS=/W3
+ADEBUG=/d2
+
+.c.obj: .AUTODEPEND
+	wcc386 /mf $(CDEBUG) $(CFLAGS) $<
+
+.asm.obj: .AUTODEPEND
+	wasm $(ADEBUG) $(AFLAGS) $<
+
+
+#------------------------- DLL loader and API --------------------------------
+
+# We only have to build DLLLOAD.LIB one way, with register calling.
+
+dllload.obj: dllload.c makefile
+
+ldrcall.obj: ldrcall.asm makefile
+
+loadme.obj: loadme.asm makefile
+
+dllloads.obj: dllloads.asm makefile
+
+dllload.lib: dllload.obj ldrcall.obj loadme.obj
+	del dllload.lib
+	wlib dllload.lib +dllload +ldrcall +loadme
+
+#---------------------------- Test programs ----------------------------------
+
+# Two test programs, one for implicit loading and one for explicit
+# loading.  The former uses register calling conventions, the latter
+# uses stack calling conventions.  Both are linked with DLLLOAD.LIB;
+# the stack-based program is also linked with the glue routines in
+# DLLLOADS.OBJ, and the implicit loading case must also be linked with
+# an import library (actually, a single object file).
+
+testi.obj: testi.c makefile
+
+testx.obj: testx.c makefile
+	wcc386 /mf $(CDEBUG) $(CFLAGS) /5s testx.c
+
+mems.obj: mem.c makefile
+	wcc386 /Fomems /mf $(CDEBUG) $(CFLAGS) /5s mem.c
+
+memr.obj: mem.c makefile
+	wcc386 /Fomemr /mf $(CDEBUG) $(CFLAGS) /5r mem.c
+
+implib.obj: implib.asm makefile
+
+testi.exe: testi.obj memr.obj implib.obj &
+	dllload.lib client.lnk
+	wlink @client.lnk FIL testi,memr,implib
+	wc2dbg testi.exe
+
+testx.exe: testx.obj mems.obj dllloads.obj &
+	dllload.lib client.lnk
+	wlink @client.lnk FIL testx,mems,dllloads
+	wc2dbg testx.exe
+
+
+#---------------------------- The sample DLL ---------------------------------
+
+# The DLL can be compiled with either stack or register calls.
+#
+# -bd is optional in the DLL build options.
+#
+# The DLL should never attempt to use the floating-point emulator
+# through -fpc or -fpi; the run-time library will never install an
+# emulator.
+
+sample.obj: sample.c makefile
+	wcc386 /mf $(CDEBUG) $(CFLAGS) /5s sample.c
+
+sample.ovl: sample.obj mems.obj &
+        watsrc10.6\clib3s.lib &
+        watsrc10.6\math387s.lib &
+        watsrc10.6\math3s.lib &
+	dllstub.exe sample.lnk
+	wlink @sample.lnk FIL sample,mems LIB clib3s,math387s,math3s
+	wc2dbg sample.dll
+	del sample.ovl
+	ren sample.dll sample.ovl
+
+#----------------------------- The DLL stub ----------------------------------
+
+# This is a real-mode program which prevents the DLL from being
+# renamed accidentally and executed from the command line.
+
+dllstub.obj: dllstub.c
+	wcc /ms $(CFLAGS) dllstub.c
+
+dllstub.exe: dllstub.obj
+	wlink FIL dllstub

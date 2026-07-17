@@ -1,0 +1,3779 @@
+	TITLE	..\cpu.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+_ITEXT	SEGMENT PARA USE32 PUBLIC 'ICODE'
+_ITEXT	ENDS
+_PTEXT	SEGMENT PARA USE32 PUBLIC 'PCODE'
+_PTEXT	ENDS
+_LTEXT	SEGMENT PARA USE32 PUBLIC 'LCODE'
+_LTEXT	ENDS
+_PDATA	SEGMENT DWORD USE32 PUBLIC 'PDATA'
+_PDATA	ENDS
+_LDATA	SEGMENT DWORD USE32 PUBLIC 'LCODE'
+_LDATA	ENDS
+FLAT	GROUP _DATA, CONST, _BSS, _PDATA, _LDATA
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+PUBLIC	_cpVendorId_Intel
+PUBLIC	_cpVendorId_Amd
+PUBLIC	_cpVendorId_Cyrix
+PUBLIC	_cpVendorId_Centaur
+PUBLIC	_cpVendorId_Rise
+PUBLIC	_cpVendorId_Transmetta
+CONST	SEGMENT
+_cpVendorId_Intel DB 'GenuineIntel', 00H
+	ORG $+3
+_cpVendorId_Amd DB 'AuthenticAMD', 00H
+	ORG $+3
+_cpVendorId_Cyrix DB 'CyrixInstead', 00H
+	ORG $+3
+_cpVendorId_Centaur DB 'CentaurHauls', 00H
+	ORG $+3
+_cpVendorId_Rise DB 'RiseRiseRise', 00H
+	ORG $+3
+_cpVendorId_Transmetta DB 'GenuineTMx86', 00H
+CONST	ENDS
+PUBLIC	_GetCpuFeatures
+PUBLIC	_HasCpuid
+PUBLIC	_DoCpuid
+PUBLIC	_fxstrncmp
+PUBLIC	_fxstrncpy
+_LTEXT	SEGMENT
+_CpuFeatures$ = 8
+_i$ = -44
+_maxlevels$ = -4
+_id_regs$ = -20
+_cd$ = -40
+_reg_cr0$ = -48
+_reg_cr4$ = -24
+_GetCpuFeatures PROC NEAR
+
+; 70   : {                
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	83 ec 48	 sub	 esp, 72			; 00000048H
+  00006	53		 push	 ebx
+  00007	56		 push	 esi
+  00008	57		 push	 edi
+
+; 71   : 	DWORD			i;
+; 72   : 	DWORD			maxlevels;	// max cpuid levels
+; 73   : 	CPUID_REGS		id_regs;	// temporary cpuid registers
+; 74   : 	unsigned char	cd[16];		// cache descriptor bits
+; 75   : 	DWORD			reg_cr0, reg_cr4;
+; 76   : 
+; 77   : 
+; 78   : /*******************************************************************************************
+; 79   : *	Set everything to defaults first
+; 80   : *******************************************************************************************/
+; 81   : 	CpuFeatures->dwCpuFlags				= 0;
+
+  00009	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  0000c	c7 00 00 00 00
+	00		 mov	 DWORD PTR [eax], 0
+
+; 82   : 	CpuFeatures->dwCpuType				= CPU_TYPE_UNKNOWN_CPU;
+
+  00012	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00015	c7 41 04 00 00
+	00 00		 mov	 DWORD PTR [ecx+4], 0
+
+; 83   : 	CpuFeatures->dwFeatureFlags1		= 0;
+
+  0001c	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  0001f	c7 42 0c 00 00
+	00 00		 mov	 DWORD PTR [edx+12], 0
+
+; 84   : 	CpuFeatures->dwFeatureFlags2		= 0;
+
+  00026	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00029	c7 40 10 00 00
+	00 00		 mov	 DWORD PTR [eax+16], 0
+
+; 85   : 	CpuFeatures->dwProcessorSignature	= CPU_SIG_486;	// default to 486
+
+  00030	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00033	c7 41 08 00 04
+	00 00		 mov	 DWORD PTR [ecx+8], 1024	; 00000400H
+
+; 86   : 	CpuFeatures->dwId1Ebx				= 0;
+
+  0003a	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  0003d	c7 42 14 00 00
+	00 00		 mov	 DWORD PTR [edx+20], 0
+
+; 87   : 	CpuFeatures->dwSizeL1DCache			= 0;
+
+  00044	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00047	c7 40 18 00 00
+	00 00		 mov	 DWORD PTR [eax+24], 0
+
+; 88   : 	CpuFeatures->dwSizeL1ICache			= 0;
+
+  0004e	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00051	c7 41 1c 00 00
+	00 00		 mov	 DWORD PTR [ecx+28], 0
+
+; 89   : 	CpuFeatures->dwSizeL2Cache			= 0;
+
+  00058	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  0005b	c7 42 20 00 00
+	00 00		 mov	 DWORD PTR [edx+32], 0
+
+; 90   : 	*CpuFeatures->cpVendorIdString		= 0;	// null termintate the string
+
+  00062	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00065	c6 40 24 00	 mov	 BYTE PTR [eax+36], 0
+
+; 91   : 	*CpuFeatures->cpCpuNameString		= 0;	// null termintate the string
+
+  00069	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  0006c	c6 41 34 00	 mov	 BYTE PTR [ecx+52], 0
+
+; 92   : 
+; 93   : 
+; 94   : /*******************************************************************************************
+; 95   : *	Read all the CPUID levels, figure out what we can that's not cpu specific.
+; 96   : *******************************************************************************************/
+; 97   : 	if(HasCpuid())
+
+  00070	e8 00 00 00 00	 call	 _HasCpuid
+  00075	85 c0		 test	 eax, eax
+  00077	0f 84 37 03 00
+	00		 je	 $L10369
+
+; 99   : 		CpuFeatures->dwCpuFlags |= CPU_FEATURE_CPUID;
+
+  0007d	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00080	8b 02		 mov	 eax, DWORD PTR [edx]
+  00082	80 cc 01	 or	 ah, 1
+  00085	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00088	89 01		 mov	 DWORD PTR [ecx], eax
+
+; 100  : 
+; 101  : 		DoCpuid(0, &id_regs);
+
+  0008a	8d 55 ec	 lea	 edx, DWORD PTR _id_regs$[ebp]
+  0008d	52		 push	 edx
+  0008e	6a 00		 push	 0
+  00090	e8 00 00 00 00	 call	 _DoCpuid
+  00095	83 c4 08	 add	 esp, 8
+
+; 102  : 		maxlevels = id_regs.dwRegEAX;	// max number of cpuid levels (not including extended cpuid)
+
+  00098	8b 45 ec	 mov	 eax, DWORD PTR _id_regs$[ebp]
+  0009b	89 45 fc	 mov	 DWORD PTR _maxlevels$[ebp], eax
+
+; 103  : 		*(DWORD*)(&CpuFeatures->cpVendorIdString[ 0]) = id_regs.dwRegEBX;
+
+  0009e	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  000a1	8b 55 f0	 mov	 edx, DWORD PTR _id_regs$[ebp+4]
+  000a4	89 51 24	 mov	 DWORD PTR [ecx+36], edx
+
+; 104  : 		*(DWORD*)(&CpuFeatures->cpVendorIdString[ 4]) = id_regs.dwRegEDX;
+
+  000a7	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  000aa	8b 4d f8	 mov	 ecx, DWORD PTR _id_regs$[ebp+12]
+  000ad	89 48 28	 mov	 DWORD PTR [eax+40], ecx
+
+; 105  : 		*(DWORD*)(&CpuFeatures->cpVendorIdString[ 8]) = id_regs.dwRegECX;
+
+  000b0	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  000b3	8b 45 f4	 mov	 eax, DWORD PTR _id_regs$[ebp+8]
+  000b6	89 42 2c	 mov	 DWORD PTR [edx+44], eax
+
+; 106  : 		*(DWORD*)(&CpuFeatures->cpVendorIdString[12]) = 0;	// null termintate the string
+
+  000b9	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  000bc	c7 41 30 00 00
+	00 00		 mov	 DWORD PTR [ecx+48], 0
+
+; 107  : 
+; 108  : 		if(maxlevels >= 1)
+
+  000c3	83 7d fc 01	 cmp	 DWORD PTR _maxlevels$[ebp], 1
+  000c7	72 29		 jb	 SHORT $L10374
+
+; 110  : 			DoCpuid(1, &id_regs);
+
+  000c9	8d 55 ec	 lea	 edx, DWORD PTR _id_regs$[ebp]
+  000cc	52		 push	 edx
+  000cd	6a 01		 push	 1
+  000cf	e8 00 00 00 00	 call	 _DoCpuid
+  000d4	83 c4 08	 add	 esp, 8
+
+; 111  : 			CpuFeatures->dwProcessorSignature	= id_regs.dwRegEAX;
+
+  000d7	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  000da	8b 4d ec	 mov	 ecx, DWORD PTR _id_regs$[ebp]
+  000dd	89 48 08	 mov	 DWORD PTR [eax+8], ecx
+
+; 112  : 			CpuFeatures->dwId1Ebx				= id_regs.dwRegEBX;
+
+  000e0	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  000e3	8b 45 f0	 mov	 eax, DWORD PTR _id_regs$[ebp+4]
+  000e6	89 42 14	 mov	 DWORD PTR [edx+20], eax
+
+; 113  : 			CpuFeatures->dwFeatureFlags1		= id_regs.dwRegEDX;
+
+  000e9	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  000ec	8b 55 f8	 mov	 edx, DWORD PTR _id_regs$[ebp+12]
+  000ef	89 51 0c	 mov	 DWORD PTR [ecx+12], edx
+$L10374:
+
+; 115  : 
+; 116  : 		// Read in the cache discriptors, used to differentiate P2, Celeron, Celeron-A, and Xeon
+; 117  : 		// AMD doesn't use level 2, they use the extended CPUID
+; 118  : 		// Didn't bother saving the TLB descriptors because they're really not very important.
+; 119  : 		if(maxlevels >= 2) 
+
+  000f2	83 7d fc 02	 cmp	 DWORD PTR _maxlevels$[ebp], 2
+  000f6	0f 82 64 01 00
+	00		 jb	 $L10382
+
+; 121  : 			DoCpuid(2, &id_regs);
+
+  000fc	8d 45 ec	 lea	 eax, DWORD PTR _id_regs$[ebp]
+  000ff	50		 push	 eax
+  00100	6a 02		 push	 2
+  00102	e8 00 00 00 00	 call	 _DoCpuid
+  00107	83 c4 08	 add	 esp, 8
+
+; 122  : 			*(DWORD*)(&cd[ 0])	= id_regs.dwRegEAX & 0xffffff00;	// al = the number of times we need
+
+  0010a	8b 4d ec	 mov	 ecx, DWORD PTR _id_regs$[ebp]
+  0010d	80 e1 00	 and	 cl, 0
+  00110	89 4d d8	 mov	 DWORD PTR _cd$[ebp], ecx
+
+; 123  : 			*(DWORD*)(&cd[ 4])	= id_regs.dwRegEBX;					// to execute this level ... only
+
+  00113	8b 55 f0	 mov	 edx, DWORD PTR _id_regs$[ebp+4]
+  00116	89 55 dc	 mov	 DWORD PTR _cd$[ebp+4], edx
+
+; 124  : 			*(DWORD*)(&cd[ 8])	= id_regs.dwRegECX;					// bothered doing it once.  Intel's 
+
+  00119	8b 45 f4	 mov	 eax, DWORD PTR _id_regs$[ebp+8]
+  0011c	89 45 e0	 mov	 DWORD PTR _cd$[ebp+8], eax
+
+; 125  : 			*(DWORD*)(&cd[12])	= id_regs.dwRegEDX;					// docs are unclear on this anyway.
+
+  0011f	8b 4d f8	 mov	 ecx, DWORD PTR _id_regs$[ebp+12]
+  00122	89 4d e4	 mov	 DWORD PTR _cd$[ebp+12], ecx
+
+; 126  : 			for(i=0; i < 16; ++i) 
+
+  00125	c7 45 d4 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  0012c	eb 09		 jmp	 SHORT $L10380
+$L10381:
+  0012e	8b 55 d4	 mov	 edx, DWORD PTR _i$[ebp]
+  00131	83 c2 01	 add	 edx, 1
+  00134	89 55 d4	 mov	 DWORD PTR _i$[ebp], edx
+$L10380:
+  00137	83 7d d4 10	 cmp	 DWORD PTR _i$[ebp], 16	; 00000010H
+  0013b	0f 83 1f 01 00
+	00		 jae	 $L10382
+
+; 128  : 				switch (cd[i])
+; 129  : 				{
+
+  00141	8b 45 d4	 mov	 eax, DWORD PTR _i$[ebp]
+  00144	33 c9		 xor	 ecx, ecx
+  00146	8a 4c 05 d8	 mov	 cl, BYTE PTR _cd$[ebp+eax]
+  0014a	89 4d cc	 mov	 DWORD PTR -52+[ebp], ecx
+  0014d	8b 55 cc	 mov	 edx, DWORD PTR -52+[ebp]
+  00150	83 ea 06	 sub	 edx, 6
+  00153	89 55 cc	 mov	 DWORD PTR -52+[ebp], edx
+  00156	83 7d cc 7f	 cmp	 DWORD PTR -52+[ebp], 127 ; 0000007fH
+  0015a	0f 87 fb 00 00
+	00		 ja	 $L10410
+  00160	8b 4d cc	 mov	 ecx, DWORD PTR -52+[ebp]
+  00163	33 c0		 xor	 eax, eax
+  00165	8a 81 00 00 00
+	00		 mov	 al, BYTE PTR $L10593[ecx]
+  0016b	ff 24 85 00 00
+	00 00		 jmp	 DWORD PTR $L10594[eax*4]
+$L10392:
+
+; 130  : 					case CPU_CD_NULL:													break;	// ignore empty descriptor
+; 131  : 					case CPU_CD_ITLB4K_4x32:											break;	// don't care about TLB
+; 132  : 					case CPU_CD_ITLB4K_4x2:												break;	// don't care about TLB
+; 133  : 					case CPU_CD_DTLB4K_4x64:											break;	// don't care about TLB
+; 134  : 					case CPU_CD_DTLB4K_4x8:												break;	// don't care about TLB
+; 135  : 					case CPU_CD_IL1_8K_4x32:	CpuFeatures->dwSizeL1ICache	= 1<<13;	break;
+
+  00172	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00175	c7 42 1c 00 20
+	00 00		 mov	 DWORD PTR [edx+28], 8192 ; 00002000H
+  0017c	e9 da 00 00 00	 jmp	 $L10384
+$L10393:
+
+; 136  : 					case CPU_CD_IL1_16K_4x32:	CpuFeatures->dwSizeL1ICache	= 1<<15;	break;
+
+  00181	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00184	c7 40 1c 00 80
+	00 00		 mov	 DWORD PTR [eax+28], 32768 ; 00008000H
+  0018b	e9 cb 00 00 00	 jmp	 $L10384
+$L10394:
+
+; 137  : 					case CPU_CD_DL1_8K_2x32:	CpuFeatures->dwSizeL1DCache	= 1<<13;	break;
+
+  00190	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00193	c7 41 18 00 20
+	00 00		 mov	 DWORD PTR [ecx+24], 8192 ; 00002000H
+  0019a	e9 bc 00 00 00	 jmp	 $L10384
+$L10395:
+
+; 138  : 					case CPU_CD_DL1_16K_4x32:	CpuFeatures->dwSizeL1DCache	= 1<<15;	break;
+
+  0019f	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  001a2	c7 42 18 00 80
+	00 00		 mov	 DWORD PTR [edx+24], 32768 ; 00008000H
+  001a9	e9 ad 00 00 00	 jmp	 $L10384
+$L10396:
+
+; 139  : 					case CPU_CD_L2_0K:			CpuFeatures->dwSizeL2Cache	= 0;		break;
+
+  001ae	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  001b1	c7 40 20 00 00
+	00 00		 mov	 DWORD PTR [eax+32], 0
+  001b8	e9 9e 00 00 00	 jmp	 $L10384
+$L10397:
+
+; 140  : 					case CPU_CD_L2_128K_4x32:	CpuFeatures->dwSizeL2Cache	= 1<<17;	break;
+
+  001bd	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  001c0	c7 41 20 00 00
+	02 00		 mov	 DWORD PTR [ecx+32], 131072 ; 00020000H
+  001c7	e9 8f 00 00 00	 jmp	 $L10384
+$L10398:
+
+; 141  : 					case CPU_CD_L2_256K_4x32:	CpuFeatures->dwSizeL2Cache	= 1<<18;	break;
+
+  001cc	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  001cf	c7 42 20 00 00
+	04 00		 mov	 DWORD PTR [edx+32], 262144 ; 00040000H
+  001d6	e9 80 00 00 00	 jmp	 $L10384
+$L10399:
+
+; 142  : 					case CPU_CD_L2_512K_4x32:	CpuFeatures->dwSizeL2Cache	= 1<<19;	break;
+
+  001db	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  001de	c7 40 20 00 00
+	08 00		 mov	 DWORD PTR [eax+32], 524288 ; 00080000H
+  001e5	eb 74		 jmp	 SHORT $L10384
+$L10400:
+
+; 143  : 					case CPU_CD_L2_1M_4x32:		CpuFeatures->dwSizeL2Cache	= 1<<20;	break;
+
+  001e7	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  001ea	c7 41 20 00 00
+	10 00		 mov	 DWORD PTR [ecx+32], 1048576 ; 00100000H
+  001f1	eb 68		 jmp	 SHORT $L10384
+$L10401:
+
+; 144  : 					case CPU_CD_L2_2M_4x32:		CpuFeatures->dwSizeL2Cache	= 1<<21;	break;
+
+  001f3	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  001f6	c7 42 20 00 00
+	20 00		 mov	 DWORD PTR [edx+32], 2097152 ; 00200000H
+  001fd	eb 5c		 jmp	 SHORT $L10384
+$L10402:
+
+; 145  : 					case CPU_CD_L2_4M_4x32:		CpuFeatures->dwSizeL2Cache	= 1<<22;	break;
+
+  001ff	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00202	c7 40 20 00 00
+	40 00		 mov	 DWORD PTR [eax+32], 4194304 ; 00400000H
+  00209	eb 50		 jmp	 SHORT $L10384
+$L10403:
+
+; 146  : 					case CPU_CD_L2_8M_4x32:		CpuFeatures->dwSizeL2Cache	= 1<<23;	break;
+
+  0020b	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  0020e	c7 41 20 00 00
+	80 00		 mov	 DWORD PTR [ecx+32], 8388608 ; 00800000H
+  00215	eb 44		 jmp	 SHORT $L10384
+$L10405:
+
+; 147  : 					case CPU_CD_TLB4K_4x32:												break;	// don't care about TLB
+; 148  : 					case CPU_CD_L1_16K_4x32:	CpuFeatures->dwSizeL1ICache	= 
+; 149  : 												CpuFeatures->dwSizeL1DCache	= 1<<13;	break;	// unified L1 cache
+
+  00217	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  0021a	c7 42 18 00 20
+	00 00		 mov	 DWORD PTR [edx+24], 8192 ; 00002000H
+  00221	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00224	c7 40 1c 00 20
+	00 00		 mov	 DWORD PTR [eax+28], 8192 ; 00002000H
+  0022b	eb 2e		 jmp	 SHORT $L10384
+$L10406:
+
+; 150  : 					case CPU_CD_L2_256K_8x32:	CpuFeatures->dwSizeL2Cache	= 1<<18;	break;
+
+  0022d	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00230	c7 41 20 00 00
+	04 00		 mov	 DWORD PTR [ecx+32], 262144 ; 00040000H
+  00237	eb 22		 jmp	 SHORT $L10384
+$L10407:
+
+; 151  : 					case CPU_CD_L2_512K_8x32:	CpuFeatures->dwSizeL2Cache	= 1<<19;	break;
+
+  00239	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  0023c	c7 42 20 00 00
+	08 00		 mov	 DWORD PTR [edx+32], 524288 ; 00080000H
+  00243	eb 16		 jmp	 SHORT $L10384
+$L10408:
+
+; 152  : 					case CPU_CD_L2_1M_8x32:		CpuFeatures->dwSizeL2Cache	= 1<<20;	break;
+
+  00245	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00248	c7 40 20 00 00
+	10 00		 mov	 DWORD PTR [eax+32], 1048576 ; 00100000H
+  0024f	eb 0a		 jmp	 SHORT $L10384
+$L10409:
+
+; 153  : 					case CPU_CD_L2_2M_8x32:		CpuFeatures->dwSizeL2Cache	= 1<<21;	break;
+
+  00251	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00254	c7 41 20 00 00
+	20 00		 mov	 DWORD PTR [ecx+32], 2097152 ; 00200000H
+$L10410:
+$L10384:
+
+; 156  : 			}
+
+  0025b	e9 ce fe ff ff	 jmp	 $L10381
+$L10382:
+
+; 158  : 		// CPUID level 3 is the serial number: we're NOT reading that!
+; 159  : 
+; 160  : 
+; 161  : 		// Extended cpuid stuff
+; 162  : 		// NOTE:  Intel says they're adding this starting with Williamette (P4) but if you reference
+; 163  : 		// their current docs they aren't compatible with AMD's extended cpuid.  The pre-production
+; 164  : 		// P4's don't have extended cpuid so who knows what's going to happen.  Bleah!!!
+; 165  : 		DoCpuid(0x80000000, &id_regs);
+
+  00260	8d 55 ec	 lea	 edx, DWORD PTR _id_regs$[ebp]
+  00263	52		 push	 edx
+  00264	68 00 00 00 80	 push	 -2147483648		; 80000000H
+  00269	e8 00 00 00 00	 call	 _DoCpuid
+  0026e	83 c4 08	 add	 esp, 8
+
+; 166  : 		maxlevels = id_regs.dwRegEAX; // max number of extended cpuid levels
+
+  00271	8b 45 ec	 mov	 eax, DWORD PTR _id_regs$[ebp]
+  00274	89 45 fc	 mov	 DWORD PTR _maxlevels$[ebp], eax
+
+; 167  : 		if( maxlevels >= 0x80000001 )
+
+  00277	81 7d fc 01 00
+	00 80		 cmp	 DWORD PTR _maxlevels$[ebp], -2147483647 ; 80000001H
+  0027e	0f 82 2e 01 00
+	00		 jb	 $L10426
+
+; 169  : 			// get the extended feature flags
+; 170  : 			DoCpuid(0x80000001, &id_regs);
+
+  00284	8d 4d ec	 lea	 ecx, DWORD PTR _id_regs$[ebp]
+  00287	51		 push	 ecx
+  00288	68 01 00 00 80	 push	 -2147483647		; 80000001H
+  0028d	e8 00 00 00 00	 call	 _DoCpuid
+  00292	83 c4 08	 add	 esp, 8
+
+; 171  : 			CpuFeatures->dwFeatureFlags2 = id_regs.dwRegEDX;
+
+  00295	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00298	8b 45 f8	 mov	 eax, DWORD PTR _id_regs$[ebp+12]
+  0029b	89 42 10	 mov	 DWORD PTR [edx+16], eax
+
+; 172  : 
+; 173  : 			// read the processor name string
+; 174  : 			if(maxlevels >= 0x80000004)
+
+  0029e	81 7d fc 04 00
+	00 80		 cmp	 DWORD PTR _maxlevels$[ebp], -2147483644 ; 80000004H
+  002a5	0f 82 a6 00 00
+	00		 jb	 $L10412
+
+; 176  : 				DoCpuid(0x80000002, &id_regs);
+
+  002ab	8d 4d ec	 lea	 ecx, DWORD PTR _id_regs$[ebp]
+  002ae	51		 push	 ecx
+  002af	68 02 00 00 80	 push	 -2147483646		; 80000002H
+  002b4	e8 00 00 00 00	 call	 _DoCpuid
+  002b9	83 c4 08	 add	 esp, 8
+
+; 177  : 				*(DWORD*)(&CpuFeatures->cpCpuNameString[ 0]) = id_regs.dwRegEAX;
+
+  002bc	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  002bf	8b 45 ec	 mov	 eax, DWORD PTR _id_regs$[ebp]
+  002c2	89 42 34	 mov	 DWORD PTR [edx+52], eax
+
+; 178  : 				*(DWORD*)(&CpuFeatures->cpCpuNameString[ 4]) = id_regs.dwRegEBX;
+
+  002c5	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  002c8	8b 55 f0	 mov	 edx, DWORD PTR _id_regs$[ebp+4]
+  002cb	89 51 38	 mov	 DWORD PTR [ecx+56], edx
+
+; 179  : 				*(DWORD*)(&CpuFeatures->cpCpuNameString[ 8]) = id_regs.dwRegECX;
+
+  002ce	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  002d1	8b 4d f4	 mov	 ecx, DWORD PTR _id_regs$[ebp+8]
+  002d4	89 48 3c	 mov	 DWORD PTR [eax+60], ecx
+
+; 180  : 				*(DWORD*)(&CpuFeatures->cpCpuNameString[12]) = id_regs.dwRegEDX;
+
+  002d7	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  002da	8b 45 f8	 mov	 eax, DWORD PTR _id_regs$[ebp+12]
+  002dd	89 42 40	 mov	 DWORD PTR [edx+64], eax
+
+; 181  : 				DoCpuid(0x80000003, &id_regs);
+
+  002e0	8d 4d ec	 lea	 ecx, DWORD PTR _id_regs$[ebp]
+  002e3	51		 push	 ecx
+  002e4	68 03 00 00 80	 push	 -2147483645		; 80000003H
+  002e9	e8 00 00 00 00	 call	 _DoCpuid
+  002ee	83 c4 08	 add	 esp, 8
+
+; 182  : 				*(DWORD*)(&CpuFeatures->cpCpuNameString[16]) = id_regs.dwRegEAX;
+
+  002f1	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  002f4	8b 45 ec	 mov	 eax, DWORD PTR _id_regs$[ebp]
+  002f7	89 42 44	 mov	 DWORD PTR [edx+68], eax
+
+; 183  : 				*(DWORD*)(&CpuFeatures->cpCpuNameString[20]) = id_regs.dwRegEBX;
+
+  002fa	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  002fd	8b 55 f0	 mov	 edx, DWORD PTR _id_regs$[ebp+4]
+  00300	89 51 48	 mov	 DWORD PTR [ecx+72], edx
+
+; 184  : 				*(DWORD*)(&CpuFeatures->cpCpuNameString[24]) = id_regs.dwRegECX;
+
+  00303	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00306	8b 4d f4	 mov	 ecx, DWORD PTR _id_regs$[ebp+8]
+  00309	89 48 4c	 mov	 DWORD PTR [eax+76], ecx
+
+; 185  : 				*(DWORD*)(&CpuFeatures->cpCpuNameString[28]) = id_regs.dwRegEDX;
+
+  0030c	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  0030f	8b 45 f8	 mov	 eax, DWORD PTR _id_regs$[ebp+12]
+  00312	89 42 50	 mov	 DWORD PTR [edx+80], eax
+
+; 186  : 				DoCpuid(0x80000004, &id_regs);
+
+  00315	8d 4d ec	 lea	 ecx, DWORD PTR _id_regs$[ebp]
+  00318	51		 push	 ecx
+  00319	68 04 00 00 80	 push	 -2147483644		; 80000004H
+  0031e	e8 00 00 00 00	 call	 _DoCpuid
+  00323	83 c4 08	 add	 esp, 8
+
+; 187  : 				*(DWORD*)(&CpuFeatures->cpCpuNameString[32]) = id_regs.dwRegEAX;
+
+  00326	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00329	8b 45 ec	 mov	 eax, DWORD PTR _id_regs$[ebp]
+  0032c	89 42 54	 mov	 DWORD PTR [edx+84], eax
+
+; 188  : 				*(DWORD*)(&CpuFeatures->cpCpuNameString[36]) = id_regs.dwRegEBX;
+
+  0032f	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00332	8b 55 f0	 mov	 edx, DWORD PTR _id_regs$[ebp+4]
+  00335	89 51 58	 mov	 DWORD PTR [ecx+88], edx
+
+; 189  : 				*(DWORD*)(&CpuFeatures->cpCpuNameString[40]) = id_regs.dwRegECX;
+
+  00338	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  0033b	8b 4d f4	 mov	 ecx, DWORD PTR _id_regs$[ebp+8]
+  0033e	89 48 5c	 mov	 DWORD PTR [eax+92], ecx
+
+; 190  : 				*(DWORD*)(&CpuFeatures->cpCpuNameString[44]) = id_regs.dwRegEDX;
+
+  00341	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00344	8b 45 f8	 mov	 eax, DWORD PTR _id_regs$[ebp+12]
+  00347	89 42 60	 mov	 DWORD PTR [edx+96], eax
+
+; 191  : 				CpuFeatures->cpCpuNameString[48] = 0;	// null termintate the string
+
+  0034a	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  0034d	c6 41 64 00	 mov	 BYTE PTR [ecx+100], 0
+$L10412:
+
+; 193  : 
+; 194  : 			// Get the TLB, L1, and L2 cache config data
+; 195  : 			// This may already be done with CPUID level 2, so some data could get written twice.
+; 196  : 			// We don't check for the data being different between the two because you wouldn't 
+; 197  : 			// know which one is right anyway.  This method will probably change in a couple of 
+; 198  : 			// years because this only supports a maximum L1 size of 255K.
+; 199  : 			if(maxlevels >= 0x80000005)
+
+  00351	81 7d fc 05 00
+	00 80		 cmp	 DWORD PTR _maxlevels$[ebp], -2147483643 ; 80000005H
+  00358	72 2f		 jb	 SHORT $L10425
+
+; 201  : 				DoCpuid(0x80000005, &id_regs);
+
+  0035a	8d 55 ec	 lea	 edx, DWORD PTR _id_regs$[ebp]
+  0035d	52		 push	 edx
+  0035e	68 05 00 00 80	 push	 -2147483643		; 80000005H
+  00363	e8 00 00 00 00	 call	 _DoCpuid
+  00368	83 c4 08	 add	 esp, 8
+
+; 202  : 				CpuFeatures->dwSizeL1DCache = (id_regs.dwRegECX >> 24) << 10;
+
+  0036b	8b 45 f4	 mov	 eax, DWORD PTR _id_regs$[ebp+8]
+  0036e	c1 e8 18	 shr	 eax, 24			; 00000018H
+  00371	c1 e0 0a	 shl	 eax, 10			; 0000000aH
+  00374	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00377	89 41 18	 mov	 DWORD PTR [ecx+24], eax
+
+; 203  : 				CpuFeatures->dwSizeL1ICache = (id_regs.dwRegEDX >> 24) << 10;
+
+  0037a	8b 55 f8	 mov	 edx, DWORD PTR _id_regs$[ebp+12]
+  0037d	c1 ea 18	 shr	 edx, 24			; 00000018H
+  00380	c1 e2 0a	 shl	 edx, 10			; 0000000aH
+  00383	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00386	89 50 1c	 mov	 DWORD PTR [eax+28], edx
+$L10425:
+
+; 205  : 			if(maxlevels >= 0x80000006)
+
+  00389	81 7d fc 06 00
+	00 80		 cmp	 DWORD PTR _maxlevels$[ebp], -2147483642 ; 80000006H
+  00390	72 20		 jb	 SHORT $L10426
+
+; 207  : 				DoCpuid(0x80000006, &id_regs);
+
+  00392	8d 4d ec	 lea	 ecx, DWORD PTR _id_regs$[ebp]
+  00395	51		 push	 ecx
+  00396	68 06 00 00 80	 push	 -2147483642		; 80000006H
+  0039b	e8 00 00 00 00	 call	 _DoCpuid
+  003a0	83 c4 08	 add	 esp, 8
+
+; 208  : 				CpuFeatures->dwSizeL2Cache = (id_regs.dwRegECX >> 16) << 10;
+
+  003a3	8b 55 f4	 mov	 edx, DWORD PTR _id_regs$[ebp+8]
+  003a6	c1 ea 10	 shr	 edx, 16			; 00000010H
+  003a9	c1 e2 0a	 shl	 edx, 10			; 0000000aH
+  003ac	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  003af	89 50 20	 mov	 DWORD PTR [eax+32], edx
+$L10426:
+
+; 214  : 	else 
+
+  003b2	eb 4d		 jmp	 SHORT $L10428
+$L10369:
+
+; 216  : 		// the flags will change on non-Cyrix parts
+; 217  : 		_asm {
+; 218  : 			push	DWORD PTR 0			// clear our flags if possible
+
+  003b4	6a 00		 push	 0
+
+; 219  : 			popfd
+
+  003b6	9d		 popfd
+
+; 220  : 			pushfd
+
+  003b7	9c		 pushfd
+
+; 221  : 			pop		ecx					// ecx = cleared flags
+
+  003b8	59		 pop	 ecx
+
+; 222  : 			mov		eax, 5
+
+  003b9	b8 05 00 00 00	 mov	 eax, 5
+
+; 223  : 			mov		edx, 2
+
+  003be	ba 02 00 00 00	 mov	 edx, 2
+
+; 224  : 			div		dl
+
+  003c3	f6 f2		 div	 dl
+
+; 225  : 			pushfd
+
+  003c5	9c		 pushfd
+
+; 226  : 			pop		eax					// eax = modified flags
+
+  003c6	58		 pop	 eax
+
+; 227  : 			xor		eax, ecx			// if they changed, eax is non-zero
+
+  003c7	33 c1		 xor	 eax, ecx
+
+; 228  : 			mov		DWORD PTR i, eax	// use "i" for a flag
+
+  003c9	89 45 d4	 mov	 DWORD PTR _i$[ebp], eax
+
+; 229  : 		}
+; 230  : 
+; 231  : 		if (i == 0)
+
+  003cc	83 7d d4 00	 cmp	 DWORD PTR _i$[ebp], 0
+  003d0	75 2f		 jne	 SHORT $L10428
+
+; 233  : 			CpuFeatures->dwProcessorSignature = CPU_SIG_M1;		// just default to the 6x86/6x86L
+
+  003d2	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  003d5	c7 41 08 20 05
+	00 00		 mov	 DWORD PTR [ecx+8], 1312	; 00000520H
+
+; 234  : 			fxstrncpy(CpuFeatures->cpVendorIdString, cpVendorId_Cyrix, 12);
+
+  003dc	6a 0c		 push	 12			; 0000000cH
+  003de	68 00 00 00 00	 push	 OFFSET FLAT:_cpVendorId_Cyrix
+  003e3	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  003e6	83 c2 24	 add	 edx, 36			; 00000024H
+  003e9	52		 push	 edx
+  003ea	e8 00 00 00 00	 call	 _fxstrncpy
+  003ef	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 235  : 			CpuFeatures->dwFeatureFlags1 |= CPU_FF1_FPU;
+
+  003f2	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  003f5	8b 48 0c	 mov	 ecx, DWORD PTR [eax+12]
+  003f8	83 c9 01	 or	 ecx, 1
+  003fb	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  003fe	89 4a 0c	 mov	 DWORD PTR [edx+12], ecx
+$L10428:
+
+; 238  : 
+; 239  : 
+; 240  : /*******************************************************************************************
+; 241  : *	Read cr0 and cr4.
+; 242  : *******************************************************************************************/
+; 243  : 	_asm {
+; 244  : 		// First read CR0.  We can do this from ring 3 using the smsw instruction
+; 245  : 		smsw	ax
+
+  00401	0f 01 e0	 smsw	 ax
+
+; 246  : 		and		eax, 0x0000ffff		// upper word is undefined, so mask if off
+
+  00404	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+
+; 247  : 		mov		DWORD PTR reg_cr0, eax
+
+  00409	89 45 d0	 mov	 DWORD PTR _reg_cr0$[ebp], eax
+
+; 248  : 
+; 249  : 		// CR4 is a lot harder to get to.  You can't read it from ring 3.  On top of that MS 
+; 250  : 		// forgot to support CR4 in the MSVC compiler so we have to use these ugly emit's
+; 251  : 		;mov eax, cr4
+; 252  : 		__asm _emit 0x0f __asm _emit 0x20 __asm _emit 0xe0	// "mov eax,cr4"
+
+  0040c	0f		 DB	 15			; 0000000fH
+  0040d	20		 DB	 32			; 00000020H
+  0040e	e0		 DB	 -32			; ffffffe0H
+
+; 253  : 		mov		DWORD PTR reg_cr4, eax
+
+  0040f	89 45 e8	 mov	 DWORD PTR _reg_cr4$[ebp], eax
+
+; 254  : 	}
+; 255  : 
+; 256  : 
+; 257  : 
+; 258  : /*******************************************************************************************
+; 259  : *	Figure out which features this cpu has.
+; 260  : *******************************************************************************************/
+; 261  : 	// It's probably a longshot that this could be a problem, but if we're at 
+; 262  : 	// ring 3 we need to check the TSD bit in CR4 before executing RDTSC.  I've
+; 263  : 	// never seen this bit set but lets check it anyway.
+; 264  : 	if((CpuFeatures->dwFeatureFlags1 & CPU_FF1_TSC) && !(reg_cr4 & CPU_CR4_TSD))
+
+  00412	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00415	8b 48 0c	 mov	 ecx, DWORD PTR [eax+12]
+  00418	83 e1 10	 and	 ecx, 16			; 00000010H
+  0041b	85 c9		 test	 ecx, ecx
+  0041d	74 17		 je	 SHORT $L10429
+  0041f	8b 55 e8	 mov	 edx, DWORD PTR _reg_cr4$[ebp]
+  00422	83 e2 04	 and	 edx, 4
+  00425	85 d2		 test	 edx, edx
+  00427	75 0d		 jne	 SHORT $L10429
+
+; 265  : 		CpuFeatures->dwCpuFlags |= CPU_FEATURE_TSC;
+
+  00429	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  0042c	8b 08		 mov	 ecx, DWORD PTR [eax]
+  0042e	80 cd 04	 or	 ch, 4
+  00431	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00434	89 0a		 mov	 DWORD PTR [edx], ecx
+$L10429:
+
+; 266  : 
+; 267  : 	// Conditional moves - only weirdness here was the K6's.  They had 2 flags in the 
+; 268  : 	// extended cpuid (icmov and fcmov).  Neither one was ever set though, and the 
+; 269  : 	// "split" cmov bits got redefined as a single cmov starting with the Athlon. 
+; 270  : 	// Bottom line: ignore the old split cmov bits and just use the normal feature flag "cmov"
+; 271  : 	if (CpuFeatures->dwFeatureFlags1 & CPU_FF1_CMOV)
+
+  00436	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00439	8b 48 0c	 mov	 ecx, DWORD PTR [eax+12]
+  0043c	81 e1 00 80 00
+	00		 and	 ecx, 32768		; 00008000H
+  00442	85 c9		 test	 ecx, ecx
+  00444	74 0d		 je	 SHORT $L10430
+
+; 272  : 		CpuFeatures->dwCpuFlags |= CPU_FEATURE_CMOV;
+
+  00446	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00449	8b 02		 mov	 eax, DWORD PTR [edx]
+  0044b	80 cc 40	 or	 ah, 64			; 00000040H
+  0044e	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00451	89 01		 mov	 DWORD PTR [ecx], eax
+$L10430:
+
+; 273  : 
+; 274  : 	// P6-style Memory Region Control Registers - AMD-K6 and Cyrix get done later
+; 275  : 	if ((CpuFeatures->dwFeatureFlags1 & CPU_FF1_MSR) && (CpuFeatures->dwFeatureFlags1 & CPU_FF1_MTRR))
+
+  00453	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00456	8b 42 0c	 mov	 eax, DWORD PTR [edx+12]
+  00459	83 e0 20	 and	 eax, 32			; 00000020H
+  0045c	85 c0		 test	 eax, eax
+  0045e	74 1d		 je	 SHORT $L10431
+  00460	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00463	8b 51 0c	 mov	 edx, DWORD PTR [ecx+12]
+  00466	81 e2 00 10 00
+	00		 and	 edx, 4096		; 00001000H
+  0046c	85 d2		 test	 edx, edx
+  0046e	74 0d		 je	 SHORT $L10431
+
+; 276  : 		CpuFeatures->dwCpuFlags |= CPU_FEATURE_P6_MTRR;
+
+  00470	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00473	8b 08		 mov	 ecx, DWORD PTR [eax]
+  00475	80 cd 08	 or	 ch, 8
+  00478	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  0047b	89 0a		 mov	 DWORD PTR [edx], ecx
+$L10431:
+
+; 277  : 
+; 278  : 
+; 279  : 	/*******************************************************************************
+; 280  : 	*	Figure out if this cpu supports SIMD instructions and if it's okay to use
+; 281  : 	*	them.  There's some goofy stuff we need to check for fp, mmx, and sse.
+; 282  : 	*******************************************************************************/
+; 283  : 	// If FPU is emulated we can't do fpu, mmx, 3dnow, or sse because
+; 284  : 	// any of those instructions causes an undefined opcode exception.
+; 285  : 	if(! (reg_cr0 & CPU_CR0_EM))
+
+  0047d	8b 45 d0	 mov	 eax, DWORD PTR _reg_cr0$[ebp]
+  00480	83 e0 04	 and	 eax, 4
+  00483	85 c0		 test	 eax, eax
+  00485	0f 85 f0 00 00
+	00		 jne	 $L10440
+
+; 287  : 		if (CpuFeatures->dwFeatureFlags1 & CPU_FF1_FPU)		CpuFeatures->dwCpuFlags |= CPU_FEATURE_FPU;
+
+  0048b	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  0048e	8b 51 0c	 mov	 edx, DWORD PTR [ecx+12]
+  00491	83 e2 01	 and	 edx, 1
+  00494	85 d2		 test	 edx, edx
+  00496	74 0d		 je	 SHORT $L10433
+  00498	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  0049b	8b 08		 mov	 ecx, DWORD PTR [eax]
+  0049d	80 cd 02	 or	 ch, 2
+  004a0	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  004a3	89 0a		 mov	 DWORD PTR [edx], ecx
+$L10433:
+
+; 288  : 		if (CpuFeatures->dwFeatureFlags1 & CPU_FF1_MMX)		CpuFeatures->dwCpuFlags |= CPU_FEATURE_MMX;
+
+  004a5	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  004a8	8b 48 0c	 mov	 ecx, DWORD PTR [eax+12]
+  004ab	81 e1 00 00 80
+	00		 and	 ecx, 8388608		; 00800000H
+  004b1	85 c9		 test	 ecx, ecx
+  004b3	74 0d		 je	 SHORT $L10434
+  004b5	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  004b8	8b 02		 mov	 eax, DWORD PTR [edx]
+  004ba	80 cc 80	 or	 ah, -128		; ffffff80H
+  004bd	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  004c0	89 01		 mov	 DWORD PTR [ecx], eax
+$L10434:
+
+; 289  : 		if (CpuFeatures->dwFeatureFlags2 & CPU_FF2_AMMX)	CpuFeatures->dwCpuFlags |= CPU_FEATURE_AMMX;
+
+  004c2	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  004c5	8b 42 10	 mov	 eax, DWORD PTR [edx+16]
+  004c8	25 00 00 40 00	 and	 eax, 4194304		; 00400000H
+  004cd	85 c0		 test	 eax, eax
+  004cf	74 10		 je	 SHORT $L10435
+  004d1	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  004d4	8b 11		 mov	 edx, DWORD PTR [ecx]
+  004d6	81 ca 00 00 01
+	00		 or	 edx, 65536		; 00010000H
+  004dc	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  004df	89 10		 mov	 DWORD PTR [eax], edx
+$L10435:
+
+; 290  : 		if (CpuFeatures->dwFeatureFlags2 & CPU_FF2_3DNOW)	CpuFeatures->dwCpuFlags |= CPU_FEATURE_3DNOW;
+
+  004e1	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  004e4	8b 51 10	 mov	 edx, DWORD PTR [ecx+16]
+  004e7	81 e2 00 00 00
+	80		 and	 edx, -2147483648	; 80000000H
+  004ed	85 d2		 test	 edx, edx
+  004ef	74 10		 je	 SHORT $L10436
+  004f1	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  004f4	8b 08		 mov	 ecx, DWORD PTR [eax]
+  004f6	81 c9 00 00 02
+	00		 or	 ecx, 131072		; 00020000H
+  004fc	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  004ff	89 0a		 mov	 DWORD PTR [edx], ecx
+$L10436:
+
+; 291  : 		if (CpuFeatures->dwFeatureFlags2 & CPU_FF2_3DNOWX)	CpuFeatures->dwCpuFlags |= CPU_FEATURE_3DNOWX;
+
+  00501	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00504	8b 48 10	 mov	 ecx, DWORD PTR [eax+16]
+  00507	81 e1 00 00 00
+	40		 and	 ecx, 1073741824		; 40000000H
+  0050d	85 c9		 test	 ecx, ecx
+  0050f	74 0f		 je	 SHORT $L10437
+  00511	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00514	8b 02		 mov	 eax, DWORD PTR [edx]
+  00516	0d 00 00 04 00	 or	 eax, 262144		; 00040000H
+  0051b	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  0051e	89 01		 mov	 DWORD PTR [ecx], eax
+$L10437:
+
+; 292  : 
+; 293  : 		// Now we'll check for SSE.  The cpu must support the extended fp saves/restores.  
+; 294  : 		// We must also check for OS support first by checking osfxsr (bit 9 in cr4).  
+; 295  : 		// Remember we have to be at ring 0 to read cr4 so be carefull here.  This is not 
+; 296  : 		// something we can blow off because Win95 doesn't support SSE!
+; 297  : 		// Note: This doesn't check the osxmmexcpt bit (in CR4); you'll also need to do
+; 298  : 		// this if you unmask SSE exceptions.
+; 299  : 		if((CpuFeatures->dwFeatureFlags1 & CPU_FF1_FXSR) && (reg_cr4 & CPU_CR4_OSFXSR))
+
+  00520	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00523	8b 42 0c	 mov	 eax, DWORD PTR [edx+12]
+  00526	25 00 00 00 01	 and	 eax, 16777216		; 01000000H
+  0052b	85 c0		 test	 eax, eax
+  0052d	74 4c		 je	 SHORT $L10440
+  0052f	8b 4d e8	 mov	 ecx, DWORD PTR _reg_cr4$[ebp]
+  00532	81 e1 00 02 00
+	00		 and	 ecx, 512		; 00000200H
+  00538	85 c9		 test	 ecx, ecx
+  0053a	74 3f		 je	 SHORT $L10440
+
+; 301  : 			if (CpuFeatures->dwFeatureFlags1 & CPU_FF1_SSE)		CpuFeatures->dwCpuFlags |= CPU_FEATURE_SSE;
+
+  0053c	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  0053f	8b 42 0c	 mov	 eax, DWORD PTR [edx+12]
+  00542	25 00 00 00 02	 and	 eax, 33554432		; 02000000H
+  00547	85 c0		 test	 eax, eax
+  00549	74 10		 je	 SHORT $L10439
+  0054b	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  0054e	8b 11		 mov	 edx, DWORD PTR [ecx]
+  00550	81 ca 00 00 08
+	00		 or	 edx, 524288		; 00080000H
+  00556	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00559	89 10		 mov	 DWORD PTR [eax], edx
+$L10439:
+
+; 302  : 			if (CpuFeatures->dwFeatureFlags1 & CPU_FF1_SSE2)	CpuFeatures->dwCpuFlags |= CPU_FEATURE_SSE2;
+
+  0055b	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  0055e	8b 51 0c	 mov	 edx, DWORD PTR [ecx+12]
+  00561	81 e2 00 00 00
+	04		 and	 edx, 67108864		; 04000000H
+  00567	85 d2		 test	 edx, edx
+  00569	74 10		 je	 SHORT $L10440
+  0056b	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  0056e	8b 08		 mov	 ecx, DWORD PTR [eax]
+  00570	81 c9 00 00 10
+	00		 or	 ecx, 1048576		; 00100000H
+  00576	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00579	89 0a		 mov	 DWORD PTR [edx], ecx
+$L10440:
+
+; 305  : 
+; 306  : 
+; 307  : 
+; 308  : /*******************************************************************************************
+; 309  : *	Enumerate the different processors and handle any processor specific stuff 
+; 310  : *******************************************************************************************/
+; 311  : 	// Check for Intel
+; 312  : 	if( 0 == fxstrncmp ((char *) &CpuFeatures->cpVendorIdString, cpVendorId_Intel, 12)) 
+
+  0057b	6a 0c		 push	 12			; 0000000cH
+  0057d	68 00 00 00 00	 push	 OFFSET FLAT:_cpVendorId_Intel
+  00582	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00585	83 c0 24	 add	 eax, 36			; 00000024H
+  00588	50		 push	 eax
+  00589	e8 00 00 00 00	 call	 _fxstrncmp
+  0058e	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00591	85 c0		 test	 eax, eax
+  00593	0f 85 40 03 00
+	00		 jne	 $L10442
+
+; 314  : 		CpuFeatures->dwCpuFlags |= CPU_VENDOR_INTEL;
+
+  00599	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  0059c	8b 11		 mov	 edx, DWORD PTR [ecx]
+  0059e	83 ca 01	 or	 edx, 1
+  005a1	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  005a4	89 10		 mov	 DWORD PTR [eax], edx
+
+; 315  : 
+; 316  : 		if( (CpuFeatures->dwProcessorSignature & CPU_SIG_ALL_MASK) < 0x500 ) // all 486's
+
+  005a6	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  005a9	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  005ac	81 e2 ff 3f 00
+	00		 and	 edx, 16383		; 00003fffH
+  005b2	81 fa 00 05 00
+	00		 cmp	 edx, 1280		; 00000500H
+  005b8	73 0f		 jae	 SHORT $L10443
+
+; 318  : 			CpuFeatures->dwCpuType = CPU_TYPE_INTEL_486;						// Intel 486
+
+  005ba	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  005bd	c7 40 04 01 01
+	00 00		 mov	 DWORD PTR [eax+4], 257	; 00000101H
+
+; 320  : 		else 
+
+  005c4	e9 e7 02 00 00	 jmp	 $L10446
+$L10443:
+
+; 322  : 			switch (CpuFeatures->dwProcessorSignature & CPU_SIG_ALL_MASK) 
+; 323  : 			{
+
+  005c9	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  005cc	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  005cf	81 e2 ff 3f 00
+	00		 and	 edx, 16383		; 00003fffH
+  005d5	89 55 c8	 mov	 DWORD PTR -56+[ebp], edx
+  005d8	81 7d c8 80 06
+	00 00		 cmp	 DWORD PTR -56+[ebp], 1664 ; 00000680H
+  005df	77 71		 ja	 SHORT $L10586
+  005e1	81 7d c8 80 06
+	00 00		 cmp	 DWORD PTR -56+[ebp], 1664 ; 00000680H
+  005e8	0f 84 88 02 00
+	00		 je	 $L10468
+  005ee	81 7d c8 00 06
+	00 00		 cmp	 DWORD PTR -56+[ebp], 1536 ; 00000600H
+  005f5	77 34		 ja	 SHORT $L10587
+  005f7	81 7d c8 00 06
+	00 00		 cmp	 DWORD PTR -56+[ebp], 1536 ; 00000600H
+  005fe	0f 84 7e 01 00
+	00		 je	 $L10452
+  00604	8b 45 c8	 mov	 eax, DWORD PTR -56+[ebp]
+  00607	2d 00 05 00 00	 sub	 eax, 1280		; 00000500H
+  0060c	89 45 c8	 mov	 DWORD PTR -56+[ebp], eax
+  0060f	83 7d c8 70	 cmp	 DWORD PTR -56+[ebp], 112 ; 00000070H
+  00613	0f 87 8d 02 00
+	00		 ja	 $L10472
+  00619	8b 55 c8	 mov	 edx, DWORD PTR -56+[ebp]
+  0061c	33 c9		 xor	 ecx, ecx
+  0061e	8a 8a 00 00 00
+	00		 mov	 cl, BYTE PTR $L10595[edx]
+  00624	ff 24 8d 00 00
+	00 00		 jmp	 DWORD PTR $L10596[ecx*4]
+$L10587:
+  0062b	8b 45 c8	 mov	 eax, DWORD PTR -56+[ebp]
+  0062e	2d 10 06 00 00	 sub	 eax, 1552		; 00000610H
+  00633	89 45 c8	 mov	 DWORD PTR -56+[ebp], eax
+  00636	83 7d c8 60	 cmp	 DWORD PTR -56+[ebp], 96	; 00000060H
+  0063a	0f 87 66 02 00
+	00		 ja	 $L10472
+  00640	8b 55 c8	 mov	 edx, DWORD PTR -56+[ebp]
+  00643	33 c9		 xor	 ecx, ecx
+  00645	8a 8a 00 00 00
+	00		 mov	 cl, BYTE PTR $L10597[edx]
+  0064b	ff 24 8d 00 00
+	00 00		 jmp	 DWORD PTR $L10598[ecx*4]
+$L10586:
+  00652	81 7d c8 10 15
+	00 00		 cmp	 DWORD PTR -56+[ebp], 5392 ; 00001510H
+  00659	77 61		 ja	 SHORT $L10588
+  0065b	81 7d c8 10 15
+	00 00		 cmp	 DWORD PTR -56+[ebp], 5392 ; 00001510H
+  00662	0f 84 93 00 00
+	00		 je	 $L10449
+  00668	81 7d c8 10 07
+	00 00		 cmp	 DWORD PTR -56+[ebp], 1808 ; 00000710H
+  0066f	77 2c		 ja	 SHORT $L10589
+  00671	81 7d c8 10 07
+	00 00		 cmp	 DWORD PTR -56+[ebp], 1808 ; 00000710H
+  00678	0f 84 1c 02 00
+	00		 je	 $L10471
+  0067e	81 7d c8 a0 06
+	00 00		 cmp	 DWORD PTR -56+[ebp], 1696 ; 000006a0H
+  00685	0f 84 eb 01 00
+	00		 je	 $L10468
+  0068b	81 7d c8 00 07
+	00 00		 cmp	 DWORD PTR -56+[ebp], 1792 ; 00000700H
+  00692	0f 84 02 02 00
+	00		 je	 $L10471
+  00698	e9 09 02 00 00	 jmp	 $L10472
+$L10589:
+  0069d	81 7d c8 00 0f
+	00 00		 cmp	 DWORD PTR -56+[ebp], 3840 ; 00000f00H
+  006a4	0f 84 f0 01 00
+	00		 je	 $L10471
+  006aa	81 7d c8 10 0f
+	00 00		 cmp	 DWORD PTR -56+[ebp], 3856 ; 00000f10H
+  006b1	0f 84 e3 01 00
+	00		 je	 $L10471
+  006b7	e9 ea 01 00 00	 jmp	 $L10472
+$L10588:
+  006bc	81 7d c8 40 15
+	00 00		 cmp	 DWORD PTR -56+[ebp], 5440 ; 00001540H
+  006c3	77 24		 ja	 SHORT $L10590
+  006c5	81 7d c8 40 15
+	00 00		 cmp	 DWORD PTR -56+[ebp], 5440 ; 00001540H
+  006cc	0f 84 83 00 00
+	00		 je	 $L10451
+  006d2	81 7d c8 20 15
+	00 00		 cmp	 DWORD PTR -56+[ebp], 5408 ; 00001520H
+  006d9	74 4d		 je	 SHORT $L10450
+  006db	81 7d c8 30 15
+	00 00		 cmp	 DWORD PTR -56+[ebp], 5424 ; 00001530H
+  006e2	74 17		 je	 SHORT $L10449
+  006e4	e9 bd 01 00 00	 jmp	 $L10472
+$L10590:
+  006e9	81 7d c8 30 16
+	00 00		 cmp	 DWORD PTR -56+[ebp], 5680 ; 00001630H
+  006f0	0f 84 8c 00 00
+	00		 je	 $L10452
+  006f6	e9 ab 01 00 00	 jmp	 $L10472
+$L10449:
+
+; 324  : 				case CPU_SIG_P5A:
+; 325  : 				case CPU_SIG_P5:
+; 326  : 				case CPU_SIG_P5OD:
+; 327  : 				case CPU_SIG_P5OD486:
+; 328  : 					CpuFeatures->dwCpuType		= CPU_TYPE_INTEL_P5;			// Intel P5 (Original Pentium)
+
+  006fb	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  006fe	c7 40 04 02 01
+	00 00		 mov	 DWORD PTR [eax+4], 258	; 00000102H
+
+; 329  : 					CpuFeatures->dwSizeL1ICache	= 1<<13;
+
+  00705	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00708	c7 41 1c 00 20
+	00 00		 mov	 DWORD PTR [ecx+28], 8192 ; 00002000H
+
+; 330  : 					CpuFeatures->dwSizeL1DCache	= 1<<13;
+
+  0070f	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00712	c7 42 18 00 20
+	00 00		 mov	 DWORD PTR [edx+24], 8192 ; 00002000H
+
+; 331  : 					CpuFeatures->dwSizeL2Cache	= 0;
+
+  00719	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  0071c	c7 40 20 00 00
+	00 00		 mov	 DWORD PTR [eax+32], 0
+
+; 332  : 					break;
+
+  00723	e9 88 01 00 00	 jmp	 $L10446
+$L10450:
+
+; 333  : 				case CPU_SIG_P54C:
+; 334  : 				case CPU_SIG_P54COD:
+; 335  : 					CpuFeatures->dwCpuType		= CPU_TYPE_INTEL_P54C;			// Intel P54C (Socket 7)
+
+  00728	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  0072b	c7 41 04 03 01
+	00 00		 mov	 DWORD PTR [ecx+4], 259	; 00000103H
+
+; 336  : 					CpuFeatures->dwSizeL1ICache	= 1<<13;
+
+  00732	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00735	c7 42 1c 00 20
+	00 00		 mov	 DWORD PTR [edx+28], 8192 ; 00002000H
+
+; 337  : 					CpuFeatures->dwSizeL1DCache	= 1<<13;
+
+  0073c	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  0073f	c7 40 18 00 20
+	00 00		 mov	 DWORD PTR [eax+24], 8192 ; 00002000H
+
+; 338  : 					CpuFeatures->dwSizeL2Cache	= 0;
+
+  00746	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00749	c7 41 20 00 00
+	00 00		 mov	 DWORD PTR [ecx+32], 0
+
+; 339  : 					break;
+
+  00750	e9 5b 01 00 00	 jmp	 $L10446
+$L10451:
+
+; 340  : 				case CPU_SIG_P55C:
+; 341  : 				case CPU_SIG_P55COD:
+; 342  : 				case CPU_SIG_P5M:
+; 343  : 					CpuFeatures->dwCpuType		= CPU_TYPE_INTEL_P55C;			// Intel P55C (added MMX)
+
+  00755	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00758	c7 42 04 04 01
+	00 00		 mov	 DWORD PTR [edx+4], 260	; 00000104H
+
+; 344  : 					CpuFeatures->dwSizeL1ICache	= 1<<15;
+
+  0075f	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00762	c7 40 1c 00 80
+	00 00		 mov	 DWORD PTR [eax+28], 32768 ; 00008000H
+
+; 345  : 					CpuFeatures->dwSizeL1DCache	= 1<<15;
+
+  00769	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  0076c	c7 41 18 00 80
+	00 00		 mov	 DWORD PTR [ecx+24], 32768 ; 00008000H
+
+; 346  : 					CpuFeatures->dwSizeL2Cache	= 0;
+
+  00773	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00776	c7 42 20 00 00
+	00 00		 mov	 DWORD PTR [edx+32], 0
+
+; 347  : 					break;
+
+  0077d	e9 2e 01 00 00	 jmp	 $L10446
+$L10452:
+
+; 348  : 				case CPU_SIG_P6A:
+; 349  : 				case CPU_SIG_P6:
+; 350  : 				case CPU_SIG_P6OD:
+; 351  : 					CpuFeatures->dwCpuType		= CPU_TYPE_INTEL_P6;			// Intel P6 (Pentium Pro)
+
+  00782	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00785	c7 40 04 05 01
+	00 00		 mov	 DWORD PTR [eax+4], 261	; 00000105H
+
+; 352  : 					break;
+
+  0078c	e9 1f 01 00 00	 jmp	 $L10446
+$L10453:
+
+; 353  : 				case CPU_SIG_P2:
+; 354  : 				case CPU_SIG_P2XC:
+; 355  : 				case CPU_SIG_CELA:
+; 356  : 					switch (CpuFeatures->dwSizeL2Cache) 
+; 357  : 					{
+
+  00791	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00794	8b 51 20	 mov	 edx, DWORD PTR [ecx+32]
+  00797	89 55 c4	 mov	 DWORD PTR -60+[ebp], edx
+  0079a	81 7d c4 00 00
+	10 00		 cmp	 DWORD PTR -60+[ebp], 1048576 ; 00100000H
+  007a1	77 3b		 ja	 SHORT $L10584
+  007a3	81 7d c4 00 00
+	10 00		 cmp	 DWORD PTR -60+[ebp], 1048576 ; 00100000H
+  007aa	0f 84 8a 00 00
+	00		 je	 $L10463
+  007b0	81 7d c4 00 00
+	04 00		 cmp	 DWORD PTR -60+[ebp], 262144 ; 00040000H
+  007b7	77 1a		 ja	 SHORT $L10585
+  007b9	81 7d c4 00 00
+	04 00		 cmp	 DWORD PTR -60+[ebp], 262144 ; 00040000H
+  007c0	74 51		 je	 SHORT $L10460
+  007c2	83 7d c4 00	 cmp	 DWORD PTR -60+[ebp], 0
+  007c6	74 33		 je	 SHORT $L10458
+  007c8	81 7d c4 00 00
+	02 00		 cmp	 DWORD PTR -60+[ebp], 131072 ; 00020000H
+  007cf	74 36		 je	 SHORT $L10459
+  007d1	eb 73		 jmp	 SHORT $L10464
+$L10585:
+  007d3	81 7d c4 00 00
+	08 00		 cmp	 DWORD PTR -60+[ebp], 524288 ; 00080000H
+  007da	74 37		 je	 SHORT $L10460
+  007dc	eb 68		 jmp	 SHORT $L10464
+$L10584:
+  007de	81 7d c4 00 00
+	20 00		 cmp	 DWORD PTR -60+[ebp], 2097152 ; 00200000H
+  007e5	74 53		 je	 SHORT $L10463
+  007e7	81 7d c4 00 00
+	40 00		 cmp	 DWORD PTR -60+[ebp], 4194304 ; 00400000H
+  007ee	74 4a		 je	 SHORT $L10463
+  007f0	81 7d c4 00 00
+	80 00		 cmp	 DWORD PTR -60+[ebp], 8388608 ; 00800000H
+  007f7	74 41		 je	 SHORT $L10463
+  007f9	eb 4b		 jmp	 SHORT $L10464
+$L10458:
+
+; 358  : 						case 0: // No L2 cache
+; 359  : 							CpuFeatures->dwCpuType = CPU_TYPE_INTEL_CELERON;	// Intel Celeron (Mendencino)
+
+  007fb	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  007fe	c7 40 04 08 01
+	00 00		 mov	 DWORD PTR [eax+4], 264	; 00000108H
+
+; 360  : 							break;
+
+  00805	eb 49		 jmp	 SHORT $L10455
+$L10459:
+
+; 361  : 						case 1<<17:	// 128K
+; 362  : 							CpuFeatures->dwCpuType = CPU_TYPE_INTEL_CELERON_A;	// Intel Celeron-A
+
+  00807	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  0080a	c7 41 04 09 01
+	00 00		 mov	 DWORD PTR [ecx+4], 265	; 00000109H
+
+; 363  : 							break;
+
+  00811	eb 3d		 jmp	 SHORT $L10455
+$L10460:
+
+; 364  : 						case 1<<18:	// 256K
+; 365  : 						case 1<<19:	// 512K
+; 366  : 							if(CpuFeatures->dwFeatureFlags1 & CPU_FF1_FXSR)
+
+  00813	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00816	8b 42 0c	 mov	 eax, DWORD PTR [edx+12]
+  00819	25 00 00 00 01	 and	 eax, 16777216		; 01000000H
+  0081e	85 c0		 test	 eax, eax
+  00820	74 0c		 je	 SHORT $L10461
+
+; 367  : 								CpuFeatures->dwCpuType = CPU_TYPE_INTEL_P2_DECH;// Intel PII Dechutes (250nm)
+
+  00822	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00825	c7 41 04 07 01
+	00 00		 mov	 DWORD PTR [ecx+4], 263	; 00000107H
+
+; 368  : 							else
+
+  0082c	eb 0a		 jmp	 SHORT $L10462
+$L10461:
+
+; 369  : 								CpuFeatures->dwCpuType = CPU_TYPE_INTEL_P2;		// Intel PII (350nm)
+
+  0082e	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00831	c7 42 04 06 01
+	00 00		 mov	 DWORD PTR [edx+4], 262	; 00000106H
+$L10462:
+
+; 370  : 							break;
+
+  00838	eb 16		 jmp	 SHORT $L10455
+$L10463:
+
+; 371  : 						case 1<<20:	// 1M
+; 372  : 						case 1<<21:	// 2M
+; 373  : 						case 1<<22:	// 4M
+; 374  : 						case 1<<23:	// 8M
+; 375  : 							CpuFeatures->dwCpuType = CPU_TYPE_INTEL_P2_XEON;	// Intel PII Xeon
+
+  0083a	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  0083d	c7 40 04 0a 01
+	00 00		 mov	 DWORD PTR [eax+4], 266	; 0000010aH
+
+; 376  : 							break;
+
+  00844	eb 0a		 jmp	 SHORT $L10455
+$L10464:
+
+; 377  : 						default:
+; 378  : 							CpuFeatures->dwCpuType = CPU_TYPE_INTEL_P2;			// some other Intel PII
+
+  00846	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00849	c7 41 04 06 01
+	00 00		 mov	 DWORD PTR [ecx+4], 262	; 00000106H
+$L10455:
+
+; 381  : 					break;
+
+  00850	eb 5e		 jmp	 SHORT $L10446
+$L10465:
+
+; 382  : 				case CPU_SIG_P3:
+; 383  : 					if (CpuFeatures->dwSizeL2Cache >= (1<<20))	// 1M
+
+  00852	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00855	81 7a 20 00 00
+	10 00		 cmp	 DWORD PTR [edx+32], 1048576 ; 00100000H
+  0085c	72 0c		 jb	 SHORT $L10466
+
+; 384  : 						CpuFeatures->dwCpuType = CPU_TYPE_INTEL_P3_XEON;		// Intel PIII-Xeon (250nm)
+
+  0085e	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00861	c7 40 04 0c 01
+	00 00		 mov	 DWORD PTR [eax+4], 268	; 0000010cH
+
+; 385  : 					else					
+
+  00868	eb 0a		 jmp	 SHORT $L10467
+$L10466:
+
+; 386  : 						CpuFeatures->dwCpuType = CPU_TYPE_INTEL_P3;				// Intel PIII (250nm)
+
+  0086a	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  0086d	c7 41 04 0b 01
+	00 00		 mov	 DWORD PTR [ecx+4], 267	; 0000010bH
+$L10467:
+
+; 387  : 					break;
+
+  00874	eb 3a		 jmp	 SHORT $L10446
+$L10468:
+
+; 388  : 				case CPU_SIG_P3CU:
+; 389  : 				case CPU_SIG_P3CUX:
+; 390  : 					if (CpuFeatures->dwSizeL2Cache >= (1<<20))	// 1M
+
+  00876	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00879	81 7a 20 00 00
+	10 00		 cmp	 DWORD PTR [edx+32], 1048576 ; 00100000H
+  00880	72 0c		 jb	 SHORT $L10469
+
+; 391  : 						CpuFeatures->dwCpuType = CPU_TYPE_INTEL_P3C_XEON;		// Intel PIII-Coppermine-Xeon (180nm)
+
+  00882	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00885	c7 40 04 0e 01
+	00 00		 mov	 DWORD PTR [eax+4], 270	; 0000010eH
+
+; 392  : 					else
+
+  0088c	eb 0a		 jmp	 SHORT $L10470
+$L10469:
+
+; 393  : 						CpuFeatures->dwCpuType = CPU_TYPE_INTEL_P3C;			// Intel PIII-Coppermine (180nm)
+
+  0088e	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00891	c7 41 04 0d 01
+	00 00		 mov	 DWORD PTR [ecx+4], 269	; 0000010dH
+$L10470:
+
+; 394  : 					break;
+
+  00898	eb 16		 jmp	 SHORT $L10446
+$L10471:
+
+; 395  : 				case CPU_SIG_P4_70:
+; 396  : 				case CPU_SIG_P4_71:
+; 397  : 				case CPU_SIG_P4_f0:	//pre-production
+; 398  : 				case CPU_SIG_P4_f1:	//pre-production
+; 399  : 					CpuFeatures->dwCpuType = CPU_TYPE_INTEL_P4;					// Intel Willamette
+
+  0089a	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  0089d	c7 42 04 0f 01
+	00 00		 mov	 DWORD PTR [edx+4], 271	; 0000010fH
+
+; 400  : 					break;
+
+  008a4	eb 0a		 jmp	 SHORT $L10446
+$L10472:
+
+; 401  : 				default:
+; 402  : 					CpuFeatures->dwCpuType = CPU_TYPE_INTEL_UNKNOWN;			// Intel Unknown
+
+  008a6	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  008a9	c7 40 04 00 01
+	00 00		 mov	 DWORD PTR [eax+4], 256	; 00000100H
+$L10446:
+
+; 406  : 
+; 407  : 		// Intel P6's have a write-buffer bug where stale data gets stuck in
+; 408  : 		// them and we have to drain them periodically.  So we set the 
+; 409  : 		// CPU_INTELP6 bit on Intel P6's.
+; 410  : 		if ((CpuFeatures->dwProcessorSignature & CPU_SIG_FAMILY_MASK) == (6 << CPU_SIG_FAMILY_POSITION))
+
+  008b0	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  008b3	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  008b6	81 e2 00 0f 00
+	00		 and	 edx, 3840		; 00000f00H
+  008bc	81 fa 00 06 00
+	00		 cmp	 edx, 1536		; 00000600H
+  008c2	75 10		 jne	 SHORT $L10473
+
+; 411  : 			CpuFeatures->dwCpuFlags |= CPU_INTELP6;
+
+  008c4	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  008c7	8b 08		 mov	 ecx, DWORD PTR [eax]
+  008c9	81 c9 00 00 00
+	01		 or	 ecx, 16777216		; 01000000H
+  008cf	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  008d2	89 0a		 mov	 DWORD PTR [edx], ecx
+$L10473:
+
+; 414  : 	else // Check for AMD
+
+  008d4	e9 77 04 00 00	 jmp	 $L10537
+$L10442:
+
+; 415  : 	if(0 == fxstrncmp ((char *) &CpuFeatures->cpVendorIdString, cpVendorId_Amd, 12)) 
+
+  008d9	6a 0c		 push	 12			; 0000000cH
+  008db	68 00 00 00 00	 push	 OFFSET FLAT:_cpVendorId_Amd
+  008e0	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  008e3	83 c0 24	 add	 eax, 36			; 00000024H
+  008e6	50		 push	 eax
+  008e7	e8 00 00 00 00	 call	 _fxstrncmp
+  008ec	83 c4 0c	 add	 esp, 12			; 0000000cH
+  008ef	85 c0		 test	 eax, eax
+  008f1	0f 85 af 01 00
+	00		 jne	 $L10476
+
+; 417  : 		CpuFeatures->dwCpuFlags |= CPU_VENDOR_AMD;
+
+  008f7	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  008fa	8b 11		 mov	 edx, DWORD PTR [ecx]
+  008fc	83 ca 02	 or	 edx, 2
+  008ff	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00902	89 10		 mov	 DWORD PTR [eax], edx
+
+; 418  : 
+; 419  : 		if( (CpuFeatures->dwProcessorSignature & CPU_SIG_ALL_MASK) < 0x500 )	// all 486's
+
+  00904	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00907	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  0090a	81 e2 ff 3f 00
+	00		 and	 edx, 16383		; 00003fffH
+  00910	81 fa 00 05 00
+	00		 cmp	 edx, 1280		; 00000500H
+  00916	73 2f		 jae	 SHORT $L10477
+
+; 421  : 			if ((CpuFeatures->dwProcessorSignature & CPU_SIG_ALL_MASK) < CPU_SIG_KX586)
+
+  00918	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  0091b	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  0091e	81 e1 ff 3f 00
+	00		 and	 ecx, 16383		; 00003fffH
+  00924	81 f9 e0 04 00
+	00		 cmp	 ecx, 1248		; 000004e0H
+  0092a	73 0c		 jae	 SHORT $L10478
+
+; 422  : 				CpuFeatures->dwCpuType = CPU_TYPE_AMD_486;					// AMD 486
+
+  0092c	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  0092f	c7 42 04 01 02
+	00 00		 mov	 DWORD PTR [edx+4], 513	; 00000201H
+
+; 423  : 			else
+
+  00936	eb 0a		 jmp	 SHORT $L10479
+$L10478:
+
+; 424  : 				CpuFeatures->dwCpuType = CPU_TYPE_AMD_5X86;					// AMD Am5x86
+
+  00938	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  0093b	c7 40 04 02 02
+	00 00		 mov	 DWORD PTR [eax+4], 514	; 00000202H
+$L10479:
+
+; 426  : 		else 
+
+  00942	e9 5a 01 00 00	 jmp	 $L10500
+$L10477:
+
+; 428  : 			switch (CpuFeatures->dwProcessorSignature & CPU_SIG_ALL_MASK) 
+; 429  : 			{
+
+  00947	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  0094a	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  0094d	81 e2 ff 3f 00
+	00		 and	 edx, 16383		; 00003fffH
+  00953	89 55 c0	 mov	 DWORD PTR -64+[ebp], edx
+  00956	81 7d c0 80 05
+	00 00		 cmp	 DWORD PTR -64+[ebp], 1408 ; 00000580H
+  0095d	77 30		 ja	 SHORT $L10591
+  0095f	81 7d c0 80 05
+	00 00		 cmp	 DWORD PTR -64+[ebp], 1408 ; 00000580H
+  00966	74 6f		 je	 SHORT $L10487
+  00968	8b 45 c0	 mov	 eax, DWORD PTR -64+[ebp]
+  0096b	2d 00 05 00 00	 sub	 eax, 1280		; 00000500H
+  00970	89 45 c0	 mov	 DWORD PTR -64+[ebp], eax
+  00973	83 7d c0 70	 cmp	 DWORD PTR -64+[ebp], 112 ; 00000070H
+  00977	0f 87 ae 00 00
+	00		 ja	 $L10493
+  0097d	8b 55 c0	 mov	 edx, DWORD PTR -64+[ebp]
+  00980	33 c9		 xor	 ecx, ecx
+  00982	8a 8a 00 00 00
+	00		 mov	 cl, BYTE PTR $L10599[edx]
+  00988	ff 24 8d 00 00
+	00 00		 jmp	 DWORD PTR $L10600[ecx*4]
+$L10591:
+  0098f	8b 45 c0	 mov	 eax, DWORD PTR -64+[ebp]
+  00992	2d 90 05 00 00	 sub	 eax, 1424		; 00000590H
+  00997	89 45 c0	 mov	 DWORD PTR -64+[ebp], eax
+  0099a	81 7d c0 b0 00
+	00 00		 cmp	 DWORD PTR -64+[ebp], 176 ; 000000b0H
+  009a1	0f 87 84 00 00
+	00		 ja	 $L10493
+  009a7	8b 55 c0	 mov	 edx, DWORD PTR -64+[ebp]
+  009aa	33 c9		 xor	 ecx, ecx
+  009ac	8a 8a 00 00 00
+	00		 mov	 cl, BYTE PTR $L10601[edx]
+  009b2	ff 24 8d 00 00
+	00 00		 jmp	 DWORD PTR $L10602[ecx*4]
+$L10485:
+
+; 430  : 				case CPU_SIG_K5M0:
+; 431  : 				case CPU_SIG_K5M1:
+; 432  : 				case CPU_SIG_K5M2:
+; 433  : 				case CPU_SIG_K5M3:
+; 434  : 					CpuFeatures->dwCpuType		= CPU_TYPE_AMD_K5;			// AMD K5
+
+  009b9	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  009bc	c7 40 04 03 02
+	00 00		 mov	 DWORD PTR [eax+4], 515	; 00000203H
+
+; 435  : 					break;
+
+  009c3	e9 a6 00 00 00	 jmp	 $L10482
+$L10486:
+
+; 436  : 				case CPU_SIG_K6M6:
+; 437  : 				case CPU_SIG_K6M7:
+; 438  : 					CpuFeatures->dwCpuType		= CPU_TYPE_AMD_K6;			// AMD K6
+
+  009c8	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  009cb	c7 41 04 04 02
+	00 00		 mov	 DWORD PTR [ecx+4], 516	; 00000204H
+
+; 439  : 					break;
+
+  009d2	e9 97 00 00 00	 jmp	 $L10482
+$L10487:
+
+; 440  : 				case CPU_SIG_K62:
+; 441  : 					CpuFeatures->dwCpuType		= CPU_TYPE_AMD_K6_2;		// AMD K6-2 (added 3dnow)
+
+  009d7	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  009da	c7 42 04 05 02
+	00 00		 mov	 DWORD PTR [edx+4], 517	; 00000205H
+
+; 442  : 					break;
+
+  009e1	e9 88 00 00 00	 jmp	 $L10482
+$L10488:
+
+; 443  : 				case CPU_SIG_K63:
+; 444  : 					CpuFeatures->dwCpuType		= CPU_TYPE_AMD_K6_3;		// AMD K6-3 (added backside L2)
+
+  009e6	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  009e9	c7 40 04 06 02
+	00 00		 mov	 DWORD PTR [eax+4], 518	; 00000206H
+
+; 445  : 					break;
+
+  009f0	eb 7c		 jmp	 SHORT $L10482
+$L10489:
+
+; 446  : 				case CPU_SIG_K7:
+; 447  : 				case CPU_SIG_K7A:
+; 448  : 					CpuFeatures->dwCpuType		= CPU_TYPE_AMD_K7;			// AMD Athlon
+
+  009f2	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  009f5	c7 41 04 07 02
+	00 00		 mov	 DWORD PTR [ecx+4], 519	; 00000207H
+
+; 449  : 					break;
+
+  009fc	eb 70		 jmp	 SHORT $L10482
+$L10490:
+
+; 450  : 				case CPU_SIG_K7D:
+; 451  : 					CpuFeatures->dwCpuType		= CPU_TYPE_AMD_K7D;			// AMD Duron
+
+  009fe	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00a01	c7 42 04 08 02
+	00 00		 mov	 DWORD PTR [edx+4], 520	; 00000208H
+
+; 452  : 					// AMD Duron Rev 0 bug fix: the L2 cache descriptor field means *64K instead of *1K
+; 453  : 					if (CpuFeatures->dwProcessorSignature & CPU_SIG_REVISION_MASK == 0)
+
+  00a08	33 c0		 xor	 eax, eax
+  00a0a	85 c0		 test	 eax, eax
+  00a0c	74 0f		 je	 SHORT $L10491
+
+; 454  : 						CpuFeatures->dwSizeL2Cache *= 64;		
+
+  00a0e	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00a11	8b 51 20	 mov	 edx, DWORD PTR [ecx+32]
+  00a14	c1 e2 06	 shl	 edx, 6
+  00a17	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00a1a	89 50 20	 mov	 DWORD PTR [eax+32], edx
+$L10491:
+
+; 455  : 					break;
+
+  00a1d	eb 4f		 jmp	 SHORT $L10482
+$L10492:
+
+; 456  : 				case CPU_SIG_K7T:
+; 457  : 					CpuFeatures->dwCpuType		= CPU_TYPE_AMD_K7T;			// AMD Thunderbird
+
+  00a1f	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00a22	c7 41 04 09 02
+	00 00		 mov	 DWORD PTR [ecx+4], 521	; 00000209H
+
+; 458  : 					break;
+
+  00a29	eb 43		 jmp	 SHORT $L10482
+$L10493:
+
+; 459  : 				default:
+; 460  : 					if (CpuFeatures->dwProcessorSignature & CPU_SIG_FAMILY_MASK < 6)
+
+  00a2b	33 d2		 xor	 edx, edx
+  00a2d	85 d2		 test	 edx, edx
+  00a2f	74 21		 je	 SHORT $L10494
+
+; 461  : 						// For forward compatibility (AMD may release other K6's)
+; 462  : 						if (CpuFeatures->dwSizeL2Cache == 0)
+
+  00a31	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00a34	83 78 20 00	 cmp	 DWORD PTR [eax+32], 0
+  00a38	75 0c		 jne	 SHORT $L10495
+
+; 463  : 							CpuFeatures->dwCpuType = CPU_TYPE_AMD_K6_2;		// AMD K6-2 (added 3dnow)
+
+  00a3a	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00a3d	c7 41 04 05 02
+	00 00		 mov	 DWORD PTR [ecx+4], 517	; 00000205H
+
+; 464  : 						else
+
+  00a44	eb 0a		 jmp	 SHORT $L10496
+$L10495:
+
+; 465  : 							CpuFeatures->dwCpuType = CPU_TYPE_AMD_K6_3;		// AMD K6-3 (added backside L2)
+
+  00a46	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00a49	c7 42 04 06 02
+	00 00		 mov	 DWORD PTR [edx+4], 518	; 00000206H
+$L10496:
+
+; 466  : 					else if (CpuFeatures->dwProcessorSignature & CPU_SIG_FAMILY_MASK < 7)
+
+  00a50	eb 1c		 jmp	 SHORT $L10499
+$L10494:
+  00a52	33 c0		 xor	 eax, eax
+  00a54	85 c0		 test	 eax, eax
+  00a56	74 0c		 je	 SHORT $L10498
+
+; 467  : 						CpuFeatures->dwCpuType = CPU_TYPE_AMD_K7;			// AMD Athlons (or maybe K8???)
+
+  00a58	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00a5b	c7 41 04 07 02
+	00 00		 mov	 DWORD PTR [ecx+4], 519	; 00000207H
+
+; 468  : 					else 
+
+  00a62	eb 0a		 jmp	 SHORT $L10499
+$L10498:
+
+; 469  : 						CpuFeatures->dwCpuType = CPU_TYPE_AMD_UNKNOWN;		// AMD Unknown
+
+  00a64	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00a67	c7 42 04 00 02
+	00 00		 mov	 DWORD PTR [edx+4], 512	; 00000200H
+$L10499:
+$L10482:
+
+; 472  : 
+; 473  : 			// K6 MTRR check - the Athlon supports P6 style MTRR's (and the feature flags tell us this). 
+; 474  : 			// But before that some K6's had their own proprietary MTRR's starting with model 5, rev 8
+; 475  : 			if ( (CpuFeatures->dwProcessorSignature >= CPU_SIG_K62) && 
+; 476  : 			     ((CpuFeatures->dwProcessorSignature & CPU_SIG_REVISION_MASK) >= 8) &&
+; 477  : 			     (CpuFeatures->dwProcessorSignature < CPU_SIG_K7) )
+
+  00a6e	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00a71	81 78 08 80 05
+	00 00		 cmp	 DWORD PTR [eax+8], 1408	; 00000580H
+  00a78	72 27		 jb	 SHORT $L10500
+  00a7a	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00a7d	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  00a80	83 e2 0f	 and	 edx, 15			; 0000000fH
+  00a83	83 fa 08	 cmp	 edx, 8
+  00a86	72 19		 jb	 SHORT $L10500
+  00a88	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00a8b	81 78 08 10 06
+	00 00		 cmp	 DWORD PTR [eax+8], 1552	; 00000610H
+  00a92	73 0d		 jae	 SHORT $L10500
+
+; 478  : 				CpuFeatures->dwCpuFlags |= CPU_FEATURE_K6_MTRR;
+
+  00a94	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00a97	8b 11		 mov	 edx, DWORD PTR [ecx]
+  00a99	80 ce 10	 or	 dh, 16			; 00000010H
+  00a9c	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00a9f	89 10		 mov	 DWORD PTR [eax], edx
+$L10500:
+
+; 481  : 	else // Check for Cyrix
+
+  00aa1	e9 aa 02 00 00	 jmp	 $L10537
+$L10476:
+
+; 482  : 	if(0 == fxstrncmp ((char *) &CpuFeatures->cpVendorIdString, cpVendorId_Cyrix, 12)) 
+
+  00aa6	6a 0c		 push	 12			; 0000000cH
+  00aa8	68 00 00 00 00	 push	 OFFSET FLAT:_cpVendorId_Cyrix
+  00aad	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00ab0	83 c1 24	 add	 ecx, 36			; 00000024H
+  00ab3	51		 push	 ecx
+  00ab4	e8 00 00 00 00	 call	 _fxstrncmp
+  00ab9	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00abc	85 c0		 test	 eax, eax
+  00abe	0f 85 94 01 00
+	00		 jne	 $L10503
+
+; 484  : 		CpuFeatures->dwCpuFlags |= CPU_VENDOR_CYRIX;
+
+  00ac4	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00ac7	8b 02		 mov	 eax, DWORD PTR [edx]
+  00ac9	0c 04		 or	 al, 4
+  00acb	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00ace	89 01		 mov	 DWORD PTR [ecx], eax
+
+; 485  : 
+; 486  : 		if( (CpuFeatures->dwProcessorSignature & CPU_SIG_ALL_MASK) < 0x440 )	// 486's
+
+  00ad0	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00ad3	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  00ad6	25 ff 3f 00 00	 and	 eax, 16383		; 00003fffH
+  00adb	3d 40 04 00 00	 cmp	 eax, 1088		; 00000440H
+  00ae0	73 0f		 jae	 SHORT $L10504
+
+; 488  : 			CpuFeatures->dwCpuType = CPU_TYPE_CYRIX_486;					// Cyrix 486
+
+  00ae2	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00ae5	c7 41 04 01 03
+	00 00		 mov	 DWORD PTR [ecx+4], 769	; 00000301H
+
+; 490  : 		else if( (CpuFeatures->dwProcessorSignature & CPU_SIG_ALL_MASK) < 0x500 )
+
+  00aec	e9 62 01 00 00	 jmp	 $L10509
+$L10504:
+  00af1	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00af4	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  00af7	25 ff 3f 00 00	 and	 eax, 16383		; 00003fffH
+  00afc	3d 00 05 00 00	 cmp	 eax, 1280		; 00000500H
+  00b01	73 0f		 jae	 SHORT $L10506
+
+; 492  : 			CpuFeatures->dwCpuType = CPU_TYPE_CYRIX_GX;						// Cyrix MediaGX
+
+  00b03	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00b06	c7 41 04 03 03
+	00 00		 mov	 DWORD PTR [ecx+4], 771	; 00000303H
+
+; 494  : 		else
+
+  00b0d	e9 41 01 00 00	 jmp	 $L10509
+$L10506:
+
+; 496  : 			switch (CpuFeatures->dwProcessorSignature & CPU_SIG_ALL_MASK) 
+; 497  : 			{
+
+  00b12	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00b15	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  00b18	25 ff 3f 00 00	 and	 eax, 16383		; 00003fffH
+  00b1d	89 45 bc	 mov	 DWORD PTR -68+[ebp], eax
+  00b20	81 7d bc 00 06
+	00 00		 cmp	 DWORD PTR -68+[ebp], 1536 ; 00000600H
+  00b27	77 2d		 ja	 SHORT $L10592
+  00b29	81 7d bc 00 06
+	00 00		 cmp	 DWORD PTR -68+[ebp], 1536 ; 00000600H
+  00b30	0f 84 97 00 00
+	00		 je	 $L10515
+  00b36	81 7d bc 00 05
+	00 00		 cmp	 DWORD PTR -68+[ebp], 1280 ; 00000500H
+  00b3d	74 45		 je	 SHORT $L10513
+  00b3f	81 7d bc 20 05
+	00 00		 cmp	 DWORD PTR -68+[ebp], 1312 ; 00000520H
+  00b46	74 4b		 je	 SHORT $L10514
+  00b48	81 7d bc 40 05
+	00 00		 cmp	 DWORD PTR -68+[ebp], 1344 ; 00000540H
+  00b4f	74 24		 je	 SHORT $L10512
+  00b51	e9 f3 00 00 00	 jmp	 $L10519
+$L10592:
+  00b56	81 7d bc 20 06
+	00 00		 cmp	 DWORD PTR -68+[ebp], 1568 ; 00000620H
+  00b5d	0f 84 b4 00 00
+	00		 je	 $L10517
+  00b63	81 7d bc 50 06
+	00 00		 cmp	 DWORD PTR -68+[ebp], 1616 ; 00000650H
+  00b6a	0f 84 c0 00 00
+	00		 je	 $L10518
+  00b70	e9 d4 00 00 00	 jmp	 $L10519
+$L10512:
+
+; 498  : 				case CPU_SIG_GXM:
+; 499  : 					CpuFeatures->dwCpuType		= CPU_TYPE_CYRIX_GXM;		// Cyrix MediaGXm (added MMX)
+
+  00b75	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00b78	c7 41 04 04 03
+	00 00		 mov	 DWORD PTR [ecx+4], 772	; 00000304H
+
+; 500  : 					break;
+
+  00b7f	e9 cf 00 00 00	 jmp	 $L10509
+$L10513:
+
+; 501  : 				case CPU_SIG_M9:
+; 502  : 					CpuFeatures->dwCpuType		= CPU_TYPE_CYRIX_5X86;		// Cyrix 5x86 (M9 core)
+
+  00b84	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00b87	c7 42 04 02 03
+	00 00		 mov	 DWORD PTR [edx+4], 770	; 00000302H
+
+; 503  : 					break;
+
+  00b8e	e9 c0 00 00 00	 jmp	 $L10509
+$L10514:
+
+; 504  : 				case CPU_SIG_M1:
+; 505  : 					CpuFeatures->dwCpuType		= CPU_TYPE_CYRIX_M1;		// Cyrix 6x86/L	(M1 core)
+
+  00b93	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00b96	c7 40 04 05 03
+	00 00		 mov	 DWORD PTR [eax+4], 773	; 00000305H
+
+; 506  : 					CpuFeatures->dwSizeL1ICache	= 1<<14;
+
+  00b9d	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00ba0	c7 41 1c 00 40
+	00 00		 mov	 DWORD PTR [ecx+28], 16384 ; 00004000H
+
+; 507  : 					CpuFeatures->dwSizeL1DCache	= 1<<14;
+
+  00ba7	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00baa	c7 42 18 00 40
+	00 00		 mov	 DWORD PTR [edx+24], 16384 ; 00004000H
+
+; 508  : 					CpuFeatures->dwSizeL2Cache	= 0;
+
+  00bb1	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00bb4	c7 40 20 00 00
+	00 00		 mov	 DWORD PTR [eax+32], 0
+
+; 509  : 					CpuFeatures->dwCpuFlags |= CPU_FEATURE_CYRIX_RCR;
+
+  00bbb	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00bbe	8b 11		 mov	 edx, DWORD PTR [ecx]
+  00bc0	80 ce 20	 or	 dh, 32			; 00000020H
+  00bc3	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00bc6	89 10		 mov	 DWORD PTR [eax], edx
+
+; 510  : 					break;
+
+  00bc8	e9 86 00 00 00	 jmp	 $L10509
+$L10515:
+
+; 511  : 				case CPU_SIG_M2:
+; 512  : 					CpuFeatures->dwCpuType		= CPU_TYPE_CYRIX_M2;		// Cyrix 6x86MX / MII
+
+  00bcd	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00bd0	c7 41 04 06 03
+	00 00		 mov	 DWORD PTR [ecx+4], 774	; 00000306H
+
+; 513  : 					CpuFeatures->dwSizeL1ICache	= 1<<16;
+
+  00bd7	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00bda	c7 42 1c 00 00
+	01 00		 mov	 DWORD PTR [edx+28], 65536 ; 00010000H
+
+; 514  : 					CpuFeatures->dwSizeL1DCache	= 1<<16;
+
+  00be1	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00be4	c7 40 18 00 00
+	01 00		 mov	 DWORD PTR [eax+24], 65536 ; 00010000H
+
+; 515  : 					CpuFeatures->dwSizeL2Cache	= 0;
+
+  00beb	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00bee	c7 41 20 00 00
+	00 00		 mov	 DWORD PTR [ecx+32], 0
+
+; 516  : 					CpuFeatures->dwCpuFlags |= CPU_FEATURE_CYRIX_RCR;
+
+  00bf5	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00bf8	8b 02		 mov	 eax, DWORD PTR [edx]
+  00bfa	80 cc 20	 or	 ah, 32			; 00000020H
+  00bfd	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00c00	89 01		 mov	 DWORD PTR [ecx], eax
+
+; 517  : 					// M2 rev 1 bug: MOVD r32,mmx is intermittant so just disable MMX
+; 518  : 					if (CpuFeatures->dwProcessorSignature & CPU_SIG_REVISION_MASK == 1)
+
+  00c02	33 d2		 xor	 edx, edx
+  00c04	85 d2		 test	 edx, edx
+  00c06	74 0d		 je	 SHORT $L10516
+
+; 519  : 						CpuFeatures->dwCpuFlags &= ~CPU_FEATURE_MMX;
+
+  00c08	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00c0b	8b 08		 mov	 ecx, DWORD PTR [eax]
+  00c0d	80 e5 7f	 and	 ch, 127			; 0000007fH
+  00c10	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00c13	89 0a		 mov	 DWORD PTR [edx], ecx
+$L10516:
+
+; 520  : 					break;
+
+  00c15	eb 3c		 jmp	 SHORT $L10509
+$L10517:
+
+; 521  : 				case CPU_SIG_MX:
+; 522  : 					CpuFeatures->dwCpuType		= CPU_TYPE_CYRIX_MX;		// Cyrix MX (integrated 3D, never released)
+
+  00c17	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00c1a	c7 40 04 07 03
+	00 00		 mov	 DWORD PTR [eax+4], 775	; 00000307H
+
+; 523  : 					CpuFeatures->dwCpuFlags |= CPU_FEATURE_CYRIX_RCR;
+
+  00c21	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00c24	8b 11		 mov	 edx, DWORD PTR [ecx]
+  00c26	80 ce 20	 or	 dh, 32			; 00000020H
+  00c29	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00c2c	89 10		 mov	 DWORD PTR [eax], edx
+
+; 524  : 					break;
+
+  00c2e	eb 23		 jmp	 SHORT $L10509
+$L10518:
+
+; 525  : 				case CPU_SIG_M3:
+; 526  : 					CpuFeatures->dwCpuType		= CPU_TYPE_CYRIX_M3;		// Cyrix III
+
+  00c30	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00c33	c7 41 04 08 03
+	00 00		 mov	 DWORD PTR [ecx+4], 776	; 00000308H
+
+; 527  : 					CpuFeatures->dwCpuFlags |= CPU_FEATURE_CYRIX_RCR;
+
+  00c3a	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00c3d	8b 02		 mov	 eax, DWORD PTR [edx]
+  00c3f	80 cc 20	 or	 ah, 32			; 00000020H
+  00c42	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00c45	89 01		 mov	 DWORD PTR [ecx], eax
+
+; 528  : 					break;
+
+  00c47	eb 0a		 jmp	 SHORT $L10509
+$L10519:
+
+; 529  : 				default:
+; 530  : 					CpuFeatures->dwCpuType		= CPU_TYPE_CYRIX_UNKNOWN;	// Cyrix Unknown
+
+  00c49	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00c4c	c7 42 04 00 03
+	00 00		 mov	 DWORD PTR [edx+4], 768	; 00000300H
+$L10509:
+
+; 535  : 	else // Check for Centaur (IDT)
+
+  00c53	e9 f8 00 00 00	 jmp	 $L10537
+$L10503:
+
+; 536  : 	if(0 == fxstrncmp ((char *) &CpuFeatures->cpVendorIdString, cpVendorId_Centaur, 12)) 
+
+  00c58	6a 0c		 push	 12			; 0000000cH
+  00c5a	68 00 00 00 00	 push	 OFFSET FLAT:_cpVendorId_Centaur
+  00c5f	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00c62	83 c0 24	 add	 eax, 36			; 00000024H
+  00c65	50		 push	 eax
+  00c66	e8 00 00 00 00	 call	 _fxstrncmp
+  00c6b	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00c6e	85 c0		 test	 eax, eax
+  00c70	75 7b		 jne	 SHORT $L10522
+
+; 538  : 		CpuFeatures->dwCpuFlags |= CPU_VENDOR_CENTAUR;
+
+  00c72	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00c75	8b 11		 mov	 edx, DWORD PTR [ecx]
+  00c77	83 ca 08	 or	 edx, 8
+  00c7a	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00c7d	89 10		 mov	 DWORD PTR [eax], edx
+
+; 539  : 
+; 540  : 		switch (CpuFeatures->dwProcessorSignature & CPU_SIG_ALL_MASK) 
+; 541  : 		{
+
+  00c7f	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00c82	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  00c85	81 e2 ff 3f 00
+	00		 and	 edx, 16383		; 00003fffH
+  00c8b	89 55 b8	 mov	 DWORD PTR -72+[ebp], edx
+  00c8e	8b 45 b8	 mov	 eax, DWORD PTR -72+[ebp]
+  00c91	2d 40 05 00 00	 sub	 eax, 1344		; 00000540H
+  00c96	89 45 b8	 mov	 DWORD PTR -72+[ebp], eax
+  00c99	83 7d b8 50	 cmp	 DWORD PTR -72+[ebp], 80	; 00000050H
+  00c9d	77 42		 ja	 SHORT $L10531
+  00c9f	8b 55 b8	 mov	 edx, DWORD PTR -72+[ebp]
+  00ca2	33 c9		 xor	 ecx, ecx
+  00ca4	8a 8a 00 00 00
+	00		 mov	 cl, BYTE PTR $L10603[edx]
+  00caa	ff 24 8d 00 00
+	00 00		 jmp	 DWORD PTR $L10604[ecx*4]
+$L10527:
+
+; 542  : 			case CPU_SIG_C6:
+; 543  : 				CpuFeatures->dwCpuType		= CPU_TYPE_CENTAUR_C6;			// Centaur C6 (Winchip)
+
+  00cb1	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00cb4	c7 40 04 01 04
+	00 00		 mov	 DWORD PTR [eax+4], 1025	; 00000401H
+
+; 544  : 				break;
+
+  00cbb	eb 2e		 jmp	 SHORT $L10524
+$L10528:
+
+; 545  : 			case CPU_SIG_C62:
+; 546  : 				CpuFeatures->dwCpuType		= CPU_TYPE_CENTAUR_C6_2;		// Centaur C6-2 (Winchip2)
+
+  00cbd	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00cc0	c7 41 04 02 04
+	00 00		 mov	 DWORD PTR [ecx+4], 1026	; 00000402H
+
+; 547  : 				break;
+
+  00cc7	eb 22		 jmp	 SHORT $L10524
+$L10529:
+
+; 548  : 			case CPU_SIG_C2:
+; 549  : 				CpuFeatures->dwCpuType		= CPU_TYPE_CENTAUR_C2;			// Centaur C2
+
+  00cc9	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00ccc	c7 42 04 03 04
+	00 00		 mov	 DWORD PTR [edx+4], 1027	; 00000403H
+
+; 550  : 				break;
+
+  00cd3	eb 16		 jmp	 SHORT $L10524
+$L10530:
+
+; 551  : 			case CPU_SIG_C3:
+; 552  : 				CpuFeatures->dwCpuType		= CPU_TYPE_CENTAUR_C3;			// Centaur C3
+
+  00cd5	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00cd8	c7 40 04 04 04
+	00 00		 mov	 DWORD PTR [eax+4], 1028	; 00000404H
+
+; 553  : 				break;
+
+  00cdf	eb 0a		 jmp	 SHORT $L10524
+$L10531:
+
+; 554  : 			default:
+; 555  : 				CpuFeatures->dwCpuType		= CPU_TYPE_CENTAUR_UNKNOWN;		// Centaur Unknown
+
+  00ce1	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00ce4	c7 41 04 00 04
+	00 00		 mov	 DWORD PTR [ecx+4], 1024	; 00000400H
+$L10524:
+
+; 559  : 	else // Check for Rise
+
+  00ceb	eb 63		 jmp	 SHORT $L10537
+$L10522:
+
+; 560  : 	if(0 == fxstrncmp ((char *) &CpuFeatures->cpVendorIdString, cpVendorId_Rise, 12)) 
+
+  00ced	6a 0c		 push	 12			; 0000000cH
+  00cef	68 00 00 00 00	 push	 OFFSET FLAT:_cpVendorId_Rise
+  00cf4	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00cf7	83 c2 24	 add	 edx, 36			; 00000024H
+  00cfa	52		 push	 edx
+  00cfb	e8 00 00 00 00	 call	 _fxstrncmp
+  00d00	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00d03	85 c0		 test	 eax, eax
+  00d05	75 19		 jne	 SHORT $L10534
+
+; 562  : 		// I don't know anything about these guys
+; 563  : 		CpuFeatures->dwCpuFlags |= CPU_VENDOR_RISE;
+
+  00d07	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00d0a	8b 08		 mov	 ecx, DWORD PTR [eax]
+  00d0c	83 c9 10	 or	 ecx, 16			; 00000010H
+  00d0f	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00d12	89 0a		 mov	 DWORD PTR [edx], ecx
+
+; 564  : 		CpuFeatures->dwCpuType = CPU_TYPE_RISE_UNKNOWN;		// Rise Unknown
+
+  00d14	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00d17	c7 40 04 00 05
+	00 00		 mov	 DWORD PTR [eax+4], 1280	; 00000500H
+
+; 566  : 	else // Check for Transmetta
+
+  00d1e	eb 30		 jmp	 SHORT $L10537
+$L10534:
+
+; 567  : 	if(0 == fxstrncmp ((char *) &CpuFeatures->cpVendorIdString, cpVendorId_Transmetta, 12))
+
+  00d20	6a 0c		 push	 12			; 0000000cH
+  00d22	68 00 00 00 00	 push	 OFFSET FLAT:_cpVendorId_Transmetta
+  00d27	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00d2a	83 c1 24	 add	 ecx, 36			; 00000024H
+  00d2d	51		 push	 ecx
+  00d2e	e8 00 00 00 00	 call	 _fxstrncmp
+  00d33	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00d36	85 c0		 test	 eax, eax
+  00d38	75 16		 jne	 SHORT $L10537
+
+; 569  : 		// I don't know anything about these guys either
+; 570  : 		CpuFeatures->dwCpuFlags |= CPU_VENDOR_TRANSMETTA;
+
+  00d3a	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00d3d	8b 02		 mov	 eax, DWORD PTR [edx]
+  00d3f	0c 20		 or	 al, 32			; 00000020H
+  00d41	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00d44	89 01		 mov	 DWORD PTR [ecx], eax
+
+; 571  : 		CpuFeatures->dwCpuType = CPU_TYPE_TRANSMETTA_UNKNOWN;	// Transmetta Unknown
+
+  00d46	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00d49	c7 42 04 00 06
+	00 00		 mov	 DWORD PTR [edx+4], 1536	; 00000600H
+$L10537:
+
+; 573  : 	// end of processor specific 
+; 574  : 
+; 575  : 
+; 576  : 	/* This bit is for backwards compatibility with our old cpuid code */
+; 577  : 	if ((CpuFeatures->dwCpuFlags & CPU_INTELP6) && (CpuFeatures->dwCpuFlags & CPU_FEATURE_P6_MTRR) && (CpuFeatures->dwCpuFlags & CPU_FEATURE_SSE))
+
+  00d50	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00d53	8b 08		 mov	 ecx, DWORD PTR [eax]
+  00d55	81 e1 00 00 00
+	01		 and	 ecx, 16777216		; 01000000H
+  00d5b	85 c9		 test	 ecx, ecx
+  00d5d	74 2d		 je	 SHORT $L10538
+  00d5f	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00d62	8b 02		 mov	 eax, DWORD PTR [edx]
+  00d64	25 00 08 00 00	 and	 eax, 2048		; 00000800H
+  00d69	85 c0		 test	 eax, eax
+  00d6b	74 1f		 je	 SHORT $L10538
+  00d6d	8b 4d 08	 mov	 ecx, DWORD PTR _CpuFeatures$[ebp]
+  00d70	8b 11		 mov	 edx, DWORD PTR [ecx]
+  00d72	81 e2 00 00 08
+	00		 and	 edx, 524288		; 00080000H
+  00d78	85 d2		 test	 edx, edx
+  00d7a	74 10		 je	 SHORT $L10538
+
+; 578  : 		CpuFeatures->dwCpuFlags |= P6_INTELCPU_WITH_KNI;
+
+  00d7c	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00d7f	8b 08		 mov	 ecx, DWORD PTR [eax]
+  00d81	81 c9 00 00 00
+	80		 or	 ecx, -2147483648	; 80000000H
+  00d87	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00d8a	89 0a		 mov	 DWORD PTR [edx], ecx
+$L10538:
+
+; 579  : //    Here's the old code:
+; 580  : //    if (isP6 == (P6_INTELCPU_WITH_MTRRS | P6_INTELCPU_WITH_KNI))
+; 581  : //	   pHwInfo->cpuType |= P6_INTELCPU_WITH_KNI;
+; 582  : 
+; 583  : 
+; 584  : /*******************************************************************************************
+; 585  : *	Check if any debug registers are being used.  May be used to enable a different 
+; 586  : *	codepath to deture some of the lesser amature hackers using Softice.  This isn't
+; 587  : *	a very good check, if this check was done in self-generated code it would be better.
+; 588  : *	That's still not foolproof but it will slow some of them down.
+; 589  : *	I threw a bunch of BS instructions in here to try to confuse the amatures.
+; 590  : *******************************************************************************************/
+; 591  : 	_asm {
+; 592  : 		mov		ecx, dr3
+
+  00d8c	0f 21 d9	 mov	 ecx, dr3
+
+; 593  : 		bswap	ecx					// BS
+
+  00d8f	0f c9		 bswap	 ecx
+
+; 594  : 		mov		eax, dr1
+
+  00d91	0f 21 c8	 mov	 eax, dr1
+
+; 595  : 		rol		eax, cl				// BS
+
+  00d94	d3 c0		 rol	 eax, cl
+
+; 596  : 		mov		edx, ecx
+
+  00d96	8b d1		 mov	 edx, ecx
+
+; 597  : 		mov		ecx, dr0
+
+  00d98	0f 21 c1	 mov	 ecx, dr0
+
+; 598  : 		rol		ecx, 12				// BS
+
+  00d9b	c1 c1 0c	 rol	 ecx, 12			; 0000000cH
+
+; 599  : 		or		edx, eax			// edx=dr1|dr3
+
+  00d9e	0b d0		 or	 edx, eax
+
+; 600  : 		mov		eax, dr2
+
+  00da0	0f 21 d0	 mov	 eax, dr2
+
+; 601  : 		xor		ebx, ebx			// BS
+
+  00da3	33 db		 xor	 ebx, ebx
+
+; 602  : 		or		ecx, edx			// ecx=dr0|dr1|dr3
+
+  00da5	0b ca		 or	 ecx, edx
+
+; 603  : 		mov		edx, eax			// eax=edx=dr2
+
+  00da7	8b d0		 mov	 edx, eax
+
+; 604  : 		bswap	edx
+
+  00da9	0f ca		 bswap	 edx
+
+; 605  : 		or		ax, dx				// ax=dr2
+
+  00dab	66 0b c2	 or	 ax, dx
+
+; 606  : 		mov		ebx, dr6
+
+  00dae	0f 21 f3	 mov	 ebx, dr6
+
+; 607  : 		setnz	dl					// dl.0 = dr2
+
+  00db1	0f 95 c2	 setne	 dl
+
+; 608  : 		shl		edx, 25				// edx.25 = dr2
+
+  00db4	c1 e2 19	 shl	 edx, 25			; 00000019H
+
+; 609  : 		mov		eax, dr7
+
+  00db7	0f 21 f8	 mov	 eax, dr7
+
+; 610  : 		and		eax, 0xffff23ff		// mask unused bits
+
+  00dba	25 ff 23 ff ff	 and	 eax, -56321		; ffff23ffH
+
+; 611  : 		and		bx, 0xe00f			// mask unused bits 0-15
+
+  00dbf	66 81 e3 0f e0	 and	 bx, -8177		; ffffe00fH
+
+; 612  : 		or		edx, ecx			// edx=dr0|dr1|dr2/dr3
+
+  00dc4	0b d1		 or	 edx, ecx
+
+; 613  : 		shr		ecx, 27				// BS
+
+  00dc6	c1 e9 1b	 shr	 ecx, 27			; 0000001bH
+
+; 614  : 		shl		ebx, 16				// masks the rest of the dr6 (upper half)
+
+  00dc9	c1 e3 10	 shl	 ebx, 16			; 00000010H
+
+; 615  : 		cmp		eax, 0xfff37fe3		// BS
+
+  00dcc	3d e3 7f f3 ff	 cmp	 eax, -819229		; fff37fe3H
+
+; 616  : 		setge	cl					// BS
+
+  00dd1	0f 9d c1	 setge	 cl
+
+; 617  : 		cmp		eax, ebx			// dr6|dr7
+
+  00dd4	3b c3		 cmp	 eax, ebx
+
+; 618  : 		setnz	al					// al= dr6 != dr7 (a bit MUST be set)
+
+  00dd6	0f 95 c0	 setne	 al
+
+; 619  : 		shl		cl, 3				// BS
+
+  00dd9	c0 e1 03	 shl	 cl, 3
+
+; 620  : 		dec		ebx					// dr6-1
+
+  00ddc	4b		 dec	 ebx
+
+; 621  : 		shl		eax, 28				// ax.28 = dr6 != dr7 (a bit MUST be set)
+
+  00ddd	c1 e0 1c	 shl	 eax, 28			; 0000001cH
+
+; 622  : 		or		eax, edx			// eax=dr0|dr1|dr2/dr3| dr6 OR dr7 not zero
+
+  00de0	0b c2		 or	 eax, edx
+
+; 623  : 		rcr		edx, cl				// BS
+
+  00de2	d3 da		 rcr	 edx, cl
+
+; 624  : 		or		bh, bl
+
+  00de4	0a fb		 or	 bh, bl
+
+; 625  : 		dec		ebx					// dr6-2
+
+  00de6	4b		 dec	 ebx
+
+; 626  : 		sets	cl					// BS but cl = 0 or 1
+
+  00de7	0f 98 c1	 sets	 cl
+
+; 627  : 		add		ebx, 2
+
+  00dea	83 c3 02	 add	 ebx, 2
+
+; 628  : 		bswap	ebx
+
+  00ded	0f cb		 bswap	 ebx
+
+; 629  : 		sub		edx, edx			// BS (edx=0)
+
+  00def	2b d2		 sub	 edx, edx
+
+; 630  : 		or		bh, bl
+
+  00df1	0a fb		 or	 bh, bl
+
+; 631  : 		shl		ebx, 16				// ebx.0-15 = 0,  ebx.15-31 = dr6
+
+  00df3	c1 e3 10	 shl	 ebx, 16			; 00000010H
+
+; 632  : 		xchg	eax, edx			// edx=dr0|dr1|dr2/dr3| dr6 OR dr7 not zero
+
+  00df6	92		 xchg	 eax, edx
+
+; 633  : 		shr		ebx, cl				// shift right 0 or 1
+
+  00df7	d3 eb		 shr	 ebx, cl
+
+; 634  : 		or		edx, ebx			// edx=all dr's OR'd together
+
+  00df9	0b d3		 or	 edx, ebx
+
+; 635  : 		setnc	bl					// BS
+
+  00dfb	0f 93 c3	 setae	 bl
+
+; 636  : 		mov		cx, dx
+
+  00dfe	66 8b ca	 mov	 cx, dx
+
+; 637  : 		bswap	edx
+
+  00e01	0f ca		 bswap	 edx
+
+; 638  : 		or		ch, dl
+
+  00e03	0a ea		 or	 ch, dl
+
+; 639  : 		rcr		edx, 8
+
+  00e05	c1 da 08	 rcr	 edx, 8
+
+; 640  : 		or		cl, dl				// cx=all dr's OR'd together
+
+  00e08	0a ca		 or	 cl, dl
+
+; 641  : 		test	dh, 4				// BS
+
+  00e0a	f6 c6 04	 test	 dh, 4
+
+; 642  : 		adc		ax, bx				// BS
+
+  00e0d	66 13 c3	 adc	 ax, bx
+
+; 643  : 		xor		edx, edx			// edx=0
+
+  00e10	33 d2		 xor	 edx, edx
+
+; 644  : 		mov		ebx, CPU_DEBUG_RUNNING
+
+  00e12	bb 00 00 00 02	 mov	 ebx, 33554432		; 02000000H
+
+; 645  : 		or		ch, cl				// cl=all dr's OR'd together
+
+  00e17	0a e9		 or	 ch, cl
+
+; 646  : 		setnz	al					// BS
+
+  00e19	0f 95 c0	 setne	 al
+
+; 647  : 		setz	dl					// debug ? 0 : 1
+
+  00e1c	0f 94 c2	 sete	 dl
+
+; 648  : 		shl		eax, 31				// BS
+
+  00e1f	c1 e0 1f	 shl	 eax, 31			; 0000001fH
+
+; 649  : 		dec		edx					// debug ? -1 : 0
+
+  00e22	4a		 dec	 edx
+
+; 650  : 		and		ebx, edx			// debug ? CPU_DEBUG_RUNNING : 0
+
+  00e23	23 da		 and	 ebx, edx
+
+; 651  : 		xor		cx, dx				// BS
+
+  00e25	66 33 ca	 xor	 cx, dx
+
+; 652  : 		mov		i, ebx				// write the flag to i
+
+  00e28	89 5d d4	 mov	 DWORD PTR _i$[ebp], ebx
+
+; 653  : 		mov		cl, ch				// BS
+
+  00e2b	8a cd		 mov	 cl, ch
+
+; 654  : 		cmp		ch, 0				// BS
+
+  00e2d	80 fd 00	 cmp	 ch, 0
+
+; 655  : 		jz		BS_JumpTarget		// BS
+
+  00e30	74 09		 je	 SHORT $BS_JumpTarget$10539
+
+; 656  : 		cmp		maxlevels, 7		// BS
+
+  00e32	83 7d fc 07	 cmp	 DWORD PTR _maxlevels$[ebp], 7
+
+; 657  : 		jl		BS_JumpTarget		// BS
+
+  00e36	7c 03		 jl	 SHORT $BS_JumpTarget$10539
+
+; 658  : 		dec		maxlevels			// BS
+
+  00e38	ff 4d fc	 dec	 DWORD PTR _maxlevels$[ebp]
+$BS_JumpTarget$10539:
+
+; 659  : 	BS_JumpTarget:
+; 660  : 	}
+; 661  : 	CpuFeatures->dwCpuFlags |= i;
+
+  00e3b	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00e3e	8b 08		 mov	 ecx, DWORD PTR [eax]
+  00e40	0b 4d d4	 or	 ecx, DWORD PTR _i$[ebp]
+  00e43	8b 55 08	 mov	 edx, DWORD PTR _CpuFeatures$[ebp]
+  00e46	89 0a		 mov	 DWORD PTR [edx], ecx
+
+; 662  : 
+; 663  : 	return CpuFeatures->dwCpuFlags;
+
+  00e48	8b 45 08	 mov	 eax, DWORD PTR _CpuFeatures$[ebp]
+  00e4b	8b 00		 mov	 eax, DWORD PTR [eax]
+
+; 664  : }	// GetCpuFeatures()
+
+  00e4d	5f		 pop	 edi
+  00e4e	5e		 pop	 esi
+  00e4f	5b		 pop	 ebx
+  00e50	8b e5		 mov	 esp, ebp
+  00e52	5d		 pop	 ebp
+  00e53	c3		 ret	 0
+$L10594:
+  00e54	00 00 00 00	 DD	 $L10392
+  00e58	00 00 00 00	 DD	 $L10393
+  00e5c	00 00 00 00	 DD	 $L10394
+  00e60	00 00 00 00	 DD	 $L10395
+  00e64	00 00 00 00	 DD	 $L10396
+  00e68	00 00 00 00	 DD	 $L10397
+  00e6c	00 00 00 00	 DD	 $L10398
+  00e70	00 00 00 00	 DD	 $L10399
+  00e74	00 00 00 00	 DD	 $L10400
+  00e78	00 00 00 00	 DD	 $L10401
+  00e7c	00 00 00 00	 DD	 $L10402
+  00e80	00 00 00 00	 DD	 $L10403
+  00e84	00 00 00 00	 DD	 $L10405
+  00e88	00 00 00 00	 DD	 $L10406
+  00e8c	00 00 00 00	 DD	 $L10407
+  00e90	00 00 00 00	 DD	 $L10408
+  00e94	00 00 00 00	 DD	 $L10409
+  00e98	00 00 00 00	 DD	 $L10410
+$L10593:
+  00e9c	00		 DB	 0
+  00e9d	11		 DB	 17			; 00000011H
+  00e9e	01		 DB	 1
+  00e9f	11		 DB	 17			; 00000011H
+  00ea0	02		 DB	 2
+  00ea1	11		 DB	 17			; 00000011H
+  00ea2	03		 DB	 3
+  00ea3	11		 DB	 17			; 00000011H
+  00ea4	11		 DB	 17			; 00000011H
+  00ea5	11		 DB	 17			; 00000011H
+  00ea6	11		 DB	 17			; 00000011H
+  00ea7	11		 DB	 17			; 00000011H
+  00ea8	11		 DB	 17			; 00000011H
+  00ea9	11		 DB	 17			; 00000011H
+  00eaa	11		 DB	 17			; 00000011H
+  00eab	11		 DB	 17			; 00000011H
+  00eac	11		 DB	 17			; 00000011H
+  00ead	11		 DB	 17			; 00000011H
+  00eae	11		 DB	 17			; 00000011H
+  00eaf	11		 DB	 17			; 00000011H
+  00eb0	11		 DB	 17			; 00000011H
+  00eb1	11		 DB	 17			; 00000011H
+  00eb2	11		 DB	 17			; 00000011H
+  00eb3	11		 DB	 17			; 00000011H
+  00eb4	11		 DB	 17			; 00000011H
+  00eb5	11		 DB	 17			; 00000011H
+  00eb6	11		 DB	 17			; 00000011H
+  00eb7	11		 DB	 17			; 00000011H
+  00eb8	11		 DB	 17			; 00000011H
+  00eb9	11		 DB	 17			; 00000011H
+  00eba	11		 DB	 17			; 00000011H
+  00ebb	11		 DB	 17			; 00000011H
+  00ebc	11		 DB	 17			; 00000011H
+  00ebd	11		 DB	 17			; 00000011H
+  00ebe	11		 DB	 17			; 00000011H
+  00ebf	11		 DB	 17			; 00000011H
+  00ec0	11		 DB	 17			; 00000011H
+  00ec1	11		 DB	 17			; 00000011H
+  00ec2	11		 DB	 17			; 00000011H
+  00ec3	11		 DB	 17			; 00000011H
+  00ec4	11		 DB	 17			; 00000011H
+  00ec5	11		 DB	 17			; 00000011H
+  00ec6	11		 DB	 17			; 00000011H
+  00ec7	11		 DB	 17			; 00000011H
+  00ec8	11		 DB	 17			; 00000011H
+  00ec9	11		 DB	 17			; 00000011H
+  00eca	11		 DB	 17			; 00000011H
+  00ecb	11		 DB	 17			; 00000011H
+  00ecc	11		 DB	 17			; 00000011H
+  00ecd	11		 DB	 17			; 00000011H
+  00ece	11		 DB	 17			; 00000011H
+  00ecf	11		 DB	 17			; 00000011H
+  00ed0	11		 DB	 17			; 00000011H
+  00ed1	11		 DB	 17			; 00000011H
+  00ed2	11		 DB	 17			; 00000011H
+  00ed3	11		 DB	 17			; 00000011H
+  00ed4	11		 DB	 17			; 00000011H
+  00ed5	11		 DB	 17			; 00000011H
+  00ed6	04		 DB	 4
+  00ed7	05		 DB	 5
+  00ed8	06		 DB	 6
+  00ed9	07		 DB	 7
+  00eda	08		 DB	 8
+  00edb	09		 DB	 9
+  00edc	0a		 DB	 10			; 0000000aH
+  00edd	0b		 DB	 11			; 0000000bH
+  00ede	11		 DB	 17			; 00000011H
+  00edf	11		 DB	 17			; 00000011H
+  00ee0	11		 DB	 17			; 00000011H
+  00ee1	11		 DB	 17			; 00000011H
+  00ee2	11		 DB	 17			; 00000011H
+  00ee3	11		 DB	 17			; 00000011H
+  00ee4	11		 DB	 17			; 00000011H
+  00ee5	11		 DB	 17			; 00000011H
+  00ee6	11		 DB	 17			; 00000011H
+  00ee7	11		 DB	 17			; 00000011H
+  00ee8	11		 DB	 17			; 00000011H
+  00ee9	11		 DB	 17			; 00000011H
+  00eea	11		 DB	 17			; 00000011H
+  00eeb	11		 DB	 17			; 00000011H
+  00eec	11		 DB	 17			; 00000011H
+  00eed	11		 DB	 17			; 00000011H
+  00eee	11		 DB	 17			; 00000011H
+  00eef	11		 DB	 17			; 00000011H
+  00ef0	11		 DB	 17			; 00000011H
+  00ef1	11		 DB	 17			; 00000011H
+  00ef2	11		 DB	 17			; 00000011H
+  00ef3	11		 DB	 17			; 00000011H
+  00ef4	11		 DB	 17			; 00000011H
+  00ef5	11		 DB	 17			; 00000011H
+  00ef6	11		 DB	 17			; 00000011H
+  00ef7	11		 DB	 17			; 00000011H
+  00ef8	11		 DB	 17			; 00000011H
+  00ef9	11		 DB	 17			; 00000011H
+  00efa	11		 DB	 17			; 00000011H
+  00efb	11		 DB	 17			; 00000011H
+  00efc	11		 DB	 17			; 00000011H
+  00efd	11		 DB	 17			; 00000011H
+  00efe	11		 DB	 17			; 00000011H
+  00eff	11		 DB	 17			; 00000011H
+  00f00	11		 DB	 17			; 00000011H
+  00f01	11		 DB	 17			; 00000011H
+  00f02	11		 DB	 17			; 00000011H
+  00f03	11		 DB	 17			; 00000011H
+  00f04	11		 DB	 17			; 00000011H
+  00f05	11		 DB	 17			; 00000011H
+  00f06	11		 DB	 17			; 00000011H
+  00f07	11		 DB	 17			; 00000011H
+  00f08	11		 DB	 17			; 00000011H
+  00f09	11		 DB	 17			; 00000011H
+  00f0a	11		 DB	 17			; 00000011H
+  00f0b	11		 DB	 17			; 00000011H
+  00f0c	11		 DB	 17			; 00000011H
+  00f0d	11		 DB	 17			; 00000011H
+  00f0e	11		 DB	 17			; 00000011H
+  00f0f	11		 DB	 17			; 00000011H
+  00f10	11		 DB	 17			; 00000011H
+  00f11	11		 DB	 17			; 00000011H
+  00f12	11		 DB	 17			; 00000011H
+  00f13	11		 DB	 17			; 00000011H
+  00f14	11		 DB	 17			; 00000011H
+  00f15	11		 DB	 17			; 00000011H
+  00f16	0c		 DB	 12			; 0000000cH
+  00f17	11		 DB	 17			; 00000011H
+  00f18	0d		 DB	 13			; 0000000dH
+  00f19	0e		 DB	 14			; 0000000eH
+  00f1a	0f		 DB	 15			; 0000000fH
+  00f1b	10		 DB	 16			; 00000010H
+$L10596:
+  00f1c	00 00 00 00	 DD	 $L10449
+  00f20	00 00 00 00	 DD	 $L10450
+  00f24	00 00 00 00	 DD	 $L10451
+  00f28	00 00 00 00	 DD	 $L10472
+$L10595:
+  00f2c	00		 DB	 0
+  00f2d	03		 DB	 3
+  00f2e	03		 DB	 3
+  00f2f	03		 DB	 3
+  00f30	03		 DB	 3
+  00f31	03		 DB	 3
+  00f32	03		 DB	 3
+  00f33	03		 DB	 3
+  00f34	03		 DB	 3
+  00f35	03		 DB	 3
+  00f36	03		 DB	 3
+  00f37	03		 DB	 3
+  00f38	03		 DB	 3
+  00f39	03		 DB	 3
+  00f3a	03		 DB	 3
+  00f3b	03		 DB	 3
+  00f3c	00		 DB	 0
+  00f3d	03		 DB	 3
+  00f3e	03		 DB	 3
+  00f3f	03		 DB	 3
+  00f40	03		 DB	 3
+  00f41	03		 DB	 3
+  00f42	03		 DB	 3
+  00f43	03		 DB	 3
+  00f44	03		 DB	 3
+  00f45	03		 DB	 3
+  00f46	03		 DB	 3
+  00f47	03		 DB	 3
+  00f48	03		 DB	 3
+  00f49	03		 DB	 3
+  00f4a	03		 DB	 3
+  00f4b	03		 DB	 3
+  00f4c	01		 DB	 1
+  00f4d	03		 DB	 3
+  00f4e	03		 DB	 3
+  00f4f	03		 DB	 3
+  00f50	03		 DB	 3
+  00f51	03		 DB	 3
+  00f52	03		 DB	 3
+  00f53	03		 DB	 3
+  00f54	03		 DB	 3
+  00f55	03		 DB	 3
+  00f56	03		 DB	 3
+  00f57	03		 DB	 3
+  00f58	03		 DB	 3
+  00f59	03		 DB	 3
+  00f5a	03		 DB	 3
+  00f5b	03		 DB	 3
+  00f5c	03		 DB	 3
+  00f5d	03		 DB	 3
+  00f5e	03		 DB	 3
+  00f5f	03		 DB	 3
+  00f60	03		 DB	 3
+  00f61	03		 DB	 3
+  00f62	03		 DB	 3
+  00f63	03		 DB	 3
+  00f64	03		 DB	 3
+  00f65	03		 DB	 3
+  00f66	03		 DB	 3
+  00f67	03		 DB	 3
+  00f68	03		 DB	 3
+  00f69	03		 DB	 3
+  00f6a	03		 DB	 3
+  00f6b	03		 DB	 3
+  00f6c	02		 DB	 2
+  00f6d	03		 DB	 3
+  00f6e	03		 DB	 3
+  00f6f	03		 DB	 3
+  00f70	03		 DB	 3
+  00f71	03		 DB	 3
+  00f72	03		 DB	 3
+  00f73	03		 DB	 3
+  00f74	03		 DB	 3
+  00f75	03		 DB	 3
+  00f76	03		 DB	 3
+  00f77	03		 DB	 3
+  00f78	03		 DB	 3
+  00f79	03		 DB	 3
+  00f7a	03		 DB	 3
+  00f7b	03		 DB	 3
+  00f7c	03		 DB	 3
+  00f7d	03		 DB	 3
+  00f7e	03		 DB	 3
+  00f7f	03		 DB	 3
+  00f80	03		 DB	 3
+  00f81	03		 DB	 3
+  00f82	03		 DB	 3
+  00f83	03		 DB	 3
+  00f84	03		 DB	 3
+  00f85	03		 DB	 3
+  00f86	03		 DB	 3
+  00f87	03		 DB	 3
+  00f88	03		 DB	 3
+  00f89	03		 DB	 3
+  00f8a	03		 DB	 3
+  00f8b	03		 DB	 3
+  00f8c	03		 DB	 3
+  00f8d	03		 DB	 3
+  00f8e	03		 DB	 3
+  00f8f	03		 DB	 3
+  00f90	03		 DB	 3
+  00f91	03		 DB	 3
+  00f92	03		 DB	 3
+  00f93	03		 DB	 3
+  00f94	03		 DB	 3
+  00f95	03		 DB	 3
+  00f96	03		 DB	 3
+  00f97	03		 DB	 3
+  00f98	03		 DB	 3
+  00f99	03		 DB	 3
+  00f9a	03		 DB	 3
+  00f9b	03		 DB	 3
+  00f9c	02		 DB	 2
+$L10598:
+  00f9d	00 00 00 00	 DD	 $L10452
+  00fa1	00 00 00 00	 DD	 $L10453
+  00fa5	00 00 00 00	 DD	 $L10465
+  00fa9	00 00 00 00	 DD	 $L10472
+$L10597:
+  00fad	00		 DB	 0
+  00fae	03		 DB	 3
+  00faf	03		 DB	 3
+  00fb0	03		 DB	 3
+  00fb1	03		 DB	 3
+  00fb2	03		 DB	 3
+  00fb3	03		 DB	 3
+  00fb4	03		 DB	 3
+  00fb5	03		 DB	 3
+  00fb6	03		 DB	 3
+  00fb7	03		 DB	 3
+  00fb8	03		 DB	 3
+  00fb9	03		 DB	 3
+  00fba	03		 DB	 3
+  00fbb	03		 DB	 3
+  00fbc	03		 DB	 3
+  00fbd	03		 DB	 3
+  00fbe	03		 DB	 3
+  00fbf	03		 DB	 3
+  00fc0	03		 DB	 3
+  00fc1	03		 DB	 3
+  00fc2	03		 DB	 3
+  00fc3	03		 DB	 3
+  00fc4	03		 DB	 3
+  00fc5	03		 DB	 3
+  00fc6	03		 DB	 3
+  00fc7	03		 DB	 3
+  00fc8	03		 DB	 3
+  00fc9	03		 DB	 3
+  00fca	03		 DB	 3
+  00fcb	03		 DB	 3
+  00fcc	03		 DB	 3
+  00fcd	01		 DB	 1
+  00fce	03		 DB	 3
+  00fcf	03		 DB	 3
+  00fd0	03		 DB	 3
+  00fd1	03		 DB	 3
+  00fd2	03		 DB	 3
+  00fd3	03		 DB	 3
+  00fd4	03		 DB	 3
+  00fd5	03		 DB	 3
+  00fd6	03		 DB	 3
+  00fd7	03		 DB	 3
+  00fd8	03		 DB	 3
+  00fd9	03		 DB	 3
+  00fda	03		 DB	 3
+  00fdb	03		 DB	 3
+  00fdc	03		 DB	 3
+  00fdd	03		 DB	 3
+  00fde	03		 DB	 3
+  00fdf	03		 DB	 3
+  00fe0	03		 DB	 3
+  00fe1	03		 DB	 3
+  00fe2	03		 DB	 3
+  00fe3	03		 DB	 3
+  00fe4	03		 DB	 3
+  00fe5	03		 DB	 3
+  00fe6	03		 DB	 3
+  00fe7	03		 DB	 3
+  00fe8	03		 DB	 3
+  00fe9	03		 DB	 3
+  00fea	03		 DB	 3
+  00feb	03		 DB	 3
+  00fec	03		 DB	 3
+  00fed	01		 DB	 1
+  00fee	03		 DB	 3
+  00fef	03		 DB	 3
+  00ff0	03		 DB	 3
+  00ff1	03		 DB	 3
+  00ff2	03		 DB	 3
+  00ff3	03		 DB	 3
+  00ff4	03		 DB	 3
+  00ff5	03		 DB	 3
+  00ff6	03		 DB	 3
+  00ff7	03		 DB	 3
+  00ff8	03		 DB	 3
+  00ff9	03		 DB	 3
+  00ffa	03		 DB	 3
+  00ffb	03		 DB	 3
+  00ffc	03		 DB	 3
+  00ffd	01		 DB	 1
+  00ffe	03		 DB	 3
+  00fff	03		 DB	 3
+  01000	03		 DB	 3
+  01001	03		 DB	 3
+  01002	03		 DB	 3
+  01003	03		 DB	 3
+  01004	03		 DB	 3
+  01005	03		 DB	 3
+  01006	03		 DB	 3
+  01007	03		 DB	 3
+  01008	03		 DB	 3
+  01009	03		 DB	 3
+  0100a	03		 DB	 3
+  0100b	03		 DB	 3
+  0100c	03		 DB	 3
+  0100d	02		 DB	 2
+$L10600:
+  0100e	00 00 00 00	 DD	 $L10485
+  01012	00 00 00 00	 DD	 $L10486
+  01016	00 00 00 00	 DD	 $L10493
+$L10599:
+  0101a	00		 DB	 0
+  0101b	02		 DB	 2
+  0101c	02		 DB	 2
+  0101d	02		 DB	 2
+  0101e	02		 DB	 2
+  0101f	02		 DB	 2
+  01020	02		 DB	 2
+  01021	02		 DB	 2
+  01022	02		 DB	 2
+  01023	02		 DB	 2
+  01024	02		 DB	 2
+  01025	02		 DB	 2
+  01026	02		 DB	 2
+  01027	02		 DB	 2
+  01028	02		 DB	 2
+  01029	02		 DB	 2
+  0102a	00		 DB	 0
+  0102b	02		 DB	 2
+  0102c	02		 DB	 2
+  0102d	02		 DB	 2
+  0102e	02		 DB	 2
+  0102f	02		 DB	 2
+  01030	02		 DB	 2
+  01031	02		 DB	 2
+  01032	02		 DB	 2
+  01033	02		 DB	 2
+  01034	02		 DB	 2
+  01035	02		 DB	 2
+  01036	02		 DB	 2
+  01037	02		 DB	 2
+  01038	02		 DB	 2
+  01039	02		 DB	 2
+  0103a	00		 DB	 0
+  0103b	02		 DB	 2
+  0103c	02		 DB	 2
+  0103d	02		 DB	 2
+  0103e	02		 DB	 2
+  0103f	02		 DB	 2
+  01040	02		 DB	 2
+  01041	02		 DB	 2
+  01042	02		 DB	 2
+  01043	02		 DB	 2
+  01044	02		 DB	 2
+  01045	02		 DB	 2
+  01046	02		 DB	 2
+  01047	02		 DB	 2
+  01048	02		 DB	 2
+  01049	02		 DB	 2
+  0104a	00		 DB	 0
+  0104b	02		 DB	 2
+  0104c	02		 DB	 2
+  0104d	02		 DB	 2
+  0104e	02		 DB	 2
+  0104f	02		 DB	 2
+  01050	02		 DB	 2
+  01051	02		 DB	 2
+  01052	02		 DB	 2
+  01053	02		 DB	 2
+  01054	02		 DB	 2
+  01055	02		 DB	 2
+  01056	02		 DB	 2
+  01057	02		 DB	 2
+  01058	02		 DB	 2
+  01059	02		 DB	 2
+  0105a	02		 DB	 2
+  0105b	02		 DB	 2
+  0105c	02		 DB	 2
+  0105d	02		 DB	 2
+  0105e	02		 DB	 2
+  0105f	02		 DB	 2
+  01060	02		 DB	 2
+  01061	02		 DB	 2
+  01062	02		 DB	 2
+  01063	02		 DB	 2
+  01064	02		 DB	 2
+  01065	02		 DB	 2
+  01066	02		 DB	 2
+  01067	02		 DB	 2
+  01068	02		 DB	 2
+  01069	02		 DB	 2
+  0106a	02		 DB	 2
+  0106b	02		 DB	 2
+  0106c	02		 DB	 2
+  0106d	02		 DB	 2
+  0106e	02		 DB	 2
+  0106f	02		 DB	 2
+  01070	02		 DB	 2
+  01071	02		 DB	 2
+  01072	02		 DB	 2
+  01073	02		 DB	 2
+  01074	02		 DB	 2
+  01075	02		 DB	 2
+  01076	02		 DB	 2
+  01077	02		 DB	 2
+  01078	02		 DB	 2
+  01079	02		 DB	 2
+  0107a	01		 DB	 1
+  0107b	02		 DB	 2
+  0107c	02		 DB	 2
+  0107d	02		 DB	 2
+  0107e	02		 DB	 2
+  0107f	02		 DB	 2
+  01080	02		 DB	 2
+  01081	02		 DB	 2
+  01082	02		 DB	 2
+  01083	02		 DB	 2
+  01084	02		 DB	 2
+  01085	02		 DB	 2
+  01086	02		 DB	 2
+  01087	02		 DB	 2
+  01088	02		 DB	 2
+  01089	02		 DB	 2
+  0108a	01		 DB	 1
+$L10602:
+  0108b	00 00 00 00	 DD	 $L10488
+  0108f	00 00 00 00	 DD	 $L10489
+  01093	00 00 00 00	 DD	 $L10490
+  01097	00 00 00 00	 DD	 $L10492
+  0109b	00 00 00 00	 DD	 $L10493
+$L10601:
+  0109f	00		 DB	 0
+  010a0	04		 DB	 4
+  010a1	04		 DB	 4
+  010a2	04		 DB	 4
+  010a3	04		 DB	 4
+  010a4	04		 DB	 4
+  010a5	04		 DB	 4
+  010a6	04		 DB	 4
+  010a7	04		 DB	 4
+  010a8	04		 DB	 4
+  010a9	04		 DB	 4
+  010aa	04		 DB	 4
+  010ab	04		 DB	 4
+  010ac	04		 DB	 4
+  010ad	04		 DB	 4
+  010ae	04		 DB	 4
+  010af	04		 DB	 4
+  010b0	04		 DB	 4
+  010b1	04		 DB	 4
+  010b2	04		 DB	 4
+  010b3	04		 DB	 4
+  010b4	04		 DB	 4
+  010b5	04		 DB	 4
+  010b6	04		 DB	 4
+  010b7	04		 DB	 4
+  010b8	04		 DB	 4
+  010b9	04		 DB	 4
+  010ba	04		 DB	 4
+  010bb	04		 DB	 4
+  010bc	04		 DB	 4
+  010bd	04		 DB	 4
+  010be	04		 DB	 4
+  010bf	04		 DB	 4
+  010c0	04		 DB	 4
+  010c1	04		 DB	 4
+  010c2	04		 DB	 4
+  010c3	04		 DB	 4
+  010c4	04		 DB	 4
+  010c5	04		 DB	 4
+  010c6	04		 DB	 4
+  010c7	04		 DB	 4
+  010c8	04		 DB	 4
+  010c9	04		 DB	 4
+  010ca	04		 DB	 4
+  010cb	04		 DB	 4
+  010cc	04		 DB	 4
+  010cd	04		 DB	 4
+  010ce	04		 DB	 4
+  010cf	04		 DB	 4
+  010d0	04		 DB	 4
+  010d1	04		 DB	 4
+  010d2	04		 DB	 4
+  010d3	04		 DB	 4
+  010d4	04		 DB	 4
+  010d5	04		 DB	 4
+  010d6	04		 DB	 4
+  010d7	04		 DB	 4
+  010d8	04		 DB	 4
+  010d9	04		 DB	 4
+  010da	04		 DB	 4
+  010db	04		 DB	 4
+  010dc	04		 DB	 4
+  010dd	04		 DB	 4
+  010de	04		 DB	 4
+  010df	04		 DB	 4
+  010e0	04		 DB	 4
+  010e1	04		 DB	 4
+  010e2	04		 DB	 4
+  010e3	04		 DB	 4
+  010e4	04		 DB	 4
+  010e5	04		 DB	 4
+  010e6	04		 DB	 4
+  010e7	04		 DB	 4
+  010e8	04		 DB	 4
+  010e9	04		 DB	 4
+  010ea	04		 DB	 4
+  010eb	04		 DB	 4
+  010ec	04		 DB	 4
+  010ed	04		 DB	 4
+  010ee	04		 DB	 4
+  010ef	04		 DB	 4
+  010f0	04		 DB	 4
+  010f1	04		 DB	 4
+  010f2	04		 DB	 4
+  010f3	04		 DB	 4
+  010f4	04		 DB	 4
+  010f5	04		 DB	 4
+  010f6	04		 DB	 4
+  010f7	04		 DB	 4
+  010f8	04		 DB	 4
+  010f9	04		 DB	 4
+  010fa	04		 DB	 4
+  010fb	04		 DB	 4
+  010fc	04		 DB	 4
+  010fd	04		 DB	 4
+  010fe	04		 DB	 4
+  010ff	04		 DB	 4
+  01100	04		 DB	 4
+  01101	04		 DB	 4
+  01102	04		 DB	 4
+  01103	04		 DB	 4
+  01104	04		 DB	 4
+  01105	04		 DB	 4
+  01106	04		 DB	 4
+  01107	04		 DB	 4
+  01108	04		 DB	 4
+  01109	04		 DB	 4
+  0110a	04		 DB	 4
+  0110b	04		 DB	 4
+  0110c	04		 DB	 4
+  0110d	04		 DB	 4
+  0110e	04		 DB	 4
+  0110f	04		 DB	 4
+  01110	04		 DB	 4
+  01111	04		 DB	 4
+  01112	04		 DB	 4
+  01113	04		 DB	 4
+  01114	04		 DB	 4
+  01115	04		 DB	 4
+  01116	04		 DB	 4
+  01117	04		 DB	 4
+  01118	04		 DB	 4
+  01119	04		 DB	 4
+  0111a	04		 DB	 4
+  0111b	04		 DB	 4
+  0111c	04		 DB	 4
+  0111d	04		 DB	 4
+  0111e	04		 DB	 4
+  0111f	01		 DB	 1
+  01120	04		 DB	 4
+  01121	04		 DB	 4
+  01122	04		 DB	 4
+  01123	04		 DB	 4
+  01124	04		 DB	 4
+  01125	04		 DB	 4
+  01126	04		 DB	 4
+  01127	04		 DB	 4
+  01128	04		 DB	 4
+  01129	04		 DB	 4
+  0112a	04		 DB	 4
+  0112b	04		 DB	 4
+  0112c	04		 DB	 4
+  0112d	04		 DB	 4
+  0112e	04		 DB	 4
+  0112f	01		 DB	 1
+  01130	04		 DB	 4
+  01131	04		 DB	 4
+  01132	04		 DB	 4
+  01133	04		 DB	 4
+  01134	04		 DB	 4
+  01135	04		 DB	 4
+  01136	04		 DB	 4
+  01137	04		 DB	 4
+  01138	04		 DB	 4
+  01139	04		 DB	 4
+  0113a	04		 DB	 4
+  0113b	04		 DB	 4
+  0113c	04		 DB	 4
+  0113d	04		 DB	 4
+  0113e	04		 DB	 4
+  0113f	02		 DB	 2
+  01140	04		 DB	 4
+  01141	04		 DB	 4
+  01142	04		 DB	 4
+  01143	04		 DB	 4
+  01144	04		 DB	 4
+  01145	04		 DB	 4
+  01146	04		 DB	 4
+  01147	04		 DB	 4
+  01148	04		 DB	 4
+  01149	04		 DB	 4
+  0114a	04		 DB	 4
+  0114b	04		 DB	 4
+  0114c	04		 DB	 4
+  0114d	04		 DB	 4
+  0114e	04		 DB	 4
+  0114f	03		 DB	 3
+$L10604:
+  01150	00 00 00 00	 DD	 $L10527
+  01154	00 00 00 00	 DD	 $L10528
+  01158	00 00 00 00	 DD	 $L10529
+  0115c	00 00 00 00	 DD	 $L10530
+  01160	00 00 00 00	 DD	 $L10531
+$L10603:
+  01164	00		 DB	 0
+  01165	04		 DB	 4
+  01166	04		 DB	 4
+  01167	04		 DB	 4
+  01168	04		 DB	 4
+  01169	04		 DB	 4
+  0116a	04		 DB	 4
+  0116b	04		 DB	 4
+  0116c	04		 DB	 4
+  0116d	04		 DB	 4
+  0116e	04		 DB	 4
+  0116f	04		 DB	 4
+  01170	04		 DB	 4
+  01171	04		 DB	 4
+  01172	04		 DB	 4
+  01173	04		 DB	 4
+  01174	04		 DB	 4
+  01175	04		 DB	 4
+  01176	04		 DB	 4
+  01177	04		 DB	 4
+  01178	04		 DB	 4
+  01179	04		 DB	 4
+  0117a	04		 DB	 4
+  0117b	04		 DB	 4
+  0117c	04		 DB	 4
+  0117d	04		 DB	 4
+  0117e	04		 DB	 4
+  0117f	04		 DB	 4
+  01180	04		 DB	 4
+  01181	04		 DB	 4
+  01182	04		 DB	 4
+  01183	04		 DB	 4
+  01184	01		 DB	 1
+  01185	04		 DB	 4
+  01186	04		 DB	 4
+  01187	04		 DB	 4
+  01188	04		 DB	 4
+  01189	04		 DB	 4
+  0118a	04		 DB	 4
+  0118b	04		 DB	 4
+  0118c	04		 DB	 4
+  0118d	04		 DB	 4
+  0118e	04		 DB	 4
+  0118f	04		 DB	 4
+  01190	04		 DB	 4
+  01191	04		 DB	 4
+  01192	04		 DB	 4
+  01193	04		 DB	 4
+  01194	04		 DB	 4
+  01195	04		 DB	 4
+  01196	04		 DB	 4
+  01197	04		 DB	 4
+  01198	04		 DB	 4
+  01199	04		 DB	 4
+  0119a	04		 DB	 4
+  0119b	04		 DB	 4
+  0119c	04		 DB	 4
+  0119d	04		 DB	 4
+  0119e	04		 DB	 4
+  0119f	04		 DB	 4
+  011a0	04		 DB	 4
+  011a1	04		 DB	 4
+  011a2	04		 DB	 4
+  011a3	04		 DB	 4
+  011a4	02		 DB	 2
+  011a5	04		 DB	 4
+  011a6	04		 DB	 4
+  011a7	04		 DB	 4
+  011a8	04		 DB	 4
+  011a9	04		 DB	 4
+  011aa	04		 DB	 4
+  011ab	04		 DB	 4
+  011ac	04		 DB	 4
+  011ad	04		 DB	 4
+  011ae	04		 DB	 4
+  011af	04		 DB	 4
+  011b0	04		 DB	 4
+  011b1	04		 DB	 4
+  011b2	04		 DB	 4
+  011b3	04		 DB	 4
+  011b4	03		 DB	 3
+_GetCpuFeatures ENDP
+_supported$ = -4
+_HasCpuid PROC NEAR
+
+; 676  : {
+
+  011b5	55		 push	 ebp
+  011b6	8b ec		 mov	 ebp, esp
+  011b8	51		 push	 ecx
+  011b9	53		 push	 ebx
+  011ba	56		 push	 esi
+  011bb	57		 push	 edi
+
+; 677  : 	int supported = 0;
+
+  011bc	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _supported$[ebp], 0
+
+; 678  : 
+; 679  : 	_asm {
+; 680  : 		push	ebx				; save ebx
+
+  011c3	53		 push	 ebx
+
+; 681  : 		pushfd					; save flags
+
+  011c4	9c		 pushfd
+
+; 682  : 		pushfd
+
+  011c5	9c		 pushfd
+
+; 683  : 		pop		eax
+
+  011c6	58		 pop	 eax
+
+; 684  : 		mov		ebx,eax			; save old flags
+
+  011c7	8b d8		 mov	 ebx, eax
+
+; 685  : 		xor		eax,(1 SHL 18)	; flip alignment bit (AC)
+
+  011c9	35 00 00 04 00	 xor	 eax, 262144		; 00040000H
+
+; 686  : 		push	eax
+
+  011ce	50		 push	 eax
+
+; 687  : 		popfd
+
+  011cf	9d		 popfd
+
+; 688  : 		pushfd
+
+  011d0	9c		 pushfd
+
+; 689  : 		pop	eax
+
+  011d1	58		 pop	 eax
+
+; 690  : 		cmp		ebx,eax			; did AC bit change?
+
+  011d2	3b d8		 cmp	 ebx, eax
+
+; 691  : 		je		Done			; if AC didn't change, it's a 386 or less 
+
+  011d4	74 16		 je	 SHORT $Done$10542
+
+; 692  : 
+; 693  : 		mov		eax, ebx		; get origional flags again
+
+  011d6	8b c3		 mov	 eax, ebx
+
+; 694  : 		xor		eax,(1 SHL 21)	; flip id bit
+
+  011d8	35 00 00 20 00	 xor	 eax, 2097152		; 00200000H
+
+; 695  : 		push	eax
+
+  011dd	50		 push	 eax
+
+; 696  : 		popfd
+
+  011de	9d		 popfd
+
+; 697  : 		pushfd
+
+  011df	9c		 pushfd
+
+; 698  : 		pop	eax
+
+  011e0	58		 pop	 eax
+
+; 699  : 		cmp		ebx,eax			; did ID bit change?
+
+  011e1	3b d8		 cmp	 ebx, eax
+
+; 700  : 		je		Done			; if no change, CPUID is not supported
+
+  011e3	74 07		 je	 SHORT $Done$10542
+
+; 701  : 		mov		supported,1		; CPUID is supported
+
+  011e5	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _supported$[ebp], 1
+$Done$10542:
+
+; 702  : 
+; 703  : 	Done:
+; 704  : 		popfd					; restore origional flags
+
+  011ec	9d		 popfd
+
+; 705  : 		pop		ebx
+
+  011ed	5b		 pop	 ebx
+
+; 706  : 	}
+; 707  : 
+; 708  : 	return supported;
+
+  011ee	8b 45 fc	 mov	 eax, DWORD PTR _supported$[ebp]
+
+; 709  : }	// HasCpuid()
+
+  011f1	5f		 pop	 edi
+  011f2	5e		 pop	 esi
+  011f3	5b		 pop	 ebx
+  011f4	8b e5		 mov	 esp, ebp
+  011f6	5d		 pop	 ebp
+  011f7	c3		 ret	 0
+_HasCpuid ENDP
+_mode$ = 8
+_id_regs$ = 12
+_DoCpuid PROC NEAR
+
+; 716  : {
+
+  011f8	55		 push	 ebp
+  011f9	8b ec		 mov	 ebp, esp
+  011fb	53		 push	 ebx
+  011fc	56		 push	 esi
+  011fd	57		 push	 edi
+
+; 717  : 	_asm {
+; 718  : 		// SAVE/RESTORE all the registers because 
+; 719  : 		// some compilers forget to do this
+; 720  : 		push	eax
+
+  011fe	50		 push	 eax
+
+; 721  : 		push	ebx
+
+  011ff	53		 push	 ebx
+
+; 722  : 		push	ecx
+
+  01200	51		 push	 ecx
+
+; 723  : 		push	edx
+
+  01201	52		 push	 edx
+
+; 724  : 		push	esi
+
+  01202	56		 push	 esi
+
+; 725  : 
+; 726  : 		mov		eax, mode
+
+  01203	8b 45 08	 mov	 eax, DWORD PTR _mode$[ebp]
+
+; 727  : 		xor		ebx, ebx
+
+  01206	33 db		 xor	 ebx, ebx
+
+; 728  : 		xor		ecx, ecx
+
+  01208	33 c9		 xor	 ecx, ecx
+
+; 729  : 		xor		edx, edx
+
+  0120a	33 d2		 xor	 edx, edx
+
+; 730  : 		cpuid
+
+  0120c	0f a2		 cpuid
+
+; 731  : 
+; 732  : 		mov		esi, dword ptr [id_regs]
+
+  0120e	8b 75 0c	 mov	 esi, DWORD PTR _id_regs$[ebp]
+
+; 733  : 		mov		dword ptr [esi]CPUID_REGS.dwRegEAX, eax
+
+  01211	89 06		 mov	 DWORD PTR [esi], eax
+
+; 734  : 		mov		dword ptr [esi]CPUID_REGS.dwRegEBX, ebx
+
+  01213	89 5e 04	 mov	 DWORD PTR [esi+4], ebx
+
+; 735  : 		mov		dword ptr [esi]CPUID_REGS.dwRegECX, ecx
+
+  01216	89 4e 08	 mov	 DWORD PTR [esi+8], ecx
+
+; 736  : 		mov		dword ptr [esi]CPUID_REGS.dwRegEDX, edx
+
+  01219	89 56 0c	 mov	 DWORD PTR [esi+12], edx
+
+; 737  : 
+; 738  : 		pop		esi
+
+  0121c	5e		 pop	 esi
+
+; 739  : 		pop		edx
+
+  0121d	5a		 pop	 edx
+
+; 740  : 		pop		ecx
+
+  0121e	59		 pop	 ecx
+
+; 741  : 		pop		ebx
+
+  0121f	5b		 pop	 ebx
+
+; 742  : 		pop		eax
+
+  01220	58		 pop	 eax
+
+; 743  : 	}
+; 744  : }	// DoCpuid()
+
+  01221	5f		 pop	 edi
+  01222	5e		 pop	 esi
+  01223	5b		 pop	 ebx
+  01224	5d		 pop	 ebp
+  01225	c3		 ret	 0
+_DoCpuid ENDP
+_string1$ = 8
+_string2$ = 12
+_count$ = 16
+_s1$ = -4
+_s2$ = -8
+_i$ = -12
+_fxstrncmp PROC NEAR
+
+; 755  : {
+
+  01226	55		 push	 ebp
+  01227	8b ec		 mov	 ebp, esp
+  01229	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 756  : 	char *s1 = (char *) string1;
+
+  0122c	8b 45 08	 mov	 eax, DWORD PTR _string1$[ebp]
+  0122f	89 45 fc	 mov	 DWORD PTR _s1$[ebp], eax
+
+; 757  : 	char *s2 = (char *) string2;
+
+  01232	8b 4d 0c	 mov	 ecx, DWORD PTR _string2$[ebp]
+  01235	89 4d f8	 mov	 DWORD PTR _s2$[ebp], ecx
+
+; 758  : 	int i = count;
+
+  01238	8b 55 10	 mov	 edx, DWORD PTR _count$[ebp]
+  0123b	89 55 f4	 mov	 DWORD PTR _i$[ebp], edx
+$L10561:
+
+; 759  : 
+; 760  : 	while (i--)
+
+  0123e	8b 45 f4	 mov	 eax, DWORD PTR _i$[ebp]
+  01241	8b 4d f4	 mov	 ecx, DWORD PTR _i$[ebp]
+  01244	83 e9 01	 sub	 ecx, 1
+  01247	89 4d f4	 mov	 DWORD PTR _i$[ebp], ecx
+  0124a	85 c0		 test	 eax, eax
+  0124c	74 40		 je	 SHORT $L10562
+
+; 762  : 		if (*s1 < *s2)	
+
+  0124e	8b 55 fc	 mov	 edx, DWORD PTR _s1$[ebp]
+  01251	0f be 02	 movsx	 eax, BYTE PTR [edx]
+  01254	8b 4d f8	 mov	 ecx, DWORD PTR _s2$[ebp]
+  01257	0f be 11	 movsx	 edx, BYTE PTR [ecx]
+  0125a	3b c2		 cmp	 eax, edx
+  0125c	7d 05		 jge	 SHORT $L10563
+
+; 763  : 			return -1;
+
+  0125e	83 c8 ff	 or	 eax, -1
+  01261	eb 2d		 jmp	 SHORT $L10554
+$L10563:
+
+; 764  : 		else if (*s1 > *s2)
+
+  01263	8b 45 fc	 mov	 eax, DWORD PTR _s1$[ebp]
+  01266	0f be 08	 movsx	 ecx, BYTE PTR [eax]
+  01269	8b 55 f8	 mov	 edx, DWORD PTR _s2$[ebp]
+  0126c	0f be 02	 movsx	 eax, BYTE PTR [edx]
+  0126f	3b c8		 cmp	 ecx, eax
+  01271	7e 07		 jle	 SHORT $L10565
+
+; 765  : 			return  1;
+
+  01273	b8 01 00 00 00	 mov	 eax, 1
+  01278	eb 16		 jmp	 SHORT $L10554
+$L10565:
+
+; 766  : 		++s1; 
+
+  0127a	8b 4d fc	 mov	 ecx, DWORD PTR _s1$[ebp]
+  0127d	83 c1 01	 add	 ecx, 1
+  01280	89 4d fc	 mov	 DWORD PTR _s1$[ebp], ecx
+
+; 767  : 		++s2;
+
+  01283	8b 55 f8	 mov	 edx, DWORD PTR _s2$[ebp]
+  01286	83 c2 01	 add	 edx, 1
+  01289	89 55 f8	 mov	 DWORD PTR _s2$[ebp], edx
+
+; 768  : 	};
+
+  0128c	eb b0		 jmp	 SHORT $L10561
+$L10562:
+
+; 769  : 
+; 770  : 	return 0;
+
+  0128e	33 c0		 xor	 eax, eax
+$L10554:
+
+; 771  : }
+
+  01290	8b e5		 mov	 esp, ebp
+  01292	5d		 pop	 ebp
+  01293	c3		 ret	 0
+_fxstrncmp ENDP
+_strDest$ = 8
+_strSource$ = 12
+_count$ = 16
+_src$ = -12
+_dst$ = -4
+_i$ = -8
+_fxstrncpy PROC NEAR
+
+; 776  : {
+
+  01294	55		 push	 ebp
+  01295	8b ec		 mov	 ebp, esp
+  01297	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 777  : 	char *src = (char *) strSource;
+
+  0129a	8b 45 0c	 mov	 eax, DWORD PTR _strSource$[ebp]
+  0129d	89 45 f4	 mov	 DWORD PTR _src$[ebp], eax
+
+; 778  : 	char *dst = (char *) strDest;
+
+  012a0	8b 4d 08	 mov	 ecx, DWORD PTR _strDest$[ebp]
+  012a3	89 4d fc	 mov	 DWORD PTR _dst$[ebp], ecx
+
+; 779  : 	int i = count;
+
+  012a6	8b 55 10	 mov	 edx, DWORD PTR _count$[ebp]
+  012a9	89 55 f8	 mov	 DWORD PTR _i$[ebp], edx
+$L10579:
+
+; 780  : 
+; 781  : 	while (i-- && *src && *dst)
+
+  012ac	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  012af	8b 4d f8	 mov	 ecx, DWORD PTR _i$[ebp]
+  012b2	83 e9 01	 sub	 ecx, 1
+  012b5	89 4d f8	 mov	 DWORD PTR _i$[ebp], ecx
+  012b8	85 c0		 test	 eax, eax
+  012ba	74 32		 je	 SHORT $L10580
+  012bc	8b 55 f4	 mov	 edx, DWORD PTR _src$[ebp]
+  012bf	0f be 02	 movsx	 eax, BYTE PTR [edx]
+  012c2	85 c0		 test	 eax, eax
+  012c4	74 28		 je	 SHORT $L10580
+  012c6	8b 4d fc	 mov	 ecx, DWORD PTR _dst$[ebp]
+  012c9	0f be 11	 movsx	 edx, BYTE PTR [ecx]
+  012cc	85 d2		 test	 edx, edx
+  012ce	74 1e		 je	 SHORT $L10580
+
+; 783  : 		*src++ = *dst++;
+
+  012d0	8b 45 f4	 mov	 eax, DWORD PTR _src$[ebp]
+  012d3	8b 4d fc	 mov	 ecx, DWORD PTR _dst$[ebp]
+  012d6	8a 11		 mov	 dl, BYTE PTR [ecx]
+  012d8	88 10		 mov	 BYTE PTR [eax], dl
+  012da	8b 45 f4	 mov	 eax, DWORD PTR _src$[ebp]
+  012dd	83 c0 01	 add	 eax, 1
+  012e0	89 45 f4	 mov	 DWORD PTR _src$[ebp], eax
+  012e3	8b 4d fc	 mov	 ecx, DWORD PTR _dst$[ebp]
+  012e6	83 c1 01	 add	 ecx, 1
+  012e9	89 4d fc	 mov	 DWORD PTR _dst$[ebp], ecx
+
+; 784  : 	};
+
+  012ec	eb be		 jmp	 SHORT $L10579
+$L10580:
+
+; 785  : 	*dst = 0;
+
+  012ee	8b 55 fc	 mov	 edx, DWORD PTR _dst$[ebp]
+  012f1	c6 02 00	 mov	 BYTE PTR [edx], 0
+
+; 786  : 
+; 787  : 	return strDest;
+
+  012f4	8b 45 08	 mov	 eax, DWORD PTR _strDest$[ebp]
+
+; 788  : }
+
+  012f7	8b e5		 mov	 esp, ebp
+  012f9	5d		 pop	 ebp
+  012fa	c3		 ret	 0
+_fxstrncpy ENDP
+_LTEXT	ENDS
+END

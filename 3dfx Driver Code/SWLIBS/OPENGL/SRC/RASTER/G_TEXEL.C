@@ -1,0 +1,44052 @@
+#if defined(__GL_PC_RAST) && !defined(__GL_CODEGEN)
+/*
+** Copyright 1996, 1997, Silicon Graphics, Inc.
+** All Rights Reserved.
+**
+** This is UNPUBLISHED PROPRIETARY SOURCE CODE of Silicon Graphics, Inc.;
+** the contents of this file may not be disclosed to third parties, copied or
+** duplicated in any form, in whole or in part, without the prior written
+** permission of Silicon Graphics, Inc.
+**
+** RESTRICTED RIGHTS LEGEND:
+** Use, duplication or disclosure by the Government is subject to restrictions
+** as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+** and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+** successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished -
+** rights reserved under the Copyright Laws of the United States.
+**
+*/
+#include "context.h"
+#include "render.h"
+#include "global.h"
+#include "fr_modes.h"
+#include "fr_tri.h"
+
+#define ComputeTextureOffset(i_s, i_t) \
+    ((((i_s)>>(STRQ_FRAC_BITS))&(FR_TEX_WIDTH-1)) | \
+    (((i_t)>>((STRQ_FRAC_BITS)-FR_TEX_LOG_WIDTH)) & \
+	((FR_TEX_HEIGHT-1)<<(FR_TEX_LOG_WIDTH))))
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_20(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_21(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_22(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_23(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_24(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_25(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_26(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_27(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_28(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_29(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_2A(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_2B(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_2C(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_2D(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_2E(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_2F(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_30(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_31(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_32(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_33(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_34(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_35(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_36(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_37(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_38(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_39(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_3A(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_3B(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_3C(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_3D(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_3E(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_3F(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_80(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_81(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_82(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_83(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_84(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_85(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_86(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_87(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_88(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_89(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_8A(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_8B(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_8C(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_8D(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_8E(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_8F(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_90(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_91(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_92(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_93(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_94(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_95(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_96(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_97(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_98(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_99(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_9A(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_9B(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_9C(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_9D(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_9E(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 0
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_9F(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    *texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		*texelBuf++ = tbase[ComputeTextureOffset(s, t)];
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_A0(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_A1(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_A2(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_A3(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_A4(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_A5(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_A6(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_A7(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_A8(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_A9(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_AA(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_AB(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_AC(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_AD(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_AE(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_AF(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_B0(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_B1(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_B2(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_B3(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_B4(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_B5(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_B6(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_B7(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_B8(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_B9(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_BA(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_BB(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_BC(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_BD(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_BE(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 1
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_BF(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_120(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_121(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_122(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_123(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_124(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_125(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_126(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_127(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_128(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_129(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_12A(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_12B(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_12C(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_12D(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_12E(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_12F(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_130(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_131(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_132(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_133(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_134(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_135(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_136(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_137(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_138(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_139(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_13A(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_13B(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_13C(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_13D(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_13E(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_13F(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1A0(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1A1(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1A2(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1A3(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1A4(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1A5(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1A6(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1A7(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1A8(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1A9(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1AA(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1AB(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1AC(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1AD(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1AE(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1AF(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1B0(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1B1(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1B2(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1B3(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1B4(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1B5(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1B6(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1B7(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1B8(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1B9(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1BA(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1BB(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1BC(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1BD(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1BE(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 1
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_1BF(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1) + offset;
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1) + offset;
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_220(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_221(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_222(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_223(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_224(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_225(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_226(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_227(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_228(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_229(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_22A(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_22B(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_22C(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_22D(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_22E(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_22F(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_230(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_231(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_232(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_233(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_234(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_235(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_236(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_237(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_238(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_239(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_23A(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_23B(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_23C(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_23D(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_23E(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_23F(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_260(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_261(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_262(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_263(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_264(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_265(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_266(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_267(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_268(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_269(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_26A(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_26B(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_26C(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_26D(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_26E(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_26F(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_270(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_271(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_272(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_273(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_274(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_275(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_276(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_277(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_278(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_279(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_27A(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_27B(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_27C(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_27D(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_27E(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_27F(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2A0(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2A1(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2A2(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2A3(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2A4(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2A5(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2A6(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2A7(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2A8(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2A9(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2AA(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2AB(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2AC(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2AD(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2AE(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2AF(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2B0(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2B1(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2B2(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2B3(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2B4(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2B5(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2B6(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2B7(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2B8(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2B9(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2BA(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2BB(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2BC(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2BD(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2BE(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2BF(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2E0(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2E1(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2E2(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2E3(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2E4(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2E5(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2E6(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2E7(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2E8(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2E9(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2EA(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2EB(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2EC(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2ED(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2EE(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2EF(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2F0(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2F1(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2F2(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2F3(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2F4(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2F5(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2F6(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2F7(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2F8(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2F9(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2FA(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2FB(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2FC(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2FD(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2FE(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 1
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 0
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_2FF(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<1);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[0];
+	    texelBuf[2] = tp[0];
+
+	    texelBuf[3] = tp[1];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<1);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[0];
+		texelBuf[2] = tp[0];
+
+		texelBuf[3] = tp[1];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_320(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_321(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_322(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_323(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_324(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_325(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_326(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_327(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_328(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_329(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_32A(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_32B(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_32C(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_32D(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_32E(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_32F(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_330(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_331(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_332(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_333(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_334(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_335(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_336(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_337(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_338(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_339(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_33A(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_33B(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_33C(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_33D(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_33E(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_33F(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_360(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_361(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_362(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_363(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_364(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_365(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_366(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_367(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_368(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_369(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_36A(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_36B(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_36C(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_36D(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_36E(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_36F(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_370(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_371(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_372(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_373(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_374(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_375(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_376(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_377(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_378(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_379(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_37A(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_37B(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_37C(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_37D(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_37E(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 0
+*/
+
+void __fastcall __glFRExtractTexels_37F(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    tbase = ((GLubyte*)tr->tp);
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ComputeTextureOffset(s, t);
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ComputeTextureOffset(s, t);
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3A0(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3A1(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3A2(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3A3(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3A4(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3A5(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3A6(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3A7(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3A8(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3A9(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3AA(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3AB(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3AC(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3AD(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3AE(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3AF(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3B0(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3B1(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3B2(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3B3(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3B4(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3B5(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3B6(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3B7(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3B8(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3B9(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3BA(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3BB(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3BC(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3BD(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3BE(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 0
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3BF(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf += 3;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf += 3;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3E0(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3E1(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3E2(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3E3(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3E4(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3E5(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3E6(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3E7(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3E8(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3E9(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3EA(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3EB(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3EC(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3ED(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3EE(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 0
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3EF(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    s = tr->s;
+    t = tr->t;
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3F0(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3F1(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3F2(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3F3(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3F4(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3F5(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3F6(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT (tr->texHeight)
+#define FR_TEX_LOG_HEIGHT (tr->texHeightLog2)
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3F7(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+
+/*
+#define FR_TEX_WIDTH 8
+#define FR_TEX_LOG_WIDTH 3
+#define FR_TEX_HEIGHT 8
+#define FR_TEX_LOG_HEIGHT 3
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3F8(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+
+/*
+#define FR_TEX_WIDTH 16
+#define FR_TEX_LOG_WIDTH 4
+#define FR_TEX_HEIGHT 16
+#define FR_TEX_LOG_HEIGHT 4
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3F9(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+
+/*
+#define FR_TEX_WIDTH 32
+#define FR_TEX_LOG_WIDTH 5
+#define FR_TEX_HEIGHT 32
+#define FR_TEX_LOG_HEIGHT 5
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3FA(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+
+/*
+#define FR_TEX_WIDTH 64
+#define FR_TEX_LOG_WIDTH 6
+#define FR_TEX_HEIGHT 64
+#define FR_TEX_LOG_HEIGHT 6
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3FB(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+
+/*
+#define FR_TEX_WIDTH 128
+#define FR_TEX_LOG_WIDTH 7
+#define FR_TEX_HEIGHT 128
+#define FR_TEX_LOG_HEIGHT 7
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3FC(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+
+/*
+#define FR_TEX_WIDTH 256
+#define FR_TEX_LOG_WIDTH 8
+#define FR_TEX_HEIGHT 256
+#define FR_TEX_LOG_HEIGHT 8
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3FD(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+
+/*
+#define FR_TEX_WIDTH 512
+#define FR_TEX_LOG_WIDTH 9
+#define FR_TEX_HEIGHT 512
+#define FR_TEX_LOG_HEIGHT 9
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3FE(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+
+/*
+#define FR_TEX_WIDTH 1024
+#define FR_TEX_LOG_WIDTH 10
+#define FR_TEX_HEIGHT 1024
+#define FR_TEX_LOG_HEIGHT 10
+#define FR_TEX_PERSPECTIVE 1
+#define FR_TEX_RGBMODE 1
+#define FR_TEX_NEED_ALPHA 1
+#define FR_TEX_LUMINANCE 0
+#define FR_TEX_LUMINANCE_ALPHA 0
+#define FR_TEX_RGB 0
+#define FR_TEX_RGBA 1
+#define FR_TEX_TABLE 1
+*/
+
+void __fastcall __glFRExtractTexels_3FF(GLbitfield mask, __GLtri *tr) 
+{
+    GLubyte *texelBuf = (GLubyte *) tr->texelBuf;
+    GLubyte *tbase;
+    unsigned int s, t;
+
+    GLuint offset;
+    GLubyte *tp;
+
+    float qw = tr->fqw;
+    float sw = tr->fsw;
+    float tw = tr->ftw;
+    float invqw	= 1.0F / qw;
+    float prev_s = sw * invqw;
+    float prev_t = tw * invqw;
+    float next_s, next_t, ds, dt;
+    double dtmp;
+    GLbitfield mask2;
+
+    __GLcontext *gc = tr->gc;
+    /* Move this to fr_data in GC at pick time? */
+    tbase = gc->texture.currentTexture->CT.table;
+
+    mask2 = mask & 0x0000ffff; /* Save bottom half for second sub-span */
+    mask  = mask & 0xffff0000; /* Clear bottom half for first sub-span */
+
+    while (1) {
+
+	qw += tr->fdqwdxPWL;
+#ifdef PWL_OVERLAP
+	/* begin the next FDIV so that it overlaps */
+	__asm fld  qw
+	__asm fld1
+	__asm fdivrp st(1), st
+#else
+	invqw = 1.0F / qw;
+#endif /* PWL_OVERLAP */
+	sw += tr->fdswdxPWL;
+	tw += tr->fdtwdxPWL;
+
+#ifdef PWL_OVERLAP
+	/* fetch invqw from FPU */
+	__asm fstp invqw
+#endif /* PWL_OVERLAP */
+
+	/* compute next texture parameters */
+	next_s = sw * invqw;
+	next_t = tw * invqw;
+
+	ds = (next_s - prev_s) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+	dt = (next_t - prev_t) * (1.0F / __FR_TEXEL_PWL_SPAN_WIDTH);
+
+	tr->dsdx = FloatToFixed(ds, STRQ_FRAC_BITS);
+	tr->dtdx = FloatToFixed(dt, STRQ_FRAC_BITS);
+
+	s = FloatToFixed(prev_s, STRQ_FRAC_BITS);
+	t = FloatToFixed(prev_t, STRQ_FRAC_BITS);
+
+	while (((int)mask) < 0) {
+
+	    offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+	    tp = tbase + (offset<<2);
+	    texelBuf[0] = tp[0];
+	    texelBuf[1] = tp[1];
+	    texelBuf[2] = tp[2];
+
+	    texelBuf[3] = tp[3];
+
+	    texelBuf += 4;
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+	}
+
+	while (mask) {
+
+	    s += tr->dsdx;
+	    t += tr->dtdx;
+	    mask <<= 1;
+
+	    if (((int)mask) < 0) {
+
+		offset = ((GLubyte*)tr->tp)[ComputeTextureOffset(s, t)];
+
+		tp = tbase + (offset<<2);
+		texelBuf[0] = tp[0];
+		texelBuf[1] = tp[1];
+		texelBuf[2] = tp[2];
+
+		texelBuf[3] = tp[3];
+
+		texelBuf += 4;
+
+	    }
+	}
+
+	if (mask2 == 0) break;
+
+	mask = mask2 << 16;
+	mask2 = 0;
+
+	prev_s = next_s;
+	prev_t = next_t;
+    }
+
+}
+
+#undef FR_TEX_WIDTH
+#undef FR_TEX_LOG_WIDTH
+#undef FR_TEX_HEIGHT
+#undef FR_TEX_LOG_HEIGHT
+/*
+ *
+ */
+void (__fastcall *__fr_texel_table[1024])(GLbitfield mask, __GLtri *tr) =
+{
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    __glFRExtractTexels_20,
+    __glFRExtractTexels_21,
+    __glFRExtractTexels_22,
+    __glFRExtractTexels_23,
+    __glFRExtractTexels_24,
+    __glFRExtractTexels_25,
+    __glFRExtractTexels_26,
+    __glFRExtractTexels_27,
+    __glFRExtractTexels_28,
+    __glFRExtractTexels_29,
+    __glFRExtractTexels_2A,
+    __glFRExtractTexels_2B,
+    __glFRExtractTexels_2C,
+    __glFRExtractTexels_2D,
+    __glFRExtractTexels_2E,
+    __glFRExtractTexels_2F,
+    __glFRExtractTexels_30,
+    __glFRExtractTexels_31,
+    __glFRExtractTexels_32,
+    __glFRExtractTexels_33,
+    __glFRExtractTexels_34,
+    __glFRExtractTexels_35,
+    __glFRExtractTexels_36,
+    __glFRExtractTexels_37,
+    __glFRExtractTexels_38,
+    __glFRExtractTexels_39,
+    __glFRExtractTexels_3A,
+    __glFRExtractTexels_3B,
+    __glFRExtractTexels_3C,
+    __glFRExtractTexels_3D,
+    __glFRExtractTexels_3E,
+    __glFRExtractTexels_3F,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    __glFRExtractTexels_80,
+    __glFRExtractTexels_81,
+    __glFRExtractTexels_82,
+    __glFRExtractTexels_83,
+    __glFRExtractTexels_84,
+    __glFRExtractTexels_85,
+    __glFRExtractTexels_86,
+    __glFRExtractTexels_87,
+    __glFRExtractTexels_88,
+    __glFRExtractTexels_89,
+    __glFRExtractTexels_8A,
+    __glFRExtractTexels_8B,
+    __glFRExtractTexels_8C,
+    __glFRExtractTexels_8D,
+    __glFRExtractTexels_8E,
+    __glFRExtractTexels_8F,
+    __glFRExtractTexels_90,
+    __glFRExtractTexels_91,
+    __glFRExtractTexels_92,
+    __glFRExtractTexels_93,
+    __glFRExtractTexels_94,
+    __glFRExtractTexels_95,
+    __glFRExtractTexels_96,
+    __glFRExtractTexels_97,
+    __glFRExtractTexels_98,
+    __glFRExtractTexels_99,
+    __glFRExtractTexels_9A,
+    __glFRExtractTexels_9B,
+    __glFRExtractTexels_9C,
+    __glFRExtractTexels_9D,
+    __glFRExtractTexels_9E,
+    __glFRExtractTexels_9F,
+    __glFRExtractTexels_A0,
+    __glFRExtractTexels_A1,
+    __glFRExtractTexels_A2,
+    __glFRExtractTexels_A3,
+    __glFRExtractTexels_A4,
+    __glFRExtractTexels_A5,
+    __glFRExtractTexels_A6,
+    __glFRExtractTexels_A7,
+    __glFRExtractTexels_A8,
+    __glFRExtractTexels_A9,
+    __glFRExtractTexels_AA,
+    __glFRExtractTexels_AB,
+    __glFRExtractTexels_AC,
+    __glFRExtractTexels_AD,
+    __glFRExtractTexels_AE,
+    __glFRExtractTexels_AF,
+    __glFRExtractTexels_B0,
+    __glFRExtractTexels_B1,
+    __glFRExtractTexels_B2,
+    __glFRExtractTexels_B3,
+    __glFRExtractTexels_B4,
+    __glFRExtractTexels_B5,
+    __glFRExtractTexels_B6,
+    __glFRExtractTexels_B7,
+    __glFRExtractTexels_B8,
+    __glFRExtractTexels_B9,
+    __glFRExtractTexels_BA,
+    __glFRExtractTexels_BB,
+    __glFRExtractTexels_BC,
+    __glFRExtractTexels_BD,
+    __glFRExtractTexels_BE,
+    __glFRExtractTexels_BF,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    __glFRExtractTexels_120,
+    __glFRExtractTexels_121,
+    __glFRExtractTexels_122,
+    __glFRExtractTexels_123,
+    __glFRExtractTexels_124,
+    __glFRExtractTexels_125,
+    __glFRExtractTexels_126,
+    __glFRExtractTexels_127,
+    __glFRExtractTexels_128,
+    __glFRExtractTexels_129,
+    __glFRExtractTexels_12A,
+    __glFRExtractTexels_12B,
+    __glFRExtractTexels_12C,
+    __glFRExtractTexels_12D,
+    __glFRExtractTexels_12E,
+    __glFRExtractTexels_12F,
+    __glFRExtractTexels_130,
+    __glFRExtractTexels_131,
+    __glFRExtractTexels_132,
+    __glFRExtractTexels_133,
+    __glFRExtractTexels_134,
+    __glFRExtractTexels_135,
+    __glFRExtractTexels_136,
+    __glFRExtractTexels_137,
+    __glFRExtractTexels_138,
+    __glFRExtractTexels_139,
+    __glFRExtractTexels_13A,
+    __glFRExtractTexels_13B,
+    __glFRExtractTexels_13C,
+    __glFRExtractTexels_13D,
+    __glFRExtractTexels_13E,
+    __glFRExtractTexels_13F,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    __glFRExtractTexels_1A0,
+    __glFRExtractTexels_1A1,
+    __glFRExtractTexels_1A2,
+    __glFRExtractTexels_1A3,
+    __glFRExtractTexels_1A4,
+    __glFRExtractTexels_1A5,
+    __glFRExtractTexels_1A6,
+    __glFRExtractTexels_1A7,
+    __glFRExtractTexels_1A8,
+    __glFRExtractTexels_1A9,
+    __glFRExtractTexels_1AA,
+    __glFRExtractTexels_1AB,
+    __glFRExtractTexels_1AC,
+    __glFRExtractTexels_1AD,
+    __glFRExtractTexels_1AE,
+    __glFRExtractTexels_1AF,
+    __glFRExtractTexels_1B0,
+    __glFRExtractTexels_1B1,
+    __glFRExtractTexels_1B2,
+    __glFRExtractTexels_1B3,
+    __glFRExtractTexels_1B4,
+    __glFRExtractTexels_1B5,
+    __glFRExtractTexels_1B6,
+    __glFRExtractTexels_1B7,
+    __glFRExtractTexels_1B8,
+    __glFRExtractTexels_1B9,
+    __glFRExtractTexels_1BA,
+    __glFRExtractTexels_1BB,
+    __glFRExtractTexels_1BC,
+    __glFRExtractTexels_1BD,
+    __glFRExtractTexels_1BE,
+    __glFRExtractTexels_1BF,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    __glFRExtractTexels_220,
+    __glFRExtractTexels_221,
+    __glFRExtractTexels_222,
+    __glFRExtractTexels_223,
+    __glFRExtractTexels_224,
+    __glFRExtractTexels_225,
+    __glFRExtractTexels_226,
+    __glFRExtractTexels_227,
+    __glFRExtractTexels_228,
+    __glFRExtractTexels_229,
+    __glFRExtractTexels_22A,
+    __glFRExtractTexels_22B,
+    __glFRExtractTexels_22C,
+    __glFRExtractTexels_22D,
+    __glFRExtractTexels_22E,
+    __glFRExtractTexels_22F,
+    __glFRExtractTexels_230,
+    __glFRExtractTexels_231,
+    __glFRExtractTexels_232,
+    __glFRExtractTexels_233,
+    __glFRExtractTexels_234,
+    __glFRExtractTexels_235,
+    __glFRExtractTexels_236,
+    __glFRExtractTexels_237,
+    __glFRExtractTexels_238,
+    __glFRExtractTexels_239,
+    __glFRExtractTexels_23A,
+    __glFRExtractTexels_23B,
+    __glFRExtractTexels_23C,
+    __glFRExtractTexels_23D,
+    __glFRExtractTexels_23E,
+    __glFRExtractTexels_23F,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    __glFRExtractTexels_260,
+    __glFRExtractTexels_261,
+    __glFRExtractTexels_262,
+    __glFRExtractTexels_263,
+    __glFRExtractTexels_264,
+    __glFRExtractTexels_265,
+    __glFRExtractTexels_266,
+    __glFRExtractTexels_267,
+    __glFRExtractTexels_268,
+    __glFRExtractTexels_269,
+    __glFRExtractTexels_26A,
+    __glFRExtractTexels_26B,
+    __glFRExtractTexels_26C,
+    __glFRExtractTexels_26D,
+    __glFRExtractTexels_26E,
+    __glFRExtractTexels_26F,
+    __glFRExtractTexels_270,
+    __glFRExtractTexels_271,
+    __glFRExtractTexels_272,
+    __glFRExtractTexels_273,
+    __glFRExtractTexels_274,
+    __glFRExtractTexels_275,
+    __glFRExtractTexels_276,
+    __glFRExtractTexels_277,
+    __glFRExtractTexels_278,
+    __glFRExtractTexels_279,
+    __glFRExtractTexels_27A,
+    __glFRExtractTexels_27B,
+    __glFRExtractTexels_27C,
+    __glFRExtractTexels_27D,
+    __glFRExtractTexels_27E,
+    __glFRExtractTexels_27F,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    __glFRExtractTexels_2A0,
+    __glFRExtractTexels_2A1,
+    __glFRExtractTexels_2A2,
+    __glFRExtractTexels_2A3,
+    __glFRExtractTexels_2A4,
+    __glFRExtractTexels_2A5,
+    __glFRExtractTexels_2A6,
+    __glFRExtractTexels_2A7,
+    __glFRExtractTexels_2A8,
+    __glFRExtractTexels_2A9,
+    __glFRExtractTexels_2AA,
+    __glFRExtractTexels_2AB,
+    __glFRExtractTexels_2AC,
+    __glFRExtractTexels_2AD,
+    __glFRExtractTexels_2AE,
+    __glFRExtractTexels_2AF,
+    __glFRExtractTexels_2B0,
+    __glFRExtractTexels_2B1,
+    __glFRExtractTexels_2B2,
+    __glFRExtractTexels_2B3,
+    __glFRExtractTexels_2B4,
+    __glFRExtractTexels_2B5,
+    __glFRExtractTexels_2B6,
+    __glFRExtractTexels_2B7,
+    __glFRExtractTexels_2B8,
+    __glFRExtractTexels_2B9,
+    __glFRExtractTexels_2BA,
+    __glFRExtractTexels_2BB,
+    __glFRExtractTexels_2BC,
+    __glFRExtractTexels_2BD,
+    __glFRExtractTexels_2BE,
+    __glFRExtractTexels_2BF,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    __glFRExtractTexels_2E0,
+    __glFRExtractTexels_2E1,
+    __glFRExtractTexels_2E2,
+    __glFRExtractTexels_2E3,
+    __glFRExtractTexels_2E4,
+    __glFRExtractTexels_2E5,
+    __glFRExtractTexels_2E6,
+    __glFRExtractTexels_2E7,
+    __glFRExtractTexels_2E8,
+    __glFRExtractTexels_2E9,
+    __glFRExtractTexels_2EA,
+    __glFRExtractTexels_2EB,
+    __glFRExtractTexels_2EC,
+    __glFRExtractTexels_2ED,
+    __glFRExtractTexels_2EE,
+    __glFRExtractTexels_2EF,
+    __glFRExtractTexels_2F0,
+    __glFRExtractTexels_2F1,
+    __glFRExtractTexels_2F2,
+    __glFRExtractTexels_2F3,
+    __glFRExtractTexels_2F4,
+    __glFRExtractTexels_2F5,
+    __glFRExtractTexels_2F6,
+    __glFRExtractTexels_2F7,
+    __glFRExtractTexels_2F8,
+    __glFRExtractTexels_2F9,
+    __glFRExtractTexels_2FA,
+    __glFRExtractTexels_2FB,
+    __glFRExtractTexels_2FC,
+    __glFRExtractTexels_2FD,
+    __glFRExtractTexels_2FE,
+    __glFRExtractTexels_2FF,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    __glFRExtractTexels_320,
+    __glFRExtractTexels_321,
+    __glFRExtractTexels_322,
+    __glFRExtractTexels_323,
+    __glFRExtractTexels_324,
+    __glFRExtractTexels_325,
+    __glFRExtractTexels_326,
+    __glFRExtractTexels_327,
+    __glFRExtractTexels_328,
+    __glFRExtractTexels_329,
+    __glFRExtractTexels_32A,
+    __glFRExtractTexels_32B,
+    __glFRExtractTexels_32C,
+    __glFRExtractTexels_32D,
+    __glFRExtractTexels_32E,
+    __glFRExtractTexels_32F,
+    __glFRExtractTexels_330,
+    __glFRExtractTexels_331,
+    __glFRExtractTexels_332,
+    __glFRExtractTexels_333,
+    __glFRExtractTexels_334,
+    __glFRExtractTexels_335,
+    __glFRExtractTexels_336,
+    __glFRExtractTexels_337,
+    __glFRExtractTexels_338,
+    __glFRExtractTexels_339,
+    __glFRExtractTexels_33A,
+    __glFRExtractTexels_33B,
+    __glFRExtractTexels_33C,
+    __glFRExtractTexels_33D,
+    __glFRExtractTexels_33E,
+    __glFRExtractTexels_33F,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    __glFRExtractTexels_360,
+    __glFRExtractTexels_361,
+    __glFRExtractTexels_362,
+    __glFRExtractTexels_363,
+    __glFRExtractTexels_364,
+    __glFRExtractTexels_365,
+    __glFRExtractTexels_366,
+    __glFRExtractTexels_367,
+    __glFRExtractTexels_368,
+    __glFRExtractTexels_369,
+    __glFRExtractTexels_36A,
+    __glFRExtractTexels_36B,
+    __glFRExtractTexels_36C,
+    __glFRExtractTexels_36D,
+    __glFRExtractTexels_36E,
+    __glFRExtractTexels_36F,
+    __glFRExtractTexels_370,
+    __glFRExtractTexels_371,
+    __glFRExtractTexels_372,
+    __glFRExtractTexels_373,
+    __glFRExtractTexels_374,
+    __glFRExtractTexels_375,
+    __glFRExtractTexels_376,
+    __glFRExtractTexels_377,
+    __glFRExtractTexels_378,
+    __glFRExtractTexels_379,
+    __glFRExtractTexels_37A,
+    __glFRExtractTexels_37B,
+    __glFRExtractTexels_37C,
+    __glFRExtractTexels_37D,
+    __glFRExtractTexels_37E,
+    __glFRExtractTexels_37F,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    __glFRExtractTexels_3A0,
+    __glFRExtractTexels_3A1,
+    __glFRExtractTexels_3A2,
+    __glFRExtractTexels_3A3,
+    __glFRExtractTexels_3A4,
+    __glFRExtractTexels_3A5,
+    __glFRExtractTexels_3A6,
+    __glFRExtractTexels_3A7,
+    __glFRExtractTexels_3A8,
+    __glFRExtractTexels_3A9,
+    __glFRExtractTexels_3AA,
+    __glFRExtractTexels_3AB,
+    __glFRExtractTexels_3AC,
+    __glFRExtractTexels_3AD,
+    __glFRExtractTexels_3AE,
+    __glFRExtractTexels_3AF,
+    __glFRExtractTexels_3B0,
+    __glFRExtractTexels_3B1,
+    __glFRExtractTexels_3B2,
+    __glFRExtractTexels_3B3,
+    __glFRExtractTexels_3B4,
+    __glFRExtractTexels_3B5,
+    __glFRExtractTexels_3B6,
+    __glFRExtractTexels_3B7,
+    __glFRExtractTexels_3B8,
+    __glFRExtractTexels_3B9,
+    __glFRExtractTexels_3BA,
+    __glFRExtractTexels_3BB,
+    __glFRExtractTexels_3BC,
+    __glFRExtractTexels_3BD,
+    __glFRExtractTexels_3BE,
+    __glFRExtractTexels_3BF,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    __glFRExtractTexels_3E0,
+    __glFRExtractTexels_3E1,
+    __glFRExtractTexels_3E2,
+    __glFRExtractTexels_3E3,
+    __glFRExtractTexels_3E4,
+    __glFRExtractTexels_3E5,
+    __glFRExtractTexels_3E6,
+    __glFRExtractTexels_3E7,
+    __glFRExtractTexels_3E8,
+    __glFRExtractTexels_3E9,
+    __glFRExtractTexels_3EA,
+    __glFRExtractTexels_3EB,
+    __glFRExtractTexels_3EC,
+    __glFRExtractTexels_3ED,
+    __glFRExtractTexels_3EE,
+    __glFRExtractTexels_3EF,
+    __glFRExtractTexels_3F0,
+    __glFRExtractTexels_3F1,
+    __glFRExtractTexels_3F2,
+    __glFRExtractTexels_3F3,
+    __glFRExtractTexels_3F4,
+    __glFRExtractTexels_3F5,
+    __glFRExtractTexels_3F6,
+    __glFRExtractTexels_3F7,
+    __glFRExtractTexels_3F8,
+    __glFRExtractTexels_3F9,
+    __glFRExtractTexels_3FA,
+    __glFRExtractTexels_3FB,
+    __glFRExtractTexels_3FC,
+    __glFRExtractTexels_3FD,
+    __glFRExtractTexels_3FE,
+    __glFRExtractTexels_3FF,
+};
+
+#endif /* __GL_PC_RAST && !__GL_CODEGEN */

@@ -1,0 +1,71 @@
+#
+#	MAKEFILE - NMAKE script for VGACORE.LIB
+#	Copyright (c) 1994-1998 Elpin Systems, Inc.
+#	All rights reserved.
+#
+#	Written by:	Larry Coffey
+#	Date:		4/14/98
+#	Last modified:	5/4/98
+#
+
+all: goal install
+
+##### Module Macros #####
+NAME		= vgacore
+CSRCS		= mem.cpp test.cpp writmode.cpp text.cpp readmode.cpp graph.cpp maps.cpp global.cpp capture.cpp util.cpp bmp.cpp coredata.cpp corevga.cpp
+
+##### Include Macro #####
+INCLS		=
+INCDIR		= ..
+
+##### DEBUG Macro Defined #####
+# To include debugging information for symbolic debugging set DEBUG=1
+DEBUG		= 0
+
+##### Build Option Macros #####
+!if $(DEBUG)
+DDEF		= -DDEBUG
+COPT		= -e25 -zq -d2 -mf -5r -hw -od -wx
+LOPT		= SYS dos4g op m debug all op st=8192 op maxe=25 op q
+!else
+DDEF		=
+COPT		= -w4 -e25 -zq -otexan -d1 -mf -5r
+LOPT		= SYS dos4g op m op st=8192 op maxe=25 op q op symf
+!endif
+
+##### General Macros #####
+DEF		=
+
+##### Tool Macros #####
+CC		= wcc386
+###CC		= wpp386 -bt=dos -i$(INCDIR) $(COPT) $(DDEF) $(DEF)
+LINK		= wlink $(LOPT)
+
+##### Inference Rules #####
+.c.obj:
+	SET WCC386=-s -otexan -Id:\3dfx\devel\swlibs\include;  -D__DOS32__ -w4 -e25 -7 -fp5 -zq -5s -ei -mf -bt#dos 
+	$(CC) $*.c
+
+##### Main (default) Target #####
+goal:	$(NAME).lib
+
+##### Dependents For Goal and Command Line #####
+$(NAME).lib:	$(CSRCS:.cpp=.obj)
+	!wlib $(NAME).lib -+$?
+
+##### Dependents #####
+$(CSRCS:.cpp=.obj):	$(INCLS)
+
+install:
+	copy /y $(NAME).lib ..\lib
+
+##### Clean Directory #####
+clean:
+	-if exist *.obj del *.obj
+	-if exist *.pdb del *.pdb
+	-if exist *.bak del *.bak
+	-if exist $(NAME).lib del $(NAME).lib
+#
+#	Copyright (c) 1994-1998 Elpin Systems, Inc.
+#	All rights reserved.
+#

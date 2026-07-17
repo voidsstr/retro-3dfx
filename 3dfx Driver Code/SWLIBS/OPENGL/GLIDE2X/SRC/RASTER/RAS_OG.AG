@@ -1,0 +1,8317 @@
+/*
+** Copyright 1996, 1997, Silicon Graphics, Inc.
+** All Rights Reserved.
+**
+** This is UNPUBLISHED PROPRIETARY SOURCE CODE of Silicon Graphics, Inc.;
+** the contents of this file may not be disclosed to third parties, copied or
+** duplicated in any form, in whole or in part, without the prior written
+** permission of Silicon Graphics, Inc.
+**
+** RESTRICTED RIGHTS LEGEND:
+** Use, duplication or disclosure by the Government is subject to restrictions
+** as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+** and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+** successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished -
+** rights reserved under the Copyright Laws of the United States.
+**
+*/
+#ifdef __GL_CODEGEN
+#include <stdio.h>
+#include <malloc.h>
+#include <assert.h>
+#include <string.h>
+
+#include "context.h"
+#include "render.h"
+#include "global.h"
+#include "fr_modes.h"
+#include "fr_tri.h"
+#include "fr_fbtype.h"
+
+#include "og.h"
+#include "ras_og.h"
+
+#undef trs
+
+#define MMX 1
+#define STATIC static
+
+#define DISPOF(k)	((k)->spec.mem.disp->spec.value)
+#define TRBASE		tr->spec.mem.disp->spec.value
+#define	tri(M)		__glNSWhereIs(gc->tr, offsetof(M, __GLtri), ssizeof(M, __GLtri))
+#define tr(M)		mem2(gc, value(gc, TRBASE + tri(M)), esp)
+#define tr2(M, N)	mem2(gc, value(gc, TRBASE + __glNSWhereIs(gc->tr, offsetof(M, __GLtri), ssizeof(M, __GLtri)) + N), esp)
+
+/*
+ * trs(M) and trsq(M) (the MMX equivalent) access one of the Y-step values
+ * according to ebx.  So trs(drdy) is roughly equivalent to C 'tr->drdy0[ebx]'
+ * When we're MMXing, there are eight bytes between each each because the
+ * interpolants are paired.
+ */
+#define trs(M)		\
+(__glNSWhereIs(gc->tr, offsetof(M[0], __GLtri), ssizeof(M[0], __GLtri)), \
+ __glNSWhereIs(gc->tr, offsetof(M[1], __GLtri), ssizeof(M[1], __GLtri)), \
+ mem(gc, value(gc, TRBASE + __glNSWhereIs(gc->tr, offsetof(M, __GLtri), ssizeof(M, __GLtri))), esp, ebx, 4))
+#define trsq(M)		\
+(__glNSWhereIs(gc->tr, offsetof(M[0], __GLtri), ssizeof(M[0], __GLtri)), \
+ __glNSWhereIs(gc->tr, offsetof(M[1], __GLtri), ssizeof(M[1], __GLtri)), \
+ mem(gc, value(gc, TRBASE + __glNSWhereIs(gc->tr, offsetof(M, __GLtri), ssizeof(M, __GLtri))), esp, ebx, 8))
+
+/* vxi() and vx() give position of member with the __GLvertex struct.
+ * vxi() just gives the offset, vx() gives the same as a value.
+ */
+#define vxi(M) \
+ __glNSWhereIs(&gc->vx_ns, offsetof(M, __GLvertex), ssizeof(M, __GLvertex))
+#define vx(M)  value(gc, vxi(M))
+
+/*
+ * Setting DEBUG to 1 enables various run-time tests for internal
+ * consistency that trip int3's when they fail.  It's basically like
+ * assembler assert()s.
+ *
+ * Defining __GL_CODEGEN_DESCRIBERS enables the describer scheme.
+ * This writes a log file on termination in "./areas.log" that 
+ * gives a breakdown of all rendering by quality.  See dump_areas()
+ * for details of what gets recorded.  WARNING: right now describers
+ * are NOT thread-safe: don't use them to analyse multi-threaded apps.
+ *
+ * Defining __GL_CODEGEN_PMON enables instrumentation code for
+ * use with Intel's excellent pmon utility.  It's very useful for finding
+ * stalls, cache thrashing and other performance hits.
+ *
+ * Setting SOURCE_TRAIL to 1 causes an asm source file to be generated
+ * for the setup code.  It really serves as an example of og_stream()
+ * in use.  Handy if you want to take a look at generated code
+ * in a slightly friendlier format than disassembly.
+ */
+
+#define DEBUG				0
+#define __GL_CODEGEN_DESCRIBERS		0
+#define __GL_CODEGEN_PMON		0
+#define SOURCE_TRAIL			0
+
+#if __GL_CODEGEN_PMON
+#include "pmonstat.h"
+#endif /* __GL_CODEGEN_PMON */
+
+#define ALPHA_MAX 256
+
+/************************************************************************/
+
+/* fptr (Floating-Point TRiangle) holds memory variables used 
+ * used by the floating-point rasterizer.
+ * (There is a much larger MMX equivalent, 'mmxtr').
+ */
+
+struct __GLfptri {
+    struct celem *dstdx;
+    struct celem *dstdx2;
+
+    struct celem *qis;
+    struct celem *qit;
+    struct celem *st;
+    struct celem *ist;
+    struct celem *is;
+    struct celem *it;
+    struct celem *prev_is;
+    struct celem *prev_it;
+    struct celem *converters[16];
+};
+
+STATIC void
+this_warmup(__GLcontext *gc,
+	    struct __GLfptri *fptr,
+	    float *data)
+{
+    GLuint i;
+
+    for (i = 0; i < 16; i++) {
+	fptr->converters[i] = fpk(gc, ((float)(1 << 20) * (float)(3 << (15 + (i)))));
+    }
+
+    i = 0;
+    fptr->qis = mem2(gc, value(gc, (int)&(data[i++])), NULL); /* allocate qword */
+    i++;
+    fptr->qit = mem2(gc, value(gc, (int)&(data[i++])), NULL); /* allocate qword */
+    i++;
+
+    fptr->st = mem2(gc, value(gc, (int)&(data[i++])), NULL);
+    fptr->ist = mem2(gc, value(gc, (int)&(data[i++])), NULL);
+    fptr->dstdx = mem2(gc, value(gc, (int)&(data[i++])), NULL);
+    fptr->dstdx2 = mem2(gc, value(gc, (int)&(data[i++])), NULL);
+    fptr->is = mem2(gc, value(gc, (int)&(data[i++])), NULL);
+    fptr->it = mem2(gc, value(gc, (int)&(data[i++])), NULL);
+    fptr->prev_is = mem2(gc, value(gc, (int)&(data[i++])), NULL);
+    fptr->prev_it = mem2(gc, value(gc, (int)&(data[i++])), NULL);
+}
+
+/************************************************************************/
+
+/* Simple macro to move 'src' to 'dst'
+ */
+STATIC unsigned char*
+memov(__GLcontext *gc,
+      unsigned char *cb,
+      struct celem *dst,
+      struct celem *src)
+{
+@ mov	eax,src
+@ mov	dst,eax
+
+  return cb;
+}
+
+STATIC unsigned char*
+addesp(__GLcontext *gc,
+       unsigned char* cb,
+       struct celem *count)
+{
+    int cc = count->spec.value;
+  
+    if (cc <= 16) {
+        while (8 <= cc) {
+@	    pop	eax
+@	    pop	edx
+ 	    cc -= 8;
+        }
+        if (cc)
+@	    pop	eax
+    } else {
+@	 add	esp,count
+    }
+   
+    return cb;
+}
+
+/* Handle the per-span step for an interpolator.  Used in the spanlet path
+ * only.
+ */
+STATIC unsigned char*
+ds(__GLcontext *gc,
+   unsigned char *cb,
+   struct celem *i,
+   struct celem *dids)
+{
+@   mov	    eax,i
+@   mov	    ecx,dids
+@   add	    ecx,eax
+@   mov	    i,ecx
+
+  return cb;
+}
+
+/* Handle the Y-step for an interpolator */
+STATIC unsigned char* 
+dy(__GLcontext *gc,
+   unsigned char *cb,
+   struct celem *i,
+   struct celem *didy)
+{
+
+@ mov	eax,i
+@ mov	ecx,didy
+@ add	ecx,eax
+@ mov	i,ecx
+
+  return cb;
+}
+
+/* Handle the Y-step for an interpolator, but use the specified work
+ * registers 'r1' and 'r2'.
+ */
+STATIC unsigned char*
+dyv(__GLcontext *gc,
+    unsigned char *cb,
+    struct celem *i,
+    struct celem *didy,
+    struct celem *r1,
+    struct celem *r2)
+{
+
+@ mov	r1,i
+@ mov	r2,didy
+@ add	r1,r2
+
+  return cb;
+}
+
+/* Given
+ *  	1/q	q	s	t
+ * on the stack, calculates new s and t, stores them in is and it,
+ * and fixed-point versions in qis and qit.
+ * Increments the three interpolants, and leaves the stack:
+ *  	q	q	s	t
+ */
+
+STATIC unsigned char*
+pcstep(__GLcontext *gc, 
+       unsigned char *cb, 
+       struct celem *tr,
+       int wl2,
+       int hl2,
+       struct celem* len,
+       struct __GLfptri *fptr)
+{
+@   fld	st3				;	t	1/q	q	s	t
+    
+@   fmul    st1				;	t/q	1/q	q	s	t
+@   fxch    st1				;	1/q	t/q	q	s	t
+@   fmul    st3				;	s/q	t/q	q	s	t
+@   fst     'fptr->is'			;	s/q	t/q	q	s	t
+@   fadd    'fptr->converters[wl2]'	;	qis	t/q	q	s	t
+@   fxch    st1				;	t/q	qis	q	s	t
+@   fst     'fptr->it'			;	t/q	qis	q	s	t
+@   fadd    'fptr->converters[hl2]'	;	qit	qis	q	s	t
+    
+    /* Scale all 3 steps (fd.wdx) by span length */
+@   fild    len
+@   fstp    'fptr->qit'
+    
+@   fld     'tr(fdqwdx)'
+@   fmul    'fptr->qit'
+@   fld	    'tr(fdswdx)'
+@   fmul    'fptr->qit'
+@   fld     'tr(fdtwdx)'
+@   fmul    'fptr->qit'
+@   fxch    st2
+    
+@   faddp   st5,st0
+@   faddp   st5,st0
+@   faddp   st5,st0
+    
+@   fstpq   'fptr->qit'
+@   fstpq   'fptr->qis'
+@   fld     st0
+
+    return cb;
+}
+
+/*
+ * Reads is,it and prev_is,prev_it.  Calculates dstdx, trashing qis,qit.
+ */
+
+STATIC unsigned char*
+pcstepnext(__GLcontext *gc,
+	   unsigned char *cb,
+	   struct celem *tr,
+	   int wl2,
+	   int hl2,
+	   struct __GLfptri *fptr)
+{
+    static const float reciprocals[17] = {
+	0.0f,
+	1.0f,
+	1.0f / 2.0f,
+	1.0f / 3.0f,
+	1.0f / 4.0f,
+	1.0f / 5.0f,
+	1.0f / 6.0f,
+	1.0f / 7.0f,
+	1.0f / 8.0f,
+	1.0f / 9.0f,
+	1.0f / 10.0f,
+	1.0f / 11.0f,
+	1.0f / 12.0f,
+	1.0f / 13.0f,
+	1.0f / 14.0f,
+	1.0f / 15.0f,
+	1.0f / 16.0f
+    };
+
+@   fld     'fptr->is'
+@   fsub    'fptr->prev_is'
+@   fld     'fptr->it'
+@   fsub    'fptr->prev_it'
+@   fxch    st1
+
+@   fmul    [#'(int)&reciprocals' + ebx * 4]
+@   fxch    st1
+@   fmul    [#'(int)&reciprocals' + ebx * 4]
+@   fxch    st1
+	    
+@   fadd    'fptr->converters[wl2]'
+@   fxch    st1
+@   fadd    'fptr->converters[hl2]'
+@   fxch    st1
+
+@   mov	    eax,'fptr->is'
+@   mov	    'fptr->prev_is', eax
+@   mov	    eax,'fptr->it'
+@   mov	    'fptr->prev_it', eax
+
+@   fstpq   'fptr->qis'
+@   fstpq   'fptr->qit'
+
+@   mov	    eax, 'fptr->qit'
+@   shl	    eax, 16
+@   size16
+@   mov	    eax, 'fptr->qis'
+@   mov	    'fptr->dstdx', eax
+
+    return cb;
+}
+
+STATIC int
+log2(unsigned int n)
+{
+  if (n >= 0x100)
+    return (8 + log2(n >> 8));
+  if (n >= 0x80)
+    return 7;
+  if (n >= 0x40)
+    return 6;
+  if (n >= 0x20)
+    return 5;
+  if (n >= 0x10)
+    return 4;
+  if (n >= 0x08)
+    return 3;
+  if (n >= 0x04)
+    return 2;
+  if (n >= 0x02)
+    return 1;
+  return 0;
+}
+
+unsigned char* gobit(__GLcontext *gc,
+		     unsigned char* cb,
+		     struct celem* r,
+		     int from, int to)
+{
+  if (from < to)
+@   shl	r, #'(to - from)'
+  else
+@   shr	r, #'(from - to)'
+
+  return cb;
+}
+
+unsigned char* clamp(__GLcontext *gc,
+		     unsigned char* cb,
+		     struct celem* r,
+		     int bound)
+{
+  struct celem *ok = label(gc);
+
+@	cmp	r,#bound
+@	jl	ok
+@	mov	r,#'(bound - 1)'
+@ ok:
+
+  return cb;
+}
+
+#if __GL_CODEGEN_DESCRIBERS
+struct describer {
+    char name[200];
+    unsigned long pixels;
+    unsigned long spans;
+    unsigned long tot_tris;
+    unsigned long drawn_tris;
+    unsigned long easy_tris;
+    unsigned long cyc[2];
+    double cycles;
+    struct describer* prev;
+};
+
+static struct describer* last_describer = NULL;
+#endif /* __GL_CODEGEN_DESCRIBERS */
+
+/*
+ * Render a gouraud span
+ */
+
+#define DUP2(x)	(((x) << 16) | (x))
+
+STATIC unsigned char*
+smoothspan(__GLcontext *gc,
+	   unsigned char* cb,
+	   struct celem* tr,
+	   struct celem* drdxH,
+	   struct celem* dgdxH,
+	   struct celem* dbdxH,
+	   struct celem* drdxP,
+	   struct celem* dgdxP,
+	   struct celem* dbdxP,
+	   struct celem* last,
+	   int fbsize)
+{
+  __GLcolorBuffer *cfb = gc->drawBuffer;
+  int redSize, greenSize, blueSize;
+  struct celem* perpixelpair = label(gc);
+  struct celem* done = label(gc);
+
+  redSize = log2(cfb->redMax);
+  greenSize = log2(cfb->greenMax);
+  blueSize = log2(cfb->blueMax);
+
+@	shr	ebx,1
+@	test	ebx,ebx
+@	je	done
+
+@	mov	edx,'tr(dcpdx)'
+@	cmp	edx,0
+@	jle	done
+
+	/* Extend color interpolators to 32 bits, and
+	 * step the later half.
+	 */
+
+@	mov	edi,ebx
+
+@	mov	eax,'tr(r0)'
+@	mov	ebx,'tr(g0)'
+@	mov	ecx,'tr(b0)'
+
+@	shr	eax,#'redSize + 1'
+@	shr	ebx,#'greenSize + 1'
+@	shr	ecx,#'blueSize + 1'
+
+@	mov	edx,eax
+@	mov	ebp,ebx
+@	mov	esi,ecx
+
+@	shl	edx,16
+@	shl	ebp,16
+@	shl	esi,16
+
+@	or	eax,edx
+@	or	ebx,ebp
+@	or	ecx,esi
+
+@	mov	edx,drdxH
+@	mov	ebp,dgdxH
+@	mov	esi,dbdxH
+
+@	and	edx,0xffff0000
+@	and	ebp,0xffff0000
+@	and	esi,0xffff0000
+
+@	add	eax,edx
+@	add	ebx,ebp
+@	add	ecx,esi
+
+	/* Now figure where the run will end, set up
+	 * 'last' and edi
+	 */
+
+@	mov	edx,'tr(cp0)'
+@	mov	esi,edi
+
+@	lea	edx,[edx + esi * 4]
+@	xor	edi,edi
+
+@	and	edx,~3
+@	mov	last,edx
+
+@	sub	edi,esi
+
+@	shl	edi,2	; Counting dwords
+
+@perpixelpair:
+
+@	mov	edx,eax
+@	mov	ebp,ebx
+
+@	shr	edx,#'(15 - redSize) - cfb->redShift'
+@	and	ebp,#'DUP2(cfb->greenMax << (15 - greenSize))'
+
+@	shr	ebp,#'(15 - greenSize) - cfb->greenShift'
+@	and	edx,#'DUP2(cfb->redMax << cfb->redShift)'
+
+@	mov	esi,ecx
+@	or	edx,ebp
+
+@	shr	esi,#'(15 - blueSize) - cfb->blueShift'
+@	mov	ebp,drdxP
+
+@	and	esi,#'DUP2(cfb->blueMax << cfb->blueShift)'
+@	add	eax,ebp
+
+@	or	edx,esi
+@	mov	esi,last
+
+@	nop
+@	mov	ebp,'tr(dcpdx)'
+
+@	add	ebx,dgdxP
+@	add	ecx,dbdxP
+
+@	mov	[esi + edi],edx
+@	add	edi,4
+
+@	jne	perpixelpair
+
+@ done:
+
+  return cb;
+}
+
+/*
+ * Render a flat dithered span.  Do do this, we write out 4 pixels
+ * at a time; in 8-bit we write dwords, in 16-bit we have to use fistp.
+ */
+
+STATIC unsigned char*
+flatspan(__GLcontext *gc,
+	 unsigned char* cb,
+	 struct celem* tr,
+	 struct celem* ditherline,		/* Pointer to dither pattern */
+	 struct celem* w,
+	 int fbsize)
+{
+    struct celem *try_d, *do_d, *try1, *do1;
+    struct celem *reverse, *done;
+    GLuint modeFlags = gc->polygon.shader.modeFlags;
+
+/*
+ *	eax	ebx	ecx	edx	ebp	esi	edi
+ *		w	dxcp	r0			cp
+ */
+
+    try1 = label(gc);
+    try_d = label(gc);
+    do1 = label(gc);
+    do_d = label(gc);
+    reverse = label(gc);
+    done = label(gc);
+
+@   mov   ecx,'tr(dcpdx)'
+
+    if (fbsize == 1) {
+        if (modeFlags & __GL_SHADE_DITHER) {
+@	    mov	edx,ditherline
+@	    mov	edx,[edx]
+	} else {
+@	    mov	edx,'tr(r0)'
+@	    mov	dh,dl
+@	    mov	eax,edx
+@	    shl	eax,16
+@	    or	edx,eax
+	}
+    } else if (fbsize == 2) {
+	if (modeFlags & __GL_SHADE_DITHER) {
+@	    mov	edx,ditherline
+@	    fildq	[edx]
+	} else {
+@	    mov	edx,'tr(r0)'
+@	    mov	eax,edx
+@	    shl	eax,16
+@	    or	edx,eax
+@	    push	edx
+@	    push	edx
+@	    fildq	[0 + esp]
+@	    add	esp,8
+	}
+    } else {
+	assert(4 == fbsize);
+
+@	mov	edx,'tr(r0)'
+@	push	edx
+@	push	edx
+@	fildq	[0 + esp]
+@	add	esp,8
+    }
+
+@   mov	edi,'tr(cp0)'
+    
+@   cmp	ecx,0
+@   jg	reverse
+    if (fbsize == 1) {
+@       sub	edi,ebx
+@       inc	edi
+    } else if (fbsize == 2) {
+@       sub	edi,ebx
+@       sub	edi,ebx
+@       add	edi,#fbsize
+    } else {
+@       lea eax,[0 + ebx*4]
+@       sub	edi,eax
+@       add	edi,#fbsize
+    }
+@ reverse:
+
+@   jmp	try_d
+@ do_d:
+    if (fbsize == 1) {
+@   	mov	[edi],edx
+    } else if (fbsize == 2) {
+@   	fld	st0
+@   	fxch	st1
+@   	fistpq	[edi]
+    } else {
+@   	fld	st0
+@   	fxch	st1
+@   	fistpq	[edi]
+@   	fld	st0
+@   	fxch	st1
+@   	fistpq	[edi+8]
+    }
+@   add	edi,#'4 * fbsize'
+@   sub	ebx,4
+@   cmp	ebx,4		; Extra test here for stable case
+@   jge	do_d
+@ try_d:
+@   cmp	ebx,4
+@   jl	try1
+@   test	edi,#'(fbsize == 1) ? 3 : 7'
+@   je	do_d
+
+@ try1:
+@   cmp	ebx,1
+@   jl	done
+@ do1:
+    if (modeFlags & __GL_SHADE_DITHER) {
+@	mov	eax,edi
+	
+@	and	eax,3
+	
+	if (fbsize == 2)
+@		shl	eax,1
+	
+@	add	eax,ditherline
+	
+	if (fbsize == 1) {
+@		mov	al,[eax]
+@		dec	ebx
+	
+@		mov	[edi],al
+	} else {
+@		size16
+@		mov	eax,[eax]
+	
+@		dec	ebx
+	
+@		size16
+@		mov	[edi],eax
+	}
+@       add	edi,#fbsize
+    } else {
+@	dec	ebx
+	if (fbsize == 1) {
+@		mov	[edi],dl
+	} else if (fbsize == 2) {
+@		size16
+@		mov	[edi],edx
+	} else {
+@		mov	[edi],edx
+	}
+@	add	edi,#fbsize
+    }
+
+@   test	edi,#'(fbsize == 1) ? 3 : 7'
+@   je	try_d
+
+@   test	ebx,ebx
+@   jne	do1
+
+@ done:
+
+    if (fbsize != 1) {
+@   	fstp	st0
+    }
+    return cb;
+}
+
+/*
+ * Render a span
+ *
+ */
+
+STATIC unsigned char*
+span(__GLcontext *gc, 
+     unsigned char *cb,
+     GLuint modeFlags,
+     struct celem* tr,
+     struct celem* truew,
+     struct celem* w,
+     struct celem* dither_index,
+     struct __GLfptri *fptr,
+     struct celem* rptr,	/* Pointers to lighting tables for flat-modulate */
+     struct celem* gptr,
+     struct celem* bptr,
+     int interpolate_color,
+     int interpolate_z,
+     int fbsize,
+     GLenum texenv)
+{
+  struct celem
+    *perpixel,
+    *perpixel_reload,
+    *zfail,
+    *allover,
+    *adjuster;
+  struct celem *r = NULL, *g = NULL, *b = NULL;
+  __GLcolorBuffer *cfb = gc->drawBuffer;
+  __GLtexture *current;
+  __GLmipMapLevel *lp;
+  GLuint wl2, hl2;
+  enum { hi16, lo8, loN } colorformat;
+  GLenum baseFormat;
+  int redSize, greenSize, blueSize;
+  int spill_rgb;	/* Set to 1 if RGB (eax,ebx,ecx) must be spilt in the loop */
+  int spill_hiset;	/* set to 1 if spilling (ebp,esi,edi) in the loop */
+  GLboolean cooked = GL_FALSE;
+  struct celem* final_pixel;
+
+  redSize = log2(cfb->redMax);
+  greenSize = log2(cfb->greenMax);
+  blueSize = log2(cfb->blueMax);
+
+  perpixel = label(gc);
+  perpixel_reload = label(gc);
+  zfail = label(gc);
+  allover = label(gc);
+  adjuster = label(gc);
+
+  if (modeFlags & __GL_SHADE_TEXTURE) {
+    current = gc->texture.currentTexture;
+    lp = current->level;
+    wl2 = lp->widthLog2;
+    hl2 = lp->heightLog2;
+
+    switch (texenv) {
+    case GL_REPLACE:
+	if (!(modeFlags & __GL_SHADE_DITHER) && lp->pixelBuffer)
+	    cooked = GL_TRUE;
+	break;
+    }
+  }
+
+  /*
+   * Texture setup: load ecx with starting s,t, dstdx
+   * with change per pixel.
+   */
+
+  if (modeFlags & __GL_SHADE_TEXTURE) {
+@   mov	truew,ebx
+    {
+      struct celem* no = label(gc);
+
+@     cmp	ebx,16
+@     jle	no
+@     mov	ebx,16
+@ no:
+@     mov	w,ebx
+    }
+
+    if (modeFlags & __GL_SHADE_TEXTURE_PERSP) {
+@	  	fld	'tr(ftw0)'
+@	  	fld	'tr(fsw0)'
+@	  	fld	'tr(fqw0)'
+
+@	  	fld	st0
+
+@	  	fdivr	'fpk(gc, 1.0)'
+
+@		pcstep(tr, wl2, hl2, w, 'fptr')
+
+@	  	fdivr	'fpk(gc, 1.0)'
+
+@	  	mov	eax, 'fptr->qit'
+@	  	shl	eax, 16
+@	  	size16
+@		mov	eax, 'fptr->qis'
+@		mov	'fptr->ist', eax
+
+@		mov	eax, 'fptr->is'
+@		mov	'fptr->prev_is', eax
+@	  	mov	eax, 'fptr->it'
+@	  	mov	'fptr->prev_it', eax
+
+		/* Length of this span is more complicated: it's
+		 * min(truew - 16, 16)
+		 */
+		{
+		    struct celem *ok = near_label(gc);
+
+@		    mov     eax,truew
+@		    sub	    eax,16
+@		    cmp	    eax,16
+@		    jle     ok
+@		    mov     eax,16
+@ ok:		    
+@		    mov     'fptr->qit',eax
+		}
+
+@		pcstep(tr, wl2, hl2, 'fptr->qit', 'fptr');
+
+		/* Now need to calculate ist for the second span */
+@	  	mov	eax, 'fptr->qit'
+@	  	shl	eax, 16
+@	  	size16
+@		mov	eax, 'fptr->qis'
+
+@	  	mov	ecx, 'fptr->ist'
+@		mov	'fptr->ist', eax
+@		mov	'fptr->st', ecx
+
+@	        pcstepnext(tr, wl2, hl2, 'fptr');
+
+@	  	fdivr	'fpk(gc, 1.0)'
+    } else {
+@	  	mov	ecx, 'tr(t0)'
+@	  	shl	ecx, #'16 - hl2'
+@	  	mov	eax, 'tr(s0)'
+@	  	shr	eax, #wl2
+@	  	size16
+@	  	mov	ecx,eax
+@		mov	'fptr->st',ecx
+    }
+  } else {
+@	mov	w,ebx
+  }
+
+@ memov('tr(cp)', 'tr(cp0)')
+
+  if (interpolate_z) {
+@   mov	eax,'tr(z0)'
+@   mov	'tr(z)',eax
+@   mov	eax,'tr(zp0)'
+@   mov	'tr(zp)',eax
+  }
+
+  if (modeFlags & __GL_SHADE_DITHER) {
+@   xor	eax,eax
+@   mov	dither_index,eax
+  }
+
+  spill_rgb =
+      (modeFlags & __GL_SHADE_TEXTURE);
+  spill_hiset = (interpolate_z) ||
+    (modeFlags & __GL_SHADE_DITHER) ||
+    ((modeFlags & __GL_SHADE_RGB) && !cooked);
+
+    if (modeFlags & __GL_SHADE_SMOOTH) {
+@     mov	eax,'tr(r0)'
+      if (modeFlags & __GL_SHADE_RGB) {
+@       mov	ebx,'tr(g0)'
+@       mov	ecx,'tr(b0)'
+      }
+
+@     mov	'tr(r)',eax
+      if (modeFlags & __GL_SHADE_RGB) {
+@       mov	'tr(g)',ebx
+@       mov	'tr(b)',ecx
+      }
+    } else if (!spill_rgb) {
+@     mov	eax,'tr(r)'
+      if (modeFlags & __GL_SHADE_RGB) {
+@       mov	ebx,'tr(g)'
+@       mov	ecx,'tr(b)'
+      }
+      r = eax;
+      g = ebx;
+      b = ecx;
+    }
+
+    if (!spill_hiset) {
+@	mov	ebp,'tr(dcpdx)'
+@	mov     edi,'tr(cp)'
+@perpixel_reload:
+@	mov	esi,w
+    } else {
+@perpixel_reload:
+    }
+
+@perpixel:
+  /* We have:
+   *	eax	ebx	ecx	edx	ebp	esi	edi
+   *				dxzp			
+   */
+
+  if (interpolate_z) {
+@   mov ebp,'tr(dzpdx)'
+@   mov edi,'tr(zp)'
+
+@   mov	edx,'tr(dzdx)'
+@   mov	esi,'tr(z)'
+
+@   add	edx,esi
+@   add ebp,edi
+
+    if (1 /*gc->state.depth.testFunc != GL_ALWAYS*/) {
+        if (gc->depthBuffer.buf.depth == 16) {
+@         shr esi,16
+@         size16
+        }
+@       cmp	esi,[edi]
+@       mov	'tr(zp)',ebp
+@       mov 'tr(z)',edx
+        switch (gc->state.depth.testFunc) {
+        case GL_NEVER:
+@         jmp	zfail
+          break;
+        case GL_LESS:
+@         jae	zfail
+          break;
+        case GL_EQUAL:
+@         jne	zfail
+          break;
+        case GL_LEQUAL:
+@	  ja	zfail
+          break;
+        case GL_GREATER:
+@         jbe	zfail
+          break;
+        case GL_NOTEQUAL:
+@         je	zfail
+          break;
+        case GL_GEQUAL:
+@         jb	zfail
+          break;
+        case GL_ALWAYS:
+	  break;
+      }
+
+      if (gc->state.depth.writeEnable) {
+        if (gc->depthBuffer.buf.depth == 16)
+@         size16
+@       mov	[edi],esi
+      }
+    } else {
+	/* We're running ALWAYS.  Just write out that Z */
+        if (gc->depthBuffer.buf.depth == 16) {
+@         shr esi,16
+        }
+@       mov	'tr(zp)',ebp
+@       mov     'tr(z)',edx
+      if (gc->state.depth.writeEnable) {
+        if (gc->depthBuffer.buf.depth == 16)
+@         size16
+@       mov	[edi],esi
+      }
+    }
+    /* If we're masking, we never want to write out the pixel anyway,
+     * so we might as well fail now.
+     */
+    if (modeFlags & __GL_SHADE_MASK) {
+@       jmp     zfail
+      }
+  }
+
+  if (modeFlags & __GL_SHADE_TEXTURE) {
+
+	if (wl2 <= 8) {
+@		mov	ecx,'fptr->st'
+@		mov	ebx,'fptr->dstdx'
+
+@	  	mov	eax, ecx
+@		add	ebx,ecx
+
+@	  	shr	eax, #'24 - hl2'
+
+@	  	mov	al, ch
+
+	    	if (wl2 < 8)
+@			shr	eax, #'8 - wl2'
+@		mov	ecx,'tr(tp)'
+
+	} else {
+	    	/* Got to do the more expensive 16-bit version */
+@		mov	ecx,'fptr->st'
+@		mov	ebx, 'fptr->dstdx'
+
+@	  	mov	eax, ecx
+@		add	ebx,ecx
+
+	    	if (hl2 < 16)
+@			shr	eax, #'16 - hl2'
+
+@	  	size16
+@	  	mov	eax, ecx
+	    	if (wl2 < 16)
+@			shr	eax, #'16 - wl2'
+@		mov	ecx,'tr(tp)'
+	}
+	/* EAX now holds (unscaled) offset into texture */
+
+        baseFormat = current->texelFormat;
+
+	if ((modeFlags & __GL_SHADE_RGB) && baseFormat == GL_COLOR_INDEX) {
+	  /* Indirect, turn it into offset in palette (which looks like
+	   * a 256x1 texture).
+	   */
+@	  	mov	ecx, 'tr(tp)'
+@	  	add	ecx, eax
+@	  	xor	eax,eax
+@	  	mov	al, [ecx]
+	    	/* EAX now holds (unscaled) offset into palette */
+	    	baseFormat = current->CT.baseFormat;
+	}
+
+	if (cooked) {
+	    switch (fbsize) {
+	    case 1:
+@		mov	dl,[ecx + eax]
+		break;
+	    case 2:
+@		size16
+@		mov	edx,[ecx + eax * 2]
+		break;
+	    case 3:
+@		lea	eax,[ecx + eax * 2]
+@		mov	edx,[ecx + eax]
+		break;
+	    case 4:
+@		mov	edx,[ecx + eax * 4]
+		break;
+	    }
+	} else {
+	  switch (baseFormat) {
+	  case GL_COLOR_INDEX:
+@	  mov	edx,eax
+          r =	mem(gc, NULL, ecx, edx, 1);
+	  break;
+	case GL_LUMINANCE:
+	case GL_INTENSITY:
+@	  mov	edx,eax
+@	  mov	esi,ecx
+          colorformat = lo8;
+          r =	mem(gc, NULL, esi, edx, 1);
+          g =	mem(gc, NULL, esi, edx, 1);
+	  b =	mem(gc, NULL, esi, edx, 1);
+	  break;
+	case GL_LUMINANCE_ALPHA:
+          colorformat = lo8;
+@	  mov	edx,eax
+@	  mov	esi,ecx
+          r =	mem(gc, NULL, esi, edx, 2);
+          g =	mem(gc, NULL, esi, edx, 2);
+          b =	mem(gc, NULL, esi, edx, 2);
+	  break;
+	case GL_RGB:
+@	  lea	edx,[eax + eax * 2]
+@	  mov	esi,ecx
+          colorformat = lo8;
+          r =	mem(gc, NULL, esi, edx, 1);
+          g =	mem(gc, value(gc, 1), esi, edx, 1);
+	  b =	mem(gc, value(gc, 2), esi, edx, 1);
+	  break;
+	case GL_RGBA:
+          colorformat = lo8;
+@	  mov	edx,eax
+@	  mov	esi,ecx
+          r =	mem(gc, NULL, esi, edx, 4);
+          g =	mem(gc, value(gc, 1), esi, edx, 4);
+	  b =	mem(gc, value(gc, 2), esi, edx, 4);
+	  break;
+        }
+     }
+  } else if (interpolate_color) {
+    if (spill_rgb) {
+@     mov	eax,'tr(r)'
+      if (modeFlags & __GL_SHADE_RGB) {
+@	  mov	ebx,'tr(g)'
+@	  mov	ecx,'tr(b)'
+      }
+    }
+    colorformat = hi16;
+    r = eax;
+    g = ebx;
+    b = ecx;
+  }
+
+  if (modeFlags & __GL_SHADE_TEXTURE) {
+      switch (texenv) {
+      case GL_MODULATE: {
+	int redshift, greenshift, blueshift;
+
+	if (!(modeFlags & __GL_SHADE_DITHER)) {
+
+	    redshift = 
+		blueshift = 
+		greenshift = 16;
+
+	    colorformat = loN;
+	} else {
+	    redshift = redSize + 1 + 8;
+	    greenshift = greenSize + 1 + 8;
+	    blueshift = blueSize + 1 + 8;
+	    colorformat = lo8;
+	}
+
+#define sqtab	value(gc, (int)(&__glSquareTable2[256]))
+
+	if (modeFlags & __GL_SHADE_SMOOTH) {
+@      xor	eax,eax
+@      mov	'fptr->st',ebx
+
+@      mov	al,r
+@      xor	ebx,ebx
+
+@      mov	bl,g
+@      xor	ecx,ecx
+
+@      mov	cl,b
+@      mov	ebp,'tr(r)'
+
+@      shr	ebp,#redshift
+@      mov	edi,'tr(g)'
+
+@      shr	edi,#greenshift
+@      mov	esi,'tr(b)'
+
+@      shr	esi,#blueshift
+@      push	ecx
+
+@      mov	cl,[sqtab + ebp]
+@      sub	ebp,eax
+
+@      mov	dl,[sqtab + edi]
+@      sub	edi,ebx
+
+@      add	cl,[sqtab + eax]
+@      add	dl,[sqtab + ebx]
+
+@      xor	ebx,ebx
+@      pop	eax
+
+@      sub	cl,[sqtab + ebp]	; red
+@      sub	dl,[sqtab + edi]	; green
+
+@      mov	bl,[sqtab + eax]	; blue
+@      mov	bh,[sqtab + esi]
+
+@      sub	esi,eax
+@      xor	eax,eax
+
+@      mov	al,cl			; red in place
+@      add	bl,bh
+
+@      mov	bh,[sqtab + esi]
+@      mov	cl,bl			; blue in place
+
+@      sub	cl,bh
+@      xor	ebx,ebx
+
+@      mov	bl,dl			; green in place
+        } else {
+		/* we must be flat */
+@		xor	eax,eax
+@		mov	'fptr->st',ebx
+
+@		mov	al,r
+@		mov	edi,rptr
+
+@		xor	ebx,ebx
+@		mov	ebp,gptr
+
+@		xor	ecx,ecx
+@		mov	bl,g
+
+@		mov	cl,b
+@		mov	edx,bptr
+
+@		mov	al,[edi + eax]
+@		mov	bl,[ebx + ebp + 0]
+
+@		mov	cl,[edx + ecx]
+	}
+
+        r = eax;
+        g = ebx;
+        b = ecx;
+	}
+	break;
+    case GL_ADD:
+	if (!(modeFlags & __GL_SHADE_DITHER)) {
+@	    mov	al,'tr2(r,2)'
+@	    mov	cl,r
+
+@	    add	al,cl
+@           mov	'fptr->st',ebx
+            colorformat = lo8;
+	} else {
+@	    xor	eax,eax
+@	    mov	al,r
+@	    mov	edx,'tr(r)'
+
+@	    shl	eax,16
+@	    add	eax,edx
+
+@           mov	'fptr->st',ebx
+
+            colorformat = hi16;
+	}
+	r = eax;
+	break;
+    default:
+@       mov	'fptr->st',ebx
+	break;
+
+  }
+}
+
+/* At this point r, g, b are ready for dithering */
+    if (modeFlags & __GL_SHADE_DITHER) {
+
+      if (r && r->what == MEM) {
+	/* The color triple is in memory: load into registers */
+@	xor	eax,eax
+@	mov	al,r
+      if (modeFlags & __GL_SHADE_RGB) {
+@	    xor	ebx,ebx
+@	    mov	bl,g
+@	    xor	ecx,ecx
+@	    mov	cl,b
+      }
+
+      colorformat = lo8;
+
+      } if (r == NULL) {
+@	mov	eax,'tr(r)'
+@	mov	ebx,'tr(g)'
+@	mov	ecx,'tr(b)'
+
+	colorformat = hi16;
+      }
+
+      r = eax;
+      g = ebx;
+      b = ecx;
+
+      if ((modeFlags & __GL_SHADE_TEXTURE) && 
+	  (modeFlags & __GL_SHADE_RGB) &&
+	  (texenv == GL_REPLACE)) {
+	  /* Texture replace + dithered, we have to scale down texture,
+	   * so we multiply each component by max/max+1.  This
+	   * is about the same as subtracting 1/max.  For example,
+	   * in 5-bit color, max is 31, so we subtract 1/32 * x.  Hence
+	   * 0xff gets scaled down to (0xff - 0x7) = 0xf8.
+	   */
+
+	  assert(colorformat == lo8);
+
+@	  mov	edx,eax
+@	  shr	edx,#'redSize + 1'
+@	  mov	esi,ebx
+
+@	  shr	esi,#'greenSize + 1'
+@	  mov	edi,ecx
+
+@	  shr	edi,#'blueSize + 1'
+@	  sub	eax,edx
+
+@	  sub	ebx,esi
+@	  sub	ecx,edi
+
+      }
+
+      switch (colorformat) {
+      case lo8:
+@	shl	r,#'(8 + redSize + 1)'
+	if (modeFlags & __GL_SHADE_RGB) {
+@	    shl	g,#'(8 + greenSize + 1)'
+@	    shl	b,#'(8 + blueSize + 1)'
+	}
+        break;
+      case loN:
+	assert(0);
+      }
+
+      colorformat = hi16;
+      r = eax;
+      g = ebx;
+      b = ecx;
+
+@     mov	esi,'tr(dither)'
+@     mov	ebp,dither_index
+
+@     mov	edx,ebp
+@     inc	ebp
+
+@     and	ebp,3
+
+@     mov	dither_index,ebp
+@     mov	esi,[esi + edx * 4]
+
+    }
+
+  final_pixel = (fbsize == 1) ? dl : edx;
+  if (cooked) {
+	/* edx already hold pixel to write */
+  } else if ((modeFlags & (__GL_SHADE_SMOOTH | __GL_SHADE_DITHER | __GL_SHADE_TEXTURE)) == 0) {
+@   mov	edx,'tr(r0)'
+  } else {
+      if (modeFlags & __GL_SHADE_RGB) {
+    switch (colorformat) {
+    case hi16:
+
+@     mov	edx,r
+@     mov	ebp,b
+
+      if (!(modeFlags & __GL_SHADE_DITHER)) {
+@         shr	edx,#'16 - cfb->redShift'
+@         mov	esi,g
+      } else {
+@	  add	edx,esi
+@	  add	ebp,esi
+
+@         shr	edx,#'16 - cfb->redShift'
+@         add	esi,g
+      }
+
+@     shr	ebp,#'16 - cfb->blueShift'
+@     and	edx,#'(cfb->redMax << cfb->redShift)'
+
+@     shr	esi,#'16 - cfb->greenShift'
+@     and	ebp,#'(cfb->blueMax << cfb->blueShift)'
+
+@     and	esi,#'(cfb->greenMax << cfb->greenShift)'
+@     or	edx,ebp
+
+@     or	edx,esi
+      break;
+
+    case lo8:
+    {
+@   mov al,r
+@   mov bl,g
+@   mov cl,b
+
+@   and	eax,#'(cfb->redMax << (7 - redSize))'
+
+@   gobit(eax, '(7 - redSize)', 'cfb->redShift')
+@   and	ebx,#'(cfb->greenMax << (7 - greenSize))'
+
+@   gobit(ebx, '(7 - greenSize)', 'cfb->greenShift')
+@   mov	edx,eax
+
+@   or	edx,ebx
+@   and	ecx,#'(cfb->blueMax << (7 - blueSize))'
+
+@   gobit(ecx, '(7 - blueSize)', 'cfb->blueShift')
+
+@   or	edx,ecx
+    }
+      break;
+    case loN:
+      if (cfb->blueShift != 0)
+@       shl	ecx,#'cfb->blueShift'
+
+@     shl	eax,#'cfb->redShift'
+@     mov	edx,ecx
+
+@     shl	ebx,#'cfb->greenShift'
+@     or	edx,eax
+
+@     or	edx,ebx
+      break;
+    }
+  } else {
+      switch (colorformat) {
+      case hi16:
+@	mov	edx,eax
+	if (modeFlags & __GL_SHADE_DITHER)
+@		add	edx,esi
+@	shr	edx,16
+        final_pixel = dl;
+	break;
+      case lo8:
+        final_pixel = al;
+	break;
+      }
+  }
+
+    if (interpolate_color && (modeFlags & __GL_SHADE_SMOOTH)) 
+	if (modeFlags & __GL_SHADE_RGB) {
+	if (spill_rgb) {
+@     mov	eax,'tr(r)'
+@     mov	ebx,'tr(g)'
+@     mov	ecx,'tr(b)'
+	}
+
+@     mov	esi,'tr(drdx)'
+
+@     add	ebx,'tr(dgdx)'
+@     add	ecx,'tr(dbdx)'
+
+@     add	eax,esi
+
+	if (spill_rgb) {
+@     mov	'tr(r)',eax
+@     mov	'tr(g)',ebx
+@     mov	'tr(b)',ecx
+	}
+    } else {
+	if (final_pixel == al) {
+@	    mov	dl,al
+	    final_pixel = dl;
+	}
+	if (spill_rgb) {
+@           mov	eax,'tr(r)'
+	}
+@	mov	ebx,'tr(drdx)'
+@       add	eax,ebx
+	if (spill_rgb) {
+@           mov	'tr(r)',eax
+	}
+    }
+  }
+
+  /* 
+   * Now 'final_pixel' holds the pixel value to write to the framebuffer
+   * Take care not to stall while the write buffer is busy
+   */
+
+  if (spill_hiset) {
+@	mov	ebp,'tr(dcpdx)'
+@	mov   edi,'tr(cp)'
+
+@	mov	esi,w
+@	add   ebp,edi
+
+@	dec	esi
+@	mov   'tr(cp)',ebp
+
+@	mov	w,esi
+	if (!(modeFlags & __GL_SHADE_MASK)) {
+  	    switch (fbsize) {
+  	    case 1:
+@ 	      mov	[edi],final_pixel
+  	      break;
+  	    case 2:
+@ 	      size16
+@ 	      mov	[edi],edx
+  	      break;
+  	    case 3:
+@ 	      size16
+@ 	      mov	[edi],edx
+@ 	      shr	edx,16
+@ 	      mov [edi+2],dl
+  	      break;
+  	    case 4:
+@ 	      mov	[edi],edx
+  	      break;
+            }
+        }
+
+@       jne	perpixel
+  } else {
+	if (!(modeFlags & __GL_SHADE_MASK)) {
+  	    switch (fbsize) {
+  	    case 1:
+@ 	      mov	[edi],final_pixel
+  	      break;
+  	    case 2:
+@ 	      size16
+@ 	      mov	[edi],edx
+  	      break;
+  	    case 3:
+@ 	      size16
+@ 	      mov	[edi],edx
+@ 	      shr	edx,16
+@ 	      mov [edi+2],dl
+  	      break;
+  	    case 4:
+@ 	      mov	[edi],edx
+  	      break;
+  	    }
+	}         
+@	add   edi,ebp
+
+@	dec	esi
+@	jne	perpixel
+
+  }
+
+  if (modeFlags & __GL_SHADE_TEXTURE) {
+@ adjuster:
+
+@     mov	ebx,truew
+@     sub ebx,16
+@     jle	allover
+@     mov truew,ebx
+
+      {
+          struct celem* no = near_label(gc);
+@	  cmp	ebx,16
+@	  jle	no
+@	  mov	ebx,16
+@ no:	  
+@	  mov	w,ebx
+      }
+
+      if (modeFlags & __GL_SHADE_TEXTURE_PERSP) {
+@   	  mov	eax,'fptr->is'
+@   	  mov	'fptr->prev_is', eax
+@   	  mov	eax,'fptr->it'
+@   	  mov	'fptr->prev_it', eax
+
+	  /* Length of this span is more complicated: it's
+	   * min(truew - 16, 16)
+	   */
+	  {
+	      struct celem *ok = near_label(gc);
+	  
+@	      mov     eax,truew
+@	      sub     eax,16
+@	      cmp     eax,16
+@	      jle     ok
+@	      mov     eax,16
+@ ok:
+@	      mov     'fptr->qit',eax
+	  }
+@	  pcstep(tr, wl2, hl2, 'fptr->qit', fptr);
+
+@	  mov	eax, 'fptr->ist'
+@	  mov	'fptr->st', eax
+@  	  mov	eax, 'fptr->qit'
+@  	  shl	eax, 16
+@  	  size16
+@	  mov	eax, 'fptr->qis'
+@	  mov	'fptr->ist', eax
+
+@         pcstepnext(tr, wl2, hl2, fptr);
+
+@	  fdivr	'fpk(gc, 1.0)'
+      } else {
+@	  mov	eax,'fptr->st'
+@	  mov	ebx,'fptr->dstdx2'
+@	  add	eax,ebx
+@	  mov	'fptr->st',eax
+      }
+@     jmp     perpixel_reload
+    }
+
+  if (interpolate_z) {
+@   jmp	allover
+@zfail:
+    if (interpolate_color && (modeFlags & __GL_SHADE_SMOOTH)) {
+      if (spill_rgb) {
+@         mov	eax,'tr(r)'
+@         mov	ebx,'tr(g)'
+@         mov	ecx,'tr(b)'
+      }
+
+@     add	eax,'tr(drdx)'
+@     add	ebx,'tr(dgdx)'
+@     add	ecx,'tr(dbdx)'
+
+      if (spill_rgb) {
+@         mov	'tr(r)',eax
+@         mov	'tr(g)',ebx
+@         mov	'tr(b)',ecx
+      }
+    }
+
+  if (modeFlags & __GL_SHADE_TEXTURE) {
+@     mov	edx,'fptr->st'
+@     mov	ebp,'fptr->dstdx'
+@     add	edx,ebp
+@     mov	'fptr->st',edx
+  }
+
+    if (modeFlags & __GL_SHADE_DITHER) {
+@     mov	edi,dither_index
+@     inc	edi
+@     and	edi,3
+@     mov	dither_index,edi
+    }
+
+@   mov edi,'tr(cp)'
+@   add	edi,'tr(dcpdx)'
+@   mov 'tr(cp)',edi
+
+@   dec	w
+@   jne	perpixel
+    if (modeFlags & __GL_SHADE_TEXTURE)
+@     jmp	adjuster
+
+  }
+
+@allover:
+
+  if (modeFlags & __GL_SHADE_TEXTURE_PERSP) {
+@	  	fstp	st0
+@	  	fstp	st0
+@	  	fstp	st0
+@	  	fstp	st0
+  }
+
+  return cb;
+}
+
+STATIC unsigned char*
+set_dither(__GLcontext* gc,
+	   unsigned char* cb,
+	   struct celem* tr,
+	   struct celem* key,
+	   int spanlet)
+{
+@   mov	eax,key
+@   mov	ecx,'tr(y)'
+
+@   and eax,#DITHER_MASK
+@   and ecx,#DITHER_MASK
+
+  /* ebx *= 35, or 0x23 */
+@   mov	edx,ecx
+
+@   add	edx,edx
+@   add	edx,ecx
+@   shl	ecx,5
+
+@   add	ecx,edx
+@   add	ecx,eax
+  if (spanlet) {
+@   mov	edx,'tr(ditherTable)'
+@   lea	eax,[edx + ecx * 4]
+  } else {
+@   lea	eax,[#'(int)__glFRDitherTable' + ecx * 4]
+  }
+@   mov	'tr(dither)',eax
+
+  return cb;
+}
+
+/********************************************
+**  Rasterizer Cache
+*********************************************/
+
+/* mode bits for cache signature */
+#define __OG_RASTER_SPANLETS			(1<<0)
+#define __OG_RASTER_TEX_ENV_SHIFT		1	/* 3 bits */
+#define __OG_RASTER_TEX_WIDTH_SHIFT		4	/* 4 bits */
+#define __OG_RASTER_TEX_HEIGHT_SHIFT		8	/* 4 bits */
+#define __OG_RASTER_TEX_INDEX			(1<<12)
+#define __OG_RASTER_TEX_FORMAT_SHIFT		13	/* 3 bits */
+#define __OG_RASTER_TEX_S_CLAMP			(1<<16)
+#define __OG_RASTER_TEX_T_CLAMP			(1<<17)
+#define __OG_RASTER_TEX_BORDER			(1<<18)
+#define __OG_RASTER_TEX_MIN_LINEAR		(1<<19)
+#define __OG_RASTER_TEX_MAX_FILTER_SHIFT	20	/* 3 bits */
+#define __OG_RASTER_CLIP_SCISSOR		(1<<23)
+#define __OG_RASTER_DEPTH_FUNC_SHIFT		24	/* 3 bits */
+#define __OG_RASTER_DEPTH_SIZE32		(1<<27)
+#define __OG_RASTER_DEPTH_WRITE			(1<<28)
+#define __OG_RASTER_DOUBLESTORE			(1<<29)
+#define __OG_RASTER_RHO				(1<<30)
+
+#define MODEFLAGS_RASTERIZER_CARES_ABOUT \
+    ~(__GL_SHADE_STIPPLE | __GL_SHADE_TWOSIDED | __GL_SHADE_CULL_FACE)
+
+#define FORCE_DIRECT !MMX
+
+/*
+ * Input is a dword-aligned pointer [edi], and a count, in dwords.
+ * Fill value is in eax.
+ * 
+ * edx, ebp, esi are unchanged.
+ * 
+ */
+void __glGenerateMMXFill(__GLcontext *gc, unsigned char* cb)
+{
+    struct celem* even;
+    struct celem* loop;
+    struct celem* done;
+    struct celem* done2;
+
+    og_warmup(gc);
+
+    even = near_label(gc);
+    loop = near_label(gc);
+    done = near_label(gc);
+    done2 = near_label(gc);
+
+@   test    edi,7
+@   je      even
+ 
+@   mov     [edi],eax
+@   add     edi,4
+@   dec     ecx
+ 
+@ even:	
+@   mov     ebx,ecx
+@   shr     ecx,1
+@   je      done
+ 
+@   movd    mm0,eax
+@   punpckldq mm0,mm0
+@ loop:	
+@   movq    [edi],mm0
+@   add     edi,8
+@   dec     ecx
+@   jne     loop
+ 
+@ done:	
+@   test    ebx,1
+@   je      done2
+@   mov     [edi],eax
+@   add     edi,4
+
+@ done2:
+@   ret
+}
+
+#if MMX
+
+/* 
+ * This needn't go into the gc because MMX is available
+ * across all contexts.  This won't hold if
+ * people build mixed MMX/non-MMX multi-processor machines
+ * and run multi-thread/multi-context apps.
+ */
+
+int __glIsMmx(void)
+{
+    static int cold = 1;
+    static int r;
+
+    if (cold) {
+	int d;
+	char *force;
+
+	cold = 0;
+
+	force = getenv("__GL_FORCE_MMX");
+	if (force) {
+	    r = atoi(force);
+	} else { 
+	    __asm    push    eax
+	    __asm    push    ebx
+	    __asm    push    ecx
+	    __asm    push    edx
+
+	    __asm    mov eax,1
+            __asm    __emit 0x0f
+            __asm    __emit 0xa2
+            __asm    mov d,edx
+
+	    __asm    pop     edx
+	    __asm    pop     ecx
+	    __asm    pop     ebx
+	    __asm    pop     eax
+
+	    if (d & 0x00800000)
+		r = 1;
+	    else
+		r = 0;
+        }
+    }
+    return r;
+}
+
+/* Determines if this machine is capable of using MMX with the gc's
+ * pixel format.  Uses only state that is available during early
+ * context initialization.  This assumes that gc->drawBuffer and
+ * gc->front are comparable formats.
+ */
+int __glCanMmx(__GLcontext* gc)
+{
+    GLuint modeFlags = gc->polygon.shader.modeFlags;
+
+    return (__glIsMmx() &&
+	    gc->modes.rgbMode &&
+	    (gc->front->buf.depth <= 16));
+}
+
+STATIC
+struct celem* mxk(__GLcontext *gc, GLint v)
+{
+    return mxk4(gc, v, v, v, v);
+}
+
+unsigned char* mmxgobit(__GLcontext *gc,
+			unsigned char* cb,
+			struct celem* r,
+			int from, int to)
+{
+    if (from < to)
+@       psllw	r, #'(to - from)'
+    else if (from > to)
+@       psrlw	r, #'(from - to)'
+
+    return cb;
+}
+
+struct mmxinterp {
+    struct celem *didx, *istagger;
+};
+
+struct mmxcolor {
+    struct celem *r;
+    struct celem *g;
+    struct celem *b;
+    struct celem *a;
+};
+
+struct __GLmmxtri {
+    struct mmxinterp r, g, b, a, s, t, z;
+    struct celem *zvalue, *zresult;
+    struct celem *z_skew;
+    struct celem* tex_s_shift;
+    struct celem* tex_t_shift;
+    struct celem* tex_s_kerrect;
+    struct celem* tex_t_kerrect;
+    struct celem* tex_t_mask;
+    struct celem* spill_z;
+    struct celem* spill_r;
+    struct celem* spill_g;
+    struct celem* spill_b;
+    struct celem* spill_a;
+    struct celem* spill_1;
+    struct celem* dithers[4];
+    struct celem* tex_a;
+    struct celem* pixcopy; /* Sometimes blending needs a copy of
+			    * destination pixels. */
+    struct mmxcolor src, dst;
+    struct mmxcolor sf, df;
+    struct celem* prev_st;
+    struct celem* next_pc;
+    struct celem *indexTextureBase;
+};
+
+STATIC unsigned char* 
+genread(__GLcontext *gc,
+	unsigned char* cb,
+	struct celem* target,
+	GLenum baseFormat)
+{
+    switch (baseFormat) {
+    case GL_RGB:
+@       lea     eax,[eax + eax * 2]
+@       lea     ecx,[ecx + ecx * 2]
+
+@       movd    target,[ebp + eax]
+@       punpckldq target,[ebp + ecx]
+
+        break;
+    case GL_RGBA:
+@       movd    target,[ebp + eax * 4]
+@       punpckldq target,[ebp + ecx * 4]
+        break;
+    default:
+        assert(0);
+    }
+
+    return cb;
+}
+
+/* Given a blend function 'func', set 'factor' appropriately.
+ * This may be just setting the variables in factor to the appropriate
+ * terms, or it may involve generating a little code.
+ */
+STATIC unsigned char*
+calc_blend_factor(__GLcontext *gc,
+		  unsigned char* cb,
+		  struct mmxcolor *factor,
+		  struct __GLmmxtri *mmxtr,
+		  GLenum func)
+{
+    GLboolean must_save = GL_FALSE;
+    GLboolean copy_red = GL_FALSE;
+    struct celem* alpha_one = mxk(gc, 0x4000);
+    struct celem* alpha_oneX2 = mxk(gc, 0x8000);
+
+    switch (func) {
+    case GL_ZERO:
+	factor->r = mxk(gc, 0);
+	factor->g = mxk(gc, 0);
+	factor->b = mxk(gc, 0);
+	break;
+    case GL_ONE:
+	factor->r = alpha_one;
+	factor->g = alpha_one;
+	factor->b = alpha_one;
+	break;
+    case GL_DST_COLOR:
+@	movq    mm0,'mmxtr->dst.r'
+@	movq    mm1,'mmxtr->dst.g'
+@	movq    mm2,'mmxtr->dst.b'
+
+@	psrlw   mm0,1
+@	psrlw   mm1,1
+@	psrlw   mm2,1
+
+	must_save = GL_TRUE;
+	break;
+    case GL_SRC_COLOR:
+@	movq    mm0,'mmxtr->src.r'
+@	movq    mm1,'mmxtr->src.g'
+@	movq    mm2,'mmxtr->src.b'
+
+@	psrlw   mm0,1
+@	psrlw   mm1,1
+@	psrlw   mm2,1
+
+	must_save = GL_TRUE;
+	break;
+    case GL_ONE_MINUS_DST_COLOR:
+@	movq    mm0,alpha_oneX2
+@       movq    mm1,mm0
+@       movq    mm2,mm0
+
+@	psubw   mm0,'mmxtr->dst.r'
+@	psubw   mm1,'mmxtr->dst.g'
+@	psubw   mm2,'mmxtr->dst.b'
+
+@	psrlw   mm0,1
+@	psrlw   mm1,1
+@	psrlw   mm2,1
+
+	must_save = GL_TRUE;
+	break;
+    case GL_ONE_MINUS_SRC_COLOR:
+@	movq    mm0,alpha_oneX2
+@       movq    mm1,mm0
+@       movq    mm2,mm0
+
+@	psubw   mm0,'mmxtr->src.r'
+@	psubw   mm1,'mmxtr->src.g'
+@	psubw   mm2,'mmxtr->src.b'
+
+@	psrlw   mm0,1
+@	psrlw   mm1,1
+@	psrlw   mm2,1
+
+	must_save = GL_TRUE;
+	break;
+    case GL_SRC_ALPHA:
+	factor->r = mmxtr->src.a;
+	copy_red = GL_TRUE;
+	break;
+    case GL_ONE_MINUS_SRC_ALPHA:
+@	movq    mm0,alpha_one
+@       psubw   mm0,'mmxtr->src.a'
+@	movq    'factor->r',mm0
+	copy_red = GL_TRUE;
+	break;
+    case GL_DST_ALPHA:
+	factor->r = mmxtr->dst.a;
+	copy_red = GL_TRUE;
+	break;
+    case GL_ONE_MINUS_DST_ALPHA:
+@	movq    mm0,alpha_one
+@       psubw   mm0,'mmxtr->dst.a'
+@	movq    'factor->r',mm0
+	copy_red = GL_TRUE;
+	break;
+    case GL_SRC_ALPHA_SATURATE:
+
+	/* load mm0 with 1-<dst alpha>
+	 *      mm1 with <src alpha>
+	 */
+
+@	movq    mm0,alpha_one
+@       psubw   mm0,'mmxtr->dst.a'
+@	movq    mm1,'mmxtr->src.a'
+@       movq    mm2,mm0
+@       pcmpgtw mm0,mm1		; (mm2 > mm1) ? 0xffff : 0x0000
+@       pand    mm1,mm0
+@       pandn   mm0,mm2
+@       por     mm0,mm1
+@	movq    'factor->r',mm0
+        copy_red = GL_TRUE;
+    }
+
+    if (copy_red) {
+	factor->g = factor->b = factor->r;
+    }
+    if (must_save) {
+	/* factor.[rgb] point to some memory by default.
+	 * save mm[012] there.
+	 */
+@	movq    'factor->r',mm0
+@	movq    'factor->g',mm1
+@	movq    'factor->b',mm2
+    }
+
+    return cb;
+}
+
+
+/* 
+ *  Predicate to identify common situations where
+ *  we don't want to clamp.  This is true
+ *  (1) when one term is GL_ZERO
+ *  (2) when the 2 terms are complementary: ALPHA, 1-ALPHA.
+ */
+STATIC GLboolean
+clamp_blend_factor(GLenum src, GLenum dst)
+{
+    if ((src == GL_ZERO) || (dst = GL_ZERO))
+	return GL_FALSE;
+
+    if ((src == GL_SRC_ALPHA) &&
+	(dst == GL_ONE_MINUS_SRC_ALPHA))
+	return GL_FALSE;
+
+    if ((src == GL_ONE_MINUS_SRC_ALPHA) &&
+	(dst == GL_SRC_ALPHA))
+	return GL_FALSE;
+
+    return GL_TRUE;
+}
+
+STATIC unsigned char*
+genblend(__GLcontext* gc,
+	 unsigned char* cb,
+	 struct __GLmmxtri *mmxtr,
+	 GLint c_stride,
+	 struct celem* cp)
+{
+    GLuint modeFlags = gc->polygon.shader.modeFlags;
+    __GLcolorBuffer* fb = &gc->frontBuffer;
+    GLuint redSize = log2(fb->redMax);
+    GLuint greenSize = log2(fb->greenMax);
+    GLuint blueSize = log2(fb->blueMax);
+    GLuint hibit;
+
+#if DEBUG
+    {
+        struct celem *bad = near_label(gc);
+        struct celem *good = near_label(gc);
+
+@       mov     eax,[#'(int)&gc->state.raster.blendSrc']
+@       cmp     eax,#'gc->state.raster.blendSrc'
+@       jne     bad
+@       mov     eax,[#'(int)&gc->state.raster.blendDst']
+@       cmp     eax,#'gc->state.raster.blendDst'
+@       je      good
+@ bad:
+@       int3
+@ good:
+    }
+#endif /* DEBUG */
+
+    /* Load up destination.  We don't currently support destination alpha,
+     * so it's RGB only here.
+     */
+    if (c_stride == 8) {
+@       movq    mm0,cp
+    } else {
+@       movd    mm0,cp
+@       pxor    mm1,mm0
+@	punpcklbw mm0,mm1
+    }
+
+@   movq    mm1,mm0
+@   movq    mm2,mm0
+
+@   mmxgobit(mm0, 'fb->redShift + redSize', '(14)')
+@   mmxgobit(mm1, 'fb->greenShift + greenSize', '(14)')
+@   mmxgobit(mm2, 'fb->blueShift + blueSize', '(14)')
+
+@   pand    mm0,'mxk(gc, fb->redMax << (13 - (redSize - 1)))'
+@   pand    mm1,'mxk(gc, fb->greenMax << (13 - (greenSize - 1)))'
+@   pand    mm2,'mxk(gc, fb->blueMax << (13 - (blueSize - 1)))'
+
+    if ((gc->state.raster.blendSrc == GL_ONE) &&
+	(gc->state.raster.blendDst == GL_ONE)) {
+
+@       paddsw  mm0,'mmxtr->src.r'
+@       paddsw  mm1,'mmxtr->src.g'
+@       paddsw  mm2,'mmxtr->src.b'
+
+	hibit = 14;
+
+    } else {
+@   	movq    'mmxtr->dst.r',mm0
+@   	movq    'mmxtr->dst.g',mm1
+@   	movq    'mmxtr->dst.b',mm2
+    
+    	/* Now we have source and destination, calculate blend factors */
+@   	calc_blend_factor('&mmxtr->sf', mmxtr, 'gc->state.raster.blendSrc');
+@   	calc_blend_factor('&mmxtr->df', mmxtr, 'gc->state.raster.blendDst');
+    
+    	if (gc->state.raster.blendSrc == GL_ZERO) {
+@   	    movq    mm0,'mmxtr->dst.r'
+@   	    pmulhw  mm0,'mmxtr->df.r'
+    	
+@   	    movq    mm1,'mmxtr->dst.g'
+@   	    pmulhw  mm1,'mmxtr->df.g'
+    	
+@   	    movq    mm2,'mmxtr->dst.b'
+@   	    pmulhw  mm2,'mmxtr->df.b'
+    
+	    hibit = 12;
+    	} else {
+@   	    movq    mm0,'mmxtr->src.r'
+@   	    pmulhw  mm0,'mmxtr->sf.r'
+@   	    movq    mm1,'mmxtr->dst.r'
+@   	    pmulhw  mm1,'mmxtr->df.r'
+@   	    paddsw  mm0,mm1
+    	
+@   	    movq    mm1,'mmxtr->src.g'
+@   	    pmulhw  mm1,'mmxtr->sf.g'
+@   	    movq    mm2,'mmxtr->dst.g'
+@   	    pmulhw  mm2,'mmxtr->df.g'
+@   	    paddsw  mm1,mm2
+    	
+@   	    movq    mm2,'mmxtr->src.b'
+@   	    pmulhw  mm2,'mmxtr->sf.b'
+@   	    movq    mm3,'mmxtr->dst.b'
+@   	    pmulhw  mm3,'mmxtr->df.b'
+@   	    paddsw  mm2,mm3
+    
+	    hibit = 12;
+    	}
+    
+    	/* Now we might have to clamp.
+    	   This isn't free, so there are certain common situations where
+    	   we don't want to clamp.
+    	   (1) When one term is GL_ZERO
+    	   (2) When the 2 terms are complementary: ALPHA, 1-ALPHA
+    	   */
+    
+    	if (clamp_blend_factor(gc->state.raster.blendSrc, 
+				gc->state.raster.blendDst)) {
+    	    while (hibit < 14) {
+@		paddsw  mm0,mm0
+@		paddsw  mm1,mm1
+@		paddsw  mm2,mm2
+    
+    		hibit++;
+    	    }
+    	}   
+    }
+	
+    if (modeFlags & __GL_SHADE_DITHER) {
+@	mmxgobit(mm0, hibit, '(14)');
+    	
+@   	paddsw  mm0,'mmxtr->dithers[0]'
+@	mmxgobit(mm1, hibit, '(14)');
+    	
+@   	paddsw  mm1,'mmxtr->dithers[1]'
+@	mmxgobit(mm2, hibit, '(14)');
+    	
+@   	paddsw  mm2,'mmxtr->dithers[2]'
+    	
+    	hibit = 14;
+    }
+
+@   mmxgobit(mm0, hibit, 'fb->redShift + redSize')
+@   pand    mm0,'mxk(gc, fb->redMax << fb->redShift)'
+
+@   mmxgobit(mm1, hibit, 'fb->greenShift + greenSize')
+@   pand    mm1,'mxk(gc, fb->greenMax << fb->greenShift)'
+
+@   mmxgobit(mm2, hibit, 'fb->blueShift + blueSize')
+
+@   por	mm0,mm1
+@   por	mm0,mm2
+
+    return cb;
+}
+
+STATIC GLboolean
+has_alpha(GLenum baseFormat)
+{
+    switch (baseFormat) {
+    case GL_ALPHA:
+    case GL_LUMINANCE_ALPHA:
+    case GL_INTENSITY:
+    case GL_RGBA:
+	return GL_TRUE;
+    case GL_LUMINANCE:
+    case GL_RGB:
+	return GL_FALSE;
+    default:
+	assert(0);
+    }
+}
+
+STATIC unsigned char*
+genpix(__GLcontext* gc,
+       unsigned char* cb,
+       struct celem** result,
+       struct celem* tr,
+       struct __GLmmxtri *mmxtr,
+       GLint c_stride,
+       struct celem* step,
+       GLint dx,
+       struct celem* cp,
+       GLenum texenv)
+{
+    GLuint modeFlags = gc->polygon.shader.modeFlags;
+    __GLcolorBuffer* fb = &gc->frontBuffer;
+    struct celem
+      *rstep,
+      *gstep,
+      *bstep,
+      *astep;
+    struct celem
+      *sstep,
+      *tstep;
+    GLuint redSize = log2(fb->redMax);
+    GLuint greenSize = log2(fb->greenMax);
+    GLuint blueSize = log2(fb->blueMax);
+    GLboolean do_blend;
+    __GLtexture *current;
+    GLenum baseFormat;
+    GLboolean indexed = GL_FALSE;
+
+    if (modeFlags & __GL_SHADE_TEXTURE) {
+	current = gc->texture.currentTexture;
+	baseFormat = current->texelFormat;
+	if (baseFormat == GL_COLOR_INDEX) {
+	    /* Index texture.  Set the flag, and find the real format.
+	     */
+	    indexed = GL_TRUE;
+	    baseFormat = current->CT.baseFormat;
+	}
+    }
+
+    do_blend = (modeFlags & __GL_SHADE_BLEND) ? GL_TRUE : GL_FALSE;
+
+    if (modeFlags & __GL_SHADE_SMOOTH) {
+	if (step) {
+	    rstep = mmxtr->r.didx;
+	    gstep = mmxtr->g.didx;
+	    bstep = mmxtr->b.didx;
+	    astep = mmxtr->a.didx;
+	}
+    }
+
+    if (modeFlags & __GL_SHADE_TEXTURE) {
+	GLboolean cookedTexture;
+
+	if ((modeFlags & (__GL_SHADE_BLEND|__GL_SHADE_TEXTURE|__GL_SHADE_RGB|__GL_SHADE_DITHER)) ==
+	    (__GL_SHADE_TEXTURE|__GL_SHADE_RGB)) {
+	    cookedTexture =
+		(texenv == GL_REPLACE) &&
+		(current->texelFormat != GL_COLOR_INDEX);
+	} else {
+	    cookedTexture = GL_FALSE;
+	}
+
+	if (step) {
+	    sstep = mmxtr->s.didx;
+	    tstep = mmxtr->t.didx;
+	}
+
+	/* 
+	 * Build 2 pairs of offsets in mm0,mm1.
+	 */
+
+@	movq    mm3,'mmxtr->tex_s_shift'
+@	movq    mm1,mm7
+	
+@	psrlw   mm1,'mmxtr->tex_t_shift'
+@	movq    mm0,mm6
+	
+@	movq    mm2,mm6
+@       punpcklwd mm0,mm1
+	
+        if (step)
+@       	paddw   mm6,sstep
+@       punpckhwd mm2,mm1
+	
+        if (step)
+@       	paddw   mm7,tstep
+@	psrld   mm0,mm3
+	
+@	psrld   mm2,mm3
+
+        if (indexed) {
+@	    paddd  mm0,'mmxtr->indexTextureBase'
+@	    paddd  mm2,'mmxtr->indexTextureBase'
+	}
+
+        if (step == eax)
+@           push    eax
+
+        if (cookedTexture) {
+	    GLint texsize = c_stride / 4;
+
+	    assert(!do_blend);
+
+@	    movd    eax,mm0
+@	    punpckhdq mm0,mm0
+@	    movd    ecx,mm0
+@	    movq    mm0,mm2
+
+	    // stall
+
+	    if (texsize == 2) {
+@	    	mov     dl,[0 + ebp + ecx * 2]
+    
+@	    	mov     dh,[1 + ebp + ecx * 2]
+@	    	mov     cl,[0 + ebp + eax * 2]
+    
+@	    	shl     edx,16
+@	    	mov     ch,[1 + ebp + eax * 2]
+    
+@	    	movd    eax,mm0
+@		punpckhdq mm0,mm0
+    
+@           	or      edx,ecx
+
+@	    	movd    ecx,mm0
+    
+@           	movd    mm0,edx
+    
+@	    	mov     dl,[0 + ebp + ecx * 2]
+    
+@	    	mov     dh,[1 + ebp + ecx * 2]
+@	    	mov     cl,[0 + ebp + eax * 2]
+    
+@	    	shl     edx,16
+@	    	mov     ch,[1 + ebp + eax * 2]
+
+@               or      edx,ecx
+
+@	        movd    mm2,edx
+
+@	        punpckldq mm0,mm2
+	    } else {
+@	    	mov     dl,[0 + ebp + eax]
+
+@	    	mov     dh,[0 + ebp + ecx]
+
+@	    	movd    eax,mm0
+@		punpckhdq mm0,mm0
+
+@	    	movd     ecx,mm0
+@		pxor    mm1,mm1
+
+@	    	mov     al,[0 + ebp + eax]
+@		and	edx,0xffff
+
+@	    	mov     ah,[0 + ebp + ecx]
+
+@	    	shl     eax,16
+
+@		or	edx,eax
+
+@		movd    mm0,edx
+
+@		punpcklbw mm0,mm1
+	    }
+
+            if (step == eax)
+@               pop    eax
+            else if (modeFlags & __GL_SHADE_TEXTURE_PERSP)
+@               mov    eax,'mmxtr->next_pc'
+        } else {
+	    GLuint hibit;
+
+	    /* Be warned, the rules for handling glTexEnv with the
+	     * various texture formats are somewhat arcane...
+	     */
+
+	    if (modeFlags & __GL_SHADE_DEPTH_TEST)
+@               movq    'mmxtr->spill_z',mm4
+
+@	    movd    eax,mm0
+@	    punpckhdq mm0,mm0
+@	    movd    ecx,mm0
+@	    movq    mm0,mm2
+
+	    if (indexed) {
+@		mov    al,[eax]
+@		mov    cl,[ecx]
+@		and    eax,255
+@		and    ecx,255
+	    }
+
+            switch (baseFormat) {
+	    case GL_LUMINANCE:
+	    case GL_INTENSITY:
+@		mov     dl,[ebp + eax]
+@		mov     dh,[ebp + ecx]
+@               shl     edx,16
+
+@		movd    eax,mm0
+@		punpckhdq mm0,mm0
+@		movd    ecx,mm0
+
+	    	if (indexed) {
+@		    mov    al,[edx + eax]
+@		    mov    cl,[edx + ecx]
+@		    and    eax,255
+@		    and    ecx,255
+	    	}   
+
+@		mov     dl,[ebp + eax]
+@		mov     dh,[ebp + ecx]
+@               rol     edx,16
+
+@               movd    mm0,edx
+@               punpcklbw mm0,mm0
+ 		if (step == eax)
+@		    pop    eax
+                else if (modeFlags & __GL_SHADE_TEXTURE_PERSP)
+@                   mov    eax,'mmxtr->next_pc'
+@               psrlw   mm0,1
+
+@               movq    mm1,mm0
+@               movq    mm2,mm0
+		if (do_blend && has_alpha(baseFormat)) {
+@		    movq    mm3,mm0
+@	            psrlw   mm3,1
+@		    movq    'mmxtr->tex_a',mm3
+		}
+
+		break;
+	    case GL_LUMINANCE_ALPHA:
+@		size16
+@	        mov     edx,[ebp + ecx * 2]
+@		shl     edx,16
+@		size16
+@	        mov     edx,[ebp + eax * 2]
+@		movd    mm3,edx
+
+@		movd    eax,mm0
+@		punpckhdq mm0,mm0
+@		movd    ecx,mm0
+
+	    	if (indexed) {
+@		    mov    al,[eax]
+@		    mov    cl,[ecx]
+@		    and    eax,255
+@		    and    ecx,255
+	    	}   
+
+@		size16
+@	        mov     edx,[ebp + ecx * 2]
+@		shl     edx,16
+@		size16
+@	        mov     edx,[ebp + eax * 2]
+@		movd    mm2,edx
+
+		/* Now we have luminance-alpha values in the low
+		 * halves of mm2,mm3.  Luminance is in the low byte of
+		 * each word, alpha is in the high byte. */
+
+@		punpckldq mm3,mm2	; Now 4 pixels are in a qword.
+@		movq    mm0,mm3
+@		psrlw   mm3,2		; Alpha
+@		psllw   mm0,7		; Luminance
+@		pand    mm3,'mxk(gc, 0x3fc0)'
+@		pand    mm0,'mxk(gc, 0x7f80)'
+
+ 		if (step == eax)
+@		    pop    eax
+                else if (modeFlags & __GL_SHADE_TEXTURE_PERSP)
+@                   mov    eax,'mmxtr->next_pc'
+
+@               movq    mm1,mm0
+@               movq    mm2,mm0
+		if (do_blend) {
+@		    movq    'mmxtr->tex_a',mm3
+		}
+
+		break;
+            case GL_RGB:
+            case GL_RGBA:
+@		genread(mm3, baseFormat);
+
+@		movd    eax,mm0
+@		punpckhdq mm0,mm0
+@		movd    ecx,mm0
+
+	    	if (indexed) {
+@		    mov    al,[eax]
+@		    mov    cl,[ecx]
+@		    and    eax,255
+@		    and    ecx,255
+	    	}   
+
+@		genread(mm4, baseFormat);
+    
+ 		if (step == eax)
+@		    pop    eax
+                else if (modeFlags & __GL_SHADE_TEXTURE_PERSP)
+@                   mov    eax,'mmxtr->next_pc'
+    
+@		lea     ecx,'mxk4(gc, 0x7f80, 0x0, 0x7f80, 0x0)'
+
+		/* Extract alpha from texture */
+		if (do_blend && has_alpha(baseFormat)) {
+@		    movq    mm0,mm3
+@		    movq    mm1,mm4
+@		    psrld   mm0,18
+@		    psrld   mm1,18
+@		    pand    mm0,'mxk4(gc, 0x3fc0, 0x0, 0x3fc0, 0x0)'
+@		    pand    mm1,'mxk4(gc, 0x3fc0, 0x0, 0x3fc0, 0x0)'
+@		    packssdw mm0,mm1
+@		    movq    'mmxtr->tex_a',mm0
+		}
+
+@		movq    mm0,mm3
+@		movq    mm1,mm4
+@		pslld   mm0,7
+@		pslld   mm1,7
+@		pand    mm0,[ecx]
+@		pand    mm1,[ecx]
+@		packssdw mm0,mm1	; mm0 holds red
+
+@		movq    mm1,mm3
+@		movq    mm2,mm4
+@		psrld   mm1,1
+@		psrld   mm2,1
+@		pand    mm1,[ecx]
+@		pand    mm2,[ecx]
+@		packssdw mm1,mm2	; mm1 holds green
+
+@		psrld   mm3,9
+@		psrld   mm4,9
+@		pand    mm3,[ecx]
+@		pand    mm4,[ecx]
+@		movq    mm2,mm3
+@		packssdw mm2,mm4	; mm2 holds blue
+	        break;
+	    default:
+		assert(0);
+            }
+
+	    if (texenv == GL_MODULATE) {
+		/* Texture with alpha component, modulate alpha with
+                   fragment alpha */
+		if (do_blend) {
+		    if (has_alpha(baseFormat)) {
+@		    	movq    mm3,'mmxtr->tex_a'
+@		    	pmulhw  mm3,'mmxtr->spill_a'
+@		    	psllw   mm3,2
+@	            	movq    'mmxtr->tex_a',mm3
+		    }
+		}
+                if (modeFlags & __GL_SHADE_SMOOTH) {
+@		    movq      mm3,'mmxtr->spill_g'
+@		    pmulhw    mm0,mm5
+    
+		    if (step)
+@			paddw     mm5,rstep
+@		    pmulhw    mm1,mm3
+    
+@		    movq      mm4,'mmxtr->spill_b'
+@		    pmulhw    mm2,mm4
+
+ 		    if (step) {
+@			paddw     mm3,gstep
+@			paddw     mm4,bstep
+@			movq      'mmxtr->spill_g',mm3
+@			movq      'mmxtr->spill_b',mm4
+                    }
+                } else {
+@                   pmulhw   mm0,'mmxtr->spill_r'
+@                   pmulhw   mm1,'mmxtr->spill_g'
+@                   pmulhw   mm2,'mmxtr->spill_b'
+                }
+
+                hibit = 13;
+            } else {
+		hibit = 14;
+	    }
+
+	    if (!do_blend) {
+            	if (modeFlags & __GL_SHADE_DITHER) {
+            	     if (hibit == 13) {
+@           		 psllw   mm0,1
+    
+@			 paddsw  mm0,'mmxtr->dithers[0]'
+@           		 psllw   mm1,1
+    
+@			 paddsw  mm1,'mmxtr->dithers[1]'
+@           		 psllw   mm2,1
+    
+@			 paddsw  mm2,'mmxtr->dithers[2]'
+    
+			 hibit = 14;
+		     } else {
+@			 paddsw  mm0,'mmxtr->dithers[0]'
+@			 paddsw  mm1,'mmxtr->dithers[1]'
+@			 paddsw  mm2,'mmxtr->dithers[2]'
+		     }
+	    	}
+    
+@	    	pand	mm1,'mxk(gc, fb->greenMax << (hibit - greenSize))'
+@	    	mmxgobit(mm0, hibit, 'fb->redShift + redSize')
+    	
+@	    	pand	mm0,'mxk(gc, fb->redMax << fb->redShift)'
+@	    	mmxgobit(mm2, hibit, 'fb->blueShift + blueSize')
+    
+@	    	mmxgobit(mm1, hibit, 'fb->greenShift + greenSize')
+@	    	por	mm0,mm2
+
+@	    	por	mm0,mm1
+	    } else {
+@		mmxgobit(mm0, hibit, '(14)');
+@		mmxgobit(mm1, hibit, '(14)');
+@		mmxgobit(mm2, hibit, '(14)');
+
+@		movq    'mmxtr->src.r',mm0
+@		movq    'mmxtr->src.g',mm1
+@		movq    'mmxtr->src.b',mm2
+
+		/* If the texture format has alpha, use it; otherwise
+		   take alpha from the fragment.  */
+
+		if (has_alpha(baseFormat))
+		    mmxtr->src.a = mmxtr->tex_a;     /* At */
+		else
+		    mmxtr->src.a = mmxtr->spill_a;   /* Af */
+
+@	        genblend(mmxtr, c_stride, cp);
+                if ((modeFlags & __GL_SHADE_SMOOTH) && step) {
+@		        movq    mm3,'mmxtr->spill_a'
+@			paddw   mm3,astep
+@			movq    'mmxtr->spill_a',mm3
+	        }
+	    }
+
+	    if (modeFlags & __GL_SHADE_DEPTH_TEST)
+@               movq    mm4,'mmxtr->spill_z'
+        }
+
+	*result = mm0;
+    } else {
+	if ((modeFlags & __GL_SHADE_SMOOTH) == 0) {
+	    if (!do_blend) {
+@	        movq    mm0,mm7
+	    } else {
+		/* The colors are already present in spill_[rgb] */
+		mmxtr->src.r = mmxtr->spill_r;
+		mmxtr->src.g = mmxtr->spill_g;
+		mmxtr->src.b = mmxtr->spill_b;
+
+		mmxtr->src.a = mmxtr->spill_a;
+
+@		genblend(mmxtr, c_stride, cp);
+	    }
+
+	    *result = mm0;
+ 	} else {
+	    if (!do_blend) {
+ 	    	if (step)
+@		    movq   mm3,gstep
+@	    	movq	mm0,mm5
+    
+@	    	mmxgobit(mm0, '(14)', 'fb->redShift + redSize')
+@	    	movq	mm1,mm6
+    
+@	    	pand	mm0,'mxk(gc, fb->redMax << fb->redShift)'
+@	    	mmxgobit(mm1, '(14)', 'fb->greenShift + greenSize')
+    
+@	    	pand	mm1,'mxk(gc, fb->greenMax << fb->greenShift)'
+@	    	movq	mm2,mm7
+    
+@	    	mmxgobit(mm2, '(14)', 'fb->blueShift + blueSize')
+@	    	por	mm0,mm1
+    
+	    	if (step)
+@		    paddw   mm5,rstep
+@	    	por	mm0,mm2
+    
+ 	    	if (step) {
+@		    paddw   mm7,bstep
+@		    paddw   mm6,mm3
+ 	    	}
+	    } else {
+		mmxtr->src.r = mm5;
+		mmxtr->src.g = mm6;
+		mmxtr->src.b = mm7;
+		mmxtr->src.a = mmxtr->spill_a;
+
+@		genblend(mmxtr, c_stride, cp);
+
+	    	if (step) {
+@		    movq    mm1,'mmxtr->spill_a'
+@		    paddw   mm1,astep
+@		    paddw   mm5,rstep
+@		    paddw   mm6,gstep
+@		    paddw   mm7,bstep
+@		    movq    'mmxtr->spill_a',mm1
+		}
+	    }
+    
+	    *result = mm0;
+ 	}
+    }
+
+    return cb;
+}
+
+STATIC unsigned char* 
+genstep(__GLcontext* gc,
+	unsigned char* cb,
+	struct celem* tr,
+	struct __GLmmxtri *mmxtr,
+	struct celem* step,
+	GLint dx,
+	GLenum texenv)
+{
+    GLuint modeFlags = gc->polygon.shader.modeFlags;
+    __GLcolorBuffer* fb = &gc->frontBuffer;
+    struct celem
+	*rstep,
+	*gstep,
+	*bstep,
+	*astep,
+	*sstep,
+	*tstep;
+
+    if (step) {
+	rstep = mmxtr->r.didx;
+	gstep = mmxtr->g.didx;
+	bstep = mmxtr->b.didx;
+	astep = mmxtr->a.didx;
+	sstep = mmxtr->s.didx;
+	tstep = mmxtr->t.didx;
+
+    	if ((modeFlags & __GL_SHADE_SMOOTH) &&
+	    !((modeFlags & __GL_SHADE_TEXTURE) &&
+	      (texenv == GL_REPLACE))) {
+@	    paddw   mm5,rstep
+	    if ((modeFlags & __GL_SHADE_TEXTURE) &&
+		(texenv == GL_MODULATE)) {
+@   		movq    mm0,'mmxtr->spill_g'
+@   		movq    mm1,'mmxtr->spill_b'
+@		paddw   mm0,gstep
+@		paddw   mm1,bstep
+@   		movq    'mmxtr->spill_g',mm0
+@   		movq    'mmxtr->spill_b',mm1
+    	    } else {
+@		paddw   mm6,gstep
+@		paddw   mm7,bstep
+    	    }
+    	}
+	if ((modeFlags & __GL_SHADE_BLEND) &&
+	    (modeFlags & __GL_SHADE_SMOOTH)) {
+@	    movq    mm0,'mmxtr->spill_a'
+@	    paddw   mm0,astep
+@	    movq    'mmxtr->spill_a',mm0
+	}
+
+    	if (modeFlags & __GL_SHADE_TEXTURE) {
+@	    paddw   mm6,sstep
+@	    paddw   mm7,tstep
+    	}
+    }
+    	    
+    return cb;
+}
+
+/* 
+ * Preshift is shift of inital Z value
+ * alive is which results matter
+ *
+ * Writes Z value
+ */
+
+STATIC unsigned char*
+genz(__GLcontext *gc,
+     unsigned char* cb,
+     struct celem* tr,
+     struct __GLmmxtri *mmxtr,
+     struct celem* cp,
+     struct celem* cp_read,
+     struct celem* zp,
+     struct celem* step,
+     GLint dx,
+     struct celem* alive,
+     struct celem* win,
+     struct celem* lose,
+     struct celem* mixpix,
+     GLenum texenv)
+{
+    struct celem* dostep = near_label(gc);
+    struct celem* zstep = NULL;
+
+    if (step) {
+	zstep = mmxtr->z.didx;
+    }
+
+    if (gc->depthBuffer.buf.depth == 16) {
+@	movq    mm0,mm4
+@	movq    mm2,mm4
+
+	if (dx == 1)
+@	    paddd   mm2,'mmxtr->z_skew'
+	else
+@	    paddd   mm0,'mmxtr->z_skew'
+
+@	pand    mm2,'mxk4(gc, 0, ~0, 0, ~0)'
+@	psrld   mm0,16
+
+ 	if (gc->state.depth.testFunc != GL_ALWAYS)
+@	    movq    mm1,zp
+@	por     mm0,mm2
+
+ 	/*
+ 	 * Input:
+ 	 *     mm0   Generated Z value
+ 	 *     mm1   Z-buffer value
+ 	 *     mm2   scratch
+ 	 *
+ 	 * Output:
+ 	 *     mm0   Generated Z value
+ 	 *     mm1   Success mask: 0x0000 means lose, 0xffff means win
+ 	 *     mm2   scratch
+ 	 */
+
+ 	switch (gc->state.depth.testFunc) {
+ 	case GL_NEVER:
+@	    pxor    mm1,mm1
+ 	    break;
+ 	case GL_LESS:
+@	    movq    mm2,mm0
+@	    movq    mm3,mm0
+@	    psubw   mm2,mm1
+@	    psubusw mm3,mm1
+@	    pcmpeqw mm2,mm3
+@	    pcmpeqw mm1,mm1
+@	    pxor    mm1,mm2
+ 	    break;
+ 	case GL_EQUAL:
+@	    pcmpeqw mm1,mm0
+	    break;
+ 	case GL_LEQUAL:
+@	    movq    mm2,mm1
+@	    psubw   mm1,mm0
+@	    psubusw mm2,mm0
+@	    pcmpeqw mm1,mm2
+ 	    break;
+ 	case GL_GREATER:
+@	    movq    mm2,mm1
+@	    psubw   mm1,mm0
+@	    psubusw mm2,mm0
+@	    pcmpeqw mm1,mm2
+@	    pcmpeqw mm2,mm2
+@	    pxor    mm1,mm2
+ 	    break;
+ 	case GL_NOTEQUAL:
+@	    pcmpeqw mm1,mm0
+@	    pcmpeqw mm2,mm2
+@	    pxor    mm1,mm2
+ 	    break;
+ 	case GL_GEQUAL:
+@	    movq    mm2,mm0
+@	    movq    mm3,mm0
+@	    psubw   mm2,mm1
+@	    psubusw mm3,mm1
+@	    pcmpeqw mm2,mm3
+@	    movq    mm1,mm2
+ 	    break;
+ 	}
+
+ 	/* Now 
+ 	 * mm0 is new Z
+ 	 * mm1 is result of comparison
+ 	 * [esi] is original Z
+ 	 */
+
+ 	/* 0x00 means lose, 0xff means win */
+
+ 	/* Mask to stop us winning over the edges */
+ 	if (alive) {
+@	    movd	mm2,alive
+@	    punpcklbw mm2,mm2
+ 	    if (gc->state.depth.testFunc != GL_ALWAYS)
+@		pand    mm1,mm2
+	    else
+@		movq    mm1,mm2
+ 	}
+
+ 	if ((gc->state.depth.testFunc != GL_ALWAYS) ||
+	    alive) {
+@	    movq    mm2,mm1
+@	    packsswb mm1,mm1
+
+            if (gc->state.depth.writeEnable) {
+@	    	pand    mm0,mm2
+    
+@	    	pandn   mm2,zp
+	    }
+    
+@	    movd    ecx,mm1
+            if (gc->state.depth.writeEnable)
+@	        por     mm0,mm2
+
+ 	    if (step)
+@		paddd   mm4,zstep
+
+            if (gc->state.depth.writeEnable)
+@	        movq    zp,mm0
+
+@	    test    ecx,ecx
+@	    je      dostep
+ 	} else {
+ 	    if (step)
+@		paddd   mm4,zstep
+
+@	    movq    zp,mm0
+@	    jmp     win
+        }
+    } else {
+	struct celem* zp8;
+
+	zp8 = mem(gc, value(gc, 8), zp->spec.mem.reg1, zp->spec.mem.reg2, zp->spec.mem.scale);
+
+	/* Form a new quadruplet of Z-values in mm3,mm4 */
+
+@       movq    mm3,mm4
+
+	if (dx == -1)
+@	    paddd   mm3,'mmxtr->z_skew'
+	else
+@	    paddd   mm4,'mmxtr->z_skew'
+
+ 	switch (gc->state.depth.testFunc) {
+ 	case GL_ALWAYS:
+@           pcmpeqd mm0,mm0
+@           pcmpeqd mm1,mm1
+ 	    break;
+
+ 	case GL_NEVER:
+@           pxor    mm0,mm0
+@           pxor    mm1,mm1
+ 	    break;
+
+ 	case GL_LESS:
+@           movq    mm0,zp
+@           pcmpgtd mm0,mm3
+@           movq    mm1,zp8
+@           pcmpgtd mm1,mm4
+ 	    break;
+
+ 	case GL_EQUAL:
+@           movq    mm0,zp
+@           pcmpeqd mm0,mm3
+@           movq    mm1,zp8
+@           pcmpeqd mm1,mm4
+	    break;
+
+ 	case GL_LEQUAL:
+@           movq    mm0,mm3
+@           pcmpgtd mm0,zp
+@           movq    mm1,mm4
+@           pcmpgtd mm1,zp8
+
+@           pcmpeqw mm2,mm2
+@           pxor    mm0,mm2
+@           pxor    mm1,mm2
+
+ 	    break;
+ 	case GL_GREATER:
+@           movq    mm0,mm3
+@           pcmpgtd mm0,zp
+@           movq    mm1,mm4
+@           pcmpgtd mm1,zp8
+ 	    break;
+
+ 	case GL_NOTEQUAL:
+@           movq    mm0,zp
+@           pcmpeqd mm0,mm3
+@           movq    mm1,zp8
+@           pcmpeqd mm1,mm4
+
+@           pcmpeqw mm2,mm2
+@           pxor    mm0,mm2
+@           pxor    mm1,mm2
+ 	    break;
+
+ 	case GL_GEQUAL:
+@           movq    mm0,zp
+@           pcmpgtd mm0,mm3
+@           movq    mm1,zp8
+@           pcmpgtd mm1,mm4
+@           pcmpeqw mm2,mm2
+@           pxor    mm0,mm2
+@           pxor    mm1,mm2
+ 	    break;
+ 	}
+
+@       movq    mm2,mm0
+@       packssdw mm2,mm1
+
+ 	/* Now 
+ 	 * mm3,4 is new Z
+	 * mm0,mm1 are masks
+ 	 * mm2 is result of comparison
+ 	 * [esi] is original Z
+ 	 */
+
+ 	/* 0x00 means lose, 0xff means win */
+
+ 	/* Mask to stop us winning over the edges */
+ 	if (alive) {
+@	    movd      mm1,alive
+@	    punpcklbw mm1,mm1
+@	    pand    mm2,mm1
+ 	}
+@       movq    mm1,mm2
+@	packsswb mm2,mm2
+@       movd    ecx,mm2
+
+        if (gc->state.depth.writeEnable) {
+@           movq    mm0,mm1
+@           punpckhwd mm1,mm1
+@           punpcklwd mm0,mm0
+
+@           pand    mm3,mm0
+@           pandn   mm0,zp
+@           por     mm0,mm3
+@           movq    zp,mm0
+
+@           movq    mm2,mm4
+@           pand    mm2,mm1
+@           pandn   mm1,zp8
+@           por     mm1,mm2
+@           movq    zp8,mm1
+	}
+
+ 	if (step) {
+	    if (dx == -1)
+@	        paddd   mm4,'mmxtr->z.didx'
+	    else
+@	        paddd   mm4,'mmxtr->z_skew'
+	}
+
+@	test    ecx,ecx
+@	je      dostep
+
+@       movd    mm1,ecx
+    }
+
+    if (gc->polygon.shader.modeFlags & __GL_SHADE_MASK) {
+	/* Do nothing, just fall through to dostep and the Z lose route. */
+    } else {
+    	 if (alive) {
+@   	     mov     edx,alive
+@   	     cmp     ecx,edx
+@   	     je      win
+    	 } else {
+@   	     cmp     ecx,~0
+@   	     je      win
+    	 }
+     
+    	  /* We're mixed */
+    	  if (step == eax)
+@   	      mov    'mmxtr->spill_1',eax
+     
+	  /* 'mixpix' takes it color pointer in edi.  If we're
+	   * blending, short spans have a different cp and cp_read: so
+	   * mixpix takes a color source pointer in esi and
+	   * destination in edi.
+	   */
+
+          if (gc->polygon.shader.modeFlags & __GL_SHADE_BLEND) {
+@	      push    esi
+@	      lea     esi,cp_read
+@   	      push    edi
+@   	      lea     edi,cp
+
+@   	      call    mixpix
+
+@   	      pop     edi
+@	      pop     esi
+	  } else {
+@   	      push    edi
+@   	      lea     edi,cp
+@   	      call    mixpix
+@   	      pop     edi
+	  }
+
+    	  if (step == eax)
+@   	      mov    eax,'mmxtr->spill_1'
+    }
+
+@ dostep:
+     if (step)
+@        genstep(tr, mmxtr, step, dx, texenv)
+
+    /* Need to load up eax if we're in the central section */
+    if (!alive &&
+	(gc->polygon.shader.modeFlags & __GL_SHADE_TEXTURE_PERSP)) {
+@       mov    eax,'mmxtr->next_pc'
+    }
+@   jmp     lose
+
+    return cb;
+}
+
+/* Round r towards zero, given that we intend to truncate 
+ * afterwards and preserve 'keep' bits.
+ */
+STATIC unsigned char*
+rtz(__GLcontext *gc,
+    unsigned char* cb,
+    struct celem* r,
+    struct celem* keep)
+{
+@   movq	mm7,r
+@   psrad	mm7,31
+@   psrld	mm7,keep
+@   paddd	r,mm7
+
+    return cb;
+}
+
+/* Round r towards zero, given that we intend to truncate 
+ * afterwards and preserve 'keep' bits.
+ */
+STATIC unsigned char*
+rtzw(__GLcontext *gc,
+     unsigned char* cb,
+     struct celem* r,
+     struct celem* keep)
+{
+@   movq	mm7,r
+@   psraw	mm7,15
+@   psrlw	mm7,keep
+@   paddw	r,mm7
+
+    return cb;
+}
+
+/*
+ * Correct an interpolant.  Generally, we get interpolants in 16.16
+ * precision.  We like to use small (16-bit) interpolators, so we have
+ * so shift all values left by some amount ('shift').
+ */
+STATIC unsigned char*
+kerrect(__GLcontext *gc,
+	unsigned char* cb,
+	struct celem* r0,
+	struct celem* drdx,
+	struct celem* drdy0,
+	struct celem* drdy1,
+	struct celem* shift)
+{
+@    movd	mm0,r0
+@    pslld	mm0,shift
+@    movd	r0,mm0
+
+@    movd	mm0,drdx
+@    pslld	mm0,shift
+@    movd	drdx,mm0
+
+@    movd	mm0,drdy0
+@    pslld	mm0,shift
+@    movd	drdy0,mm0
+
+@    movd	mm0,drdy1
+@    pslld	mm0,shift
+@    movd	drdy1,mm0
+
+     return cb;
+}
+
+STATIC unsigned char*
+prepare(__GLcontext *gc,
+	unsigned char* cb,
+	struct celem* ending,
+	struct celem* tail,
+	int dx,
+	GLint z_stride,
+	GLint c_stride,
+	GLboolean interpolate_z,
+	struct __GLmmxtri* mmxtr,
+	GLuint modeFlags)
+{
+    if (ending)
+@       mov     ending,ebx
+
+@   mov     eax,ebx
+
+@   shr     eax,2
+@   xor	    ebx,ebx
+
+    if (dx == 1) {
+@       cmp	eax,0
+@       je      tail
+
+@       lea	edi,[edi + eax * c_stride]
+@       sub	ebx,eax
+
+        if (interpolate_z) {
+	    if (z_stride == 16)
+@               add    eax,eax
+@           lea     esi,[esi + eax * 8]
+        }
+        if ((modeFlags & __GL_SHADE_TEXTURE) && 
+	    (modeFlags & __GL_SHADE_TEXTURE_PERSP)) {
+@           mov    eax,ebx
+@           add    eax,4
+@           mov    'mmxtr->next_pc',eax
+        }
+    } else {
+@	sub     ebx,eax
+@       lea	edi,[edi + ebx * c_stride]
+        if (interpolate_z) {
+	    if (z_stride == 16)
+@               add    ebx,ebx
+@           lea     esi,[esi + ebx * 8]
+        }
+@       cmp	eax,0
+@       je      tail
+@       mov     ebx,eax
+        if ((modeFlags & __GL_SHADE_TEXTURE) && 
+	    (modeFlags & __GL_SHADE_TEXTURE_PERSP)) {
+@           sub    eax,4
+@           mov    'mmxtr->next_pc',eax
+        }
+    }
+
+    return cb;
+}
+
+/*
+ * Perspective-correct approximation in MMX.
+ * 
+ * Crucial to this process we need a reciprocal function: something
+ * to give us 1/q, but without using floating-point.
+ * 
+ * First we normalize 'q'.  This is done in 'mknorm'; it builds
+ * a normalization tree that binary chops through 'q' until it
+ * finds the most-significant bit.  Then it shifts 'q' left and
+ * records the exponent.
+ *
+ * Next, we look up 'q' by indexing via its high bits into a
+ * reciprocal table.  Each entry contains not only (1/x), but the
+ * slope of (1/x) at that point.  So we LERP between entries by
+ * multiplying this slope by the fractional part of 'q'.
+ * 
+ * The function returns this value, which is basically a mantissa,
+ * and the exponent, which is the normalization distance we found
+ * in 'mknorm'.
+ *
+ * (If you don't know what LERP, mantissa, exponent, and normalization
+ * mean, you should read up on floating-point and numerical
+ * approximations.)
+ */
+
+#define MMX_TRUE_DIVIDE 0
+
+#define L2_RECIP_SIZE 8
+#define RECIP_SIZE (1 << L2_RECIP_SIZE) 
+
+STATIC unsigned char*
+mknorm(__GLcontext *gc,
+       unsigned char * cb,
+       GLint lo,
+       GLint hi,
+       struct celem* done)
+{
+    if (lo == hi) {
+        if ((lo == 24) || (lo == 0)) {
+@	    mov     ecx,#'MMX_TRUE_DIVIDE ? 0xffffff : 0xffffffff'
+@           mov     edx,1
+	} else {
+@           gobit(ecx,'(24 - lo)','(MMX_TRUE_DIVIDE ? 23 : 32)')
+@           mov     edx,#lo
+        }
+@       jmp     done
+    } else {
+	struct celem *less = label(gc);
+	GLuint mid;
+
+	mid = (hi + lo) / 2;
+@       cmp     ecx,#'(0x1000000 >> mid)'
+@       jl      less
+@       mknorm(lo, mid, done)
+@less:
+@       mknorm('mid + 1', hi, done)
+    }
+
+    return cb;
+}
+
+STATIC unsigned char*
+reciprocal(__GLcontext *gc,
+	   unsigned char * cb,
+	   struct celem* q)
+{
+    static GLboolean cold = GL_TRUE;
+    static GLuint recips[RECIP_SIZE];
+    struct celem
+	*ok = near_label(gc),
+	*done = label(gc);
+
+    if (cold) {
+	GLint i;
+
+	cold = GL_FALSE;
+	for (i = 0 ; i < RECIP_SIZE; i++) {
+
+#define RENT(i) ((0x8000 << L2_RECIP_SIZE) / (RECIP_SIZE + (i)))
+
+	    recips[i] = (RENT(i) | ((2 * (RENT(i + 1) - RENT(i))) << 16));
+
+#undef RENT
+
+	}
+    }
+
+    if (q != ecx)
+@       mov     ecx,q
+
+@   mknorm('(0)', '(24)', done)
+@done:
+
+#if MMX_TRUE_DIVIDE
+@   push    eax
+@   push    ebx
+
+@   mov     eax,ecx
+@   and     eax,0xff800000
+@   cmp     eax,0x00800000
+@   je      ok
+@ int3
+@ ok:
+
+@   movd    mm2,edx
+
+@   mov     edx,0x40
+@   mov     eax,0x00000000
+@   idiv    ecx
+@   movd    mm0,eax
+@   packssdw mm0,mm0
+@   punpcklwd mm0,mm0
+@   punpckldq mm0,mm0
+
+@   pop     ebx
+@   pop     eax
+
+#else
+@   movd    mm2,edx
+
+@   mov     edx,ecx
+
+@   shr     edx,#'((32 - L2_RECIP_SIZE) - 15)'
+
+@   shr     ecx,#'(32 - L2_RECIP_SIZE)'
+@   and     edx,0x7fff
+
+@   movd    mm3,edx
+
+@   movd    mm1,[#'(int)recips' + ecx * 4]
+
+@   movq    mm0,mm1
+@   psrld    mm1,16
+
+@   pmulhw   mm1,mm3
+
+@   paddw    mm0,mm1
+
+@   punpcklwd mm0,mm0
+
+@   punpckldq mm0,mm0
+
+#endif
+
+    return cb;
+}
+
+STATIC unsigned char*
+mul32x16(__GLcontext *gc,
+	 unsigned char * cb,
+	 struct celem *dst32,
+	 struct celem *src16,
+	 struct celem *work1,
+	 struct celem *work2)
+{
+
+@   movq    work1,dst32
+@   psrlw   work1,1
+
+@   movq    work2,src16
+@   pand    work2,'mxk4(gc, ~0, 0, ~0, 0)'
+
+@   pand    src16,'mxk4(gc, 0, ~0, 0, ~0)'
+
+@   pmaddwd dst32,src16
+@   pmaddwd work1,work2
+@   pslld   dst32,1
+@   psrld   work1,14
+@   paddd   dst32,work1
+
+    return cb;
+}
+
+STATIC unsigned char*
+mul32x16i(__GLcontext *gc,
+	  unsigned char * cb,
+	  struct celem *dst32,
+	  struct celem *src16,
+	  struct celem *work1,
+	  struct celem *work2)
+{
+@   movq    work1,dst32
+@   psrlw   work1,1
+
+@   movq    work2,src16
+@   pand    work2,'mxk4(gc, ~0, 0, ~0, 0)'
+
+@   pand    src16,'mxk4(gc, 0, ~0, 0, ~0)'
+
+@   pmaddwd dst32,src16
+@   pmaddwd work1,work2
+@   pslld   work1,1
+@   pslld   dst32,16
+@   paddd   dst32,work1
+
+    return cb;
+}
+
+STATIC unsigned char*
+perspective(__GLcontext *gc,
+	    unsigned char* cb,
+	    struct celem *tc,
+	    struct celem *q,
+	    struct celem *work1,
+	    struct celem *work2)
+{
+@   mul32x16(tc,mm0,work1,work2)
+@   pslld   tc,mm2
+
+    return cb;
+}
+
+/* Returns true if the blend function uses alpha */
+STATIC GLboolean
+uses_alpha(GLenum bm)
+{
+    switch (bm) {
+    case GL_ZERO:
+    case GL_ONE:
+    case GL_DST_COLOR:
+    case GL_SRC_COLOR:
+    case GL_ONE_MINUS_DST_COLOR:
+    case GL_ONE_MINUS_SRC_COLOR:
+	return GL_FALSE;
+
+    case GL_SRC_ALPHA:
+    case GL_ONE_MINUS_SRC_ALPHA:
+    case GL_DST_ALPHA:
+    case GL_ONE_MINUS_DST_ALPHA:
+    case GL_SRC_ALPHA_SATURATE:
+	return GL_TRUE;
+
+    default:
+	assert(0);
+    }
+}
+
+STATIC unsigned char*
+BuildMMXRasterizer(__GLcontext *gc, unsigned char* cb)
+{
+    GLuint modeFlags = gc->polygon.shader.modeFlags;
+    struct celem
+	*forwards = label(gc),
+	*alldone = label(gc);
+    double *data;
+    GLuint offset = 0;
+    struct celem* tr;
+    struct celem* h;
+    struct celem* ending;
+    struct celem* headgate;	/* 4-way jump table for handling start-of-span... */
+    struct celem* tailgate;	/* ... end-of-span... */
+    struct celem* minigate;	/* ... short (1-4 pixel) spans */
+    struct celem* pixval;	/* Pixel value we're going to generate.  mm0 */
+    struct celem* readfrom;	/* Place to get pixel from when blending with short spans */
+    struct celem* stagger_k;
+    struct celem* mixpix = label(gc);
+    struct celem* do_recip = label(gc);
+    struct __GLmmxtri mmxtr;
+    GLint dx;
+    GLboolean interpolate_tex;
+    GLboolean interpolate_color;
+    GLboolean interpolate_z;
+    GLboolean need_alpha;
+    GLenum texenv;
+    struct celem *ditherspace;
+    double *dithertab;
+    __GLcolorBuffer* fb = &gc->frontBuffer;
+    GLint
+	z_stride,		/* Depth 4-pixel stride (either 8 or 16) */
+	c_stride;		/* Color 4-pixel stride (either 4 or 8) */
+#if __GL_CODEGEN_PMON
+    struct celem* startKernelIteration;
+    struct celem* endKernelIteration;
+#endif /* __GL_CODEGEN_PMON */
+
+#if __GL_CODEGEN_PMON
+    startKernelIteration = label(gc);
+    startKernelIteration->spec.label.where = (unsigned char*)&StartKernelIteration;
+    endKernelIteration = label(gc);
+    endKernelIteration->spec.label.where = (unsigned char*)&EndKernelIteration;
+#endif /* __GL_CODEGEN_PMON */
+
+    if (modeFlags & __GL_SHADE_TEXTURE) {
+	interpolate_tex = GL_TRUE;
+	texenv = gc->state.texture.env[0].mode;
+	if (texenv == GL_DECAL &&
+	    gc->texture.currentTexture->texelFormat == GL_RGB)
+	    texenv = GL_REPLACE;
+    } else {
+	interpolate_tex = GL_FALSE;
+	texenv = 0;
+    }
+
+    interpolate_color = !(interpolate_tex && (texenv == GL_REPLACE)) &&
+	(modeFlags & __GL_SHADE_SMOOTH);
+
+    if (modeFlags & __GL_SHADE_BLEND) {
+	if (uses_alpha(gc->state.raster.blendSrc) ||
+	    uses_alpha(gc->state.raster.blendDst))
+	    need_alpha = GL_TRUE;
+    } else {
+	need_alpha = GL_FALSE;
+    }
+    
+    /* However, if we're blending with a GL_REPLACE texture that has no alpha
+     * channel, we need alpha from the fragment, so we set interpolate_color.
+     */
+    if (need_alpha &&
+	(interpolate_tex && (texenv == GL_REPLACE)) &&
+	 !has_alpha(gc->texture.currentTexture->texelFormat) &&
+	(modeFlags & __GL_SHADE_SMOOTH))
+	interpolate_color = GL_TRUE;
+
+    switch (gc->drawBuffer->fbtype) {
+    case 0:
+    case CINDEX:
+    case RGB332:
+    case RGB666:
+	c_stride = 4;
+	break;
+    case RGB5:
+    case RGB565:
+    case A1RGB5:
+	c_stride = 8;
+	break;
+    case RGB8:
+    case BGR8:
+    case RGBX8:
+    case XRGB8:
+    case XBGR8:
+    case RGBA8:
+    case ARGB8:
+    case ABGR8:
+	assert(0);
+	break;
+    }
+
+    interpolate_z = (modeFlags & __GL_SHADE_DEPTH_TEST &&
+		     (gc->state.depth.writeEnable ||
+		      gc->state.depth.testFunc != GL_ALWAYS));
+
+    /* 
+     * z_stride is the size of a gang of 4 depth values.
+     * For a 16-bit Z it's 8, for 32-bit Z it's 16.
+     */
+    z_stride = 4 * (gc->depthBuffer.buf.depth / 8);
+
+    tr = mem2(gc, value(gc, 0), esp);
+
+    data = (double*)((((int)cb - 2000) + 7) & ~7UL);
+
+#define ILOCAL(name)	(name = mem2(gc, value(gc, (int)&data[offset]), NULL), offset++)
+#define DLOCAL(name)	(name = mem2(gc, value(gc, (int)&data[offset]), NULL), offset++)
+#define XLOCAL(name, sz)(name = mem2(gc, value(gc, (int)&data[offset]), NULL), offset += (sz / sizeof(double)))
+
+    DLOCAL(mmxtr.r.didx);
+    DLOCAL(mmxtr.g.didx);
+    DLOCAL(mmxtr.b.didx);
+    DLOCAL(mmxtr.a.didx);
+    DLOCAL(mmxtr.s.didx);
+    DLOCAL(mmxtr.t.didx);
+    DLOCAL(mmxtr.z.didx);
+
+    XLOCAL(mmxtr.r.istagger, 32);
+    XLOCAL(mmxtr.g.istagger, 32);
+    XLOCAL(mmxtr.b.istagger, 32);
+    XLOCAL(mmxtr.a.istagger, 32);
+    XLOCAL(mmxtr.s.istagger, 32);
+    XLOCAL(mmxtr.t.istagger, 32);
+    XLOCAL(mmxtr.z.istagger, 32);
+
+    /* Dither table for 3 colors, for 4 lines, for 4 horizontal pixels,
+     * using 16-bit (2 byte) values.
+     */
+    XLOCAL(ditherspace, (3 * 4 * 4 * 2));
+    dithertab = (double*)DISPOF(ditherspace);
+
+    DLOCAL(mmxtr.zvalue);
+    DLOCAL(mmxtr.zresult);
+    DLOCAL(mmxtr.z_skew);
+
+    DLOCAL(mmxtr.spill_z);
+    DLOCAL(mmxtr.spill_r);
+    DLOCAL(mmxtr.spill_g);
+    DLOCAL(mmxtr.spill_a);
+    DLOCAL(mmxtr.tex_a);
+    DLOCAL(mmxtr.spill_b);
+    DLOCAL(mmxtr.spill_1);
+
+    DLOCAL(mmxtr.dithers[0]);
+    DLOCAL(mmxtr.dithers[1]);
+    DLOCAL(mmxtr.dithers[2]);
+    DLOCAL(mmxtr.dithers[3]);
+
+    DLOCAL(mmxtr.src.r);
+    DLOCAL(mmxtr.src.g);
+    DLOCAL(mmxtr.src.b);
+    DLOCAL(mmxtr.src.a);
+
+    DLOCAL(mmxtr.dst.r);
+    DLOCAL(mmxtr.dst.g);
+    DLOCAL(mmxtr.dst.b);
+    DLOCAL(mmxtr.dst.a);
+
+    DLOCAL(mmxtr.df.r);
+    DLOCAL(mmxtr.df.g);
+    DLOCAL(mmxtr.df.b);
+    DLOCAL(mmxtr.df.a);
+
+    DLOCAL(mmxtr.sf.r);
+    DLOCAL(mmxtr.sf.g);
+    DLOCAL(mmxtr.sf.b);
+    DLOCAL(mmxtr.sf.a);
+
+    DLOCAL(mmxtr.pixcopy);
+    DLOCAL(mmxtr.indexTextureBase);
+
+    ILOCAL(mmxtr.prev_st);
+    ILOCAL(mmxtr.next_pc);
+
+    ILOCAL(h);
+    ILOCAL(ending);
+
+    {
+	__GLcolorBuffer *cfb = gc->drawBuffer;
+	GLuint shifts[4];
+	int c, i, j;
+
+	shifts[0] = log2(cfb->redMax) + 1;
+	shifts[1] = log2(cfb->greenMax) + 1;
+	shifts[2] = log2(cfb->blueMax) + 1;
+
+	for (c = 0; c <= 2; c++)
+	    for (i = 0; i < 4; i++) {
+		short* ps;
+
+		ps = (short*)&dithertab[(4 * c) + i];
+		for (j = 0; j < 4; j++) {
+		    *ps++ = __glFRDitherTable[i][j] >> (shifts[c] + 1);
+		}
+	    }
+    }
+
+#define MENTION(i)								\
+    __glNSWhereIs(gc->tr, offsetof(i, __GLtri), sizeof(GLint));
+
+    MENTION(y0Int);
+    MENTION(y1Int);
+    MENTION(y2Int);
+
+    MENTION(x0Int);
+    MENTION(x1Int);
+    MENTION(x2Int);
+
+    MENTION(dxdy0Int[0]);
+    MENTION(dxdy0Int[1]);
+    MENTION(dxdy1Int[0]);
+    MENTION(dxdy1Int[1]);
+    MENTION(dxdy2Int[0]);
+    MENTION(dxdy2Int[1]);
+
+    MENTION(x0Frac);
+    MENTION(x1Frac);
+    MENTION(x2Frac);
+
+    MENTION(dxdy0Frac);
+    MENTION(dxdy1Frac);
+    MENTION(dxdy2Frac);
+
+    MENTION(dx);
+
+#define IPAIR(a, b)				\
+    __glNSAlign(gc->tr, 8);			\
+    MENTION(a);					\
+    MENTION(b);					\
+    MENTION(a##0);				\
+    MENTION(b##0);				\
+    MENTION(d##a##dx);				\
+    MENTION(d##b##dx);				\
+    MENTION(d##a##dy0[0]);			\
+    MENTION(d##b##dy0[0]);			\
+    MENTION(d##a##dy0[1]);			\
+    MENTION(d##b##dy0[1]);
+
+#if __GL_CODEGEN_DESCRIBERS
+@       inc	[#'(int)&last_describer->drawn_tris']
+@       rdtsc
+@       sub     [#'(int)&last_describer->cyc[0]'],eax
+@       sbb     [#'(int)&last_describer->cyc[1]'],edx
+#endif /* __GL_CODEGEN_DESCRIBERS */
+
+    if (interpolate_color || interpolate_tex || interpolate_z) {
+	stagger_k = mxk4(gc, 0, 1, 2, 3);
+
+	mxk4(gc, 3, 2, 1, 0);
+
+@	mov	ebp,'tr(dx)'	; 0x01	0xff
+@	mov	ebx,ebp		; +1    -1
+@	sar	ebp,31		; 0x00	0xff
+@	and	ebp,3		; 0x00	0x03
+    }
+
+    if (interpolate_color) {
+	struct celem* again = label(gc);
+
+	IPAIR(r, g);
+	IPAIR(b, a);
+
+@	kerrect('tr(r0)', 'tr(drdx)', 'tr(drdy0[0])', 'tr(drdy0[1])', '14 - log2(fb->redMax)')
+@	kerrect('tr(g0)', 'tr(dgdx)', 'tr(dgdy0[0])', 'tr(dgdy0[1])', '14 - log2(fb->greenMax)')
+@	kerrect('tr(b0)', 'tr(dbdx)', 'tr(dbdy0[0])', 'tr(dbdy0[1])', '14 - log2(fb->blueMax)')
+	if (need_alpha)
+@	    kerrect('tr(a0)', 'tr(dadx)', 'tr(dady0[0])', 'tr(dady0[1])', '14 - log2(ALPHA_MAX)')
+
+@	movq	mm0,'tr(drdx)'
+@	movq	mm2,'tr(dbdx)'
+
+@	paddd	mm0,mm0
+@	paddd	mm2,mm2
+
+@	paddd	mm0,mm0
+@	paddd	mm2,mm2
+
+@	rtz(mm0, 16)
+@	rtz(mm2, 16)
+
+@	movq	mm1,mm0
+@	movq	mm3,mm2
+
+@	punpcklwd mm0,mm0
+@	punpcklwd mm2,mm2
+@	punpckhwd mm1,mm1
+@	punpckhwd mm3,mm3
+
+@	punpckhdq mm0,mm0
+@	punpckhdq mm1,mm1
+@	punpckhdq mm2,mm2
+@	punpckhdq mm3,mm3
+
+@	movq	'mmxtr.r.didx',mm0
+@	movq	'mmxtr.g.didx',mm1
+@	movq	'mmxtr.b.didx',mm2
+	if (need_alpha)
+@	    movq    'mmxtr.a.didx',mm3
+
+@	movq	mm0,'tr(drdx)'
+@	movq	mm2,'tr(dbdx)'
+
+@	rtz(mm0, 16)
+@	rtz(mm2, 16)
+
+@	movq	mm1,mm0
+@	movq	mm3,mm2
+
+@	punpcklwd mm0,mm0
+@	punpcklwd mm2,mm2
+@	punpckhwd mm1,mm1
+@	punpckhwd mm3,mm3
+
+@	punpckhdq mm0,mm0
+@	punpckhdq mm1,mm1
+@	punpckhdq mm2,mm2
+@	punpckhdq mm3,mm3
+
+@	movq	mm4,mm0
+@	movq	mm5,mm1
+@	movq	mm6,mm2
+@	movq	mm7,mm3
+
+@	mov	eax,'tr(dx)'
+@	shr	eax,31
+
+@	pmullw	mm0,[#'DISPOF(stagger_k)' + eax * 8]
+@	pmullw	mm1,[#'DISPOF(stagger_k)' + eax * 8]
+@	pmullw	mm2,[#'DISPOF(stagger_k)' + eax * 8]
+	if (need_alpha)
+@	    pmullw  mm3,[#'DISPOF(stagger_k)' + eax * 8]
+
+@	mov	ecx,4
+@       push    ebp
+
+@again:
+@	movq	[#'DISPOF(mmxtr.r.istagger)' + ebp * 8],mm0
+@	movq	[#'DISPOF(mmxtr.g.istagger)' + ebp * 8],mm1
+@	movq	[#'DISPOF(mmxtr.b.istagger)' + ebp * 8],mm2
+	if (need_alpha)
+@	    movq    [#'DISPOF(mmxtr.a.istagger)' + ebp * 8],mm3
+
+@	psubw	mm0,mm4
+@	psubw	mm1,mm5
+@	psubw	mm2,mm6
+@	psubw	mm3,mm7
+
+@	add	ebp,ebx
+
+@	dec	ecx
+@	jne	again
+
+@       pop     ebp
+    }
+
+    if (interpolate_z) {
+	static const unsigned short masks[4] = { 
+	    0x0000, 0xffff,
+	    0xffff, 0x0000
+	};
+	struct celem* again = label(gc);
+	IPAIR(z, zp);
+
+@       movd    mm0,'tr(dzdx)'
+@       punpckldq mm0,mm0
+
+	if (gc->depthBuffer.buf.depth == 16) {
+@	    movq	'mmxtr.z_skew',mm0
+@	    paddd	mm0,mm0
+	} else {
+@	    paddd	mm0,mm0
+@	    movq	'mmxtr.z_skew',mm0
+	}
+
+@	paddd	mm0,mm0
+
+@	movq	'mmxtr.z.didx',mm0
+
+@	mov	eax,'tr(dx)'
+
+@	shr	eax,31
+
+@	rtz(mm0,30)
+
+@       push    ebp
+@	psrad	mm0,2
+
+@       movq    mm1,mm0
+
+	if (gc->depthBuffer.buf.depth == 16)
+@	    pslld   mm0,1		; Cheap stagger here
+
+@	movq	mm2,[#'(int)&masks' + eax * 4]
+
+@	punpcklwd mm2,mm2
+
+@	pand	mm0,mm2
+
+@	mov	ecx,4
+@again:	
+@	movq	[#'DISPOF(mmxtr.z.istagger)' + ebp * 8],mm0
+    	
+@	psubd	mm0,mm1
+@	add	ebp,ebx
+    	
+@	dec	ecx
+@	jne	again
+
+@       pop     ebp
+
+    }
+
+    if (interpolate_tex) {
+	struct celem* again = label(gc);
+
+	IPAIR(s, t);
+	if (modeFlags & __GL_SHADE_TEXTURE_PERSP) {
+	    IPAIR(q, dummy);
+	}
+
+	DLOCAL(mmxtr.tex_s_shift);
+	DLOCAL(mmxtr.tex_t_shift);
+	DLOCAL(mmxtr.tex_s_kerrect);
+	DLOCAL(mmxtr.tex_t_kerrect);
+	DLOCAL(mmxtr.tex_t_mask);
+
+@	mov     esi,[#'(int)&gc->texture.currentTexture']
+@       mov     edx,16
+
+@       pxor    mm0,mm0
+
+@       mov     esi,[esi + __GLtexture.level]
+@       mov     ecx,edx
+
+@       movq     'mmxtr.tex_s_shift',mm0
+@       movq     'mmxtr.tex_t_shift',mm0
+@       movq     'mmxtr.tex_s_kerrect',mm0
+@       movq     'mmxtr.tex_t_kerrect',mm0
+
+@       movd    mm7,[esi + __GLmipMapLevel.widthLog2]
+@       movd    mm0,[esi + __GLmipMapLevel.height2]
+@       punpcklwd mm0,mm0
+@       punpckldq mm0,mm0
+@       psubw   mm0,'mxk(gc, 1)'
+@       psllw   mm0,mm7
+@       movq    'mmxtr.tex_t_mask',mm0
+
+/*
+ * s_shift = (16 - wl2)
+ * t_shift = (16 - wl2) - hl2;
+ */
+
+@       sub     ecx,[esi + __GLmipMapLevel.heightLog2]
+@       sub     edx,[esi + __GLmipMapLevel.widthLog2]
+
+@       mov     'mmxtr.tex_t_kerrect',ecx
+@       mov     'mmxtr.tex_s_kerrect',edx
+
+@       mov     'mmxtr.tex_s_shift',edx
+@       mov     'mmxtr.tex_t_shift',ecx
+
+	if (!(modeFlags & __GL_SHADE_TEXTURE_PERSP)) {
+@	    kerrect('tr(s0)', 'tr(dsdx)', 'tr(dsdy0[0])', 'tr(dsdy0[1])', 'mmxtr.tex_s_kerrect')
+@	    kerrect('tr(t0)', 'tr(dtdx)', 'tr(dtdy0[0])', 'tr(dtdy0[1])', 'mmxtr.tex_t_kerrect')
+        }
+	if (!(modeFlags & __GL_SHADE_TEXTURE_PERSP)) {
+@	    movq	mm0,'tr(dsdx)'
+
+@	    paddd   mm0,mm0
+@	    paddd   mm0,mm0
+@	    rtz(mm0, 16)
+
+@           movq     mm1,mm0
+@           punpcklwd mm0,mm0
+
+@           punpckhwd mm1,mm1
+
+@           punpckhdq mm0,mm0
+@           punpckhdq mm1,mm1
+
+@	    movq     'mmxtr.s.didx',mm0
+@	    movq     'mmxtr.t.didx',mm1
+
+@	    rtzw(mm0,14)
+@	    rtzw(mm1,14)
+@	    psraw   mm0,2
+@	    psraw   mm1,2
+
+@           movq    mm2,mm0
+@           movq    mm3,mm1
+
+@	    mov     eax,'tr(dx)'
+@	    shr	    eax,31
+
+@	    pmullw  mm0,[#'DISPOF(stagger_k)' + eax * 8]
+@	    pmullw  mm1,[#'DISPOF(stagger_k)' + eax * 8]
+
+@	    mov	ecx,4
+@again:	   
+@	    movq	[#'DISPOF(mmxtr.s.istagger)' + ebp * 8],mm0
+@	    movq	[#'DISPOF(mmxtr.t.istagger)' + ebp * 8],mm1
+
+@	    psubw	mm0,mm2
+@	    psubw	mm1,mm3
+    
+@	    add	ebp,ebx
+    
+@	    dec	ecx
+@	    jne	again
+        }
+    }
+
+    if (modeFlags & __GL_SHADE_BLEND) {
+	/* If we're blending with a texenv GL_REPLACE, and the texture
+	 * has no alpha channel, assume alpha of 1.0 */
+@   	movq    mm0,'mxk(gc, 0x4000)'
+@   	movq    'mmxtr.src.a',mm0
+
+        /* Similarly, destination alpha is assumed to be 1.0 */
+@   	movq    'mmxtr.dst.a',mm0
+    }
+
+    if (!(interpolate_tex && (texenv == GL_REPLACE)) &&
+	!interpolate_color) {
+@       movd    mm0,'tr(r)'
+@       pslld   mm0,'14 - log2(fb->redMax)'
+@       punpcklwd mm0,mm0
+@       punpckhdq mm0,mm0
+@       movq    'mmxtr.spill_r',mm0
+ 
+@       movd    mm0,'tr(g)'
+@       pslld   mm0,'14 - log2(fb->greenMax)'
+@       punpcklwd mm0,mm0
+@       punpckhdq mm0,mm0
+@       movq    'mmxtr.spill_g',mm0
+ 
+@       movd    mm0,'tr(b)'
+@       pslld   mm0,'14 - log2(fb->blueMax)'
+@       punpcklwd mm0,mm0
+@       punpckhdq mm0,mm0
+@       movq    'mmxtr.spill_b',mm0
+    }
+    if (need_alpha && !(modeFlags & __GL_SHADE_SMOOTH)) {
+@       movd    mm0,'tr(a)'
+@       pslld   mm0,'14 - log2(ALPHA_MAX)'
+@       punpcklwd mm0,mm0
+@       punpckhdq mm0,mm0
+@       movq    'mmxtr.spill_a',mm0
+    }
+
+@   mov    eax,'tr(dcpdx)'
+@   cmp	   eax,0
+@   jg	   forwards
+
+    for (dx = -1; dx <= 1; dx += 2) {
+	struct celem
+	    *trap = label(gc),
+	    *perline = label(gc),
+	    *next_line = label(gc),
+	    *done_trap = label(gc);
+	struct celem
+	    *short_span = label(gc),
+	    *no_head = label(gc),
+	    *central = label(gc),
+	    *central2 = label(gc),
+	    *tail = label(gc);
+	struct celem
+	    *zwinh = label(gc),
+	    *zloseh = label(gc),
+	    *zwinc = label(gc),
+	    *zlosec = label(gc),
+	    *zwins = label(gc),
+	    *zwint = label(gc);
+
+	XLOCAL(headgate, 4 * sizeof(void*));
+	XLOCAL(tailgate, 4 * sizeof(void*));
+	XLOCAL(minigate, 4 * sizeof(void*));
+
+	if (dx == 1)
+@forwards:
+
+	if (interpolate_z) {
+@	    movq    mm4,'tr(z0)'
+	}
+
+	if (interpolate_color) {
+@	    movq    mm5,'tr(r0)'
+@	    movq    mm7,'tr(b0)'
+	}
+
+	if (interpolate_tex) {
+@	    movq    mm6,'tr(s0)'
+	}
+
+	if (!interpolate_color && !interpolate_tex) {
+	    /* Must be flat untextured */
+@	    movq    mm7,'tr(r0)'
+@           punpcklwd mm7,mm7
+@           punpckldq mm7,mm7
+	}
+
+@trap:
+@       mov     eax, 'tr(y2Int)'
+@       mov     ebx, 'tr(y0Int)'
+@       sub     eax, ebx
+@       mov     'tr(y)', ebx
+@       je      done_trap
+
+
+#if __GL_CODEGEN_PMON
+@	push    1
+@	call	startKernelIteration
+#endif /* __GL_CODEGEN_PMON */
+
+@perline:
+
+#if DEBUG
+	if (interpolate_z) {
+	    struct celem* ok = near_label(gc);
+
+@	    mov     edi,'tr(cp0)'
+@	    mov     esi,'tr(zp0)'
+
+@	    and	    edi,#'(c_stride - 1)'
+@	    and	    esi,#'(z_stride - 1)'
+
+@	    shr	    edi,#'((c_stride == 4) ? 0 : 1)'
+@	    shr	    esi,#'((z_stride == 8) ? 1 : 2)'
+
+@	    cmp	    edi,esi
+@	    je      ok
+
+@ int3
+
+@ok:
+	}
+#endif
+
+@   	mov     ecx,'tr(x0Int)'
+@   	mov     ebx,'tr(x1Int)'
+
+@   	sub     ebx,ecx
+@   	mov     h,eax
+
+@   	jle     next_line
+
+#if __GL_CODEGEN_DESCRIBERS
+@       add	[#'(int)&last_describer->pixels'],ebx
+@       inc	[#'(int)&last_describer->spans']
+#endif /* __GL_CODEGEN_DESCRIBERS */
+
+        /*
+	 * Start of span.  Prepare interpolants for use
+         */
+
+	/* Do dither setup, unless we're in the very easy case, when we
+	 * do dither setup when we expand the colors at the start of the line
+	 */
+        if (modeFlags & __GL_SHADE_DITHER) {
+		GLuint dt = (int)dithertab;
+    
+@		mov     ecx,'tr(y)'
+@		and     ecx,#DITHER_MASK
+	    if (!interpolate_color &&
+		!interpolate_tex &&
+		!(modeFlags & __GL_SHADE_BLEND)) {
+		GLuint redSize = log2(fb->redMax);
+		GLuint greenSize = log2(fb->greenMax);
+		GLuint blueSize = log2(fb->blueMax);
+
+@	    	movq    mm0,'mmxtr.spill_r'
+@	    	movq    mm1,'mmxtr.spill_g'
+@	    	movq    mm7,'mmxtr.spill_b'
+@	    	paddw   mm0,[#dt + ecx * 8]
+
+@	    	paddw   mm1,[#'dt + 32' + ecx * 8]
+@	    	mmxgobit(mm0, '(14)', 'fb->redShift + redSize')
+
+@	        pand	mm0,'mxk(gc, fb->redMax << fb->redShift)'
+
+		/* Mask green before shift.  To do this we have to 
+		 * shift the mask (greenMax) so that its high bit is
+		 * in bit-position 14.
+	         */
+@	        pand	mm1,'mxk(gc, fb->greenMax << (14 - greenSize))'
+
+@	    	paddw   mm7,[#'dt + 64' + ecx * 8]
+@	    	mmxgobit(mm1, '(14)', 'fb->greenShift + greenSize')
+
+@	    	mmxgobit(mm7, '(14)', 'fb->blueShift + blueSize')
+@	        por     mm1,mm0
+
+@	        por     mm7,mm1
+
+	    } else if (!(interpolate_color &&
+		  !(modeFlags & (__GL_SHADE_TEXTURE | __GL_SHADE_BLEND)))) {
+@		movq    mm0,[#dt + ecx * 8]
+@		movq    'mmxtr.dithers[0]',mm0
+@		movq    mm0,[#'dt + 32' + ecx * 8]
+@		movq    'mmxtr.dithers[1]',mm0
+@		movq    mm0,[#'dt + 64' + ecx * 8]
+@		movq    'mmxtr.dithers[2]',mm0
+	    }
+	}
+
+	if (interpolate_color) {
+	    struct celem* span_long = near_label(gc);
+	    struct celem* do_stagger = near_label(gc);
+
+	    if (need_alpha) {
+@		movq    mm0,mm7
+@		punpckhwd mm0,mm0
+@		punpckhdq mm0,mm0
+	    }
+
+@	    movq	mm6,mm5
+@	    punpcklwd	mm5,mm5
+
+@	    punpckhwd	mm6,mm6
+@   	    mov     edi,'tr(cp0)'
+
+@	    punpcklwd	mm7,mm7
+@   	    mov     eax,edi
+
+@	    punpckhdq	mm5,mm5
+@   	    and     eax,#'c_stride - 1'
+
+	    if (c_stride == 8)
+@   	        shr     eax,1
+
+@	    punpckhdq mm6,mm6
+@	    punpckhdq mm7,mm7
+
+@	    cmp	    ebx,4
+@	    jg      span_long
+
+@	    mov	    eax,#'(dx == -1) ? 3 : 0'
+@	    jmp	    do_stagger
+
+@span_long:
+
+            if ((modeFlags & __GL_SHADE_DITHER) &&
+		!(modeFlags & (__GL_SHADE_TEXTURE | __GL_SHADE_BLEND))) {
+		GLuint dt = (int)dithertab;
+
+@               mov     ecx,'tr(y)'
+@           	and     ecx,#DITHER_MASK
+@           	paddw   mm5,[#dt + ecx * 8]
+@           	paddw   mm6,[#'dt + 32' + ecx * 8]
+@           	paddw   mm7,[#'dt + 64' + ecx * 8]
+	    }
+@do_stagger:
+
+@	    paddw   mm5,[#'DISPOF(mmxtr.r.istagger)' + eax * 8]
+
+@	    paddw   mm6,[#'DISPOF(mmxtr.g.istagger)' + eax * 8]
+
+@	    paddw   mm7,[#'DISPOF(mmxtr.b.istagger)' + eax * 8]
+
+	    if (need_alpha) {
+@	        paddw   mm0,[#'DISPOF(mmxtr.a.istagger)' + eax * 8]
+@		movq    'mmxtr.spill_a',mm0
+	    }
+	    if ((modeFlags & __GL_SHADE_TEXTURE) &&
+		(texenv == GL_MODULATE)) {
+@           	movq        'mmxtr.spill_r',mm5
+@           	movq        'mmxtr.spill_g',mm6
+@           	movq        'mmxtr.spill_b',mm7
+	    }
+	} else {
+	    struct celem* span_long = near_label(gc);
+	    struct celem* done = near_label(gc);
+
+@   	    mov     edi,'tr(cp0)'
+
+@	    cmp	    ebx,4
+@	    jg      span_long
+
+@	    mov	    eax,#'(dx == -1) ? 3 : 0'
+@	    jmp     done
+
+@span_long:
+@   	    mov     eax,edi
+@   	    and     eax,#'c_stride - 1'
+            if (c_stride == 8)
+@   	        shr     eax,1
+@done:
+        }
+
+	if (interpolate_tex) {
+	    /* Color interpolation trashes s,t interpolant */
+	    if (interpolate_color)
+@               movq    mm6,'tr(s0)'
+
+	    if (modeFlags & __GL_SHADE_TEXTURE_PERSP) {
+               /* Starting point is (s,t) divided by w */
+		static const unsigned long spanlen[2][4] = {
+		    { 16, 19, 18, 17 },
+		    { 17, 18, 19, 16 }
+		};
+		static const unsigned long fracs[] = {
+		    0,
+		    32767,
+		    (32768 * 1) / 2,
+		    (32768 * 1) / 3,
+		    (32768 * 1) / 4,
+		    (32768 * 1) / 5,
+		    (32768 * 1) / 6,
+		    (32768 * 1) / 7,
+		    (32768 * 1) / 8,
+		    (32768 * 1) / 9,
+		    (32768 * 1) / 10,
+		    (32768 * 1) / 11,
+		    (32768 * 1) / 12,
+		    (32768 * 1) / 13,
+		    (32768 * 1) / 14,
+		    (32768 * 1) / 15,
+		    (32768 * 1) / 16,
+		    (32768 * 1) / 17,
+		    (32768 * 1) / 18,
+		    (32768 * 1) / 19
+		};
+		static const unsigned long initials[2][4] = {
+		    { 0,
+		      -1,
+		      -2,
+		      -3 },
+		    { -3,
+		      -2,
+		      -1,
+		      0 }
+		};
+
+@               mov     ecx,'tr(q0)'
+@               call    do_recip
+
+@               mul32x16(mm6,mm0,mm1,mm7)
+@               pslld   mm6,mm2
+
+		/* Now mm6 holds the affine start point. */
+
+		/* Find the second point... */
+
+		/* ebp, the span length, is the minimum of the total
+		   span length and the computed 'pixels till we correct
+		   again' in the spanlen[] table.
+		   */
+@		mov     ebp,[#'(int)(spanlen[dx == -1])' + eax * 4]
+                {
+		    struct celem *ok = near_label(gc);
+
+		    /* ebp = min(ebp, ebx) */
+@		    cmp    ebp,ebx
+@		    jb     ok
+@		    mov    ebp,ebx
+@ ok:
+	
+		}
+
+@               movd    mm0,ebp
+@               punpcklwd mm0,mm0
+@               punpckldq mm0,mm0
+@		movq    mm3,mm0     ; mm3 holds length of span, in pixels
+
+@               movq    mm7,'tr(dsdx)'
+@               mul32x16i(mm7,mm0,mm1,mm2)
+@               paddd   mm7,'tr(s0)'
+
+		/* mm7 holds the second point (pre divide) */
+
+@               movq    'tr(s)',mm7
+
+		/* Find second 'q' */
+@               movq    mm2,'tr(dqdx)'
+@               mul32x16i(mm2,mm3,mm1,mm0)
+@               movd    ecx,mm2
+@               add     ecx,'tr(q0)'
+
+@               mov     'tr(q)',ecx
+@               call    do_recip
+@               mul32x16(mm7,mm0,mm1,mm3)
+@               pslld   mm7,mm2
+
+		/* mm7 holds affine second point */
+
+@               movq    'mmxtr.prev_st',mm7
+
+@	        psubd   mm7,mm6      ; End - Start
+
+	        /* mm7 is affine span.  Derive initial step, fourfold
+		 * step, and stagger.  */
+
+@	        movd    mm0,[#'(int)fracs' + ebp * 4]
+@               punpcklwd mm0,mm0
+@               punpckldq mm0,mm0
+@               mul32x16(mm7,mm0,mm2,mm3)
+
+		/* mm7 is pixel step: derive the fourfold */
+@               movq    mm2,mm7
+@               movq    mm3,mm7
+@               pslld   mm2,'mmxtr.tex_s_kerrect'
+@               pslld   mm3,'mmxtr.tex_t_kerrect'
+@           	punpcklwd mm2,mm2
+@           	punpckhwd mm3,mm3
+@	    	punpckhdq mm2,mm2
+@	    	punpckhdq mm3,mm3
+@	        movq    mm0,mm2
+@	        movq    mm1,mm3
+@		psllw   mm0,2
+@		psllw   mm1,2
+@	        movq    'mmxtr.s.didx',mm0
+@	        movq    'mmxtr.t.didx',mm1
+
+@               movd    mm7,[#'(int)(initials[dx == -1])' + eax * 4]
+@               punpcklwd mm7,mm7
+@               punpckldq mm7,mm7
+@               movq    mm0,mm2
+@               movq    mm1,mm3
+@               pmullw  mm0,mm7
+@               pmullw  mm1,mm7
+
+@	        mov	edx,'tr(dx)'
+@	        shr	edx,31
+@	        pmullw	mm2,[#'DISPOF(stagger_k)' + edx * 8]
+@	        pmullw	mm3,[#'DISPOF(stagger_k)' + edx * 8]
+@		paddw   mm2,mm0
+@		paddw   mm3,mm1
+            }
+
+@	    movq    mm7,mm6
+
+	    if (modeFlags & __GL_SHADE_TEXTURE_PERSP) {
+@           	pslld   mm6,'mmxtr.tex_s_kerrect'
+@           	pslld   mm7,'mmxtr.tex_t_kerrect'
+@           	punpcklwd mm6,mm6
+@           	punpckhwd mm7,mm7
+@	    	punpckhdq mm6,mm6
+@	    	punpckhdq mm7,mm7
+@	    	paddw   mm6,mm2
+@	    	paddw   mm7,mm3
+            } else {
+@           	punpcklwd mm6,mm6
+@           	punpckhwd mm7,mm7
+@	    	punpckhdq mm6,mm6
+@	    	punpckhdq mm7,mm7
+@	    	paddw   mm6,[#'DISPOF(mmxtr.s.istagger)' + eax * 8]
+@	    	paddw   mm7,[#'DISPOF(mmxtr.t.istagger)' + eax * 8]
+            }
+
+	    if (gc->texture.currentTexture->texelFormat != GL_COLOR_INDEX) {
+@	        mov     ebp,'tr(tp)'
+	    } else {
+@		movd    mm0,'tr(tp)'
+@		punpckldq mm0,mm0
+@		movq	'mmxtr.indexTextureBase',mm0
+@	  	mov	ebp,[#'(int)&gc->texture.currentTexture']
+@	  	mov	ebp,[ebp + __GLtexture.'CT.table']
+	    }
+        }
+
+        if (interpolate_z) {
+@           punpckldq mm4,mm4
+@	    paddd   mm4,[#'DISPOF(mmxtr.z.istagger)' + eax * 8]
+        }
+
+@   	cmp     ebx,4
+@   	jle     short_span
+
+        if (interpolate_z) {
+@           mov     esi,'tr(zp0)'
+@           and     esi,#'(~(z_stride - 1))'
+        }
+@       and      edi,#'(~(c_stride - 1))'
+
+        if (interpolate_z) {
+	    static const GLuint mask_M[] = { 0x000000ff,
+					     0x0000ffff,
+					     0x00ffffff,
+					     0xffffffff};
+
+	    static const GLuint mask_1[] = { 0xffffffff,
+				       0xffffff00,
+				       0xffff0000,
+				       0xff000000 };
+	    struct celem* x = near_label(gc);
+
+@	    genz(tr, '&mmxtr', [edi], [edi], [esi], eax, dx, [#'(int)((dx == -1) ? &mask_M : &mask_1)' + eax * 4], zwinh, zloseh, mixpix, texenv)
+@zloseh:
+@           cmp     eax,#'((dx == -1) ? 3 : 0)'
+@           jne     x
+@	    prepare(ending, tail, dx, z_stride, c_stride, interpolate_z, '&mmxtr', modeFlags)
+	    if (modeFlags & __GL_SHADE_TEXTURE_PERSP)
+@               mov    eax,'mmxtr.next_pc'
+@	    jmp    zlosec	; not central2 - we need to skip the write
+		
+            /*
+	     * We have to decrement ebx by the number of pixels drawn.
+	     * This is a chart; the code actually uses cute math.
+	     *
+	     * eax    dx     dx
+	     *        -1      1
+	     *
+	     * 0       1      4
+             * 1       2      3
+	     * 2       3      2
+	     * 3       4      1
+	     */
+@x:
+            if (dx == -1) {
+@	        sub     edi,#c_stride
+@               sub     ebx,eax
+@	        sub     esi,#z_stride
+@               dec     ebx
+            } else {
+@	        add     edi,#c_stride
+@               add     ebx,eax
+@	        add     esi,#z_stride
+@               sub     ebx,4
+            }
+@	    mov     ending,ebx
+@           jmp     no_head
+        }
+
+@zwinh:
+@	push    eax
+@	genpix('&pixval', tr, '&mmxtr', c_stride, 0, dx, [edi], texenv)
+@	pop     eax
+
+@   	jmpi    [#'DISPOF(headgate)' + eax * 4]
+
+        {
+	    struct celem
+		*c0 = label(gc), 
+		*c1 = label(gc), 
+		*c2 = label(gc),
+		*c3 = label(gc);
+	    unsigned char** targets = (unsigned char**)DISPOF(headgate);
+
+	    if (dx == -1) {
+@c0:
+@           	dec     ebx
+
+@		mov	ending,ebx
+
+@           	movd    eax,pixval
+                if (c_stride == 8) {
+@           	    size16
+@           	    mov     [edi],eax
+		} else {
+@		    mov     [edi],al
+		}
+@           	sub	edi,#c_stride
+                if (interpolate_z) {
+@                   add     esi,#'z_stride * dx'
+                }
+@           	jmp     no_head
+
+@c1:	    
+@           	sub	ebx,2
+                if (c_stride == 8) {
+@		    mov	ending,ebx
+@           	    movd    [edi],pixval
+		} else {
+@                   packuswb pixval,pixval
+@		    mov	ending,ebx
+@                   movd    eax,pixval
+@           	    size16
+@           	    mov     [edi],eax
+	        }
+@           	sub	edi,#c_stride
+                if (interpolate_z) {
+@                   add     esi,#'z_stride * dx'
+                }
+@           	jmp     no_head
+
+@c2:
+@           	sub     ebx,3
+                if (c_stride == 8) {
+@		    mov	ending,ebx
+@           	    movd    [edi],pixval
+@	            psrlq   pixval,32
+@           	    movd    eax,pixval
+@           	    size16
+@           	    mov     [edi + 4],eax
+                } else {
+@                   packuswb pixval,pixval
+@		    mov	ending,ebx
+@                   movd     eax,pixval
+@           	    size16
+@           	    mov     [edi],eax
+@                   shr     eax,16
+@                   mov     [edi + 2],al
+	        }
+@           	sub     edi,#c_stride
+                if (interpolate_z) {
+@                   add     esi,#'z_stride * dx'
+                }
+@		jmp	no_head
+
+@c3:
+@	        prepare(ending, tail, dx, z_stride, c_stride, interpolate_z, '&mmxtr', modeFlags)
+@	        jmp	central2
+
+	    } else {
+@c3:
+@           	dec     ebx
+@		psrlq	pixval,48
+@		mov	ending,ebx
+@           	movd    eax,pixval
+                if (c_stride == 8) {
+@           	    size16
+@           	    mov     [edi + 6],eax
+		} else {
+@           	    mov     [edi + 3],al
+		}
+@           	add     edi,#c_stride
+                if (interpolate_z) {
+@                   add     esi,#'z_stride * dx'
+                }
+@           	jmp     no_head
+
+@c2:	    
+@           	sub     ebx,2
+@		psrlq	pixval,32
+
+@		mov	ending,ebx
+                if (c_stride == 8) {
+@           	    movd    [edi + 4],pixval
+		} else {
+@                   packuswb pixval,pixval
+@                   movd    eax,pixval
+@           	    size16
+@           	    mov     [edi + 2],eax
+		}
+@           	add     edi,#c_stride
+                if (interpolate_z) {
+@                   add     esi,#'z_stride * dx'
+                }
+@           	jmp     no_head
+
+@c1:	    
+@           	sub     ebx,3
+@		psrlq	pixval,16
+@		mov	ending,ebx
+                if (c_stride == 8) {
+@           	    movd    eax,pixval
+@           	    psrlq   pixval,16
+
+@           	    size16
+@           	    mov     [edi + 2],eax
+
+@           	    movd    [edi + 4],pixval
+		} else {
+@		    packuswb pixval,pixval
+@                   movd     eax,pixval
+@           	    size16
+@           	    mov     [edi + 1],eax
+@                   shr     eax,16
+@           	    mov     [edi + 3],al
+		}
+@           	add     edi,#c_stride
+                if (interpolate_z) {
+@                   add     esi,#'z_stride * dx'
+                }
+@	        jmp	no_head
+
+@c0:
+@	        prepare(ending, tail, dx, z_stride, c_stride, interpolate_z, '&mmxtr', modeFlags)
+		if (modeFlags & __GL_SHADE_TEXTURE_PERSP)
+@                   mov    eax,'mmxtr.next_pc'
+@	        jmp	central2
+	    }
+
+            targets[0] = c0->spec.label.where;
+            targets[1] = c1->spec.label.where;
+            targets[2] = c2->spec.label.where;
+            targets[3] = c3->spec.label.where;
+        }
+
+@no_head:
+@	prepare(NULL, tail, dx, z_stride, c_stride, interpolate_z, '&mmxtr', modeFlags)
+
+#if 1
+@central:
+        if (interpolate_z) {
+	    if (z_stride == 8) {
+@	        genz(tr, '&mmxtr', [edi + ebx * c_stride], [edi + ebx * c_stride], [esi + ebx * 8], 0, dx, NULL, zwinc, zlosec, mixpix, texenv)
+            } else {
+@               mov     eax,ebx
+@               add     eax,eax
+@	        genz(tr, '&mmxtr', [edi + ebx * c_stride], [edi + ebx * c_stride], [esi + eax * 8], 0, dx, NULL, zwinc, zlosec, mixpix, texenv)
+	    }
+        }
+@ zwinc:
+//@ opt_begin
+@	genpix('&pixval', tr, '&mmxtr', c_stride, 0, dx, [edi + ebx * c_stride], texenv)
+//@ opt_end
+@central2:
+	if (c_stride == 8) {
+@   	    movq    [edi + ebx * 8],pixval
+        } else {
+@           packuswb pixval,pixval
+@   	    movd    [edi + ebx * 4],pixval
+        }
+@ zlosec:
+        if (dx == 1) {
+@	    inc     ebx
+	} else {
+@           dec     ebx
+	}
+	if ((modeFlags & __GL_SHADE_TEXTURE) && 
+	    (modeFlags & __GL_SHADE_TEXTURE_PERSP)) {
+@           je      tail
+@           mov     eax,'mmxtr.next_pc'
+@           cmp     ebx,eax
+@           jne     central
+
+@           mov     eax,'mmxtr.next_pc'
+@           add     eax,#'(dx == 1) ? 4 : -4'
+
+@           movq    mm6,'mmxtr.prev_st'
+
+@           movq    mm7,'tr(dsdx)'
+@           pslld   mm7,4
+@           paddd   mm7,'tr(s)'
+
+@           mov     edx,'tr(dqdx)'
+@           mov     ecx,'tr(q)'
+@           shl     edx,4
+@           add     ecx,edx
+@           mov     'tr(q)',ecx
+@           movq    'tr(s)',mm7
+@           mov     'mmxtr.next_pc',eax
+
+@           call    do_recip
+@           perspective(mm7,ecx,mm1,mm3)
+
+@           movq    'mmxtr.prev_st',mm7
+
+@	    psubd   mm7,mm6      ; End - Start
+	    
+	    /* mm7 is affine span.  Derive initial step, fourfold
+	     * step, and stagger.  */
+	    
+@           psrld   mm7,2
+	    
+	    /* mm7 is fourfold step: derive the others */
+@           movq    mm2,mm7
+
+@           pslld   mm2,'mmxtr.tex_s_kerrect'
+@           movq    mm3,mm7
+
+@           pslld   mm3,'mmxtr.tex_t_kerrect'
+@           punpcklwd mm2,mm2
+@           punpckhwd mm3,mm3
+@	    punpckhdq mm2,mm2
+@	    punpckhdq mm3,mm3
+
+@	    movq    'mmxtr.s.didx',mm2
+@           psraw   mm2,2
+@	    movq    'mmxtr.t.didx',mm3
+@	    pmullw	mm2,[#'DISPOF(stagger_k) + ((dx == -1) ? 8 : 0)']
+@           psraw   mm3,2
+@	    pmullw	mm3,[#'DISPOF(stagger_k) + ((dx == -1) ? 8 : 0)']
+
+@	    movq    mm7,mm6
+@           pslld   mm6,'mmxtr.tex_s_kerrect'
+@           pslld   mm7,'mmxtr.tex_t_kerrect'
+@           punpcklwd mm6,mm6
+@           punpckhwd mm7,mm7
+@	    punpckhdq mm6,mm6
+@	    punpckhdq mm7,mm7
+@	    paddw   mm6,mm2
+@	    paddw   mm7,mm3
+@           jmp     central
+	} else {
+@   	    jne     central
+        }
+#else
+@central:
+@central2:
+#endif
+@tail:
+
+@   	mov     ebx,ending
+@   	and     ebx,3
+
+	/* Don't do a thing if there's no span left */
+
+@	je      next_line
+
+        if (interpolate_z) {
+	    static const GLuint mask_1[] = { 0xffffffff,
+				       0x000000ff,
+				       0x0000ffff,
+				       0x00ffffff };
+	    static const GLuint mask_M[] = { 0xffffffff,
+				       0xff000000,
+				       0xffff0000,
+				       0xffffff00 };
+
+@           genz(tr, '&mmxtr', [edi], [edi], [esi], NULL, dx, [#'(int)((dx == -1) ? &mask_M : &mask_1)' + ebx * 4], zwint, next_line, mixpix, texenv)
+        }
+@zwint:
+
+@	genpix('&pixval', tr, '&mmxtr', c_stride, NULL, dx, [edi], texenv)
+@   	jmpi    [#'DISPOF(tailgate)' + ebx * 4]
+
+        {
+	    struct celem
+		*c0 = label(gc), 
+		*c1 = label(gc), 
+		*c2 = label(gc),
+		*c3 = label(gc);
+            unsigned char** targets = (unsigned char**)DISPOF(tailgate);
+
+	    if (dx == -1) {
+@c1:
+		if (c_stride == 8) {
+@	            psrlq	pixval,48
+@   	    	    movd    eax,pixval
+@   	    	    size16
+@   	    	    mov     [edi + 6],eax
+		} else {
+@	            psrlq   pixval,48
+@   	    	    movd    eax,pixval
+@   	    	    mov     [edi + 3],al
+		}
+@   	    	jmp     next_line
+
+@c2:	    
+		if (c_stride == 8) {
+@	            psrlq	pixval,32
+@   	    	    movd     [edi + 4],pixval
+		} else {
+@	            psrlq	pixval,32
+@		    packuswb pixval,pixval
+@   	    	    movd    eax,pixval
+@   	    	    size16
+@   	    	    mov     [edi + 2],eax
+		}
+@   	    	jmp     next_line
+
+@c3:	    
+		if (c_stride == 8) {
+@	            psrlq	pixval,16
+@   	    	    movd    [edi + 2],pixval
+@   	    	    punpckhdq pixval,pixval
+@   	    	    movd    eax,pixval
+@   	    	    size16
+@   	    	    mov     [edi + 6],eax
+		} else {
+@	            psrlq	pixval,16
+@                   packuswb pixval,pixval
+@                   movd    eax,pixval
+@   	    	    size16
+@   	    	    mov     [edi + 1],eax
+@   	    	    shr     eax,16
+@   	    	    mov     [edi + 3],al
+		}
+@   	    	jmp     next_line
+
+@c0:	    
+	    } else {
+@c1:
+		if (c_stride == 8) {
+@           	    movd    eax,pixval
+@           	    size16
+@           	    mov     [edi],eax
+		} else {
+@           	    movd    eax,pixval
+@           	    mov     [edi],al
+		}
+@           	jmp     c0
+    	
+@c2:	    
+		if (c_stride == 8) {
+@           	    movd    [edi],pixval
+@           	    jmp     c0
+		} else {
+@		    packuswb pixval,pixval
+@           	    movd    eax,pixval
+@		    size16
+@		    mov     [edi],eax
+@           	    jmp     c0
+		}
+    	
+@c3:	    
+		if (c_stride == 8) {
+@           	    movd    [edi],pixval
+@           	    punpckhdq pixval,pixval
+@           	    movd    eax,pixval
+@           	    size16
+@           	    mov     [edi+4],eax
+		} else {
+@		    packuswb pixval,pixval
+@		    movd    eax,pixval
+@		    size16
+@		    mov     [edi],eax
+@		    shr     eax,16
+@		    mov     [edi+2],al
+		}
+
+@c0:
+	    }
+
+            targets[0] = c0->spec.label.where;
+            targets[1] = c1->spec.label.where;
+            targets[2] = c2->spec.label.where;
+            targets[3] = c3->spec.label.where;
+        }
+
+@next_line:
+@   	mov     eax,'tr(x0Frac)'
+@   	mov     ebx,'tr(dxdy0Frac)'
+
+@   	add     eax,ebx
+@   	mov     ebp,'tr(cp0)'
+
+@   	mov     ebx,eax
+@   	and     eax,~0x80000000UL
+
+@   	shr     ebx,31
+@   	mov     ecx,'tr(x0Int)'
+
+@   	mov     edx,'trs(dcpdy0)'
+@   	mov     edi,'trs(dxdy0Int)'
+
+@   	add     ecx,edi
+@   	add     ebp,edx
+
+        if (interpolate_z) {
+@	    movq    mm4,'tr(z0)'
+@	    paddd   mm4,'trsq(dzdy0)'
+@	    movq    'tr(z0)',mm4
+        }
+
+        if (interpolate_tex) {
+@	    movq    mm6,'tr(s0)'
+@	    paddd   mm6,'trsq(dsdy0)'
+@	    movq    'tr(s0)',mm6
+
+	    if (modeFlags & __GL_SHADE_TEXTURE_PERSP) {
+@	    	movq    mm0,'tr(q0)'
+@	    	paddd   mm0,'trsq(dqdy0)'
+@	    	movq    'tr(q0)',mm0
+            }
+        }
+
+	if (interpolate_color) {
+@	    movq    mm5,'tr(r0)'
+@	    movq    mm7,'tr(b0)'
+@	    paddd   mm5,'trsq(drdy0)'
+@	    paddd   mm7,'trsq(dbdy0)'
+
+@	    movq    'tr(r0)',mm5
+@	    movq    'tr(b0)',mm7
+	}
+
+@   	mov     'tr(x0Int)',ecx
+@   	mov     'tr(cp0)',ebp
+@   	mov     'tr(x0Frac)',eax
+
+@   	mov     ecx,'tr(x1Frac)'
+@   	mov     ebx,'tr(dxdy1Frac)'
+
+@   	add     ecx,ebx
+	if (modeFlags & __GL_SHADE_DITHER)
+@	    mov     ebp,'tr(y)'
+
+@   	mov     ebx,ecx
+@   	and     ecx,~0x80000000UL
+
+@   	shr     ebx,31
+@   	mov     'tr(x1Frac)',ecx
+
+@   	mov     eax,h
+@   	mov     ecx,'tr(x1Int)'
+
+	if (modeFlags & __GL_SHADE_DITHER)
+@           inc     ebp
+@   	mov     ebx,'trs(dxdy1Int)'
+
+@   	add     ecx,ebx
+	if (modeFlags & __GL_SHADE_DITHER)
+@           mov     'tr(y)',ebp
+
+@   	mov     'tr(x1Int)',ecx
+@   	dec     eax
+
+@   	jne     perline
+
+@done_trap:
+@   	mov     eax,'tr(y1Int)'
+@   	mov     ebx,'tr(y2Int)'
+@   	cmp     eax,ebx
+@   	je      alldone
+@   	mov     'tr(y0Int)',ebx
+@   	mov     'tr(y2Int)',eax
+
+@   	memov('tr(x1Int)','tr(x2Int)')
+@   	memov('tr(dxdy1Int[0])', 'tr(dxdy2Int[0])')
+@   	memov('tr(dxdy1Int[1])', 'tr(dxdy2Int[1])')
+@   	memov('tr(x1Frac)','tr(x2Frac)')
+@   	memov('tr(dxdy1Frac)','tr(dxdy2Frac)')
+
+@   	jmp     trap
+
+@short_span:
+@   	mov     edi,'tr(cp0)'
+
+        if (interpolate_z)
+@	    mov     esi,'tr(zp0)'
+
+	/* We have to be careful here... if edi is right at the start
+	 * of the color buffer, then subtracting 6 or 3 might leave it pointing
+	 * out of the area.  qword accesses (such as the color pointer read in
+	 * blending) might give us GPFs.  So we copy as much as we need, and set
+	 * 'readfrom' to point to the copy.
+	 */
+        readfrom = mem2(gc, NULL, edi);
+        if (dx == -1) {
+	    /* Decrease both pointers by 3/4 of stride */
+@           sub     edi,#'(3 * c_stride) / 4'
+            if (interpolate_z)
+@               sub     esi,#'(3 * z_stride) / 4'
+
+	    if (modeFlags & __GL_SHADE_BLEND) {
+		struct celem *copy = near_label(gc);
+
+@		mov     eax,3
+@               mov     edx,ebx
+@ copy:
+
+		if (c_stride == 8) {
+@	            size16
+@	            mov     ecx,[edi + eax * 2]
+@	            size16
+@	            mov     [#'DISPOF(mmxtr.pixcopy)' + eax * 2],ecx
+		} else {
+@	            mov     cl,[edi + eax]
+@	            mov     [#'DISPOF(mmxtr.pixcopy)' + eax],cl
+		}
+
+@               dec     eax
+@		dec     edx
+@               jne     copy
+
+		readfrom = mmxtr.pixcopy;
+	    } else {
+
+	    }
+        }
+
+@   	and     ebx,3
+
+	if (modeFlags & __GL_SHADE_DITHER) {
+	    GLuint dt = (int)dithertab;
+
+	    /* Oh dear.  We're about to do a misaligned write, so we need
+	     * to rotate the dither pattern sync up with the screen.
+	     * When looking at the rotates, keep in mind that 'left' in
+	     * intelspeak is right on the screen.  Good luck.
+	     */
+@	    mov	eax,edi
+@   	    and     eax,#'c_stride - 1'
+            if (c_stride == 8)
+@   		    shr     eax,1
+
+@           mov     ecx,'tr(y)'
+@           and     ecx,#DITHER_MASK
+
+@	    movd    mm0,eax
+@	    pslld   mm0,4
+@	    movq    mm1,'mxk4(gc, 64,0,0,0)'
+@	    psubd   mm1,mm0
+
+	    if (!interpolate_color && !interpolate_tex) {
+		/* We have 4 precalculated pixels sitting in mm7. */
+@	    	movq    mm3,mm7
+@	    	psllq   mm7,mm1
+@	    	psrlq   mm3,mm0
+@	    	por     mm7,mm3
+	    } else {
+@	    	movq    mm2,[#dt + ecx * 8]
+@	    	movq    mm3,mm2
+@	    	psllq   mm2,mm1
+@	    	psrlq   mm3,mm0
+@	    	por     mm2,mm3
+@           	movq    'mmxtr.dithers[0]',mm2
+    
+@	    	movq    mm2,[#'dt + 32' + ecx * 8]
+@	    	movq    mm3,mm2
+@	    	psllq   mm2,mm1
+@	    	psrlq   mm3,mm0
+@	    	por     mm2,mm3
+@           	movq    'mmxtr.dithers[1]',mm2
+    
+@	    	movq    mm2,[#'dt + 64' + ecx * 8]
+@	    	movq    mm3,mm2
+@	    	psllq   mm2,mm1
+@	    	psrlq   mm3,mm0
+@	    	por     mm2,mm3
+@           	movq    'mmxtr.dithers[2]',mm2
+	    }
+
+            if (interpolate_color &&
+		!(modeFlags & (__GL_SHADE_TEXTURE | __GL_SHADE_BLEND))) {
+@	        paddw   mm5,'mmxtr.dithers[0]'
+@	        paddw   mm6,'mmxtr.dithers[1]'
+@	        paddw   mm7,'mmxtr.dithers[2]'
+	    }
+	}
+
+        if (interpolate_z) {
+	    static const GLuint mask_1[] = { 0xffffffff,
+				       0x000000ff,
+				       0x0000ffff,
+				       0x00ffffff };
+	    static const GLuint mask_M[] = { 0xffffffff,
+				       0xff000000,
+				       0xffff0000,
+				       0xffffff00 };
+
+@           genz(tr, '&mmxtr', [edi], readfrom, [esi], NULL, dx, [#'(int)((dx == -1) ? &mask_M : &mask_1)' + ebx * 4], zwins, next_line, mixpix, texenv)
+        }
+@zwins:
+@	    genpix('&pixval', tr, '&mmxtr', c_stride, NULL, dx, readfrom, texenv)
+@   	    jmpi    [#'DISPOF(minigate)' + ebx * 4]
+    
+    	    {
+    		struct celem
+    		    *c0 = label(gc), 
+    		    *c1 = label(gc), 
+    		    *c2 = label(gc),
+    		    *c3 = label(gc);
+    		unsigned char** targets = (unsigned char**)DISPOF(minigate);
+
+		if (dx == -1) {
+@c1:
+@	        psrlq	pixval,48
+@   	    	movd    eax,pixval
+		if (c_stride == 8) {
+@   	    	    size16
+@   	    	    mov     [edi + 6],eax
+		} else {
+@   	    	    mov     [edi + 3],al
+		}
+@   	    	jmp     next_line
+
+@c2:	    
+@	        psrlq   pixval,32
+		if (c_stride == 8) {
+@   	    	    movd     [edi + 4],pixval
+		} else {
+@		    packuswb pixval,pixval
+@   	    	    movd    eax,pixval
+@   	    	    size16
+@   	    	    mov     [edi + 2],eax
+		}
+@   	    	jmp     next_line
+
+@c3:	    
+@	        psrlq    pixval,16
+		if (c_stride == 8) {
+@   	    	    movd    [edi + 2],pixval
+@   	    	    punpckhdq pixval,pixval
+@   	    	    movd    eax,pixval
+@   	    	    size16
+@   	    	    mov     [edi + 6],eax
+		} else {
+@                   packuswb pixval,pixval
+@                   movd    eax,pixval
+@   	    	    size16
+@   	    	    mov     [edi + 1],eax
+@   	    	    shr     eax,16
+@   	    	    mov     [edi + 3],al
+		}
+@   	    	jmp     next_line
+    
+@c0:		
+		    if (c_stride == 8) {
+@   		        movq    [edi],pixval
+		    } else {
+@			packuswb pixval,pixval
+@			movd    [edi],pixval
+		    }
+@   		    jmp     next_line
+		} else {
+@c1:
+		if (c_stride == 8) {
+@           	    movd    eax,pixval
+@           	    size16
+@           	    mov     [edi],eax
+		} else {
+@           	    movd    eax,pixval
+@           	    mov     [edi],al
+		}
+@           	jmp     next_line
+    	
+@c2:	    
+		if (c_stride == 8) {
+@           	    movd    [edi],pixval
+		} else {
+@		    packuswb pixval,pixval
+@           	    movd    eax,pixval
+@		    size16
+@		    mov     [edi],eax
+		}
+@		jmp     next_line
+    	
+@c3:	    
+		if (c_stride == 8) {
+@           	    movd    [edi],pixval
+@           	    punpckhdq pixval,pixval
+@           	    movd    eax,pixval
+@           	    size16
+@           	    mov     [edi+4],eax
+		} else {
+@		    packuswb pixval,pixval
+@		    movd    eax,pixval
+@		    size16
+@		    mov     [edi],eax
+@		    shr     eax,16
+@		    mov     [edi+2],al
+		}
+@		jmp     next_line
+    
+@c0:		
+		    if (c_stride == 8) {
+@   		        movq    [edi],pixval
+		    } else {
+@			packuswb pixval,pixval
+@			movd    [edi],pixval
+		    }
+@   		    jmp     next_line
+		}
+    	
+    		targets[0] = c0->spec.label.where;
+    		targets[1] = c1->spec.label.where;
+    		targets[2] = c2->spec.label.where;
+    		targets[3] = c3->spec.label.where;
+            }
+    }
+
+@alldone:
+
+   if (gc->procs.unlockBuffers != NULL) {
+	    struct celem* noneed = label(gc);
+
+@       mov     edx,[#'(int)&(gc)->procs.unlockBuffers']
+@       test    edx,edx
+@       je      noneed
+
+@       mov     edx,[#'(int)&(gc)->buffers.lock']
+@       dec     edx
+@       mov     [#'(int)&(gc)->buffers.lock'],edx
+@       cmp     edx,0
+@       jne     noneed
+@       mov     edx,#'(int)gc'
+@       push    edx
+@       call    [#'(int)&(gc)->procs.unlockBuffers']
+@       add     esp,4
+@ noneed:
+    }
+
+@   emms
+
+#if __GL_CODEGEN_DESCRIBERS
+@   rdtsc
+@   add     [#'(int)&last_describer->cyc[0]'],eax
+@   adc     [#'(int)&last_describer->cyc[1]'],edx
+#endif /* __GL_CODEGEN_DESCRIBERS */
+
+#if __GL_CODEGEN_PMON
+@   push    1
+@   call	endKernelIteration
+#endif /* __GL_CODEGEN_PMON */
+
+/* Really a return, this is initialised at the start of setup. */
+@   mov         eax,1
+@   jmpi	[#'(int)&gc->ogState.rsave']
+
+    if (interpolate_z) {
+	struct celem* result;
+
+/* Ptr to color destination in edi.  If blending, color source is 
+ * in esi.
+ */
+@ mixpix:
+@       movq    'mmxtr.zresult',mm1
+@	genpix('&result', tr, '&mmxtr', c_stride, NULL, '(1)', [esi], texenv)
+
+@       mov    ecx,'mmxtr.zresult'
+        if (c_stride != 8) {
+@	    packuswb mm0,mm0
+	}
+
+	/* Do a selective write, using the mask in ecx */
+	{
+	    struct celem
+		*loop = near_label(gc),
+		*lose = near_label(gc);
+
+@	    mov     edx,0
+@ loop:
+@	    test    ecx,0xff
+@	    je      lose
+@	    movd    eax,mm0
+            if (c_stride == 8) {
+@           	size16
+@           	mov     [edi + edx * 2],eax
+	    } else {
+@           	mov     [edi + edx],al
+	    }
+@ lose:
+@	    psrlq   mm0,16
+@           shr     ecx,8
+@           inc     edx
+@           cmp     edx,4
+@           jne     loop
+	}
+
+@       ret
+    }
+
+@ do_recip:
+@       reciprocal(ecx)
+@       ret
+
+    return cb;
+}
+#endif
+
+/* e_to_str: Convert enum to printable string */
+
+STATIC char*
+e_to_str(GLenum e)
+{
+
+#define E2S(e) \
+case e: return (#e)
+
+    switch (e) {
+	E2S(GL_ZERO);
+	E2S(GL_ONE);
+	E2S(GL_DST_COLOR);
+	E2S(GL_SRC_COLOR);
+	E2S(GL_ONE_MINUS_DST_COLOR);
+	E2S(GL_ONE_MINUS_SRC_COLOR);
+	E2S(GL_SRC_ALPHA);
+	E2S(GL_ONE_MINUS_SRC_ALPHA);
+	E2S(GL_DST_ALPHA);
+	E2S(GL_ONE_MINUS_DST_ALPHA);
+	E2S(GL_SRC_ALPHA_SATURATE);
+
+    default: return "?";
+    }
+
+#undef E2S
+}
+
+STATIC GLuint
+bf_to_index(GLenum x)
+{
+    switch (x) {
+    case GL_ZERO:		return 0;
+    case GL_ONE:		return 1;
+    case GL_SRC_COLOR:		return 2;
+    case GL_ONE_MINUS_SRC_COLOR:return 3;
+    case GL_SRC_ALPHA:		return 4;
+    case GL_ONE_MINUS_SRC_ALPHA:return 5;
+    case GL_DST_ALPHA:		return 6;
+    case GL_ONE_MINUS_DST_ALPHA:return 7;
+    case GL_DST_COLOR:		return 8;
+    case GL_ONE_MINUS_DST_COLOR:return 9;
+    case GL_SRC_ALPHA_SATURATE: return 10;
+
+    default:
+	assert(0);
+    }
+}
+
+rasterizer
+GenerateRasterizer(__GLcontext *gc,
+		   GLboolean spanlet)
+{
+  unsigned char *space;
+  unsigned char *data;
+  unsigned char *cb;
+  struct __GLfptri fptr;
+  struct celem
+    *trap,
+    *alldone,
+    *canal,
+    *nextline,
+    *hzero;
+  int locals = 0;
+  struct celem *tr = NULL;
+  struct celem *h = NULL;
+  struct celem *w = NULL;
+  struct celem *truew = NULL;
+  struct celem *dither_index = NULL;
+  struct celem *rptr = NULL, *gptr = NULL, *bptr = NULL;
+  struct celem *dithertable = NULL;
+  struct celem *dithervalue = NULL;
+  struct celem
+    *drdxH, *dgdxH, *dbdxH,	/* Used in smoothspan */
+    *drdxP, *dgdxP, *dbdxP;
+  GLuint modeFlags = gc->polygon.shader.modeFlags;
+  __GLtexture *current;
+  __GLmipMapLevel *lp;
+  GLuint wl2, hl2;
+  int fbsize;
+  GLboolean useFlatspan;
+  GLboolean useSmoothspan;
+  unsigned int signature;
+  int
+    interpolate_color,
+    interpolate_z;
+  GLboolean texNeedRho;
+  GLenum texenv;
+
+  /* Create a unique cache signature that covers information not
+   * included in modeFlags.
+   */
+  signature = 0;
+
+  if (modeFlags & __GL_SHADE_TEXTURE) {
+      __GLtexture *current = gc->texture.currentTexture;
+      texNeedRho = current->params.minFilter != current->params.magFilter;
+      texenv = gc->state.texture.env[0].mode;
+      if (texenv == GL_DECAL &&
+	  gc->texture.currentTexture->texelFormat == GL_RGB)
+	  texenv = GL_REPLACE;
+  } else {
+      texNeedRho = GL_FALSE;
+  }
+
+  if (spanlet) {
+      signature |= __OG_RASTER_SPANLETS;
+  } else {
+
+      if (modeFlags & __GL_SHADE_TEXTURE) {
+	  __GLtexture *current = gc->texture.currentTexture;
+	  int baseFormat;
+
+	  /* Texture environment */
+	  switch (texenv) {
+	  case GL_MODULATE:
+	      signature |= (0<<__OG_RASTER_TEX_ENV_SHIFT);
+	      break;
+	  case GL_DECAL:
+	      signature |= (1<<__OG_RASTER_TEX_ENV_SHIFT);
+	      break;
+	  case GL_BLEND:
+	      signature |= (2<<__OG_RASTER_TEX_ENV_SHIFT);
+	      break;
+	  case GL_REPLACE:
+	      signature |= (3<<__OG_RASTER_TEX_ENV_SHIFT);
+	      break;
+	  case GL_ADD:
+	      signature |= (4<<__OG_RASTER_TEX_ENV_SHIFT);
+	      break;
+	  }
+
+	  /* Texture size */
+	  assert(current->level->widthLog2 < 16);
+	  assert(current->level->heightLog2 < 16);
+
+	  /* MMX renderer doesn't care about texture width... */
+	  /* ... but on MMX we use the bits for somethings else (see below) */
+	  if (!MMX || !__glCanMmx(gc)) {
+	      signature |=
+		  (current->level->widthLog2 << __OG_RASTER_TEX_WIDTH_SHIFT) |
+		  (current->level->heightLog2 << __OG_RASTER_TEX_HEIGHT_SHIFT);
+	  }
+
+	  /* Texture format */
+	  baseFormat = current->texelFormat;
+	  if (baseFormat == GL_COLOR_INDEX) {
+	      signature |= __OG_RASTER_TEX_INDEX;
+	      if (modeFlags & __GL_SHADE_RGB)
+		  baseFormat = current->CT.baseFormat;
+	  }
+
+	  switch (baseFormat) {
+	  case GL_LUMINANCE:
+	      signature |= (0 << __OG_RASTER_TEX_FORMAT_SHIFT);
+	      break;
+	  case GL_LUMINANCE_ALPHA:
+	      signature |= (1 << __OG_RASTER_TEX_FORMAT_SHIFT);
+	      break;
+	  case GL_RGB:
+	      signature |= (2 << __OG_RASTER_TEX_FORMAT_SHIFT);
+	      break;
+	  case GL_RGBA:
+	      signature |= (3 << __OG_RASTER_TEX_FORMAT_SHIFT);
+	      break;
+	  case GL_INTENSITY:
+	      signature |= (4 << __OG_RASTER_TEX_FORMAT_SHIFT);
+	      break;
+	  case GL_ALPHA:
+	      signature |= (5 << __OG_RASTER_TEX_FORMAT_SHIFT);
+	      break;
+	  }
+
+#if 0 /* Currently this falls back to spanlet pipeline */
+	  /* Texture wrap mode */
+	  if (current->params.sWrapMode != GL_REPEAT)
+	      signature |= __OG_RASTER_TEX_S_CLAMP;
+	  if (current->params.tWrapMode != GL_REPEAT)
+	      signature |= __OG_RASTER_TEX_S_CLAMP;
+
+	  /* Texture border */
+	  if (current->level->border)
+	      signature |= __OG_RASTER_TEX_BORDER;
+	
+	  /* Texture filter */
+	  if (current->params.minFilter != GL_NEAREST)
+	      signature |= __OG_RASTER_TEX_MIN_LINEAR;
+
+	  switch (current->params.magFilter) {
+	  case GL_NEAREST:
+	      signature |= (0<<__OG_RASTER_TEX_MAX_FILTER_SHIFT);
+	      break;
+	  case GL_LINEAR:
+	      signature |= (1<<__OG_RASTER_TEX_MAX_FILTER_SHIFT);
+	      break;
+	  case GL_NEAREST_MIPMAP_NEAREST:	
+	      signature |= (2<<__OG_RASTER_TEX_MAX_FILTER_SHIFT);
+	      break;
+	  case GL_LINEAR_MIPMAP_NEAREST:
+	      signature |= (3<<__OG_RASTER_TEX_MAX_FILTER_SHIFT);
+	      break;
+	  case GL_NEAREST_MIPMAP_LINEAR:
+	      signature |= (4<<__OG_RASTER_TEX_MAX_FILTER_SHIFT);
+	      break;
+	  case GL_LINEAR_MIPMAP_LINEAR:
+	      signature |= (5<<__OG_RASTER_TEX_MAX_FILTER_SHIFT);
+	      break;
+	  }
+#endif
+      }
+      if (MMX && __glCanMmx(gc)) {
+	  /* Use these bits to represent the blend func.
+	   */
+	  if (modeFlags & __GL_SHADE_BLEND) {
+	      signature |=
+		  ((bf_to_index(gc->state.raster.blendSrc) << 
+		    __OG_RASTER_TEX_WIDTH_SHIFT) |
+		   (bf_to_index(gc->state.raster.blendDst) << 
+		    __OG_RASTER_TEX_HEIGHT_SHIFT));
+	  }
+      }
+
+#if 0  /* Currently this falls back to spanlet pipeline */
+      /* Scissor or front-buffer clipmask */
+      if (!gc->transform.reasonableViewport) {
+	  signature |= __OG_RASTER_CLIP_SCISSOR;
+      }
+#endif
+
+      if (modeFlags & __GL_SHADE_DEPTH_TEST) {
+
+	  signature |= (gc->state.depth.testFunc & 7) <<
+	      __OG_RASTER_DEPTH_FUNC_SHIFT;
+
+	  if (gc->depthBuffer.buf.depth > 16) {
+	      signature |= __OG_RASTER_DEPTH_SIZE32;
+	  }
+	  if (gc->state.depth.writeEnable) {
+	      signature |= __OG_RASTER_DEPTH_WRITE;
+	  }
+      }
+  }
+  if (gc->buffers.doubleStore) {
+      signature |= __OG_RASTER_DOUBLESTORE;
+  }
+  if (texNeedRho) {
+      signature |= __OG_RASTER_RHO;
+  }
+
+  if (__glAllocCodeSpace(&gc->triRasterCache, 
+			 modeFlags & MODEFLAGS_RASTERIZER_CARES_ABOUT, 
+			 signature, 
+			 &gc->tr,
+			 &space)) {
+      /* Found existing rasterizer which satisfies request! */
+      return (rasterizer) (space + 2000);
+  }
+  data = (unsigned char*)(((GLuint)space + 7) & ~7UL);
+  space += 2000;
+
+  cb = space;
+
+#if __GL_CODEGEN_DESCRIBERS
+  /* New rasterizer, make a new describer */
+  {
+    static const char* znames[] = {
+      "GL_NEVER",
+      "GL_LESS",
+      "GL_EQUAL",
+      "GL_LEQUAL",
+      "GL_GREATER",
+      "GL_NOTEQUAL",
+      "GL_GEQUAL",
+      "GL_ALWAYS"
+    };
+    struct describer* new = malloc(sizeof(*new));
+    char *txt = new->name;
+
+    sprintf(txt, "%08x ", modeFlags);
+    txt += strlen(txt);
+
+    if (spanlet) {
+	int tm;
+	static const char* texenvs[] = {
+	    "GL_MODULATE",
+	    "GL_DECAL",
+	    "GL_BLEND",
+	    "GL_REPLACE",
+	    "GL_ADD"
+	};
+
+	tm = gc->state.texture.env[0].mode;
+	sprintf(txt,
+		"Spanlet, %s%s",
+		(modeFlags & __GL_SHADE_TEXTURE) ? (
+		    (tm == GL_MODULATE) ? "GL_MODULATE" :
+		    (tm == GL_DECAL) ? "GL_DECAL" :
+		    (tm == GL_BLEND) ? "GL_BLEND" :
+		    (tm == GL_REPLACE) ? "GL_REPLACE" :
+		    (tm == GL_ADD) ? "GL_ADD" : "no texenv") :
+		"", 
+		gc->transform.reasonableViewport ? "" : " unreasonable viewport");
+
+    } else {
+      if (modeFlags & __GL_SHADE_DEPTH_TEST &&
+	  (gc->state.depth.writeEnable ||
+	   gc->state.depth.testFunc != GL_ALWAYS)) {
+	sprintf(txt,
+		"Z %s %swrite %d bit, ",
+		znames[gc->state.depth.testFunc - GL_NEVER],
+		gc->state.depth.writeEnable ? "" : "no ",
+		gc->depthBuffer.buf.depth);
+      } else {
+	sprintf(txt, "no Z, ");
+      }
+      txt += strlen(txt);
+      
+      sprintf(txt, "%sdither, ", (modeFlags & __GL_SHADE_DITHER) ? "" : "no ");
+      txt += strlen(txt);
+      
+      sprintf(txt, "%s, ", (modeFlags & __GL_SHADE_SMOOTH) ? "smooth" : "flat");
+      txt += strlen(txt);
+      
+      if (modeFlags & __GL_SHADE_TEXTURE) {
+	__GLtexture *current;
+	__GLmipMapLevel *lp;
+	GLenum baseFormat;
+
+	current = gc->texture.currentTexture;
+	lp = current->level;
+
+	sprintf(txt, "%s ", (modeFlags & __GL_SHADE_TEXTURE_PERSP) ? "PC" : "affine");
+	txt += strlen(txt);
+	sprintf(txt, "%dx%d ", lp->width, lp->height);
+	txt += strlen(txt);
+	sprintf(txt,
+		"%s",
+		(lp->pixelBuffer != NULL) ? "cooked " : "");
+	txt += strlen(txt);
+
+	baseFormat = current->texelFormat;
+	if ((modeFlags & __GL_SHADE_RGB) && baseFormat == GL_COLOR_INDEX) {
+	  sprintf(txt, "indexed ");
+	  txt += strlen(txt);
+	  baseFormat = current->CT.baseFormat;
+	}
+	switch (baseFormat) {
+	case GL_COLOR_INDEX:	sprintf(txt, "GL_COLOR_INDEX "); break;
+	case GL_LUMINANCE:	sprintf(txt, "GL_LUMINANCE "); break;
+	case GL_INTENSITY:	sprintf(txt, "GL_INTENSITY "); break;
+	case GL_LUMINANCE_ALPHA:	sprintf(txt, "GL_LUMINANCE_ALPHA "); break;
+	case GL_RGB:	sprintf(txt, "GL_RGB "); break;
+	case GL_RGBA:	sprintf(txt, "GL_RGBA "); break;
+	default:	sprintf(txt, "? "); break;
+	}
+	txt += strlen(txt);
+
+	sprintf(txt,
+		"%s",
+		(gc->state.texture.env[0].mode == GL_MODULATE) ? "modulate" :
+		(gc->state.texture.env[0].mode == GL_DECAL) ? "decal" :
+		(gc->state.texture.env[0].mode == GL_REPLACE) ? "replace":
+		(gc->state.texture.env[0].mode == GL_ADD) ? "add" : "?");
+   
+      } else {
+	sprintf(txt, "no texture");
+      }
+      if (modeFlags & __GL_SHADE_BLEND) {
+	  txt += strlen(txt);
+	  sprintf(txt, 
+		  " blend(%s, %s)",
+		  e_to_str(gc->state.raster.blendSrc),
+		  e_to_str(gc->state.raster.blendDst));
+      }
+    }
+
+    new->pixels = 0;
+    new->spans = 0;
+    new->tot_tris = 0;
+    new->drawn_tris = 0;
+    new->easy_tris = 0;
+    new->cyc[0] = 0;
+    new->cyc[1] = 0;
+
+    new->prev = last_describer;
+    last_describer = new;
+  }
+#endif /* __GL_CODEGEN_DESCRIBERS */
+
+  __glNSOpenSpace(gc->tr);
+  if (spanlet || FORCE_DIRECT)
+    gc->tr->direct_map = GL_TRUE;
+
+#if MMX
+  if (!spanlet && __glCanMmx(gc)) {
+      struct celem *scalar;
+      unsigned char* end;
+      GLboolean makeScalarToo;
+
+      makeScalarToo =
+	  !(modeFlags & __GL_SHADE_TEXTURE) &&
+	  !(modeFlags & __GL_SHADE_BLEND);
+
+      og_warmup(gc);
+
+      MENTION(c);
+
+      if (makeScalarToo) {
+	  /* This early on, esp points to 'tr'
+	   */
+	  tr = mem2(gc, value(gc, 0), esp);
+	  scalar = label(gc);
+
+@	  mov     eax,'tr(c)'
+@         and     eax,0x7fffffff
+@         cmp     eax,'fpk(gc, 25.0f * 2.0f)'
+@         jle     scalar
+      }
+
+      end = BuildMMXRasterizer(gc, cb);
+
+      assert((end - space) < 0x3800);
+      cb = end;
+
+      if (!makeScalarToo) {
+//	  __glNSCloseSpace(gc->tr);
+	  return (rasterizer) space;
+      } else {
+@ scalar:
+      }
+  }
+#endif
+
+  interpolate_color = 0;
+  if (modeFlags & __GL_SHADE_SMOOTH) {
+    interpolate_color = 1;
+  }
+  if (modeFlags & __GL_SHADE_TEXTURE) {
+    switch (texenv) {
+    case GL_MODULATE:
+    case GL_ADD:
+      break;
+    case GL_REPLACE:
+      interpolate_color = 0;
+      break;
+    }
+  }
+  interpolate_z = (modeFlags & __GL_SHADE_DEPTH_TEST &&
+		   (gc->state.depth.writeEnable ||
+		    gc->state.depth.testFunc != GL_ALWAYS));
+
+
+#define MENTION(i)								\
+  __glNSWhereIs(gc->tr, offsetof(i, __GLtri), sizeof(GLint));
+
+  MENTION(y0Int);
+  MENTION(y1Int);
+  MENTION(y2Int);
+
+  MENTION(x0Int);
+  MENTION(x1Int);
+  MENTION(x2Int);
+
+  MENTION(dxdy0Int[0]);
+  MENTION(dxdy0Int[1]);
+  MENTION(dxdy1Int[0]);
+  MENTION(dxdy1Int[1]);
+  MENTION(dxdy2Int[0]);
+  MENTION(dxdy2Int[1]);
+
+  MENTION(x0Frac);
+  MENTION(x1Frac);
+  MENTION(x2Frac);
+
+  MENTION(dxdy0Frac);
+  MENTION(dxdy1Frac);
+  MENTION(dxdy2Frac);
+
+  MENTION(dx);
+  MENTION(c);
+
+#define INTERPOLANT(i)								\
+  MENTION(i);			\
+  MENTION(i##0);		\
+  MENTION(d##i##dx);		\
+  MENTION(d##i##dy0[0]);	\
+  MENTION(d##i##dy0[1]);
+
+#define FPINTERPOLANT(i)	\
+  MENTION(f##i##w);		\
+  MENTION(f##i##w0);		\
+  MENTION(fd##i##wdx);		\
+  MENTION(fd##i##wdxPWL);	\
+  MENTION(fd##i##wdy0[0]);	\
+  MENTION(fd##i##wdy0[1]);  
+
+  if (interpolate_color) {
+    INTERPOLANT(r);
+    if (modeFlags & __GL_SHADE_RGB) {
+      INTERPOLANT(g);
+      INTERPOLANT(b);
+      if (modeFlags & (__GL_SHADE_ALPHA_TEST | __GL_SHADE_BLEND)) {
+	INTERPOLANT(a);
+      }
+    }
+  }
+  if (interpolate_z ) {
+    INTERPOLANT(z);
+  }
+  if (modeFlags & __GL_SHADE_TEXTURE) {
+    if (modeFlags & __GL_SHADE_TEXTURE_PERSP) {
+      FPINTERPOLANT(s);
+      FPINTERPOLANT(t);
+      FPINTERPOLANT(q);
+    } else {
+      INTERPOLANT(s);
+      INTERPOLANT(t);
+    }
+  }
+
+  og_warmup(gc);
+  this_warmup(gc, &fptr, (void*)data);
+
+  trap = label(gc);
+  alldone = label(gc);
+  canal = label(gc);
+  nextline = label(gc);
+  hzero = label(gc);
+
+  switch (gc->drawBuffer->fbtype) {
+  case 0:
+  case CINDEX:
+  case RGB332:
+  case RGB666:
+    fbsize = 1;
+    break;
+  case RGB5:
+  case RGB565:
+  case A1RGB5:
+    fbsize = 2;
+    break;
+  case RGB8:
+  case BGR8:
+    fbsize = 3;
+    break;
+  case RGBX8:
+  case XRGB8:
+  case XBGR8:
+  case RGBA8:
+  case ARGB8:
+  case ABGR8:
+    fbsize = 4;
+    break;
+  }
+
+  useFlatspan = !spanlet &&
+                (fbsize != 3) &&
+		(!(modeFlags & __GL_SHADE_TEXTURE) &&
+		 !(modeFlags & __GL_SHADE_SMOOTH) &&
+		 !(modeFlags & __GL_SHADE_MASK) &&
+		 !((modeFlags & __GL_SHADE_DEPTH_TEST &&
+		    (gc->state.depth.writeEnable ||
+		     gc->state.depth.testFunc != GL_ALWAYS))));
+  useSmoothspan = GL_FALSE;
+#if 0
+ (!(modeFlags & __GL_SHADE_TEXTURE) &&
+		   (modeFlags & __GL_SHADE_SMOOTH) &&
+		   !((modeFlags & __GL_SHADE_DEPTH_TEST &&
+		      (gc->state.depth.writeEnable ||
+		       gc->state.depth.testFunc != GL_ALWAYS))));
+#endif
+
+#define SLOCAL(type, name)	(name = mem2(gc, value(gc, locals), esp), locals += sizeof(type))
+
+#if __GL_CODEGEN_DESCRIBERS
+@       inc	[#'(int)&last_describer->drawn_tris']
+@       rdtsc
+@       sub     [#'(int)&last_describer->cyc[0]'],eax
+@       sbb     [#'(int)&last_describer->cyc[1]'],edx
+#endif /* __GL_CODEGEN_DESCRIBERS */
+
+#if DEBUG
+	{
+	struct celem* ok = near_label(gc);
+
+@	mov	eax,[#'(int)&(gc->polygon.shader.modeFlags)']
+@	and	eax,#MODEFLAGS_RASTERIZER_CARES_ABOUT
+@	cmp	eax,#'(modeFlags & MODEFLAGS_RASTERIZER_CARES_ABOUT)'
+@	je	ok
+@int3
+@ok:
+	}
+#endif
+
+  SLOCAL(long, w);
+  SLOCAL(long, truew);
+  SLOCAL(long, h);
+  if (modeFlags & __GL_SHADE_DITHER)
+    SLOCAL(long, dither_index);
+  if (modeFlags & __GL_SHADE_TEXTURE) {
+    if ((texenv == GL_MODULATE) &&
+	!(modeFlags & __GL_SHADE_SMOOTH)) {
+      SLOCAL(long, rptr);
+      SLOCAL(long, gptr);
+      SLOCAL(long, bptr);
+    }
+  }
+
+  if (useFlatspan) {
+    SLOCAL(long, dithervalue);
+    dithertable = mem2(gc, value(gc, locals), esp);
+    locals += fbsize * 16;
+  }
+
+  if (useSmoothspan) {
+    SLOCAL(long, drdxH);
+    SLOCAL(long, dgdxH);
+    SLOCAL(long, dbdxH);
+    SLOCAL(long, drdxP);
+    SLOCAL(long, dgdxP);
+    SLOCAL(long, dbdxP);
+  }
+
+  tr = mem2(gc, value(gc, locals), esp);
+
+@ sub	esp,#'locals'
+
+  if (modeFlags & __GL_SHADE_TEXTURE) {
+    current = gc->texture.currentTexture;
+    lp = current->level;
+
+    wl2 = lp->widthLog2;
+    hl2 = lp->heightLog2;
+  }
+
+  if ((modeFlags & __GL_SHADE_TEXTURE) &&
+      (texenv == GL_MODULATE) &&
+      !(modeFlags & __GL_SHADE_SMOOTH)) {
+      __GLcolorBuffer *cfb = gc->drawBuffer;
+      int redshift, greenshift, blueshift;
+
+	if (!(modeFlags & __GL_SHADE_DITHER)) {
+	    redshift = blueshift = greenshift = 8;
+	} else {
+	    redshift = log2(cfb->redMax) + 1;
+	    greenshift = log2(cfb->greenMax) + 1;
+	    blueshift = log2(cfb->blueMax) + 1;
+	}
+
+	/* Work out the color lookup lines */
+@	mov	eax,'tr(r)'
+@	shr	eax,#redshift
+@	and	eax,0xff00
+@	lea	eax,[#'(int)&__glBlendTab' + eax]
+@	mov	rptr,eax
+
+@	mov	eax,'tr(g)'
+@	shr	eax,#greenshift
+@	and	eax,0xff00
+@	lea	eax,[#'(int)&__glBlendTab' + eax]
+@	mov	gptr,eax
+
+@	mov	eax,'tr(b)'
+@	shr	eax,#blueshift
+@	and	eax,0xff00
+@	lea	eax,[#'(int)&__glBlendTab' + eax]
+@	mov	bptr,eax
+
+  }
+
+  if ((modeFlags & __GL_SHADE_TEXTURE) &&
+      ((modeFlags & __GL_SHADE_TEXTURE_PERSP) == 0)) {
+
+@	  	mov	ecx, 'tr(dtdx)'	; this will go in msw
+@	  	shl	ecx, #'16 - hl2'
+
+@	  	mov	eax, 'tr(dsdx)'
+@	  	shl	eax, #'16 - wl2'
+
+@		mov	ebx,eax
+@		mov	edx,ecx
+
+@	        and	ebx,0xf000
+@	        and	edx,0xf000
+
+@		shr	ebx,12
+@		shl	edx,4
+
+@		or	ebx,edx
+
+@		shr	eax,16
+
+@	  	size16
+@	  	mov	ecx,eax
+
+@		mov	eax,ecx
+@		and	eax,0x8000	; If lsw -ve, we get extra
+@		shl	eax,1		; carry into msb
+@		sub	ecx,eax		; so make it 1 smaller
+@	  	mov	'fptr.dstdx', ecx
+
+@		mov	eax,ebx
+@		and	eax,0x8000	; If lsw -ve, we get extra
+@		shl	eax,1		; carry into msb
+@		sub	ebx,eax		; so make it 1 smaller
+@		mov	'fptr.dstdx2',ebx
+
+  }
+
+  if (useFlatspan) {
+    __GLcolorBuffer *cfb = gc->drawBuffer;
+    struct celem *perline, *perpixel;
+
+    perline = label(gc);
+    perpixel = label(gc);
+
+    /* Set up the dither table */
+@	lea	ebp,dithertable
+
+@	mov	esi,0
+@perline:
+@	mov	edi,0
+
+@perpixel:
+	if (modeFlags & __GL_SHADE_RGB) {
+@	    mov	eax,'tr(r)'
+@	    mov	ebx,'tr(g)'
+@	    mov	ecx,'tr(b)'
+@	    mov	edx,[#'(int)__glFRDitherTable' + esi + edi * 4]
+    
+@	    add	eax,edx
+@	    add	ebx,edx
+@	    add	ecx,edx
+@	    shr	eax,16
+@	    shl	eax,#'cfb->redShift'
+@	    shr	ebx,16
+@	    shl	ebx,#'cfb->greenShift'
+@	    shr	ecx,16
+@	    shl	ecx,#'cfb->blueShift'
+@	    or	eax,ebx
+@	    or  	eax,ecx
+	} else {
+@	    mov	eax,'tr(r)'
+@	    mov	edx,[#'(int)__glFRDitherTable' + esi + edi * 4]
+@	    add	eax,edx
+@	    shr	eax,16
+	}
+
+	switch (fbsize) {
+	case 1:
+@		mov	[ebp + 0],al
+	    break;
+	case 2:
+@		size16
+@		mov	[ebp + 0],eax
+	    break;
+	case 3:
+	    /* unsupported */
+	    assert(0);
+	    break;
+	case 4:
+@		mov	[ebp + 0],eax
+	    break;
+	}
+@	add	ebp,#fbsize
+
+@	inc	edi
+@	cmp	edi,4
+@	jne	perpixel
+
+@	add	esi,#'(4 * 35)'
+@	cmp	esi,#'(4 * 4 * 35)'
+@	jne	perline
+  }
+
+  if (useSmoothspan) {
+    __GLcolorBuffer *cfb = gc->drawBuffer;
+    int redSize, greenSize, blueSize;
+    struct celem* perpixelpair = label(gc);
+    struct celem* done = label(gc);
+
+    redSize = log2(cfb->redMax);
+    greenSize = log2(cfb->greenMax);
+    blueSize = log2(cfb->blueMax);
+
+@   mov	eax,'tr(drdx)'
+@   mov	ebx,'tr(dgdx)'
+@   mov	ecx,'tr(dbdx)'
+
+@   shl	eax,1
+@   shl	ebx,1
+@   shl	ecx,1
+
+@   shr	eax,#'(15 - redSize) - cfb->redShift'
+@   shr	ebx,#'(15 - greenSize) - cfb->greenShift'
+@   shr	ecx,#'(15 - blueSize) - cfb->blueShift'
+
+@   mov	edx,eax
+@   mov	ebp,ebx
+@   mov	esi,ecx
+
+@   shl	edx,16
+@   shl	ebp,16
+@   shl	esi,16
+
+@   or	eax,edx
+@   or	ebx,ebp
+@   or	ecx,esi
+	
+@   mov	drdxP,eax
+@   mov	dgdxP,ebx
+@   mov	dbdxP,ecx
+
+@	xor	eax,eax
+@	mov	drdxH,eax
+@	mov	dgdxH,eax
+@	mov	dbdxH,eax
+
+  }
+
+  if ((modeFlags & (__GL_SHADE_SMOOTH | __GL_SHADE_DITHER | __GL_SHADE_TEXTURE)) == 0) {
+@ mov	edx,'tr(r0)'
+  }
+
+@trap:
+
+@ mov	eax, 'tr(y2Int)'
+@ mov	ebx, 'tr(y0Int)'
+@ sub	eax, ebx
+@ mov	'tr(y)', ebx
+@ je	hzero
+
+@canal:
+@ mov	h,eax
+
+  if (modeFlags & __GL_SHADE_DITHER) {
+    if (!useFlatspan) {
+@     set_dither(tr, 'tr(x0Int)', spanlet)
+    } else {
+
+@     mov	ecx,'tr(y)'
+@     and ecx,#DITHER_MASK
+@     lea	edi,dithertable
+      if (fbsize == 1)
+@	lea	edi,[edi + ecx * 4]
+      else
+@	lea	edi,[edi + ecx * 8]
+@     mov	dithervalue,edi
+    }
+  }
+
+@ mov	eax,'tr(x0Int)'
+@ mov	ebx,'tr(x1Int)'
+
+@ sub	ebx,eax
+@ jle	nextline
+
+#if __GL_CODEGEN_DESCRIBERS
+@ add	[#'(int)&last_describer->pixels'],ebx
+@ inc	[#'(int)&last_describer->spans']
+#endif /* __GL_CODEGEN_DESCRIBERS */
+
+  /* For spanlets, the only thing that we rely on is modeFlags.
+   * So for example the depth-test clause just blindly does
+   * its job: there's no attempt to recognize the 
+   * (GL_ALWAYS && no-writes) case because this is controlled
+   * by things other than modeFlags.
+   */
+  if (spanlet) {
+    struct celem
+      *f = label(gc),
+      *s = label(gc);
+
+@   mov	w,ebx
+
+@   memov('tr(cp)', 'tr(cp0)')
+    if (gc->buffers.doubleStore)
+@       memov('tr(cp2)', 'tr(cp20)')
+    
+@   memov('tr(x)', 'tr(x0Int)')
+    if (modeFlags & __GL_SHADE_STENCIL_TEST)
+@     memov('tr(sp)', 'tr(sp0)')
+
+    if (modeFlags & __GL_SHADE_DEPTH_TEST) {
+@     memov('tr(zp)', 'tr(zp0)')
+@     memov('tr(z)', 'tr(z0)')
+    }
+
+    if (modeFlags & __GL_SHADE_SMOOTH) {
+@     memov('tr(r)', 'tr(r0)')
+      if (modeFlags & __GL_SHADE_RGB) {
+@       memov('tr(g)', 'tr(g0)')
+@       memov('tr(b)', 'tr(b0)')
+
+        if (modeFlags & (__GL_SHADE_ALPHA_TEST | __GL_SHADE_BLEND))
+@         memov('tr(a)', 'tr(a0)')
+      }
+    }
+
+    if (modeFlags & __GL_SHADE_SLOW_FOG) {
+@	memov('tr(f)', 'tr(f0)')
+    }
+
+    if (modeFlags & __GL_SHADE_TEXTURE) {
+      if (!(modeFlags & __GL_SHADE_TEXTURE_PERSP)) {
+@       memov('tr(s)', 'tr(s0)');
+@       memov('tr(t)', 'tr(t0)');
+      } else {
+@       memov('tr(fsw)','tr(fsw0)')
+@       memov('tr(ftw)','tr(ftw0)')
+@       memov('tr(fqw)','tr(fqw0)')
+        if (texNeedRho) {
+@           memov('tr(frhow)','tr(frhow0)')
+	}
+      }
+    }
+
+@ f:
+@   mov	ecx,~0
+@   cmp	ebx,32
+@   jge	s
+@   mov	ecx,[#'(int)__glFRMaskTable' + ebx * 4]
+@ s:
+@   mov w,ebx
+@   lea	edx,tr
+@   call [#'(int)(&gc->procs.renderSpan)']
+
+@   mov	ebx,w
+@   sub	ebx,32
+@   jle	nextline
+
+@   mov eax,'tr(x)'
+@   add eax,32
+@   mov 'tr(x)',eax
+@   ds('tr(cp)', 'tr(dcpdxSpan)')
+    if (gc->buffers.doubleStore)
+@       ds('tr(cp2)', 'tr(dcp2dxSpan)')
+
+    if (modeFlags & __GL_SHADE_STENCIL_TEST)
+@     ds('tr(sp)', 'tr(dspdxSpan)')
+
+    if (modeFlags & __GL_SHADE_DITHER)
+@     set_dither(tr, 'tr(x)', spanlet)
+
+    if (modeFlags & __GL_SHADE_DEPTH_TEST &&
+	(gc->state.depth.writeEnable ||
+	 gc->state.depth.testFunc != GL_ALWAYS)) {
+@     ds('tr(zp)', 'tr(dzpdxSpan)')
+@     ds('tr(z)', 'tr(dzdxSpan)')
+    }
+
+    if (modeFlags & __GL_SHADE_SMOOTH) {
+@     ds('tr(r)', 'tr(drdxSpan)')
+@     ds('tr(g)', 'tr(dgdxSpan)')
+@     ds('tr(b)', 'tr(dbdxSpan)')
+      if (modeFlags & (__GL_SHADE_ALPHA_TEST | __GL_SHADE_BLEND))
+@       ds('tr(a)', 'tr(dadxSpan)')
+    }
+
+    if (modeFlags & __GL_SHADE_SLOW_FOG) {
+@	ds('tr(f)', 'tr(dfdxSpan)')
+    }
+
+    if (modeFlags & __GL_SHADE_TEXTURE) {
+      if (!(modeFlags & __GL_SHADE_TEXTURE_PERSP)) {
+@       ds('tr(s)', 'tr(dsdxSpan)');
+@       ds('tr(t)', 'tr(dtdxSpan)');
+      } else {
+@       fld	'tr(fsw)'
+@       fadd	'tr(fdswdxSpan)'
+@       fstp	'tr(fsw)'
+
+@       fld	'tr(ftw)'
+@       fadd	'tr(fdtwdxSpan)'
+@       fstp	'tr(ftw)'
+
+@       fld	'tr(fqw)'
+@       fadd	'tr(fdqwdxSpan)'
+@       fstp	'tr(fqw)'
+
+        if (texNeedRho) {
+@           fld    	'tr(frhow)'
+@           fadd	'tr(fdrhowdxSpan)'
+@           fstp	'tr(frhow)'
+	}
+      }
+    }
+  if (modeFlags & __GL_SHADE_DITHER)
+@    set_dither(tr, 'tr(x)', spanlet)
+
+@   jmp	f
+  } else {
+      if (useFlatspan) {
+@         flatspan(tr, dithervalue, w, fbsize);
+      } else if (useSmoothspan) {
+@	smoothspan(tr, drdxH, dgdxH, dbdxH, drdxP, dgdxP, dbdxP, w, fbsize);
+      } else {
+@	  span(modeFlags, tr, truew, w, dither_index, '&fptr', rptr, gptr, bptr, interpolate_color, interpolate_z, fbsize, texenv);
+      }
+  }
+
+@nextline:
+
+@   mov	    eax,'tr(x0Frac)'
+@   mov	    ebx,'tr(dxdy0Frac)'
+@   add	    eax,ebx
+@   mov	    ebx,eax
+@   and	    eax,~0x80000000UL
+@   shr	    ebx,31
+    	
+@   mov	    ebp,'trs(dxdy0Int)'
+@   mov	    ecx,'tr(x0Int)'
+@   add	    ecx,ebp
+    
+@   dyv('tr(cp0)', 'trs(dcpdy0)', edx, ebp)
+
+@   mov	    'tr(x0Int)',ecx
+@   mov	    'tr(x0Frac)',eax
+@   mov     'tr(cp0)',edx
+
+    if (modeFlags & __GL_SHADE_STENCIL_TEST) {
+@       dy('tr(sp0)', 'trs(dspdy0)')
+    }
+
+    if (gc->buffers.doubleStore)
+@       dy('tr(cp20)', 'trs(dcp2dy0)')
+
+    if (modeFlags & __GL_SHADE_SMOOTH) {
+        if (spanlet || !__glCanMmx(gc)) {
+@   	    dy('tr(r0)', 'trs(drdy0)')
+    	    if (modeFlags & __GL_SHADE_RGB) {
+@   		dy('tr(g0)', 'trs(dgdy0)')
+@   		dy('tr(b0)', 'trs(dbdy0)')
+      	  
+    		if (modeFlags & (__GL_SHADE_ALPHA_TEST | __GL_SHADE_BLEND))
+@   		    dy('tr(a0)', 'trs(dady0)')
+    	    }
+        } else {
+            /* We must be the scalar fallback for an MMX renderer. */
+@   	    dy('tr(r0)', 'trsq(drdy0)')
+@   	    dy('tr(g0)', 'trsq(dgdy0)')
+@   	    dy('tr(b0)', 'trsq(dbdy0)')
+        }
+    }
+
+  if (modeFlags & __GL_SHADE_SLOW_FOG) {
+@	dy('tr(f0)', 'trs(dfdy0)')
+  }
+
+  if (modeFlags & __GL_SHADE_DEPTH_TEST &&
+      (gc->state.depth.writeEnable ||
+       gc->state.depth.testFunc != GL_ALWAYS)) {
+        if (spanlet || !__glCanMmx(gc)) {
+@           dy('tr(z0)', 'trs(dzdy0)')
+@           dy('tr(zp0)', 'trs(dzpdy0)')
+        } else {
+@           dy('tr(z0)', 'trsq(dzdy0)')
+@           dy('tr(zp0)', 'trsq(dzpdy0)')
+        }
+  }
+
+  if (modeFlags & __GL_SHADE_TEXTURE) {
+    if (!(modeFlags & __GL_SHADE_TEXTURE_PERSP)) {
+@     dy('tr(s0)', 'trs(dsdy0)');
+@     dy('tr(t0)', 'trs(dtdy0)');
+    } else {
+@     fld	'tr(fsw0)'
+@     fadd	'trs(fdswdy0)'
+
+@     fld	'tr(ftw0)'
+@     fadd	'trs(fdtwdy0)'
+
+@     fld	'tr(fqw0)'
+@     fadd	'trs(fdqwdy0)'	;	q	t	s
+@     fxch	st2		;	s	t	q
+
+@     fstp	'tr(fsw0)'
+@     fstp	'tr(ftw0)'
+@     fstp	'tr(fqw0)'
+
+      if (texNeedRho) {
+@         fld     'tr(frhow0)'
+@         fadd    'trs(fdrhowdy0)'
+@         fstp    'tr(frhow0)'
+      }
+    }
+  }
+
+@ mov	eax,'tr(x1Frac)'
+@ mov	ebx,'tr(dxdy1Frac)'
+@ add	eax,ebx
+@ mov	ebx,eax
+@ and	eax,~0x80000000UL
+@ shr	ebx,31
+@ mov	'tr(x1Frac)',eax
+
+@ mov	eax,'trs(dxdy1Int)'
+@ mov	ecx,'tr(x1Int)'
+@ add	ecx,eax
+@ mov	'tr(x1Int)',ecx
+
+  if ((modeFlags & __GL_SHADE_DITHER) || spanlet)
+@     inc	'tr(y)'
+
+@ mov	eax,h
+@ dec	eax
+@ jne	canal
+
+@hzero:
+
+@ mov	eax,'tr(y1Int)'
+@ mov	ebx,'tr(y2Int)'
+@ cmp	eax,ebx
+@ je	alldone
+@ mov	'tr(y0Int)',ebx
+@ mov	'tr(y2Int)',eax
+
+@ memov('tr(x1Int)','tr(x2Int)')
+@ memov('tr(dxdy1Int[0])', 'tr(dxdy2Int[0])')
+@ memov('tr(dxdy1Int[1])', 'tr(dxdy2Int[1])')
+@ memov('tr(x1Frac)','tr(x2Frac)')
+@ memov('tr(dxdy1Frac)','tr(dxdy2Frac)')
+
+@ jmp	trap
+
+@alldone:
+
+  /*if (gc->procs.unlockBuffers != NULL)*/ {
+      struct celem* noneed = label(gc);
+
+@	mov	edx,[#'(int)&(gc)->procs.unlockBuffers']
+@	test	edx,edx
+@	je	noneed
+
+@	mov	edx,[#'(int)&(gc)->buffers.lock']
+@	dec	edx
+@	mov	[#'(int)&(gc)->buffers.lock'],edx
+@	cmp	edx,0
+@	jne	noneed
+@	mov	edx,#'(int)gc'
+@	push	edx
+@	call	[#'(int)&(gc)->procs.unlockBuffers']
+@	add	esp,4
+@ noneed:
+  }
+
+@    add     esp,#'locals'
+
+#if __GL_CODEGEN_DESCRIBERS
+@   rdtsc
+@   add     [#'(int)&last_describer->cyc[0]'],eax
+@   adc     [#'(int)&last_describer->cyc[1]'],edx
+#endif /* __GL_CODEGEN_DESCRIBERS */
+
+/* Really a return, this is initialised at the start of setup. */
+@    mov     eax,1
+@    jmpi    [#'(int)&gc->ogState.rsave']
+
+  assert((unsigned)space + gc->constants.triRasterCacheSize > (unsigned)cb);
+
+//  __glNSCloseSpace(gc->tr);
+
+  return (rasterizer)space;
+}
+
+/************************************************************************/
+
+STATIC unsigned char*
+sort2(__GLcontext *gc,
+      unsigned char* cb, 
+      struct celem* r0,
+      struct celem* r1)
+{
+	struct celem* ok = near_label(gc);
+
+@	mov	esi,[$r0 + 'vx(window.y)']
+@	mov	ebp,[$r1 + 'vx(window.y)']
+
+@	cmp	esi,ebp
+@	jge	ok
+
+@	mov	esi,r0
+@	mov	r0,r1
+
+@	mov	r1,esi
+@	xor	edi,edx
+
+@ ok:
+
+	return cb;
+}
+
+STATIC unsigned char*
+scaleby(__GLcontext *gc,
+	unsigned char* cb,
+	struct celem* dst,
+	struct celem* src,
+	int N)
+{
+    int shifts;
+    
+    if (N == 1) {
+@      mov	dst,src
+    } else {
+
+       for (shifts = 1; (N & (1 << shifts)) == 0; shifts++)
+	   ;
+
+@      scaleby(dst, src, '(N >> shifts)')
+       if (shifts == 1)
+@          add	dst,dst
+       else
+@          shl	dst,#shifts
+       if (N & 1)
+@          add	dst,src
+    }
+
+    return cb;
+}
+
+STATIC unsigned char*
+buf(__GLcontext* gc,
+    unsigned char* cb,
+    struct celem* p0,
+    struct celem* dpdx,
+    struct celem* dpdxSpan,
+    struct celem* dpdy0,
+    struct celem* dpdy1,
+    void* base,
+    void* bw,
+    int es,
+    struct celem* dxneg,
+    struct celem* tr,
+    GLboolean spanlet)
+{
+
+@   mov	ebp,'tr(x0Int)'
+@   mov	edx,[#'(int)bw']
+
+@   scaleby(edi, ebp, es)
+
+@   add	edi,[#'(int)base']
+
+@   mov	ebp,'tr(y0Int)'
+@   imul ebp,edx
+
+@   add	edi,ebp
+
+@   mov p0, edi
+
+@   mov	esi,'tr(dx)'
+@   scaleby(ebp, esi, es)
+@   mov	dpdx,ebp
+    if (spanlet) {
+@       shl	ebp,5
+@       mov	dpdxSpan,ebp
+    }
+
+@   mov	esi,'tr(dxdy0Int[0])'
+@   scaleby(edi, esi, es)
+@   add edi,edx
+@   mov dpdy0,edi
+
+@   mov	esi,'tr(dxdy0Int[1])'
+@   scaleby(edi, esi, es)
+@   add edi,edx
+@   mov dpdy1,edi
+
+    return cb;
+}
+
+STATIC void
+fogsetup(__GLcontext *gc, GLint colorFace, GLint needs, __GLvertex *v0, __GLvertex *v1, __GLvertex *v2)
+{
+    static __GLcolor tmpColor;
+    static __GLcolor subColors[3];	/* Substitute colors for the vertices */
+    GLuint modeFlags = gc->polygon.shader.modeFlags;
+    __GLvertex *pv = gc->vertex.provoking;
+
+    pv->color = &pv->colors[colorFace];
+    if (~pv->hasAndClipCode & needs) DO_VALIDATE(gc, pv, needs);
+
+    if (modeFlags & __GL_SHADE_CHEAP_FOG) {
+	__GLcolor *pvColor = pv->color;
+
+	pv->color = &tmpColor;
+	v0->color = &subColors[0];
+	v1->color = &subColors[1];
+	v2->color = &subColors[2];
+
+	(*gc->procs.fogColor)(gc, v0->color, pvColor, v0->fog);
+	(*gc->procs.fogColor)(gc, v1->color, pvColor, v1->fog);
+	(*gc->procs.fogColor)(gc, v2->color, pvColor, v2->fog);
+    }
+
+    if (pv != v0 && pv != v1 && pv != v2) {
+	pv->color = &pv->colors[__GL_FRONTFACE];
+    }
+}
+
+STATIC unsigned char*
+validate(__GLcontext *gc, unsigned char* cb, struct celem* v)
+{
+    struct celem* ok = near_label(gc);
+
+@	    mov esi,[$v + 'vx(hasAndClipCode)']
+@	    xor	esi,~0
+@	    test	ebp,esi
+@	    je		ok
+    
+@	    mov		esi,#'((int)gc)'
+
+@	    push	eax
+@	    push	ebx
+@	    push	ecx
+@	    push	edx
+
+@	    push	ebp
+@	    push	v
+@	    push	esi
+
+@	    mov		eax,[$v + 'vx(hasAndClipCode)']
+@	    shr		eax,10
+@	    and		eax,3
+@	    call	[#'(int)&gc->procs.validateVertex0' + eax * 4]
+
+@	    add		esp,8
+@	    pop		ebp
+
+@	    pop		edx
+@	    pop		ecx
+@	    pop		ebx
+@	    pop		eax
+
+@ ok:
+
+    return cb;
+}
+
+/********************************************
+**  Triangle Setup Cache
+*********************************************/
+
+/* mode bits for cache signature */
+#define __OG_SETUP_SPANLETS		(1<<0)
+#define __OG_SETUP_COOKED_TEXTURE	(1<<1)
+#define __OG_SETUP_REPLACE		(1<<2)
+#define __OG_SETUP_DO_DEPTH		(1<<3)
+#define __OG_SETUP_DOUBLESTORE          (1<<4)
+#define __OG_SETUP_NEEDRHO	        (1<<5)
+#define __OG_SETUP_CRC_POS	        6
+
+#define CHECK_STACK	0	/* Set to 1 to enable check
+				 * for floating-point stack balance */
+
+#if __GL_CODEGEN_DESCRIBERS
+
+/* 
+ * This produces an area breakdown in the file "areas.log".  See
+ * below for description of column headings.
+ */
+
+STATIC void
+dump_areas(void)
+{
+    FILE* f;
+    struct describer* pd, totals;
+
+    f = fopen("areas.log", "wt");
+    fprintf(f, "\n");
+
+    /* Count totals */
+    totals.pixels = 0;
+    totals.spans = 0;
+    totals.tot_tris = 0;
+    for (pd = last_describer; pd; pd = pd->prev) {
+	totals.pixels += pd->pixels;
+	totals.spans += pd->spans;
+	totals.tot_tris += pd->tot_tris;
+
+	pd->cycles = (double)pd->cyc[0] + (pd->cyc[1] * (65536.0 * 65536.0));
+    }
+
+    fprintf(f,
+	    "%5s %6s %8s %8s %8s %8s %8s %s\n",
+	    "area",	/* % of total area (rough importance measure) */
+	    "uncull",	/* % of all tris passing cull (EXCLUDES VX CULL!) */
+	    "pix/tri",	/* Avg. pixels per triangle */
+	    "pix/spn",	/* Avg. pixels per span */
+	    "spn/tri",	/* Avg. spans per triangle */
+	    "cyc/pix",	/* Avg. cycles per pixel */
+	    "cyc/spn",	/* Avg. cycles per span */
+	    "description");
+
+    for (pd = last_describer; pd; pd = pd->prev) {
+	if ((pd->pixels > 0) &&
+	    (pd->drawn_tris > 0) &&
+	    (pd->spans > 0))
+	    fprintf(f, "%5.1f %6d %8d %8d %8d %8.1f %8.1f %s\n",
+		    (100.0 * pd->pixels) / totals.pixels,
+		    /* (100 * pd->drawn_tris) / pd->tot_tris*/ 0,
+		    pd->pixels / pd->drawn_tris,
+		    pd->pixels / pd->spans,
+		    pd->spans / pd->drawn_tris,
+		    pd->cycles / pd->pixels,
+		    pd->cycles / pd->spans,
+		    pd->name);
+    }
+
+    fclose(f);
+}
+
+#endif /* __GL_CODEGEN_DESCRIBERS */
+
+STATIC GLboolean
+need_color(GLuint modeFlags, GLuint texenv)
+{
+  if (modeFlags & (__GL_SHADE_ALPHA_TEST | __GL_SHADE_BLEND))
+    return GL_TRUE;
+
+  if ((modeFlags & __GL_SHADE_TEXTURE) &&
+      ((texenv == GL_REPLACE)))
+    return GL_FALSE;
+  else
+    return GL_TRUE;
+}
+
+setterupper
+GenerateSetup(__GLcontext *gc, GLboolean spanlet)
+{
+    GLuint modeFlags = gc->polygon.shader.modeFlags;
+    GLboolean cookedTexture;
+    GLenum texenv;
+    unsigned char *data;
+    unsigned char *code;
+    unsigned char *cb;
+    int offset;
+    struct celem
+	*fxinterp,
+	*fpinterp,
+	*cull,
+	*cull3,
+	*simpleRenderTriangle;
+    struct celem
+	*v0, *v1, *v2, *dx0, *dy0, *dx1, *dy1, *dx2, *dy2, *xsnap0, 
+	*ysnap0, *ysnap1, *ysnap2, *dxdyInt0, *negdx, *negdxdy, *fnegdx, *fnegdxdy;
+    struct celem
+	*color_posns;
+    GLuint *color_posnarray;
+    struct celem
+	*dxdy0, *dxdy1, *dxdy2;
+    struct celem
+	*i_gc, *i_v0, *i_v1, *i_v2;
+    struct celem
+	*q0, *qdx, *qdy;
+    struct celem* tr;
+    struct celem* ftol, *f_fogsetup;
+    struct celem* fpcw;
+    static const double alpha_bias[3] = {
+	DoubleBias(COLOR_FRAC_BITS),
+	DoubleBias(COLOR_FRAC_BITS),
+	DoubleBias(COLOR_FRAC_BITS)
+    };
+    static const double color_no_dither_bias[3] = {
+	COLOR_ROUND_NO_DITHER + DoubleBias(COLOR_FRAC_BITS),
+	DoubleBias(COLOR_FRAC_BITS),
+	DoubleBias(COLOR_FRAC_BITS)
+    };
+    static const double color_dither_bias[3] = {
+	COLOR_ROUND_DITHER + DoubleBias(COLOR_FRAC_BITS),
+	DoubleBias(COLOR_FRAC_BITS),
+	DoubleBias(COLOR_FRAC_BITS)
+    };
+    static const double z_bias[3] = {
+	0.5 + DoubleBias(Z_FRAC_BITS),
+	DoubleBias(Z_FRAC_BITS),
+	DoubleBias(Z_FRAC_BITS)
+    };
+    static const double affine_texture_bias[3] = {
+	DoubleBias(STRQ_FRAC_BITS),
+	DoubleBias(STRQ_FRAC_BITS),
+	DoubleBias(STRQ_FRAC_BITS)	
+    };
+    static const double mmx_q_bias[3] = {
+	DoubleBias(24),
+	DoubleBias(24),
+	DoubleBias(24)	
+    };
+    int interpolants = 1;
+    unsigned int signature;
+    static const float alpha_correction_factor = 256.0f / 255.0f;
+    struct celem* alpha_correcter;
+    GLboolean texNeedRho;
+
+    /* Set up effective texenv: DECAL w/o alpha is the same as REPLACE */
+    if (modeFlags & __GL_SHADE_TEXTURE) {
+	texenv = gc->state.texture.env[0].mode;
+	if (texenv == GL_DECAL &&
+	    gc->texture.currentTexture->texelFormat == GL_RGB)
+	    texenv = GL_REPLACE;
+    }
+
+    /* Set up cookedTexture flag: we use special texture format for
+     * undithered replace in rgbMode only.
+     */
+    if (!spanlet &&
+	(modeFlags & (__GL_SHADE_BLEND|__GL_SHADE_TEXTURE|__GL_SHADE_RGB|__GL_SHADE_DITHER)) ==
+	(__GL_SHADE_TEXTURE|__GL_SHADE_RGB)) {
+	cookedTexture = (texenv == GL_REPLACE) &&
+	    gc->texture.currentTexture->level[0].pixelBuffer;
+    } else {
+	cookedTexture = GL_FALSE;
+    }
+
+    if (modeFlags & __GL_SHADE_TEXTURE) {
+	__GLtexture *current = gc->texture.currentTexture;
+	texNeedRho = current->params.minFilter != current->params.magFilter;
+    } else {
+	texNeedRho = GL_FALSE;
+    }
+
+    /* Create a unique cache signature that covers information not
+     * included in modeFlags.
+     */
+    signature = 0;
+
+    if (spanlet)
+	signature |= __OG_SETUP_SPANLETS;
+
+    if (cookedTexture)
+	signature |= __OG_SETUP_COOKED_TEXTURE;
+
+    if ((modeFlags & __GL_SHADE_TEXTURE) && (texenv == GL_REPLACE))
+        signature |= __OG_SETUP_REPLACE;
+
+    /* Need to know this specifically because of the optimisation
+     * for it in the rasterizers.
+     */
+    if ((modeFlags & __GL_SHADE_DEPTH_TEST) &&
+	(gc->state.depth.writeEnable ||
+	 gc->state.depth.testFunc != GL_ALWAYS))
+	signature |= __OG_SETUP_DO_DEPTH;
+
+    if (gc->buffers.doubleStore) {
+	signature |= __OG_SETUP_DOUBLESTORE;
+    }
+
+    if (texNeedRho) {
+	signature |= __OG_SETUP_NEEDRHO;
+    }
+
+    /* And something to make it _very_ unlikely that we will be
+     * generating setup code for a rasterizer that has a different
+     * idea of the layout of 'tr'.  Chance of error is much
+     * less than 1 in 2^28.
+     */
+    signature ^= ((int)(gc->tr->crc) << __OG_SETUP_CRC_POS);
+
+    data = (unsigned char*)(((int)gc->triSetupData + 7) & ~7);
+
+    if (__glAllocCodeSpace(&gc->triSetupCache, modeFlags, signature, NULL, &code)) {
+      return (setterupper) code;
+    }
+
+    cb = code;
+
+    og_warmup(gc);
+#if SOURCE_TRAIL
+    og_stream(gc, "/tmp/setup.inc");
+#endif
+    
+    alpha_correcter = mem2(gc, value(gc, (int)&alpha_correction_factor), 0);
+
+    fxinterp = label(gc);
+    fpinterp = label(gc);
+    cull = label(gc);
+    cull3 = label(gc);
+    ftol = label(gc);
+    f_fogsetup = label(gc);
+    simpleRenderTriangle = label(gc);
+
+    {
+	extern unsigned char _ftol;
+	ftol->spec.label.where = &_ftol;
+	ftol->spec.label.name = "__ftol";
+    }
+    {
+	f_fogsetup->spec.label.where = (unsigned char*)&fogsetup;
+    }
+
+@	push	esi
+@	push	edi
+@	push	ebx
+@	push	ecx
+@	push	ebp
+
+#if CHECK_STACK
+@	fld	'fpk(gc, 947.947f)'
+#endif
+
+#undef ILOCAL
+#undef DLOCAL
+#undef XLOCAL
+
+    offset = 0;
+#define ILOCAL(name)	(name = mem2(gc, value(gc, (int)&data[offset]), NULL), offset += 4)
+#define DLOCAL(name)	(name = mem2(gc, value(gc, (int)&data[offset]), NULL), offset += 8)
+#define XLOCAL(name, N)	(name = mem2(gc, value(gc, (int)&data[offset]), NULL), offset += N)
+    DLOCAL(q0);
+    DLOCAL(qdx);
+    DLOCAL(qdy);
+    ILOCAL(v0);
+    ILOCAL(v1);
+    ILOCAL(v2);
+    ILOCAL(dx0);
+    ILOCAL(dy0);
+    ILOCAL(dx1);
+    ILOCAL(dy1);
+    ILOCAL(dx2);
+    ILOCAL(dy2);
+    ILOCAL(dxdy0);
+    ILOCAL(dxdy1);
+    ILOCAL(dxdy2);
+    ILOCAL(xsnap0);
+    ILOCAL(ysnap0);
+    ILOCAL(ysnap1);
+    ILOCAL(ysnap2);
+    ILOCAL(dxdyInt0);
+    ILOCAL(negdx);
+    ILOCAL(negdxdy);
+    ILOCAL(fpcw);
+    if ((modeFlags & __GL_SHADE_TEXTURE) && (modeFlags & __GL_SHADE_TEXTURE_PERSP)) {
+      ILOCAL(fnegdx);
+      ILOCAL(fnegdxdy);
+    }
+
+    color_posnarray = (GLint*)(code + 0xf00);
+    color_posns = value(gc, (int)color_posnarray);
+
+@   mov     [#'(int)&gc->ogState.spsave'],esp
+@   sub	    esp,#'sizeof(__GLtri)'
+@   mov     ebp,esp
+@   and     esp,~7
+
+    tr = mem2(gc, value(gc, 0), esp);
+
+    offset = 6 * sizeof(long) + sizeof(__GLtri);
+#define PARM(name)	(name = mem2(gc, value(gc, offset), ebp), offset += sizeof(long))
+    PARM(i_gc);
+    PARM(i_v0);
+    PARM(i_v1);
+    PARM(i_v2);
+
+/*
+ *	eax	ebx	ecx	edx	ebp	esi	edi
+ *	v0	v1	v2				reversed
+ */
+
+@	mov	eax,i_v0
+@	mov	ebx,i_v1
+@	mov	ecx,i_v2
+
+@       call	simpleRenderTriangle
+
+@       mov     esp,[#'(int)&gc->ogState.spsave']
+
+@       pop	ebp
+@ 	pop	ecx
+@ 	pop	ebx
+@ 	pop	edi
+@ 	pop	esi
+
+@       ret
+
+        gc->procs.simpleRenderTriangle = (void*) cb;
+@simpleRenderTriangle:
+
+#if __GL_CODEGEN_DESCRIBERS
+@       inc	[#'(int)&last_describer->tot_tris']
+#endif /* __GL_CODEGEN_DESCRIBERS */
+
+@	pop     edx					; Get return address
+@       mov     [#'(int)&gc->ogState.rsave'],edx	; Branch to this later, instead of returning
+
+@	mov	esi,[eax + 'vx(window.x)']
+@	mov	ebp,[eax + 'vx(window.y)']
+@	and	esi,0xffffff80
+@	and	ebp,0xffffff80
+@	mov	[eax + 'vx(window.x)'],esi
+@	mov	[eax + 'vx(window.y)'],ebp
+@	mov	esi,[ebx + 'vx(window.x)']
+@	mov	ebp,[ebx + 'vx(window.y)']
+@	and	esi,0xffffff80
+@	and	ebp,0xffffff80
+@	mov	[ebx + 'vx(window.x)'],esi
+@	mov	[ebx + 'vx(window.y)'],ebp
+@	mov	esi,[ecx + 'vx(window.x)']
+@	mov	ebp,[ecx + 'vx(window.y)']
+@	and	esi,0xffffff80
+@	and	ebp,0xffffff80
+@	mov	[ecx + 'vx(window.x)'],esi
+@	mov	[ecx + 'vx(window.y)'],ebp
+
+    {
+@	xor	edi,edi
+@	mov	edx,1
+@	sort2(ebx, eax)
+@	sort2(ecx, eax)
+@	sort2(ebx, ecx)
+    }
+
+@   fld	 	[ebx + 'vx(window.x)']
+@   fsub	[eax + 'vx(window.x)']	; dx0
+@   fld 	[ebx + 'vx(window.y)']
+@   fsub	[eax + 'vx(window.y)']	; dy0	dx0
+
+@   fld 	[ecx + 'vx(window.x)']
+@   fsub	[eax + 'vx(window.x)']	; dx1	dy0	dx0
+@   fld 	[ecx + 'vx(window.y)']
+@   fsub	[eax + 'vx(window.y)']	; dy1	dx1	dy0	dx0
+
+@   mov		edx,#'DISPOF(q0)'
+
+@   fld 	[ebx + 'vx(window.x)']
+@   fsub	[ecx + 'vx(window.x)']	; dx2	dy1	dx1	dy0	dx0
+@   fld 	[ebx + 'vx(window.y)']
+@   fsub	[ecx + 'vx(window.y)']	; dy2	dx2	dy1	dx1	dy0	dx0
+@   fxch	st5			; dx0	dx2	dy1	dx1	dy0	dy2
+
+#define QBASE(r,V) mem2(gc, value(gc, DISPOF(V) - DISPOF(q0)), r)
+
+@   fld         st0			;	dx0	dx0	dx2	dy1	dx1	dy0	dy2
+@   fmul        st3			;	dx0*dy1	dx0	dx2	dy1	dx1	dy0	dy2
+@   fxch        st6                     ;       dy2	dx0	dx2	dy1	dx1	dy0	dx0*dy1
+@   fld         st4			;	dx1	dy2	dx0	dx2	dy1	dx1	dy0	dx0*dy1
+@   fmul        st6			;	dx1*dy0	dy2	dx0	dx2	dy1	dx1	dy0	dx0*dy1
+@   fxch        st2			;	dx0	dy2	dx1*dy0	dx2	dy1	dx1	dy0	dx0*dy1
+
+@   fstp	'QBASE(edx,dx0)'
+@   fstp	'QBASE(edx,dy2)'	;	dx1*dy0	dx2	dy1	dx1	dy0	dx0*dy1
+@   fsubrp	st5,st0			;	dx2	dy1	dx1	dy0	c
+
+@   fstp	'QBASE(edx,dx2)'
+@   fstp	'QBASE(edx,dy1)'
+@   fstp	'QBASE(edx,dx1)'
+@   fstp	'QBASE(edx,dy0)'
+@   fstp	'tr(c)'
+
+@   mov	'QBASE(edx,v0)',eax
+@   mov	'QBASE(edx,v1)',ebx
+@   mov	'QBASE(edx,v2)',ecx
+
+@   mov	edx,'tr(c)'
+
+@   test edx,0x7fffffff
+@   je	 cull
+
+@   shr	 edx,31		; edx is ccw
+@   mov	 ebp,1		;
+
+@   mov  esi,edx
+
+@   add	 esi,esi
+
+@   sub	 ebp,esi
+
+@   mov	 'tr(dx)', ebp
+
+// Now do validation...
+
+@     xor	edi,edx
+@     xor	edx,edx
+
+@     mov	dl,[#'((int)(gc->polygon.face))' + edi]
+@     cmp	dl,[#'((int)&gc->polygon.cullFace)']				; edx is face
+@     je	cull
+
+    if (modeFlags & __GL_SHADE_TWOSIDED) {
+@	mov	ebp,[#'((int)gc->vertex.faceNeeds)' + edx * 4]
+    } else {
+@	mov	ebp,[#'((int)&gc->vertex.faceNeeds[__GL_FRONTFACE])']
+    }
+
+// if twosided, edx is colorface, ebp is faceneeds
+
+@   mov	edi,[#'((int)&gc->vertex.needs)']
+@   or	ebp,edi
+
+    /* need edx later for cheap fog */
+    if (!(modeFlags & __GL_SHADE_SMOOTH_LIGHT))
+@	mov	q0,edx
+
+// edx is colorface, ebp is needs
+
+    if (modeFlags & __GL_SHADE_SMOOTH) {
+        struct celem* already = near_label(gc);
+
+        if (modeFlags & __GL_SHADE_TWOSIDED)
+@	    shl	edx,4	; scale by 16
+        else {
+
+	/* Shortcut: test for no validation required at all */
+@	mov	eax,[eax + 'vx(hasAndClipCode)']
+@	mov	ebx,[ebx + 'vx(hasAndClipCode)']
+@	mov	ecx,[ecx + 'vx(hasAndClipCode)']
+@	and	eax,ebx
+@	and	eax,ecx
+@	xor	eax,~0
+@	and	eax,ebp
+@	je	already
+	}
+
+@	xor	eax,eax
+        {
+	    struct celem* head = label(gc);
+	    struct celem* ok = near_label(gc);
+@ head:
+@	    push	eax
+@	    mov		eax,[#'v0->spec.mem.disp->spec.value' + eax * 4]
+
+	    if (modeFlags & __GL_SHADE_TWOSIDED) {
+@	    	lea	edi,[eax + 'vx(colors)' + edx]
+@	    	mov	[eax + 'vx(color)'],edi
+	    }
+@	    mov		esi,[eax + 'vx(hasAndClipCode)']
+@	    xor		esi,~0
+
+@	    test	ebp,esi
+@	    je		ok
+
+@	    mov		esi,#'((int)gc)'
+
+	    if (modeFlags & __GL_SHADE_TWOSIDED)
+@	        push	edx
+
+@	    push	ebp
+@	    push	eax
+@	    push	esi
+
+@	    mov		eax,[eax + 'vx(hasAndClipCode)']
+@	    shr		eax,10
+@	    and		eax,3
+@	    call	[#'(int)&gc->procs.validateVertex0' + eax * 4]
+
+@	    addesp(8)
+@	    pop		ebp
+
+	    if (modeFlags & __GL_SHADE_TWOSIDED)
+@	        pop	edx
+
+@ ok:
+
+@	    pop		eax
+
+@	    inc		eax
+
+@	    cmp		eax,3
+@	    jne		head
+	}
+
+@ already:
+
+	if (!(modeFlags & __GL_SHADE_SMOOTH_LIGHT)) {
+@		mov	eax,v0
+@		mov	ebx,v1
+@		mov	ecx,v2
+@		mov	edx,q0
+
+@		push	ecx
+@		push	ebx
+@		push	eax
+
+@		push	ebp
+@		push	edx
+@		push	#'(int)gc'
+
+@		call	f_fogsetup
+
+@		addesp(12)
+@	        pop	eax
+@	        pop	ebx
+@	        pop	ecx
+	}
+    } else {
+@	shl	edx,4	; scale by 16
+@	mov	esi,[#'((int)&gc->vertex.provoking)']
+
+	if (modeFlags & (__GL_SHADE_TWOSIDED | __GL_SHADE_CHEAP_FOG)) {
+@	    lea	edi,[esi + 'vx(colors)' + edx]
+@	    mov	[esi + 'vx(color)'],edi
+	}
+
+@	mov	edx,esi
+
+@	validate(edx)
+@	validate(eax)
+@	validate(ebx)
+@	validate(ecx)
+    }
+
+#if __GL_CODEGEN_DESCRIBERS
+  {
+    static int cold = 1;
+
+    if (cold) {
+	    atexit(dump_areas);
+	    cold = 0;
+    }
+  }
+#endif /* __GL_CODEGEN_DESCRIBERS */
+
+@   mov		esi,#'DISPOF(q0)'
+
+@   fstcw	'QBASE(esi,fpcw)'
+@   mov		edx,'QBASE(esi,fpcw)'
+@   or		dh,#'3 << 2'
+@   and		dh,~3
+@   mov		'QBASE(esi,q0)',edx
+@   fldcw	'QBASE(esi,q0)'
+
+@   xor	eax,eax
+    {
+      struct celem* head = label(gc);
+      struct celem* zero = near_label(gc);
+      struct celem* done = near_label(gc);
+
+@ head:
+@	mov	edx,[#'DISPOF(QBASE(esi,dy0))' + esi + eax * 8]
+
+@	test	edx,edx
+@	je	zero
+
+@	fld	[#'DISPOF(QBASE(esi,dx0))' + esi + eax * 8]
+@	fdiv	[#'DISPOF(QBASE(esi,dy0))' + esi + eax * 8]
+@	jmp	done
+
+@ zero:
+@	fld	'fpk(gc, 0.0)'
+@ done:
+@	mov	edx,[#'DISPOF(QBASE(esi,v0))' + esi + eax * 4]
+@	mov	edx,[edx + 'vx(window.y)']
+@	and	edx,0x7FFFFFL
+@	sub	edx,0x400000L
+@	sar	edx,#XY_FRAC_BITS
+@	mov     [#'DISPOF(tr(y0Int))' + esp + eax * 4],edx
+
+@	inc	eax
+
+@	cmp	eax,3
+@	jne	head
+
+    }
+	//	dxdy2	dxdy1	dxdy0
+
+  // if ((y1Int - y0Int) <= 1) break;
+#if 0
+@    mov	edx,'tr(y1Int)'
+@    sub	edx,'tr(y0Int)'
+@    cmp	edx,1
+@    jle	cull3
+#endif
+
+
+    {
+      /* y0Int and y2Int are vanilla integers now.  Turn them
+       * into floats biased by (XY_BIAS + 1).
+       */
+      union {
+	float f;
+	unsigned long l;
+      } u;
+
+      u.f = (float)(XY_BIAS + 1);
+
+@     mov      	edx,'tr(y0Int)'
+
+@     shl      	edx,#XY_FRAC_BITS
+@     mov      	ebp,'tr(y2Int)'
+
+@     shl      	ebp,#XY_FRAC_BITS
+@     add      	edx,#'u.l'
+
+@     add      	ebp,#'u.l'
+@     mov      	'QBASE(esi,q0)',edx
+
+@     mov	'QBASE(esi,qdx)',ebp
+    }
+
+@   mov		edx,'tr(dx)'
+@   sar		edx,31
+@   mov		'QBASE(esi,negdx)',edx
+
+@   mov		eax,'QBASE(esi,v0)'
+@   mov		ebx,'QBASE(esi,v1)'
+@   mov		ecx,'QBASE(esi,v2)'
+
+@   fstp	'QBASE(esi,dxdy2)'
+@   fstp	'QBASE(esi,dxdy1)'
+@   fstp	'QBASE(esi,dxdy0)'
+
+@   fld		'QBASE(esi,q0)'
+@   fsub	[eax + 'vx(window.y)']
+
+@   fld		'QBASE(esi,qdx)'
+@   fsub        [ecx + 'vx(window.y)']
+@   fxch	st1
+
+@   fstp	'QBASE(esi,ysnap0)'
+@   fstp	'QBASE(esi,ysnap2)'
+
+#if 0
+@   edge(ecx, dxdy2, ysnap2, 'tr(x2Int)', 'tr(x2Frac)', 'tr(dxdy2Int[0])', 'tr(dxdy2Int[1])', 'tr(dxdy2Frac)', negdx, q0, fpcw)
+@   edge(eax, dxdy1, ysnap0, 'tr(x1Int)', 'tr(x1Frac)', 'tr(dxdy1Int[0])', 'tr(dxdy1Int[1])', 'tr(dxdy1Frac)', negdx, q0, fpcw)
+@   edge(eax, dxdy0, ysnap0, 'tr(x0Int)', 'tr(x0Frac)', 'tr(dxdy0Int[0])', 'tr(dxdy0Int[1])', 'tr(dxdy0Frac)', negdx, q0, fpcw)
+#else
+    {
+      struct celem* head = label(gc);
+
+@     mov	ebp,2
+@     mov	edx,2
+
+@ head:
+
+@     mov	esi,[#'DISPOF(v0)' + edx * 4]	; v0 or v2
+
+@     fld       [#'DISPOF(dxdy0)' + ebp * 4]	; [1]	dxdy0
+@     fld	st0				; [2]	dxdy0	dxdy0
+@     fmul	[#'DISPOF(ysnap0)' + edx * 4]	; [3]	dxdy0*ysnap0	dxdy0
+@     fxch	st1				;	dxdy0	dxdy0*ysnap0
+
+@     fist	[#'DISPOF(tr(dxdy0Int[0]))' + esp + ebp * 8]
+
+@     fxch	st1				; [10]	dxdy0*ysnap0	dxdy0
+
+@     fadd	[esi + 'vx(window.x)']	; [11]	wx+dxdy0*ysnap0	dxdy0
+
+@     fild	[#'DISPOF(tr(dxdy0Int[0]))' + esp + ebp * 8]
+					        // [12]	dxdy0Int	wx+dxdy0*ysnap0	dxdy0
+@     fxch	st2				;	dxdy0	wx+dxdy0*ysnap0		dxdy0Int
+@     fadd	'fpk(gc, 3.0)'			; [13]	dxdy0+3	wx+dxdy0*ysnap0		dxdy0Int
+@     fxch	st1				;	wx+dxdy0*ysnap0	dxdy0+3	dxdy0Int
+
+@     mov      	esi,[#'DISPOF(dxdy0)' + ebp * 4]; [14]	
+@     mov      	edi,[#'DISPOF(tr(dxdy0Int[0]))' + esp + ebp * 8]
+
+@     fst	q0				; [15]	wx+dxdy0*ysnap0	dxdy0+3	dxdy0Int
+
+@     sar      	esi,30
+@     mov      	edx,q0
+
+@     and      	esi,~1				; If dxdy was +ve, esi = 0, otherwise -2
+@     and      	edx,0x7FFFFFL
+
+@     inc      	esi				; If dxdy was +ve, esi = 1, otherwise -1
+@     sub      	edx,0x400000L
+
+@     sar      	edx,#XY_FRAC_BITS		; 
+@     add      	edi,esi
+
+@     mov      	[#'DISPOF(tr(x0Int))' + esp + ebp * 4],edx
+@     mov      	[#'DISPOF(tr(dxdy0Int[1]))' + esp + ebp * 8],edi
+
+@     fild	[#'DISPOF(tr(x0Int))' + esp + ebp * 4]
+						//[22]	x0Int	x	dxdy0+3	dxdy0Int
+@     fxch	st2				;	dxdy0+3	x	x0Int	dxdy0Int
+
+@     fsubrp	st3,st0				; [23]	x	x0Int	dxdy0Frac
+
+@     fadd	'fpk(gc, 3.0 - XY_BIAS)'		; [24]	x	x0Int	dxdy0Frac
+@     fxch	st2				;	dxdy0Frac	x0Int	x
+
+@     fstp	[#'DISPOF(tr(dxdy0Frac))' + esp + ebp * 4]
+						//[27]	x0Int	x
+@     fsubp	st1,st0				;	x0Frac
+
+@     mov      	edx,[#'DISPOF(tr(dxdy0Frac))' + esp + ebp * 4]
+
+@     shl      	edx,9
+
+@     xor      	edx,0x80000000UL
+
+@     fstp	[#'DISPOF(tr(x0Frac))' + esp + ebp * 4]
+
+@     mov      	[#'DISPOF(tr(dxdy0Frac))' + esp + ebp * 4],edx
+@     mov	edx,[#'DISPOF(tr(x0Frac))' + esp + ebp * 4]
+
+@     shl      	edx,9
+
+@     xor      	edx,0x80000000UL
+
+@     mov	[#'DISPOF(tr(x0Frac))' + esp + ebp * 4],edx
+@     xor	edx,edx		; Used as index at head of loop
+
+@     dec	ebp
+@     jns	head
+
+    }
+#endif
+
+@   mov		ebp,#'DISPOF(q0)'
+
+@   fld		'tr(c)'
+@   fdivr	'fpk(gc, 1.0)'
+
+@   mov		esi,'QBASE(ebp,negdx)'
+@   mov		edx,'QBASE(ebp,dxdy0)'
+@   sar		edx,31
+@   xor		edx,esi
+@   mov		'QBASE(ebp,negdxdy)',edx
+
+    {
+	struct celem* no = near_label(gc);
+
+@	mov	dl,'tr2(dx,3)'
+@	test	dl,0x80
+@	je	no
+
+@	mov	edx,'tr(x0Int)'
+@	mov	ebp,'tr(x1Int)'
+@	mov	edi,'tr(x2Int)'
+
+@	dec	edx
+@	dec	ebp
+@	dec	edi
+
+@	mov	'tr(x0Int)',edx
+@	mov	'tr(x1Int)',ebp
+@	mov	'tr(x2Int)',edi
+
+@ no:
+    }
+
+    /*if ((gc)->procs.lockBuffers)*/ {
+      struct celem* noneed = near_label(gc);
+
+@	mov	edx,[#'(int)&(gc)->procs.lockBuffers']
+@	test	edx,edx
+@	je	noneed
+
+@	mov	edx,[#'(int)&(gc)->buffers.lock']
+@	inc	edx
+@	mov	[#'(int)&(gc)->buffers.lock'],edx
+@	cmp	edx,1
+@	jne	noneed
+
+@	mov	edx,#'(int)gc'
+@	push	edx
+@	call	[#'(int)&(gc)->procs.lockBuffers']
+@	addesp(4)
+
+@	mov	eax,v0
+@	mov	ebx,v1
+@	mov	ecx,v2
+
+@ noneed:
+    }
+
+    if (gc->buffers.doubleStore) {
+	__GLcolorBuffer *cfb = gc->front;
+	GLint byteWidth = cfb->buf.byteWidth;
+	GLint elementSize = cfb->buf.elementSize;
+
+@	buf('tr(cp20)', 'tr(dcp2dx)', 'spanlet ? tr(dcp2dxSpan) : NULL', 'tr(dcp2dy0[0])', 'tr(dcp2dy0[1])', '&cfb->buf.base', '&cfb->buf.byteWidth', elementSize, negdx, tr, spanlet)
+    }
+
+    {
+	__GLcolorBuffer *cfb = gc->drawBuffer;
+	GLint byteWidth = cfb->buf.byteWidth;
+	GLint elementSize = cfb->buf.elementSize;
+
+@	buf('tr(cp0)', 'tr(dcpdx)', 'spanlet ? tr(dcpdxSpan) : NULL', 'tr(dcpdy0[0])', 'tr(dcpdy0[1])', '&cfb->buf.base', '&cfb->buf.byteWidth', elementSize, negdx, tr, spanlet)
+    }
+
+    if (modeFlags & __GL_SHADE_STENCIL_TEST) {
+	__GLstencilBuffer *sfb = &gc->stencilBuffer;
+	GLint byteWidth = sfb->buf.byteWidth;
+	GLint elementSize = sfb->buf.elementSize;
+
+@	buf('tr(sp0)', 'tr(dspdx)', 'spanlet ? tr(dspdxSpan) : NULL', 'tr(dspdy0[0])', 'tr(dspdy0[1])', '&sfb->buf.base', '&sfb->buf.byteWidth', elementSize, negdx, tr, spanlet)
+    }
+
+    if (modeFlags & __GL_SHADE_DEPTH_TEST &&
+	(gc->state.depth.writeEnable ||
+	 gc->state.depth.testFunc != GL_ALWAYS)) {
+	__GLdepthBuffer *dfb = &gc->depthBuffer;
+	GLint byteWidth = dfb->buf.byteWidth;
+	GLint elementSize = dfb->buf.elementSize;
+
+@	buf('tr(zp0)', 'tr(dzpdx)', 'spanlet ? tr(dzpdxSpan) : NULL', 'tr(dzpdy0[0])', 'tr(dzpdy0[1])', '&dfb->buf.base', '&dfb->buf.byteWidth', elementSize, negdx, tr, spanlet)
+    }
+
+@   fldcw	fpcw
+
+@   fild	'tr(dxdy0Int[0])'
+
+    /* Until its use, esi holds original value of x0Int.
+     * Watch carefully...
+     */
+
+    if (interpolants) {
+@	mov	esi,'tr(x0Int)'
+    }
+
+    {
+	struct celem* no = near_label(gc);
+	struct celem* head = label(gc);
+
+@	mov	edx,'tr(dx)'
+@	cmp	edx,0
+@	jge	no
+
+@	mov	edx,8
+@  head:
+@	mov	esi,[#'DISPOF(tr(x0Int))' + esp + edx * 4]
+@	xor	ebp,ebp
+
+@	sub	ebp,esi
+
+@	mov	[#'DISPOF(tr(x0Int))' + esp + edx * 4],ebp
+@	dec	edx
+
+@	jns	head
+
+@ no:
+    }
+
+@   mov		ebp,#'DISPOF(q0)'
+
+@   fstp	'QBASE(ebp,dxdyInt0)'
+
+    if (interpolants) {
+
+@	add	esi,#'(XY_BIAS + 1)'
+@	mov	'QBASE(ebp,q0)',esi
+@	fild	'QBASE(ebp,q0)'
+@	fsub	[eax + 'vx(window.x)']
+@	fxch	st1		;	invc	xsnap0
+
+@	fld	st0		; 1	invc	invc
+@	fmul	'QBASE(ebp,dx0)'; 2	dx0	invc
+@	fld	st1		; 3	invc	dx0	invc   
+@	fmul	'QBASE(ebp,dy0)'; 4	dy0	dx0	invc   
+@	fld	st2		; 5	invc	dy0	dx0	invc   
+@	fmul	'QBASE(ebp,dx1)'; 6	dx1	dy0	dx0	invc   
+@	fxch	st3		;	invc	dy0	dx0	dx1
+
+@	fmul	'QBASE(ebp,dy1)'; 8	dy1	dy0	dx0	dx1
+@	fxch	st2		;	dx0	dy0	dy1	dx1
+
+@	fstp	'QBASE(ebp,dx0)'
+@	fstp	'QBASE(ebp,dy0)'
+@	fstp	'QBASE(ebp,dy1)'
+@	fstp	'QBASE(ebp,dx1)'
+
+@	fstp	'QBASE(ebp,xsnap0)'
+    }
+
+      if (modeFlags & __GL_SHADE_DEPTH_TEST &&
+	  (gc->state.depth.writeEnable ||
+	   gc->state.depth.testFunc != GL_ALWAYS)) {
+@	lea	eax,[eax + 'vx(window.z)']
+@	lea	ebx,[ebx + 'vx(window.z)']
+@	lea	ecx,[ecx + 'vx(window.z)']
+@	mov	esi,#'(int)&z_bias'
+        assert(((int)&z_bias & 7) == 0);
+@	lea	edi,'tr(z0)'
+@	call	fxinterp
+      }
+
+      if (modeFlags & __GL_SHADE_SLOW_FOG) {
+	    struct celem *scratch;
+
+	    XLOCAL(scratch, 3 * 4);
+
+@	mov	eax,'QBASE(ebp,v0)'
+@	mov	ebx,'QBASE(ebp,v1)'
+@	mov	ecx,'QBASE(ebp,v2)'
+
+@	fld	[eax + 'vx(fog)']
+@	fmul	'fpk(gc, 255.0)'
+@	fld	[ebx + 'vx(fog)']
+@	fmul	'fpk(gc, 255.0)'
+@	fld	[ecx + 'vx(fog)']
+@	fmul	'fpk(gc, 255.0)'
+@	fxch	st2		;	[eax]	[ebx]	[ecx]
+
+@	lea	eax,scratch
+
+@	fstp	[eax]
+@	fstp	[eax + 4]
+@	fstp	[eax + 8]
+
+@	lea	ebx,[eax + 4]
+@	lea	ecx,[eax + 8]
+
+@	mov     esi,#'(int)&color_no_dither_bias'
+@	lea	edi,'tr(f0)'
+@       call	fxinterp
+      }
+
+    /* 
+     * Don't do any color work at all if we're texturing
+     * with GL_REPLACE
+     */
+    if (need_color(modeFlags, texenv))
+      if (modeFlags & __GL_SHADE_SMOOTH) {
+
+@	mov	eax,'QBASE(ebp,v0)'
+@	mov	ebx,'QBASE(ebp,v1)'
+@	mov	ecx,'QBASE(ebp,v2)'
+
+	if ((modeFlags & (__GL_SHADE_TWOSIDED | __GL_SHADE_CHEAP_FOG)) ||
+	    !(modeFlags & __GL_SHADE_SMOOTH_LIGHT)) {
+@	    mov     eax,[eax + 'vx(color)']
+@	    mov	    ebx,[ebx + 'vx(color)']
+@	    mov     ecx,[ecx + 'vx(color)']
+	} else {
+@	    lea	    eax,[eax + 'vx(colors[0])']
+@	    lea	    ebx,[ebx + 'vx(colors[0])']
+@	    lea	    ecx,[ecx + 'vx(colors[0])']
+	}
+
+	if (modeFlags & __GL_SHADE_DITHER)
+@	  mov	esi,#'(int)&color_dither_bias'
+        else
+@	  mov	esi,#'(int)&color_no_dither_bias'
+
+    if (modeFlags & __GL_SHADE_RGB) {
+@	mov	edx,3
+	color_posnarray[3] = tri(r0);
+	color_posnarray[2] = tri(g0);
+	color_posnarray[1] = tri(b0);
+    } else {
+@	mov	edx,1
+	color_posnarray[1] = tri(r0);
+    }
+
+        {
+	  struct celem* head = label(gc);
+@  head:
+@	  mov	edi,[color_posns + edx * 4]
+@	  lea	edi,'mem(gc, value(gc, TRBASE), esp, edi, 1)'
+
+@	  push	eax
+@	  push	ebx
+@	  push	ecx
+@	  call	fxinterp
+
+@	  pop	ecx
+@	  pop	ebx
+@	  pop	eax
+
+@	  lea	ecx,[4 + ecx]
+
+@	  lea	eax,[4 + eax]
+@	  lea	ebx,[4 + ebx]
+
+@	  dec	dl
+@	  jne	head
+
+	if (modeFlags & (__GL_SHADE_ALPHA_TEST | __GL_SHADE_BLEND)) {
+@	    mov     esi,#'(int)&alpha_bias'
+
+	    /* We have to scale alpha values by 256.0 / 255.0
+	     */
+
+	    if (!spanlet) {
+	        struct celem *scratch;
+
+	        XLOCAL(scratch, 3 * 4);
+
+@	    	lea     edi,scratch
+
+@	    	fld	[eax]
+@	    	fmul    alpha_correcter
+@	    	fld	[ebx]
+@	    	fmul    alpha_correcter
+@	    	fld	[ecx]
+@	    	fmul    alpha_correcter
+@	    	fxch    st2
+
+@	    	mov     eax,edi
+@	    	lea     ebx,[edi+4]
+@	    	lea     ecx,[edi+8]
+
+@	    	fstp    [eax]
+@	    	fstp    [ebx]
+@	    	fstp    [ecx]
+	    }
+
+@	    lea     edi,'tr(a0)'
+@	    call    fxinterp
+	}
+      }
+
+      if (modeFlags & (__GL_SHADE_TWOSIDED | __GL_SHADE_CHEAP_FOG)) {
+@	mov	eax,v0
+@	mov	ebx,v1
+@	mov	ecx,v2
+@	lea	edx,[eax + 'vx(colors)']
+@	lea	edi,[ebx + 'vx(colors)']
+@	lea	esi,[ecx + 'vx(colors)']
+@	mov	[eax + 'vx(color)'],edx
+@	mov	[ebx + 'vx(color)'],edi
+@	mov	[ecx + 'vx(color)'],esi
+      }
+  } else {
+      if (modeFlags & __GL_SHADE_DITHER)
+@	  mov	edx,#'(int)&color_dither_bias'
+      else
+@	  mov	edx,#'(int)&color_no_dither_bias'
+
+@	mov	esi,[#'((int)&gc->vertex.provoking)']
+@	mov	esi,[esi + 'vx(color)']
+        if (modeFlags & __GL_SHADE_RGB) {
+@	    fld	[esi + __GLcolor.b]
+@	    faddq	[edx]
+@	    fld	[esi + __GLcolor.g]
+@	    faddq	[edx]
+@	    fld	[esi + __GLcolor.r]
+@	    faddq	[edx]
+@	    fxch	st2
+    
+		    //	b	g	r
+@	    fstpq	q0
+@	    mov	edx,q0
+@	    mov	'tr(b)',edx
+    
+@	    fstpq	q0
+@	    mov	edx,q0
+@	    mov	'tr(g)',edx
+    
+@	    fstpq	q0
+@	    mov	edx,q0
+@	    mov 	'tr(r)',edx
+        } else {
+@	    fld	[esi + __GLcolor.r]
+@	    faddq	[edx]
+@	    fstpq	q0
+@	    mov	edx,q0
+@	    mov 	'tr(r)',edx
+	}
+
+    if (modeFlags & (__GL_SHADE_ALPHA_TEST | __GL_SHADE_BLEND)) {
+
+@	mov	edx,#'(int)&alpha_bias'
+
+@	fld	[esi + __GLcolor.a]
+        if (!spanlet)
+@	    fmul    alpha_correcter
+@	faddq	[edx]
+@	fstpq	q0
+@	mov	edx,q0
+@	mov	'tr(a)',edx
+    }
+
+    if (!(modeFlags & __GL_SHADE_TEXTURE))
+      if (!(modeFlags & __GL_SHADE_DITHER)) {
+	__GLcolorBuffer *cfb = gc->drawBuffer;
+
+@	mov	edx,'tr(r)'
+	if (!(modeFlags & __GL_SHADE_RGB)) {
+@		shr	edx,16
+        } else {
+@		mov	edi,0x00ff0000
+@		and	edx,edi
+@		gobit(edx, '(16)', 'cfb->redShift')
+
+@		mov	esi,'tr(g)'
+@		and	esi,edi
+@		gobit(esi, '(16)', 'cfb->greenShift')
+@		or	edx,esi
+
+@		mov	esi,'tr(b)'
+@		and	esi,edi
+@		gobit(esi, '(16)', 'cfb->blueShift')
+@		or	edx,esi
+
+		if (modeFlags & (__GL_SHADE_ALPHA_TEST | __GL_SHADE_BLEND)) {
+@		    mov	esi,'tr(a)'
+@		    and	esi,edi
+@		    gobit(esi, '(16)', 'cfb->alphaShift')
+@		    or	edx,esi
+		}
+        }
+@	mov	'tr(r0)',edx
+    }
+
+    if (modeFlags & __GL_SHADE_TWOSIDED) {
+@	mov	esi,[#'((int)&gc->vertex.provoking)']
+@	lea	edi,[esi + 'vx(colors)']
+@	mov	[esi + 'vx(color)'],edi
+    }
+  }
+#if 1	/* JCB */
+
+
+  if (modeFlags & __GL_SHADE_TEXTURE) {
+      if (modeFlags & __GL_SHADE_TEXTURE_PERSP) {
+	if ((!MMX || !__glCanMmx(gc)) || 
+	    !(modeFlags & __GL_SHADE_RGB) || spanlet) {
+        /* Need to set up fnegdx, fnegdxdy */
+
+#define FPONE	0x3f800000
+
+@	mov	edx,'tr(dx)'
+@	and	edx,0x80000000UL
+@	or	edx,#FPONE
+@	mov	fnegdx,edx
+
+@	mov	edx,dxdy0
+@	and	edx,0x80000000UL
+@	or	edx,#FPONE
+@	mov	fnegdxdy,edx
+
+@	lea	edi,'tr(fsw0)'
+@       mov	eax,v0
+@       mov	ebx,v1
+@       mov	ecx,v2
+@	lea	eax,[eax + 'vx(texture.x)']
+@	lea	ebx,[ebx + 'vx(texture.x)']
+@	lea	ecx,[ecx + 'vx(texture.x)']
+@	call	fpinterp
+
+@	lea	edi,'tr(ftw0)'
+@       mov	eax,v0
+@       mov	ebx,v1
+@       mov	ecx,v2
+@	lea	eax,[eax + 'vx(texture.y)']
+@	lea	ebx,[ebx + 'vx(texture.y)']
+@	lea	ecx,[ecx + 'vx(texture.y)']
+@	call	fpinterp
+
+@	lea	edi,'tr(fqw0)'
+@       mov	eax,v0
+@       mov	ebx,v1
+@       mov	ecx,v2
+@	lea	eax,[eax + 'vx(texture.w)']
+@	lea	ebx,[ebx + 'vx(texture.w)']
+@	lea	ecx,[ecx + 'vx(texture.w)']
+@	call	fpinterp
+
+	if (texNeedRho) {
+	    extern __glFRSetupRho(); /* Just so we know the address... */
+	    struct celem* setup_rho = label(gc);
+
+	    setup_rho->spec.label.where = (unsigned char*)&__glFRSetupRho;
+
+@	    lea     eax,tr
+@	    push    ysnap0
+@	    push    xsnap0
+@	    push    dxdy0
+@	    push    dy1
+@	    push    dx1
+@	    push    dy0
+@	    push    dx0
+@	    push    v2
+@	    push    v1
+@	    push    v0
+@	    push    eax
+@	    push    #'(int)gc'
+
+@	    call    setup_rho
+
+@	    add     esp,#'4 * 12'
+
+	    /* __glFRSetupRho(gc, &tr, v0, v1, v2, dx0, dy0, dx1, dy1, dxdy0,
+			   xsnap0, ysnap0); */
+	}
+
+@	fld	'tr(fdswdx)'	;	s
+@	fmul	'fpk(gc, __FR_TEXEL_PWL_SPAN_WIDTH)'
+@	fld	'tr(fdtwdx)'	;	t	s
+@	fmul	'fpk(gc, __FR_TEXEL_PWL_SPAN_WIDTH)'
+@	fld	'tr(fdqwdx)'	;	q	t	s
+@	fmul	'fpk(gc, __FR_TEXEL_PWL_SPAN_WIDTH)'
+@	fxch	st2		;	s	t	q
+@	fstp	'tr(fdswdxPWL)'
+@	fstp	'tr(fdtwdxPWL)'
+@	fstp	'tr(fdqwdxPWL)'
+
+	if (texNeedRho) {
+	    /* Negate rho if dx == -1. */
+@	    fild    'tr(dx)'
+@	    fmul    'tr(fdrhowdx)'
+@	    fst     'tr(fdrhowdx)'
+@	    fmul    'fpk(gc, __FR_TEXEL_PWL_SPAN_WIDTH)'
+@	    fstp    'tr(fdrhowdxPWL)'
+	}
+	if (spanlet) {
+@		fld	'tr(fdswdx)'	;	s
+@		fmul	'fpk(gc, 32.0)'
+@		fld	'tr(fdtwdx)'	;	t	s
+@		fmul	'fpk(gc, 32.0)'
+@		fld	'tr(fdqwdx)'	;	q	t	s
+@		fmul	'fpk(gc, 32.0)'
+@		fxch	st2		;	s	t	q
+@		fstp	'tr(fdswdxSpan)'
+@		fstp	'tr(fdtwdxSpan)'
+@		fstp	'tr(fdqwdxSpan)'
+
+	        if (texNeedRho) {
+@	            fld     'tr(fdrhowdx)'
+@	            fmul    'fpk(gc, 32.0)'
+@	            fstp    'tr(fdrhowdxSpan)'
+	        }
+	}
+        } else {
+	    struct celem
+		*win1 = near_label(gc),
+		*win2 = near_label(gc);
+	    struct celem *scratch;
+
+	    XLOCAL(scratch, 9 * 4);
+
+	    /* MMX requires a fixed-point setup for PC */
+	    /* (1) We divide through by the largest w */
+
+@           mov	eax,v0
+@           mov	ebx,v1
+@           mov	ecx,v2
+    
+@           mov     edx,[eax + 'vx(texture.w)']
+@           cmp     edx,[ebx + 'vx(texture.w)']
+@           jge     win1
+@           mov     edx,[ebx + 'vx(texture.w)']
+@ win1:	   
+@           cmp     edx,[ecx + 'vx(texture.w)']
+@           jge     win2
+@           mov     edx,[ecx + 'vx(texture.w)']
+@ win2:
+
+/* 
+ * We scale by 2.0 here to make largest 'q' (after scaling)
+ * 0.5 - this prevents us from overflowing while interpolating
+ * in the affine spans in the rasterizer.
+ * JCB - we're more careful about not going over the edges
+ * of the span, so this is no longer necessary.
+ */
+
+@           lea     edi,scratch
+@           mov     [edi],edx
+@           fld     [edi]
+//@           fmul    'fpk(gc, 2.0)'
+@           fdivr   'fpk(gc, 1.0)'
+@           fstp    [edi + 32]
+
+@           fld     [eax + 'vx(texture.x)']
+@           fmul    [edi + 32]
+@           fstp    [edi + 0]
+
+@           fld     [ebx + 'vx(texture.x)']
+@           fmul    [edi + 32]
+@           fstp    [edi + 4]
+
+@           fld     [ecx + 'vx(texture.x)']
+@           fmul    [edi + 32]
+@           fstp    [edi + 8]
+
+
+@           fld     [eax + 'vx(texture.y)']
+@           fmul    [edi + 32]
+@           fstp    [edi + 12]
+
+@           fld     [ebx + 'vx(texture.y)']
+@           fmul    [edi + 32]
+@           fstp    [edi + 16]
+
+@           fld     [ecx + 'vx(texture.y)']
+@           fmul    [edi + 32]
+@           fstp    [edi + 20]
+
+
+@           fld     [eax + 'vx(texture.w)']
+@           fmul    [edi + 32]
+@           fstp    [edi + 24]
+
+@           fld     [ebx + 'vx(texture.w)']
+@           fmul    [edi + 32]
+@           fstp    [edi + 28]
+
+@           fld     [ecx + 'vx(texture.w)']
+@           fmul    [edi + 32]
+@           fstp    [edi + 32]
+
+@	    mov	    esi,#'(int)&affine_texture_bias'
+
+@           lea	    eax,[edi + 0]
+@           lea	    ebx,[edi + 4]
+@           lea	    ecx,[edi + 8]
+@	    lea	    edi,'tr(s0)'
+@	    call    fxinterp
+
+@           lea     edi,scratch
+@           lea	    eax,[edi + 12]
+@           lea	    ebx,[edi + 16]
+@           lea	    ecx,[edi + 20]
+@	    lea	    edi,'tr(t0)'
+@	    call    fxinterp
+
+@	    mov	    esi,#'(int)&mmx_q_bias'
+@           lea     edi,scratch
+@           lea	    eax,[edi + 24]
+@           lea	    ebx,[edi + 28]
+@           lea	    ecx,[edi + 32]
+@	    lea	    edi,'tr(q0)'
+@	    call    fxinterp
+
+	}
+      } else {
+@	mov	esi,#'(int)&affine_texture_bias'
+
+@	lea	edi,'tr(s0)'
+@       mov	eax,v0
+@       mov	ebx,v1
+@       mov	ecx,v2
+@	lea	eax,[eax + 'vx(texture.x)']
+@	lea	ebx,[ebx + 'vx(texture.x)']
+@	lea	ecx,[ecx + 'vx(texture.x)']
+@	call	fxinterp
+
+@	lea	edi,'tr(t0)'
+@       mov	eax,v0
+@       mov	ebx,v1
+@       mov	ecx,v2
+@	lea	eax,[eax + 'vx(texture.y)']
+@	lea	ebx,[ebx + 'vx(texture.y)']
+@	lea	ecx,[ecx + 'vx(texture.y)']
+@	call	fxinterp
+
+      }
+  }
+
+  if (spanlet) {
+@	mov	'tr(gc)', #'((int)gc)'
+    if (modeFlags & __GL_SHADE_DITHER) {
+@	mov	edi,'tr(dx)'
+@	shr	edi,31
+@	lea	ebp,[#'(int)__glFRDitherTables' + edi * 4]
+@	mov	ebp,[ebp + 0]
+@	mov	'tr(ditherTable)',ebp
+    }
+  }
+
+  if (modeFlags & __GL_SHADE_TEXTURE) {
+      __GLtextureMachine *txm = &(gc->texture);
+      __GLmipMapLevel *lp = &gc->texture.currentTexture->level[0];
+
+@     mov	ebp,#'((int)txm)'	; ebp now points to the texture machine
+@     mov	ebp,[ebp + __GLtextureMachine.currentTexture]
+@     mov	ebp,[ebp + __GLtexture.'level']
+      if (cookedTexture) {
+@	  mov	edi,[ebp + __GLmipMapLevel.pixelBuffer]
+      } else {
+@         mov	edi,[ebp + __GLmipMapLevel.buffer]
+      }
+@     mov	'tr(tp)', edi
+
+      if (spanlet) {
+@	  mov	edi,[ebp + __GLmipMapLevel.width]
+@	  mov	'tr(texWidth)',edi
+
+@	  mov	edi,[ebp + __GLmipMapLevel.widthLog2]
+@	  mov	'tr(texWidthLog2)',edi
+
+@	  mov	edi,[ebp + __GLmipMapLevel.height]
+@	  mov	'tr(texHeight)',edi
+
+@	  mov	edi,[ebp + __GLmipMapLevel.heightLog2]
+@	  mov	'tr(texHeightLog2)',edi
+      }
+  }
+
+#if CHECK_STACK
+      {
+	struct celem *ok = near_label(gc);
+
+@	fsub	'fpk(gc, 947.947f)'
+@	fstp	q0
+@	mov	edx,q0
+@	cmp	edx,0
+@	je	ok
+@ok:
+      }
+#endif
+
+#endif /* JCB */
+
+@   jmpi	[#'(int)&gc->procs.renderTrap']
+
+    {
+	struct celem *v0p, *v1p, *v2p;
+	struct celem *dxbias, *dybias, *p0bias;
+	GLuint
+	    pos_didx,
+	    pos_didxSpan,
+	    pos_didy0_0,
+	    pos_didy0_1;
+	
+	v0p = mem2(gc, NULL, eax);
+	v1p = mem2(gc, NULL, ebx);
+	v2p = mem2(gc, NULL, ecx);
+
+	p0bias = mem2(gc, NULL, esi);
+	dxbias = mem2(gc, value(gc, 8), esi);
+	dybias = mem2(gc, value(gc, 16), esi);
+
+	if (spanlet ||
+	    (modeFlags & __GL_SHADE_DEPTH_TEST &&
+	     (gc->state.depth.writeEnable ||
+	      gc->state.depth.testFunc != GL_ALWAYS))) {
+	    pos_didx = tri(dzdx) - tri(z0);
+	    if (spanlet)
+		pos_didxSpan = tri(dzdxSpan) - tri(z0);
+	    pos_didy0_0 = tri(dzdy0[0]) - tri(z0);
+	    pos_didy0_1 = tri(dzdy0[1]) - tri(z0);
+	} else if ((modeFlags & __GL_SHADE_TEXTURE) &&
+		   (!(modeFlags & __GL_SHADE_TEXTURE_PERSP) ||
+		    (MMX && __glCanMmx(gc)))) {
+	    pos_didx = tri(dsdx) - tri(s0);
+	    pos_didy0_0 = tri(dsdy0[0]) - tri(s0);
+	    pos_didy0_1 = tri(dsdy0[1]) - tri(s0);
+	} else if (need_color(modeFlags, texenv) &&
+		   (modeFlags & __GL_SHADE_SMOOTH)) {
+	    pos_didx = tri(drdx) - tri(r0);
+	    pos_didy0_0 = tri(drdy0[0]) - tri(r0);
+	    pos_didy0_1 = tri(drdy0[1]) - tri(r0);
+	} 
+	/* Otherwise there are no fixed-point interpolants,
+	 so we don't need this stuff */
+
+@ fxinterp:
+@	fld	v0p			; 1	p0
+@	fld	v1p			; 2		
+@	fsub	st1			; 3	dp0	p0
+@	fld	v2p			; 4	
+@	fsub	st2			; 5	dp1	dp0	p0
+@	fld	'QBASE(ebp,dy1)'	; 6	dy1	dp1	dp0	p0
+@	fmul	st2			; 7	dy1*dp0	dp1	dp0	p0
+@	fxch	st2			;	dp0	dp1	dy1*dp0	p0
+@	fld	'QBASE(ebp,dy0)'	; 8	dy0	dp0	dp1	dy1*dp0	p0
+@	fmul	st2			; 9	dy0*dp1	dp0	dp1	dy1*dp0	p0
+@	fxch	st1			;	dp0	dy0*dp1	dp1	dy1*dp0	p0
+@	fmul	'QBASE(ebp,dx1)'	; 10	dp0*dx1	dy0*dp1	dp1	dy1*dp0	p0
+@	fxch	st3			; 	dy1*dp0	dy0*dp1	dp1	dp0*dx1	p0
+		        		// 11	------------ STALL ------------
+@	fsubp	st1,st0			; 12	dpdx	dp1	dp0*dx1	p0
+@	fxch	st1			;	dp1	dpdx	dp0*dx1	p0
+@	fmul	'QBASE(ebp,dx0)'	; 13	dp0*dx1	dpdx	dp0*dx1	p0
+@	fxch	st1			;	dpdx	dp0*dx1	dp0*dx1	p0
+@	fldq	dxbias			; 14	dxbias	dpdx	dp0*dx1	dp0*dx1	p0
+@	fadd	st1			; 15	drdx	dpdx	dp0*dx1	dp0*dx1	p0
+@	fxch	st2			; 	dp0*dx1	dpdx	drdx	dp0*dx1	p0
+@	fsubp	st3,st0			; 16	dpdx	drdx	dpdy	p0
+@	fld	st0			; 17	dpdx	dpdx	drdx	dpdy	p0
+@	fmul	'QBASE(ebp,xsnap0)'	; 18	dpdx*xs	dpdx	drdx	dpdy	p0
+@	fld	'QBASE(ebp,ysnap0)'	; 19	ys	dpdx*xs	dpdx	drdx	dpdy	p0
+@	fmul	st4			; 20	dpdy*ys	dpdx*xs	dpdx	drdx	dpdy	p0
+@	fxch	st3			;	drdx	dpdx*xs	dpdx	dpdy*ys	dpdy	p0
+@	fstpq	'QBASE(ebp,qdx)'	; 21	dpdx*xs	dpdx	dpdy*ys	dpdy	p0
+		        		// 22
+@	faddp	st2,st0			; 23	dpdx	r0...	dpdy	p0
+@	fxch	st3			;	p0	r0...	dpdy	dpdx
+@	faddq	p0bias			; 24	p0...	r0...	dpdy	dpdx
+@	fxch	st3			; 	dpdx	r0...	dpdy	p0...
+@	fmul	'QBASE(ebp,dxdyInt0)'	; 25	dpdx*i	r0...	dpdy	p0...
+@	fxch	st2			;	dpdy	r0...	dpdx*i	p0...
+@	faddq	dybias			; 26	dpdy...	r0...	dpdx*i	p0...
+@	fxch	st1			;	r0...	dpdy...	dpdx*i	p0...
+@	faddp	st3,st0			; 27	dpdy...	dpdx*i	r0
+
+@	mov	eax,'QBASE(ebp,qdx)'
+@	mov	ebx,'QBASE(ebp,negdx)'
+
+@	xor	eax,ebx
+
+@	sub	eax,ebx
+
+@	mov	[edi+#pos_didx],eax; drdx
+	if (spanlet) {
+@           mov     ecx,eax
+@	    shl	    ecx,5
+@	    mov	    [edi+#pos_didxSpan],ecx
+        }
+@	mov	ecx,'QBASE(ebp,negdxdy)'
+
+@	faddp	st1,st0	; 30	dy	r0
+@	fxch	st1
+@	fstpq	'QBASE(ebp,q0)'		; 31
+		       // 32
+@	xor	eax,ecx
+@	mov	ebx,'QBASE(ebp,q0)'
+
+@	fstpq	'QBASE(ebp,qdy)'	; 34
+
+@	sub	eax,ecx
+@	mov	ecx,'QBASE(ebp,qdy)'
+
+@	mov	[edi+#pos_didy0_0],ecx	; drdy0[0]
+@	add	ecx,eax
+
+@	mov	[edi+#pos_didy0_1],ecx	; drdy0[1]
+@	mov	[edi],ebx	; r0
+
+@	ret
+
+        if ((modeFlags & __GL_SHADE_TEXTURE) &&
+	    (modeFlags & __GL_SHADE_TEXTURE_PERSP)) {
+
+@ fpinterp:
+@	fld	v0p	; 1	p0
+@	fld	v1p	; 2		
+@	fsub	st1	; 3	dp0	p0
+@	fld	v2p	; 4	
+@	fsub	st2	; 5	dp1	dp0	p0
+@	fld	dy1	; 6	dy1	dp1	dp0	p0
+@	fmul	st2	; 7	dy1*dp0	dp1	dp0	p0
+@	fxch	st2	;	dp0	dp1	dy1*dp0	p0
+@	fld	dy0	; 8	dy0	dp0	dp1	dy1*dp0	p0
+@	fmul	st2	; 9	dy0*dp1	dp0	dp1	dy1*dp0	p0
+@	fxch	st1	;	dp0	dy0*dp1	dp1	dy1*dp0	p0
+@	fmul	dx1	; 10	dp0*dx1	dy0*dp1	dp1	dy1*dp0	p0
+@	fxch	st3	; 	dy1*dp0	dy0*dp1	dp1	dp0*dx1	p0
+		       // 11	------------ STALL ------------
+@	fsubp	st1,st0	; 12	dpdx	dp1	dp0*dx1	p0
+@	fxch	st1	;	dp1	dpdx	dp0*dx1	p0
+@	fmul	dx0	; 13	dp0*dx1	dpdx	dp0*dx1	p0
+@	fxch	st1	;	dpdx	dp0*dx1	dp0*dx1	p0
+@	fld	fnegdx	; 14	dxbias	dpdx	dp0*dx1	dp0*dx1	p0
+@	fmul	st1	; 15	drdx	dpdx	dp0*dx1	dp0*dx1	p0
+@	fxch	st2	; 	dp0*dx1	dpdx	drdx	dp0*dx1	p0
+@	fsubp	st3,st0	; 16	dpdx	drdx	dpdy	p0
+@	fld	st0	; 17	dpdx	dpdx	drdx	dpdy	p0
+@	fmul	xsnap0	; 18	dpdx*xs	dpdx	drdx	dpdy	p0
+@	fld	ysnap0	; 19	ys	dpdx*xs	dpdx	drdx	dpdy	p0
+@	fmul	st4	; 20	dpdy*ys	dpdx*xs	dpdx	drdx	dpdy	p0
+@	fxch	st3	;	drdx	dpdx*xs	dpdx	dpdy*ys	dpdy	p0
+@	fstp	[edi+4]	; 21	dpdx*xs	dpdx	dpdy*ys	dpdy	p0
+		       // 22
+@	faddp	st2,st0	; 23	dpdx	r0...	dpdy	p0
+@	fst	q0	; 24,25	
+@	fmul	dxdyInt0; 25	dpdx*i	r0...	dpdy	p0...
+@	fxch	st2	;	dpdy	r0...	dpdx*i	p0...
+
+        if (texNeedRho) {
+@	    fst    [edi + 24]
+	}
+
+@	fxch	st1	;	r0...	dpdy...	dpdx*i	p0...
+@	faddp	st3,st0	; 27	dpdy...	dpdx*i	r0
+
+@	faddp	st1,st0	; 30	dy	r0
+@	fxch	st1	;	r0	dy
+@	fstp	[edi]	; 31	dy
+@	fld	q0	;	dpdx	dy
+@	fmul	fnegdxdy; 32	+-dpdx	dy[0]
+@	fxch	st1	;	dy[0]	+-dpdx
+@	fst	[edi+#'(spanlet || FORCE_DIRECT) ? 16 : 12']; 33	dy[0]	+-dpdx
+@	faddp	st1,st0	;	dy[1]
+
+@	fstp	[edi+#'(spanlet || FORCE_DIRECT) ? 20 : 16']
+
+@	ret
+        }
+    }
+
+@cull3:
+@    fstp	st0
+@    fstp	st0
+@    fstp	st0
+@    fldcw	fpcw
+
+@cull:
+@ xor eax,eax
+/* Really a return, this is initialised at the start of setup. */
+@      jmpi	[#'(int)&gc->ogState.rsave']
+
+    assert((unsigned)code + gc->constants.triSetupCacheSize > (unsigned)cb);
+#if SOURCE_TRAIL
+    og_stream(gc, NULL);
+#endif
+
+    return (setterupper)code;
+}
+#endif

@@ -1,0 +1,892 @@
+;
+;                               TIMING NOTES
+;
+;       ========================================================================
+;       ========================================================================
+;
+;       TIMING PARAMETER DEFINITIONS:
+;
+;       There are currently 11 timing parameters that are passed to the driver
+;       that detail information for setting modes at a particular resolution
+;       and refresh rate.
+;
+;       Parameter 1 - Horizontal Total
+;       Parameter 2 - Horizontal Sync Start
+;       Parameter 3 - Horizontal Sync End
+;       Parameter 4 - Vertical Total
+;       Parameter 5 - Vertical Sync Start
+;       Parameter 6 - Vertical Sync End
+;       Parameter 7 - Flags for CRTC
+;       Parameter 8 - Pixel Clock
+;       Parameter 9 - Refresh Rate
+;       Parameter 10 - Character Width
+;       Parameter 11 - Checksum
+;
+;       These parameters are part of a string separated by commas, and are
+;       placed into the  \TIMINGS\Xres\Yres\Hz\Default  string value field.
+;
+;       FOR EXAMPLE;
+;       "800,656,752,525,490,492,12,25175000,5994,8,12246"
+;
+;       The first nine parameters can be easily obtained by cutting and
+;       pasting the VBE 3 Refresh Rate field from the bottom left corner of
+;       the Timing Standards Spreadsheet once the desired page has been
+;       located. The Character Width parameter is most always set to 8, and
+;       the checksum calculation is for the reduction of user tampering.
+;
+;       The Flags for the CRTC operation in parameter 7 are defined as follows:
+;
+;               Bit 0 = Double Scan Enable
+;               Bit 1 = Interlace Enable
+;               Bit 2 = Horizontal Sync Polarity ( 0 = Positive, 1 = Negative )
+;               Bit 3 = Vertical Sync Polarity ( 0 = Positive, 1 = Negative )
+;
+;       ALTERNATE TIMING DEFINITIONS:
+;
+;       An OEM or device may require a special timing for a driver that cannot
+;       be defined by using the 11 parameter list that is described above. To
+;       accomodate this, we have added support for a more detailed timing list.
+;       The driver automatically detects which type of parameter list you are
+;       providing, the 11 parameter definition list, or the 22 parameter list
+;       described below. ( It counts the number of commas )
+;
+;       Parameter 1 - Horizontal Total
+;       Parameter 2 - Horizontal Display Enable End
+;       Parameter 3 - Horizontal Blank Start
+;       Parameter 4 - Horizontal Blank End
+;       Parameter 5 - Horizontal Sync Start
+;       Parameter 6 - Horizontal Sync End
+;       Parameter 7 - Vertical Total
+;       Parameter 8 - Overflow
+;       Parameter 9 - Max Line Scan
+;       Parameter 10 - Vertical Sync Start
+;       Parameter 11 - Vertical Sync End
+;       Parameter 12 - Vertical Display Enable End
+;       Parameter 13 - Vertical Blank Start
+;       Parameter 14 - Vertical Blank End
+;       Parameter 15 - Horizontal Extensions
+;       Parameter 16 - Vertical Extensions
+;       Parameter 17 - Misc Output
+;       Parameter 18 - Sequencer Dot Clock
+;       Parameter 19 - PllCtrl0 ( LSB )
+;       Parameter 20 - PllCtrl0 ( MSB )
+;       Parameter 21 - DacMode
+;       Parameter 22 - CheckSum
+;
+;       NOTE: For convenience, the parameters may be expressed in regular
+;       decimal or hexadecimal in the following format;
+;
+;       FOR EXAMPLE;
+;       "0xa3,0x4f,0x60,0x8c,0x68,0x1c,0x20,0xb3,0x60,0x70,0x01,0xdf,0x67,0x88,0x20,0x00,0xcf,0x21,0x29,0x6b,0x00,120"
+;
+;       For Non-Scaling Digital Flat Panels, place these 22 parameter timing
+;       lists into the  \TIMINGS\Xres\Yres\Hz\AltDFP  string value field.
+;
+;       ------------------------------------------------------------------------
+;
+;       CAPABILITY PARAMETER DEFINITIONS:
+;
+;       The  \TIMINGS\Xres\Yres\Hz\Supported  string value designates which
+;       capabilities are supported for the resolution and refresh rate, as
+;       well as the bit depths that are supported by this mode.  The individual
+;       support fields are separated by commas, and can be in any order.
+;       All resolutions higher than or equal to 640 by 480 are assumed to be
+;       normal Windows Desktop capable modes.
+;
+;
+;       "BPP+8+16+24+32" - This mode supports 8, 16, 24, and 32 bits per pixel.
+;       The "+" is a separator, like a comma. There must be at least one bit
+;       depth specified.
+;
+;       "DDRAW" - This mode is Direct Draw capable and will be enumerated in
+;       Direct Draw mode lists.
+;
+;       "TVO_DESK" - This mode is TV OUT capable and will be enumerated in
+;       Windows Desktop mode lists when TV OUT is activated.
+;
+;       "TVO_DD" - This mode is TV OUT capable and will be enumerated in
+;       Direct Draw mode lists when TV OUT is activated.
+;
+;       "NTSC" - This mode is enabled under TV OUT if the TV OUT device is
+;       detected as NTSC.
+;
+;       "PAL" - This mode is enabled under TV OUT if the TV OUT device is
+;       detected as PAL.
+;
+;       "DFP_DESK" - This mode is DFP capable and will be enumerated in Windows
+;       Desktop mode lists when a Digital Flat Panel is attached.
+;
+;       "DFP_DD" - This mode is DFP capable and will be enumerated in Direct
+;       Draw mode lists when when a Digital Flat Panel is attached..
+;
+;       ------------------------------------------------------------------------
+;       To force the use of GTF timings on ALL modes, set the  TIMINGS\UseGTF
+;       string value to "1".  This overrides any individual settings and uses
+;       GTF for all timing calculations.
+;
+;       To force the use of GTF timings on any individual mode, replace the
+;       current string with "GTF" in the  \TIMINGS\Xres\Yres\Hz\Default  string
+;       value field.  There are a few exceptions to this operation and that is
+;       when the Character Width is not 8 ( usually 9 ), and when the mode CRTC
+;       flag specifies DOUBLE SCANNED...  To accomplish these special GTF modes,
+;       place the string "GTF" into each of the UNUSED parameter fields, and
+;       the correct integer value into the CharWidth or CRTCflags field.
+;
+;       FOR EXAMPLE;
+;       "GTF, GTF, GTF, GTF, GTF, GTF, CRTCflags, GTF, GTF, CharWidth"
+;
+;       ------------------------------------------------------------------------
+;       To define the Optimal Refresh Rate limit to values other than highest
+;       possible, change the  \TIMINGS\OptimalRefreshLimit  string value to
+;       the desired limit or set the string value to "MAX_EDID"...  The MAX_EDID
+;       setting tells the driver to search the monitor EDID for the highest
+;       setting specifically listed and limits the "Optimal" refresh to that
+;       value...  Now there are some resolutions that are not mentioned in the
+;       EDID at all so the  \TIMINGS\OptimalNonEDIDLimit  string value should
+;       be set to a reasonable default value such as 85 to prevent problems.
+;       ------------------------------------------------------------------------
+;       ------------------------------------------------------------------------
+;       Add the following line to the [Prev.DelReg] section so previous
+;       installions will be removed !!!
+
+HKR,TIMINGS
+
+;
+;       ------------------------------------------------------------------------
+;                               MODE GENERATION NOTES
+;       ------------------------------------------------------------------------
+
+;       1. Select mode widths that are evenly divisible by eight. Failure to
+;          do so will cause secondary displays to go blank in multi monitor
+;          setups in Win98 and possible problems in Win2k/NT4.
+;
+;       2. Use the RateTest application from the WHQL DCT test manager after
+;          making changes to the TIMINGS key areas. This will help find
+;          potential problem before they get to Test.
+;
+;       3. WHQL requires that every mode on the desktop be supported by DDraw
+;          and the reverse.  They also say that if a mode is primarily for DVD
+;          playback, then it can be supported by DDraw only.  In Win98, this is
+;          possible by removing the mode from the MODES section of the INF but
+;          listing it in the TIMINGS section.  Example: 720x480 is done this way
+;          in the INF.  For Win2K there is no way with the DMT code to create a
+;          mode that shows up in the DirectDraw list and not the desktop.  Also,
+;          modes that are less that 640 in the width or 480 in height will never
+;          be a desktop mode in both Win98 and Win2k.
+;
+;       4. To get a new checksum, all you have to do is put the 10 parameters
+;          from a mode in Bill Millford's VESA standards document and write the
+;          word 'check' for the checksum.  Then after a reboot, the 'check' will
+;          be replaced with a valid checksum.
+;
+;       ------------------------------------------------------------------------
+;                               CREATING A NEW MODE - TWO EXAMPLES
+;       ------------------------------------------------------------------------
+;
+;       Let's say you've been asked to create a new mode 640x480 @ 80Hz.  Here
+;       are the steps:
+;       A. First modify the registry MODES section to add the new mode. To add
+;          640x480@80 Hz, you would add ",80" to the middle of the default
+;          string in Win98 for  MODES\8\640,480.  It would now look like this:
+;          (Default)    "60,72,75,80,85,100,120,140,160"
+;       B. Next you would need to add a new registry key called
+;          TIMINGS\640,480\80Hz.
+;       C. Then you would get the last line from the 640x480@80 sheet in Bill
+;          Milford's Excel document and set that string to the '(Default)' for
+;          the 80Hz key.  (unfortunately he doesn't have this mode in his
+;          document, but it would look something like this):
+;          (Default)    "836,670,736,503,481,484,12,33800000,7500,8"
+;       D. Then add ",check" to the end of the default string.
+;          (Default)    "836,670,736,503,481,484,12,33800000,7500,8,check"
+;       E. Copy or add the Supported value in the 80Hz key.  Use the values in
+;          the CAPABILITY PARAMETER DEFINITIONS section to modify/add support
+;          for various mode specifics.  It will probably look like this:
+;          Supported    "BPP+8+16+32,DDRAW"
+;       G. Reboot the machine and read the checksum from the registry if not
+;          doing GTF.  This value will replace the "check" you wrote in step D.
+;       H. Enter all the new registry information into the INF.
+;
+;
+;       Now let's say you've been asked to add a GTF mode timing 800x600 @ 180Hz
+;       A. First add another line to the INF in the MODES section to add the
+;          new mode. To add 800x600 @ 180Hz, you would add ",180" to the end of
+;          the default string in Win98 for  MODES\8\800,600.  The INF would now
+;          look like this:
+;          HKR,"MODES\8\800,600",,,"60,72,75,85,100,120,140,160,180"
+;       B. Next you would need to add a new registry key called
+;          TIMINGS\800,600\180Hz to the INF.  The INF would add this line:
+;          HKR,"TIMINGS\800,600\160Hz",,,"GTF"
+;       E. Copy or add the Supported value in the 180Hz key.  Use the values
+;          in the CAPABILITY PARAMETER DEFINITIONS section to modify/add support
+;          for various mode specifics.  It will probably look like this in the
+;          INF:
+;          HKR,"TIMINGS\800,600\180Hz",Supported,,"BPP+8+16+32,DDRAW"
+;
+;       ------------------------------------------------------------------------
+;                               RETAIL MODE DETAIL BEGINS
+;       ------------------------------------------------------------------------
+;
+;
+
+; Windows Desktop Modes begin
+
+HKR,"TIMINGS\640,480\60Hz",,,"800,656,752,525,490,492,12,25175000,5994,8,12246"
+HKR,"TIMINGS\640,480\60Hz",AltDFP,,"0xa3,0x4f,0x60,0x8c,0x68,0x1c,0x20,0xb3,0x60,0x70,0x01,0xdf,0x67,0x88,0x20,0x00,0xcf,0x21,0x29,0x6b,0x00,120"
+HKR,"TIMINGS\640,480\60Hz",Supported,,"BPP+8+16+32,DDRAW,TVO_DESK,TVO_DD,NTSC,PAL,DFP_DESK,DFP_DD"
+HKR,"TIMINGS\640,480\72Hz",,,"832,664,704,520,489,492,12,31500000,7281,8,14152"
+HKR,"TIMINGS\640,480\72Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\640,480\75Hz",,,"840,656,720,500,481,484,12,31500000,7500,8,14351"
+HKR,"TIMINGS\640,480\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\640,480\85Hz",,,"832,696,752,509,481,484,12,36000000,8501,8,15875"
+HKR,"TIMINGS\640,480\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\640,480\100Hz",,,"GTF"
+HKR,"TIMINGS\640,480\100Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\640,480\120Hz",,,"GTF"
+HKR,"TIMINGS\640,480\120Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\640,480\140Hz",,,"GTF"
+HKR,"TIMINGS\640,480\140Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\640,480\160Hz",,,"GTF"
+HKR,"TIMINGS\640,480\160Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\800,600\56Hz",,,"1024,824,896,625,601,603,0,36000000,5625,8,13806"
+HKR,"TIMINGS\800,600\56Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\800,600\60Hz",,,"1056,840,968,628,601,605,0,40000000,6032,8,14738"
+HKR,"TIMINGS\800,600\60Hz",AltDFP,,"0xa3,0x63,0x70,0x98,0x74,0x06,0x20,0xf1,0x60,0xa0,0x0d,0x57,0xa0,0xc1,0x00,0x00,0xcf,0x21,0x29,0x6b,0x00,226"
+HKR,"TIMINGS\800,600\60Hz",Supported,,"BPP+8+16+32,DDRAW,TVO_DESK,TVO_DD,NTSC,PAL,DFP_DESK,DFP_DD"
+HKR,"TIMINGS\800,600\72Hz",,,"1040,856,976,666,637,643,0,50000000,7219,8,17045"
+HKR,"TIMINGS\800,600\72Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\800,600\75Hz",,,"1056,816,896,625,601,604,0,49500000,7500,8,17056"
+HKR,"TIMINGS\800,600\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\800,600\85Hz",,,"1048,832,896,631,601,604,0,56250000,8506,8,18751"
+HKR,"TIMINGS\800,600\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\800,600\100Hz",,,"GTF"
+HKR,"TIMINGS\800,600\100Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\800,600\120Hz",,,"GTF"
+HKR,"TIMINGS\800,600\120Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\800,600\140Hz",,,"GTF"
+HKR,"TIMINGS\800,600\140Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\800,600\160Hz",,,"GTF"
+HKR,"TIMINGS\800,600\160Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\960,720\60Hz",,,"GTF"
+HKR,"TIMINGS\960,720\60Hz",AltDFP,,"0xa3,0x77,0x80,0xa5,0x80,0x94,0x24,0xf5,0x60,0x00,0x09,0xd0,0xf0,0x16,0x00,0x00,0x4f,0x21,0x07,0x6b,0x00,141"
+HKR,"TIMINGS\960,720\60Hz",Supported,,"BPP+8+16+32,DDRAW,DFP_DESK,DFP_DD"
+HKR,"TIMINGS\960,720\75Hz",,,"GTF"
+HKR,"TIMINGS\960,720\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\960,720\85Hz",,,"GTF"
+HKR,"TIMINGS\960,720\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\1024,768\60Hz",,,"1344,1048,1184,806,771,777,12,65000000,6000,8,18450"
+HKR,"TIMINGS\1024,768\60Hz",Supported,,"BPP+8+16+32,DDRAW,DFP_DESK,DFP_DD"
+HKR,"TIMINGS\1024,768\70Hz",,,"1328,1048,1184,806,771,777,12,75000000,7007,8,20441"
+HKR,"TIMINGS\1024,768\70Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1024,768\75Hz",,,"1312,1040,1136,800,769,772,0,78750000,7503,8,21215"
+HKR,"TIMINGS\1024,768\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1024,768\85Hz",,,"1376,1072,1168,808,769,772,0,94500000,8500,8,23923"
+HKR,"TIMINGS\1024,768\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1024,768\100Hz",,,"GTF"
+HKR,"TIMINGS\1024,768\100Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1024,768\120Hz",,,"GTF"
+HKR,"TIMINGS\1024,768\120Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\1152,864\60Hz",,,"1472,1184,1280,905,865,868,0,80000000,6005,8,20587"
+HKR,"TIMINGS\1152,864\60Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1152,864\70Hz",,,"1480,1184,1280,912,865,868,0,94500000,7001,8,23048"
+HKR,"TIMINGS\1152,864\70Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1152,864\75Hz",,,"1600,1216,1344,900,865,868,0,108000000,7500,8,25101"
+HKR,"TIMINGS\1152,864\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1152,864\85Hz",,,"1568,1216,1344,911,865,868,0,121500000,8506,8,27436"
+HKR,"TIMINGS\1152,864\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1152,864\100Hz",,,"GTF"
+HKR,"TIMINGS\1152,864\100Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1152,864\120Hz",,,"GTF"
+HKR,"TIMINGS\1152,864\120Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\1280,960\60Hz",,,"1800,1376,1488,1000,961,964,0,108000000,6000,8,24397"
+HKR,"TIMINGS\1280,960\60Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1280,960\75Hz",,,"GTF"
+HKR,"TIMINGS\1280,960\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1280,960\85Hz",,,"1728,1344,1504,1011,961,964,0,148500000,8500,8,30870"
+HKR,"TIMINGS\1280,960\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\1280,1024\60Hz",,,"1688,1328,1440,1066,1025,1028,0,108000000,6002,8,24385"
+HKR,"TIMINGS\1280,1024\60Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1280,1024\75Hz",,,"1688,1296,1440,1066,1025,1028,0,135000000,7502,8,28553"
+HKR,"TIMINGS\1280,1024\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1280,1024\85Hz",,,"1728,1344,1504,1072,1025,1028,0,157500000,8502,8,31961"
+HKR,"TIMINGS\1280,1024\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1280,1024\100Hz",,,"GTF"
+HKR,"TIMINGS\1280,1024\100Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\1600,1024\60Hz",,,"2096,1632,1792,1070,1027,1030,12,134563000,6000,8,28123"
+HKR,"TIMINGS\1600,1024\60Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1600,1024\76Hz",,,"2096,1632,1792,1070,1027,1030,12,170447000,7600,8,33311"
+HKR,"TIMINGS\1600,1024\76Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1600,1024\85Hz",,,"GTF"
+HKR,"TIMINGS\1600,1024\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\1600,1200\60Hz",,,"2160,1664,1856,1250,1201,1204,0,162000000,6000,8,31543"
+HKR,"TIMINGS\1600,1200\60Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1600,1200\65Hz",,,"2160,1664,1856,1250,1201,1204,0,175500000,6500,8,33393"
+HKR,"TIMINGS\1600,1200\65Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1600,1200\70Hz",,,"2160,1664,1856,1250,1201,1204,0,189000000,7000,8,35243"
+HKR,"TIMINGS\1600,1200\70Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1600,1200\75Hz",,,"2160,1664,1856,1250,1201,1204,0,202500000,7500,8,37093"
+HKR,"TIMINGS\1600,1200\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1600,1200\80Hz",,,"2160,1664,1856,1250,1201,1204,0,216000000,8000,8,38943"
+HKR,"TIMINGS\1600,1200\80Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1600,1200\85Hz",,,"2160,1664,1856,1250,1201,1204,0,229500000,8500,8,40793"
+HKR,"TIMINGS\1600,1200\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1600,1200\100Hz",,,"GTF"
+HKR,"TIMINGS\1600,1200\100Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\1792,1344\60Hz",,,"2448,1920,2120,1394,1345,1348,4,204750000,6000,8,37062"
+HKR,"TIMINGS\1792,1344\60Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1792,1344\75Hz",,,"2456,1888,2104,1417,1345,1348,4,261000000,7500,8,44170"
+HKR,"TIMINGS\1792,1344\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\1856,1392\60Hz",,,"2528,1952,2176,1439,1393,1396,4,218250000,6000,8,38721"
+HKR,"TIMINGS\1856,1392\60Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1856,1392\75Hz",,,"2560,1984,2208,1500,1393,1396,4,288000000,7500,8,47353"
+HKR,"TIMINGS\1856,1392\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\1920,1080\60Hz",,,"2368,1952,2096,1125,1083,1086,12,159840000,6000,8,31714"
+HKR,"TIMINGS\1920,1080\60Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1920,1080\72Hz",,,"2560,1968,2184,1172,1083,1086,12,216023000,7200,8,38875"
+HKR,"TIMINGS\1920,1080\72Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1920,1080\75Hz",,,"GTF"
+HKR,"TIMINGS\1920,1080\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1920,1080\85Hz",,,"GTF"
+HKR,"TIMINGS\1920,1080\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\1920,1200\60Hz",,,"2584,1984,2240,1250,1203,1206,12,193800000,6000,8,35867"
+HKR,"TIMINGS\1920,1200\60Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1920,1200\76Hz",,,"2584,1984,2240,1250,1203,1206,12,245480000,7600,8,42635"
+HKR,"TIMINGS\1920,1200\76Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1920,1200\85Hz",,,"GTF"
+HKR,"TIMINGS\1920,1200\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\1920,1440\60Hz",,,"2600,2048,2256,1500,1441,1444,4,234000000,6000,8,40701"
+HKR,"TIMINGS\1920,1440\60Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1920,1440\75Hz",,,"2640,2064,2288,1500,1441,1444,4,297000000,7500,8,48589"
+HKR,"TIMINGS\1920,1440\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+;NOTE: 2048 by 1536 is NOT supported in 32 bit modes on Voodoo3
+HKR,"TIMINGS\2048,1536\60Hz",,,"2504,2096,2312,1597,1537,1540,0,239933000,6000,8,41587"
+HKR,"TIMINGS\2048,1536\60Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\2048,1536\75Hz",,,"2656,2112,2328,1606,1537,1540,0,319915000,7500,8,51278"
+HKR,"TIMINGS\2048,1536\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+;HKR,"TIMINGS\2048,1536\85Hz",,,"2568,2048,2232,1586,1536,1539,0,346000000,8495,8,54612"
+;HKR,"TIMINGS\2048,1536\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+; Windows Desktop Modes end
+
+
+; Windows Direct Draw Modes begin
+; NOTE: 8 and 16 bit 320x200, 320x240, 400x300, 512x384, and 640x400 are
+;       REQUIRED by WHQL!
+
+HKR,"TIMINGS\320,200\70Hz",,,"400,328,376,449,413,415,5,12587500,7009,8,10661"
+HKR,"TIMINGS\320,200\70Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\320,200\85Hz",,,"416,336,368,445,401,404,5,15750000,8508,8,12466"
+HKR,"TIMINGS\320,200\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\320,240\60Hz",,,"400,328,376,525,490,492,13,12587500,5994,8,9884"
+HKR,"TIMINGS\320,240\60Hz",Supported,,"BPP+8+16+32,DDRAW,TVO_DD,NTSC,PAL"
+HKR,"TIMINGS\320,240\72Hz",,,"416,336,352,520,489,492,13,15750000,7281,8,11482"
+HKR,"TIMINGS\320,240\72Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\320,240\75Hz",,,"424,328,360,500,481,484,13,15901442,7501,8,11689"
+HKR,"TIMINGS\320,240\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\320,240\85Hz",,,"416,344,376,509,481,484,13,18000000,8501,8,12932"
+HKR,"TIMINGS\320,240\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\400,300\60Hz",,,"528,424,488,628,601,605,1,20000000,6032,8,11315"
+HKR,"TIMINGS\400,300\60Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\400,300\72Hz",,,"520,432,488,666,637,643,1,25000000,7219,8,13114"
+HKR,"TIMINGS\400,300\72Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\400,300\75Hz",,,"528,408,448,625,601,604,1,24750000,7500,8,13198"
+HKR,"TIMINGS\400,300\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\400,300\85Hz",,,"528,416,448,631,601,604,1,28341346,8507,8,14578"
+HKR,"TIMINGS\400,300\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\512,384\60Hz",,,"672,528,592,806,771,777,13,32500000,6000,8,13417"
+HKR,"TIMINGS\512,384\60Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\512,384\70Hz",,,"664,528,592,806,771,777,13,37500000,7007,8,14916"
+HKR,"TIMINGS\512,384\70Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\512,384\75Hz",,,"656,520,568,800,769,772,13,39375000,7503,8,15546"
+HKR,"TIMINGS\512,384\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\512,384\85Hz",,,"688,536,584,808,769,772,13,47250000,8500,8,17403"
+HKR,"TIMINGS\512,384\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\640,400\70Hz",,,"800,656,752,449,413,415,4,25175000,7009,8,13023"
+HKR,"TIMINGS\640,400\70Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\640,400\85Hz",,,"832,672,736,445,401,404,4,31500000,8508,8,15160"
+HKR,"TIMINGS\640,400\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\720,480\60Hz",,,"896,736,856,525,490,492,12,28196000,5994,8,12828"
+HKR,"TIMINGS\720,480\60Hz",Supported,,"BPP+8+16+32,DDRAW,TVO_DESK,TVO_DD,NTSC,PAL"
+HKR,"TIMINGS\720,480\72Hz",,,"920,736,872,520,489,492,12,34832000,7281,8,14813"
+HKR,"TIMINGS\720,480\72Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\720,480\85Hz",,,"936,784,848,509,481,484,12,40500000,8501,8,16613"
+HKR,"TIMINGS\720,480\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\720,576\72Hz",,,"936,752,848,642,578,582,0,43266000,7200,8,15872"
+HKR,"TIMINGS\720,576\72Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\720,576\100Hz",,,"936,752,848,642,578,582,0,60089400,10000,8,20354"
+HKR,"TIMINGS\720,576\100Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+; Windows Direct Draw Modes end
+
+HKR,TIMINGS,UseGTF,,0
+
+[Prev.DelReg]
+HKR,TIMINGS
+
+;
+;       ------------------------------------------------------------------------
+;                               RETAIL MODE DETAIL ENDS
+;       ------------------------------------------------------------------------
+
+;       ------------------------------------------------------------------------
+;                               GATEWAY MODE DETAIL BEGINS
+;       ------------------------------------------------------------------------
+;
+;
+
+; Windows Desktop Modes begin
+
+HKR,"TIMINGS\640,480\60Hz",,,"800,656,752,525,490,492,12,25175000,5994,8,12246"
+HKR,"TIMINGS\640,480\60Hz",Supported,,"BPP+8+16+24+32,DDRAW,TVO_DESK,TVO_DD,NTSC,PAL,DFP_DESK,DFP_DD"
+HKR,"TIMINGS\640,480\72Hz",,,"832,664,704,520,489,492,12,31500000,7281,8,14152"
+HKR,"TIMINGS\640,480\72Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\640,480\75Hz",,,"840,656,720,500,481,484,12,31500000,7500,8,14351"
+HKR,"TIMINGS\640,480\75Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\640,480\85Hz",,,"832,696,752,509,481,484,12,36000000,8501,8,15875"
+HKR,"TIMINGS\640,480\85Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\640,480\100Hz",,,"GTF"
+HKR,"TIMINGS\640,480\100Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\640,480\120Hz",,,"GTF"
+HKR,"TIMINGS\640,480\120Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\640,480\140Hz",,,"GTF"
+HKR,"TIMINGS\640,480\140Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\640,480\160Hz",,,"GTF"
+HKR,"TIMINGS\640,480\160Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+HKR,"TIMINGS\800,600\60Hz",,,"1056,840,968,628,601,605,0,40000000,6032,8,14738"
+HKR,"TIMINGS\800,600\60Hz",Supported,,"BPP+8+16+24+32,DDRAW,TVO_DESK,TVO_DD,NTSC,PAL,DFP_DESK,DFP_DD"
+HKR,"TIMINGS\800,600\72Hz",,,"1040,856,976,666,637,643,0,50000000,7219,8,17045"
+HKR,"TIMINGS\800,600\72Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\800,600\75Hz",,,"1056,816,896,625,601,604,0,49500000,7500,8,17056"
+HKR,"TIMINGS\800,600\75Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\800,600\85Hz",,,"1048,832,896,631,601,604,0,56250000,8506,8,18751"
+HKR,"TIMINGS\800,600\85Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\800,600\100Hz",,,"GTF"
+HKR,"TIMINGS\800,600\100Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\800,600\120Hz",,,"GTF"
+HKR,"TIMINGS\800,600\120Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\800,600\140Hz",,,"GTF"
+HKR,"TIMINGS\800,600\140Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\800,600\160Hz",,,"GTF"
+HKR,"TIMINGS\800,600\160Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+HKR,"TIMINGS\1024,768\60Hz",,,"1344,1048,1184,806,771,777,12,65000000,6000,8,18450"
+HKR,"TIMINGS\1024,768\60Hz",Supported,,"BPP+8+16+24+32,DDRAW,DFP_DESK,DFP_DD"
+HKR,"TIMINGS\1024,768\70Hz",,,"1328,1048,1184,806,771,777,12,75000000,7007,8,20441"
+HKR,"TIMINGS\1024,768\70Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1024,768\75Hz",,,"1312,1040,1136,800,769,772,0,78750000,7503,8,21215"
+HKR,"TIMINGS\1024,768\75Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1024,768\85Hz",,,"1376,1072,1168,808,769,772,0,94500000,8500,8,23923"
+HKR,"TIMINGS\1024,768\85Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1024,768\100Hz",,,"GTF"
+HKR,"TIMINGS\1024,768\100Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1024,768\120Hz",,,"GTF"
+HKR,"TIMINGS\1024,768\120Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+HKR,"TIMINGS\1280,1024\60Hz",,,"1688,1328,1440,1066,1025,1028,0,108000000,6002,8,24385"
+HKR,"TIMINGS\1280,1024\60Hz",Supported,,"BPP+8+16+24+32,DDRAW,DFP_DESK,DFP_DD"
+HKR,"TIMINGS\1280,1024\75Hz",,,"1688,1296,1440,1066,1025,1028,0,135000000,7502,8,28553"
+HKR,"TIMINGS\1280,1024\75Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1280,1024\85Hz",,,"1728,1344,1504,1072,1025,1028,0,157500000,8502,8,31961"
+HKR,"TIMINGS\1280,1024\85Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1280,1024\100Hz",,,"GTF"
+HKR,"TIMINGS\1280,1024\100Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+HKR,"TIMINGS\1600,1200\60Hz",,,"2160,1664,1856,1250,1201,1204,0,162000000,6000,8,31543"
+HKR,"TIMINGS\1600,1200\60Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1600,1200\65Hz",,,"2160,1664,1856,1250,1201,1204,0,175500000,6500,8,33393"
+HKR,"TIMINGS\1600,1200\65Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1600,1200\70Hz",,,"2160,1664,1856,1250,1201,1204,0,189000000,7000,8,35243"
+HKR,"TIMINGS\1600,1200\70Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1600,1200\75Hz",,,"2160,1664,1856,1250,1201,1204,0,202500000,7500,8,37093"
+HKR,"TIMINGS\1600,1200\75Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1600,1200\85Hz",,,"2160,1664,1856,1250,1201,1204,0,229500000,8500,8,40793"
+HKR,"TIMINGS\1600,1200\85Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1600,1200\100Hz",,,"GTF"
+HKR,"TIMINGS\1600,1200\100Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+; Windows Desktop Modes end
+
+
+; Windows Direct Draw Modes begin
+; NOTE: 8 and 16 bit 320x200, 320x240, 400x300, 512x384, and 640x400 are
+;       REQUIRED by WHQL!
+
+HKR,"TIMINGS\320,200\70Hz",,,"400,328,376,449,413,415,5,12587500,7009,8,10661"
+HKR,"TIMINGS\320,200\70Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\320,200\85Hz",,,"416,336,368,445,401,404,5,15750000,8508,8,12466"
+HKR,"TIMINGS\320,200\85Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+HKR,"TIMINGS\320,240\60Hz",,,"400,328,376,525,490,492,13,12587500,5994,8,9884"
+HKR,"TIMINGS\320,240\60Hz",Supported,,"BPP+8+16+32,DDRAW,TVO_DD,NTSC,PAL"
+HKR,"TIMINGS\320,240\72Hz",,,"416,336,352,520,489,492,13,15750000,7281,8,11482"
+HKR,"TIMINGS\320,240\72Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\320,240\75Hz",,,"424,328,360,500,481,484,13,15901442,7501,8,11689"
+HKR,"TIMINGS\320,240\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\320,240\85Hz",,,"416,344,376,509,481,484,13,18000000,8501,8,12932"
+HKR,"TIMINGS\320,240\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\400,300\60Hz",,,"528,424,488,628,601,605,1,20000000,6032,8,11315"
+HKR,"TIMINGS\400,300\60Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\400,300\72Hz",,,"520,432,488,666,637,643,1,25000000,7219,8,13114"
+HKR,"TIMINGS\400,300\72Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\400,300\75Hz",,,"528,408,448,625,601,604,1,24750000,7500,8,13198"
+HKR,"TIMINGS\400,300\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\400,300\85Hz",,,"528,416,448,631,601,604,1,28341346,8507,8,14578"
+HKR,"TIMINGS\400,300\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\512,384\60Hz",,,"672,528,592,806,771,777,13,32500000,6000,8,13417"
+HKR,"TIMINGS\512,384\60Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\512,384\70Hz",,,"664,528,592,806,771,777,13,37500000,7007,8,14916"
+HKR,"TIMINGS\512,384\70Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\512,384\75Hz",,,"656,520,568,800,769,772,13,39375000,7503,8,15546"
+HKR,"TIMINGS\512,384\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\512,384\85Hz",,,"688,536,584,808,769,772,13,47250000,8500,8,17403"
+HKR,"TIMINGS\512,384\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\640,400\70Hz",,,"800,656,752,449,413,415,4,25175000,7009,8,13023"
+HKR,"TIMINGS\640,400\70Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\640,400\85Hz",,,"832,672,736,445,401,404,4,31500000,8508,8,15160"
+HKR,"TIMINGS\640,400\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+; Windows Direct Draw Modes end
+
+HKR,TIMINGS,UseGTF,,0
+
+[Prev.DelReg]
+HKR,TIMINGS
+
+;
+;       ------------------------------------------------------------------------
+;                               GATEWAY MODE DETAIL ENDS
+;       ------------------------------------------------------------------------
+
+
+;       ------------------------------------------------------------------------
+;                               COMPAQ MODE DETAIL BEGINS
+;       ------------------------------------------------------------------------
+;
+;
+
+; Windows Desktop Modes begin
+
+HKR,"TIMINGS\640,480\60Hz",,,"800,656,752,525,490,492,12,25175000,5994,8,12246"
+HKR,"TIMINGS\640,480\60Hz",Supported,,"BPP+8+16+24+32,DDRAW,TVO_DESK,TVO_DD,NTSC,PAL,DFP_DESK,DFP_DD"
+HKR,"TIMINGS\640,480\72Hz",,,"832,664,704,520,489,492,12,31500000,7281,8,14152"
+HKR,"TIMINGS\640,480\72Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\640,480\75Hz",,,"840,656,720,500,481,484,12,31500000,7500,8,14351"
+HKR,"TIMINGS\640,480\75Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\640,480\85Hz",,,"832,696,752,509,481,484,12,36000000,8501,8,15875"
+HKR,"TIMINGS\640,480\85Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\640,480\100Hz",,,"GTF"
+HKR,"TIMINGS\640,480\100Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\640,480\120Hz",,,"GTF"
+HKR,"TIMINGS\640,480\120Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\640,480\140Hz",,,"GTF"
+HKR,"TIMINGS\640,480\140Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\640,480\160Hz",,,"GTF"
+HKR,"TIMINGS\640,480\160Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+; NOTE: Compaq does not want 800x600 NTSC
+HKR,"TIMINGS\800,600\56Hz",,,"1024,824,896,625,601,603,0,36000000,5625,8,13806"
+HKR,"TIMINGS\800,600\56Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\800,600\60Hz",,,"1056,840,968,628,601,605,0,40000000,6032,8,14738"
+HKR,"TIMINGS\800,600\60Hz",Supported,,"BPP+8+16+24+32,DDRAW,TVO_DESK,TVO_DD,PAL,DFP_DESK,DFP_DD"
+HKR,"TIMINGS\800,600\72Hz",,,"1040,856,976,666,637,643,0,50000000,7219,8,17045"
+HKR,"TIMINGS\800,600\72Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\800,600\75Hz",,,"1056,816,896,625,601,604,0,49500000,7500,8,17056"
+HKR,"TIMINGS\800,600\75Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\800,600\85Hz",,,"1048,832,896,631,601,604,0,56250000,8506,8,18751"
+HKR,"TIMINGS\800,600\85Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\800,600\100Hz",,,"GTF"
+HKR,"TIMINGS\800,600\100Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\800,600\120Hz",,,"GTF"
+HKR,"TIMINGS\800,600\120Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\800,600\140Hz",,,"GTF"
+HKR,"TIMINGS\800,600\140Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\800,600\160Hz",,,"GTF"
+HKR,"TIMINGS\800,600\160Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+HKR,"TIMINGS\1024,768\60Hz",,,"1344,1048,1184,806,771,777,12,65000000,6000,8,18450"
+HKR,"TIMINGS\1024,768\60Hz",Supported,,"BPP+8+16+24+32,DDRAW,DFP_DESK,DFP_DD"
+HKR,"TIMINGS\1024,768\70Hz",,,"1328,1048,1184,806,771,777,12,75000000,7007,8,20441"
+HKR,"TIMINGS\1024,768\70Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1024,768\75Hz",,,"1312,1040,1136,800,769,772,0,78750000,7503,8,21215"
+HKR,"TIMINGS\1024,768\75Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1024,768\85Hz",,,"1376,1072,1168,808,769,772,0,94500000,8500,8,23923"
+HKR,"TIMINGS\1024,768\85Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1024,768\100Hz",,,"GTF"
+HKR,"TIMINGS\1024,768\100Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1024,768\120Hz",,,"GTF"
+HKR,"TIMINGS\1024,768\120Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+HKR,"TIMINGS\1152,864\60Hz",,,"1472,1184,1280,905,865,868,0,80000000,6005,8,20587"
+HKR,"TIMINGS\1152,864\60Hz",Supported,,"BPP+8+16+24+32,DDRAW,DFP_DESK,DFP_DD"
+HKR,"TIMINGS\1152,864\70Hz",,,"1480,1184,1280,912,865,868,0,94500000,7001,8,23048"
+HKR,"TIMINGS\1152,864\70Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1152,864\75Hz",,,"1600,1216,1344,900,865,868,0,108000000,7500,8,25101"
+HKR,"TIMINGS\1152,864\75Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1152,864\85Hz",,,"1568,1216,1344,911,865,868,0,121500000,8506,8,27436"
+HKR,"TIMINGS\1152,864\85Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1152,864\100Hz",,,"GTF"
+HKR,"TIMINGS\1152,864\100Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1152,864\120Hz",,,"GTF"
+HKR,"TIMINGS\1152,864\120Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+HKR,"TIMINGS\1280,1024\60Hz",,,"1688,1328,1440,1066,1025,1028,0,108000000,6002,8,24385"
+HKR,"TIMINGS\1280,1024\60Hz",Supported,,"BPP+8+16+24+32,DDRAW,DFP_DESK,DFP_DD"
+HKR,"TIMINGS\1280,1024\75Hz",,,"1688,1296,1440,1066,1025,1028,0,135000000,7502,8,28553"
+HKR,"TIMINGS\1280,1024\75Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1280,1024\85Hz",,,"1728,1344,1504,1072,1025,1028,0,157500000,8502,8,31961"
+HKR,"TIMINGS\1280,1024\85Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1280,1024\100Hz",,,"GTF"
+HKR,"TIMINGS\1280,1024\100Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+HKR,"TIMINGS\1600,1200\60Hz",,,"2160,1664,1856,1250,1201,1204,0,162000000,6000,8,31543"
+HKR,"TIMINGS\1600,1200\60Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1600,1200\65Hz",,,"2160,1664,1856,1250,1201,1204,0,175500000,6500,8,33393"
+HKR,"TIMINGS\1600,1200\65Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1600,1200\70Hz",,,"2160,1664,1856,1250,1201,1204,0,189000000,7000,8,35243"
+HKR,"TIMINGS\1600,1200\70Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1600,1200\75Hz",,,"2160,1664,1856,1250,1201,1204,0,202500000,7500,8,37093"
+HKR,"TIMINGS\1600,1200\75Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1600,1200\85Hz",,,"2160,1664,1856,1250,1201,1204,0,229500000,8500,8,40793"
+HKR,"TIMINGS\1600,1200\85Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1600,1200\100Hz",,,"GTF"
+HKR,"TIMINGS\1600,1200\100Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+HKR,"TIMINGS\1920,1080\60Hz",,,"2368,1952,2096,1125,1083,1086,12,159840000,6000,8,31714"
+HKR,"TIMINGS\1920,1080\60Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1920,1080\72Hz",,,"2560,1968,2184,1172,1083,1086,12,216023000,7200,8,38875"
+HKR,"TIMINGS\1920,1080\72Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1920,1080\75Hz",,,"GTF"
+HKR,"TIMINGS\1920,1080\75Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1920,1080\85Hz",,,"GTF"
+HKR,"TIMINGS\1920,1080\85Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+HKR,"TIMINGS\1920,1440\60Hz",,,"2600,2048,2256,1500,1441,1444,4,234000000,6000,8,40701"
+HKR,"TIMINGS\1920,1440\60Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1920,1440\75Hz",,,"2640,2064,2288,1500,1441,1444,4,297000000,7500,8,48589"
+HKR,"TIMINGS\1920,1440\75Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+;NOTE: 2046x1536 is NOT supported in 32 bit modes
+HKR,"TIMINGS\2046,1536\60Hz",,,"2504,2096,2312,1597,1537,1540,0,239933000,6000,8,41587"
+HKR,"TIMINGS\2046,1536\60Hz",Supported,,"BPP+8+16+24,DDRAW"
+HKR,"TIMINGS\2046,1536\75Hz",,,"2656,2112,2328,1606,1537,1540,0,319915000,7500,8,51278"
+HKR,"TIMINGS\2046,1536\75Hz",Supported,,"BPP+8+16+24,DDRAW"
+
+; Windows Desktop Modes end
+
+
+; Windows Direct Draw Modes begin
+; NOTE: 8 and 16 bit 320x200, 320x240, 400x300, 512x384, and 640x400 are
+;       REQUIRED by WHQL!
+
+HKR,"TIMINGS\320,200\70Hz",,,"400,328,376,449,413,415,5,12587500,7009,8,10661"
+HKR,"TIMINGS\320,200\70Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\320,200\85Hz",,,"416,336,368,445,401,404,5,15750000,8508,8,12466"
+HKR,"TIMINGS\320,200\85Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+HKR,"TIMINGS\320,240\60Hz",,,"400,328,376,525,490,492,13,12587500,5994,8,9884"
+HKR,"TIMINGS\320,240\60Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\320,240\72Hz",,,"416,336,352,520,489,492,13,15750000,7281,8,11482"
+HKR,"TIMINGS\320,240\72Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\320,240\75Hz",,,"424,328,360,500,481,484,13,15901442,7501,8,11689"
+HKR,"TIMINGS\320,240\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\320,240\85Hz",,,"416,344,376,509,481,484,13,18000000,8501,8,12932"
+HKR,"TIMINGS\320,240\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\400,300\60Hz",,,"528,424,488,628,601,605,1,20000000,6032,8,11315"
+HKR,"TIMINGS\400,300\60Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\400,300\72Hz",,,"520,432,488,666,637,643,1,25000000,7219,8,13114"
+HKR,"TIMINGS\400,300\72Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\400,300\75Hz",,,"528,408,448,625,601,604,1,24750000,7500,8,13198"
+HKR,"TIMINGS\400,300\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\400,300\85Hz",,,"528,416,448,631,601,604,1,28341346,8507,8,14578"
+HKR,"TIMINGS\400,300\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\512,384\60Hz",,,"672,528,592,806,771,777,13,32500000,6000,8,13417"
+HKR,"TIMINGS\512,384\60Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\512,384\70Hz",,,"664,528,592,806,771,777,13,37500000,7007,8,14916"
+HKR,"TIMINGS\512,384\70Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\512,384\75Hz",,,"656,520,568,800,769,772,13,39375000,7503,8,15546"
+HKR,"TIMINGS\512,384\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\512,384\85Hz",,,"688,536,584,808,769,772,13,47250000,8500,8,17403"
+HKR,"TIMINGS\512,384\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\640,400\70Hz",,,"800,656,752,449,413,415,4,25175000,7009,8,13023"
+HKR,"TIMINGS\640,400\70Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\640,400\85Hz",,,"832,672,736,445,401,404,4,31500000,8508,8,15160"
+HKR,"TIMINGS\640,400\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\720,480\60Hz",,,"896,736,856,525,490,492,12,28196000,5994,8,12828"
+HKR,"TIMINGS\720,480\60Hz",Supported,,"BPP+8+16+24+32,DDRAW,TVO_DESK,TVO_DD,NTSC,PAL"
+HKR,"TIMINGS\720,480\72Hz",,,"920,736,872,520,489,492,12,34832000,7281,8,14813"
+HKR,"TIMINGS\720,480\72Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\720,480\85Hz",,,"936,784,848,509,481,484,12,40500000,8501,8,16613"
+HKR,"TIMINGS\720,480\85Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+HKR,"TIMINGS\720,576\72Hz",,,"936,752,848,642,578,582,0,43266000,7200,8,15872"
+HKR,"TIMINGS\720,576\72Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\720,576\100Hz",,,"936,752,848,642,578,582,0,60089400,10000,8,20354"
+HKR,"TIMINGS\720,576\100Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+HKR,"TIMINGS\960,720\60Hz",,,"GTF"
+HKR,"TIMINGS\960,720\60Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\960,720\75Hz",,,"GTF"
+HKR,"TIMINGS\960,720\75Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\960,720\85Hz",,,"GTF"
+HKR,"TIMINGS\960,720\85Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+HKR,"TIMINGS\1280,960\60Hz",,,"1800,1376,1488,1000,961,964,0,108000000,6000,8,24397"
+HKR,"TIMINGS\1280,960\60Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1280,960\75Hz",,,"GTF"
+HKR,"TIMINGS\1280,960\75Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1280,960\85Hz",,,"1728,1344,1504,1011,961,964,0,148500000,8500,8,30870"
+HKR,"TIMINGS\1280,960\85Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+HKR,"TIMINGS\1600,1024\60Hz",,,"2096,1632,1792,1070,1027,1030,12,134563000,6000,8,28123"
+HKR,"TIMINGS\1600,1024\60Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1600,1024\76Hz",,,"2096,1632,1792,1070,1027,1030,12,170447000,7600,8,33311"
+HKR,"TIMINGS\1600,1024\76Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1600,1024\85Hz",,,"GTF"
+HKR,"TIMINGS\1600,1024\85Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+HKR,"TIMINGS\1792,1344\60Hz",,,"2448,1920,2120,1394,1345,1348,4,204750000,6000,8,37062"
+HKR,"TIMINGS\1792,1344\60Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1792,1344\75Hz",,,"2456,1888,2104,1417,1345,1348,4,261000000,7500,8,44170"
+HKR,"TIMINGS\1792,1344\75Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+HKR,"TIMINGS\1856,1392\60Hz",,,"2528,1952,2176,1439,1393,1396,4,218250000,6000,8,38721"
+HKR,"TIMINGS\1856,1392\60Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1856,1392\75Hz",,,"2560,1984,2208,1500,1393,1396,4,288000000,7500,8,47353"
+HKR,"TIMINGS\1856,1392\75Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+HKR,"TIMINGS\1920,1200\60Hz",,,"2584,1984,2240,1250,1203,1206,12,193800000,6000,8,35867"
+HKR,"TIMINGS\1920,1200\60Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1920,1200\76Hz",,,"2584,1984,2240,1250,1203,1206,12,245480000,7600,8,42635"
+HKR,"TIMINGS\1920,1200\76Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+HKR,"TIMINGS\1920,1200\85Hz",,,"GTF"
+HKR,"TIMINGS\1920,1200\85Hz",Supported,,"BPP+8+16+24+32,DDRAW"
+
+; Windows Direct Draw Modes end
+
+HKR,TIMINGS,UseGTF,,0
+
+[Prev.DelReg]
+HKR,TIMINGS
+
+;
+;       ------------------------------------------------------------------------
+;                               COMPAQ MODE DETAIL ENDS
+;       ------------------------------------------------------------------------
+
+
+
+;       ------------------------------------------------------------------------
+;                               DELL MODE DETAIL BEGINS
+;       ------------------------------------------------------------------------
+;
+;
+
+; Windows Desktop Modes begin
+
+HKR,"TIMINGS\640,480\60Hz",,,"800,656,752,525,490,492,12,25175000,5994,8,12246"
+HKR,"TIMINGS\640,480\60Hz",Supported,,"BPP+8+16+32,DDRAW,TVO_DESK,TVO_DD,NTSC,PAL,DFP_DESK,DFP_DD"
+HKR,"TIMINGS\640,480\75Hz",,,"840,656,720,500,481,484,12,31500000,7500,8,14351"
+HKR,"TIMINGS\640,480\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\640,480\85Hz",,,"832,696,752,509,481,484,12,36000000,8501,8,15875"
+HKR,"TIMINGS\640,480\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\800,600\60Hz",,,"1056,840,968,628,601,605,0,40000000,6032,8,14738"
+HKR,"TIMINGS\800,600\60Hz",Supported,,"BPP+8+16+32,DDRAW,TVO_DESK,TVO_DD,NTSC,PAL,DFP_DESK,DFP_DD"
+HKR,"TIMINGS\800,600\75Hz",,,"1056,816,896,625,601,604,0,49500000,7500,8,17056"
+HKR,"TIMINGS\800,600\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\800,600\85Hz",,,"1048,832,896,631,601,604,0,56250000,8506,8,18751"
+HKR,"TIMINGS\800,600\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\1024,768\60Hz",,,"1344,1048,1184,806,771,777,12,65000000,6000,8,18450"
+HKR,"TIMINGS\1024,768\60Hz",Supported,,"BPP+8+16+32,DDRAW,DFP_DESK,DFP_DD"
+HKR,"TIMINGS\1024,768\75Hz",,,"1312,1040,1136,800,769,772,0,78750000,7503,8,21215"
+HKR,"TIMINGS\1024,768\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1024,768\85Hz",,,"1376,1072,1168,808,769,772,0,94500000,8500,8,23923"
+HKR,"TIMINGS\1024,768\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\1280,1024\60Hz",,,"1688,1328,1440,1066,1025,1028,0,108000000,6002,8,24385"
+HKR,"TIMINGS\1280,1024\60Hz",Supported,,"BPP+8+16+32,DDRAW,DFP_DESK,DFP_DD"
+HKR,"TIMINGS\1280,1024\75Hz",,,"1688,1296,1440,1066,1025,1028,0,135000000,7502,8,28553"
+HKR,"TIMINGS\1280,1024\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1280,1024\85Hz",,,"1728,1344,1504,1072,1025,1028,0,157500000,8502,8,31961"
+HKR,"TIMINGS\1280,1024\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\1600,1200\60Hz",,,"2160,1664,1856,1250,1201,1204,0,162000000,6000,8,31543"
+HKR,"TIMINGS\1600,1200\60Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1600,1200\75Hz",,,"2160,1664,1856,1250,1201,1204,0,202500000,7500,8,37093"
+HKR,"TIMINGS\1600,1200\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\1600,1200\85Hz",,,"2160,1664,1856,1250,1201,1204,0,229500000,8500,8,40793"
+HKR,"TIMINGS\1600,1200\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+; Windows Desktop Modes end
+
+
+; Windows Direct Draw Modes begin
+; NOTE: 8 and 16 bit 320x200, 320x240, 400x300, 512x384, and 640x400 are
+;       REQUIRED by WHQL!
+
+HKR,"TIMINGS\320,200\85Hz",,,"416,336,368,445,401,404,5,15750000,8508,8,12466"
+HKR,"TIMINGS\320,200\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\320,240\60Hz",,,"400,328,376,525,490,492,13,12587500,5994,8,9884"
+HKR,"TIMINGS\320,240\60Hz",Supported,,"BPP+8+16+32,DDRAW,TVO_DD,NTSC,PAL"
+HKR,"TIMINGS\320,240\75Hz",,,"424,328,360,500,481,484,13,15901442,7501,8,11689"
+HKR,"TIMINGS\320,240\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\320,240\85Hz",,,"416,344,376,509,481,484,13,18000000,8501,8,12932"
+HKR,"TIMINGS\320,240\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\400,300\60Hz",,,"528,424,488,628,601,605,1,20000000,6032,8,11315"
+HKR,"TIMINGS\400,300\60Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\400,300\75Hz",,,"528,408,448,625,601,604,1,24750000,7500,8,13198"
+HKR,"TIMINGS\400,300\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\400,300\85Hz",,,"528,416,448,631,601,604,1,28341346,8507,8,14578"
+HKR,"TIMINGS\400,300\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\512,384\60Hz",,,"672,528,592,806,771,777,13,32500000,6000,8,13417"
+HKR,"TIMINGS\512,384\60Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\512,384\75Hz",,,"656,520,568,800,769,772,13,39375000,7503,8,15546"
+HKR,"TIMINGS\512,384\75Hz",Supported,,"BPP+8+16+32,DDRAW"
+HKR,"TIMINGS\512,384\85Hz",,,"688,536,584,808,769,772,13,47250000,8500,8,17403"
+HKR,"TIMINGS\512,384\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+HKR,"TIMINGS\640,400\85Hz",,,"832,672,736,445,401,404,4,31500000,8508,8,15160"
+HKR,"TIMINGS\640,400\85Hz",Supported,,"BPP+8+16+32,DDRAW"
+
+; Windows Direct Draw Modes end
+
+HKR,TIMINGS,UseGTF,,0
+
+[Prev.DelReg]
+HKR,TIMINGS
+
+;
+;       ------------------------------------------------------------------------
+;                               DELL MODE DETAIL ENDS
+;       ------------------------------------------------------------------------

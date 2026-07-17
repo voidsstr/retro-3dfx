@@ -1,0 +1,2812 @@
+	TITLE	..\tcutils.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+FLAT	GROUP _DATA, CONST, _BSS
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+_DATA	SEGMENT
+_f_255_reverse_lookup DD 0437f0000r		; 255
+	DD	0437e0000r			; 254
+	DD	0437d0000r			; 253
+	DD	0437c0000r			; 252
+	DD	0437b0000r			; 251
+	DD	0437a0000r			; 250
+	DD	043790000r			; 249
+	DD	043780000r			; 248
+	DD	043770000r			; 247
+	DD	043760000r			; 246
+	DD	043750000r			; 245
+	DD	043740000r			; 244
+	DD	043730000r			; 243
+	DD	043720000r			; 242
+	DD	043710000r			; 241
+	DD	043700000r			; 240
+	DD	0436f0000r			; 239
+	DD	0436e0000r			; 238
+	DD	0436d0000r			; 237
+	DD	0436c0000r			; 236
+	DD	0436b0000r			; 235
+	DD	0436a0000r			; 234
+	DD	043690000r			; 233
+	DD	043680000r			; 232
+	DD	043670000r			; 231
+	DD	043660000r			; 230
+	DD	043650000r			; 229
+	DD	043640000r			; 228
+	DD	043630000r			; 227
+	DD	043620000r			; 226
+	DD	043610000r			; 225
+	DD	043600000r			; 224
+	DD	0435f0000r			; 223
+	DD	0435e0000r			; 222
+	DD	0435d0000r			; 221
+	DD	0435c0000r			; 220
+	DD	0435b0000r			; 219
+	DD	0435a0000r			; 218
+	DD	043590000r			; 217
+	DD	043580000r			; 216
+	DD	043570000r			; 215
+	DD	043560000r			; 214
+	DD	043550000r			; 213
+	DD	043540000r			; 212
+	DD	043530000r			; 211
+	DD	043520000r			; 210
+	DD	043510000r			; 209
+	DD	043500000r			; 208
+	DD	0434f0000r			; 207
+	DD	0434e0000r			; 206
+	DD	0434d0000r			; 205
+	DD	0434c0000r			; 204
+	DD	0434b0000r			; 203
+	DD	0434a0000r			; 202
+	DD	043490000r			; 201
+	DD	043480000r			; 200
+	DD	043470000r			; 199
+	DD	043460000r			; 198
+	DD	043450000r			; 197
+	DD	043440000r			; 196
+	DD	043430000r			; 195
+	DD	043420000r			; 194
+	DD	043410000r			; 193
+	DD	043400000r			; 192
+	DD	0433f0000r			; 191
+	DD	0433e0000r			; 190
+	DD	0433d0000r			; 189
+	DD	0433c0000r			; 188
+	DD	0433b0000r			; 187
+	DD	0433a0000r			; 186
+	DD	043390000r			; 185
+	DD	043380000r			; 184
+	DD	043370000r			; 183
+	DD	043360000r			; 182
+	DD	043350000r			; 181
+	DD	043340000r			; 180
+	DD	043330000r			; 179
+	DD	043320000r			; 178
+	DD	043310000r			; 177
+	DD	043300000r			; 176
+	DD	0432f0000r			; 175
+	DD	0432e0000r			; 174
+	DD	0432d0000r			; 173
+	DD	0432c0000r			; 172
+	DD	0432b0000r			; 171
+	DD	0432a0000r			; 170
+	DD	043290000r			; 169
+	DD	043280000r			; 168
+	DD	043270000r			; 167
+	DD	043260000r			; 166
+	DD	043250000r			; 165
+	DD	043240000r			; 164
+	DD	043230000r			; 163
+	DD	043220000r			; 162
+	DD	043210000r			; 161
+	DD	043200000r			; 160
+	DD	0431f0000r			; 159
+	DD	0431e0000r			; 158
+	DD	0431d0000r			; 157
+	DD	0431c0000r			; 156
+	DD	0431b0000r			; 155
+	DD	0431a0000r			; 154
+	DD	043190000r			; 153
+	DD	043180000r			; 152
+	DD	043170000r			; 151
+	DD	043160000r			; 150
+	DD	043150000r			; 149
+	DD	043140000r			; 148
+	DD	043130000r			; 147
+	DD	043120000r			; 146
+	DD	043110000r			; 145
+	DD	043100000r			; 144
+	DD	0430f0000r			; 143
+	DD	0430e0000r			; 142
+	DD	0430d0000r			; 141
+	DD	0430c0000r			; 140
+	DD	0430b0000r			; 139
+	DD	0430a0000r			; 138
+	DD	043090000r			; 137
+	DD	043080000r			; 136
+	DD	043070000r			; 135
+	DD	043060000r			; 134
+	DD	043050000r			; 133
+	DD	043040000r			; 132
+	DD	043030000r			; 131
+	DD	043020000r			; 130
+	DD	043010000r			; 129
+	DD	043000000r			; 128
+	DD	042fe0000r			; 127
+	DD	042fc0000r			; 126
+	DD	042fa0000r			; 125
+	DD	042f80000r			; 124
+	DD	042f60000r			; 123
+	DD	042f40000r			; 122
+	DD	042f20000r			; 121
+	DD	042f00000r			; 120
+	DD	042ee0000r			; 119
+	DD	042ec0000r			; 118
+	DD	042ea0000r			; 117
+	DD	042e80000r			; 116
+	DD	042e60000r			; 115
+	DD	042e40000r			; 114
+	DD	042e20000r			; 113
+	DD	042e00000r			; 112
+	DD	042de0000r			; 111
+	DD	042dc0000r			; 110
+	DD	042da0000r			; 109
+	DD	042d80000r			; 108
+	DD	042d60000r			; 107
+	DD	042d40000r			; 106
+	DD	042d20000r			; 105
+	DD	042d00000r			; 104
+	DD	042ce0000r			; 103
+	DD	042cc0000r			; 102
+	DD	042ca0000r			; 101
+	DD	042c80000r			; 100
+	DD	042c60000r			; 99
+	DD	042c40000r			; 98
+	DD	042c20000r			; 97
+	DD	042c00000r			; 96
+	DD	042be0000r			; 95
+	DD	042bc0000r			; 94
+	DD	042ba0000r			; 93
+	DD	042b80000r			; 92
+	DD	042b60000r			; 91
+	DD	042b40000r			; 90
+	DD	042b20000r			; 89
+	DD	042b00000r			; 88
+	DD	042ae0000r			; 87
+	DD	042ac0000r			; 86
+	DD	042aa0000r			; 85
+	DD	042a80000r			; 84
+	DD	042a60000r			; 83
+	DD	042a40000r			; 82
+	DD	042a20000r			; 81
+	DD	042a00000r			; 80
+	DD	0429e0000r			; 79
+	DD	0429c0000r			; 78
+	DD	0429a0000r			; 77
+	DD	042980000r			; 76
+	DD	042960000r			; 75
+	DD	042940000r			; 74
+	DD	042920000r			; 73
+	DD	042900000r			; 72
+	DD	0428e0000r			; 71
+	DD	0428c0000r			; 70
+	DD	0428a0000r			; 69
+	DD	042880000r			; 68
+	DD	042860000r			; 67
+	DD	042840000r			; 66
+	DD	042820000r			; 65
+	DD	042800000r			; 64
+	DD	0427c0000r			; 63
+	DD	042780000r			; 62
+	DD	042740000r			; 61
+	DD	042700000r			; 60
+	DD	0426c0000r			; 59
+	DD	042680000r			; 58
+	DD	042640000r			; 57
+	DD	042600000r			; 56
+	DD	0425c0000r			; 55
+	DD	042580000r			; 54
+	DD	042540000r			; 53
+	DD	042500000r			; 52
+	DD	0424c0000r			; 51
+	DD	042480000r			; 50
+	DD	042440000r			; 49
+	DD	042400000r			; 48
+	DD	0423c0000r			; 47
+	DD	042380000r			; 46
+	DD	042340000r			; 45
+	DD	042300000r			; 44
+	DD	0422c0000r			; 43
+	DD	042280000r			; 42
+	DD	042240000r			; 41
+	DD	042200000r			; 40
+	DD	0421c0000r			; 39
+	DD	042180000r			; 38
+	DD	042140000r			; 37
+	DD	042100000r			; 36
+	DD	0420c0000r			; 35
+	DD	042080000r			; 34
+	DD	042040000r			; 33
+	DD	042000000r			; 32
+	DD	041f80000r			; 31
+	DD	041f00000r			; 30
+	DD	041e80000r			; 29
+	DD	041e00000r			; 28
+	DD	041d80000r			; 27
+	DD	041d00000r			; 26
+	DD	041c80000r			; 25
+	DD	041c00000r			; 24
+	DD	041b80000r			; 23
+	DD	041b00000r			; 22
+	DD	041a80000r			; 21
+	DD	041a00000r			; 20
+	DD	041980000r			; 19
+	DD	041900000r			; 18
+	DD	041880000r			; 17
+	DD	041800000r			; 16
+	DD	041700000r			; 15
+	DD	041600000r			; 14
+	DD	041500000r			; 13
+	DD	041400000r			; 12
+	DD	041300000r			; 11
+	DD	041200000r			; 10
+	DD	041100000r			; 9
+	DD	041000000r			; 8
+	DD	040e00000r			; 7
+	DD	040c00000r			; 6
+	DD	040a00000r			; 5
+	DD	040800000r			; 4
+	DD	040400000r			; 3
+	DD	040000000r			; 2
+	DD	03f800000r			; 1
+	DD	000000000r			; 0
+_DATA	ENDS
+PUBLIC	_DecodeBlockRGB
+_TEXT	SEGMENT
+_pblockSrc$ = 8
+_colorDst$ = 12
+_lev$ = -4
+_clut$ = -28
+_pixbm$ = -32
+_pixel$ = -8
+_primary$ = -12
+_temp0$36094 = -36
+_temp1$36095 = -40
+_temp0$36102 = -44
+_temp1$36103 = -48
+_DecodeBlockRGB PROC NEAR
+
+; 91   : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	83 ec 30	 sub	 esp, 48			; 00000030H
+  00006	56		 push	 esi
+
+; 92   :    int         lev;
+; 93   :    DXT_COLOR   clut[4];
+; 94   :    PIXBM       pixbm;
+; 95   :    int         pixel;
+; 96   :    int         primary;
+; 97   : 
+; 98   :    // if source block is invalid, ...
+; 99   :    if (pblockSrc == 0)
+
+  00007	83 7d 08 00	 cmp	 DWORD PTR _pblockSrc$[ebp], 0
+  0000b	75 05		 jne	 SHORT $L36089
+
+; 100  :       return;
+
+  0000d	e9 b5 01 00 00	 jmp	 $L36107
+$L36089:
+
+; 101  : 
+; 102  :    // determine the number of color levels in the block
+; 103  :    lev = (pblockSrc->rgb0 <= pblockSrc->rgb1) ? 2 : 3;
+
+  00012	8b 45 08	 mov	 eax, DWORD PTR _pblockSrc$[ebp]
+  00015	33 c9		 xor	 ecx, ecx
+  00017	66 8b 08	 mov	 cx, WORD PTR [eax]
+  0001a	8b 55 08	 mov	 edx, DWORD PTR _pblockSrc$[ebp]
+  0001d	33 c0		 xor	 eax, eax
+  0001f	66 8b 42 02	 mov	 ax, WORD PTR [edx+2]
+  00023	33 d2		 xor	 edx, edx
+  00025	3b c8		 cmp	 ecx, eax
+  00027	0f 9f c2	 setg	 dl
+  0002a	83 c2 02	 add	 edx, 2
+  0002d	89 55 fc	 mov	 DWORD PTR _lev$[ebp], edx
+
+; 104  : 
+; 105  :    // Fill extrema values into pixel code lookup table.
+; 106  :    RGBToColor(&pblockSrc->rgb0, &clut[0]);
+
+  00030	8d 45 e4	 lea	 eax, DWORD PTR _clut$[ebp]
+  00033	50		 push	 eax
+  00034	8b 4d 08	 mov	 ecx, DWORD PTR _pblockSrc$[ebp]
+  00037	51		 push	 ecx
+  00038	e8 00 00 00 00	 call	 _RGBToColor
+  0003d	83 c4 08	 add	 esp, 8
+
+; 107  :    RGBToColor(&pblockSrc->rgb1, &clut[1]);
+
+  00040	8d 55 e8	 lea	 edx, DWORD PTR _clut$[ebp+4]
+  00043	52		 push	 edx
+  00044	8b 45 08	 mov	 eax, DWORD PTR _pblockSrc$[ebp]
+  00047	83 c0 02	 add	 eax, 2
+  0004a	50		 push	 eax
+  0004b	e8 00 00 00 00	 call	 _RGBToColor
+  00050	83 c4 08	 add	 esp, 8
+
+; 108  : 
+; 109  :    clut[0].rgba[ALFA] =
+; 110  :    clut[1].rgba[ALFA] =
+; 111  :    clut[2].rgba[ALFA] = 255;
+
+  00053	c6 45 ef ff	 mov	 BYTE PTR _clut$[ebp+11], 255 ; 000000ffH
+  00057	8a 4d ef	 mov	 cl, BYTE PTR _clut$[ebp+11]
+  0005a	88 4d eb	 mov	 BYTE PTR _clut$[ebp+7], cl
+  0005d	8a 55 eb	 mov	 dl, BYTE PTR _clut$[ebp+7]
+  00060	88 55 e7	 mov	 BYTE PTR _clut$[ebp+3], dl
+
+; 112  : 
+; 113  :    if (lev == 3)
+
+  00063	83 7d fc 03	 cmp	 DWORD PTR _lev$[ebp], 3
+  00067	0f 85 82 00 00
+	00		 jne	 $L36090
+
+; 115  :       for (primary = 0; primary < NUM_PRIMARIES; ++primary)
+
+  0006d	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _primary$[ebp], 0
+  00074	eb 09		 jmp	 SHORT $L36091
+$L36092:
+  00076	8b 45 f4	 mov	 eax, DWORD PTR _primary$[ebp]
+  00079	83 c0 01	 add	 eax, 1
+  0007c	89 45 f4	 mov	 DWORD PTR _primary$[ebp], eax
+$L36091:
+  0007f	83 7d f4 03	 cmp	 DWORD PTR _primary$[ebp], 3
+  00083	7d 64		 jge	 SHORT $L36093
+
+; 117  :          WORD temp0 = clut[0].rgba[primary];   // jvanaken fixed overflow bug
+
+  00085	8b 4d f4	 mov	 ecx, DWORD PTR _primary$[ebp]
+  00088	66 0f b6 54 0d
+	e4		 movzx	 dx, BYTE PTR _clut$[ebp+ecx]
+  0008e	66 89 55 dc	 mov	 WORD PTR _temp0$36094[ebp], dx
+
+; 118  :          WORD temp1 = clut[1].rgba[primary];
+
+  00092	8b 45 f4	 mov	 eax, DWORD PTR _primary$[ebp]
+  00095	66 0f b6 4c 05
+	e8		 movzx	 cx, BYTE PTR _clut$[ebp+eax+4]
+  0009b	66 89 4d d8	 mov	 WORD PTR _temp1$36095[ebp], cx
+
+; 119  :          clut[2].rgba[primary] = (BYTE)((2*temp0 + temp1 + 1)/3);
+
+  0009f	8b 55 dc	 mov	 edx, DWORD PTR _temp0$36094[ebp]
+  000a2	81 e2 ff ff 00
+	00		 and	 edx, 65535		; 0000ffffH
+  000a8	8b 45 d8	 mov	 eax, DWORD PTR _temp1$36095[ebp]
+  000ab	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  000b0	8d 44 50 01	 lea	 eax, DWORD PTR [eax+edx*2+1]
+  000b4	99		 cdq
+  000b5	b9 03 00 00 00	 mov	 ecx, 3
+  000ba	f7 f9		 idiv	 ecx
+  000bc	8b 55 f4	 mov	 edx, DWORD PTR _primary$[ebp]
+  000bf	88 44 15 ec	 mov	 BYTE PTR _clut$[ebp+edx+8], al
+
+; 120  :          clut[3].rgba[primary] = (BYTE)((temp0 + 2*temp1 + 1)/3);
+
+  000c3	8b 45 dc	 mov	 eax, DWORD PTR _temp0$36094[ebp]
+  000c6	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  000cb	8b 4d d8	 mov	 ecx, DWORD PTR _temp1$36095[ebp]
+  000ce	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  000d4	8d 44 48 01	 lea	 eax, DWORD PTR [eax+ecx*2+1]
+  000d8	99		 cdq
+  000d9	b9 03 00 00 00	 mov	 ecx, 3
+  000de	f7 f9		 idiv	 ecx
+  000e0	8b 55 f4	 mov	 edx, DWORD PTR _primary$[ebp]
+  000e3	88 44 15 f0	 mov	 BYTE PTR _clut$[ebp+edx+12], al
+
+; 121  :       }
+
+  000e7	eb 8d		 jmp	 SHORT $L36092
+$L36093:
+
+; 122  :       clut[3].rgba[ALFA] = 255;
+
+  000e9	c6 45 f3 ff	 mov	 BYTE PTR _clut$[ebp+15], 255 ; 000000ffH
+
+; 124  :    else
+
+  000ed	eb 5f		 jmp	 SHORT $L36098
+$L36090:
+
+; 126  :       for (primary = 0; primary < NUM_PRIMARIES; ++primary)
+
+  000ef	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _primary$[ebp], 0
+  000f6	eb 09		 jmp	 SHORT $L36099
+$L36100:
+  000f8	8b 45 f4	 mov	 eax, DWORD PTR _primary$[ebp]
+  000fb	83 c0 01	 add	 eax, 1
+  000fe	89 45 f4	 mov	 DWORD PTR _primary$[ebp], eax
+$L36099:
+  00101	83 7d f4 03	 cmp	 DWORD PTR _primary$[ebp], 3
+  00105	7d 43		 jge	 SHORT $L36101
+
+; 128  :          WORD temp0 = clut[0].rgba[primary];   // jvanaken fixed overflow bug
+
+  00107	8b 4d f4	 mov	 ecx, DWORD PTR _primary$[ebp]
+  0010a	66 0f b6 54 0d
+	e4		 movzx	 dx, BYTE PTR _clut$[ebp+ecx]
+  00110	66 89 55 d4	 mov	 WORD PTR _temp0$36102[ebp], dx
+
+; 129  :          WORD temp1 = clut[1].rgba[primary];
+
+  00114	8b 45 f4	 mov	 eax, DWORD PTR _primary$[ebp]
+  00117	66 0f b6 4c 05
+	e8		 movzx	 cx, BYTE PTR _clut$[ebp+eax+4]
+  0011d	66 89 4d d0	 mov	 WORD PTR _temp1$36103[ebp], cx
+
+; 130  :          clut[2].rgba[primary] = (BYTE)((temp0 + temp1)/2);
+
+  00121	8b 45 d4	 mov	 eax, DWORD PTR _temp0$36102[ebp]
+  00124	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  00129	8b 55 d0	 mov	 edx, DWORD PTR _temp1$36103[ebp]
+  0012c	81 e2 ff ff 00
+	00		 and	 edx, 65535		; 0000ffffH
+  00132	03 c2		 add	 eax, edx
+  00134	99		 cdq
+  00135	2b c2		 sub	 eax, edx
+  00137	d1 f8		 sar	 eax, 1
+  00139	8b 4d f4	 mov	 ecx, DWORD PTR _primary$[ebp]
+  0013c	88 44 0d ec	 mov	 BYTE PTR _clut$[ebp+ecx+8], al
+
+; 131  :          clut[3].rgba[primary] = 0;     // jvanaken added this
+
+  00140	8b 55 f4	 mov	 edx, DWORD PTR _primary$[ebp]
+  00143	c6 44 15 f0 00	 mov	 BYTE PTR _clut$[ebp+edx+12], 0
+
+; 132  :       }
+
+  00148	eb ae		 jmp	 SHORT $L36100
+$L36101:
+
+; 133  :       clut[3].rgba[ALFA] = 0;
+
+  0014a	c6 45 f3 00	 mov	 BYTE PTR _clut$[ebp+15], 0
+$L36098:
+
+; 135  : 
+; 136  :    // munge a local copy
+; 137  :    pixbm = pblockSrc->pixbm;
+
+  0014e	8b 45 08	 mov	 eax, DWORD PTR _pblockSrc$[ebp]
+  00151	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  00154	89 4d e0	 mov	 DWORD PTR _pixbm$[ebp], ecx
+
+; 138  : 
+; 139  :    // Look up the actual pixel color in the table.
+; 140  :    for (pixel=0; pixel < DXT_BLOCK_PIXELS; ++pixel)
+
+  00157	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _pixel$[ebp], 0
+  0015e	eb 09		 jmp	 SHORT $L36105
+$L36106:
+  00160	8b 55 f8	 mov	 edx, DWORD PTR _pixel$[ebp]
+  00163	83 c2 01	 add	 edx, 1
+  00166	89 55 f8	 mov	 DWORD PTR _pixel$[ebp], edx
+$L36105:
+  00169	83 7d f8 10	 cmp	 DWORD PTR _pixel$[ebp], 16 ; 00000010H
+  0016d	7d 58		 jge	 SHORT $L36107
+
+; 142  :       // lookup color from pixel bitmap
+; 143  :       for (primary = 0; primary < NUM_PRIMARIES; ++primary)
+
+  0016f	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _primary$[ebp], 0
+  00176	eb 09		 jmp	 SHORT $L36108
+$L36109:
+  00178	8b 45 f4	 mov	 eax, DWORD PTR _primary$[ebp]
+  0017b	83 c0 01	 add	 eax, 1
+  0017e	89 45 f4	 mov	 DWORD PTR _primary$[ebp], eax
+$L36108:
+  00181	83 7d f4 03	 cmp	 DWORD PTR _primary$[ebp], 3
+  00185	7d 21		 jge	 SHORT $L36110
+
+; 144  :          colorDst[pixel].rgba[primary] = clut[pixbm & 3].rgba[primary];
+
+  00187	8b 4d e0	 mov	 ecx, DWORD PTR _pixbm$[ebp]
+  0018a	83 e1 03	 and	 ecx, 3
+  0018d	8d 54 8d e4	 lea	 edx, DWORD PTR _clut$[ebp+ecx*4]
+  00191	8b 45 f8	 mov	 eax, DWORD PTR _pixel$[ebp]
+  00194	8b 4d 0c	 mov	 ecx, DWORD PTR _colorDst$[ebp]
+  00197	8d 04 81	 lea	 eax, DWORD PTR [ecx+eax*4]
+  0019a	8b 4d f4	 mov	 ecx, DWORD PTR _primary$[ebp]
+  0019d	8b 75 f4	 mov	 esi, DWORD PTR _primary$[ebp]
+  001a0	8a 14 32	 mov	 dl, BYTE PTR [edx+esi]
+  001a3	88 14 08	 mov	 BYTE PTR [eax+ecx], dl
+  001a6	eb d0		 jmp	 SHORT $L36109
+$L36110:
+
+; 145  : 
+; 146  :       colorDst[pixel].rgba[ALFA] = clut[pixbm & 3].rgba[ALFA];
+
+  001a8	8b 45 e0	 mov	 eax, DWORD PTR _pixbm$[ebp]
+  001ab	83 e0 03	 and	 eax, 3
+  001ae	8b 4d f8	 mov	 ecx, DWORD PTR _pixel$[ebp]
+  001b1	8b 55 0c	 mov	 edx, DWORD PTR _colorDst$[ebp]
+  001b4	8a 44 85 e7	 mov	 al, BYTE PTR _clut$[ebp+eax*4+3]
+  001b8	88 44 8a 03	 mov	 BYTE PTR [edx+ecx*4+3], al
+
+; 147  : 
+; 148  :       // prepare to extract next index
+; 149  :       pixbm >>= 2;
+
+  001bc	8b 4d e0	 mov	 ecx, DWORD PTR _pixbm$[ebp]
+  001bf	c1 e9 02	 shr	 ecx, 2
+  001c2	89 4d e0	 mov	 DWORD PTR _pixbm$[ebp], ecx
+
+; 150  :    }
+
+  001c5	eb 99		 jmp	 SHORT $L36106
+$L36107:
+
+; 151  : }
+
+  001c7	5e		 pop	 esi
+  001c8	8b e5		 mov	 esp, ebp
+  001ca	5d		 pop	 ebp
+  001cb	c3		 ret	 0
+_DecodeBlockRGB ENDP
+_prgb$ = 8
+_pcolor$ = 12
+_rgb$ = -8
+_color$ = -4
+_RGBToColor PROC NEAR
+
+; 45   : {
+
+  001cc	55		 push	 ebp
+  001cd	8b ec		 mov	 ebp, esp
+  001cf	83 ec 08	 sub	 esp, 8
+
+; 46   :    WORD        rgb;
+; 47   :    DXT_COLOR   color;
+; 48   : 
+; 49   :    rgb = *((WORD *)prgb);
+
+  001d2	8b 45 08	 mov	 eax, DWORD PTR _prgb$[ebp]
+  001d5	66 8b 08	 mov	 cx, WORD PTR [eax]
+  001d8	66 89 4d f8	 mov	 WORD PTR _rgb$[ebp], cx
+
+; 50   : 
+; 51   :    // pick off bits in groups of 5, 6, and 5
+; 52   :    color.rgba[BLU] = (unsigned char) rgb;
+
+  001dc	8a 55 f8	 mov	 dl, BYTE PTR _rgb$[ebp]
+  001df	88 55 fe	 mov	 BYTE PTR _color$[ebp+2], dl
+
+; 53   :    rgb >>= BLU_BITS;
+
+  001e2	66 8b 45 f8	 mov	 ax, WORD PTR _rgb$[ebp]
+  001e6	66 c1 e8 05	 shr	 ax, 5
+  001ea	66 89 45 f8	 mov	 WORD PTR _rgb$[ebp], ax
+
+; 54   :    color.rgba[GRN] = (unsigned char) rgb;
+
+  001ee	8a 4d f8	 mov	 cl, BYTE PTR _rgb$[ebp]
+  001f1	88 4d fd	 mov	 BYTE PTR _color$[ebp+1], cl
+
+; 55   :    rgb >>= GRN_BITS;
+
+  001f4	66 8b 55 f8	 mov	 dx, WORD PTR _rgb$[ebp]
+  001f8	66 c1 ea 06	 shr	 dx, 6
+  001fc	66 89 55 f8	 mov	 WORD PTR _rgb$[ebp], dx
+
+; 56   :    color.rgba[RED] = (unsigned char) rgb;
+
+  00200	8a 45 f8	 mov	 al, BYTE PTR _rgb$[ebp]
+  00203	88 45 fc	 mov	 BYTE PTR _color$[ebp], al
+
+; 57   : 
+; 58   :    // shift primaries into the appropriate LSBs
+; 59   :    color.rgba[BLU] <<= BLU_SHIFT;
+
+  00206	8a 4d fe	 mov	 cl, BYTE PTR _color$[ebp+2]
+  00209	c0 e1 03	 shl	 cl, 3
+  0020c	88 4d fe	 mov	 BYTE PTR _color$[ebp+2], cl
+
+; 60   :    color.rgba[GRN] <<= GRN_SHIFT;
+
+  0020f	8a 55 fd	 mov	 dl, BYTE PTR _color$[ebp+1]
+  00212	c0 e2 02	 shl	 dl, 2
+  00215	88 55 fd	 mov	 BYTE PTR _color$[ebp+1], dl
+
+; 61   :    color.rgba[RED] <<= RED_SHIFT;
+
+  00218	8a 45 fc	 mov	 al, BYTE PTR _color$[ebp]
+  0021b	c0 e0 03	 shl	 al, 3
+  0021e	88 45 fc	 mov	 BYTE PTR _color$[ebp], al
+
+; 62   : 
+; 63   :    // replicate primaries MSBs into LSBs
+; 64   : 
+; 65   :    color.rgba[BLU] |= color.rgba[BLU] >> BLU_BITS;
+
+  00221	8b 4d fe	 mov	 ecx, DWORD PTR _color$[ebp+2]
+  00224	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  0022a	c1 f9 05	 sar	 ecx, 5
+  0022d	8a 55 fe	 mov	 dl, BYTE PTR _color$[ebp+2]
+  00230	0a d1		 or	 dl, cl
+  00232	88 55 fe	 mov	 BYTE PTR _color$[ebp+2], dl
+
+; 66   :    color.rgba[GRN] |= color.rgba[GRN] >> GRN_BITS;
+
+  00235	8b 45 fd	 mov	 eax, DWORD PTR _color$[ebp+1]
+  00238	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  0023d	c1 f8 06	 sar	 eax, 6
+  00240	8a 4d fd	 mov	 cl, BYTE PTR _color$[ebp+1]
+  00243	0a c8		 or	 cl, al
+  00245	88 4d fd	 mov	 BYTE PTR _color$[ebp+1], cl
+
+; 67   :    color.rgba[RED] |= color.rgba[RED] >> RED_BITS;
+
+  00248	8b 55 fc	 mov	 edx, DWORD PTR _color$[ebp]
+  0024b	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00251	c1 fa 05	 sar	 edx, 5
+  00254	8a 45 fc	 mov	 al, BYTE PTR _color$[ebp]
+  00257	0a c2		 or	 al, dl
+  00259	88 45 fc	 mov	 BYTE PTR _color$[ebp], al
+
+; 68   : 
+; 69   :    *pcolor = color;
+
+  0025c	8b 4d 0c	 mov	 ecx, DWORD PTR _pcolor$[ebp]
+  0025f	8b 55 fc	 mov	 edx, DWORD PTR _color$[ebp]
+  00262	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 70   : }
+
+  00264	8b e5		 mov	 esp, ebp
+  00266	5d		 pop	 ebp
+  00267	c3		 ret	 0
+_RGBToColor ENDP
+_TEXT	ENDS
+PUBLIC	_EncodeBlockRGB
+_TEXT	SEGMENT
+_colorSrc$ = 8
+_pblockDst$ = 12
+_EncodeBlockRGB PROC NEAR
+
+; 317  : {
+
+  00268	55		 push	 ebp
+  00269	8b ec		 mov	 ebp, esp
+
+; 318  :    EncodeBlockRGB_i(colorSrc,pblockDst,0);
+
+  0026b	6a 00		 push	 0
+  0026d	8b 45 0c	 mov	 eax, DWORD PTR _pblockDst$[ebp]
+  00270	50		 push	 eax
+  00271	8b 4d 08	 mov	 ecx, DWORD PTR _colorSrc$[ebp]
+  00274	51		 push	 ecx
+  00275	e8 00 00 00 00	 call	 _EncodeBlockRGB_i
+  0027a	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 319  : }
+
+  0027d	5d		 pop	 ebp
+  0027e	c3		 ret	 0
+_EncodeBlockRGB ENDP
+_colorSrc$ = 8
+_pblockDst$ = 12
+_ignore_alpha$ = 16
+_i$ = -64
+_j$ = -68
+_dr$ = -56
+_dg$ = -80
+_db$ = -52
+_td$ = -76
+_dcolor1$ = -48
+_dcolor2$ = -60
+_cdist$ = -88
+_lev$ = -40
+_primary$ = -72
+_nearest$ = -84
+_nIdx$ = -28
+_tclr1$ = -36
+_tclr2$ = -44
+_lcolors$ = -20
+_pkData$ = -32
+_temp0$ = -4
+_temp1$ = -24
+_EncodeBlockRGB_i PROC NEAR
+
+; 158  : {
+
+  0027f	55		 push	 ebp
+  00280	8b ec		 mov	 ebp, esp
+  00282	83 ec 58	 sub	 esp, 88			; 00000058H
+  00285	53		 push	 ebx
+
+; 159  :    int         i, j, dr, dg, db, td;
+; 160  :    int         dcolor1=0, dcolor2=0;
+
+  00286	c7 45 d0 00 00
+	00 00		 mov	 DWORD PTR _dcolor1$[ebp], 0
+  0028d	c7 45 c4 00 00
+	00 00		 mov	 DWORD PTR _dcolor2$[ebp], 0
+
+; 161  :    int         cdist=0;
+
+  00294	c7 45 a8 00 00
+	00 00		 mov	 DWORD PTR _cdist$[ebp], 0
+
+; 162  :    int         lev;
+; 163  :    int         primary;
+; 164  :    int         nearest,nIdx;
+; 165  :    RGB565      tclr1,tclr2;
+; 166  :    DXT_COLOR   lcolors[4];
+; 167  :    DWORD       pkData=0;
+
+  0029b	c7 45 e0 00 00
+	00 00		 mov	 DWORD PTR _pkData$[ebp], 0
+
+; 168  :    WORD        temp0,temp1;
+; 169  : 
+; 170  :    if (colorSrc == 0)
+
+  002a2	83 7d 08 00	 cmp	 DWORD PTR _colorSrc$[ebp], 0
+  002a6	75 05		 jne	 SHORT $L36138
+
+; 171  :       return;
+
+  002a8	e9 88 04 00 00	 jmp	 $L36118
+$L36138:
+
+; 172  : 
+; 173  : 
+; 174  :    lev=3;
+
+  002ad	c7 45 d8 03 00
+	00 00		 mov	 DWORD PTR _lev$[ebp], 3
+
+; 175  : 
+; 176  :    // This is a stupid buble sort/search for the furthest colors,
+; 177  :    // they should be the most extream for compressing.
+; 178  :    for (i=0;i < DXT_BLOCK_PIXELS;i++)
+
+  002b4	c7 45 c0 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  002bb	eb 09		 jmp	 SHORT $L36139
+$L36140:
+  002bd	8b 45 c0	 mov	 eax, DWORD PTR _i$[ebp]
+  002c0	83 c0 01	 add	 eax, 1
+  002c3	89 45 c0	 mov	 DWORD PTR _i$[ebp], eax
+$L36139:
+  002c6	83 7d c0 10	 cmp	 DWORD PTR _i$[ebp], 16	; 00000010H
+  002ca	0f 8d de 00 00
+	00		 jge	 $L36141
+
+; 180  :       if (!ignore_alpha)
+
+  002d0	83 7d 10 00	 cmp	 DWORD PTR _ignore_alpha$[ebp], 0
+  002d4	75 1a		 jne	 SHORT $L36143
+
+; 182  :          if (colorSrc[i].rgba[ALFA] < 128)
+
+  002d6	8b 4d c0	 mov	 ecx, DWORD PTR _i$[ebp]
+  002d9	8b 55 08	 mov	 edx, DWORD PTR _colorSrc$[ebp]
+  002dc	33 c0		 xor	 eax, eax
+  002de	8a 44 8a 03	 mov	 al, BYTE PTR [edx+ecx*4+3]
+  002e2	3d 80 00 00 00	 cmp	 eax, 128		; 00000080H
+  002e7	7d 07		 jge	 SHORT $L36143
+
+; 184  :             lev=2;
+
+  002e9	c7 45 d8 02 00
+	00 00		 mov	 DWORD PTR _lev$[ebp], 2
+$L36143:
+
+; 187  : 
+; 188  :       for(j=i;j < DXT_BLOCK_PIXELS;j++)
+
+  002f0	8b 4d c0	 mov	 ecx, DWORD PTR _i$[ebp]
+  002f3	89 4d bc	 mov	 DWORD PTR _j$[ebp], ecx
+  002f6	eb 09		 jmp	 SHORT $L36144
+$L36145:
+  002f8	8b 55 bc	 mov	 edx, DWORD PTR _j$[ebp]
+  002fb	83 c2 01	 add	 edx, 1
+  002fe	89 55 bc	 mov	 DWORD PTR _j$[ebp], edx
+$L36144:
+  00301	83 7d bc 10	 cmp	 DWORD PTR _j$[ebp], 16	; 00000010H
+  00305	0f 8d 9e 00 00
+	00		 jge	 $L36146
+
+; 190  :          dr = colorSrc[i].rgba[RED] - colorSrc[j].rgba[RED];
+
+  0030b	8b 45 c0	 mov	 eax, DWORD PTR _i$[ebp]
+  0030e	8b 4d 08	 mov	 ecx, DWORD PTR _colorSrc$[ebp]
+  00311	33 d2		 xor	 edx, edx
+  00313	8a 14 81	 mov	 dl, BYTE PTR [ecx+eax*4]
+  00316	8b 45 bc	 mov	 eax, DWORD PTR _j$[ebp]
+  00319	8b 4d 08	 mov	 ecx, DWORD PTR _colorSrc$[ebp]
+  0031c	33 db		 xor	 ebx, ebx
+  0031e	8a 1c 81	 mov	 bl, BYTE PTR [ecx+eax*4]
+  00321	2b d3		 sub	 edx, ebx
+  00323	89 55 c8	 mov	 DWORD PTR _dr$[ebp], edx
+
+; 191  :          dr *= dr;
+
+  00326	8b 55 c8	 mov	 edx, DWORD PTR _dr$[ebp]
+  00329	0f af 55 c8	 imul	 edx, DWORD PTR _dr$[ebp]
+  0032d	89 55 c8	 mov	 DWORD PTR _dr$[ebp], edx
+
+; 192  :          dg = colorSrc[i].rgba[GRN] - colorSrc[j].rgba[GRN];
+
+  00330	8b 45 c0	 mov	 eax, DWORD PTR _i$[ebp]
+  00333	8b 4d 08	 mov	 ecx, DWORD PTR _colorSrc$[ebp]
+  00336	33 d2		 xor	 edx, edx
+  00338	8a 54 81 01	 mov	 dl, BYTE PTR [ecx+eax*4+1]
+  0033c	8b 45 bc	 mov	 eax, DWORD PTR _j$[ebp]
+  0033f	8b 4d 08	 mov	 ecx, DWORD PTR _colorSrc$[ebp]
+  00342	33 db		 xor	 ebx, ebx
+  00344	8a 5c 81 01	 mov	 bl, BYTE PTR [ecx+eax*4+1]
+  00348	2b d3		 sub	 edx, ebx
+  0034a	89 55 b0	 mov	 DWORD PTR _dg$[ebp], edx
+
+; 193  :          dg *= dg;
+
+  0034d	8b 55 b0	 mov	 edx, DWORD PTR _dg$[ebp]
+  00350	0f af 55 b0	 imul	 edx, DWORD PTR _dg$[ebp]
+  00354	89 55 b0	 mov	 DWORD PTR _dg$[ebp], edx
+
+; 194  :          db = colorSrc[i].rgba[BLU] - colorSrc[j].rgba[BLU];
+
+  00357	8b 45 c0	 mov	 eax, DWORD PTR _i$[ebp]
+  0035a	8b 4d 08	 mov	 ecx, DWORD PTR _colorSrc$[ebp]
+  0035d	33 d2		 xor	 edx, edx
+  0035f	8a 54 81 02	 mov	 dl, BYTE PTR [ecx+eax*4+2]
+  00363	8b 45 bc	 mov	 eax, DWORD PTR _j$[ebp]
+  00366	8b 4d 08	 mov	 ecx, DWORD PTR _colorSrc$[ebp]
+  00369	33 db		 xor	 ebx, ebx
+  0036b	8a 5c 81 02	 mov	 bl, BYTE PTR [ecx+eax*4+2]
+  0036f	2b d3		 sub	 edx, ebx
+  00371	89 55 cc	 mov	 DWORD PTR _db$[ebp], edx
+
+; 195  :          db *= db;
+
+  00374	8b 55 cc	 mov	 edx, DWORD PTR _db$[ebp]
+  00377	0f af 55 cc	 imul	 edx, DWORD PTR _db$[ebp]
+  0037b	89 55 cc	 mov	 DWORD PTR _db$[ebp], edx
+
+; 196  :          td = dr+dg+db;
+
+  0037e	8b 45 c8	 mov	 eax, DWORD PTR _dr$[ebp]
+  00381	03 45 b0	 add	 eax, DWORD PTR _dg$[ebp]
+  00384	03 45 cc	 add	 eax, DWORD PTR _db$[ebp]
+  00387	89 45 b4	 mov	 DWORD PTR _td$[ebp], eax
+
+; 197  :          if (td > cdist)
+
+  0038a	8b 4d b4	 mov	 ecx, DWORD PTR _td$[ebp]
+  0038d	3b 4d a8	 cmp	 ecx, DWORD PTR _cdist$[ebp]
+  00390	7e 12		 jle	 SHORT $L36147
+
+; 199  :             dcolor1=i;
+
+  00392	8b 55 c0	 mov	 edx, DWORD PTR _i$[ebp]
+  00395	89 55 d0	 mov	 DWORD PTR _dcolor1$[ebp], edx
+
+; 200  :             dcolor2=j;
+
+  00398	8b 45 bc	 mov	 eax, DWORD PTR _j$[ebp]
+  0039b	89 45 c4	 mov	 DWORD PTR _dcolor2$[ebp], eax
+
+; 201  :             cdist=td;
+
+  0039e	8b 4d b4	 mov	 ecx, DWORD PTR _td$[ebp]
+  003a1	89 4d a8	 mov	 DWORD PTR _cdist$[ebp], ecx
+$L36147:
+
+; 203  :       }
+
+  003a4	e9 4f ff ff ff	 jmp	 $L36145
+$L36146:
+
+; 204  :    }
+
+  003a9	e9 0f ff ff ff	 jmp	 $L36140
+$L36141:
+
+; 205  : 
+; 206  : 
+; 207  :    ColorToRGB(&colorSrc[dcolor1],&tclr1);
+
+  003ae	8d 55 dc	 lea	 edx, DWORD PTR _tclr1$[ebp]
+  003b1	52		 push	 edx
+  003b2	8b 45 d0	 mov	 eax, DWORD PTR _dcolor1$[ebp]
+  003b5	8b 4d 08	 mov	 ecx, DWORD PTR _colorSrc$[ebp]
+  003b8	8d 14 81	 lea	 edx, DWORD PTR [ecx+eax*4]
+  003bb	52		 push	 edx
+  003bc	e8 00 00 00 00	 call	 _ColorToRGB
+  003c1	83 c4 08	 add	 esp, 8
+
+; 208  :    ColorToRGB(&colorSrc[dcolor2],&tclr2);
+
+  003c4	8d 45 d4	 lea	 eax, DWORD PTR _tclr2$[ebp]
+  003c7	50		 push	 eax
+  003c8	8b 4d c4	 mov	 ecx, DWORD PTR _dcolor2$[ebp]
+  003cb	8b 55 08	 mov	 edx, DWORD PTR _colorSrc$[ebp]
+  003ce	8d 04 8a	 lea	 eax, DWORD PTR [edx+ecx*4]
+  003d1	50		 push	 eax
+  003d2	e8 00 00 00 00	 call	 _ColorToRGB
+  003d7	83 c4 08	 add	 esp, 8
+
+; 209  : 
+; 210  :    if (lev == 3)
+
+  003da	83 7d d8 03	 cmp	 DWORD PTR _lev$[ebp], 3
+  003de	0f 85 2c 01 00
+	00		 jne	 $L36148
+
+; 212  :       if (tclr1 > tclr2)
+
+  003e4	8b 4d dc	 mov	 ecx, DWORD PTR _tclr1$[ebp]
+  003e7	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  003ed	8b 55 d4	 mov	 edx, DWORD PTR _tclr2$[ebp]
+  003f0	81 e2 ff ff 00
+	00		 and	 edx, 65535		; 0000ffffH
+  003f6	3b ca		 cmp	 ecx, edx
+  003f8	7e 2f		 jle	 SHORT $L36149
+
+; 214  :          lcolors[0]=colorSrc[dcolor1];
+
+  003fa	8b 45 d0	 mov	 eax, DWORD PTR _dcolor1$[ebp]
+  003fd	8b 4d 08	 mov	 ecx, DWORD PTR _colorSrc$[ebp]
+  00400	8b 14 81	 mov	 edx, DWORD PTR [ecx+eax*4]
+  00403	89 55 ec	 mov	 DWORD PTR _lcolors$[ebp], edx
+
+; 215  :          pblockDst->rgb0 = tclr1;
+
+  00406	8b 45 0c	 mov	 eax, DWORD PTR _pblockDst$[ebp]
+  00409	66 8b 4d dc	 mov	 cx, WORD PTR _tclr1$[ebp]
+  0040d	66 89 08	 mov	 WORD PTR [eax], cx
+
+; 216  :          lcolors[1]=colorSrc[dcolor2];
+
+  00410	8b 55 c4	 mov	 edx, DWORD PTR _dcolor2$[ebp]
+  00413	8b 45 08	 mov	 eax, DWORD PTR _colorSrc$[ebp]
+  00416	8b 0c 90	 mov	 ecx, DWORD PTR [eax+edx*4]
+  00419	89 4d f0	 mov	 DWORD PTR _lcolors$[ebp+4], ecx
+
+; 217  :          pblockDst->rgb1 = tclr2;
+
+  0041c	8b 55 0c	 mov	 edx, DWORD PTR _pblockDst$[ebp]
+  0041f	66 8b 45 d4	 mov	 ax, WORD PTR _tclr2$[ebp]
+  00423	66 89 42 02	 mov	 WORD PTR [edx+2], ax
+
+; 219  :       else
+
+  00427	eb 2d		 jmp	 SHORT $L36150
+$L36149:
+
+; 221  :          lcolors[0]=colorSrc[dcolor2];
+
+  00429	8b 4d c4	 mov	 ecx, DWORD PTR _dcolor2$[ebp]
+  0042c	8b 55 08	 mov	 edx, DWORD PTR _colorSrc$[ebp]
+  0042f	8b 04 8a	 mov	 eax, DWORD PTR [edx+ecx*4]
+  00432	89 45 ec	 mov	 DWORD PTR _lcolors$[ebp], eax
+
+; 222  :          pblockDst->rgb0 = tclr2;
+
+  00435	8b 4d 0c	 mov	 ecx, DWORD PTR _pblockDst$[ebp]
+  00438	66 8b 55 d4	 mov	 dx, WORD PTR _tclr2$[ebp]
+  0043c	66 89 11	 mov	 WORD PTR [ecx], dx
+
+; 223  :          lcolors[1]=colorSrc[dcolor1];
+
+  0043f	8b 45 d0	 mov	 eax, DWORD PTR _dcolor1$[ebp]
+  00442	8b 4d 08	 mov	 ecx, DWORD PTR _colorSrc$[ebp]
+  00445	8b 14 81	 mov	 edx, DWORD PTR [ecx+eax*4]
+  00448	89 55 f0	 mov	 DWORD PTR _lcolors$[ebp+4], edx
+
+; 224  :          pblockDst->rgb1 = tclr1;
+
+  0044b	8b 45 0c	 mov	 eax, DWORD PTR _pblockDst$[ebp]
+  0044e	66 8b 4d dc	 mov	 cx, WORD PTR _tclr1$[ebp]
+  00452	66 89 48 02	 mov	 WORD PTR [eax+2], cx
+$L36150:
+
+; 226  : 
+; 227  :       lcolors[0].rgba[RED] &= 0xf8;
+
+  00456	8a 55 ec	 mov	 dl, BYTE PTR _lcolors$[ebp]
+  00459	80 e2 f8	 and	 dl, 248			; 000000f8H
+  0045c	88 55 ec	 mov	 BYTE PTR _lcolors$[ebp], dl
+
+; 228  :       lcolors[0].rgba[GRN] &= 0xfc;
+
+  0045f	8a 45 ed	 mov	 al, BYTE PTR _lcolors$[ebp+1]
+  00462	24 fc		 and	 al, 252			; 000000fcH
+  00464	88 45 ed	 mov	 BYTE PTR _lcolors$[ebp+1], al
+
+; 229  :       lcolors[0].rgba[BLU] &= 0xf8;
+
+  00467	8a 4d ee	 mov	 cl, BYTE PTR _lcolors$[ebp+2]
+  0046a	80 e1 f8	 and	 cl, 248			; 000000f8H
+  0046d	88 4d ee	 mov	 BYTE PTR _lcolors$[ebp+2], cl
+
+; 230  : 
+; 231  :       lcolors[1].rgba[RED] &= 0xf8;
+
+  00470	8a 55 f0	 mov	 dl, BYTE PTR _lcolors$[ebp+4]
+  00473	80 e2 f8	 and	 dl, 248			; 000000f8H
+  00476	88 55 f0	 mov	 BYTE PTR _lcolors$[ebp+4], dl
+
+; 232  :       lcolors[1].rgba[GRN] &= 0xfc;
+
+  00479	8a 45 f1	 mov	 al, BYTE PTR _lcolors$[ebp+5]
+  0047c	24 fc		 and	 al, 252			; 000000fcH
+  0047e	88 45 f1	 mov	 BYTE PTR _lcolors$[ebp+5], al
+
+; 233  :       lcolors[1].rgba[BLU] &= 0xf8;
+
+  00481	8a 4d f2	 mov	 cl, BYTE PTR _lcolors$[ebp+6]
+  00484	80 e1 f8	 and	 cl, 248			; 000000f8H
+  00487	88 4d f2	 mov	 BYTE PTR _lcolors$[ebp+6], cl
+
+; 234  : 
+; 235  :       for (primary=0; primary < NUM_PRIMARIES; ++primary)
+
+  0048a	c7 45 b8 00 00
+	00 00		 mov	 DWORD PTR _primary$[ebp], 0
+  00491	eb 09		 jmp	 SHORT $L36151
+$L36152:
+  00493	8b 55 b8	 mov	 edx, DWORD PTR _primary$[ebp]
+  00496	83 c2 01	 add	 edx, 1
+  00499	89 55 b8	 mov	 DWORD PTR _primary$[ebp], edx
+$L36151:
+  0049c	83 7d b8 03	 cmp	 DWORD PTR _primary$[ebp], 3
+  004a0	7d 65		 jge	 SHORT $L36153
+
+; 237  :          temp0 = lcolors[0].rgba[primary];
+
+  004a2	8b 45 b8	 mov	 eax, DWORD PTR _primary$[ebp]
+  004a5	66 0f b6 4c 05
+	ec		 movzx	 cx, BYTE PTR _lcolors$[ebp+eax]
+  004ab	66 89 4d fc	 mov	 WORD PTR _temp0$[ebp], cx
+
+; 238  :          temp1 = lcolors[1].rgba[primary];
+
+  004af	8b 55 b8	 mov	 edx, DWORD PTR _primary$[ebp]
+  004b2	66 0f b6 44 15
+	f0		 movzx	 ax, BYTE PTR _lcolors$[ebp+edx+4]
+  004b8	66 89 45 e8	 mov	 WORD PTR _temp1$[ebp], ax
+
+; 239  :          lcolors[2].rgba[primary] = (BYTE)((2*temp0 + temp1 + 1) / 3);
+
+  004bc	8b 4d fc	 mov	 ecx, DWORD PTR _temp0$[ebp]
+  004bf	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  004c5	8b 55 e8	 mov	 edx, DWORD PTR _temp1$[ebp]
+  004c8	81 e2 ff ff 00
+	00		 and	 edx, 65535		; 0000ffffH
+  004ce	8d 44 4a 01	 lea	 eax, DWORD PTR [edx+ecx*2+1]
+  004d2	99		 cdq
+  004d3	b9 03 00 00 00	 mov	 ecx, 3
+  004d8	f7 f9		 idiv	 ecx
+  004da	8b 55 b8	 mov	 edx, DWORD PTR _primary$[ebp]
+  004dd	88 44 15 f4	 mov	 BYTE PTR _lcolors$[ebp+edx+8], al
+
+; 240  :          lcolors[3].rgba[primary] = (BYTE)((temp0 + 2*temp1 + 1) / 3);
+
+  004e1	8b 45 fc	 mov	 eax, DWORD PTR _temp0$[ebp]
+  004e4	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  004e9	8b 4d e8	 mov	 ecx, DWORD PTR _temp1$[ebp]
+  004ec	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  004f2	8d 44 48 01	 lea	 eax, DWORD PTR [eax+ecx*2+1]
+  004f6	99		 cdq
+  004f7	b9 03 00 00 00	 mov	 ecx, 3
+  004fc	f7 f9		 idiv	 ecx
+  004fe	8b 55 b8	 mov	 edx, DWORD PTR _primary$[ebp]
+  00501	88 44 15 f8	 mov	 BYTE PTR _lcolors$[ebp+edx+12], al
+
+; 241  :       }
+
+  00505	eb 8c		 jmp	 SHORT $L36152
+$L36153:
+
+; 242  :       lcolors[3].rgba[ALFA] = 255;
+
+  00507	c6 45 fb ff	 mov	 BYTE PTR _lcolors$[ebp+15], 255 ; 000000ffH
+
+; 244  :    else
+
+  0050b	e9 04 01 00 00	 jmp	 $L36156
+$L36148:
+
+; 246  : 
+; 247  :       if (tclr1 > tclr2)
+
+  00510	8b 45 dc	 mov	 eax, DWORD PTR _tclr1$[ebp]
+  00513	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  00518	8b 4d d4	 mov	 ecx, DWORD PTR _tclr2$[ebp]
+  0051b	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  00521	3b c1		 cmp	 eax, ecx
+  00523	7e 2f		 jle	 SHORT $L36157
+
+; 249  :          lcolors[0]=colorSrc[dcolor2];
+
+  00525	8b 55 c4	 mov	 edx, DWORD PTR _dcolor2$[ebp]
+  00528	8b 45 08	 mov	 eax, DWORD PTR _colorSrc$[ebp]
+  0052b	8b 0c 90	 mov	 ecx, DWORD PTR [eax+edx*4]
+  0052e	89 4d ec	 mov	 DWORD PTR _lcolors$[ebp], ecx
+
+; 250  :          pblockDst->rgb0 = tclr2;
+
+  00531	8b 55 0c	 mov	 edx, DWORD PTR _pblockDst$[ebp]
+  00534	66 8b 45 d4	 mov	 ax, WORD PTR _tclr2$[ebp]
+  00538	66 89 02	 mov	 WORD PTR [edx], ax
+
+; 251  :          lcolors[1]=colorSrc[dcolor1];
+
+  0053b	8b 4d d0	 mov	 ecx, DWORD PTR _dcolor1$[ebp]
+  0053e	8b 55 08	 mov	 edx, DWORD PTR _colorSrc$[ebp]
+  00541	8b 04 8a	 mov	 eax, DWORD PTR [edx+ecx*4]
+  00544	89 45 f0	 mov	 DWORD PTR _lcolors$[ebp+4], eax
+
+; 252  :          pblockDst->rgb1 = tclr1;
+
+  00547	8b 4d 0c	 mov	 ecx, DWORD PTR _pblockDst$[ebp]
+  0054a	66 8b 55 dc	 mov	 dx, WORD PTR _tclr1$[ebp]
+  0054e	66 89 51 02	 mov	 WORD PTR [ecx+2], dx
+
+; 254  :       else
+
+  00552	eb 2d		 jmp	 SHORT $L36158
+$L36157:
+
+; 256  :          lcolors[0]=colorSrc[dcolor1];
+
+  00554	8b 45 d0	 mov	 eax, DWORD PTR _dcolor1$[ebp]
+  00557	8b 4d 08	 mov	 ecx, DWORD PTR _colorSrc$[ebp]
+  0055a	8b 14 81	 mov	 edx, DWORD PTR [ecx+eax*4]
+  0055d	89 55 ec	 mov	 DWORD PTR _lcolors$[ebp], edx
+
+; 257  :          pblockDst->rgb0 = tclr1;
+
+  00560	8b 45 0c	 mov	 eax, DWORD PTR _pblockDst$[ebp]
+  00563	66 8b 4d dc	 mov	 cx, WORD PTR _tclr1$[ebp]
+  00567	66 89 08	 mov	 WORD PTR [eax], cx
+
+; 258  :          lcolors[1]=colorSrc[dcolor2];
+
+  0056a	8b 55 c4	 mov	 edx, DWORD PTR _dcolor2$[ebp]
+  0056d	8b 45 08	 mov	 eax, DWORD PTR _colorSrc$[ebp]
+  00570	8b 0c 90	 mov	 ecx, DWORD PTR [eax+edx*4]
+  00573	89 4d f0	 mov	 DWORD PTR _lcolors$[ebp+4], ecx
+
+; 259  :          pblockDst->rgb1 = tclr2;
+
+  00576	8b 55 0c	 mov	 edx, DWORD PTR _pblockDst$[ebp]
+  00579	66 8b 45 d4	 mov	 ax, WORD PTR _tclr2$[ebp]
+  0057d	66 89 42 02	 mov	 WORD PTR [edx+2], ax
+$L36158:
+
+; 261  : 
+; 262  :       lcolors[0].rgba[RED] &= 0xf8;
+
+  00581	8a 4d ec	 mov	 cl, BYTE PTR _lcolors$[ebp]
+  00584	80 e1 f8	 and	 cl, 248			; 000000f8H
+  00587	88 4d ec	 mov	 BYTE PTR _lcolors$[ebp], cl
+
+; 263  :       lcolors[0].rgba[GRN] &= 0xfc;
+
+  0058a	8a 55 ed	 mov	 dl, BYTE PTR _lcolors$[ebp+1]
+  0058d	80 e2 fc	 and	 dl, 252			; 000000fcH
+  00590	88 55 ed	 mov	 BYTE PTR _lcolors$[ebp+1], dl
+
+; 264  :       lcolors[0].rgba[BLU] &= 0xf8;
+
+  00593	8a 45 ee	 mov	 al, BYTE PTR _lcolors$[ebp+2]
+  00596	24 f8		 and	 al, 248			; 000000f8H
+  00598	88 45 ee	 mov	 BYTE PTR _lcolors$[ebp+2], al
+
+; 265  : 
+; 266  :       lcolors[1].rgba[RED] &= 0xf8;
+
+  0059b	8a 4d f0	 mov	 cl, BYTE PTR _lcolors$[ebp+4]
+  0059e	80 e1 f8	 and	 cl, 248			; 000000f8H
+  005a1	88 4d f0	 mov	 BYTE PTR _lcolors$[ebp+4], cl
+
+; 267  :       lcolors[1].rgba[GRN] &= 0xfc;
+
+  005a4	8a 55 f1	 mov	 dl, BYTE PTR _lcolors$[ebp+5]
+  005a7	80 e2 fc	 and	 dl, 252			; 000000fcH
+  005aa	88 55 f1	 mov	 BYTE PTR _lcolors$[ebp+5], dl
+
+; 268  :       lcolors[1].rgba[BLU] &= 0xf8;
+
+  005ad	8a 45 f2	 mov	 al, BYTE PTR _lcolors$[ebp+6]
+  005b0	24 f8		 and	 al, 248			; 000000f8H
+  005b2	88 45 f2	 mov	 BYTE PTR _lcolors$[ebp+6], al
+
+; 269  : 
+; 270  :       for (primary=0;primary < NUM_PRIMARIES;++primary)
+
+  005b5	c7 45 b8 00 00
+	00 00		 mov	 DWORD PTR _primary$[ebp], 0
+  005bc	eb 09		 jmp	 SHORT $L36159
+$L36160:
+  005be	8b 4d b8	 mov	 ecx, DWORD PTR _primary$[ebp]
+  005c1	83 c1 01	 add	 ecx, 1
+  005c4	89 4d b8	 mov	 DWORD PTR _primary$[ebp], ecx
+$L36159:
+  005c7	83 7d b8 03	 cmp	 DWORD PTR _primary$[ebp], 3
+  005cb	7d 43		 jge	 SHORT $L36161
+
+; 272  :          temp0 = lcolors[0].rgba[primary];
+
+  005cd	8b 55 b8	 mov	 edx, DWORD PTR _primary$[ebp]
+  005d0	66 0f b6 44 15
+	ec		 movzx	 ax, BYTE PTR _lcolors$[ebp+edx]
+  005d6	66 89 45 fc	 mov	 WORD PTR _temp0$[ebp], ax
+
+; 273  :          temp1 = lcolors[1].rgba[primary];
+
+  005da	8b 4d b8	 mov	 ecx, DWORD PTR _primary$[ebp]
+  005dd	66 0f b6 54 0d
+	f0		 movzx	 dx, BYTE PTR _lcolors$[ebp+ecx+4]
+  005e3	66 89 55 e8	 mov	 WORD PTR _temp1$[ebp], dx
+
+; 274  :          lcolors[2].rgba[primary] = (BYTE)((temp0 + temp1) / 2);
+
+  005e7	8b 45 fc	 mov	 eax, DWORD PTR _temp0$[ebp]
+  005ea	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  005ef	8b 4d e8	 mov	 ecx, DWORD PTR _temp1$[ebp]
+  005f2	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  005f8	03 c1		 add	 eax, ecx
+  005fa	99		 cdq
+  005fb	2b c2		 sub	 eax, edx
+  005fd	d1 f8		 sar	 eax, 1
+  005ff	8b 55 b8	 mov	 edx, DWORD PTR _primary$[ebp]
+  00602	88 44 15 f4	 mov	 BYTE PTR _lcolors$[ebp+edx+8], al
+
+; 275  :          lcolors[3].rgba[primary] = 0;
+
+  00606	8b 45 b8	 mov	 eax, DWORD PTR _primary$[ebp]
+  00609	c6 44 05 f8 00	 mov	 BYTE PTR _lcolors$[ebp+eax+12], 0
+
+; 276  :       }
+
+  0060e	eb ae		 jmp	 SHORT $L36160
+$L36161:
+
+; 277  :       lcolors[3].rgba[ALFA] = 0;
+
+  00610	c6 45 fb 00	 mov	 BYTE PTR _lcolors$[ebp+15], 0
+$L36156:
+
+; 279  : 
+; 280  : 
+; 281  :    for (i=DXT_BLOCK_PIXELS-1; i >=0;i--)
+
+  00614	c7 45 c0 0f 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 15	; 0000000fH
+  0061b	eb 09		 jmp	 SHORT $L36163
+$L36164:
+  0061d	8b 4d c0	 mov	 ecx, DWORD PTR _i$[ebp]
+  00620	83 e9 01	 sub	 ecx, 1
+  00623	89 4d c0	 mov	 DWORD PTR _i$[ebp], ecx
+$L36163:
+  00626	83 7d c0 00	 cmp	 DWORD PTR _i$[ebp], 0
+  0062a	0f 8c fc 00 00
+	00		 jl	 $L36165
+
+; 283  :       nearest=0x10000000;
+
+  00630	c7 45 ac 00 00
+	00 10		 mov	 DWORD PTR _nearest$[ebp], 268435456 ; 10000000H
+
+; 284  :       nIdx=0;
+
+  00637	c7 45 e4 00 00
+	00 00		 mov	 DWORD PTR _nIdx$[ebp], 0
+
+; 285  :       if (lev==2 && colorSrc[i].rgba[ALFA] < 128)
+
+  0063e	83 7d d8 02	 cmp	 DWORD PTR _lev$[ebp], 2
+  00642	75 20		 jne	 SHORT $L36166
+  00644	8b 55 c0	 mov	 edx, DWORD PTR _i$[ebp]
+  00647	8b 45 08	 mov	 eax, DWORD PTR _colorSrc$[ebp]
+  0064a	33 c9		 xor	 ecx, ecx
+  0064c	8a 4c 90 03	 mov	 cl, BYTE PTR [eax+edx*4+3]
+  00650	81 f9 80 00 00
+	00		 cmp	 ecx, 128		; 00000080H
+  00656	7d 0c		 jge	 SHORT $L36166
+
+; 287  :          nIdx = 3;
+
+  00658	c7 45 e4 03 00
+	00 00		 mov	 DWORD PTR _nIdx$[ebp], 3
+
+; 289  :       else
+
+  0065f	e9 b1 00 00 00	 jmp	 $L36170
+$L36166:
+
+; 291  :          for (j=0;j < (lev+1);j++)
+
+  00664	c7 45 bc 00 00
+	00 00		 mov	 DWORD PTR _j$[ebp], 0
+  0066b	eb 09		 jmp	 SHORT $L36168
+$L36169:
+  0066d	8b 55 bc	 mov	 edx, DWORD PTR _j$[ebp]
+  00670	83 c2 01	 add	 edx, 1
+  00673	89 55 bc	 mov	 DWORD PTR _j$[ebp], edx
+$L36168:
+  00676	8b 45 d8	 mov	 eax, DWORD PTR _lev$[ebp]
+  00679	83 c0 01	 add	 eax, 1
+  0067c	39 45 bc	 cmp	 DWORD PTR _j$[ebp], eax
+  0067f	0f 8d 90 00 00
+	00		 jge	 $L36170
+
+; 293  :             dr = colorSrc[i].rgba[RED] - lcolors[j].rgba[RED];
+
+  00685	8b 4d c0	 mov	 ecx, DWORD PTR _i$[ebp]
+  00688	8b 55 08	 mov	 edx, DWORD PTR _colorSrc$[ebp]
+  0068b	33 c0		 xor	 eax, eax
+  0068d	8a 04 8a	 mov	 al, BYTE PTR [edx+ecx*4]
+  00690	8b 4d bc	 mov	 ecx, DWORD PTR _j$[ebp]
+  00693	33 d2		 xor	 edx, edx
+  00695	8a 54 8d ec	 mov	 dl, BYTE PTR _lcolors$[ebp+ecx*4]
+  00699	2b c2		 sub	 eax, edx
+  0069b	89 45 c8	 mov	 DWORD PTR _dr$[ebp], eax
+
+; 294  :             dr *= dr;
+
+  0069e	8b 45 c8	 mov	 eax, DWORD PTR _dr$[ebp]
+  006a1	0f af 45 c8	 imul	 eax, DWORD PTR _dr$[ebp]
+  006a5	89 45 c8	 mov	 DWORD PTR _dr$[ebp], eax
+
+; 295  :             dg = colorSrc[i].rgba[GRN] - lcolors[j].rgba[GRN];
+
+  006a8	8b 4d c0	 mov	 ecx, DWORD PTR _i$[ebp]
+  006ab	8b 55 08	 mov	 edx, DWORD PTR _colorSrc$[ebp]
+  006ae	33 c0		 xor	 eax, eax
+  006b0	8a 44 8a 01	 mov	 al, BYTE PTR [edx+ecx*4+1]
+  006b4	8b 4d bc	 mov	 ecx, DWORD PTR _j$[ebp]
+  006b7	33 d2		 xor	 edx, edx
+  006b9	8a 54 8d ed	 mov	 dl, BYTE PTR _lcolors$[ebp+ecx*4+1]
+  006bd	2b c2		 sub	 eax, edx
+  006bf	89 45 b0	 mov	 DWORD PTR _dg$[ebp], eax
+
+; 296  :             dg *= dg;
+
+  006c2	8b 45 b0	 mov	 eax, DWORD PTR _dg$[ebp]
+  006c5	0f af 45 b0	 imul	 eax, DWORD PTR _dg$[ebp]
+  006c9	89 45 b0	 mov	 DWORD PTR _dg$[ebp], eax
+
+; 297  :             db = colorSrc[i].rgba[BLU] - lcolors[j].rgba[BLU];
+
+  006cc	8b 4d c0	 mov	 ecx, DWORD PTR _i$[ebp]
+  006cf	8b 55 08	 mov	 edx, DWORD PTR _colorSrc$[ebp]
+  006d2	33 c0		 xor	 eax, eax
+  006d4	8a 44 8a 02	 mov	 al, BYTE PTR [edx+ecx*4+2]
+  006d8	8b 4d bc	 mov	 ecx, DWORD PTR _j$[ebp]
+  006db	33 d2		 xor	 edx, edx
+  006dd	8a 54 8d ee	 mov	 dl, BYTE PTR _lcolors$[ebp+ecx*4+2]
+  006e1	2b c2		 sub	 eax, edx
+  006e3	89 45 cc	 mov	 DWORD PTR _db$[ebp], eax
+
+; 298  :             db *= db;
+
+  006e6	8b 45 cc	 mov	 eax, DWORD PTR _db$[ebp]
+  006e9	0f af 45 cc	 imul	 eax, DWORD PTR _db$[ebp]
+  006ed	89 45 cc	 mov	 DWORD PTR _db$[ebp], eax
+
+; 299  :             td = dr+dg+db;
+
+  006f0	8b 4d c8	 mov	 ecx, DWORD PTR _dr$[ebp]
+  006f3	03 4d b0	 add	 ecx, DWORD PTR _dg$[ebp]
+  006f6	03 4d cc	 add	 ecx, DWORD PTR _db$[ebp]
+  006f9	89 4d b4	 mov	 DWORD PTR _td$[ebp], ecx
+
+; 300  :             if (td < nearest)
+
+  006fc	8b 55 b4	 mov	 edx, DWORD PTR _td$[ebp]
+  006ff	3b 55 ac	 cmp	 edx, DWORD PTR _nearest$[ebp]
+  00702	7d 0c		 jge	 SHORT $L36171
+
+; 302  :                nearest = td;
+
+  00704	8b 45 b4	 mov	 eax, DWORD PTR _td$[ebp]
+  00707	89 45 ac	 mov	 DWORD PTR _nearest$[ebp], eax
+
+; 303  :                nIdx = j;
+
+  0070a	8b 4d bc	 mov	 ecx, DWORD PTR _j$[ebp]
+  0070d	89 4d e4	 mov	 DWORD PTR _nIdx$[ebp], ecx
+$L36171:
+
+; 305  :          }
+
+  00710	e9 58 ff ff ff	 jmp	 $L36169
+$L36170:
+
+; 307  :       pkData <<= 2;
+
+  00715	8b 55 e0	 mov	 edx, DWORD PTR _pkData$[ebp]
+  00718	c1 e2 02	 shl	 edx, 2
+  0071b	89 55 e0	 mov	 DWORD PTR _pkData$[ebp], edx
+
+; 308  :       pkData |= nIdx;
+
+  0071e	8b 45 e0	 mov	 eax, DWORD PTR _pkData$[ebp]
+  00721	0b 45 e4	 or	 eax, DWORD PTR _nIdx$[ebp]
+  00724	89 45 e0	 mov	 DWORD PTR _pkData$[ebp], eax
+
+; 309  :    }
+
+  00727	e9 f1 fe ff ff	 jmp	 $L36164
+$L36165:
+
+; 310  : 
+; 311  :    pblockDst->pixbm = pkData;
+
+  0072c	8b 4d 0c	 mov	 ecx, DWORD PTR _pblockDst$[ebp]
+  0072f	8b 55 e0	 mov	 edx, DWORD PTR _pkData$[ebp]
+  00732	89 51 04	 mov	 DWORD PTR [ecx+4], edx
+$L36118:
+
+; 312  : 
+; 313  : }
+
+  00735	5b		 pop	 ebx
+  00736	8b e5		 mov	 esp, ebp
+  00738	5d		 pop	 ebp
+  00739	c3		 ret	 0
+_EncodeBlockRGB_i ENDP
+_pcolor$ = 8
+_prgb$ = 12
+_rgb$ = -4
+_ColorToRGB PROC NEAR
+
+; 76   : {
+
+  0073a	55		 push	 ebp
+  0073b	8b ec		 mov	 ebp, esp
+  0073d	51		 push	 ecx
+
+; 77   :    WORD        rgb;
+; 78   : 
+; 79   :    rgb = pcolor->rgba[BLU] >> (BLU_SHIFT);
+
+  0073e	8b 45 08	 mov	 eax, DWORD PTR _pcolor$[ebp]
+  00741	33 c9		 xor	 ecx, ecx
+  00743	8a 48 02	 mov	 cl, BYTE PTR [eax+2]
+  00746	c1 f9 03	 sar	 ecx, 3
+  00749	66 89 4d fc	 mov	 WORD PTR _rgb$[ebp], cx
+
+; 80   :    rgb |= ((pcolor->rgba[GRN] >> (GRN_SHIFT)) << BLU_BITS);
+
+  0074d	8b 55 08	 mov	 edx, DWORD PTR _pcolor$[ebp]
+  00750	33 c0		 xor	 eax, eax
+  00752	8a 42 01	 mov	 al, BYTE PTR [edx+1]
+  00755	c1 f8 02	 sar	 eax, 2
+  00758	c1 e0 05	 shl	 eax, 5
+  0075b	66 8b 4d fc	 mov	 cx, WORD PTR _rgb$[ebp]
+  0075f	66 0b c8	 or	 cx, ax
+  00762	66 89 4d fc	 mov	 WORD PTR _rgb$[ebp], cx
+
+; 81   :    rgb |= ((pcolor->rgba[RED] >> (RED_SHIFT)) << (BLU_BITS+GRN_BITS));
+
+  00766	8b 55 08	 mov	 edx, DWORD PTR _pcolor$[ebp]
+  00769	33 c0		 xor	 eax, eax
+  0076b	8a 02		 mov	 al, BYTE PTR [edx]
+  0076d	c1 f8 03	 sar	 eax, 3
+  00770	c1 e0 0b	 shl	 eax, 11			; 0000000bH
+  00773	66 8b 4d fc	 mov	 cx, WORD PTR _rgb$[ebp]
+  00777	66 0b c8	 or	 cx, ax
+  0077a	66 89 4d fc	 mov	 WORD PTR _rgb$[ebp], cx
+
+; 82   : 
+; 83   :    *((WORD *)prgb) = rgb;
+
+  0077e	8b 55 0c	 mov	 edx, DWORD PTR _prgb$[ebp]
+  00781	66 8b 45 fc	 mov	 ax, WORD PTR _rgb$[ebp]
+  00785	66 89 02	 mov	 WORD PTR [edx], ax
+
+; 84   : }
+
+  00788	8b e5		 mov	 esp, ebp
+  0078a	5d		 pop	 ebp
+  0078b	c3		 ret	 0
+_ColorToRGB ENDP
+_TEXT	ENDS
+PUBLIC	_DecodeBlockAlpha4
+_TEXT	SEGMENT
+_pblockSrc$ = 8
+_colorDst$ = 12
+_row$ = -12
+_col$ = -4
+_alpha$ = -8
+_DecodeBlockAlpha4 PROC NEAR
+
+; 325  : {
+
+  0078c	55		 push	 ebp
+  0078d	8b ec		 mov	 ebp, esp
+  0078f	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 326  :    int     row, col;
+; 327  :    WORD    alpha;
+; 328  : 
+; 329  :    DecodeBlockRGB(&pblockSrc->rgb, colorDst);
+
+  00792	8b 45 0c	 mov	 eax, DWORD PTR _colorDst$[ebp]
+  00795	50		 push	 eax
+  00796	8b 4d 08	 mov	 ecx, DWORD PTR _pblockSrc$[ebp]
+  00799	83 c1 08	 add	 ecx, 8
+  0079c	51		 push	 ecx
+  0079d	e8 00 00 00 00	 call	 _DecodeBlockRGB
+  007a2	83 c4 08	 add	 esp, 8
+
+; 330  : 
+; 331  :    for (row = 0; row < 4; ++row)
+
+  007a5	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _row$[ebp], 0
+  007ac	eb 09		 jmp	 SHORT $L36185
+$L36186:
+  007ae	8b 55 f4	 mov	 edx, DWORD PTR _row$[ebp]
+  007b1	83 c2 01	 add	 edx, 1
+  007b4	89 55 f4	 mov	 DWORD PTR _row$[ebp], edx
+$L36185:
+  007b7	83 7d f4 04	 cmp	 DWORD PTR _row$[ebp], 4
+  007bb	7d 63		 jge	 SHORT $L36187
+
+; 333  :       alpha = pblockSrc->alphabm[row];
+
+  007bd	8b 45 f4	 mov	 eax, DWORD PTR _row$[ebp]
+  007c0	8b 4d 08	 mov	 ecx, DWORD PTR _pblockSrc$[ebp]
+  007c3	66 8b 14 41	 mov	 dx, WORD PTR [ecx+eax*2]
+  007c7	66 89 55 f8	 mov	 WORD PTR _alpha$[ebp], dx
+
+; 334  : 
+; 335  :       for (col = 0; col < 4; ++col)
+
+  007cb	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _col$[ebp], 0
+  007d2	eb 09		 jmp	 SHORT $L36188
+$L36189:
+  007d4	8b 45 fc	 mov	 eax, DWORD PTR _col$[ebp]
+  007d7	83 c0 01	 add	 eax, 1
+  007da	89 45 fc	 mov	 DWORD PTR _col$[ebp], eax
+$L36188:
+  007dd	83 7d fc 04	 cmp	 DWORD PTR _col$[ebp], 4
+  007e1	7d 3b		 jge	 SHORT $L36190
+
+; 337  :          colorDst[4 * row + col].rgba[ALFA] = ((alpha & 0xf) << 4)
+; 338  :                                               | (alpha & 0xf);
+
+  007e3	8b 4d f8	 mov	 ecx, DWORD PTR _alpha$[ebp]
+  007e6	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  007ec	83 e1 0f	 and	 ecx, 15			; 0000000fH
+  007ef	c1 e1 04	 shl	 ecx, 4
+  007f2	8b 55 f8	 mov	 edx, DWORD PTR _alpha$[ebp]
+  007f5	81 e2 ff ff 00
+	00		 and	 edx, 65535		; 0000ffffH
+  007fb	83 e2 0f	 and	 edx, 15			; 0000000fH
+  007fe	0b ca		 or	 ecx, edx
+  00800	8b 45 f4	 mov	 eax, DWORD PTR _row$[ebp]
+  00803	8b 55 fc	 mov	 edx, DWORD PTR _col$[ebp]
+  00806	8d 04 82	 lea	 eax, DWORD PTR [edx+eax*4]
+  00809	8b 55 0c	 mov	 edx, DWORD PTR _colorDst$[ebp]
+  0080c	88 4c 82 03	 mov	 BYTE PTR [edx+eax*4+3], cl
+
+; 339  :                                               alpha >>= 4;
+
+  00810	66 8b 45 f8	 mov	 ax, WORD PTR _alpha$[ebp]
+  00814	66 c1 e8 04	 shr	 ax, 4
+  00818	66 89 45 f8	 mov	 WORD PTR _alpha$[ebp], ax
+
+; 340  :       }
+
+  0081c	eb b6		 jmp	 SHORT $L36189
+$L36190:
+
+; 341  :    }
+
+  0081e	eb 8e		 jmp	 SHORT $L36186
+$L36187:
+
+; 342  : }
+
+  00820	8b e5		 mov	 esp, ebp
+  00822	5d		 pop	 ebp
+  00823	c3		 ret	 0
+_DecodeBlockAlpha4 ENDP
+_TEXT	ENDS
+PUBLIC	_EncodeBlockAlpha4
+_TEXT	SEGMENT
+_colorSrc$ = 8
+_pblockDst$ = 12
+_row$ = -12
+_col$ = -4
+_alpha$ = -8
+_EncodeBlockAlpha4 PROC NEAR
+
+; 349  : {
+
+  00824	55		 push	 ebp
+  00825	8b ec		 mov	 ebp, esp
+  00827	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 350  :    int   row,col;
+; 351  :    WORD  alpha;
+; 352  : 
+; 353  :    EncodeBlockRGB_i(colorSrc,&pblockDst->rgb,1);
+
+  0082a	6a 01		 push	 1
+  0082c	8b 45 0c	 mov	 eax, DWORD PTR _pblockDst$[ebp]
+  0082f	83 c0 08	 add	 eax, 8
+  00832	50		 push	 eax
+  00833	8b 4d 08	 mov	 ecx, DWORD PTR _colorSrc$[ebp]
+  00836	51		 push	 ecx
+  00837	e8 00 00 00 00	 call	 _EncodeBlockRGB_i
+  0083c	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 354  : 
+; 355  :    for (row=0; row < 4; ++row)
+
+  0083f	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _row$[ebp], 0
+  00846	eb 09		 jmp	 SHORT $L36199
+$L36200:
+  00848	8b 55 f4	 mov	 edx, DWORD PTR _row$[ebp]
+  0084b	83 c2 01	 add	 edx, 1
+  0084e	89 55 f4	 mov	 DWORD PTR _row$[ebp], edx
+$L36199:
+  00851	83 7d f4 04	 cmp	 DWORD PTR _row$[ebp], 4
+  00855	7d 61		 jge	 SHORT $L36201
+
+; 357  :       alpha = 0;
+
+  00857	66 c7 45 f8 00
+	00		 mov	 WORD PTR _alpha$[ebp], 0
+
+; 358  :       for (col=3; col >= 0;col--)
+
+  0085d	c7 45 fc 03 00
+	00 00		 mov	 DWORD PTR _col$[ebp], 3
+  00864	eb 09		 jmp	 SHORT $L36202
+$L36203:
+  00866	8b 45 fc	 mov	 eax, DWORD PTR _col$[ebp]
+  00869	83 e8 01	 sub	 eax, 1
+  0086c	89 45 fc	 mov	 DWORD PTR _col$[ebp], eax
+$L36202:
+  0086f	83 7d fc 00	 cmp	 DWORD PTR _col$[ebp], 0
+  00873	7c 33		 jl	 SHORT $L36204
+
+; 360  :          alpha <<= 4;
+
+  00875	66 8b 4d f8	 mov	 cx, WORD PTR _alpha$[ebp]
+  00879	66 c1 e1 04	 shl	 cx, 4
+  0087d	66 89 4d f8	 mov	 WORD PTR _alpha$[ebp], cx
+
+; 361  :          alpha |= ((colorSrc[4*row+col].rgba[ALFA] >> 4) & 0xf);
+
+  00881	8b 55 f4	 mov	 edx, DWORD PTR _row$[ebp]
+  00884	33 c0		 xor	 eax, eax
+  00886	8b 45 fc	 mov	 eax, DWORD PTR _col$[ebp]
+  00889	8d 0c 90	 lea	 ecx, DWORD PTR [eax+edx*4]
+  0088c	8b 55 08	 mov	 edx, DWORD PTR _colorSrc$[ebp]
+  0088f	33 c0		 xor	 eax, eax
+  00891	8a 44 8a 03	 mov	 al, BYTE PTR [edx+ecx*4+3]
+  00895	c1 f8 04	 sar	 eax, 4
+  00898	83 e0 0f	 and	 eax, 15			; 0000000fH
+  0089b	66 8b 4d f8	 mov	 cx, WORD PTR _alpha$[ebp]
+  0089f	66 0b c8	 or	 cx, ax
+  008a2	66 89 4d f8	 mov	 WORD PTR _alpha$[ebp], cx
+
+; 362  :       }
+
+  008a6	eb be		 jmp	 SHORT $L36203
+$L36204:
+
+; 363  :       pblockDst->alphabm[row] = alpha;
+
+  008a8	8b 55 f4	 mov	 edx, DWORD PTR _row$[ebp]
+  008ab	8b 45 0c	 mov	 eax, DWORD PTR _pblockDst$[ebp]
+  008ae	66 8b 4d f8	 mov	 cx, WORD PTR _alpha$[ebp]
+  008b2	66 89 0c 50	 mov	 WORD PTR [eax+edx*2], cx
+
+; 364  :    }
+
+  008b6	eb 90		 jmp	 SHORT $L36200
+$L36201:
+
+; 365  : }
+
+  008b8	8b e5		 mov	 esp, ebp
+  008ba	5d		 pop	 ebp
+  008bb	c3		 ret	 0
+_EncodeBlockAlpha4 ENDP
+_TEXT	ENDS
+PUBLIC	_DecodeBlockAlpha3
+_TEXT	SEGMENT
+_pblockSrc$ = 8
+_colorDst$ = 12
+_pixel$ = -36
+_alpha$ = -32
+_dwBM$ = -40
+_DecodeBlockAlpha3 PROC NEAR
+
+; 373  : {
+
+  008bc	55		 push	 ebp
+  008bd	8b ec		 mov	 ebp, esp
+  008bf	83 ec 28	 sub	 esp, 40			; 00000028H
+
+; 374  :    int     pixel;
+; 375  :    int     alpha[8];       // alpha lookup table
+; 376  :    DWORD   dwBM = 0;       // alpha bitmap in DWORD cache
+
+  008c2	c7 45 d8 00 00
+	00 00		 mov	 DWORD PTR _dwBM$[ebp], 0
+
+; 377  : 
+; 378  :    DecodeBlockRGB(&pblockSrc->rgb, colorDst);
+
+  008c9	8b 45 0c	 mov	 eax, DWORD PTR _colorDst$[ebp]
+  008cc	50		 push	 eax
+  008cd	8b 4d 08	 mov	 ecx, DWORD PTR _pblockSrc$[ebp]
+  008d0	83 c1 08	 add	 ecx, 8
+  008d3	51		 push	 ecx
+  008d4	e8 00 00 00 00	 call	 _DecodeBlockRGB
+  008d9	83 c4 08	 add	 esp, 8
+
+; 379  : 
+; 380  :    alpha[0] = pblockSrc->alpha0;
+
+  008dc	8b 55 08	 mov	 edx, DWORD PTR _pblockSrc$[ebp]
+  008df	33 c0		 xor	 eax, eax
+  008e1	8a 02		 mov	 al, BYTE PTR [edx]
+  008e3	89 45 e0	 mov	 DWORD PTR _alpha$[ebp], eax
+
+; 381  :    alpha[1] = pblockSrc->alpha1;
+
+  008e6	8b 4d 08	 mov	 ecx, DWORD PTR _pblockSrc$[ebp]
+  008e9	33 d2		 xor	 edx, edx
+  008eb	8a 51 01	 mov	 dl, BYTE PTR [ecx+1]
+  008ee	89 55 e4	 mov	 DWORD PTR _alpha$[ebp+4], edx
+
+; 382  : 
+; 383  :    // if 8 alpha ramp, ...
+; 384  :    if (alpha[0] > alpha[1])
+
+  008f1	8b 45 e0	 mov	 eax, DWORD PTR _alpha$[ebp]
+  008f4	3b 45 e4	 cmp	 eax, DWORD PTR _alpha$[ebp+4]
+  008f7	0f 8e 92 00 00
+	00		 jle	 $L36213
+
+; 386  :       // interpolate intermediate colors with rounding
+; 387  :       alpha[2] = (    alpha[0] + 6 * alpha[1] + 3) / 7;
+
+  008fd	8b 4d e4	 mov	 ecx, DWORD PTR _alpha$[ebp+4]
+  00900	6b c9 06	 imul	 ecx, 6
+  00903	8b 55 e0	 mov	 edx, DWORD PTR _alpha$[ebp]
+  00906	8d 44 0a 03	 lea	 eax, DWORD PTR [edx+ecx+3]
+  0090a	99		 cdq
+  0090b	b9 07 00 00 00	 mov	 ecx, 7
+  00910	f7 f9		 idiv	 ecx
+  00912	89 45 e8	 mov	 DWORD PTR _alpha$[ebp+8], eax
+
+; 388  :       alpha[3] = (2 * alpha[0] + 5 * alpha[1] + 3) / 7;
+
+  00915	8b 55 e4	 mov	 edx, DWORD PTR _alpha$[ebp+4]
+  00918	6b d2 05	 imul	 edx, 5
+  0091b	8b 45 e0	 mov	 eax, DWORD PTR _alpha$[ebp]
+  0091e	8d 44 42 03	 lea	 eax, DWORD PTR [edx+eax*2+3]
+  00922	99		 cdq
+  00923	b9 07 00 00 00	 mov	 ecx, 7
+  00928	f7 f9		 idiv	 ecx
+  0092a	89 45 ec	 mov	 DWORD PTR _alpha$[ebp+12], eax
+
+; 389  :       alpha[4] = (3 * alpha[0] + 4 * alpha[1] + 3) / 7;
+
+  0092d	8b 55 e0	 mov	 edx, DWORD PTR _alpha$[ebp]
+  00930	6b d2 03	 imul	 edx, 3
+  00933	8b 45 e4	 mov	 eax, DWORD PTR _alpha$[ebp+4]
+  00936	8d 44 82 03	 lea	 eax, DWORD PTR [edx+eax*4+3]
+  0093a	99		 cdq
+  0093b	b9 07 00 00 00	 mov	 ecx, 7
+  00940	f7 f9		 idiv	 ecx
+  00942	89 45 f0	 mov	 DWORD PTR _alpha$[ebp+16], eax
+
+; 390  :       alpha[5] = (4 * alpha[0] + 3 * alpha[1] + 3) / 7;
+
+  00945	8b 55 e4	 mov	 edx, DWORD PTR _alpha$[ebp+4]
+  00948	6b d2 03	 imul	 edx, 3
+  0094b	8b 45 e0	 mov	 eax, DWORD PTR _alpha$[ebp]
+  0094e	8d 44 82 03	 lea	 eax, DWORD PTR [edx+eax*4+3]
+  00952	99		 cdq
+  00953	b9 07 00 00 00	 mov	 ecx, 7
+  00958	f7 f9		 idiv	 ecx
+  0095a	89 45 f4	 mov	 DWORD PTR _alpha$[ebp+20], eax
+
+; 391  :       alpha[6] = (5 * alpha[0] + 2 * alpha[1] + 3) / 7;
+
+  0095d	8b 55 e0	 mov	 edx, DWORD PTR _alpha$[ebp]
+  00960	6b d2 05	 imul	 edx, 5
+  00963	8b 45 e4	 mov	 eax, DWORD PTR _alpha$[ebp+4]
+  00966	8d 44 42 03	 lea	 eax, DWORD PTR [edx+eax*2+3]
+  0096a	99		 cdq
+  0096b	b9 07 00 00 00	 mov	 ecx, 7
+  00970	f7 f9		 idiv	 ecx
+  00972	89 45 f8	 mov	 DWORD PTR _alpha$[ebp+24], eax
+
+; 392  :       alpha[7] = (6 * alpha[0] +     alpha[1] + 3) / 7;
+
+  00975	8b 55 e0	 mov	 edx, DWORD PTR _alpha$[ebp]
+  00978	6b d2 06	 imul	 edx, 6
+  0097b	8b 45 e4	 mov	 eax, DWORD PTR _alpha$[ebp+4]
+  0097e	8d 44 02 03	 lea	 eax, DWORD PTR [edx+eax+3]
+  00982	99		 cdq
+  00983	b9 07 00 00 00	 mov	 ecx, 7
+  00988	f7 f9		 idiv	 ecx
+  0098a	89 45 fc	 mov	 DWORD PTR _alpha$[ebp+28], eax
+
+; 394  :    else
+
+  0098d	eb 68		 jmp	 SHORT $L36214
+$L36213:
+
+; 396  :       // interpolate intermediate colors with rounding
+; 397  :       alpha[2] = (    alpha[0] + 4 * alpha[1] + 3) / 5;
+
+  0098f	8b 55 e4	 mov	 edx, DWORD PTR _alpha$[ebp+4]
+  00992	8b 45 e0	 mov	 eax, DWORD PTR _alpha$[ebp]
+  00995	8d 44 90 03	 lea	 eax, DWORD PTR [eax+edx*4+3]
+  00999	99		 cdq
+  0099a	b9 05 00 00 00	 mov	 ecx, 5
+  0099f	f7 f9		 idiv	 ecx
+  009a1	89 45 e8	 mov	 DWORD PTR _alpha$[ebp+8], eax
+
+; 398  :       alpha[3] = (2 * alpha[0] + 3 * alpha[1] + 3) / 5;
+
+  009a4	8b 55 e4	 mov	 edx, DWORD PTR _alpha$[ebp+4]
+  009a7	6b d2 03	 imul	 edx, 3
+  009aa	8b 45 e0	 mov	 eax, DWORD PTR _alpha$[ebp]
+  009ad	8d 44 42 03	 lea	 eax, DWORD PTR [edx+eax*2+3]
+  009b1	99		 cdq
+  009b2	b9 05 00 00 00	 mov	 ecx, 5
+  009b7	f7 f9		 idiv	 ecx
+  009b9	89 45 ec	 mov	 DWORD PTR _alpha$[ebp+12], eax
+
+; 399  :       alpha[4] = (3 * alpha[0] + 2 * alpha[1] + 3) / 5;
+
+  009bc	8b 55 e0	 mov	 edx, DWORD PTR _alpha$[ebp]
+  009bf	6b d2 03	 imul	 edx, 3
+  009c2	8b 45 e4	 mov	 eax, DWORD PTR _alpha$[ebp+4]
+  009c5	8d 44 42 03	 lea	 eax, DWORD PTR [edx+eax*2+3]
+  009c9	99		 cdq
+  009ca	b9 05 00 00 00	 mov	 ecx, 5
+  009cf	f7 f9		 idiv	 ecx
+  009d1	89 45 f0	 mov	 DWORD PTR _alpha$[ebp+16], eax
+
+; 400  :       alpha[5] = (4 * alpha[0] +     alpha[1] + 3) / 5;
+
+  009d4	8b 55 e0	 mov	 edx, DWORD PTR _alpha$[ebp]
+  009d7	8b 45 e4	 mov	 eax, DWORD PTR _alpha$[ebp+4]
+  009da	8d 44 90 03	 lea	 eax, DWORD PTR [eax+edx*4+3]
+  009de	99		 cdq
+  009df	b9 05 00 00 00	 mov	 ecx, 5
+  009e4	f7 f9		 idiv	 ecx
+  009e6	89 45 f4	 mov	 DWORD PTR _alpha$[ebp+20], eax
+
+; 401  :       alpha[6] = 0;
+
+  009e9	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _alpha$[ebp+24], 0
+
+; 402  :       alpha[7] = 255;
+
+  009f0	c7 45 fc ff 00
+	00 00		 mov	 DWORD PTR _alpha$[ebp+28], 255 ; 000000ffH
+$L36214:
+
+; 404  : 
+; 405  :    for (pixel=0; pixel < DXT_BLOCK_PIXELS; ++pixel)
+
+  009f7	c7 45 dc 00 00
+	00 00		 mov	 DWORD PTR _pixel$[ebp], 0
+  009fe	eb 09		 jmp	 SHORT $L36215
+$L36216:
+  00a00	8b 55 dc	 mov	 edx, DWORD PTR _pixel$[ebp]
+  00a03	83 c2 01	 add	 edx, 1
+  00a06	89 55 dc	 mov	 DWORD PTR _pixel$[ebp], edx
+$L36215:
+  00a09	83 7d dc 10	 cmp	 DWORD PTR _pixel$[ebp], 16 ; 00000010H
+  00a0d	0f 8d b2 00 00
+	00		 jge	 $L36217
+
+; 407  :       // reload bitmap dword cache every 8 pixels
+; 408  :       if ((pixel & 7) == 0)
+
+  00a13	8b 45 dc	 mov	 eax, DWORD PTR _pixel$[ebp]
+  00a16	83 e0 07	 and	 eax, 7
+  00a19	85 c0		 test	 eax, eax
+  00a1b	0f 85 82 00 00
+	00		 jne	 $L36220
+
+; 410  :          if (pixel == 0)
+
+  00a21	83 7d dc 00	 cmp	 DWORD PTR _pixel$[ebp], 0
+  00a25	75 3f		 jne	 SHORT $L36219
+
+; 412  :             // pack 3 bytes into dword
+; 413  :             dwBM  = pblockSrc->alphabm[2];
+
+  00a27	8b 4d 08	 mov	 ecx, DWORD PTR _pblockSrc$[ebp]
+  00a2a	33 d2		 xor	 edx, edx
+  00a2c	8a 51 04	 mov	 dl, BYTE PTR [ecx+4]
+  00a2f	89 55 d8	 mov	 DWORD PTR _dwBM$[ebp], edx
+
+; 414  :             dwBM <<= 8;
+
+  00a32	8b 45 d8	 mov	 eax, DWORD PTR _dwBM$[ebp]
+  00a35	c1 e0 08	 shl	 eax, 8
+  00a38	89 45 d8	 mov	 DWORD PTR _dwBM$[ebp], eax
+
+; 415  :             dwBM |= pblockSrc->alphabm[1];
+
+  00a3b	8b 4d 08	 mov	 ecx, DWORD PTR _pblockSrc$[ebp]
+  00a3e	33 d2		 xor	 edx, edx
+  00a40	8a 51 03	 mov	 dl, BYTE PTR [ecx+3]
+  00a43	8b 45 d8	 mov	 eax, DWORD PTR _dwBM$[ebp]
+  00a46	0b c2		 or	 eax, edx
+  00a48	89 45 d8	 mov	 DWORD PTR _dwBM$[ebp], eax
+
+; 416  :             dwBM <<= 8;
+
+  00a4b	8b 4d d8	 mov	 ecx, DWORD PTR _dwBM$[ebp]
+  00a4e	c1 e1 08	 shl	 ecx, 8
+  00a51	89 4d d8	 mov	 DWORD PTR _dwBM$[ebp], ecx
+
+; 417  :             dwBM |= pblockSrc->alphabm[0];
+
+  00a54	8b 55 08	 mov	 edx, DWORD PTR _pblockSrc$[ebp]
+  00a57	33 c0		 xor	 eax, eax
+  00a59	8a 42 02	 mov	 al, BYTE PTR [edx+2]
+  00a5c	8b 4d d8	 mov	 ecx, DWORD PTR _dwBM$[ebp]
+  00a5f	0b c8		 or	 ecx, eax
+  00a61	89 4d d8	 mov	 DWORD PTR _dwBM$[ebp], ecx
+
+; 419  :          else
+
+  00a64	eb 3d		 jmp	 SHORT $L36220
+$L36219:
+
+; 421  :             // pack 3 bytes into dword
+; 422  :             dwBM  = pblockSrc->alphabm[5];
+
+  00a66	8b 55 08	 mov	 edx, DWORD PTR _pblockSrc$[ebp]
+  00a69	33 c0		 xor	 eax, eax
+  00a6b	8a 42 07	 mov	 al, BYTE PTR [edx+7]
+  00a6e	89 45 d8	 mov	 DWORD PTR _dwBM$[ebp], eax
+
+; 423  :             dwBM <<= 8;
+
+  00a71	8b 4d d8	 mov	 ecx, DWORD PTR _dwBM$[ebp]
+  00a74	c1 e1 08	 shl	 ecx, 8
+  00a77	89 4d d8	 mov	 DWORD PTR _dwBM$[ebp], ecx
+
+; 424  :             dwBM |= pblockSrc->alphabm[4];
+
+  00a7a	8b 55 08	 mov	 edx, DWORD PTR _pblockSrc$[ebp]
+  00a7d	33 c0		 xor	 eax, eax
+  00a7f	8a 42 06	 mov	 al, BYTE PTR [edx+6]
+  00a82	8b 4d d8	 mov	 ecx, DWORD PTR _dwBM$[ebp]
+  00a85	0b c8		 or	 ecx, eax
+  00a87	89 4d d8	 mov	 DWORD PTR _dwBM$[ebp], ecx
+
+; 425  :             dwBM <<= 8;
+
+  00a8a	8b 55 d8	 mov	 edx, DWORD PTR _dwBM$[ebp]
+  00a8d	c1 e2 08	 shl	 edx, 8
+  00a90	89 55 d8	 mov	 DWORD PTR _dwBM$[ebp], edx
+
+; 426  :             dwBM |= pblockSrc->alphabm[3];
+
+  00a93	8b 45 08	 mov	 eax, DWORD PTR _pblockSrc$[ebp]
+  00a96	33 c9		 xor	 ecx, ecx
+  00a98	8a 48 05	 mov	 cl, BYTE PTR [eax+5]
+  00a9b	8b 55 d8	 mov	 edx, DWORD PTR _dwBM$[ebp]
+  00a9e	0b d1		 or	 edx, ecx
+  00aa0	89 55 d8	 mov	 DWORD PTR _dwBM$[ebp], edx
+$L36220:
+
+; 429  : 
+; 430  :       // unpack bitmap dword 3 bits at a time
+; 431  :       colorDst[pixel].rgba[ALFA] = (BYTE)alpha[(dwBM & 7)];
+
+  00aa3	8b 45 d8	 mov	 eax, DWORD PTR _dwBM$[ebp]
+  00aa6	83 e0 07	 and	 eax, 7
+  00aa9	8b 4d dc	 mov	 ecx, DWORD PTR _pixel$[ebp]
+  00aac	8b 55 0c	 mov	 edx, DWORD PTR _colorDst$[ebp]
+  00aaf	8a 44 85 e0	 mov	 al, BYTE PTR _alpha$[ebp+eax*4]
+  00ab3	88 44 8a 03	 mov	 BYTE PTR [edx+ecx*4+3], al
+
+; 432  :       dwBM >>= 3;
+
+  00ab7	8b 4d d8	 mov	 ecx, DWORD PTR _dwBM$[ebp]
+  00aba	c1 e9 03	 shr	 ecx, 3
+  00abd	89 4d d8	 mov	 DWORD PTR _dwBM$[ebp], ecx
+
+; 433  :    }
+
+  00ac0	e9 3b ff ff ff	 jmp	 $L36216
+$L36217:
+
+; 434  : }
+
+  00ac5	8b e5		 mov	 esp, ebp
+  00ac7	5d		 pop	 ebp
+  00ac8	c3		 ret	 0
+_DecodeBlockAlpha3 ENDP
+_TEXT	ENDS
+PUBLIC	_EncodeBlockAlpha3
+_TEXT	SEGMENT
+_colorSrc$ = 8
+_pblockDst$ = 12
+_i$ = -48
+_j$ = -52
+_t$ = -36
+_alpha$ = -32
+_min$ = -64
+_max$ = -40
+_opaque$ = -68
+_transparent$ = -60
+_tsize$ = -44
+_nearest$ = -84
+_nearestIdx$ = -56
+_maxset$ = -80
+_minset$ = -76
+_dwBM$ = -72
+_EncodeBlockAlpha3 PROC NEAR
+
+; 438  : {
+
+  00ac9	55		 push	 ebp
+  00aca	8b ec		 mov	 ebp, esp
+  00acc	83 ec 54	 sub	 esp, 84			; 00000054H
+
+; 439  :    int   i,j;
+; 440  :    int   t;
+; 441  :    int   alpha[8];
+; 442  :    int   min = 255;
+
+  00acf	c7 45 c0 ff 00
+	00 00		 mov	 DWORD PTR _min$[ebp], 255 ; 000000ffH
+
+; 443  :    int   max = 0;
+
+  00ad6	c7 45 d8 00 00
+	00 00		 mov	 DWORD PTR _max$[ebp], 0
+
+; 444  :    int   opaque=0;
+
+  00add	c7 45 bc 00 00
+	00 00		 mov	 DWORD PTR _opaque$[ebp], 0
+
+; 445  :    int   transparent=0;
+
+  00ae4	c7 45 c4 00 00
+	00 00		 mov	 DWORD PTR _transparent$[ebp], 0
+
+; 446  :    int   tsize = 8;
+
+  00aeb	c7 45 d4 08 00
+	00 00		 mov	 DWORD PTR _tsize$[ebp], 8
+
+; 447  :    int   nearest;
+; 448  :    int   nearestIdx;
+; 449  :    int   maxset=0, minset=0;
+
+  00af2	c7 45 b0 00 00
+	00 00		 mov	 DWORD PTR _maxset$[ebp], 0
+  00af9	c7 45 b4 00 00
+	00 00		 mov	 DWORD PTR _minset$[ebp], 0
+
+; 450  :    unsigned long dwBM;
+; 451  : 
+; 452  :    EncodeBlockRGB_i(colorSrc,&pblockDst->rgb,1);
+
+  00b00	6a 01		 push	 1
+  00b02	8b 45 0c	 mov	 eax, DWORD PTR _pblockDst$[ebp]
+  00b05	83 c0 08	 add	 eax, 8
+  00b08	50		 push	 eax
+  00b09	8b 4d 08	 mov	 ecx, DWORD PTR _colorSrc$[ebp]
+  00b0c	51		 push	 ecx
+  00b0d	e8 00 00 00 00	 call	 _EncodeBlockRGB_i
+  00b12	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 453  : 
+; 454  :    for (i=0;i < DXT_BLOCK_PIXELS; i++)
+
+  00b15	c7 45 d0 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  00b1c	eb 09		 jmp	 SHORT $L36241
+$L36242:
+  00b1e	8b 55 d0	 mov	 edx, DWORD PTR _i$[ebp]
+  00b21	83 c2 01	 add	 edx, 1
+  00b24	89 55 d0	 mov	 DWORD PTR _i$[ebp], edx
+$L36241:
+  00b27	83 7d d0 10	 cmp	 DWORD PTR _i$[ebp], 16	; 00000010H
+  00b2b	0f 8d ab 00 00
+	00		 jge	 $L36243
+
+; 456  :       if(colorSrc[i].rgba[ALFA] == 255)
+
+  00b31	8b 45 d0	 mov	 eax, DWORD PTR _i$[ebp]
+  00b34	8b 4d 08	 mov	 ecx, DWORD PTR _colorSrc$[ebp]
+  00b37	33 d2		 xor	 edx, edx
+  00b39	8a 54 81 03	 mov	 dl, BYTE PTR [ecx+eax*4+3]
+  00b3d	81 fa ff 00 00
+	00		 cmp	 edx, 255		; 000000ffH
+  00b43	75 09		 jne	 SHORT $L36244
+
+; 457  :          opaque = 1;
+
+  00b45	c7 45 bc 01 00
+	00 00		 mov	 DWORD PTR _opaque$[ebp], 1
+
+; 458  :       else if (colorSrc[i].rgba[ALFA] == 0)
+
+  00b4c	eb 17		 jmp	 SHORT $L36246
+$L36244:
+  00b4e	8b 45 d0	 mov	 eax, DWORD PTR _i$[ebp]
+  00b51	8b 4d 08	 mov	 ecx, DWORD PTR _colorSrc$[ebp]
+  00b54	33 d2		 xor	 edx, edx
+  00b56	8a 54 81 03	 mov	 dl, BYTE PTR [ecx+eax*4+3]
+  00b5a	85 d2		 test	 edx, edx
+  00b5c	75 07		 jne	 SHORT $L36246
+
+; 459  :          transparent = 1;
+
+  00b5e	c7 45 c4 01 00
+	00 00		 mov	 DWORD PTR _transparent$[ebp], 1
+$L36246:
+
+; 460  : 
+; 461  :       if(colorSrc[i].rgba[ALFA] >= max)
+
+  00b65	8b 45 d0	 mov	 eax, DWORD PTR _i$[ebp]
+  00b68	8b 4d 08	 mov	 ecx, DWORD PTR _colorSrc$[ebp]
+  00b6b	33 d2		 xor	 edx, edx
+  00b6d	8a 54 81 03	 mov	 dl, BYTE PTR [ecx+eax*4+3]
+  00b71	3b 55 d8	 cmp	 edx, DWORD PTR _max$[ebp]
+  00b74	7c 2a		 jl	 SHORT $L36248
+
+; 463  :          if (colorSrc[i].rgba[ALFA] != 255)
+
+  00b76	8b 45 d0	 mov	 eax, DWORD PTR _i$[ebp]
+  00b79	8b 4d 08	 mov	 ecx, DWORD PTR _colorSrc$[ebp]
+  00b7c	33 d2		 xor	 edx, edx
+  00b7e	8a 54 81 03	 mov	 dl, BYTE PTR [ecx+eax*4+3]
+  00b82	81 fa ff 00 00
+	00		 cmp	 edx, 255		; 000000ffH
+  00b88	74 16		 je	 SHORT $L36248
+
+; 465  :             max = colorSrc[i].rgba[ALFA];
+
+  00b8a	8b 45 d0	 mov	 eax, DWORD PTR _i$[ebp]
+  00b8d	8b 4d 08	 mov	 ecx, DWORD PTR _colorSrc$[ebp]
+  00b90	33 d2		 xor	 edx, edx
+  00b92	8a 54 81 03	 mov	 dl, BYTE PTR [ecx+eax*4+3]
+  00b96	89 55 d8	 mov	 DWORD PTR _max$[ebp], edx
+
+; 466  :             maxset = 1;
+
+  00b99	c7 45 b0 01 00
+	00 00		 mov	 DWORD PTR _maxset$[ebp], 1
+$L36248:
+
+; 469  :       if (colorSrc[i].rgba[ALFA] <= min)
+
+  00ba0	8b 45 d0	 mov	 eax, DWORD PTR _i$[ebp]
+  00ba3	8b 4d 08	 mov	 ecx, DWORD PTR _colorSrc$[ebp]
+  00ba6	33 d2		 xor	 edx, edx
+  00ba8	8a 54 81 03	 mov	 dl, BYTE PTR [ecx+eax*4+3]
+  00bac	3b 55 c0	 cmp	 edx, DWORD PTR _min$[ebp]
+  00baf	7f 26		 jg	 SHORT $L36250
+
+; 471  :          if (colorSrc[i].rgba[ALFA] != 0)
+
+  00bb1	8b 45 d0	 mov	 eax, DWORD PTR _i$[ebp]
+  00bb4	8b 4d 08	 mov	 ecx, DWORD PTR _colorSrc$[ebp]
+  00bb7	33 d2		 xor	 edx, edx
+  00bb9	8a 54 81 03	 mov	 dl, BYTE PTR [ecx+eax*4+3]
+  00bbd	85 d2		 test	 edx, edx
+  00bbf	74 16		 je	 SHORT $L36250
+
+; 473  :             min = colorSrc[i].rgba[ALFA];
+
+  00bc1	8b 45 d0	 mov	 eax, DWORD PTR _i$[ebp]
+  00bc4	8b 4d 08	 mov	 ecx, DWORD PTR _colorSrc$[ebp]
+  00bc7	33 d2		 xor	 edx, edx
+  00bc9	8a 54 81 03	 mov	 dl, BYTE PTR [ecx+eax*4+3]
+  00bcd	89 55 c0	 mov	 DWORD PTR _min$[ebp], edx
+
+; 474  :             minset = 1;
+
+  00bd0	c7 45 b4 01 00
+	00 00		 mov	 DWORD PTR _minset$[ebp], 1
+$L36250:
+
+; 477  :    }
+
+  00bd7	e9 42 ff ff ff	 jmp	 $L36242
+$L36243:
+
+; 478  :    if ( transparent || opaque )
+
+  00bdc	83 7d c4 00	 cmp	 DWORD PTR _transparent$[ebp], 0
+  00be0	75 0a		 jne	 SHORT $L36252
+  00be2	83 7d bc 00	 cmp	 DWORD PTR _opaque$[ebp], 0
+  00be6	0f 84 93 00 00
+	00		 je	 $L36251
+$L36252:
+
+; 480  : 
+; 481  :       // This keeps min from being larger max, which indicates that to the
+; 482  :       // decompressor that it uses 8 ramps, and no explicit 0,255.
+; 483  :       // This can happen if every value in the block is transparent.
+; 484  : 
+; 485  :       if (!minset)
+
+  00bec	83 7d b4 00	 cmp	 DWORD PTR _minset$[ebp], 0
+  00bf0	75 07		 jne	 SHORT $L36253
+
+; 486  :          min=0;
+
+  00bf2	c7 45 c0 00 00
+	00 00		 mov	 DWORD PTR _min$[ebp], 0
+$L36253:
+
+; 487  : 
+; 488  :       if (!maxset)
+
+  00bf9	83 7d b0 00	 cmp	 DWORD PTR _maxset$[ebp], 0
+  00bfd	75 07		 jne	 SHORT $L36254
+
+; 489  :          max=255;
+
+  00bff	c7 45 d8 ff 00
+	00 00		 mov	 DWORD PTR _max$[ebp], 255 ; 000000ffH
+$L36254:
+
+; 490  : 
+; 491  :       alpha[0]=min;
+
+  00c06	8b 45 c0	 mov	 eax, DWORD PTR _min$[ebp]
+  00c09	89 45 e0	 mov	 DWORD PTR _alpha$[ebp], eax
+
+; 492  :       alpha[1]=max;
+
+  00c0c	8b 4d d8	 mov	 ecx, DWORD PTR _max$[ebp]
+  00c0f	89 4d e4	 mov	 DWORD PTR _alpha$[ebp+4], ecx
+
+; 493  :       alpha[2] = (    alpha[0] + 4 * alpha[1] + 3) / 5;
+
+  00c12	8b 55 e4	 mov	 edx, DWORD PTR _alpha$[ebp+4]
+  00c15	8b 45 e0	 mov	 eax, DWORD PTR _alpha$[ebp]
+  00c18	8d 44 90 03	 lea	 eax, DWORD PTR [eax+edx*4+3]
+  00c1c	99		 cdq
+  00c1d	b9 05 00 00 00	 mov	 ecx, 5
+  00c22	f7 f9		 idiv	 ecx
+  00c24	89 45 e8	 mov	 DWORD PTR _alpha$[ebp+8], eax
+
+; 494  :       alpha[3] = (2 * alpha[0] + 3 * alpha[1] + 3) / 5;
+
+  00c27	8b 55 e4	 mov	 edx, DWORD PTR _alpha$[ebp+4]
+  00c2a	6b d2 03	 imul	 edx, 3
+  00c2d	8b 45 e0	 mov	 eax, DWORD PTR _alpha$[ebp]
+  00c30	8d 44 42 03	 lea	 eax, DWORD PTR [edx+eax*2+3]
+  00c34	99		 cdq
+  00c35	b9 05 00 00 00	 mov	 ecx, 5
+  00c3a	f7 f9		 idiv	 ecx
+  00c3c	89 45 ec	 mov	 DWORD PTR _alpha$[ebp+12], eax
+
+; 495  :       alpha[4] = (3 * alpha[0] + 2 * alpha[1] + 3) / 5;
+
+  00c3f	8b 55 e0	 mov	 edx, DWORD PTR _alpha$[ebp]
+  00c42	6b d2 03	 imul	 edx, 3
+  00c45	8b 45 e4	 mov	 eax, DWORD PTR _alpha$[ebp+4]
+  00c48	8d 44 42 03	 lea	 eax, DWORD PTR [edx+eax*2+3]
+  00c4c	99		 cdq
+  00c4d	b9 05 00 00 00	 mov	 ecx, 5
+  00c52	f7 f9		 idiv	 ecx
+  00c54	89 45 f0	 mov	 DWORD PTR _alpha$[ebp+16], eax
+
+; 496  :       alpha[5] = (4 * alpha[0] +     alpha[1] + 3) / 5;
+
+  00c57	8b 55 e0	 mov	 edx, DWORD PTR _alpha$[ebp]
+  00c5a	8b 45 e4	 mov	 eax, DWORD PTR _alpha$[ebp+4]
+  00c5d	8d 44 90 03	 lea	 eax, DWORD PTR [eax+edx*4+3]
+  00c61	99		 cdq
+  00c62	b9 05 00 00 00	 mov	 ecx, 5
+  00c67	f7 f9		 idiv	 ecx
+  00c69	89 45 f4	 mov	 DWORD PTR _alpha$[ebp+20], eax
+
+; 497  :       alpha[6]=0;
+
+  00c6c	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _alpha$[ebp+24], 0
+
+; 498  :       alpha[7]=255;
+
+  00c73	c7 45 fc ff 00
+	00 00		 mov	 DWORD PTR _alpha$[ebp+28], 255 ; 000000ffH
+
+; 500  :    else
+
+  00c7a	e9 9c 00 00 00	 jmp	 $L36255
+$L36251:
+
+; 502  : 
+; 503  :       // interpolate intermediate colors with rounding
+; 504  :       alpha[0] = max;
+
+  00c7f	8b 55 d8	 mov	 edx, DWORD PTR _max$[ebp]
+  00c82	89 55 e0	 mov	 DWORD PTR _alpha$[ebp], edx
+
+; 505  :       alpha[1] = min;
+
+  00c85	8b 45 c0	 mov	 eax, DWORD PTR _min$[ebp]
+  00c88	89 45 e4	 mov	 DWORD PTR _alpha$[ebp+4], eax
+
+; 506  :       alpha[2] = (    alpha[0] + 6 * alpha[1] + 3) / 7;
+
+  00c8b	8b 4d e4	 mov	 ecx, DWORD PTR _alpha$[ebp+4]
+  00c8e	6b c9 06	 imul	 ecx, 6
+  00c91	8b 55 e0	 mov	 edx, DWORD PTR _alpha$[ebp]
+  00c94	8d 44 0a 03	 lea	 eax, DWORD PTR [edx+ecx+3]
+  00c98	99		 cdq
+  00c99	b9 07 00 00 00	 mov	 ecx, 7
+  00c9e	f7 f9		 idiv	 ecx
+  00ca0	89 45 e8	 mov	 DWORD PTR _alpha$[ebp+8], eax
+
+; 507  :       alpha[3] = (2 * alpha[0] + 5 * alpha[1] + 3) / 7;
+
+  00ca3	8b 55 e4	 mov	 edx, DWORD PTR _alpha$[ebp+4]
+  00ca6	6b d2 05	 imul	 edx, 5
+  00ca9	8b 45 e0	 mov	 eax, DWORD PTR _alpha$[ebp]
+  00cac	8d 44 42 03	 lea	 eax, DWORD PTR [edx+eax*2+3]
+  00cb0	99		 cdq
+  00cb1	b9 07 00 00 00	 mov	 ecx, 7
+  00cb6	f7 f9		 idiv	 ecx
+  00cb8	89 45 ec	 mov	 DWORD PTR _alpha$[ebp+12], eax
+
+; 508  :       alpha[4] = (3 * alpha[0] + 4 * alpha[1] + 3) / 7;
+
+  00cbb	8b 55 e0	 mov	 edx, DWORD PTR _alpha$[ebp]
+  00cbe	6b d2 03	 imul	 edx, 3
+  00cc1	8b 45 e4	 mov	 eax, DWORD PTR _alpha$[ebp+4]
+  00cc4	8d 44 82 03	 lea	 eax, DWORD PTR [edx+eax*4+3]
+  00cc8	99		 cdq
+  00cc9	b9 07 00 00 00	 mov	 ecx, 7
+  00cce	f7 f9		 idiv	 ecx
+  00cd0	89 45 f0	 mov	 DWORD PTR _alpha$[ebp+16], eax
+
+; 509  :       alpha[5] = (4 * alpha[0] + 3 * alpha[1] + 3) / 7;
+
+  00cd3	8b 55 e4	 mov	 edx, DWORD PTR _alpha$[ebp+4]
+  00cd6	6b d2 03	 imul	 edx, 3
+  00cd9	8b 45 e0	 mov	 eax, DWORD PTR _alpha$[ebp]
+  00cdc	8d 44 82 03	 lea	 eax, DWORD PTR [edx+eax*4+3]
+  00ce0	99		 cdq
+  00ce1	b9 07 00 00 00	 mov	 ecx, 7
+  00ce6	f7 f9		 idiv	 ecx
+  00ce8	89 45 f4	 mov	 DWORD PTR _alpha$[ebp+20], eax
+
+; 510  :       alpha[6] = (5 * alpha[0] + 2 * alpha[1] + 3) / 7;
+
+  00ceb	8b 55 e0	 mov	 edx, DWORD PTR _alpha$[ebp]
+  00cee	6b d2 05	 imul	 edx, 5
+  00cf1	8b 45 e4	 mov	 eax, DWORD PTR _alpha$[ebp+4]
+  00cf4	8d 44 42 03	 lea	 eax, DWORD PTR [edx+eax*2+3]
+  00cf8	99		 cdq
+  00cf9	b9 07 00 00 00	 mov	 ecx, 7
+  00cfe	f7 f9		 idiv	 ecx
+  00d00	89 45 f8	 mov	 DWORD PTR _alpha$[ebp+24], eax
+
+; 511  :       alpha[7] = (6 * alpha[0] +     alpha[1] + 3) / 7;
+
+  00d03	8b 55 e0	 mov	 edx, DWORD PTR _alpha$[ebp]
+  00d06	6b d2 06	 imul	 edx, 6
+  00d09	8b 45 e4	 mov	 eax, DWORD PTR _alpha$[ebp+4]
+  00d0c	8d 44 02 03	 lea	 eax, DWORD PTR [edx+eax+3]
+  00d10	99		 cdq
+  00d11	b9 07 00 00 00	 mov	 ecx, 7
+  00d16	f7 f9		 idiv	 ecx
+  00d18	89 45 fc	 mov	 DWORD PTR _alpha$[ebp+28], eax
+$L36255:
+
+; 513  : 
+; 514  : #ifdef WINNT
+; 515  :    // clean up warnings in w2k build
+; 516  :    pblockDst->alpha0 = (BYTE)alpha[0];
+; 517  :    pblockDst->alpha1 = (BYTE)alpha[1];
+; 518  : #else
+; 519  :    pblockDst->alpha0 = alpha[0];
+
+  00d1b	8b 55 0c	 mov	 edx, DWORD PTR _pblockDst$[ebp]
+  00d1e	8a 45 e0	 mov	 al, BYTE PTR _alpha$[ebp]
+  00d21	88 02		 mov	 BYTE PTR [edx], al
+
+; 520  :    pblockDst->alpha1 = alpha[1];
+
+  00d23	8b 4d 0c	 mov	 ecx, DWORD PTR _pblockDst$[ebp]
+  00d26	8a 55 e4	 mov	 dl, BYTE PTR _alpha$[ebp+4]
+  00d29	88 51 01	 mov	 BYTE PTR [ecx+1], dl
+
+; 521  : #endif
+; 522  : 
+; 523  :    dwBM=0;
+
+  00d2c	c7 45 b8 00 00
+	00 00		 mov	 DWORD PTR _dwBM$[ebp], 0
+
+; 524  :    for (i=DXT_BLOCK_PIXELS-1; i >= 0; i--)
+
+  00d33	c7 45 d0 0f 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 15	; 0000000fH
+  00d3a	eb 09		 jmp	 SHORT $L36256
+$L36257:
+  00d3c	8b 45 d0	 mov	 eax, DWORD PTR _i$[ebp]
+  00d3f	83 e8 01	 sub	 eax, 1
+  00d42	89 45 d0	 mov	 DWORD PTR _i$[ebp], eax
+$L36256:
+  00d45	83 7d d0 00	 cmp	 DWORD PTR _i$[ebp], 0
+  00d49	0f 8c 59 01 00
+	00		 jl	 $L36258
+
+; 526  :       nearest = 255;
+
+  00d4f	c7 45 ac ff 00
+	00 00		 mov	 DWORD PTR _nearest$[ebp], 255 ; 000000ffH
+
+; 527  :       if (transparent || opaque)
+
+  00d56	83 7d c4 00	 cmp	 DWORD PTR _transparent$[ebp], 0
+  00d5a	75 0a		 jne	 SHORT $L36260
+  00d5c	83 7d bc 00	 cmp	 DWORD PTR _opaque$[ebp], 0
+  00d60	0f 84 84 00 00
+	00		 je	 $L36259
+$L36260:
+
+; 529  :          if (colorSrc[i].rgba[ALFA] == 0)
+
+  00d66	8b 4d d0	 mov	 ecx, DWORD PTR _i$[ebp]
+  00d69	8b 55 08	 mov	 edx, DWORD PTR _colorSrc$[ebp]
+  00d6c	33 c0		 xor	 eax, eax
+  00d6e	8a 44 8a 03	 mov	 al, BYTE PTR [edx+ecx*4+3]
+  00d72	85 c0		 test	 eax, eax
+  00d74	75 09		 jne	 SHORT $L36261
+
+; 530  :             nearestIdx = 6;
+
+  00d76	c7 45 c8 06 00
+	00 00		 mov	 DWORD PTR _nearestIdx$[ebp], 6
+
+; 531  :          else if (colorSrc[i].rgba[ALFA] == 255)
+
+  00d7d	eb 69		 jmp	 SHORT $L36267
+$L36261:
+  00d7f	8b 4d d0	 mov	 ecx, DWORD PTR _i$[ebp]
+  00d82	8b 55 08	 mov	 edx, DWORD PTR _colorSrc$[ebp]
+  00d85	33 c0		 xor	 eax, eax
+  00d87	8a 44 8a 03	 mov	 al, BYTE PTR [edx+ecx*4+3]
+  00d8b	3d ff 00 00 00	 cmp	 eax, 255		; 000000ffH
+  00d90	75 09		 jne	 SHORT $L36263
+
+; 532  :             nearestIdx = 7;
+
+  00d92	c7 45 c8 07 00
+	00 00		 mov	 DWORD PTR _nearestIdx$[ebp], 7
+
+; 533  :          else
+
+  00d99	eb 4d		 jmp	 SHORT $L36267
+$L36263:
+
+; 535  :             for (j=0; j < 6; j++)
+
+  00d9b	c7 45 cc 00 00
+	00 00		 mov	 DWORD PTR _j$[ebp], 0
+  00da2	eb 09		 jmp	 SHORT $L36265
+$L36266:
+  00da4	8b 4d cc	 mov	 ecx, DWORD PTR _j$[ebp]
+  00da7	83 c1 01	 add	 ecx, 1
+  00daa	89 4d cc	 mov	 DWORD PTR _j$[ebp], ecx
+$L36265:
+  00dad	83 7d cc 06	 cmp	 DWORD PTR _j$[ebp], 6
+  00db1	7d 35		 jge	 SHORT $L36267
+
+; 537  :                t=ABS(colorSrc[i].rgba[ALFA] - alpha[j]);
+
+  00db3	8b 55 d0	 mov	 edx, DWORD PTR _i$[ebp]
+  00db6	8b 45 08	 mov	 eax, DWORD PTR _colorSrc$[ebp]
+  00db9	33 c9		 xor	 ecx, ecx
+  00dbb	8a 4c 90 03	 mov	 cl, BYTE PTR [eax+edx*4+3]
+  00dbf	8b 55 cc	 mov	 edx, DWORD PTR _j$[ebp]
+  00dc2	2b 4c 95 e0	 sub	 ecx, DWORD PTR _alpha$[ebp+edx*4]
+  00dc6	51		 push	 ecx
+  00dc7	e8 00 00 00 00	 call	 _l_abs
+  00dcc	83 c4 04	 add	 esp, 4
+  00dcf	89 45 dc	 mov	 DWORD PTR _t$[ebp], eax
+
+; 538  :                if (t < nearest)
+
+  00dd2	8b 45 dc	 mov	 eax, DWORD PTR _t$[ebp]
+  00dd5	3b 45 ac	 cmp	 eax, DWORD PTR _nearest$[ebp]
+  00dd8	7d 0c		 jge	 SHORT $L36268
+
+; 540  :                   nearest = t;
+
+  00dda	8b 4d dc	 mov	 ecx, DWORD PTR _t$[ebp]
+  00ddd	89 4d ac	 mov	 DWORD PTR _nearest$[ebp], ecx
+
+; 541  :                   nearestIdx = j;
+
+  00de0	8b 55 cc	 mov	 edx, DWORD PTR _j$[ebp]
+  00de3	89 55 c8	 mov	 DWORD PTR _nearestIdx$[ebp], edx
+$L36268:
+
+; 543  :             }
+
+  00de6	eb bc		 jmp	 SHORT $L36266
+$L36267:
+
+; 546  :       else
+
+  00de8	eb 4d		 jmp	 SHORT $L36272
+$L36259:
+
+; 548  :          for(j=0; j < 8; j++)
+
+  00dea	c7 45 cc 00 00
+	00 00		 mov	 DWORD PTR _j$[ebp], 0
+  00df1	eb 09		 jmp	 SHORT $L36270
+$L36271:
+  00df3	8b 45 cc	 mov	 eax, DWORD PTR _j$[ebp]
+  00df6	83 c0 01	 add	 eax, 1
+  00df9	89 45 cc	 mov	 DWORD PTR _j$[ebp], eax
+$L36270:
+  00dfc	83 7d cc 08	 cmp	 DWORD PTR _j$[ebp], 8
+  00e00	7d 35		 jge	 SHORT $L36272
+
+; 550  :             t = ABS(colorSrc[i].rgba[ALFA] - alpha[j]);
+
+  00e02	8b 4d d0	 mov	 ecx, DWORD PTR _i$[ebp]
+  00e05	8b 55 08	 mov	 edx, DWORD PTR _colorSrc$[ebp]
+  00e08	33 c0		 xor	 eax, eax
+  00e0a	8a 44 8a 03	 mov	 al, BYTE PTR [edx+ecx*4+3]
+  00e0e	8b 4d cc	 mov	 ecx, DWORD PTR _j$[ebp]
+  00e11	2b 44 8d e0	 sub	 eax, DWORD PTR _alpha$[ebp+ecx*4]
+  00e15	50		 push	 eax
+  00e16	e8 00 00 00 00	 call	 _l_abs
+  00e1b	83 c4 04	 add	 esp, 4
+  00e1e	89 45 dc	 mov	 DWORD PTR _t$[ebp], eax
+
+; 551  :             if (t < nearest)
+
+  00e21	8b 55 dc	 mov	 edx, DWORD PTR _t$[ebp]
+  00e24	3b 55 ac	 cmp	 edx, DWORD PTR _nearest$[ebp]
+  00e27	7d 0c		 jge	 SHORT $L36273
+
+; 553  :                nearest = t;
+
+  00e29	8b 45 dc	 mov	 eax, DWORD PTR _t$[ebp]
+  00e2c	89 45 ac	 mov	 DWORD PTR _nearest$[ebp], eax
+
+; 554  :                nearestIdx = j;
+
+  00e2f	8b 4d cc	 mov	 ecx, DWORD PTR _j$[ebp]
+  00e32	89 4d c8	 mov	 DWORD PTR _nearestIdx$[ebp], ecx
+$L36273:
+
+; 556  :          }
+
+  00e35	eb bc		 jmp	 SHORT $L36271
+$L36272:
+
+; 558  :       dwBM <<= 3;
+
+  00e37	8b 55 b8	 mov	 edx, DWORD PTR _dwBM$[ebp]
+  00e3a	c1 e2 03	 shl	 edx, 3
+  00e3d	89 55 b8	 mov	 DWORD PTR _dwBM$[ebp], edx
+
+; 559  :       dwBM |= (nearestIdx & 0x7);
+
+  00e40	8b 45 c8	 mov	 eax, DWORD PTR _nearestIdx$[ebp]
+  00e43	83 e0 07	 and	 eax, 7
+  00e46	8b 4d b8	 mov	 ecx, DWORD PTR _dwBM$[ebp]
+  00e49	0b c8		 or	 ecx, eax
+  00e4b	89 4d b8	 mov	 DWORD PTR _dwBM$[ebp], ecx
+
+; 560  :       if (i==8)
+
+  00e4e	83 7d d0 08	 cmp	 DWORD PTR _i$[ebp], 8
+  00e52	75 4f		 jne	 SHORT $L36274
+
+; 562  :          pblockDst->alphabm[3] = (unsigned char)(dwBM & 0xff);
+
+  00e54	8b 55 b8	 mov	 edx, DWORD PTR _dwBM$[ebp]
+  00e57	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00e5d	8b 45 0c	 mov	 eax, DWORD PTR _pblockDst$[ebp]
+  00e60	88 50 05	 mov	 BYTE PTR [eax+5], dl
+
+; 563  :          dwBM >>= 8;
+
+  00e63	8b 4d b8	 mov	 ecx, DWORD PTR _dwBM$[ebp]
+  00e66	c1 e9 08	 shr	 ecx, 8
+  00e69	89 4d b8	 mov	 DWORD PTR _dwBM$[ebp], ecx
+
+; 564  :          pblockDst->alphabm[4] = (unsigned char)(dwBM & 0xff);
+
+  00e6c	8b 55 b8	 mov	 edx, DWORD PTR _dwBM$[ebp]
+  00e6f	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00e75	8b 45 0c	 mov	 eax, DWORD PTR _pblockDst$[ebp]
+  00e78	88 50 06	 mov	 BYTE PTR [eax+6], dl
+
+; 565  :          dwBM >>= 8;
+
+  00e7b	8b 4d b8	 mov	 ecx, DWORD PTR _dwBM$[ebp]
+  00e7e	c1 e9 08	 shr	 ecx, 8
+  00e81	89 4d b8	 mov	 DWORD PTR _dwBM$[ebp], ecx
+
+; 566  :          pblockDst->alphabm[5] = (unsigned char)(dwBM & 0xff);
+
+  00e84	8b 55 b8	 mov	 edx, DWORD PTR _dwBM$[ebp]
+  00e87	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00e8d	8b 45 0c	 mov	 eax, DWORD PTR _pblockDst$[ebp]
+  00e90	88 50 07	 mov	 BYTE PTR [eax+7], dl
+
+; 567  :          dwBM >>= 8;
+
+  00e93	8b 4d b8	 mov	 ecx, DWORD PTR _dwBM$[ebp]
+  00e96	c1 e9 08	 shr	 ecx, 8
+  00e99	89 4d b8	 mov	 DWORD PTR _dwBM$[ebp], ecx
+
+; 568  : 
+; 569  :          dwBM=0;
+
+  00e9c	c7 45 b8 00 00
+	00 00		 mov	 DWORD PTR _dwBM$[ebp], 0
+$L36274:
+
+; 571  :    }
+
+  00ea3	e9 94 fe ff ff	 jmp	 $L36257
+$L36258:
+
+; 572  : 
+; 573  :    pblockDst->alphabm[0] = (unsigned char)(dwBM & 0xff);
+
+  00ea8	8b 55 b8	 mov	 edx, DWORD PTR _dwBM$[ebp]
+  00eab	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00eb1	8b 45 0c	 mov	 eax, DWORD PTR _pblockDst$[ebp]
+  00eb4	88 50 02	 mov	 BYTE PTR [eax+2], dl
+
+; 574  :    dwBM >>= 8;
+
+  00eb7	8b 4d b8	 mov	 ecx, DWORD PTR _dwBM$[ebp]
+  00eba	c1 e9 08	 shr	 ecx, 8
+  00ebd	89 4d b8	 mov	 DWORD PTR _dwBM$[ebp], ecx
+
+; 575  :    pblockDst->alphabm[1] = (unsigned char)(dwBM & 0xff);
+
+  00ec0	8b 55 b8	 mov	 edx, DWORD PTR _dwBM$[ebp]
+  00ec3	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00ec9	8b 45 0c	 mov	 eax, DWORD PTR _pblockDst$[ebp]
+  00ecc	88 50 03	 mov	 BYTE PTR [eax+3], dl
+
+; 576  :    dwBM >>= 8;
+
+  00ecf	8b 4d b8	 mov	 ecx, DWORD PTR _dwBM$[ebp]
+  00ed2	c1 e9 08	 shr	 ecx, 8
+  00ed5	89 4d b8	 mov	 DWORD PTR _dwBM$[ebp], ecx
+
+; 577  :    pblockDst->alphabm[2] = (unsigned char)(dwBM & 0xff);
+
+  00ed8	8b 55 b8	 mov	 edx, DWORD PTR _dwBM$[ebp]
+  00edb	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00ee1	8b 45 0c	 mov	 eax, DWORD PTR _pblockDst$[ebp]
+  00ee4	88 50 04	 mov	 BYTE PTR [eax+4], dl
+
+; 578  :    dwBM >>= 8;
+
+  00ee7	8b 4d b8	 mov	 ecx, DWORD PTR _dwBM$[ebp]
+  00eea	c1 e9 08	 shr	 ecx, 8
+  00eed	89 4d b8	 mov	 DWORD PTR _dwBM$[ebp], ecx
+
+; 579  : 
+; 580  : }
+
+  00ef0	8b e5		 mov	 esp, ebp
+  00ef2	5d		 pop	 ebp
+  00ef3	c3		 ret	 0
+_EncodeBlockAlpha3 ENDP
+_x$ = 8
+_l_abs	PROC NEAR
+
+; 31   : {
+
+  00ef4	55		 push	 ebp
+  00ef5	8b ec		 mov	 ebp, esp
+
+; 32   :    if (x < 0)
+
+  00ef7	83 7d 08 00	 cmp	 DWORD PTR _x$[ebp], 0
+  00efb	7d 07		 jge	 SHORT $L36057
+
+; 33   :       return -x;
+
+  00efd	8b 45 08	 mov	 eax, DWORD PTR _x$[ebp]
+  00f00	f7 d8		 neg	 eax
+  00f02	eb 03		 jmp	 SHORT $L36058
+$L36057:
+
+; 34   :    else
+; 35   :       return x;
+
+  00f04	8b 45 08	 mov	 eax, DWORD PTR _x$[ebp]
+$L36058:
+
+; 36   : }
+
+  00f07	5d		 pop	 ebp
+  00f08	c3		 ret	 0
+_l_abs	ENDP
+_TEXT	ENDS
+END

@@ -1,0 +1,775 @@
+##
+## Copyright (c) 1997, 3Dfx Interactive, Inc.
+## All Rights Reserved.
+##
+## This is UNPUBLISHED PROPRIETARY SOURCE CODE of 3Dfx Interactive, Inc.;
+## the contents of this file may not be disclosed to third parties, copied or
+## duplicated in any form, in whole or in part, without the prior written
+## permission of 3Dfx Interactive, Inc.
+##
+## RESTRICTED RIGHTS LEGEND:
+## Use, duplication or disclosure by the Government is subject to restrictions
+## as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+## and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+## successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished  -
+## rights reserved under the Copyright Laws of the United States.
+##
+## $Log: /DEVEL/h5/Win9x/DX/dd32/makefile $
+# 
+# 1     11/12/99 4:27p Skephart
+# 
+# 88    8/25/99 3:27p Adrians
+# Updated for new build environment.
+# 
+# 87    7/26/99 1:54p Edwin
+# Include  ddsliblt.c in the build if environment variable SA=1.
+# 
+# 86    6/21/99 12:46p Andrew
+# removed HAL_CSIM stuff
+# 
+# 85    6/18/99 4:00p Michael
+# More robust for case insensitive.  Missed on last pass.
+# 
+# 84    6/18/99 3:25p Michael
+# make HP= case insensitive (ie. H5 or h5, H4 or h4)
+# 
+# 83    6/10/99 1:44p Edwin
+# Remove fxglobal.c references, no longer need this file.
+# 
+# 82    6/07/99 9:48a Cshaw
+# Use Napalm combineMode by default.
+# 
+# 81    6/04/99 1:11p Cwilcox
+# Removed obsolete H3_AGP_WORKAROUND variable.
+# 
+# 80    6/03/99 12:04p Cshaw
+# Added environ var NAPALM_CU for compiling with combineMode
+# 
+# 79    6/03/99 9:02a Andrew
+# Added SLI AA flag
+# 
+# 77    5/26/99 1:36p Cwilcox
+# Added AGP texture download back into TOT.
+# 
+# 76    5/24/99 4:44p Cwilcox
+# Removed AGP texture download.
+##
+
+#--------------------------------------------------------------------
+# Define all macros
+
+!ifndef VERBOSE
+.SILENT :
+!ifndef LOGO
+LOGO = /nologo
+!endif
+!else
+LOGO =
+!endif
+
+!if "$(V3TV)" == "1"
+TARGET = $(TARGET) -DV3TV
+!endif
+
+!if "$(CF)" == "1"
+CFTXT = (cf=1) YES
+TARGET = $(TARGET) -DCMDFIFO
+!else
+CFTXT = (cf=0) NO
+!endif
+
+!if "$(ND)" == "1"
+NDTXT = (nd=1) YES
+TARGET = $(TARGET) -DNULLDRIVER
+!else
+NDTXT = (nd=0) NO
+!endif
+
+!if ("$(HP)" == "h5")
+HP=H5
+!elseif ("$(HP)" == "h4")
+HP=H4
+!endif
+
+!if ("$(HP)" == "H5")
+TRTXT = H5 VSA
+TARGET = $(TARGET) -DH5 -DNAPALM_CU
+BRDCFLAGS = $(BRDCFLAGS) -DH5
+!if "$(DLL32NAME)" == ""
+DLL32NAME = 3dfx32vs
+!endif
+!elseif ("$(HP)" == "H4")
+TRTXT = H4 Avenger
+TARGET = $(TARGET) -DH4
+BRDCFLAGS = $(BRDCFLAGS) -DH4
+!if "$(DLL32NAME)" == ""
+DLL32NAME = 3dfx32v3
+!endif
+!else
+TRTXT = H3 Banshee
+TARGET = $(TARGET) -DH3
+BRDCFLAGS = $(BRDCFLAGS) -DH3
+!if "$(DLL32NAME)" == ""
+DLL32NAME = 3dfx32vb
+!endif
+!endif
+
+!if ("$(TU)" == "")
+TU=1
+!endif
+TUTXT = (tu=$(TU))
+TARGET = $(TARGET)  -DNUMTEXTUREUNITS=$(TU)
+
+!if "$(V3TV)" == "1"
+TARGET = $(TARGET) -DV3TV
+!endif
+
+!if ("$(DF)" == "1")
+FDTXT = (df=1) YES
+TARGET = $(TARGET) -DDEBUGFIFO
+!else
+FDTXT = (df=0) NO
+!endif
+
+!if "$(CT)" == "1"
+TARGET = $(TARGET) -DCRASH
+CRASHTXT = (ct=1) YES
+!else #!if "$(CT)" == "1"
+CRASHTXT = (ct=0) NO
+!endif #!if "$(CT)" == "1"
+
+!if ("$(MULTIMON)" == "0")
+MULTI_MON = (MULTIMON=0) NO
+!else
+MULTI_MON = (MULTIMON=1) YES
+TARGET = $(TARGET) -DMM
+!endif
+
+!if ("$(HR)" == "B0")
+TARGET = $(TARGET) -DH3_A2
+HWREV = -DH3_B0
+HWREVTXT = (hr=$(HR)) B0 (actually, building for A2)
+!elseif ("$(HR)" == "") || ("$(HR)" == "A1")
+TARGET = $(TARGET) -DH3_A1
+HWREVTXT = A1
+!else
+TARGET = $(TARGET) -DH3_A2
+HWREVTXT = A2
+!endif
+
+!if "$(ACF)" == "1"
+TARGET = $(TARGET) -DAGP_CMDFIFO
+AGPCMDFIFOECHO = (acf=1) ENABLED
+!else #!if "$(ACF)" == "1"
+AGPCMDFIFOECHO = (acf=0) DISABLED
+!endif #!if "$(ACF)" == "1"
+
+!if ("$(AA)" == "")
+AATXT = (aa=1) YES
+TARGET = $(TARGET) -DENABLE_AA=1
+!elseif ("$(AA)" == "1")
+AATXT = (aa=1) YES
+TARGET = $(TARGET) -DENABLE_AA=1
+!elseif ("$(AA)" == "2")
+AATXT = (aa=2) YES
+TARGET = $(TARGET) -DENABLE_AA=2
+!else
+AATXT = (aa=0) NO
+!endif 
+
+# DirectX version ...
+!if ("$(DX)" == "")
+DX = 6
+!endif
+DXTXT = (dx=$(DX))
+TARGET = $(TARGET) -DDX=$(DX)
+
+!if "$(SW_TNL)" == "1"
+TARGET = $(TARGET) -DTnL_HAL=1
+!endif
+
+VPEOBJ4 = ddvpe32.obj ddovl32.obj i2cfx.obj
+
+# K6-2 optimization (MMX+3DNOW!)
+!IF "$(K6)" == "1"
+!if "$(CF)" == "0"
+!ERROR No support for K6 with no CMDFIFO option
+!endif
+TARGET = $(TARGET) -DK6_2
+COPTL = -DK6_2
+K6TXT = (k6=1) YES
+!ELSE
+COPTL =
+K6TXT = (k6=0) NO
+!ENDIF
+
+# Performance statistics monitoring
+!if "$(PS)" == "1"
+PSTXT = (ps=1) YES
+PERFM = -DPERF_MONITORING
+!else
+PSTXT = (ps=0) NO
+PERFM =
+!endif
+
+# Special multi-texture modes
+!if "$(SM)" != ""
+SMTXT = (sm=$(SM))
+TARGET = $(TARGET) -DSM=$(SM)
+!else
+!if (("$(HP)" == "H4") || ("$(HP)" == "H5"))
+SMTXT = (sm=3)
+TARGET = $(TARGET) -DSM=3
+!else
+SMTXT = (sm=0)
+!endif
+!endif
+
+!if "$(WCS)" == "1"
+WINSIM = (wcs=1) YES
+TARGET = $(TARGET) -DWIN_CSIM
+!else
+WINSIM = (wcs=0) NO
+!endif
+
+!if "$(SA)" == "1"
+SLI_STUFF = (SA=1) YES
+TARGET = $(TARGET) -DSLI_AA
+!else
+SLI_STUFF = (SA=0) NO
+!endif
+
+!if "$(SLIAA2D)" == "1"
+SLI_2D_STUFF = (SLIAA2D=1) YES
+TARGET = $(TARGET) -DSLI_AA_2D
+!else
+SLI_2D_STUFF = (SLIAA2D=0) NO
+!endif
+
+!if "$(RA)" == "1"
+RD_STUFF = (RA=1) YES
+TARGET = $(TARGET) -DRD_ABORT_ERROR
+!else
+RD_STUFF = (RA=0) NO
+!endif
+
+!if "$(STEREO)" == "1"
+STEREO_STUFF = (STEREO=1) YES
+TARGET = $(TARGET) -DSTEREO
+!else
+STEREO_STUFF = (STEREO=0) NO
+!endif
+
+!if "$(SW_TNL)" == "1"
+SW_TnLTXT = (SW_TNL=1) YES
+!else
+SW_TnLTXT = (SW_TNL=0) NO
+!endif
+
+!if "$(Z_ACCESS_OPT)" == "1"
+TARGET = $(TARGET) -DZ_ACCESS_OPT
+Z_ACCESS_OPT_TXT = (Z_ACCESS_OPT=1) YES
+!else
+Z_ACCESS_OPT_TXT = (Z_ACCESS_OPT=0) NO
+!endif
+
+#--------------------------------------------------------------------
+# Define macros for the various compilers, assemblers, linkers
+# and library managers.
+
+!if exist($(COMP32)\..\common\msdev98\bin)
+RC   = $(COMP32)\..\common\msdev98\bin\rc
+!else
+RC   = $(COMP32)\bin\rc
+!endif
+LK   = $(COMP32)\bin\link
+CL   = $(COMP32)\bin\cl
+ML   = $(MASM)\bin\ml
+BSC  = $(COMP32)\bin\bscmake
+
+
+#--------------------------------------------------------------------
+# Select our working directory, either DEBUG or RETAIL.
+
+!if "$(DEBUG)"=="debug"
+DIR = DEBUG
+!else
+DIR = RETAIL
+!endif
+
+#--------------------------------------------------------------------
+# Define 32Bit macros for DEBUG or RETAIL build.
+
+!if "$(DEBUG)"=="debug"
+
+    # Generic Debug build flags
+
+COPT32 = -DDEBUG -D_DEBUG -DDEBLEVEL=1 -DBUILD_DDDDK -YX -Oxa -Z7 -DFXTRACE
+MOPT32 = -DDEBUG -D_DEBUG
+ROPT32 = -DDEBUG -D_DEBUG
+LOPT32  = -debug -debugtype:cv
+
+COPT16 = -DDEBUG -D_DEBUG -Z7i -DFXTRACE
+MOPT16 = -DDEBUG -D_DEBUG
+ROPT16 = -DDEBUG -D_DEBUG
+
+    # Specific Debug build flags
+
+!else
+
+    # Generic Retail build flags
+
+COPT32 = -Oxa
+
+!ifdef SIW95
+COPT32 = $(COPT32) -Z7
+!endif
+
+#STB-SK 12/21/98 -- add support for VTUNE profiling
+#STB Begin Change
+!if "$(VTUNE)" == "1"
+COPT32 = $(COPT32) -Zi
+!endif
+#STB End Change
+
+MOPT32 =
+ROPT32 =
+LOPT32 =
+
+COPT16 =
+MOPT16 =
+ROPT16 =
+
+    # Specific Retail build flags
+
+!endif
+
+#--------------------------------------------------------------------
+# Define our 32 Bit build flag macros
+
+CDEFS32  = $(TARGET) $(DXDEF) -D__MSC__ -DWRITECOMBINE -DDUAL_HEAP -D_X86_ -DIS_32 -DWIN32 -DDIRECTX
+CINCS32  = -I..\..\inc -I..\..\dd32 -I..\..\d3d -I$(DDKDX)\inc -I$(DDK9X)\inc32 -I$(SDK32)\include -I$(COMP32)\include
+!if "$(VC6)" == "1"
+CFLAGS32 = $(LOGO) $(COPT32) $(CDEFS32) $(CINCS32) -G6s -FAsc -W3 -c -Zp $(BRDCFLAGS)
+!else
+CFLAGS32 = $(LOGO) $(COPT32) $(CDEFS32) $(CINCS32) -G5s -FAsc -W3 -c -Zp $(BRDCFLAGS)
+!endif
+
+#Set warnings as errors
+CFLAGS32 = $(CFLAGS32) -WX
+
+MDEFS32  = $(TARGET) $(DXDEF) -DWIN32 -DIS_32 -DSTD_CALL -DBLD_COFF -DMASM6 -D__MSC__
+MINCS32  =
+MFLAGS32 = $(LOGO) $(MOPT32) $(MDEFS32) $(MINCS32) -Zp4 -coff -W3 -WX -Zd -c -Cx $(BRDAFLAGS)
+
+!if "$(PS)" == "1"
+CFLAGS32 = $(CFLAGS32) -Gh
+MDEFS32  = $(MDEFS32) -DPERF_MONITORING
+!endif
+
+
+RDEFS32  = -DIS_32 -DWIN32
+RINCS32  = -I..\.. -I$(DDK9X)\inc16
+RFLAGS32 = $(ROPT32) $(RDEFS32) $(RINCS32) -r $(BRDCFLAGS)
+
+LINCS32  = -LIBPATH:..\..\d3d\$(DIR) -LIBPATH:$(DDKDX)\lib -LIBPATH:$(COMP32)\lib
+LFLAGS32 = $(LOGO) $(LOPT32) $(LINCS32) -pdb:none -nodefaultlib -align:0x1000
+
+#STB-SK 12/21/98 -- add support for VTUNE profiling
+#STB Begin Change
+!if "$(VTUNE)" == "1"
+LFLAGS32 = $(LOGO) $(LOPT32) $(LINCS32) -debug -nodefaultlib -align:0x1000
+!else
+LFLAGS32 = $(LOGO) $(LOPT32) $(LINCS32) -pdb:none -nodefaultlib -align:0x1000
+!endif
+#STB End Change
+
+!ifdef SIW95
+LFLAGS32 = $(LFLAGS32) -debug -debugtype:cv
+!endif
+
+#skephart - enable browser file info
+!if "$(BROWSE)"=="1" 
+CFLAGS32 = $(CFLAGS32) -FR$(@B).sbr
+MFLAGS32 = $(MFLAGS32) -FR$(@B).sbr
+!endif
+
+#####################################################################
+#--------------------------------------------------------------------
+# Lets build everything NOW !!!!
+
+
+debug:  debug.mak
+
+retail: retail.mak
+
+all:    debug retail
+
+debug.mak retail.mak:
+        nmake -nologo DEBUG=$(@B) build
+
+!ifdef SIW95
+build:  makedir ddhwdir $(DLL32NAME) $(DLL32NAME).dll $(DLL32NAME).nms copy
+!else
+build:  makedir ddhwdir $(DLL32NAME) $(DLL32NAME).dll copy
+!endif
+
+makedir :
+        if not exist .\$(DIR)\nul md .\$(DIR)
+        @Echo -------Building $(DIR) DD32 Library----------
+        @echo Target Hardware .......$(TRTXT)
+        @echo Hardware revision .....$(HWREVTXT)
+        @echo DirectX Version .......$(DXTXT)
+        @echo Command Fifo ..........$(CFTXT)
+        @echo Command Fifo Debug ....$(FDTXT)
+        @echo Null Driver ...........$(NDTXT)
+        @echo DD's Multi Monitor.....$(MULTI_MON)
+        @echo Crash Test.............$(CRASHTXT)
+        @echo AGP cmdfifo is ........$(AGPCMDFIFOECHO)
+        @echo Antialiasing support...$(AATXT)
+        @echo Num of Texture units...$(TUTXT)
+        @echo K63DNow! optimization..$(K6TXT)
+        @echo Performance monitoring.$(PSTXT)
+        @echo Special MT modes ......$(SMTXT)
+        @echo Win CSIM ..............$(WINSIM)
+        @echo SLI AA   ..............$(SLI_STUFF)
+        @echo SLI AA 2D..............$(SLI_2D_STUFF)
+        @echo Read Abort Error  .....$(RD_STUFF)
+	    @Echo SW TnL ................$(SW_TnLTXT)
+		@Echo Vertex Buffer DDI......$(VERTBUFFTXT)
+		@Echo Stereo glasses support.$(STEREO_STUFF)
+                @Echo Z Access Optimization..$(Z_ACCESS_OPT_TXT)
+        @Echo ---------------------------------------------
+
+ddhwdir:
+        cd .\$(DIR)
+
+!if ("$(HP)" == "H5")
+3dfx32vs :
+    @Echo ----- Creating $(DIR) 3dfx32vs.dll -----
+!elseif ("$(HP)" == "H4")
+3dfx32v3 :
+    @Echo ----- Creating $(DIR) 3dfx32v3.dll -----
+!else
+3dfx32vb :
+    @Echo ----- Creating $(DIR) 3dfx32vb.dll -----
+!endif
+
+
+copy :
+	cd ..\..
+	if not exist .\bin\nul md .\bin
+	cd bin
+	if not exist .\$(DIR)\nul md .\$(DIR)
+	cd $(DIR)
+	copy ..\..\dd32\$(DIR)\$(DLL32NAME).dll $(DLL32NAME).dll
+
+!ifdef SIW95
+	copy ..\..\dd32\$(DIR)\$(DLL32NAME).nms $(DLL32NAME).nms
+!endif # !ifdef SIW95
+	cd ..\..\dd32\$(DIR)
+
+
+!ifdef KILLHELP
+        killhelp -k
+!endif
+!ifdef COPYSYS
+!if "$(COPY32)" == "1"
+        if exist $(COPYSYS) copy $(DLL32NAME).dll $(COPYSYS) /y
+        if exist $(COPYSYS)\nul copy $(DLL32NAME).dll $(COPYSYS) /y
+!endif
+!endif
+
+clean:
+        rem <<yes
+y
+<<
+        if exist .\debug\*.* del .\debug <yes >nul
+        if exist .\debug\nul rd .\debug >nul
+        if exist .\retail\*.* del .\retail <yes >nul
+        if exist .\retail\nul rd .\retail >nul
+
+#--------------------------------------------------------------------
+# d3dhw.lib - Build if it hasn't been built already
+
+D3DLIB = ..\..\d3d\$(DIR)\d3d.lib
+
+$(D3DLIB):
+	cd ..\..\d3d
+	$(MAKE) $(LOGO) DEBUG=$(DEBUG) build
+	cd ..\dd32\$(DIR)
+
+#--------------------------------------------------------------------
+# 3dfx32vb.dll - Object and Library files
+OBJ4 =  ddfx95.obj ddinit.obj ddsurf.obj ddflip.obj \
+        ddfxs32.obj     ddinit32.obj    ddblt32.obj  \
+        ddtrace.obj     ddmemmgr.obj \
+        runtime.obj     ddvpe32.obj     ddovl32.obj  \
+        i2cfx.obj       memmgr32.obj 
+
+!if ("$(K6)" == "1")
+OBJ4 = $(OBJ4) k6_2.obj
+!endif
+
+!if ("$(SA)" == "1")
+OBJ4 = $(OBJ4) ddsliblt.obj ddsli2d.obj
+!endif
+
+LIB4 =  $(DDKDX)\lib\ddraw.lib \
+        $(D3DLIB) \
+        kernel32.lib \
+        user32.lib \
+        advapi32.lib \
+        winmm.lib \
+        thunk32.lib \
+        gdi32.lib \
+		fp10.obj\
+		libcmt.lib \
+!if "$(PS)" == "1"
+        ..\..\lib\penter.lib \
+!endif
+        oldnames.lib
+
+
+#Browser Information files -- keep this synched up with the objects above
+!if "$(BROWSE)"=="1" 
+SBR4 =  ddfx95.sbr ddinit.sbr ddsurf.sbr ddflip.sbr \
+        ddfxs32.sbr     ddinit32.sbr    ddblt32.sbr  \
+        ddtrace.sbr     ddmemmgr.sbr \
+        runtime.sbr     ddvpe32.sbr     ddovl32.sbr  \
+        i2cfx.sbr       memmgr32.sbr 
+
+!if ("$(K6)" == "1")
+SBR4 = $(SBR4) k6_2.sbr
+!endif
+
+!if ("$(SA)" == "1")
+SBR4 = $(SBR4) ddsliblt.sbr ddsli2d.sbr
+!endif
+!endif
+
+
+#--------------------------------------------------------------------
+# 3dfx32vb.dll - Build
+
+COPT4 = -DMAPPL_MEMMAP_VXD -DPORTIO_DIRECT -DSST1_HW
+
+$(DLL32NAME).dll:       $(DLL32NAME).res $(OBJ4) $(D3DLIB)
+                        $(LK) $(LFLAGS32) @<<link.out
+!ifdef ICC
+-merge:.text1=.text
+-merge:.data1=.data
+!endif
+-merge:.rdata=.text
+-out:$(@F)
+-map:$(@B).map
+-base:0xbaa00000
+-dll
+-machine:i386
+-subsystem:windows,4.0
+-implib:$(@B).lib
+-def:..\$(@B).def
+$(LIB4) $(@B).res $(OBJ4)
+<<KEEP
+
+!if "$(BROWSE)"=="1" 
+						$(BSC) /o$(@B).bsc $(SBR4)
+!endif
+
+!ifdef SIW95
+$(DLL32NAME).nms: $(DLL32NAME).dll
+    $(SIW95)\nmsym /source:..;..\..\d3d /prompt /trans:always,package $(DLL32NAME).dll
+!endif
+
+$(DLL32NAME).res:       ..\$(@B).rc
+                        $(RC) $(RFLAGS32) -Fo$(@F) ..\$(@B).rc
+
+ddfxs32.obj:            ..\$(@B).c
+                        $(CL) $(CFLAGS32) $(COPT4) -Fo$(@B).obj ..\$(@B).c
+
+ddmemmgr.obj:            ..\$(@B).c
+                        $(CL) $(CFLAGS32) $(COPT4) -Fo$(@B).obj ..\$(@B).c
+
+memmgr32.obj:           ..\$(@B).c
+                        $(CL) $(CFLAGS32) $(COPT4) -Fo$(@B).obj ..\$(@B).c
+
+ddinit32.obj:           ..\$(@B).c
+                        $(CL) $(CFLAGS32) $(COPT4) -Fo$(@B).obj ..\$(@B).c
+
+ddvpe32.obj:            ..\$(@B).c
+                        $(CL) $(CFLAGS32) $(COPT4) -Fo$(@B).obj ..\$(@B).c
+
+ddovl32.obj:            ..\$(@B).c
+                        $(CL) $(CFLAGS32) $(COPT4) -Fo$(@B).obj ..\$(@B).c
+
+i2cfx.obj:            	..\$(@B).c
+                        $(CL) $(CFLAGS32) $(COPT4) -Fo$(@B).obj ..\$(@B).c
+
+ddblt32.obj:            ..\$(@B).c
+                        $(CL) $(CFLAGS32) $(COPT4) -Fo$(@B).obj ..\$(@B).c
+
+!if "$(SA)" == "1"
+ddsliblt.obj:           ..\$(@B).c
+                        $(CL) $(CFLAGS32) $(COPT4) -Fo$(@B).obj ..\$(@B).c
+
+ddsli2d.obj:           ..\$(@B).c
+                        $(CL) $(CFLAGS32) $(COPT4) -Fo$(@B).obj ..\$(@B).c
+!endif
+
+ddtrace.obj:            ..\$(@B).c
+                        $(CL) $(CFLAGS32) $(COPT4) -Fo$(@B).obj ..\$(@B).c
+
+!IF "$(K6)" == "1"
+k6_2.obj:               ..\$(@B).asm ..\k6common.inc
+                        $(ML) $(MOPT32) $(MDEFS32) -Zp4 -Zm -coff -c -Cx -Fo$(@B).obj -Fl$(@B).lst ..\$(@B).asm
+!endif
+
+runtime.obj:            ..\$(@B).c
+                        $(CL) $(CFLAGS32) $(COPT4) -Fo$(@B).obj ..\$(@B).c
+
+#############################################################################
+#  INFERENCE RULES
+#
+#
+# Macro     Meaning
+# $@        Current target's full name (path, base name, extension), as
+#           currently specified.
+# $$@       Current target's full name (path, base name, extension), as
+#           currently specified. Valid only as a dependent in a dependency.
+# $*        Current target's path and base name minus file extension.
+# $**       All dependents of the current target.
+# $?        All dependents with a later timestamp than the current target.
+# $<        Dependent file with a later timestamp than the current target.
+#           Valid only in commands in inference rules.
+#
+# To specify part of a predefined filename macro, append a macro modifier
+# and enclose the modified macro in parentheses.
+#
+# Modifier  Resulting filename part
+# D         Drive plus directory
+# B         Base name
+# F         Base name plus extension
+# R         Drive plus directory plus base name
+
+{..}.c.obj:
+  $(CL) $(CFLAGS32) $(COPT4) -Fo$(@B).obj ..\$(@B).c
+
+#####################################################################
+
+#############################################################################
+#
+#  dependancy lists
+#
+#############################################################################
+
+ddfx95.obj: ..\..\d3d\d3global.h ..\..\d3d\d3mem.h ..\..\inc\3dfx.h \
+	 ..\..\inc\cmddefs.h ..\..\inc\fifomgr.h ..\..\inc\fxdll.h \
+	 ..\..\inc\fxhal.h ..\..\inc\fxpci.h ..\..\inc\fxvid.h \
+	 ..\..\inc\gdebug.h ..\..\inc\h3.h ..\..\inc\h3defs.h \
+	 ..\..\inc\h3g.h ..\..\inc\h3gdefs.h ..\..\inc\h3info.h \
+	 ..\..\inc\h3regs.h ..\..\inc\header.h ..\..\inc\shared.h \
+	 ..\..\inc\sst1vid.h ..\..\inc\vector.h ..\ddfxnt95.h ..\ddglobal.h \
+	 ..\dx95type.h ..\fxglobal.h ..\hw.h ..\precomp.h
+
+ddinit.obj: ..\..\d3d\d3global.h ..\..\d3d\d3mem.h ..\..\inc\3dfx.h \
+	 ..\..\inc\cmddefs.h ..\..\inc\fifomgr.h ..\..\inc\fxdll.h \
+	 ..\..\inc\fxhal.h ..\..\inc\fxpci.h ..\..\inc\fxvid.h \
+	 ..\..\inc\gdebug.h ..\..\inc\h3.h ..\..\inc\h3defs.h \
+	 ..\..\inc\h3g.h ..\..\inc\h3gdefs.h ..\..\inc\h3info.h \
+	 ..\..\inc\h3regs.h ..\..\inc\header.h ..\..\inc\shared.h \
+	 ..\..\inc\sst1vid.h ..\..\inc\vector.h ..\ddfxnt95.h ..\ddglobal.h \
+	 ..\dx95type.h ..\fxglobal.h ..\hw.h ..\precomp.h
+
+ddsurf.obj: ..\..\d3d\d3global.h ..\..\d3d\d3mem.h ..\..\inc\3dfx.h \
+	 ..\..\inc\cmddefs.h ..\..\inc\fifomgr.h ..\..\inc\fxdll.h \
+	 ..\..\inc\fxhal.h ..\..\inc\fxpci.h ..\..\inc\fxvid.h \
+	 ..\..\inc\gdebug.h ..\..\inc\h3.h ..\..\inc\h3defs.h \
+	 ..\..\inc\h3g.h ..\..\inc\h3gdefs.h ..\..\inc\h3info.h \
+	 ..\..\inc\h3regs.h ..\..\inc\header.h ..\..\inc\shared.h \
+	 ..\..\inc\sst1vid.h ..\..\inc\vector.h ..\ddfxnt95.h ..\ddglobal.h \
+	 ..\dx95type.h ..\fxglobal.h ..\hw.h ..\precomp.h
+
+ddflip.obj: ..\..\d3d\d3global.h ..\..\d3d\d3mem.h ..\..\inc\3dfx.h \
+	 ..\..\inc\cmddefs.h ..\..\inc\fifomgr.h ..\..\inc\fxdll.h \
+	 ..\..\inc\fxhal.h ..\..\inc\fxpci.h ..\..\inc\fxvid.h \
+	 ..\..\inc\gdebug.h ..\..\inc\h3.h ..\..\inc\h3defs.h \
+	 ..\..\inc\h3g.h ..\..\inc\h3gdefs.h ..\..\inc\h3info.h \
+	 ..\..\inc\h3regs.h ..\..\inc\header.h ..\..\inc\shared.h \
+	 ..\..\inc\sst1vid.h ..\..\inc\vector.h ..\ddfxnt95.h ..\ddglobal.h \
+	 ..\dx95type.h ..\fxglobal.h ..\hw.h ..\precomp.h
+
+ddfxs32.obj: ..\..\d3d\d3global.h ..\..\d3d\d3mem.h ..\..\inc\3dfx.h \
+	 ..\..\inc\cmddefs.h ..\..\inc\fifomgr.h ..\..\inc\fxdll.h \
+	 ..\..\inc\fxhal.h ..\..\inc\fxpci.h ..\..\inc\fxvid.h \
+	 ..\..\inc\gdebug.h ..\..\inc\h3.h ..\..\inc\h3defs.h \
+	 ..\..\inc\h3g.h ..\..\inc\h3gdefs.h ..\..\inc\h3info.h \
+	 ..\..\inc\h3regs.h ..\..\inc\header.h ..\..\inc\shared.h \
+	 ..\..\inc\sst1vid.h ..\..\inc\vector.h ..\ddfxnt95.h ..\ddglobal.h \
+	 ..\dx95type.h ..\fxglobal.h ..\hw.h ..\precomp.h
+
+ddinit32.obj: ..\..\inc\3dfx.h ..\..\inc\cmddefs.h ..\..\inc\fifomgr.h \
+	 ..\..\inc\fxdll.h ..\..\inc\fxhal.h ..\..\inc\fxpci.h \
+	 ..\..\inc\fxvid.h ..\..\inc\gdebug.h ..\..\inc\h3.h \
+	 ..\..\inc\h3defs.h ..\..\inc\h3g.h ..\..\inc\h3gdefs.h \
+	 ..\..\inc\h3info.h ..\..\inc\h3regs.h ..\..\inc\header.h \
+	 ..\..\inc\shared.h ..\..\inc\sst1vid.h ..\..\inc\vector.h \
+	 ..\ddglobal.h ..\ddinit.h ..\ddvpe32.h ..\fxglobal.h ..\hw.h \
+	 ..\runtime.h
+
+ddblt32.obj: ..\..\d3d\d3global.h ..\..\d3d\d3mem.h ..\..\inc\3dfx.h \
+	 ..\..\inc\cmddefs.h ..\..\inc\fifomgr.h ..\..\inc\fxdll.h \
+	 ..\..\inc\fxhal.h ..\..\inc\fxpci.h ..\..\inc\fxvid.h \
+	 ..\..\inc\gdebug.h ..\..\inc\h3.h ..\..\inc\h3defs.h \
+	 ..\..\inc\h3g.h ..\..\inc\h3gdefs.h ..\..\inc\h3info.h \
+	 ..\..\inc\h3regs.h ..\..\inc\header.h ..\..\inc\shared.h \
+	 ..\..\inc\sst1vid.h ..\..\inc\vector.h ..\ddfxnt95.h ..\ddglobal.h \
+	 ..\dx95type.h ..\fxglobal.h ..\hw.h ..\precomp.h
+
+ddtrace.obj: ..\..\inc\3dfx.h ..\..\inc\fxdll.h ..\..\inc\fxhal.h \
+	 ..\..\inc\fxpci.h ..\..\inc\fxvid.h ..\..\inc\gdebug.h \
+	 ..\..\inc\h3.h ..\..\inc\h3defs.h ..\..\inc\h3g.h \
+	 ..\..\inc\h3gdefs.h ..\..\inc\h3info.h ..\..\inc\h3regs.h \
+	 ..\..\inc\header.h ..\..\inc\shared.h ..\..\inc\sst1vid.h \
+	 ..\..\inc\vector.h ..\ddglobal.h ..\hw.h
+
+ddmemmgr.obj: ..\..\inc\3dfx.h ..\..\inc\cmddefs.h ..\..\inc\fifomgr.h \
+	 ..\..\inc\fxdll.h ..\..\inc\fxhal.h ..\..\inc\fxpci.h \
+	 ..\..\inc\fxvid.h ..\..\inc\gdebug.h ..\..\inc\h3.h \
+	 ..\..\inc\h3defs.h ..\..\inc\h3g.h ..\..\inc\h3gdefs.h \
+	 ..\..\inc\h3info.h ..\..\inc\h3regs.h ..\..\inc\header.h \
+	 ..\..\inc\shared.h ..\..\inc\sst1vid.h ..\..\inc\vector.h \
+	 ..\ddglobal.h ..\fxglobal.h ..\hw.h
+
+runtime.obj: ..\..\inc\3dfx.h ..\..\inc\fxdll.h ..\..\inc\fxhal.h \
+	 ..\..\inc\fxpci.h ..\..\inc\fxvid.h ..\..\inc\gdebug.h \
+	 ..\..\inc\h3.h ..\..\inc\h3defs.h ..\..\inc\h3g.h \
+	 ..\..\inc\h3gdefs.h ..\..\inc\h3info.h ..\..\inc\h3regs.h \
+	 ..\..\inc\header.h ..\..\inc\shared.h ..\..\inc\sst1vid.h \
+	 ..\..\inc\vector.h ..\ddglobal.h ..\hw.h ..\pow.h
+
+ddvpe32.obj: ..\..\inc\3dfx.h ..\..\inc\cmddefs.h ..\..\inc\fifomgr.h \
+	 ..\..\inc\fxdll.h ..\..\inc\fxhal.h ..\..\inc\fxpci.h \
+	 ..\..\inc\fxvid.h ..\..\inc\gdebug.h ..\..\inc\h3.h \
+	 ..\..\inc\h3defs.h ..\..\inc\h3g.h ..\..\inc\h3gdefs.h \
+	 ..\..\inc\h3info.h ..\..\inc\h3regs.h ..\..\inc\header.h \
+	 ..\..\inc\shared.h ..\..\inc\sst1vid.h ..\..\inc\vector.h \
+	 ..\ddglobal.h ..\ddvpe32.h ..\fxglobal.h ..\hw.h ..\i2cfx.h \
+	 ..\i2cxtrn.h
+
+ddovl32.obj: ..\..\inc\3dfx.h ..\..\inc\cmddefs.h ..\..\inc\fifomgr.h \
+	 ..\..\inc\fxdll.h ..\..\inc\fxhal.h ..\..\inc\fxpci.h \
+	 ..\..\inc\fxvid.h ..\..\inc\gdebug.h ..\..\inc\h3.h \
+	 ..\..\inc\h3defs.h ..\..\inc\h3g.h ..\..\inc\h3gdefs.h \
+	 ..\..\inc\h3info.h ..\..\inc\h3regs.h ..\..\inc\header.h \
+	 ..\..\inc\shared.h ..\..\inc\sst1vid.h ..\..\inc\vector.h \
+	 ..\ddglobal.h ..\ddvpe32.h ..\fxglobal.h ..\hw.h
+
+i2cfx.obj: ..\..\inc\3dfx.h ..\..\inc\cmddefs.h ..\..\inc\fifomgr.h \
+	 ..\..\inc\fxdll.h ..\..\inc\fxhal.h ..\..\inc\fxpci.h \
+	 ..\..\inc\fxvid.h ..\..\inc\gdebug.h ..\..\inc\h3.h \
+	 ..\..\inc\h3defs.h ..\..\inc\h3g.h ..\..\inc\h3gdefs.h \
+	 ..\..\inc\h3info.h ..\..\inc\h3regs.h ..\..\inc\header.h \
+	 ..\..\inc\shared.h ..\..\inc\sst1vid.h ..\..\inc\vector.h \
+	 ..\ddglobal.h ..\ddvpe32.h ..\fxglobal.h ..\hw.h ..\i2cfx.h
+
+memmgr32.obj: ..\..\inc\3dfx.h ..\..\inc\h3regs.h ..\..\inc\shared.h

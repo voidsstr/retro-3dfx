@@ -1,0 +1,184 @@
+
+# Copyright (c) 1997, 3Dfx Interactive, Inc.
+# All Rights Reserved.
+#
+# This is UNPUBLISHED PROPRIETARY SOURCE CODE of 3Dfx Interactive, Inc.;
+# the contents of this file may not be disclosed to third parties, copied or
+# duplicated in any form, in whole or in part, without the prior written
+# permission of 3Dfx Interactive, Inc.
+#
+# RESTRICTED RIGHTS LEGEND:
+# Use, duplication or disclosure by the Government is subject to restrictions
+# as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+# and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+# successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished  -
+# rights reserved under the Copyright Laws of the United States.
+#
+# $Revision: 34 $
+# $Date: 9/07/99 2:25p $
+#
+
+# Build Options: define these either in environment or makefile
+#
+# define HWC_CSIM to include the C simulator and interface into the HWC code
+# define HWC_GUI  to include the GUI interface into the HWC code
+# define HWC_TCL to include the TCL user interface into the HWC code
+# define HWC_HSIM to include the VCS simulator interface into the HWC code
+# define HWC_HW   to include the real HardWare interface into the HWC code
+#
+
+!if "$(DEBUG)" == "1"
+!if !defined(KERNEL)
+DBGOPTS = -DHWC_DEBUG -DGDBG_INFO_ON /WX
+!endif
+!endif
+
+!if defined(HWC_HW)
+HWCDEFS = -DHWC_HW
+!else
+HWCDEFS =
+!endif
+
+!if defined(HWC_GUI)
+HWCDEFS = $(HWCDEFS) -DHWC_GUI
+HWC_CSIM=1
+!endif
+
+!if defined(HWC_HSIM)
+HWCDEFS = $(HWCDEFS) -DHWC_HSIM
+# the HSIM requires the CSIM also
+HWC_CSIM=1
+!endif
+
+!if defined(HWC_CSIM)
+HWCDEFS = $(HWCDEFS) -DHWC_CSIM
+!endif
+
+!if defined(HWC_BUILD_SST2)
+HWCDEFS =  $(HWCDEFS) -DHWC_BUILD_SST2 -DHWC_NO_SST1_ALIASES
+DDLIBS = $(DDLIBS) $(BUILD_ROOT_SST2)\lib\sst2csim.lib \
+                  $(BUILD_ROOT_SST2)\lib\sst2hwc.lib
+# DDLIBS = $(DDLIBS) $(BUILD_ROOT_SST2)\lib\sst2hwc.lib
+!if defined(HWC_CSIM_SERVER)
+HWCDEFS = $(HWCDEFS) -DHWC_CSIM_SERVER
+DDLIBS	= $(DDLIBS) $(BUILD_ROOT)\WinSim\Intrface\Library\SST2Wn32.Lib
+!endif
+!endif
+
+!if defined(HWC_BUILD_H3)
+HWCDEFS =  $(HWCDEFS) -DHWC_BUILD_H3
+DDLIBS = $(DDLIBS) $(BUILD_ROOT_H3)\csim\h3csim.lib \
+                   $(BUILD_ROOT_H3)\lib\h3hwc.lib
+!endif
+
+!if "$(FX_TARGET)" == "DOS"
+
+!if "$(FX_PCI_TARGET)" == "PHARLAP"
+
+LCDEFS  = -DPORTIO_DIRECT -DMAPPL_PHARLAP
+EXTPCIFILES = fxphrlap.c
+
+!else
+
+LCDEFS  = -DPORTIO_DIRECT -DMAPPL_DPMI
+EXTPCIFILES = fxdpmi2.c
+SUBLIBRARIES = $(BUILD_ROOT_SWLIBS)\lib\fxdpmi.lib
+
+!endif
+
+!else if "$(FX_TARGET)" == "WIN32"
+
+!if "$(FX_PCI_TARGET)" == "NT"
+
+LCDEFS  = -DPORTIO_GPD -DMAPPL_MAPMEM_MINIPORT
+EXTPCIFILES = fxnt.c
+
+!else
+
+# usual case
+LCDEFS  = -DPORTIO_DIRECT -DMAPPL_MEMMAP_VXD
+EXTPCIFILES = fxvxd.c
+!endif
+
+!endif
+
+!if defined(HWC_CSIM)
+LCDEFS  = $(LCDEFS) -DHWC_CSIM
+!endif
+
+# local defines, options, includes
+LCDEFS	= $(LCDEFS) -DBUILD_HWC $(HWCDEFS) 
+
+!if defined(KERNEL)
+#
+# gets rid of those pesky _chkstk calls
+#
+LCDEFS = $(LCDEFS) -Gs99999
+!endif
+
+!if defined(SST2_DRV)
+LCOPTS = $(LCOPTS) -Zp
+LLDOPTS =-base:0xbab00000 -merge:.rdata=.text -dll -machine:i386 -subsystem:windows,4.0 -section:.text,resp -def:.\hwc.def
+LCDEFS   =$(LCDEFS) -DSST2_DRV
+!endif
+
+!ifdef HWC_GUI
+!if defined(HWC_TCL)
+HWCDEFS = $(HWCDEFS) -DHWC_TCL
+TCLSRC  = tkConsole.c hwctcl.c
+TCLINCS = -I$(TCL_ROOT)\include
+TCLLIBS = $(TCL_ROOT)\lib\tk80.lib $(TCL_ROOT)\lib\tcl80.lib
+!else 
+HWCDEFS = $(HWCDEFS) -DHWC_GDI
+RCFILE  = gui.rc
+GDISRC  = guim.c guiv.c
+!endif
+
+LCDEFS	= $(LCDEFS) -DGUI=WIN32
+DRVSRC  = drvintf.c 
+GUISRC  = $(GDISRC) $(TCLSRC)
+!else 
+DRVSRC  = 
+GUISRC  = 
+!endif
+
+LCINCS	= -I. -I$(BUILD_ROOT)\include -I$(BUILD_ROOT_SWLIBS)\include -I$(BUILD_ROOT_SST2)\include -I$(BUILD_ROOT_SST2)\build $(TCLINCS)
+
+LCOPTS = $(LCOPTS) $(DBGOPTS) 
+LCOPTS = /TP $(LCOPTS)
+
+#sim sources halio.c info.c guim.c guiv.c video.c
+
+# sources
+HEADERS	= gdebug.h fxhwc.h
+PRIVATE_HEADERS = init.h
+CPPFILES = 
+CFILES	= buffers.c $(GUISRC) $(DRVSRC) dllmain.c gdebug.c fxhwc.c fxhwcio.c \
+	  hwcmem.c util.c agpio.c kernel.c \
+          fxpci.c fxinfo.c fxmsr.c sst1_pci.c $(EXTPCIFILES) $(TCLCFILES)
+
+!ifdef THUNK
+LADEFS	= -DIS_32
+AFILES	= h3halthk.asm
+KERNLIBS= $(MSDEVDIR)\lib\kernel32.lib $(MSDEVDIR)\lib\thunk32.lib
+LLDOPTS	= /DEF:h3hal.def
+!endif
+
+INSTALL_DESTINATION = $(BUILD_ROOT)\$(FX_GLIDE_HW)
+
+# targets
+LIBRARIES= hwc.lib
+!ifndef KERNEL_NT
+SUBLIBRARIES = $(DDLIBS) $(KERNLIBS) \
+	           $(BUILD_ROOT_SWLIBS)\lib\fxmisc.lib $(BUILD_ROOT_SWLIBS)\lib\fxagp.lib $(TCLLIBS)
+
+FX_DLL_LIBRARY=1
+
+LDIRT = halctrl.obj h3hal.vxd h3hal.nms *.c~ *.h~
+!else
+LDIRT = h3hal.lib
+!endif
+
+!include $(BUILD_ROOT_SWLIBS)/include/nmake/3dfx.mak
+
+fxhwc.obj: $(BUILD_ROOT_SST2)\build\streams.c

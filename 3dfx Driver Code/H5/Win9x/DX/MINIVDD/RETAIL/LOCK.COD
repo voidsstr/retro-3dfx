@@ -1,0 +1,1029 @@
+	TITLE	..\lock.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+_ITEXT	SEGMENT PARA USE32 PUBLIC 'ICODE'
+_ITEXT	ENDS
+_PTEXT	SEGMENT PARA USE32 PUBLIC 'PCODE'
+_PTEXT	ENDS
+_LTEXT	SEGMENT PARA USE32 PUBLIC 'LCODE'
+_LTEXT	ENDS
+_PDATA	SEGMENT DWORD USE32 PUBLIC 'PDATA'
+_PDATA	ENDS
+_LDATA	SEGMENT DWORD USE32 PUBLIC 'LCODE'
+_LDATA	ENDS
+FLAT	GROUP _DATA, CONST, _BSS, _PDATA, _LDATA
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+_DATA	SEGMENT
+COMM	_lockedVM:DWORD
+_DATA	ENDS
+PUBLIC	_VMM_Copy_Page_Table
+_LTEXT	SEGMENT
+_linearPage$ = 8
+_pteBufCount$ = 12
+_pteBuf$ = 16
+_retVal$ = -4
+_VMM_Copy_Page_Table PROC NEAR
+
+; 287  : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	51		 push	 ecx
+
+; 288  :   FxU32 
+; 289  :     retVal = 0x00UL;
+
+  00004	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _retVal$[ebp], 0
+
+; 290  : 
+; 291  :   __asm {
+; 292  :     push dword ptr 0x00; /* flags */
+
+  0000b	6a 00		 push	 0
+
+; 293  :     push pteBuf;
+
+  0000d	ff 75 10	 push	 DWORD PTR _pteBuf$[ebp]
+
+; 294  :     push pteBufCount;
+
+  00010	ff 75 0c	 push	 DWORD PTR _pteBufCount$[ebp]
+
+; 295  :     push linearPage;
+
+  00013	ff 75 08	 push	 DWORD PTR _linearPage$[ebp]
+
+; 296  :   }
+; 297  : 
+; 298  :   /* Returns non-zero in eax for success */
+; 299  :   VMMCall(_CopyPageTable);
+
+  00016	cd		 DB	 -51			; ffffffcdH
+  00017	20		 DB	 32			; 00000020H
+  00018	61		 DB	 97			; 00000061H
+  00019	00		 DB	 0
+  0001a	01		 DB	 1
+  0001b	00		 DB	 0
+
+; 300  : 
+; 301  :   __asm {
+; 302  :     mov retVal, eax;
+
+  0001c	89 45 fc	 mov	 DWORD PTR _retVal$[ebp], eax
+
+; 303  :   }
+; 304  : 
+; 305  :   return retVal;
+
+  0001f	8b 45 fc	 mov	 eax, DWORD PTR _retVal$[ebp]
+
+; 306  : }
+
+  00022	8b e5		 mov	 esp, ebp
+  00024	5d		 pop	 ebp
+  00025	c3		 ret	 0
+_VMM_Copy_Page_Table ENDP
+_LTEXT	ENDS
+PUBLIC	_LockAPI_Dispatch
+EXTRN	_CCODE_Get_Sys_VM_Handle:NEAR
+_BSS	SEGMENT
+_systemVM DD	01H DUP (?)
+_lockApiInitP DD 01H DUP (?)
+_BSS	ENDS
+_LTEXT	SEGMENT
+_curVM$ = -4
+_clientRegs$ = -8
+_tmpCrtc$10492 = -8
+_tmpMemC$10493 = -12
+_LockAPI_Dispatch PROC NEAR
+
+; 338  : 
+; 339  :   NAKED_PROLOG(curVM, clientRegs)
+
+  00030	8b d5		 mov	 edx, ebp
+  00032	9c		 pushfd
+  00033	60		 pushad
+  00034	8b ec		 mov	 ebp, esp
+  00036	83 ec 0c	 sub	 esp, 12			; 0000000cH
+  00039	89 5d fc	 mov	 DWORD PTR _curVM$[ebp], ebx
+  0003c	89 6d f8	 mov	 DWORD PTR _clientRegs$[ebp], ebp
+
+; 341  :     FxU32
+; 342  :       retVal = 0x00UL;
+; 343  : 
+; 344  :     /* Default to failure, set carry flag */
+; 345  :     clientRegs->CRS.Client_EFlags |= 0x01UL;
+
+  0003f	8b 7d f8	 mov	 edi, DWORD PTR _clientRegs$[ebp]
+
+; 346  :     
+; 347  :     /* Sanity check state of the world */
+; 348  :     if (!lockApiInitP) goto __errExit;
+
+  00042	a1 00 00 00 00	 mov	 eax, DWORD PTR _lockApiInitP
+  00047	33 f6		 xor	 esi, esi
+  00049	8b 4f 2c	 mov	 ecx, DWORD PTR [edi+44]
+  0004c	83 c9 01	 or	 ecx, 1
+  0004f	85 c0		 test	 eax, eax
+  00051	89 4f 2c	 mov	 DWORD PTR [edi+44], ecx
+  00054	0f 84 be 00 00
+	00		 je	 $__errExit$10409
+
+; 349  :     if (clientRegs->CRS.Client_EAX == 0x00UL) goto __errExit;
+
+  0005a	8b 47 1c	 mov	 eax, DWORD PTR [edi+28]
+  0005d	85 c0		 test	 eax, eax
+  0005f	0f 84 b3 00 00
+	00		 je	 $__errExit$10409
+
+; 350  : 
+; 351  :     if (systemVM == 0x00UL) systemVM = Get_Sys_VM_Handle();
+
+  00065	a1 00 00 00 00	 mov	 eax, DWORD PTR _systemVM
+  0006a	85 c0		 test	 eax, eax
+  0006c	75 0a		 jne	 SHORT $L10411
+  0006e	e8 00 00 00 00	 call	 _CCODE_Get_Sys_VM_Handle
+  00073	a3 00 00 00 00	 mov	 DWORD PTR _systemVM, eax
+$L10411:
+
+; 352  : 
+; 353  :     Debug_Printf("%s: VM(0x%X) FunctionSel(0x%X) ClientBuf(0x%X:0x%X)\n ", 
+; 354  :                  FN_NAME,
+; 355  :                  curVM,
+; 356  :                  clientRegs->CRS.Client_EBX,
+; 357  :                  clientRegs->CRS.Client_DS, clientRegs->CRS.Client_EAX);
+; 358  :     switch(clientRegs->CRS.Client_EBX) {
+
+  00078	8b 47 10	 mov	 eax, DWORD PTR [edi+16]
+  0007b	83 e8 00	 sub	 eax, 0
+  0007e	74 63		 je	 SHORT $L10416
+  00080	48		 dec	 eax
+  00081	74 24		 je	 SHORT $L10419
+  00083	83 e8 02	 sub	 eax, 2
+  00086	75 76		 jne	 SHORT $L10413
+
+; 398  : 
+; 399  :     case 2: /* shared lock */
+; 400  :       break;
+; 401  : 
+; 402  :     case 3: /* release lock */
+; 403  :       {
+; 404  :         /* Do we have a lock to relase? */
+; 405  :         retVal = (lockedVM != 0x00UL);
+
+  00088	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lockedVM
+  0008e	33 c0		 xor	 eax, eax
+  00090	85 c9		 test	 ecx, ecx
+  00092	0f 95 c0	 setne	 al
+  00095	8b f0		 mov	 esi, eax
+
+; 406  :         if (!retVal) goto __errRelease;
+
+  00097	85 f6		 test	 esi, esi
+  00099	74 63		 je	 SHORT $L10413
+
+; 407  : 
+; 408  :         /* Revert to unlocked state */
+; 409  :         lockedVM = 0x00UL;
+
+  0009b	c7 05 00 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _lockedVM, 0
+$__errRelease$10426:
+
+; 410  : 
+; 411  :     __errRelease:
+; 412  :         ;
+; 413  :       }
+; 414  :       break;
+
+  000a5	eb 57		 jmp	 SHORT $L10413
+$L10419:
+
+; 372  : 
+; 373  :         Debug_Printf("\tcrtc(0x%X) memc(0x%X)\n", crtc, memc);
+; 374  :       }
+; 375  :       break;
+; 376  : 
+; 377  :     case 1: /* exclusive lock */
+; 378  :       {
+; 379  :         /* Only one exclusive lock at a time */
+; 380  :         retVal = (lockedVM == 0x00UL);
+
+  000a7	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _lockedVM
+  000ad	33 c9		 xor	 ecx, ecx
+  000af	85 d2		 test	 edx, edx
+  000b1	0f 94 c1	 sete	 cl
+  000b4	8b f1		 mov	 esi, ecx
+
+; 381  :         if (!retVal) goto __errExclusive;
+
+  000b6	85 f6		 test	 esi, esi
+  000b8	74 44		 je	 SHORT $L10413
+
+; 382  : 
+; 383  :         /* Is the current vm something that it makes sense to lock? */
+; 384  :         retVal = (VMM_Validate_VM_Handle(curVM) &&
+; 385  :                   (curVM != systemVM));
+
+  000ba	8b 5d fc	 mov	 ebx, DWORD PTR _curVM$[ebp]
+  000bd	53		 push	 ebx
+  000be	e8 00 00 00 00	 call	 _VMM_Validate_VM_Handle
+  000c3	83 c4 04	 add	 esp, 4
+  000c6	85 c0		 test	 eax, eax
+  000c8	74 15		 je	 SHORT $L10488
+  000ca	3b 1d 00 00 00
+	00		 cmp	 ebx, DWORD PTR _systemVM
+  000d0	74 0d		 je	 SHORT $L10488
+  000d2	be 01 00 00 00	 mov	 esi, 1
+
+; 387  : 
+; 388  :         /* Make the vm the current locked vm */
+; 389  :         lockedVM = curVM;
+
+  000d7	89 1d 00 00 00
+	00		 mov	 DWORD PTR _lockedVM, ebx
+$__errExclusive$10421:
+
+; 390  : 
+; 391  :         Debug_Printf("\tlockedVM(0x%X) systemVM(0x%X)\n",
+; 392  :                      lockedVM, systemVM);
+; 393  :         
+; 394  :     __errExclusive:
+; 395  :         ;
+; 396  :       }
+; 397  :       break;
+
+  000dd	eb 1f		 jmp	 SHORT $L10413
+$L10488:
+
+; 382  : 
+; 383  :         /* Is the current vm something that it makes sense to lock? */
+; 384  :         retVal = (VMM_Validate_VM_Handle(curVM) &&
+; 385  :                   (curVM != systemVM));
+
+  000df	33 f6		 xor	 esi, esi
+
+; 386  :         if (!retVal) goto __errExclusive;
+
+  000e1	eb 1b		 jmp	 SHORT $L10413
+$L10416:
+
+; 333  : #define FN_NAME "LockAPI_Dispatch"
+; 334  :   FxU32
+; 335  :     curVM;
+; 336  :   CLIENT_STRUCT
+; 337  :     *clientRegs;
+
+  000e3	cd		 DB	 -51			; ffffffcdH
+  000e4	20		 DB	 32			; 00000020H
+  000e5	10		 DB	 16			; 00000010H
+  000e6	00		 DB	 0
+  000e7	0a		 DB	 10			; 0000000aH
+  000e8	00		 DB	 0
+
+; 338  : 
+; 339  :   NAKED_PROLOG(curVM, clientRegs)
+
+  000e9	89 7d f8	 mov	 DWORD PTR _tmpCrtc$10492[ebp], edi
+
+; 340  :   {
+
+  000ec	89 75 f4	 mov	 DWORD PTR _tmpMemC$10493[ebp], esi
+
+; 359  :     case 0: /* fullscreenP */
+; 360  :       {
+; 361  :         HVM crtc, memc;
+; 362  : 
+; 363  :         /* VDD_Get_VM_INFO
+; 364  :          *   crtc owner
+; 365  :          *     system vm - desktop
+; 366  :          *     other     - fullscreen dos box
+; 367  :          *   memC owner
+; 368  :          *     other vm  - windowed dos box
+; 369  :          */
+; 370  :         VDD_Get_VM_Info(&crtc, &memc);
+; 371  :         retVal = (crtc == curVM);
+
+  000ef	8b 45 f8	 mov	 eax, DWORD PTR _tmpCrtc$10492[ebp]
+  000f2	8b 4d fc	 mov	 ecx, DWORD PTR _curVM$[ebp]
+  000f5	33 d2		 xor	 edx, edx
+  000f7	3b c1		 cmp	 eax, ecx
+  000f9	0f 94 c2	 sete	 dl
+  000fc	8b f2		 mov	 esi, edx
+$L10413:
+
+; 415  : 
+; 416  :     default:
+; 417  :       Debug_Printf("\tInvalid selector\n");
+; 418  :     }
+; 419  : 
+; 420  :     /* Write out return value to user buffer */
+; 421  :     {
+; 422  :       FxU32*
+; 423  :         userBuf = (FxU32*)VMM_Map_Flat(offsetof(CLIENT_STRUCT, CRS.Client_DS),
+; 424  :                                        offsetof(CLIENT_STRUCT, CRS.Client_EAX));
+
+  000fe	6a 1c		 push	 28			; 0000001cH
+  00100	6a 3c		 push	 60			; 0000003cH
+  00102	e8 00 00 00 00	 call	 _VMM_Map_Flat
+  00107	83 c4 08	 add	 esp, 8
+
+; 425  : 
+; 426  :       if (userBuf == NULL) goto __errExit;
+
+  0010a	85 c0		 test	 eax, eax
+  0010c	74 0a		 je	 SHORT $__errExit$10409
+
+; 427  :       *userBuf = retVal;
+
+  0010e	89 30		 mov	 DWORD PTR [eax], esi
+
+; 428  : 
+; 429  :       /* We may have failed, but the call's results are valid */
+; 430  :       clientRegs->CRS.Client_EFlags &= ~0x01UL;
+
+  00110	8b 47 2c	 mov	 eax, DWORD PTR [edi+44]
+  00113	24 fe		 and	 al, -2			; fffffffeH
+  00115	89 47 2c	 mov	 DWORD PTR [edi+44], eax
+$__errExit$10409:
+
+; 431  : 
+; 432  :       Debug_Printf("\tretVal(0x%X)\n", retVal);
+; 433  :     }
+; 434  :     
+; 435  :  __errExit:
+; 436  :     ;
+; 437  :   }
+; 438  :   NAKED_EPILOG()
+
+  00118	8b e5		 mov	 esp, ebp
+  0011a	61		 popad
+  0011b	9d		 popfd
+  0011c	c3		 ret	 0
+_LockAPI_Dispatch ENDP
+_vm$ = 8
+_retVal$ = -4
+_VMM_Validate_VM_Handle PROC NEAR
+
+; 158  : {
+
+  00120	55		 push	 ebp
+  00121	8b ec		 mov	 ebp, esp
+  00123	51		 push	 ecx
+  00124	53		 push	 ebx
+  00125	56		 push	 esi
+  00126	57		 push	 edi
+
+; 159  :   BOOL retVal = 0;
+
+  00127	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _retVal$[ebp], 0
+
+; 160  : 
+; 161  :   __asm mov ebx, vm
+
+  0012e	8b 5d 08	 mov	 ebx, DWORD PTR _vm$[ebp]
+
+; 162  :   VMMCall(Validate_VM_Handle);
+
+  00131	cd		 DB	 -51			; ffffffcdH
+  00132	20		 DB	 32			; 00000020H
+  00133	05		 DB	 5
+  00134	00		 DB	 0
+  00135	01		 DB	 1
+  00136	00		 DB	 0
+
+; 163  :   __asm {
+; 164  :     jc __errExit;
+
+  00137	72 07		 jb	 SHORT $__errExit$10362
+
+; 165  :     mov retVal, 1;
+
+  00139	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _retVal$[ebp], 1
+$__errExit$10362:
+
+; 166  :   }
+; 167  :   
+; 168  :  __errExit:
+; 169  :   return retVal;
+
+  00140	8b 45 fc	 mov	 eax, DWORD PTR _retVal$[ebp]
+
+; 170  : }
+
+  00143	5f		 pop	 edi
+  00144	5e		 pop	 esi
+  00145	5b		 pop	 ebx
+  00146	8b e5		 mov	 esp, ebp
+  00148	5d		 pop	 ebp
+  00149	c3		 ret	 0
+_VMM_Validate_VM_Handle ENDP
+_regSeg$ = 8
+_regOff$ = 12
+_retVal$ = -4
+_VMM_Map_Flat PROC NEAR
+
+; 184  : {
+
+  0014a	55		 push	 ebp
+  0014b	8b ec		 mov	 ebp, esp
+  0014d	51		 push	 ecx
+  0014e	53		 push	 ebx
+  0014f	56		 push	 esi
+  00150	57		 push	 edi
+
+; 185  :   FxU32
+; 186  :     retVal = 0x00UL;
+
+  00151	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _retVal$[ebp], 0
+
+; 187  :   
+; 188  :   __asm {
+; 189  :     mov ah, byte ptr regSeg;
+
+  00158	8a 65 08	 mov	 ah, BYTE PTR _regSeg$[ebp]
+
+; 190  :     mov al, byte ptr regOff;
+
+  0015b	8a 45 0c	 mov	 al, BYTE PTR _regOff$[ebp]
+
+; 191  :   }
+; 192  : 
+; 193  :   VMMCall(Map_Flat);
+
+  0015e	cd		 DB	 -51			; ffffffcdH
+  0015f	20		 DB	 32			; 00000020H
+  00160	1c		 DB	 28			; 0000001cH
+  00161	00		 DB	 0
+  00162	01		 DB	 1
+  00163	00		 DB	 0
+
+; 194  : 
+; 195  :   __asm {
+; 196  :     cmp eax, -1;
+
+  00164	83 f8 ff	 cmp	 eax, -1
+
+; 197  :     je __errExit;
+
+  00167	74 03		 je	 SHORT $__errExit$10370
+
+; 198  :     mov retVal, eax;
+
+  00169	89 45 fc	 mov	 DWORD PTR _retVal$[ebp], eax
+$__errExit$10370:
+
+; 199  :   }
+; 200  : 
+; 201  :  __errExit:
+; 202  :   return retVal;
+
+  0016c	8b 45 fc	 mov	 eax, DWORD PTR _retVal$[ebp]
+
+; 203  : }
+
+  0016f	5f		 pop	 edi
+  00170	5e		 pop	 esi
+  00171	5b		 pop	 ebx
+  00172	8b e5		 mov	 esp, ebp
+  00174	5d		 pop	 ebp
+  00175	c3		 ret	 0
+_VMM_Map_Flat ENDP
+_LTEXT	ENDS
+PUBLIC	_LockAPI_ClearLock
+EXTRN	_CCODE_Get_Execution_Focus:NEAR
+_LTEXT	SEGMENT
+$T10507 = -8
+$T10508 = -4
+_LockAPI_ClearLock PROC NEAR
+
+; 459  : {
+
+  00176	55		 push	 ebp
+  00177	8b ec		 mov	 ebp, esp
+  00179	83 ec 08	 sub	 esp, 8
+
+; 467  :   if (lockedVM == 0x00UL) goto __errExit;
+
+  0017c	a1 00 00 00 00	 mov	 eax, DWORD PTR _lockedVM
+  00181	85 c0		 test	 eax, eax
+  00183	74 6c		 je	 SHORT $__errExit$10441
+
+; 468  :   if (!VMM_Validate_VM_Handle(lockedVM)) goto __errExit;
+
+  00185	50		 push	 eax
+  00186	e8 00 00 00 00	 call	 _VMM_Validate_VM_Handle
+  0018b	83 c4 04	 add	 esp, 4
+  0018e	85 c0		 test	 eax, eax
+  00190	74 5f		 je	 SHORT $__errExit$10441
+
+; 469  : 
+; 470  :   /* Get the current vm w/ focus and see if the lockedVM has focus. If
+; 471  :    * so then we should switch in a different vm so killing this one
+; 472  :    * off does not leave the system in some whacky state.
+; 473  :    */
+; 474  :   curVM = Get_Execution_Focus();
+
+  00192	e8 00 00 00 00	 call	 _CCODE_Get_Execution_Focus
+
+; 475  :   if (curVM == lockedVM) {
+
+  00197	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lockedVM
+  0019d	3b c1		 cmp	 eax, ecx
+  0019f	75 24		 jne	 SHORT $L10443
+
+; 476  :     Debug_Printf("\tFocusVM(0x%X)\n", curVM);
+; 477  : 
+; 478  :     /* Suspend the locked vm's execution just in case something goes
+; 479  :      * wonky when we change focus.  
+; 480  :      */
+; 481  :     VMM_System_Control(VM_SUSPEND,
+; 482  :                        lockedVM,
+; 483  :                        0,
+; 484  :                        0, 
+; 485  :                        0);
+
+  001a1	6a 00		 push	 0
+  001a3	6a 00		 push	 0
+  001a5	6a 00		 push	 0
+  001a7	51		 push	 ecx
+  001a8	6a 0d		 push	 13			; 0000000dH
+  001aa	e8 00 00 00 00	 call	 _VMM_System_Control
+
+; 486  : 
+; 487  :     /* Broadcast focus change to the system vm. */
+; 488  :     VMM_System_Control(SET_DEVICE_FOCUS,
+; 489  :                        systemVM,
+; 490  :                        0,
+; 491  :                        0, 
+; 492  :                        0);
+
+  001af	a1 00 00 00 00	 mov	 eax, DWORD PTR _systemVM
+  001b4	6a 00		 push	 0
+  001b6	6a 00		 push	 0
+  001b8	6a 00		 push	 0
+  001ba	50		 push	 eax
+  001bb	6a 0f		 push	 15			; 0000000fH
+  001bd	e8 00 00 00 00	 call	 _VMM_System_Control
+  001c2	83 c4 28	 add	 esp, 40			; 00000028H
+$L10443:
+  001c5	53		 push	 ebx
+
+; 493  :   }
+; 494  : 
+; 495  :   /* Kill off the vm and reset the locked state */
+; 496  :   VMM_Close_VM(lockedVM, 
+; 497  :                0x5000UL,
+; 498  :                0x00UL);
+
+  001c6	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR $T10508[ebp], 0
+  001cd	c7 45 f8 00 50
+	00 00		 mov	 DWORD PTR $T10507[ebp], 20480 ; 00005000H
+
+; 460  : #define FN_NAME "LockAPI_ClearLock"
+; 461  :   FxU32
+
+  001d4	8b 45 f8	 mov	 eax, DWORD PTR $T10507[ebp]
+
+; 462  :     curVM;
+
+  001d7	8b 1d 00 00 00
+	00		 mov	 ebx, DWORD PTR _lockedVM
+
+; 463  : 
+
+  001dd	8b 4d fc	 mov	 ecx, DWORD PTR $T10508[ebp]
+
+; 464  :   Debug_Printf("%s: lockedVM(0x%X)\n", FN_NAME, lockedVM);
+; 465  : 
+; 466  :   /* Make sure that it really is still alive */
+
+  001e0	cd		 DB	 -51			; ffffffcdH
+  001e1	20		 DB	 32			; 00000020H
+  001e2	ec		 DB	 -20			; ffffffecH
+  001e3	00		 DB	 0
+  001e4	01		 DB	 1
+  001e5	00		 DB	 0
+
+; 499  :   lockedVM = 0x00UL;
+
+  001e6	c7 05 00 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _lockedVM, 0
+  001f0	5b		 pop	 ebx
+$__errExit$10441:
+
+; 500  : 
+; 501  :  __errExit:
+; 502  :   ;
+; 503  : #undef FN_NAME
+; 504  : }
+
+  001f1	8b e5		 mov	 esp, ebp
+  001f3	5d		 pop	 ebp
+  001f4	c3		 ret	 0
+_LockAPI_ClearLock ENDP
+_controlMsg$ = 8
+_targetVM$ = 12
+_vId$ = 16
+_flags$ = 20
+_assocVM$ = 24
+_retVal$ = -4
+_VMM_System_Control PROC NEAR
+
+; 221  : {
+
+  001f6	55		 push	 ebp
+  001f7	8b ec		 mov	 ebp, esp
+  001f9	51		 push	 ecx
+  001fa	53		 push	 ebx
+  001fb	56		 push	 esi
+  001fc	57		 push	 edi
+
+; 222  :   FxBool
+; 223  :     retVal = FXFALSE;
+
+  001fd	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _retVal$[ebp], 0
+
+; 224  : 
+; 225  :   __asm {
+; 226  :     mov eax, controlMsg;
+
+  00204	8b 45 08	 mov	 eax, DWORD PTR _controlMsg$[ebp]
+
+; 227  :     mov ebx, targetVM;
+
+  00207	8b 5d 0c	 mov	 ebx, DWORD PTR _targetVM$[ebp]
+
+; 228  :     mov edx, vId;
+
+  0020a	8b 55 10	 mov	 edx, DWORD PTR _vId$[ebp]
+
+; 229  :     mov esi, flags;
+
+  0020d	8b 75 14	 mov	 esi, DWORD PTR _flags$[ebp]
+
+; 230  :     mov edi, assocVM;
+
+  00210	8b 7d 18	 mov	 edi, DWORD PTR _assocVM$[ebp]
+
+; 231  :   }
+; 232  : 
+; 233  :   VMMCall(System_Control);
+
+  00213	cd		 DB	 -51			; ffffffcdH
+  00214	20		 DB	 32			; 00000020H
+  00215	93		 DB	 -109			; ffffff93H
+  00216	00		 DB	 0
+  00217	01		 DB	 1
+  00218	00		 DB	 0
+
+; 234  : 
+; 235  :   __asm {
+; 236  :     jc __errExit;
+
+  00219	72 07		 jb	 SHORT $__errExit$10384
+
+; 237  :     mov retVal, 1;
+
+  0021b	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _retVal$[ebp], 1
+$__errExit$10384:
+
+; 238  :   }
+; 239  : 
+; 240  :  __errExit:
+; 241  :   return retVal;
+
+  00222	8b 45 fc	 mov	 eax, DWORD PTR _retVal$[ebp]
+
+; 242  : }
+
+  00225	5f		 pop	 edi
+  00226	5e		 pop	 esi
+  00227	5b		 pop	 ebx
+  00228	8b e5		 mov	 esp, ebp
+  0022a	5d		 pop	 ebp
+  0022b	c3		 ret	 0
+_VMM_System_Control ENDP
+_LTEXT	ENDS
+PUBLIC	_LockAPI_Cleanup
+_LTEXT	SEGMENT
+_curVM$ = -4
+_clientRegs$ = -8
+_LockAPI_Cleanup PROC NEAR
+
+; 520  : #define FN_NAME "LockAPI_Cleanup"
+; 521  :   FxU32
+; 522  :     curVM;
+; 523  :   CLIENT_STRUCT
+; 524  :     *clientRegs;
+; 525  : 
+; 526  :   NAKED_PROLOG(curVM, clientRegs);
+
+  0022c	8b d5		 mov	 edx, ebp
+  0022e	9c		 pushfd
+  0022f	60		 pushad
+  00230	8b ec		 mov	 ebp, esp
+  00232	83 ec 08	 sub	 esp, 8
+  00235	89 5d fc	 mov	 DWORD PTR _curVM$[ebp], ebx
+  00238	89 6d f8	 mov	 DWORD PTR _clientRegs$[ebp], ebp
+
+; 527  :   {
+; 528  :     if (curVM == lockedVM) lockedVM = 0x00UL;
+
+  0023b	8b 45 fc	 mov	 eax, DWORD PTR _curVM$[ebp]
+  0023e	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _lockedVM
+  00244	3b c1		 cmp	 eax, ecx
+  00246	75 0a		 jne	 SHORT $L10449
+  00248	c7 05 00 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _lockedVM, 0
+$L10449:
+
+; 529  :   }
+; 530  :   NAKED_EPILOG();
+
+  00252	8b e5		 mov	 esp, ebp
+  00254	61		 popad
+  00255	9d		 popfd
+  00256	c3		 ret	 0
+
+; 531  : 
+; 532  :   /* Always succeeds */
+; 533  :   __asm clc
+
+  00257	f8		 clc
+_LockAPI_Cleanup ENDP
+_LTEXT	ENDS
+PUBLIC	_hwcPageMappingFind
+_LTEXT	SEGMENT
+_mapAddr$ = 8
+_remapAddr$ = 12
+_pteMap$ = 8
+_pteRemap$ = -4
+_hwcPageMappingFind PROC NEAR
+
+; 601  : {
+
+  0025c	51		 push	 ecx
+
+; 602  : #define FN_NAME "hwcPageMappingFind"
+; 603  :   FxU32
+; 604  :     retVal = 0x00UL;
+; 605  : #ifndef WIN_CSIM
+; 606  :   FxU32
+; 607  :     pteMap,
+; 608  :     pteRemap;
+; 609  : 
+; 610  :   /* Get the associated physical address entries */
+; 611  :   if ((VMM_Copy_Page_Table(mapAddr >> 12, 1, &pteMap) == 0x00UL) ||
+; 612  :       (VMM_Copy_Page_Table(remapAddr >> 12, 1, &pteRemap) == 0x00UL)) goto __errExit;
+
+  0025d	8b 4c 24 08	 mov	 ecx, DWORD PTR _mapAddr$[esp]
+  00261	56		 push	 esi
+  00262	8d 44 24 0c	 lea	 eax, DWORD PTR _pteMap$[esp+4]
+  00266	57		 push	 edi
+  00267	50		 push	 eax
+  00268	6a 01		 push	 1
+  0026a	c1 e9 0c	 shr	 ecx, 12			; 0000000cH
+  0026d	51		 push	 ecx
+  0026e	33 ff		 xor	 edi, edi
+  00270	e8 00 00 00 00	 call	 _VMM_Copy_Page_Table
+  00275	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00278	85 c0		 test	 eax, eax
+  0027a	74 49		 je	 SHORT $L10512
+  0027c	8b 74 24 14	 mov	 esi, DWORD PTR _remapAddr$[esp+8]
+  00280	8d 54 24 08	 lea	 edx, DWORD PTR _pteRemap$[esp+12]
+  00284	8b c6		 mov	 eax, esi
+  00286	52		 push	 edx
+  00287	c1 e8 0c	 shr	 eax, 12			; 0000000cH
+  0028a	6a 01		 push	 1
+  0028c	50		 push	 eax
+  0028d	e8 00 00 00 00	 call	 _VMM_Copy_Page_Table
+  00292	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00295	85 c0		 test	 eax, eax
+  00297	74 2c		 je	 SHORT $L10512
+
+; 613  : 
+; 614  :   /* Make sure the physical pages exist */
+; 615  :   if (((pteMap & 0x01UL) == 0x00UL) ||
+; 616  :       ((pteRemap & 0x01UL) == 0x00UL)) goto __errExit;
+
+  00299	8b 4c 24 10	 mov	 ecx, DWORD PTR _pteMap$[esp+8]
+  0029d	f6 c1 01	 test	 cl, 1
+  002a0	74 23		 je	 SHORT $L10512
+  002a2	8b 44 24 08	 mov	 eax, DWORD PTR _pteRemap$[esp+12]
+  002a6	a8 01		 test	 al, 1
+  002a8	74 1b		 je	 SHORT $L10512
+
+; 617  : 
+; 618  :   /* Extract only the physical address bits from the pte's,
+; 619  :    * and compute an offset.
+; 620  :    */
+; 621  :   pteMap &= ~0x0FFFUL;
+
+  002aa	81 e1 00 f0 ff
+	ff		 and	 ecx, -4096		; fffff000H
+
+; 622  :   pteRemap &= ~0x0FFFUL;
+; 623  : 
+; 624  :   retVal = ((pteRemap - pteMap) + (remapAddr & 0x0FFFUL));
+
+  002b0	81 e6 ff 0f 00
+	00		 and	 esi, 4095		; 00000fffH
+  002b6	25 00 f0 ff ff	 and	 eax, -4096		; fffff000H
+  002bb	2b f1		 sub	 esi, ecx
+  002bd	03 f0		 add	 esi, eax
+  002bf	5f		 pop	 edi
+  002c0	8b c6		 mov	 eax, esi
+  002c2	5e		 pop	 esi
+
+; 632  : #undef FN_NAME
+; 633  : }
+
+  002c3	59		 pop	 ecx
+  002c4	c3		 ret	 0
+$L10512:
+
+; 625  : //  Debug_Printf("Remap %x %x Map %x %x ret %x\n", pteRemap, remapAddr, pteMap, mapAddr, retVal);
+; 626  :  __errExit:
+; 627  : #else
+; 628  :   retVal = remapAddr - (mapAddr & ~ 0x0FFFUL);
+; 629  : //  Debug_Printf("Remap %x Map %x ret %x\n", remapAddr, mapAddr, retVal);
+; 630  : #endif
+; 631  :   return retVal;
+
+  002c5	8b c7		 mov	 eax, edi
+  002c7	5f		 pop	 edi
+$__errExit$10469:
+  002c8	5e		 pop	 esi
+
+; 632  : #undef FN_NAME
+; 633  : }
+
+  002c9	59		 pop	 ecx
+  002ca	c3		 ret	 0
+_hwcPageMappingFind ENDP
+_LTEXT	ENDS
+PUBLIC	_LockAPI_Init
+EXTRN	_VDD_Get_Mini_Dispatch_Table:NEAR
+_ITEXT	SEGMENT
+_vddTable$ = -4
+_LockAPI_Init PROC NEAR
+
+; 652  : {
+
+  00000	51		 push	 ecx
+
+; 653  : #define FN_NAME "LockAPI_Init"
+; 654  :   PDWORD
+; 655  :     vddTable;        // VDD dispatch table
+; 656  :   DWORD 
+; 657  :     tableCount;
+; 658  : 
+; 659  :   /* Get the minivdd dispatch table to see if we can add any procs
+; 660  :    * that we need.
+; 661  :    */
+; 662  :   tableCount = VDD_Get_Mini_Dispatch_Table(&vddTable);
+
+  00001	8d 44 24 00	 lea	 eax, DWORD PTR _vddTable$[esp+4]
+  00005	50		 push	 eax
+  00006	e8 00 00 00 00	 call	 _VDD_Get_Mini_Dispatch_Table
+  0000b	83 c4 04	 add	 esp, 4
+
+; 663  :   lockApiInitP = (tableCount >= CHECK_SCREEN_SWITCH_OK);
+
+  0000e	83 f8 2b	 cmp	 eax, 43			; 0000002bH
+  00011	1b c9		 sbb	 ecx, ecx
+  00013	41		 inc	 ecx
+  00014	89 0d 00 00 00
+	00		 mov	 DWORD PTR _lockApiInitP, ecx
+
+; 664  :   if (!lockApiInitP) goto __errExit;
+
+  0001a	74 1a		 je	 SHORT $__errExit$10482
+
+; 665  : 
+; 666  :   /* Setup state to check screen switches and no locked vm's */
+; 667  :   vddTable[CHECK_SCREEN_SWITCH_OK] = (DWORD)LockAPI_ScreenSwitchP;
+
+  0001c	8b 54 24 00	 mov	 edx, DWORD PTR _vddTable$[esp+4]
+
+; 668  :   lockedVM = 0x00UL;
+
+  00020	33 c0		 xor	 eax, eax
+  00022	a3 00 00 00 00	 mov	 DWORD PTR _lockedVM, eax
+
+; 669  :   systemVM = 0x00UL;
+
+  00027	a3 00 00 00 00	 mov	 DWORD PTR _systemVM, eax
+  0002c	c7 82 ac 00 00
+	00 00 00 00 00	 mov	 DWORD PTR [edx+172], OFFSET FLAT:_LockAPI_ScreenSwitchP
+$__errExit$10482:
+
+; 670  : 
+; 671  :  __errExit:
+; 672  :   Debug_Printf("%s: lockApiInitP(0x%X)\n", FN_NAME, lockApiInitP);
+; 673  : #undef FN_NAME
+; 674  : }
+
+  00036	59		 pop	 ecx
+  00037	c3		 ret	 0
+_LockAPI_Init ENDP
+_ITEXT	ENDS
+_LTEXT	SEGMENT
+_curVM$ = -4
+_LockAPI_ScreenSwitchP PROC NEAR
+
+; 556  : #define FN_NAME "LockAPI_ScreenSwitchP"
+; 557  :   HVM
+; 558  :     curVM;
+; 559  : 
+; 560  :   /* Pre-clear the carry flag since we're probably not going to be
+; 561  :    * in this mode a lot 
+; 562  :    */
+; 563  :   __asm clc;
+
+  002cc	f8		 clc
+
+; 564  :   
+; 565  :   NAKED_PROLOG_NOFLAGS(curVM);
+
+  002cd	60		 pushad
+  002ce	8b ec		 mov	 ebp, esp
+  002d0	83 ec 04	 sub	 esp, 4
+  002d3	89 5d fc	 mov	 DWORD PTR _curVM$[ebp], ebx
+
+; 566  :   {    
+; 567  :     /* Check to see if we have a locked vm */
+; 568  :     if (lockedVM == 0x00UL) goto __checkDone;
+
+  002d6	a1 00 00 00 00	 mov	 eax, DWORD PTR _lockedVM
+  002db	85 c0		 test	 eax, eax
+  002dd	74 13		 je	 SHORT $__checkDone$10455
+
+; 569  :     if (curVM != lockedVM) goto __checkDone;
+
+  002df	39 45 fc	 cmp	 DWORD PTR _curVM$[ebp], eax
+  002e2	75 0e		 jne	 SHORT $__checkDone$10455
+
+; 570  :     
+; 571  :     /* Be paranoid and make sure that this is a valid vm before forcing
+; 572  :      * no switch to happen. We could not have 're-used' the vm handle
+; 573  :      * because vm termination should force the _lockedVM to be cleared
+; 574  :      * via a call to LockAPI_Cleanup 
+; 575  :      */
+; 576  :     if (!VMM_Validate_VM_Handle(lockedVM)) goto __checkDone;
+
+  002e4	50		 push	 eax
+  002e5	e8 00 00 00 00	 call	 _VMM_Validate_VM_Handle
+  002ea	83 c4 04	 add	 esp, 4
+  002ed	85 c0		 test	 eax, eax
+  002ef	74 01		 je	 SHORT $__checkDone$10455
+
+; 577  :     
+; 578  :     /* Set teh cary bit for no switch away. */
+; 579  :     __asm stc;
+
+  002f1	f9		 stc
+$__checkDone$10455:
+
+; 580  :     
+; 581  :  __checkDone:
+; 582  :     ;
+; 583  :   }
+; 584  :   NAKED_EPILOG_NOFLAGS();
+
+  002f2	8b e5		 mov	 esp, ebp
+  002f4	61		 popad
+  002f5	c3		 ret	 0
+_LockAPI_ScreenSwitchP ENDP
+_LTEXT	ENDS
+END

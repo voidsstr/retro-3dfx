@@ -1,0 +1,62 @@
+#
+# Copyright (c) 1997, 3Dfx Interactive, Inc.
+# All Rights Reserved.
+#
+# This is UNPUBLISHED PROPRIETARY SOURCE CODE of 3Dfx Interactive, Inc.;
+# the contents of this file may not be disclosed to third parties, copied or
+# duplicated in any form, in whole or in part, without the prior written
+# permission of 3Dfx Interactive, Inc.
+#
+# RESTRICTED RIGHTS LEGEND:
+# Use, duplication or disclosure by the Government is subject to restrictions
+# as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+# and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+# successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished  -
+# rights reserved under the Copyright Laws of the United States.
+#
+
+#--------------------------------------------------------------------------
+# local defines, options, includes
+#
+LCDEFS	= -DH4 -DBUILD_HAL -DHAL_CSIM -DHAL_HSIM -DGDBG_INFO_ON
+LCOPTS	=
+LCINCS  = -I$(BUILD_ROOT)/$(FX_GLIDE_HW)/include -I$(TDFX_COMMONROOT)/src/tests/diags
+
+ifdef FX_DLL_BUILD
+LCDEFS := $(LCDEFS) -DFX_DLL_ENABLE
+endif
+ifdef DEBUG
+LCDEFS := $(LCDEFS) -DGDBG_INFO_ON
+endif
+
+#--------------------------------------------------------------------------
+# sources
+#
+HEADERS = h3asm.h
+PRIVATE_HEADERS = csim.h h3sim.h miptable.h rgbfmt.h trexfunc.h \
+		../incsrc/h3regs.h ../incsrc/h3defs.h ../incsrc/h3gdefs.h
+CFILES	= csim.c csimio.c cmdfifo.c compress.c lfb.c miptable.c regs.c rgbfmt.c \
+		alpha.c recip.c lod.c ccu.c fbi.c trex.c trexfunc.c \
+		go.c go2.c setup.c sstprint.c sstgprnt.c yuv.c
+
+INSTALL_DESTINATION = $(BUILD_ROOT)/$(FX_GLIDE_HW)
+
+
+#--------------------------------------------------------------------------
+# targets
+#
+LIBRARIES = h4csim.a
+LDIRT     = h3asm.a h3asm h3asm.h
+
+
+include $(BUILD_ROOT_SWLIBS)/include/make/3dfx.mak
+
+#--------------------------------------------------------------------------
+# special rules for making SSTASM.H
+#
+h3asm: h3asm.c 
+	$(CC) -o $@ h3asm.c $(GCDEFS) \
+		-I$(BUILD_ROOT)/$(FX_GLIDE_HW)/include -I$(BUILD_ROOT_SWLIBS)/include $(LDFLAGS)
+
+h3asm.h: h3asm
+	h3asm -hex > h3asm.h

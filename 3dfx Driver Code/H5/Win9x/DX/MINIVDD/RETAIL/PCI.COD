@@ -1,0 +1,857 @@
+	TITLE	..\pci.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+_PTEXT	SEGMENT PARA USE32 PUBLIC 'PCODE'
+_PTEXT	ENDS
+_LTEXT	SEGMENT PARA USE32 PUBLIC 'LCODE'
+_LTEXT	ENDS
+_PDATA	SEGMENT DWORD USE32 PUBLIC 'PDATA'
+_PDATA	ENDS
+_LDATA	SEGMENT DWORD USE32 PUBLIC 'LCODE'
+_LDATA	ENDS
+FLAT	GROUP _DATA, CONST, _BSS, _PDATA, _LDATA
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+PUBLIC	_dwConfigMech
+_DATA	SEGMENT
+COMM	_dwWin98:DWORD
+_DATA	ENDS
+_PDATA	SEGMENT
+_dwConfigMech DD 0ffffffffH
+_PDATA	ENDS
+PUBLIC	_PCI_Config_Check
+EXTRN	_our_outpd:NEAR
+EXTRN	_our_inpd:NEAR
+_PTEXT	SEGMENT
+_dwSavePort$ = -4
+_PCI_Config_Check PROC NEAR
+
+; 116  : {
+
+  00000	51		 push	 ecx
+  00001	53		 push	 ebx
+  00002	55		 push	 ebp
+  00003	56		 push	 esi
+  00004	57		 push	 edi
+
+; 117  :    DWORD dwReturn = PCI_UNKNOWN_MECHANISM;
+; 118  :    DWORD dwBus; 
+; 119  :    DWORD dwDevFunc; 
+; 120  :    DWORD dwValue;
+; 121  :    DWORD dwSavePort;
+; 122  : 
+; 123  :    // Mechanism 1 ??
+; 124  :    dwSavePort = our_inpd(CONFIG_ADDRESS_PORT);
+
+  00005	68 f8 0c 00 00	 push	 3320			; 00000cf8H
+  0000a	83 cd ff	 or	 ebp, -1
+  0000d	e8 00 00 00 00	 call	 _our_inpd
+  00012	83 c4 04	 add	 esp, 4
+  00015	89 44 24 10	 mov	 DWORD PTR _dwSavePort$[esp+20], eax
+
+; 125  :    for (dwBus=0; ((dwBus<256) && (PCI_UNKNOWN_MECHANISM == dwReturn)); dwBus += 1)
+
+  00019	33 db		 xor	 ebx, ebx
+$L10636:
+  0001b	83 fd ff	 cmp	 ebp, -1
+  0001e	75 53		 jne	 SHORT $L10638
+
+; 126  :       {
+; 127  :       for (dwDevFunc = 0; dwDevFunc<0x100; dwDevFunc += 0x08)
+; 128  :          {
+; 129  :          our_outpd(CONFIG_ADDRESS_PORT, PCI_MECH1_ADDR(dwBus, dwDevFunc, 0x0));
+
+  00020	8b fb		 mov	 edi, ebx
+  00022	33 f6		 xor	 esi, esi
+  00024	81 cf 00 80 ff
+	ff		 or	 edi, -32768		; ffff8000H
+  0002a	c1 e7 08	 shl	 edi, 8
+$L10639:
+  0002d	8b c7		 mov	 eax, edi
+  0002f	0b c6		 or	 eax, esi
+  00031	c1 e0 08	 shl	 eax, 8
+  00034	50		 push	 eax
+  00035	68 f8 0c 00 00	 push	 3320			; 00000cf8H
+  0003a	e8 00 00 00 00	 call	 _our_outpd
+
+; 130  :          dwValue = our_inpd(CONFIG_DATA_PORT) & 0xFFFF;
+
+  0003f	68 fc 0c 00 00	 push	 3324			; 00000cfcH
+  00044	e8 00 00 00 00	 call	 _our_inpd
+  00049	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  0004e	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 131  :          if (0xFFFF != dwValue)
+
+  00051	3d ff ff 00 00	 cmp	 eax, 65535		; 0000ffffH
+  00056	75 0d		 jne	 SHORT $L10721
+  00058	83 c6 08	 add	 esi, 8
+  0005b	81 fe 00 01 00
+	00		 cmp	 esi, 256		; 00000100H
+  00061	72 ca		 jb	 SHORT $L10639
+  00063	eb 05		 jmp	 SHORT $L10637
+$L10721:
+
+; 132  :             {
+; 133  :             dwReturn = 0x01;
+
+  00065	bd 01 00 00 00	 mov	 ebp, 1
+$L10637:
+
+; 125  :    for (dwBus=0; ((dwBus<256) && (PCI_UNKNOWN_MECHANISM == dwReturn)); dwBus += 1)
+
+  0006a	43		 inc	 ebx
+  0006b	81 fb 00 01 00
+	00		 cmp	 ebx, 256		; 00000100H
+  00071	72 a8		 jb	 SHORT $L10636
+$L10638:
+
+; 134  :             break;
+; 135  :             }
+; 136  :          }
+; 137  :       } 
+; 138  :    our_outpd(CONFIG_ADDRESS_PORT, dwSavePort);
+
+  00073	8b 4c 24 10	 mov	 ecx, DWORD PTR _dwSavePort$[esp+20]
+  00077	51		 push	 ecx
+  00078	68 f8 0c 00 00	 push	 3320			; 00000cf8H
+  0007d	e8 00 00 00 00	 call	 _our_outpd
+  00082	83 c4 08	 add	 esp, 8
+
+; 139  :  
+; 140  :    // Gotta to be Mechanism 2
+; 141  :    if (PCI_UNKNOWN_MECHANISM == dwReturn)
+
+  00085	83 fd ff	 cmp	 ebp, -1
+
+; 142  :       dwReturn = 0x02;  
+
+  00088	b8 02 00 00 00	 mov	 eax, 2
+  0008d	74 02		 je	 SHORT $L10643
+
+; 143  : 
+; 144  :    return dwReturn;
+
+  0008f	8b c5		 mov	 eax, ebp
+$L10643:
+  00091	5f		 pop	 edi
+  00092	5e		 pop	 esi
+  00093	5d		 pop	 ebp
+  00094	5b		 pop	 ebx
+
+; 145  : }
+
+  00095	59		 pop	 ecx
+  00096	c3		 ret	 0
+_PCI_Config_Check ENDP
+_PTEXT	ENDS
+PUBLIC	_PCI_Read_Config_W95
+EXTRN	_our_outp:NEAR
+_PTEXT	SEGMENT
+_dwBus$ = 8
+_dwDevFunc$ = 12
+_dwOffset$ = 16
+_PCI_Read_Config_W95 PROC NEAR
+
+; 158  :    DWORD dwReturn;
+; 159  :    DWORD dwSavePort;
+; 160  : 
+; 161  :    if (PCI_UNKNOWN_MECHANISM == dwConfigMech)
+
+  000a0	a1 00 00 00 00	 mov	 eax, DWORD PTR _dwConfigMech
+  000a5	83 f8 ff	 cmp	 eax, -1
+  000a8	75 0a		 jne	 SHORT $L10654
+
+; 162  :       dwConfigMech = PCI_Config_Check();
+
+  000aa	e8 00 00 00 00	 call	 _PCI_Config_Check
+  000af	a3 00 00 00 00	 mov	 DWORD PTR _dwConfigMech, eax
+$L10654:
+
+; 163  : 
+; 164  :   if ( 1 == dwConfigMech)
+
+  000b4	83 f8 01	 cmp	 eax, 1
+  000b7	56		 push	 esi
+  000b8	75 52		 jne	 SHORT $L10655
+  000ba	57		 push	 edi
+
+; 165  :       {
+; 166  :       dwSavePort = our_inpd(CONFIG_ADDRESS_PORT);
+
+  000bb	68 f8 0c 00 00	 push	 3320			; 00000cf8H
+  000c0	e8 00 00 00 00	 call	 _our_inpd
+
+; 167  :       our_outpd(CONFIG_ADDRESS_PORT, PCI_MECH1_ADDR(dwBus, dwDevFunc, dwOffset));
+
+  000c5	8b 7c 24 14	 mov	 edi, DWORD PTR _dwDevFunc$[esp+8]
+  000c9	8b f0		 mov	 esi, eax
+  000cb	8b 44 24 10	 mov	 eax, DWORD PTR _dwBus$[esp+8]
+  000cf	8b 4c 24 18	 mov	 ecx, DWORD PTR _dwOffset$[esp+8]
+  000d3	0d 00 80 ff ff	 or	 eax, -32768		; ffff8000H
+  000d8	c1 e0 08	 shl	 eax, 8
+  000db	0b c7		 or	 eax, edi
+  000dd	c1 e0 08	 shl	 eax, 8
+  000e0	0b c1		 or	 eax, ecx
+  000e2	50		 push	 eax
+  000e3	68 f8 0c 00 00	 push	 3320			; 00000cf8H
+  000e8	e8 00 00 00 00	 call	 _our_outpd
+
+; 168  :       dwReturn = our_inpd(CONFIG_DATA_PORT);
+
+  000ed	68 fc 0c 00 00	 push	 3324			; 00000cfcH
+  000f2	e8 00 00 00 00	 call	 _our_inpd
+
+; 169  :       our_outpd(CONFIG_ADDRESS_PORT, dwSavePort);
+
+  000f7	56		 push	 esi
+  000f8	68 f8 0c 00 00	 push	 3320			; 00000cf8H
+  000fd	8b f8		 mov	 edi, eax
+  000ff	e8 00 00 00 00	 call	 _our_outpd
+  00104	83 c4 18	 add	 esp, 24			; 00000018H
+
+; 176  :       }
+; 177  :   
+; 178  :    return (dwReturn);
+
+  00107	8b c7		 mov	 eax, edi
+  00109	5f		 pop	 edi
+  0010a	5e		 pop	 esi
+
+; 179  : }
+
+  0010b	c3		 ret	 0
+$L10655:
+
+; 170  :       } 
+; 171  :    else 
+; 172  :       {                      /* config mechanism 2 */
+; 173  :       our_outp(CONFIG_ADDRESS_PORT, CONFIG_MAPPING_ENABLE_BYTE);
+
+  0010c	68 80 00 00 00	 push	 128			; 00000080H
+  00111	68 f8 0c 00 00	 push	 3320			; 00000cf8H
+  00116	e8 00 00 00 00	 call	 _our_outp
+
+; 174  :       dwReturn = our_inpd(PCI_MECH2_ADDR(dwDevFunc, dwOffset)); 
+
+  0011b	8b 54 24 18	 mov	 edx, DWORD PTR _dwOffset$[esp+8]
+  0011f	33 c9		 xor	 ecx, ecx
+  00121	8a 6c 24 14	 mov	 ch, BYTE PTR _dwDevFunc$[esp+8]
+  00125	81 e2 fc 00 00
+	00		 and	 edx, 252		; 000000fcH
+  0012b	0b ca		 or	 ecx, edx
+  0012d	81 c1 00 c0 00
+	00		 add	 ecx, 49152		; 0000c000H
+  00133	51		 push	 ecx
+  00134	e8 00 00 00 00	 call	 _our_inpd
+
+; 175  :       our_outp(CONFIG_ADDRESS_PORT, CONFIG_MAPPING_DISABLE_BYTE);
+
+  00139	6a 00		 push	 0
+  0013b	68 f8 0c 00 00	 push	 3320			; 00000cf8H
+  00140	8b f0		 mov	 esi, eax
+  00142	e8 00 00 00 00	 call	 _our_outp
+  00147	83 c4 14	 add	 esp, 20			; 00000014H
+
+; 176  :       }
+; 177  :   
+; 178  :    return (dwReturn);
+
+  0014a	8b c6		 mov	 eax, esi
+  0014c	5e		 pop	 esi
+
+; 179  : }
+
+  0014d	c3		 ret	 0
+_PCI_Read_Config_W95 ENDP
+_PTEXT	ENDS
+PUBLIC	_PCI_Write_Config_W95
+_PTEXT	SEGMENT
+_dwBus$ = 8
+_dwDevFunc$ = 12
+_dwOffset$ = 16
+_dwValue$ = 20
+_PCI_Write_Config_W95 PROC NEAR
+
+; 192  :    DWORD dwSavePort;
+; 193  : 
+; 194  :    if (PCI_UNKNOWN_MECHANISM == dwConfigMech)
+
+  00150	a1 00 00 00 00	 mov	 eax, DWORD PTR _dwConfigMech
+  00155	83 f8 ff	 cmp	 eax, -1
+  00158	75 0a		 jne	 SHORT $L10668
+
+; 195  :       dwConfigMech = PCI_Config_Check();
+
+  0015a	e8 00 00 00 00	 call	 _PCI_Config_Check
+  0015f	a3 00 00 00 00	 mov	 DWORD PTR _dwConfigMech, eax
+$L10668:
+
+; 196  : 
+; 197  :    if (1 == dwConfigMech)
+
+  00164	83 f8 01	 cmp	 eax, 1
+  00167	75 57		 jne	 SHORT $L10669
+  00169	56		 push	 esi
+
+; 198  :       {
+; 199  :       dwSavePort = our_inpd(CONFIG_ADDRESS_PORT);
+
+  0016a	68 f8 0c 00 00	 push	 3320			; 00000cf8H
+  0016f	e8 00 00 00 00	 call	 _our_inpd
+
+; 200  :       our_outpd(CONFIG_ADDRESS_PORT, PCI_MECH1_ADDR(dwBus, dwDevFunc, dwOffset));
+
+  00174	8b 4c 24 10	 mov	 ecx, DWORD PTR _dwDevFunc$[esp+4]
+  00178	8b f0		 mov	 esi, eax
+  0017a	8b 44 24 0c	 mov	 eax, DWORD PTR _dwBus$[esp+4]
+  0017e	0d 00 80 ff ff	 or	 eax, -32768		; ffff8000H
+  00183	c1 e0 08	 shl	 eax, 8
+  00186	0b c1		 or	 eax, ecx
+  00188	8b 4c 24 14	 mov	 ecx, DWORD PTR _dwOffset$[esp+4]
+  0018c	c1 e0 08	 shl	 eax, 8
+  0018f	0b c1		 or	 eax, ecx
+  00191	50		 push	 eax
+  00192	68 f8 0c 00 00	 push	 3320			; 00000cf8H
+  00197	e8 00 00 00 00	 call	 _our_outpd
+
+; 201  :       our_outpd(CONFIG_DATA_PORT, dwValue);
+
+  0019c	8b 4c 24 20	 mov	 ecx, DWORD PTR _dwValue$[esp+12]
+  001a0	51		 push	 ecx
+  001a1	68 fc 0c 00 00	 push	 3324			; 00000cfcH
+  001a6	e8 00 00 00 00	 call	 _our_outpd
+
+; 202  :       our_outpd(CONFIG_ADDRESS_PORT, dwSavePort);
+
+  001ab	56		 push	 esi
+  001ac	68 f8 0c 00 00	 push	 3320			; 00000cf8H
+  001b1	e8 00 00 00 00	 call	 _our_outpd
+  001b6	83 c4 1c	 add	 esp, 28			; 0000001cH
+
+; 209  :       }
+; 210  :  
+; 211  :    return (0x01);
+
+  001b9	b8 01 00 00 00	 mov	 eax, 1
+  001be	5e		 pop	 esi
+
+; 212  : }
+
+  001bf	c3		 ret	 0
+$L10669:
+
+; 203  :       } 
+; 204  :    else
+; 205  :       {
+; 206  :       our_outp(CONFIG_ADDRESS_PORT, CONFIG_MAPPING_ENABLE_BYTE);
+
+  001c0	68 80 00 00 00	 push	 128			; 00000080H
+  001c5	68 f8 0c 00 00	 push	 3320			; 00000cf8H
+  001ca	e8 00 00 00 00	 call	 _our_outp
+
+; 207  :       our_outpd(PCI_MECH2_ADDR(dwDevFunc, dwOffset), dwValue);
+
+  001cf	8b 4c 24 14	 mov	 ecx, DWORD PTR _dwOffset$[esp+4]
+  001d3	8b 54 24 18	 mov	 edx, DWORD PTR _dwValue$[esp+4]
+  001d7	33 c0		 xor	 eax, eax
+  001d9	81 e1 fc 00 00
+	00		 and	 ecx, 252		; 000000fcH
+  001df	8a 64 24 10	 mov	 ah, BYTE PTR _dwDevFunc$[esp+4]
+  001e3	52		 push	 edx
+  001e4	0b c1		 or	 eax, ecx
+  001e6	05 00 c0 00 00	 add	 eax, 49152		; 0000c000H
+  001eb	50		 push	 eax
+  001ec	e8 00 00 00 00	 call	 _our_outpd
+
+; 208  :       our_outp(CONFIG_ADDRESS_PORT, CONFIG_MAPPING_DISABLE_BYTE);
+
+  001f1	6a 00		 push	 0
+  001f3	68 f8 0c 00 00	 push	 3320			; 00000cf8H
+  001f8	e8 00 00 00 00	 call	 _our_outp
+  001fd	83 c4 18	 add	 esp, 24			; 00000018H
+
+; 209  :       }
+; 210  :  
+; 211  :    return (0x01);
+
+  00200	b8 01 00 00 00	 mov	 eax, 1
+
+; 212  : }
+
+  00205	c3		 ret	 0
+_PCI_Write_Config_W95 ENDP
+_PTEXT	ENDS
+PUBLIC	_PCI_Read_Config
+_PTEXT	SEGMENT
+_dwBus$ = 8
+_dwDevFunc$ = 12
+_dwOffset$ = 16
+_dwReturn$ = -4
+_PCI_Read_Config PROC NEAR
+
+; 224  : {
+
+  00210	55		 push	 ebp
+  00211	8b ec		 mov	 ebp, esp
+  00213	51		 push	 ecx
+
+; 225  :    DWORD dwReturn;
+; 226  : #ifdef WIN_CSIM
+; 227  :    NPLPCICONFIG PCI;
+; 228  : 
+; 229  :    if (dwUseFakePCI)
+; 230  :       {
+; 231  :       if (0x0 == Interface)
+; 232  :          {
+; 233  :          Get_Napalm_Interface(&Interface, NAPALM_VXD_ID);
+; 234  :          }
+; 235  :       PCI.dwBus = dwBus;
+; 236  :       PCI.dwDevFunc = dwDevFunc;
+; 237  :       PCI.dwOffset = dwOffset;
+; 238  :       PCI.dwValue = 0x0;
+; 239  :       Napalm_PCI_Read_Config(Interface, &PCI);
+; 240  :       dwReturn = PCI.dwValue;
+; 241  :       }
+; 242  :    else {
+; 243  : #endif
+; 244  :    if (dwWin98)   
+
+  00214	a1 00 00 00 00	 mov	 eax, DWORD PTR _dwWin98
+  00219	53		 push	 ebx
+  0021a	56		 push	 esi
+  0021b	57		 push	 edi
+  0021c	85 c0		 test	 eax, eax
+  0021e	74 21		 je	 SHORT $L10679
+
+; 245  :       {
+; 246  :       __asm pushad
+
+  00220	60		 pushad
+
+; 247  :       __asm push  dwOffset
+
+  00221	ff 75 10	 push	 DWORD PTR _dwOffset$[ebp]
+
+; 248  :       __asm push  dwDevFunc
+
+  00224	ff 75 0c	 push	 DWORD PTR _dwDevFunc$[ebp]
+
+; 249  :       __asm push  dwBus
+
+  00227	ff 75 08	 push	 DWORD PTR _dwBus$[ebp]
+
+; 250  :       VxDCall(_PCI_Read_Config);
+
+  0022a	cd		 DB	 -51			; ffffffcdH
+  0022b	20		 DB	 32			; 00000020H
+  0022c	01		 DB	 1
+  0022d	00		 DB	 0
+  0022e	43		 DB	 67			; 00000043H
+  0022f	00		 DB	 0
+
+; 251  :       __asm add   esp, 12
+
+  00230	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 252  :       __asm mov dwReturn, eax
+
+  00233	89 45 fc	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 253  :       __asm popad
+
+  00236	61		 popad
+
+; 257  : #ifdef WIN_CSIM
+; 258  :    }
+; 259  : #endif       
+; 260  : 
+; 261  : #if 0
+; 262  :    Debug_Printf("PCI Read Cycle Bus %x DevFunc %x Offset %x Value %x\n", dwBus, dwDevFunc, dwOffset, dwReturn);     
+; 263  : #endif
+; 264  : 
+; 265  :    return (dwReturn);
+
+  00237	8b 45 fc	 mov	 eax, DWORD PTR _dwReturn$[ebp]
+
+; 266  : }
+
+  0023a	5f		 pop	 edi
+  0023b	5e		 pop	 esi
+  0023c	5b		 pop	 ebx
+  0023d	8b e5		 mov	 esp, ebp
+  0023f	5d		 pop	 ebp
+  00240	c3		 ret	 0
+$L10679:
+
+; 254  :       }
+; 255  :    else
+; 256  :       dwReturn = PCI_Read_Config_W95(dwBus,dwDevFunc,dwOffset);
+
+  00241	8b 45 10	 mov	 eax, DWORD PTR _dwOffset$[ebp]
+  00244	8b 4d 0c	 mov	 ecx, DWORD PTR _dwDevFunc$[ebp]
+  00247	8b 55 08	 mov	 edx, DWORD PTR _dwBus$[ebp]
+  0024a	50		 push	 eax
+  0024b	51		 push	 ecx
+  0024c	52		 push	 edx
+  0024d	e8 00 00 00 00	 call	 _PCI_Read_Config_W95
+  00252	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 266  : }
+
+  00255	5f		 pop	 edi
+  00256	5e		 pop	 esi
+  00257	5b		 pop	 ebx
+  00258	8b e5		 mov	 esp, ebp
+  0025a	5d		 pop	 ebp
+  0025b	c3		 ret	 0
+_PCI_Read_Config ENDP
+_PTEXT	ENDS
+PUBLIC	_PCI_Write_Config
+_PTEXT	SEGMENT
+_dwBus$ = 8
+_dwDevFunc$ = 12
+_dwOffset$ = 16
+_dwValue$ = 20
+_dwReturn$ = -4
+_PCI_Write_Config PROC NEAR
+
+; 278  : {
+
+  00260	55		 push	 ebp
+  00261	8b ec		 mov	 ebp, esp
+  00263	51		 push	 ecx
+
+; 279  :    DWORD dwReturn;
+; 280  :    
+; 281  : #ifdef WIN_CSIM
+; 282  :    NPLPCICONFIG PCI;
+; 283  : 
+; 284  :    if (dwUseFakePCI)
+; 285  :       {
+; 286  :       if (0x0 == Interface)
+; 287  :          {
+; 288  :          Get_Napalm_Interface(&Interface, NAPALM_VXD_ID);
+; 289  :          }
+; 290  :       PCI.dwBus = dwBus;
+; 291  :       PCI.dwDevFunc = dwDevFunc;
+; 292  :       PCI.dwOffset = dwOffset;
+; 293  :       PCI.dwValue = dwValue;
+; 294  :       dwReturn = Napalm_PCI_Write_Config(Interface, &PCI);
+; 295  :       }
+; 296  :    else
+; 297  :       {
+; 298  : #endif
+; 299  :    if (dwWin98)
+
+  00264	a1 00 00 00 00	 mov	 eax, DWORD PTR _dwWin98
+  00269	53		 push	 ebx
+  0026a	56		 push	 esi
+  0026b	57		 push	 edi
+  0026c	85 c0		 test	 eax, eax
+  0026e	74 24		 je	 SHORT $L10691
+
+; 300  :       {
+; 301  :       __asm pushad
+
+  00270	60		 pushad
+
+; 302  :       __asm push dwValue
+
+  00271	ff 75 14	 push	 DWORD PTR _dwValue$[ebp]
+
+; 303  :       __asm push dwOffset
+
+  00274	ff 75 10	 push	 DWORD PTR _dwOffset$[ebp]
+
+; 304  :       __asm push dwDevFunc
+
+  00277	ff 75 0c	 push	 DWORD PTR _dwDevFunc$[ebp]
+
+; 305  :       __asm push dwBus
+
+  0027a	ff 75 08	 push	 DWORD PTR _dwBus$[ebp]
+
+; 306  :       VxDCall(_PCI_Write_Config);
+
+  0027d	cd		 DB	 -51			; ffffffcdH
+  0027e	20		 DB	 32			; 00000020H
+  0027f	02		 DB	 2
+  00280	00		 DB	 0
+  00281	43		 DB	 67			; 00000043H
+  00282	00		 DB	 0
+
+; 307  :       __asm add   esp, 16
+
+  00283	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 308  :       __asm mov dwReturn, eax
+
+  00286	89 45 fc	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 309  :       __asm popad
+
+  00289	61		 popad
+
+; 313  : #ifdef WIN_CSIM
+; 314  :    }
+; 315  : #endif       
+; 316  : 
+; 317  : #if 0
+; 318  :    Debug_Printf("PCI Write Cycle Bus %x DevFunc %x Offset %x Value %x\n", dwBus, dwDevFunc, dwOffset, dwValue);     
+; 319  : #endif
+; 320  : 
+; 321  :    return (dwReturn);
+
+  0028a	8b 45 fc	 mov	 eax, DWORD PTR _dwReturn$[ebp]
+
+; 322  : }
+
+  0028d	5f		 pop	 edi
+  0028e	5e		 pop	 esi
+  0028f	5b		 pop	 ebx
+  00290	8b e5		 mov	 esp, ebp
+  00292	5d		 pop	 ebp
+  00293	c3		 ret	 0
+$L10691:
+
+; 310  :       }
+; 311  :    else
+; 312  :       dwReturn = PCI_Write_Config_W95(dwBus,dwDevFunc,dwOffset,dwValue);
+
+  00294	8b 45 14	 mov	 eax, DWORD PTR _dwValue$[ebp]
+  00297	8b 4d 10	 mov	 ecx, DWORD PTR _dwOffset$[ebp]
+  0029a	8b 55 0c	 mov	 edx, DWORD PTR _dwDevFunc$[ebp]
+  0029d	50		 push	 eax
+  0029e	8b 45 08	 mov	 eax, DWORD PTR _dwBus$[ebp]
+  002a1	51		 push	 ecx
+  002a2	52		 push	 edx
+  002a3	50		 push	 eax
+  002a4	e8 00 00 00 00	 call	 _PCI_Write_Config_W95
+  002a9	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 322  : }
+
+  002ac	5f		 pop	 edi
+  002ad	5e		 pop	 esi
+  002ae	5b		 pop	 ebx
+  002af	8b e5		 mov	 esp, ebp
+  002b1	5d		 pop	 ebp
+  002b2	c3		 ret	 0
+_PCI_Write_Config ENDP
+_PTEXT	ENDS
+PUBLIC	_PCIGetBusDevFunc
+EXTRN	_CCODE__CONFIGMG_Call_Enumerator_Function:NEAR
+_PTEXT	SEGMENT
+_dwDevNode$ = 8
+_pdwBus$ = 12
+_pdwDevFunc$ = 16
+_dwIOBase$ = -4
+_dwFB$ = -8
+_dwMMR$ = 8
+_PCIGetBusDevFunc PROC NEAR
+
+; 337  : {
+
+  002c0	83 ec 08	 sub	 esp, 8
+
+; 338  :   DWORD dwIOBase;
+; 339  :   DWORD dwFB;
+; 340  :   DWORD dwMMR;
+; 341  :   DWORD dwDevID;
+; 342  : 
+; 343  :   // Read IoBase, FB, and MMR
+; 344  :   CM_Call_Enumerator_Function( dwDevNode,
+; 345  :                                PCI_ENUM_FUNC_GET_DEVICE_INFO,
+; 346  :                                SST_PCI_MMIO_ID, &dwMMR, 
+; 347  :                                sizeof(DWORD), 0 );
+
+  002c3	8d 44 24 0c	 lea	 eax, DWORD PTR _dwMMR$[esp+4]
+  002c7	53		 push	 ebx
+  002c8	55		 push	 ebp
+  002c9	56		 push	 esi
+  002ca	8b 74 24 18	 mov	 esi, DWORD PTR _dwDevNode$[esp+16]
+  002ce	57		 push	 edi
+  002cf	6a 00		 push	 0
+  002d1	6a 04		 push	 4
+  002d3	50		 push	 eax
+  002d4	6a 10		 push	 16			; 00000010H
+  002d6	6a 00		 push	 0
+  002d8	56		 push	 esi
+  002d9	e8 00 00 00 00	 call	 _CCODE__CONFIGMG_Call_Enumerator_Function
+
+; 348  : 
+; 349  :   CM_Call_Enumerator_Function( dwDevNode,
+; 350  :                                PCI_ENUM_FUNC_GET_DEVICE_INFO,
+; 351  :                                SST_PCI_FB_ID, &dwFB, 
+; 352  :                                sizeof(DWORD), 0 );
+
+  002de	6a 00		 push	 0
+  002e0	8d 4c 24 2c	 lea	 ecx, DWORD PTR _dwFB$[esp+52]
+  002e4	6a 04		 push	 4
+  002e6	51		 push	 ecx
+  002e7	6a 14		 push	 20			; 00000014H
+  002e9	6a 00		 push	 0
+  002eb	56		 push	 esi
+  002ec	e8 00 00 00 00	 call	 _CCODE__CONFIGMG_Call_Enumerator_Function
+
+; 353  : 
+; 354  :   CM_Call_Enumerator_Function( dwDevNode,
+; 355  :                                PCI_ENUM_FUNC_GET_DEVICE_INFO,
+; 356  :                                SST_PCI_IOBASE_ID, &dwIOBase, 
+; 357  :                                sizeof(DWORD), 0 );
+
+  002f1	6a 00		 push	 0
+  002f3	8d 54 24 48	 lea	 edx, DWORD PTR _dwIOBase$[esp+76]
+  002f7	6a 04		 push	 4
+  002f9	52		 push	 edx
+  002fa	6a 18		 push	 24			; 00000018H
+  002fc	6a 00		 push	 0
+  002fe	56		 push	 esi
+  002ff	e8 00 00 00 00	 call	 _CCODE__CONFIGMG_Call_Enumerator_Function
+
+; 358  :    
+; 359  : 
+; 360  :   for (*pdwBus=0; *pdwBus<256; *pdwBus += 1)
+
+  00304	8b 6c 24 68	 mov	 ebp, DWORD PTR _pdwBus$[esp+92]
+  00308	8b 5c 24 6c	 mov	 ebx, DWORD PTR _pdwDevFunc$[esp+92]
+  0030c	83 c4 48	 add	 esp, 72			; 00000048H
+  0030f	c7 45 00 00 00
+	00 00		 mov	 DWORD PTR [ebp], 0
+$L10707:
+
+; 363  :     {
+; 364  :       dwDevID = PCI_Read_Config(*pdwBus, *pdwDevFunc, 0x0);
+
+  00316	8b 7d 00	 mov	 edi, DWORD PTR [ebp]
+  00319	c7 03 00 00 00
+	00		 mov	 DWORD PTR [ebx], 0
+$L10710:
+  0031f	8b 33		 mov	 esi, DWORD PTR [ebx]
+  00321	6a 00		 push	 0
+  00323	56		 push	 esi
+  00324	57		 push	 edi
+  00325	e8 00 00 00 00	 call	 _PCI_Read_Config
+  0032a	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 365  : 
+; 366  :       if ((IS_VOODOO3(dwDevID) || IS_NAPALM(dwDevID)) && 
+; 367  :           (dwMMR    == PCI_Read_Config(*pdwBus, *pdwDevFunc, SST_PCI_MMIO_ID)) &&
+; 368  :           (dwFB     == PCI_Read_Config(*pdwBus, *pdwDevFunc, SST_PCI_FB_ID)) &&
+; 369  :           (dwIOBase == PCI_Read_Config(*pdwBus, *pdwDevFunc, SST_PCI_IOBASE_ID)))
+
+  0032d	3d 1a 12 05 00	 cmp	 eax, 332314		; 0005121aH
+  00332	74 46		 je	 SHORT $L10715
+  00334	3d 1a 12 06 00	 cmp	 eax, 397850		; 0006121aH
+  00339	74 3f		 je	 SHORT $L10715
+  0033b	3d 1a 12 07 00	 cmp	 eax, 463386		; 0007121aH
+  00340	74 38		 je	 SHORT $L10715
+  00342	3d 1a 12 08 00	 cmp	 eax, 528922		; 0008121aH
+  00347	74 31		 je	 SHORT $L10715
+  00349	3d 1a 12 09 00	 cmp	 eax, 594458		; 0009121aH
+  0034e	74 2a		 je	 SHORT $L10715
+  00350	3d 1a 12 0a 00	 cmp	 eax, 659994		; 000a121aH
+  00355	74 23		 je	 SHORT $L10715
+  00357	3d 1a 12 0b 00	 cmp	 eax, 725530		; 000b121aH
+  0035c	74 1c		 je	 SHORT $L10715
+  0035e	3d 1a 12 0c 00	 cmp	 eax, 791066		; 000c121aH
+  00363	74 15		 je	 SHORT $L10715
+  00365	3d 1a 12 0d 00	 cmp	 eax, 856602		; 000d121aH
+  0036a	74 0e		 je	 SHORT $L10715
+  0036c	3d 1a 12 0e 00	 cmp	 eax, 922138		; 000e121aH
+  00371	74 07		 je	 SHORT $L10715
+  00373	3d 1a 12 0f 00	 cmp	 eax, 987674		; 000f121aH
+  00378	75 3c		 jne	 SHORT $L10711
+$L10715:
+  0037a	6a 10		 push	 16			; 00000010H
+  0037c	56		 push	 esi
+  0037d	57		 push	 edi
+  0037e	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00383	8b 4c 24 28	 mov	 ecx, DWORD PTR _dwMMR$[esp+32]
+  00387	83 c4 0c	 add	 esp, 12			; 0000000cH
+  0038a	3b c8		 cmp	 ecx, eax
+  0038c	75 28		 jne	 SHORT $L10711
+  0038e	6a 14		 push	 20			; 00000014H
+  00390	56		 push	 esi
+  00391	57		 push	 edi
+  00392	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00397	8b 4c 24 1c	 mov	 ecx, DWORD PTR _dwFB$[esp+36]
+  0039b	83 c4 0c	 add	 esp, 12			; 0000000cH
+  0039e	3b c8		 cmp	 ecx, eax
+  003a0	75 14		 jne	 SHORT $L10711
+  003a2	6a 18		 push	 24			; 00000018H
+  003a4	56		 push	 esi
+  003a5	57		 push	 edi
+  003a6	e8 00 00 00 00	 call	 _PCI_Read_Config
+  003ab	8b 4c 24 20	 mov	 ecx, DWORD PTR _dwIOBase$[esp+36]
+  003af	83 c4 0c	 add	 esp, 12			; 0000000cH
+  003b2	3b c8		 cmp	 ecx, eax
+  003b4	74 2b		 je	 SHORT $L10733
+$L10711:
+
+; 361  :   {
+; 362  :     for (*pdwDevFunc = 0; *pdwDevFunc<0x100; *pdwDevFunc += 0x08)
+
+  003b6	8d 46 08	 lea	 eax, DWORD PTR [esi+8]
+  003b9	3d 00 01 00 00	 cmp	 eax, 256		; 00000100H
+  003be	89 03		 mov	 DWORD PTR [ebx], eax
+  003c0	0f 82 59 ff ff
+	ff		 jb	 $L10710
+  003c6	8d 47 01	 lea	 eax, DWORD PTR [edi+1]
+  003c9	3d 00 01 00 00	 cmp	 eax, 256		; 00000100H
+  003ce	89 45 00	 mov	 DWORD PTR [ebp], eax
+  003d1	0f 82 3f ff ff
+	ff		 jb	 $L10707
+  003d7	5f		 pop	 edi
+  003d8	5e		 pop	 esi
+  003d9	5d		 pop	 ebp
+
+; 372  :       }
+; 373  :     }
+; 374  :   }
+; 375  : 
+; 376  :   return 0;
+
+  003da	33 c0		 xor	 eax, eax
+  003dc	5b		 pop	 ebx
+
+; 377  : }
+
+  003dd	83 c4 08	 add	 esp, 8
+  003e0	c3		 ret	 0
+$L10733:
+  003e1	5f		 pop	 edi
+  003e2	5e		 pop	 esi
+  003e3	5d		 pop	 ebp
+
+; 370  :       {
+; 371  :         return 1;
+
+  003e4	b8 01 00 00 00	 mov	 eax, 1
+  003e9	5b		 pop	 ebx
+
+; 377  : }
+
+  003ea	83 c4 08	 add	 esp, 8
+  003ed	c3		 ret	 0
+_PCIGetBusDevFunc ENDP
+_PTEXT	ENDS
+END

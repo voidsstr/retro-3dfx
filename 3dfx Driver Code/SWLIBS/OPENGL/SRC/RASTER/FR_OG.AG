@@ -1,0 +1,864 @@
+/*
+** Copyright 1996, 1997, Silicon Graphics, Inc.
+** All Rights Reserved.
+**
+** This is UNPUBLISHED PROPRIETARY SOURCE CODE of Silicon Graphics, Inc.;
+** the contents of this file may not be disclosed to third parties, copied or
+** duplicated in any form, in whole or in part, without the prior written
+** permission of Silicon Graphics, Inc.
+**
+** RESTRICTED RIGHTS LEGEND:
+** Use, duplication or disclosure by the Government is subject to restrictions
+** as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+** and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+** successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished -
+** rights reserved under the Copyright Laws of the United States.
+**
+*/
+#ifdef __GL_CODEGEN
+
+#include <stdio.h>
+#include <malloc.h>
+#include <assert.h>
+
+#include "context.h"
+#include "render.h"
+#include "global.h"
+#include "fr_modes.h"
+#include "fr_tri.h"
+#include "fr_fbtype.h"
+
+#include "og.h"
+
+//#define __GL_CODEGEN_STATS
+#ifdef __GL_CODEGEN_STATS
+
+#include "timer.h"
+
+static struct {
+  int num_texture_reads;
+  int num_textureread_changes;
+} stats;
+
+#endif /* __GL_CODEGEN_STATS */
+
+/* fptr (Floating-Point TRiangle) holds memory variables used 
+ * used by the floating-point rasterizer.
+ * (There is a much larger MMX equivalent, 'mmxtr').
+ */
+
+struct __GLfptri {
+    struct celem *dstdx;
+    struct celem *dstdx2;
+
+    struct celem *qis;
+    struct celem *qit;
+    struct celem *st;
+    struct celem *ist;
+    struct celem *is;
+    struct celem *it;
+    struct celem *prev_is;
+    struct celem *prev_it;
+    struct celem *converters[16];
+};
+
+static void
+this_warmup(__GLcontext *gc,
+	    struct __GLfptri *fptr,
+	    float *data)
+{
+    GLuint i;
+
+    for (i = 0; i < 16; i++) {
+	fptr->converters[i] = fpk(gc, ((float)(1 << 20) * (float)(3 << (15 + (i)))));
+    }
+
+    i = 0;
+    fptr->qis = mem2(gc, value(gc, (int)&(data[i++])), NULL); /* allocate qword */
+    i++;
+    fptr->qit = mem2(gc, value(gc, (int)&(data[i++])), NULL); /* allocate qword */
+    i++;
+
+    fptr->st = mem2(gc, value(gc, (int)&(data[i++])), NULL);
+    fptr->ist = mem2(gc, value(gc, (int)&(data[i++])), NULL);
+    fptr->dstdx = mem2(gc, value(gc, (int)&(data[i++])), NULL);
+    fptr->dstdx2 = mem2(gc, value(gc, (int)&(data[i++])), NULL);
+    fptr->is = mem2(gc, value(gc, (int)&(data[i++])), NULL);
+    fptr->it = mem2(gc, value(gc, (int)&(data[i++])), NULL);
+    fptr->prev_is = mem2(gc, value(gc, (int)&(data[i++])), NULL);
+    fptr->prev_it = mem2(gc, value(gc, (int)&(data[i++])), NULL);
+}
+
+/************************************************************************/
+
+
+/************************************************************************/
+
+/* Given
+ *  	1/q	q	s	(t)
+ * on the stack, calculates new s (and t), stores them in is (and it),
+ * and fixed-point versions in qis (and qit).
+ * Increments the two (or three) interpolants, and leaves the stack:
+ *  	q	q	s	(t)
+ */
+
+static unsigned char* pcstep(__GLcontext *gc,
+			     unsigned char *cb,
+			     int wl2,
+			     int hl2,
+			     int two_d,
+			     struct __GLfptri *fptr)
+{
+    if (two_d) {
+@	fld	st3
+
+@	fmul	st1
+@	fxch	st1
+		
+@	fmul	st3
+@	fst	'fptr->is'
+@	fadd	'fptr->converters[wl2]'
+@	fxch	st1
+@	fst	'fptr->it'
+@	fadd	'fptr->converters[hl2]'
+@	fxch	st2
+@	fadd	[edx + __GLtri.fdqwdxPWL]
+@	fxch	st3
+@	fadd	[edx + __GLtri.fdswdxPWL]
+@	fxch	st4
+@	fadd	[edx + __GLtri.fdtwdxPWL]
+@	fxch	st4
+@	fxch	st3
+@	fxch	st2
+@	fstpq	'fptr->qit'
+@	fstpq	'fptr->qis'
+@	fld	st0
+    } else {
+@	fmul	st2
+		
+@	fst	'fptr->is'
+@	fadd	'fptr->converters[wl2]'
+@	fxch	st1
+@	fadd	[edx + __GLtri.fdqwdxPWL]
+@	fxch	st2
+@	fadd	[edx + __GLtri.fdswdxPWL]
+@	fxch	st2
+@	fxch	st1
+@	fstpq	'fptr->qis'
+@	fld	st0
+    }
+
+  return cb;
+}
+
+/*
+ * Reads is,it and prev_is,prev_it.  Calculates dstdx, trashing qis,qit.
+ */
+
+static unsigned char*
+pcstepnext(__GLcontext *gc,
+	   unsigned char *cb,
+	   int wl2,
+	   int hl2,
+	   int two_d,
+	   struct __GLfptri *fptr)
+{
+    if (two_d) {
+@	fld	'fptr->is'
+@	fsub	'fptr->prev_is'
+@	fld	'fptr->it'
+@	fsub	'fptr->prev_it'
+@	fxch	st1
+@	fadd	'fptr->converters[wl2 + 4]'
+@	fxch	st1
+@	fadd	'fptr->converters[hl2 + 4]'
+@	fxch	st1
+
+@	mov	eax, 'fptr->is'
+@	mov	'fptr->prev_is', eax
+@	mov	eax, 'fptr->it'
+@	mov	'fptr->prev_it', eax
+
+@	fstpq	'fptr->qis'
+@	fstpq	'fptr->qit'
+
+@	mov	eax, 'fptr->qit'
+@	shl	eax, 16
+@  	size16
+@	mov	eax, 'fptr->qis'
+
+@       push    ecx
+@	mov	ecx,eax
+@	and	ecx,0x8000	; If lsw -ve, we get extra
+@	shl	ecx,1		; carry into msb
+@	sub	eax,ecx		; so make it 1 smaller
+@       pop     ecx
+
+@	mov	'fptr->dstdx', eax
+    } else {
+@	fld	'fptr->is'
+@	fsub	'fptr->prev_is'
+@	fadd	'fptr->converters[wl2 + 4]'
+
+@	mov	eax, 'fptr->is'
+@	mov	'fptr->prev_is', eax
+
+@	fstpq	'fptr->qis'
+
+@	mov	eax, 'fptr->qis'
+@	mov	'fptr->dstdx', eax
+    }
+
+  return cb;
+}
+
+
+static unsigned char*
+GenerateInner(__GLcontext *gc,
+	      unsigned char*cb,
+	      __GLtexture *current,
+	      int texelFlags,
+	      int wl2,
+	      int hl2,
+	      int texel_width,
+	      int dest_width,
+	      int two_d,
+	      struct __GLfptri *fptr)
+{
+    struct celem
+	*top = label(gc),
+	*top0 = label(gc), 
+	*maskpos = label(gc),
+	*done = label(gc),
+	*n1 = label(gc),
+	*alldone = label(gc);
+    GLenum baseFormat;
+
+@	push	ebp
+@	and	ebp,0xffff0000
+@	je	done
+
+@ top:
+
+@	cmp	ebp,0
+@	jge	maskpos
+
+@ top0:
+
+	if (wl2 <= 8) {
+@	  	mov	eax, ecx
+@	  	shr	eax, #'24 - hl2'
+@	  	mov	al, ch
+	    	if (wl2 < 8)
+@			shr	eax, #'8 - wl2'
+	} else {
+	    	/* Got to do the more expensive 16-bit version */
+@	  	mov	eax, ecx
+	    	if (hl2 < 16)
+@		shr	eax, #'16 - hl2'
+@	  	size16
+@	  	mov	eax, ecx
+	    	if (wl2 < 16)
+@			shr	eax, #'16 - wl2'
+	}
+
+	/* EAX now holds (unscaled) offset into texture */
+
+	baseFormat = current->texelFormat;
+	if ((texelFlags & (__FR_TEXEL_HAS_INDEX|__FR_TEXEL_NEED_RGB)) == 
+	    (__FR_TEXEL_HAS_INDEX|__FR_TEXEL_NEED_RGB)) {
+	    	/* Indirect, turn it into offset in palette (which looks like
+	     	 * a 256x1 texture).
+	     	 */
+@	  	add	eax, [edx + __GLtri.tp]
+@	  	mov	ebx, eax
+@	  	mov	eax, 0
+@	  	mov	al, [ebx]
+	    	/* EAX now holds (unscaled) offset into palette */
+	    	baseFormat = current->CT.baseFormat;
+	}
+
+	switch (baseFormat) {
+	case GL_COLOR_INDEX:
+@	  	mov	bl, [esi + eax]
+@	  	mov	[edi], bl
+	    	break;
+
+	case GL_LUMINANCE:
+@	  	mov	bl, [esi + eax]
+@	  	mov	[edi], bl
+@	  	mov	[edi + 1], bl
+@	  	mov	[edi + 2], bl
+	    	break;
+
+	case GL_INTENSITY:
+@	  	mov	bl, [esi + eax]
+@	  	mov	[edi], bl
+@	  	mov	[edi + 1], bl
+@	  	mov	[edi + 2], bl
+	    	if (dest_width == 4) { /* need_alpha */
+@	  		mov	[edi + 3], bl
+	    	}
+	    	break;
+
+	case GL_LUMINANCE_ALPHA:
+	    	if (dest_width == 4) { /* need_alpha */
+@			size16
+@			mov	ebx, [esi + eax * 2]
+@		  	mov	[edi], bl
+@	 	 	mov	[edi + 1], bl
+@	 	 	mov	[edi + 2], bl
+@	 	 	mov	[edi + 3], bh
+		} else {
+@			mov	bl, [esi + eax * 2]
+@		  	mov	[edi], bl
+@	 	 	mov	[edi + 1], bl
+@	 	 	mov	[edi + 2], bl
+	    	}
+	    	break;
+       
+	case GL_RGB:
+@	  	lea	eax, [eax + eax * 2]
+@		mov	ebx, [esi + eax]
+@	  	mov	[edi], ebx
+	    	break;
+
+	case GL_RGBA:
+@	  	mov	ebx, [esi + eax * 4]
+@	  	mov	[edi], ebx
+	    	break;
+	case GL_ALPHA:
+@	  	mov	bl, [esi + eax]
+@	  	mov	[edi], bl
+		break;
+	}
+
+@	add	edi, #dest_width
+
+@	shl	ebp, 1
+@	add	ecx, 'fptr->dstdx'
+@	cmp	ebp, 0
+@	jl	top0
+
+@	cmp	ebp, 0
+@	je	done
+
+@ maskpos:
+
+@	shl	ebp, 1
+@	add	ecx, 'fptr->dstdx'
+@	jmp	top
+
+@ done:
+
+@	pop	ebp	
+@	xor	eax,eax
+@	shl	ebp,16
+
+@	test	ebp,ebp
+	if (texelFlags & __FR_TEXEL_PERSPECTIVE) {
+@	jne	n1
+@	jmp	alldone
+@ n1:
+@	push	eax
+
+@	mov	eax, 'fptr->is'
+@	mov	'fptr->prev_is', eax
+    if (two_d) {
+@	mov	eax, 'fptr->it'
+@	mov	'fptr->prev_it', eax
+    }
+@	pcstep(wl2, hl2, two_d, 'fptr');
+@	pcstepnext(wl2, hl2, two_d, 'fptr');
+
+@	mov	ecx, 'fptr->ist'
+@	jmp	top
+        } else {
+@	jne	n1
+@	jmp	alldone
+@ n1:
+@	push	eax
+@	jmp	top
+	}
+
+@ alldone:
+
+	return cb;
+}
+
+__GLspanlet OGGenerateTR(__GLcontext *gc, int texelFlags, int wl2, int hl2)
+{
+    __GLtexture *current = gc->texture.currentTexture;
+    int texel_width, dest_width;
+    char *cb, *code;
+    unsigned int signature;
+    int two_d = (current->dim == 2);
+    struct __GLfptri fptr;
+
+    /* Build unique texture signature for this procedure:
+     * bits  0..15	internal format
+     * bits 16..20	texelFlags (low three bits are ignored)
+     * bits 21..22	dimensions (e.g. TEXTURE_?D)
+     * bits 23..26	log2(width)
+     * bits 27..30	log2(height)
+     * bit  31		unused
+     */
+    signature =
+	current->texelFormat |
+	((texelFlags>>4)<<16) |
+	(current->dim << 21) |
+	(wl2 << 23) |
+	(hl2 << 27);
+
+    if (__glAllocCodeSpace(&gc->textureReadCache, 0, signature, 0, &code)) {
+	return (__GLspanlet) code;
+    }
+
+    cb = code;
+
+#ifdef __GL_CODEGEN_STATS
+    __glSTSectionBegin(9, "TR Generator");
+
+    stats.num_textureread_changes++;
+#endif
+
+    og_warmup(gc);
+    this_warmup(gc, &fptr, (float *)(((int)gc->triSetupData + 7) & ~7));
+
+    if (texelFlags & __FR_TEXEL_NEED_RGB) {
+
+	if (texelFlags & __FR_TEXEL_HAS_RGB) {
+	    texel_width = 3;
+	} else {
+	    texel_width = 1;
+	}
+
+	if (texelFlags & __FR_TEXEL_HAS_ALPHA) {
+	    texel_width += 1;
+	}
+
+	if (texelFlags & __FR_TEXEL_NEED_ALPHA)
+	    dest_width = 4;
+	else if (current->texelFormat != GL_ALPHA)
+	    dest_width = 3;
+	else
+	    dest_width = 1;
+
+    } else {
+	texel_width = 1;
+	dest_width = 1;
+    }
+
+@	push	ebx
+@	push	ecx
+@	push	esi
+@	push	edi
+@	push	ebp
+
+@	mov	esi,ecx
+
+	/* Texture setup: load ecx with starting s,t, dstdx
+	 *	with change per pixel.
+	 */
+	if (texelFlags & __FR_TEXEL_PERSPECTIVE) {
+	    if (two_d) {
+@	  	fld	[edx + __GLtri.ftw]
+	    }
+@	  	fld	[edx + __GLtri.fsw]
+@	  	fld	[edx + __GLtri.fqw]
+
+@	  	fld	st0
+
+@	  	fdivr	'fpk(gc, 1.0)'
+
+@	        pcstep(wl2, hl2, two_d, '&fptr');
+
+@	  	fdivr	'fpk(gc, 1.0)'
+
+	    if (two_d) {
+@	  	mov	eax, 'fptr.qit'
+@	  	shl	eax, 16
+@	  	size16
+	    }
+@		mov	eax, 'fptr.qis'
+@		mov	'fptr.ist', eax
+
+@		mov	eax, 'fptr.is'
+@		mov	'fptr.prev_is', eax
+	    if (two_d) {
+@	  	mov	eax, 'fptr.it'
+@	  	mov	'fptr.prev_it', eax
+	    }
+@	    pcstep(wl2, hl2, two_d, '&fptr');
+
+	    /* Now need to calculate ist for the second span */
+	    if (two_d) {
+@	  	mov	eax, 'fptr.qit'
+@	  	shl	eax, 16
+@	  	size16
+	    }
+@	    mov	eax, 'fptr.qis'
+
+@	    mov	ecx, 'fptr.ist'
+@	    mov	'fptr.ist', eax
+
+@	    pcstepnext(wl2, hl2, two_d, '&fptr');
+
+@	    fdivr	'fpk(gc, 1.0)'
+	} else {
+	    if (two_d) {
+@	  	mov	ecx, [edx + __GLtri.dtdx]
+@	  	shl	ecx, #'16 - hl2'
+@	  	mov	eax, [edx + __GLtri.dsdx]
+@	  	shr	eax, #wl2
+@	  	size16
+@	  	mov	ecx,eax
+
+@		mov	eax,ecx
+@		and	eax,0x8000	; If lsw -ve, we get extra
+@		shl	eax,1		; carry into msb
+@		sub	ecx,eax		; so make it 1 smaller
+
+@	  	mov	'fptr.dstdx', ecx
+
+@	  	mov	ecx, [edx + __GLtri.t]
+@	  	shl	ecx, #'16 - hl2'
+@	  	mov	eax, [edx + __GLtri.s]
+@	  	shr	eax, #wl2
+@	  	size16
+@	  	mov	ecx,eax
+	    } else {
+@	  	mov	ecx, [edx + __GLtri.dsdx]
+@	  	shr	ecx, #wl2
+@	  	mov	'fptr.dstdx', ecx
+
+@	  	mov	ecx, [edx + __GLtri.s]
+@	  	shr	ecx, #wl2
+	    }
+	}
+
+@	mov	ebp, esi
+
+	/* Load the texture pointer into ESI */
+	if ((texelFlags & (__FR_TEXEL_HAS_INDEX | __FR_TEXEL_NEED_RGB)) == 
+	    (__FR_TEXEL_HAS_INDEX | __FR_TEXEL_NEED_RGB)) {
+@	  	mov	esi, [edx + __GLtri.gc]
+@	  	mov	esi, [esi + __GLcontext.'texture.currentTexture']
+@	  	mov	esi, [esi + __GLtexture.'CT.table']
+	} else {
+@	  	mov	esi, [edx + __GLtri.tp]
+	}
+@	lea	edi, [edx + __GLtri.texelBuf]
+
+	cb = GenerateInner(gc, cb, current, texelFlags, wl2, hl2,
+			   texel_width, dest_width, two_d, &fptr);
+
+@	pop	ebp
+@	pop	edi
+@	pop	esi
+@	pop	ecx
+@	pop	ebx
+
+	if (texelFlags & __FR_TEXEL_PERSPECTIVE) {
+	    if (two_d) {
+@	  	fstp	st0
+	    }
+@	  	fstp	st0
+@	  	fstp	st0
+@	  	fstp	st0
+	}
+
+@	ret
+
+#ifdef __GL_CODEGEN_STATS
+    __glSTSectionEnd(9);
+#endif /* __GL_CODEGEN_STATS */
+
+    assert((unsigned)(cb - code) <= gc->constants.textureReadCacheSize);
+    return (__GLspanlet) code;
+}
+
+/* Depth test signature bits */
+#define __OG_ZTEST_ZFUNC	0x7
+#define __OG_ZTEST_STENCIL	(1<<3)
+#define __OG_ZTEST_WRITE	(1<<4)
+#define __OG_ZTEST_16BIT	(1<<5)
+#define __OG_ZTEST_OFFSET	(1<<6)
+
+__GLspanlet OGGenerateZT(__GLcontext *gc)
+{
+    unsigned char *cb;
+    unsigned char *code;
+    struct celem *top0, *top, *zfail, *step, *maskpos, *done, *allfailed,
+	*noclamp;
+    GLuint modeFlags = gc->polygon.shader.modeFlags;
+    GLboolean always = (gc->state.depth.testFunc == GL_ALWAYS);
+    GLboolean z16bit = (gc->depthBuffer.buf.depth == 16);
+    GLboolean stencil = (0 != (modeFlags & __GL_SHADE_STENCIL_TEST));
+    GLboolean offset = (0 != (modeFlags & __GL_SHADE_POLYGON_OFFSET_FILL));
+    GLuint signature;
+
+    /* Build signature */
+    signature = gc->state.depth.testFunc & __OG_ZTEST_ZFUNC;
+    if (stencil)
+	signature |= __OG_ZTEST_STENCIL;
+    if (gc->state.depth.writeEnable)
+	signature |= __OG_ZTEST_WRITE;
+    if (z16bit)
+	signature |= __OG_ZTEST_16BIT;
+    if (offset)
+	signature |= __OG_ZTEST_OFFSET;
+
+    if (__glAllocCodeSpace(&gc->depthTestCache, 0, signature, 0, &code)) {
+	/* Found existing depth test which satisfies request! */
+	return (__GLspanlet) code;
+    }
+
+    cb = code;
+
+    og_warmup(gc);
+
+    top0 = label(gc);
+    top = label(gc);
+    zfail = label(gc);
+    step = label(gc);
+    maskpos = label(gc);
+    done = label(gc);
+    allfailed = label(gc);
+    if (offset) {
+	noclamp = label(gc);
+    }
+
+    /* Picking should eliminate this case */
+    assert(gc->state.depth.writeEnable || !always);
+
+    if (gc->state.depth.testFunc == GL_NEVER) {
+	if (stencil) {
+@	mov	ecx, 0
+@	mov	eax, [edx + __GLtri.gc]
+@	jmpi	[eax + __GLcontext.'procs.afterDepthTest']
+	} else {
+@	ret
+	}
+    } else {
+
+@	push	ebx
+@	push	esi
+	if (!always) {
+@	push	edi
+	}
+@	push	ebp
+
+	/*
+	 * eax	mask
+	 * ebx	z
+	 * ecx	maskout
+	 * edx	tr
+	 * esi	zp
+	 * edi	bit
+	 * ebp	*
+	 */
+
+@	mov	eax, ecx
+@	mov	ebx, [edx + __GLtri.z]
+	if (!always) {
+@	xor	ecx, ~0
+@	mov	edi, 0x80000000
+	}
+@	mov	esi, [edx + __GLtri.zp]
+
+@     top0:
+
+@	cmp	eax, 0
+@	jge	maskpos
+
+@     top:
+
+@	mov	ebp,ebx
+	if (offset) {
+@	sub	ebp, 0x80000000
+@	add	ebp, [edx + __GLtri.depthOffset]
+@	jno	noclamp
+@	mov	ebp, [edx + __GLtri.depthOffset]
+@	sar	ebp, 31
+@	xor	ebp, 0x7fffffff
+@     noclamp:
+@	add	ebp, 0x80000000
+	}
+	if (z16bit) {
+@	shr	ebp,16
+@	size16
+	}
+	if (!always) {
+@	cmp	ebp,[esi]
+	    switch (gc->state.depth.testFunc) {
+	    case GL_LESS:
+@	jae	zfail
+		break;
+	    case GL_EQUAL:
+@	jne	zfail
+		break;
+	    case GL_LEQUAL:
+@	ja	zfail
+		break;
+	    case GL_GREATER:
+@	jbe	zfail
+		break;
+	    case GL_NOTEQUAL:
+@	je	zfail
+		break;
+	    case GL_GEQUAL:
+@	jb	zfail
+		break;
+	    default:
+		assert(0);
+		break;
+	    }
+	}
+	if (gc->state.depth.writeEnable) {
+	    if (z16bit) {
+@	size16
+	    }
+@	mov	[esi], ebp
+	}
+	if (!always) {
+@	jmp	step
+
+@     zfail:
+
+@	or	ecx,edi
+
+@     step:
+
+@	shr	edi, 1
+	}
+@	mov	ebp, [edx + __GLtri.dx]
+@	shl	eax, 1
+	if (z16bit) {
+@	lea	esi, [esi + ebp * 2]
+	} else {
+@	lea	esi, [esi + ebp * 4]
+	}
+@	add	ebx, [edx + __GLtri.dzdx]
+@	cmp	eax, 0
+@	jl	top
+
+@     maskpos:
+
+	/* if (mask == 0) break; */
+@	test	eax,eax
+@	je	done
+
+	/* Step interpolants */
+	if (!always) {
+@	shr	edi,1
+	}
+@	shl	eax,1
+@	mov	ebp, [edx + __GLtri.dx]
+	if (z16bit) {
+@	lea	esi, [esi + ebp * 2]
+	} else {
+@	lea	esi, [esi + ebp * 4]
+	}
+@	add	ebx, [edx + __GLtri.dzdx]
+@	jmp	top0
+
+@     done:
+
+@	pop	ebp
+	if (!always) {
+@	pop	edi
+	}
+@	pop	esi
+@	pop	ebx
+
+	if (!always) {
+@	xor	ecx, ~0
+	    if (!stencil) {
+@	je	allfailed
+	    }
+	}
+
+@	mov	eax, [edx + __GLtri.gc]
+@	jmpi	[eax + __GLcontext.'procs.afterDepthTest']
+
+@     allfailed:
+
+@	ret
+    }
+
+    assert((unsigned)(cb - code) <= gc->constants.depthTestCacheSize);
+    return (__GLspanlet) code;
+}
+
+/************************************************************************/
+
+
+#ifdef __GL_CODEGEN_STATS
+#include "timer.h"
+
+static struct {
+  double started;
+  double total;
+  int num;
+  char* name;
+} timer[50];
+
+extern double readmachineclock();
+
+static void dumptimers(void)
+{
+  FILE* f;
+  int i;
+  double total;
+
+  f = fopen("timers.log", "wt");
+
+  for (i = 0; i < 1; i++) {
+    if (timer[i].started)
+      __glSTSectionEnd(i);
+  }
+  total = timer[0].total;
+
+#define REPORT(X)  fprintf(f, "%30s %d\n", #X, stats.X)
+
+  REPORT(num_texture_reads);
+  REPORT(num_textureread_changes);
+
+  fprintf(f, "Sample duration: %.1f seconds\n\n", total / 166000000.0);
+
+  for (i = 1; i < 10; i++) {
+    if (timer[i].num)
+      fprintf(f, "% 5.1f % 7.0f [%d] %s\n", 
+	      100.0 * (timer[i].total / total),
+	      timer[i].total / timer[i].num,
+	      i,
+	      timer[i].name);
+  }
+
+  fclose(f);
+}
+
+void __glSTSectionBegin(int ident, char* name)
+{
+  static int cold = 1;
+
+  if (cold) {
+    cold = 0;
+    atexit(dumptimers);
+    __glSTSectionBegin(0, "Total");
+  }
+  timer[ident].started = readmachineclock();
+  timer[ident].name = name;
+}
+
+void __glSTSectionEnd(int ident)
+{
+    timer[ident].total += (readmachineclock() - timer[ident].started);
+    timer[ident].num++;
+    timer[ident].started = 0.0;
+}
+
+#endif /* __GL_CODEGEN_STATS */
+
+#endif /* __GL_CODEGEN */

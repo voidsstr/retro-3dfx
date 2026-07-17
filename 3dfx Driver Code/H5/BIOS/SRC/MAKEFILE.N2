@@ -1,0 +1,196 @@
+#
+#	MAKEFILE - Make file for VGA BIOS: VGABIOS.COM and FULL.ROM
+#	Copyright (C) 1990-1998 Elpin Systems, Inc.
+#	All rights reserved.
+#
+#	Written by:	Larry Coffey
+#	Date:		5/21/90
+#
+#	History:
+#	5/21/90 - Original
+#	11/15/94 - Rewritten to support NMAKE 1.2
+#	6/3/95 - Added support for ROM and RAM builds on the same "make"
+#	8/9/95 - Added support for multiple vendors (removed upon delivery)
+#	8/18/95 - Placed under source code control
+#	3/28/97 - Re-written for BIOS Version 2.0
+#
+#	$Revision: 2 $
+#	$Date: 5/11/99 2:50p $
+#	$Logfile: /devel/h5/BIOS/SRC/MAKEFILE $
+#	$Log: /devel/h5/BIOS/SRC/MAKEFILE $
+# 
+# 2     5/11/99 2:50p Kaymann
+# Added the new file OEMPOST.ASM into the build process.
+# Modified the link process to link INIT.obj and OEMPOST.obj after
+# BIOSEND.obj.
+# 
+# 1     4/30/99 1:53p Kaymann
+# Initial Version of Napalm BIOS.
+# Based on the Avenger BIOS version 2.11.
+# 
+# 2     3/18/99 10:15a Kaymann
+# Added the command "/OEM" to the MAKEIMG to compile 32K ROM into 64K
+# Binaries
+# 
+# 1     12/02/98 9:14a Jw
+# Initial checkin.  H4 BIOS version 0.25.
+# 
+# 10    11/03/98 6:04p Jw
+# Add preliminary TV-out code -- not enabled yet.  Disable palette
+# snooping on modesets.  Change -ET in version string to -SG.  Fix top
+# scanline cutoff in 1280x1024 modes.
+#
+#   Rev 1.6   23 Sep 1998 19:35:36   larryc
+#Added ability to put debugging code into ROM. Note that the debugging
+#code is very specialized and should only be used to debug boot
+#problems since an absolute location in RAM is being used as the
+#data segment.
+#
+#   Rev 1.5   04 Aug 1998 10:00:58   larryc
+#Added the ability to take an environment variable and pass it
+#to the assembler for conditional assemblies. Using the VGABIOS_OPT
+#environment variable, a "define" can be sent to the assembler
+#via the "-D{define name}" switch.
+#
+#   Rev 1.4   29 Jun 1998 11:00:54   larryc
+#Removed dependency on BIOSVERS.INC -- superceded by OEM.INC.
+#
+#   Rev 1.3   25 Apr 1998 14:23:08   larryc
+#Modified goal under debug builds to not build ROMBIOS.BIN or FULL.ROM.
+#
+#   Rev 1.2   20 Apr 1998 09:11:40   larryc
+#Fixed file to rebuild all when a switch between DEBUG and
+#non-DEBUG occurs.
+#
+#   Rev 1.1   13 Apr 1998 07:36:04   larryc
+#Added VBE 3.0 support.
+#
+#   Rev 1.0   10 Jun 1997 12:25:46   larryc
+#Initial revision.
+#
+
+##### Module Macros ####
+RAMSRCS	= main.asm debug.asm
+ALLSRCS	= mode.asm curs.asm scroll.asm rtxt.asm wtxt.asm graph.asm \
+		pal.asm font.asm alt.asm string.asm state.asm vesa.asm \
+		oem.asm util.asm data.asm oemdata.asm biosend.asm \
+		init.asm oempost.asm fff0data.asm
+MOD	= -AS
+
+##### Include Macro #####
+INCLS	= biosvars.inc biosequ.inc oem.inc
+
+##### DEBUG Macro Defined #####
+DEBUG	= 0
+
+##### Build Option Macros #####
+!if $(DEBUG)
+DDEF	= /DDEBUG
+MOPT	= /c /Zi /Zd /W3 /WX /Cp /Cx /nologo
+LOPT	= /map/co/li
+!else
+DDEF	=
+MOPT	= /c /W3 /Cp /Cx /nologo
+LOPT	= /map/li
+!endif
+
+!ifdef VGABIOS_OPT
+DDEF	= -DBUILD_NAPALM2_BIOS $(DDEF) $(VGABIOS_OPT)
+!endif
+
+##### Tool Macros #####
+ASM	= ml $(MOPT) $(DDEF)
+LINK	= link /NOLOGO /NOD /NOE /ONE:NO $(LOPT)
+
+##### Inference Rules #####
+.asm.obj:
+	$(ASM) $*.asm
+
+##### Main (default) Target #####
+goal:	biosnews.txt rommain.obj vgabios.com rombios.bin full.rom
+
+##### Dependents For Goal and Command Line #####
+vgabios.com:	$(RAMSRCS:.asm=.obj) $(ALLSRCS:.asm=.obj)
+	$(LINK) @<<
+	$(RAMSRCS:.asm=) $(ALLSRCS:.asm=),
+	vgabios.exe,
+	vgabios.map;
+<<
+	exe2bin vgabios.exe vgabios.com
+	del vgabios.exe
+	mapsym40 vgabios.map
+
+# Don't build the ROM version with the DEBUG version (the DEBUG
+# code writes back to the code space). A special DEBUG version
+# can be built that uses an absolute RAM address -- Use this ONLY
+# for boot debugging!
+!if $(DEBUG)
+rommain.obj:	main.asm
+	$(ASM) /DROM=1 /Forommain.obj /Flrommain.lst main.asm
+
+romdbg.obj:	debug.asm
+	$(ASM) /DROM=1 /Foromdbg.obj /Flromdbg.lst debug.asm
+
+rombios.bin:	rommain.obj romdbg.obj $(ALLSRCS:.asm=.obj)
+	$(LINK) @<<
+	rommain.obj romdbg.obj $(ALLSRCS:.asm=),
+	rombios.exe,
+	rombios.map;
+<<
+	exe2bin rombios.exe rombios.bin
+	del rombios.exe
+	mapsym40 rombios.map
+
+full.rom:	rombios.bin
+	makeimg rombios.bin /DROM=1 /OEM
+!else
+rommain.obj:	main.asm
+	$(ASM) /DROM=1 /Forommain.obj /Flrommain.lst main.asm
+
+rombios.bin:	rommain.obj $(ALLSRCS:.asm=.obj)
+	$(LINK) @<<
+	rommain.obj $(ALLSRCS:.asm=),
+	rombios.exe,
+	rombios.map;
+<<
+	exe2bin rombios.exe rombios.bin
+	del rombios.exe
+	mapsym40 rombios.map
+
+full.rom:	rombios.bin
+	makeimg rombios.bin /DROM=1 /OEM
+!endif
+
+# The following dependent file, "NUL", will cause the listed commands to
+#  execute every time.
+biosnews.txt:	NUL
+	$(ASM) biosnews.asm > biosnews.txt
+	del biosnews.obj
+	type biosnews.txt
+
+##### Dependents #####
+$(RAMSRCS:.asm=.obj):	$(INCLS) makefile
+$(ALLSRCS:.asm=.obj):	$(INCLS) makefile
+rommain.obj:		main.asm $(INCLS) makefile
+romdbg.obj:		debug.asm $(INCLS) makefile
+biosnews.obj:		NUL
+data.obj:		biosparm.inc oemparm.inc dacdata.inc \
+			font8x8.inc font8x14.inc font8x16.inc \
+			font9x14.inc font9x16.inc
+vesa.obj:		vesa.inc
+oemdata.obj:		vesa.inc clkpll.inc
+
+##### Clean Directory #####
+clean:
+	-if exist *.obj del *.obj
+	-if exist *.com del *.com
+	-if exist *.rom del *.rom
+	-if exist *.map del *.map
+	-if exist *.sym del *.sym
+	-if exist rommain.lst del rommain.lst
+	-if exist rombios.bin del rombios.bin
+	-if exist biosnews.txt del biosnews.txt
+#
+#	Copyright (C) 1990-1998 Elpin Systems, Inc.
+#	All rights reserved.
+#

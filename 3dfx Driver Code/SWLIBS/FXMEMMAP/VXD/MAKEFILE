@@ -1,0 +1,107 @@
+#
+# THIS SOFTWARE IS SUBJECT TO COPYRIGHT PROTECTION AND IS OFFERED ONLY
+# PURSUANT TO THE 3DFX GLIDE GENERAL PUBLIC LICENSE. THERE IS NO RIGHT
+# TO USE THE GLIDE TRADEMARK WITHOUT PRIOR WRITTEN PERMISSION OF 3DFX
+# INTERACTIVE, INC. A COPY OF THIS LICENSE MAY BE OBTAINED FROM THE 
+# DISTRIBUTOR OR BY CONTACTING 3DFX INTERACTIVE INC(info@3dfx.com). 
+# THIS PROGRAM IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EITHER 
+# EXPRESSED OR IMPLIED. SEE THE 3DFX GLIDE GENERAL PUBLIC LICENSE FOR A
+# FULL TEXT OF THE NON-WARRANTY PROVISIONS.  
+# 
+# USE, DUPLICATION OR DISCLOSURE BY THE GOVERNMENT IS SUBJECT TO
+# RESTRICTIONS AS SET FORTH IN SUBDIVISION (C)(1)(II) OF THE RIGHTS IN
+# TECHNICAL DATA AND COMPUTER SOFTWARE CLAUSE AT DFARS 252.227-7013,
+# AND/OR IN SIMILAR OR SUCCESSOR CLAUSES IN THE FAR, DOD OR NASA FAR
+# SUPPLEMENT. UNPUBLISHED RIGHTS RESERVED UNDER THE COPYRIGHT LAWS OF
+# THE UNITED STATES.  
+# 
+# COPYRIGHT 3DFX INTERACTIVE, INC. 1999, ALL RIGHTS RESERVED
+#
+# $Revision: 4 $
+# $Date: 7/24/98 1:38p $
+
+
+# This makefile is intended to work *WITHOUT* the need for external environment
+# variables (whether they be 3DFX or Microsoft DDK specific). This is whyc
+# some of the DDK include files are duplicated here.
+#
+# Please don't introduce MS or 3Dfx dependencies here.
+# 
+
+#.SUFFIXES: .res
+
+# Handle tools for adding VxD version numbers visible to win95 device manager
+# whcih are a 16-bit resource compilier and the win95 DDK's ADRC2VXD.EXE.
+RC16 = $(C16BIN)
+ADRC2 = $(DDKROOT)\bin
+
+AINCS = -I. -I$(DDKROOT)\inc32
+AOPTS = -W2 -c -Cx -Zm -nologo -coff
+ADEFS = -DBLD_COFF -DMASM6 -DMINIVDD=1 -DVGASWITCH -DIS_32
+RDEFS = 
+ROPTS = -r
+LOPTS = /nologo /vxd /nod
+
+!if "$(DEBUG)" != ""
+# Enable for debug
+ADEFS = $(ADEFS) -DDEBLEVEL=1 -DDEBUG
+AOPTS = $(AOPTS) -Zi 
+LOPTS = $(LOPTS) /DEBUG /DEBUGTYPE:CV /pdb:"fxmemmap.pdb"
+!endif
+
+all: fxmemmap.vxd vxdtest.exe
+debug: all                              # For MS: nmake debug
+retail: all                             # for MS: nmake retail
+
+
+fxmemmap.obj: $*.asm 
+   ml $(ADEFS) $(AOPTS) $(AINCS) $*.asm 
+
+fxmemmap.res: $*.rc
+   $(RC16)\rc $(RDEFS) $(ROPTS) $*.rc
+
+fxmemmap.vxd: $*.obj $*.def $*.res
+!if "$(DEBUG)" != ""
+   if exist fxmemmap.vxd attrib -r fxmemmap.vxd
+   link $(LOPTS) /out:$@ /map:$*.map /def:$*.def $*.obj
+   $(ADRC2)\adrc2vxd $*.vxd $*.res
+   $(SIW95)\nmsym /translate:source,package fxmemmap.vxd
+!else
+   if exist fxmemmap.vxd attrib -r fxmemmap.vxd
+   link /nologo /vxd /nod /out:$@ /map:$*.map /def:$*.def $*.obj
+   $(ADRC2)\adrc2vxd $*.vxd $*.res
+!endif
+
+vxdtest.exe: $*.c
+   cl /W3 /GX /Zi /Od /DWIN32 /D_DEBUG /D_CONSOLE /FR /nologo $*.c
+
+
+clean:
+   del *.res
+   del *.obj
+   del *.ilk
+   del *.sbr
+   del *.pch
+   del *.pdb
+   del *.map
+   del *.exp
+   del *.lib
+   del *.exe
+   if exist fxmemmap.vxd attrib -r fxmemmap.vxd
+   del *.vxd
+
+neat:   clean
+clobber: clean
+
+install:
+    @echo copy fxmemmap.vxd to your windows system directory
+    @echo e.g. " copy fxmemmap.vxd c:\windows\system32 "
+
+# These make 3dfx.mak happy when calling this directory recursively.
+incs:
+  xcopy /d/k/r/i fxmemmap.h $(BUILD_ROOT_SWLIBS)\include
+
+libs:
+
+bins:
+

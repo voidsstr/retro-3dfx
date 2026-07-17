@@ -1,0 +1,443 @@
+GlideTrap & Glide Play 1.0
+File Format Document
+
+Hector Yee
+yee@3dfx.com
+yhy1@cornell.edu
+http://www.people.cornell.edu/pages/yhy1
+
+GlideTrap is a utility that sits between the application and glide,
+trapping calls and saving them to the disk.  This document describes
+the file format in detail of the trapped calls.
+
+There are three main files used by GlideTrap to record information:
+
+tokens.trp    -    The file that contains all the command tokens and parameters
+txxxxxxx.xxx  -    Texture File
+fxxxxxxx.xxx  -    Frame Buffer File
+
+tokens.trp:
+
+This file contains in, sequential order, the commands that were trapped
+by GlideTrap.  In BNF,
+
+tokens.trp = <BLOCKS>
+
+<BLOCKS> = <> | <BLOCK> <BLOCKS> 
+<BLOCK> = <TOKEN> <PARAMS>
+
+<TOKEN> = Single byte with value:
+      token_grAADrawTriangle=0,
+      token_grAlphaBlendFunction=1,
+      token_grAlphaCombine=2,
+      token_grAlphaControlsITRGBLighting=3,
+      token_grAlphaTestFunction=4,
+      token_grAlphaTestReferenceValue=5,
+      token_grBufferClear=6,
+      token_grBufferSwap=7,
+      token_grChromakeyMode=8,
+      token_grChromakeyValue=9,
+      token_grClipWindow=10,
+      token_grColorCombine=11,
+      token_grColorMask=12,
+      token_grConstantColorValue=13,
+      token_grCoordinateSpace=14,
+      token_grCullMode=15,
+      token_grDepthBiasLevel=16,
+      token_grDepthBufferFunction=17,
+      token_grDepthBufferMode=18,
+      token_grDepthMask=19,
+      token_grDepthRange=20,
+      token_grDisable=21,
+      token_grDisableAllEffects=22,
+      token_grDitherMode=23,
+      token_grDrawLine=24,
+      token_grDrawPoint=25,
+      token_grDrawTriangle=26,
+      token_grDrawVertexArray=27,
+      token_grDrawVertexArrayContiguous=28,
+      token_grEnable=29,
+      token_grErrorSetCallback=30,
+      token_grFinish=31,
+      token_grFlush=32,
+      token_grFogColorValue=33,
+      token_grFogMode=34,
+      token_grFogTable=35,
+      token_grGet=36,
+      token_grGetProcAddress=37,
+      token_grGetString=38,
+      token_grGlideGetState=39,
+      token_grGlideGetVertexLayout=40,
+      token_grGlideInit=41,
+      token_grGlideSetState=42,
+      token_grGlideSetVertexLayout=43,
+      token_grGlideShutdown=44,
+      token_grLfbConstantAlpha=45,
+      token_grLfbConstantDepth=46,
+      token_grLfbLock=47,
+      token_grLfbReadRegion=48,
+      token_grLfbUnlock=49,
+      token_grLfbWriteColorFormat=50,
+      token_grLfbWriteColorSwizzle=51,
+      token_grLfbWriteRegion=52,
+      token_grLoadGammaTable=53,
+      token_grQueryResolutions=54,
+      token_grRenderBuffer=55,
+      token_grReset=56,
+      token_grSelectContext=57,
+      token_grSplash=58,
+      token_grSstOrigin=59,
+      token_grSstSelect=60,
+      token_grSstWinClose=61,
+      token_grSstWinOpen=62,
+      token_grTexCalcMemRequired=63,
+      token_grTexClampMode=64,
+      token_grTexCombine=65,
+      token_grTexDetailControl=66,
+      token_grTexDownloadMipMap=67,
+      token_grTexDownloadMipMapLevel=68,
+      token_grTexDownloadMipMapLevelPartial=69,
+      token_grTexDownloadTable=70,
+      token_grTexDownloadTablePartial=71,
+      token_grTexFilterMode=72,
+      token_grTexLodBiasValue=73,
+      token_grTexMaxAddress=74,
+      token_grTexMinAddress=75,
+      token_grTexMipMapMode=76,
+      token_grTexMultibase=77,
+      token_grTexMultibaseAddress=78,
+      token_grTexNCCTable=79,
+      token_grTexSource=80,
+      token_grTexTextureMemRequired=81,
+      token_grVertexLayout=82,
+      token_grViewport=83,
+      token_gu3dfGetInfo=84,
+      token_gu3dfLoad=85,
+      token_guFogGenerateExp=86,
+      token_guFogGenerateExp2=87,
+      token_guFogGenerateLinear=88,
+      token_guFogTableIndexToW=89,
+      token_guGammaCorrectionRGB=90,
+      token_grChromaRangeModeExt=91,
+      token_grChromaRangeExt=92,
+      token_grTexChromaModeExt=93,
+      token_grTexChromaRangeExt=94,
+      token_grDrawTextureLineExt=95    
+
+<PARAMS> = <> | <PARAM> <PARAMS>
+<PARAM>     = <GLIDE_TYPE> | <VERTEX_TYPE> | <TEXTURE_TAG> | <FRAME_TAG>
+
+<GLIDE_TYPE> = Any Valid Glide Type in glide.h e.g. <FxBool> | <FxU32> ...
+
+<VERTEX_TYPE> - any void * that represents a vertex pointer is save
+sequentially if the vertex type is enabled: ie if XY and W are enabled,
+the vertex is written out in the form XYW, where X, Y and W are 32-bits
+integer each.  In order to conserve space, vertices that are not enabled
+are not written to disk. The output is written in the order and size
+(in multiples of 32-bits) shown below:
+<VERTEX_TYPE> = <> | <FxU32> <VERTEX_TYPE>
+
+/* GR_PARAM_XY: */
+SIZE_vertexInfo        2
+
+/* GR_PARAM_Z: */
+SIZE_zInfo        1
+
+/* GR_PARAM_W: */
+SIZE_wInfo        1
+
+/* GR_PARAM_FOG_EXT: */
+SIZE_fogInfo        1
+
+/* GR_PARAM_A: */
+SIZE_aInfo        1
+    
+/* GR_PARAM_RGB: */
+SIZE_rgbInfo        3
+    
+/* GR_PARAM_PARGB: */
+SIZE_pargbInfo      1
+    
+/* GR_PARAM_ST0: */
+SIZE_st0Info        2
+    
+/* GR_PARAM_ST1: */
+SIZE_st1Info        2
+    
+/* GR_PARAM_Q: */
+SIZE_qInfo        1
+    
+/* GR_PARAM_Q0: */
+SIZE_q0Info        1
+    
+/* GR_PARAM_Q1: */
+SIZE_q1Info        1
+
+<TEXTURE_TAG> - any glide call that uses a texture download command will
+output a 15 character string that points to the texture data in lieu of
+the data pointer. This is of the form txxxxxxx.xxx
+
+<FRAME_TAG> - any glide call that uses a texture download command will
+output a 15 character string that points to the texture data in lieu of
+the data pointer. This is of the form txxxxxxx.xxx
+
+-----
+Examples:
+
+1.    grTexCalcMemRequired(GrLOD_t lodmin,
+                           GrLOD_t lodmax,
+                           GrAspectRatio_t aspect,
+                           GrTextureFormat_t fmt)
+
+Will be saved as
+
+         <token_grTexCalcMemRequired, 1 byte>
+         <lodmin sizeof(GrLOD_t)>
+         <lodmax, sizeof(GrLOD_t)>
+         <aspect, sizeof(GrAspectRatio_t)>
+         <fmt, sizeof(GrTextureFormat_t)>
+
+2.    grChromaRangeModeExt(GrChromakeyMode_t mode)
+
+will be saved as
+
+         <token_grChromaRangeModeExt, 1 byte>
+         <mode, sizeof(GrChromakeyMode_t)>
+
+3.    grDisableAllEffects( void)
+
+will be saved as
+
+         <token_grDisableAllEffects, 1 byte>
+-----
+Exceptions:
+
+Most commands will follow the above convention (1 byte token id, with
+parameter list in order of function call) some, however, will use
+pointers that have no meaning in the playback phase and have to be
+reconstructed or have dependencies in the parameters that require
+re-ordering of save and playback.
+
+The exceptions to the above are listed below:
+
+1.    Any routine that uses vertices, e.g.
+
+grDrawTextureLineExt(const void *a, const void *b)
+will save out a <VERTEX_TYPE> in lieu of a <void *>
+
+2.    grDrawVertexArray(FxU32 mode,FxU32 Count,void *pointers)
+
+will be saved as
+
+       <token_grDrawVertexArray>
+       <FxU32 mode>
+       <FxU32 Count>
+       Count * <VERTEX_TYPE>
+
+3.    grDrawVertexArrayContiguous(FxU32 mode, FxU32 Count, void *pointers, FxU32 stride)
+
+will be saved as
+
+       <token_grDrawVertexArrayContiguous>
+       <FxU32 Mode>
+       <FxU32 Count>
+       <FxU32 stride>
+       stride * Count * <FxU8 pointers[]>
+
+Note the change of order of stride.
+
+4.    grErrorSetCallback(GrErrorCallbackFnc_t fnc)
+
+will be saved as
+
+        <token_grErrorSetCallback> only
+
+5.    grFogTable(const GrFog_t ft[],FxU32 tsize)
+
+will be saved as
+
+        <token_grFogTable>
+        <FxU32 tsize>
+        <ft[0], sizeof(GrFog_t)>
+
+6.    grGet(FxU32 pname, FxU32 plength, FxI32 *params)
+
+will be saved as
+
+        <token_grGet>
+        <pname, sizeof(FxU32)>
+        <plength, sizeof(FxU32)>
+
+7.    grGetProcAddress(char *procName, GrProc ext)
+
+will be saved as
+
+        <token_grGetProcAddress>
+        <size=strlen(procName), int>
+        size * <procName, sizeof(char)>
+
+8.    grGlideGetState(void *state)
+
+will be saved as
+
+        <token_grGlideGetState>
+        <statenum, sizeof(FxU32)>
+
+9.    grGlideGetVertexLayout(void *layout)
+
+will be saved as <token_grGlideGetVertexLayout>
+
+10.    grGlideSetState(const void *state)
+
+will be saved as
+
+         <token_grGlideSetState>
+         <statenum,sizeof(FxU32)>
+
+11.    grGlideSetVertexLayout(const void *layout)
+
+will be saved as
+
+         <token_grGlideSetVertexLayout>
+         <layout,sizeof(GrVertexLayoutInfo)>
+
+12.    grLfbReadRegion(GrBuffer_t src_buffer,
+                          FxU32 src_x,
+                          FxU32 src_y,
+                          FxU32 src_width,
+                          FxU32 src_height,
+                          FxU32 dst_stride,
+                          void *dst_data)
+will not output <dst_data>
+
+13.    grLfbWriteRegion(GrBuffer_t dst_buffer,
+                           FxU32 dst_x,
+                           FxU32 dst_y,
+                           GrLfbSrcFmt_t src_format,
+                           FxU32 src_width,
+                           FxU32 src_height,
+                           FxBool pixelPipeline,
+                           FxI32 src_stride,
+                           void *src_data)
+
+will replace <src_data> with <FRAME_TAG>
+
+14.    grLoadGammaTable(FxU32 nentries,
+                           FxU32 *red,
+                           FxU32 *green,
+                           FxU32 *blue)
+
+will be saved as
+
+        <token_grLoadGammaTable>
+        <FxU32 nentries>
+        nentries * <FxU32 red>
+        nentries * <FxU32 green>
+        nentries * <FxU32 blue>
+
+15.    grQueryResolutions(const GlideResolution *resTemplate,
+                             GlideResolution *output,FxI32 result)
+
+Parameter 1 will be output as (sizeof GlideResolution) instead of
+(GlideResolution *)
+
+16.    grTexDownloadMipMap(GrChipID_t tmu,
+                              FxU32 startAddress,
+                              FxU32 evenOdd,
+                              GrTexInfo *info)
+
+info will be saved as <*info, GrTexInfo> instead of <info, GrTexInfo *>
+<TEXTURE_TAG> is appended at the end
+
+17.    grTexDownloadMipMapLevelPartial(GrChipID_t tmu,
+                                          FxU32 startAddress,
+                                          GrLOD_t thisLod,
+                                          GrLOD_t largeLod,
+                                          GrAspectRatio_t aspectRatio,
+                                          GrTextureFormat_t format,
+                                          FxU32 evenOdd,
+                                          void *data,
+                                          int start,
+                                          int end)
+will be saved as
+
+          <token_grTexDownloadMipMapLevelPartial>
+          <GrChipID_t tmu>
+          <FxU32 startAddress>
+          <GrLOD_t thisLod>
+          <GrLOD_t largeLod>
+          <GrAspectRatio_t aspectRatio>
+          <GrTextureFormat_t format>
+          <FxU32 evenOdd>
+          <int start>
+          <int end>
+          <TEXTURE_TAG>
+
+18.    grTexDownloadTable(GrTexTable_t type,
+                             void *data)
+
+will be saved as
+
+         <token_grTexDownloadTable>
+         <GrTexTable_t type> and, depending on type,
+
+         if ((type == GR_TEXTABLE_PALETTE) ||
+             (type == GR_TEXTABLE_PALETTE_6666_EXT))
+            <data,sizeof(GuTexPalette)>
+         else 
+            <data,sizeof(GuNccTable)>
+
+
+19.    grTexDownloadTablePartial(GrTexTable_t type,
+                                    void *data,
+                                    int start,
+                                    int end)
+
+will be saved as
+        
+         <token_grTexDownloadTablePartial>
+         <type, sizeof(GrTexTable_t)>
+         <start, sizeof(int)>
+         <end, sizeof(int)>
+
+         if ((type == GR_TEXTABLE_PALETTE) ||
+             (type == GR_TEXTABLE_PALETTE_6666_EXT))
+             (end-start+1) * <data[start],sizeof(FxU32)>
+         else 
+             fwrite(data,sizeof(GuNccTable),1,outfile);
+
+20.    grTexMultibaseAddress(GrChipID_t tmu,
+                                GrTexBaseRange_t range,
+                                FxU32 startAddress,
+                                FxU32 evenOdd,
+                                GrTexInfo *info)
+    grTexTextureMemRequired(FxU32 evenOdd,
+                                  GrTexInfo *info)
+    grTexSource(GrChipID_t tmu,
+                      FxU32 startAddress,
+                      FxU32 evenOdd,
+                      GrTexInfo *info)
+<*info, Sizeof GrTexInfo> is written instead of <info, sizeof GrTexInfo *>
+
+21.    gu3dfLoad(const char *filename,
+                    Gu3dfInfo *data)
+    
+        <token_gu3dfLoad>
+        <size=strlen(filename), sizeof int>
+        <filename,sizeof(char)*size>
+
+22.    guFogGenerateExp(GrFog_t *fogtable,
+                           float density)
+    guFogGenerateLinear(GrFog_t *fogtable,
+                              float nearZ,
+                              float farZ)
+    guFogGenerateExp2(GrFog_t *fogtable,
+                            float density)
+
+    fogtable is not written
+
+--------------
+txxxxxxx.xxx    -    Texture File
+fxxxxxxx.xxx    -    Frame Buffer File
+
+<FxU32 SIZE> Size * <FxU8 data>

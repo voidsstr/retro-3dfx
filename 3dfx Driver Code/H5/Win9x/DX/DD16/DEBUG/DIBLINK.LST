@@ -1,0 +1,475 @@
+Microsoft (R) Macro Assembler Version 6.14.8444		    11/10/00 19:13:25
+..\diblink.asm						     Page 1 - 1
+
+
+				;/* $Header: /devel/h3/Win95/dx/dd16/diblink.asm 15    12/28/98 11:24a Michael $ */
+				;/*
+				;** Copyright (c) 1995-1999, 3Dfx Interactive, Inc.
+				;** All Rights Reserved.
+				;**
+				;** Portions Copyright (C) 1995 Microsoft Corporation.  All Rights Reserved.
+				;**
+				;** This is UNPUBLISHED PROPRIETARY SOURCE CODE of 3Dfx Interactive, Inc.;
+				;** the contents of this file may not be disclosed to third parties, copied or
+				;** duplicated in any form, in whole or in part, without the prior written
+				;** permission of 3Dfx Interactive, Inc.
+				;**
+				;** RESTRICTED RIGHTS LEGEND:
+				;** Use, duplication or disclosure by the Government is subject to restrictions
+				;** as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+				;** and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+				;** successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished  -
+				;** rights reserved under the Copyright Laws of the United States.
+				;**
+				;** File name:   diblink.asm
+				;**
+				;** Description: diblink and support funtions
+				;**
+				;** $Revision: 15 $
+				;** $Date: 12/28/98 11:24a $
+				;**
+				;** $History: diblink.asm $
+				;; 
+				;; *****************  Version 15  *****************
+				;; User: Michael      Date: 12/28/98   Time: 11:24a
+				;; Updated in $/devel/h3/Win95/dx/dd16
+				;; Added the 3Dfx/STB unified file/funciton header.  Add VSS keywords to
+				;; files where this was missing.
+				;** 
+				;** 
+				;*/
+
+				        option OLDSTRUCTS
+				        .xlist
+				        .list
+				        .386
+
+				;----------------------------------------------------------------------------
+				;----------------------------------------------------------------------------
+ 0000				_TEXT   SEGMENT  WORD USE16 PUBLIC 'CODE'
+ 0000				_TEXT   ENDS
+ 0000				_DATA   SEGMENT  WORD USE16 PUBLIC 'DATA'
+ 0000				_DATA   ENDS
+ 0000				CONST   SEGMENT  WORD USE16 PUBLIC 'CONST'
+ 0000				CONST   ENDS
+ 0000				_BSS    SEGMENT  WORD USE16 PUBLIC 'BSS'
+ 0000				_BSS    ENDS
+				DGROUP  GROUP   CONST, _BSS, _DATA
+				        ASSUME DS: DGROUP
+				        ASSUME SS: NOTHING
+				;----------------------------------------------------------------------------
+
+				;----------------------------------------------------------------------------
+				; MACROS
+				;----------------------------------------------------------------------------
+
+				;----------------------------------------------------------------------------
+				DIBLINK macro name,target,extra
+				;----------------------------------------------------------------------------
+				extrn target:FAR
+				public name
+				name:
+				ifnb <extra>
+				        mov     ax,_DATA
+				        mov     es,ax
+				        pop     ecx
+				        push    es:[extra]
+				        push    ecx
+				endif
+				        jmp     target
+				        endm
+
+				;----------------------------------------------------------------------------
+				; D A T A
+				;----------------------------------------------------------------------------
+ 0000				_DATA segment WORD PUBLIC 'DATA' use16
+
+				        ; every windows DLL must has 16 bytes reserved for kernel
+ 0000  0010 [			resptr  db      16 dup(0)
+        00
+       ]
+
+				IFDEF GBLDATA_IN_PDEV
+				ELSE
+				        ; our PDevice
+				        extrn _DriverData:DWORD
+ = _DriverData			        lpDriverPDevice equ _DriverData
+				ENDIF
+
+				        ; our hModule
+				        extrn _hModule:WORD
+
+
+				        extrn _Palettized:FAR             ; Palettized Flag (H3.C)
+
+ 0010 00000000			next_int2f      dd      0
+
+
+ 0014				_DATA ends
+
+				;----------------------------------------------------------------------------
+				; C O D E
+				;----------------------------------------------------------------------------
+ 0000				_TEXT segment WORD PUBLIC 'CODE' use16
+				        extrn LocalInit:FAR               ; in KERNEL
+				        extrn DIB_BitBlt:FAR              ; in DIBENG
+				        extrn GetExePtr:FAR               ; in KERNEL
+
+				        ;; for bitblt
+
+				        extrn ToBackground:FAR            ; in DDMINI.C
+				        extrn ToForeground:FAR            ; in DDMINI.C
+ 0000				_TEXT ends
+
+				;----------------------------------------------------------------------------
+				; C O D E
+				;----------------------------------------------------------------------------
+ 0000				_TEXT segment WORD PUBLIC 'CODE' use16
+				        assume cs:_TEXT
+				        assume ds:nothing
+				        assume es:nothing
+				        assume fs:nothing
+				        assume gs:nothing
+
+				;;DIBLINK BitBlt,           DIB_BitBlt
+				;;DIBLINK ColorInfo,          DIB_ColorInfo
+				;;DIBLINK Control,          DIB_Control
+				;;DIBLINK Disable,          DIB_Disable
+				;;DIBLINK Enable,           DIB_Enable
+				DIBLINK EnumDFonts,         DIB_EnumDFonts
+ 0000			     1	EnumDFonts:
+ 0000  EA ---- 0000 E	     1	        jmp     DIB_EnumDFonts
+				DIBLINK EnumObj,            DIB_EnumObjExt,             lpDriverPDevice
+ 0005			     1	EnumObj:
+ 0005  B8 ---- R	     1	        mov     ax,_DATA
+ 0008  8E C0		     1	        mov     es,ax
+ 000A  66| 59		     1	        pop     ecx
+ 000C  66| 26: FF 36 0000 E  1	        push    es:[lpDriverPDevice]
+ 0012  66| 51		     1	        push    ecx
+ 0014  EA ---- 0000 E	     1	        jmp     DIB_EnumObjExt
+				;;DIBLINK Output,             DIB_Output
+				DIBLINK Pixel,              DIB_Pixel
+ 0019			     1	Pixel:
+ 0019  EA ---- 0000 E	     1	        jmp     DIB_Pixel
+				;;DIBLINK RealizeObject,      DIB_RealizeObjectExt,       lpDriverPDevice
+				DIBLINK Strblt,             DIB_Strblt
+ 001E			     1	Strblt:
+ 001E  EA ---- 0000 E	     1	        jmp     DIB_Strblt
+				DIBLINK ScanLR,             DIB_ScanLR
+ 0023			     1	ScanLR:
+ 0023  EA ---- 0000 E	     1	        jmp     DIB_ScanLR
+				DIBLINK DeviceMode,         DIB_DeviceMode
+ 0028			     1	DeviceMode:
+ 0028  EA ---- 0000 E	     1	        jmp     DIB_DeviceMode
+				;;DIBLINK ExtTextOut,         DIB_ExtTextOut
+				DIBLINK GetCharWidth,       DIB_GetCharWidth
+ 002D			     1	GetCharWidth:
+ 002D  EA ---- 0000 E	     1	        jmp     DIB_GetCharWidth
+				DIBLINK DeviceBitmap,       DIB_DeviceBitmap
+ 0032			     1	DeviceBitmap:
+ 0032  EA ---- 0000 E	     1	        jmp     DIB_DeviceBitmap
+				DIBLINK FastBorder,         DIB_FastBorder
+ 0037			     1	FastBorder:
+ 0037  EA ---- 0000 E	     1	        jmp     DIB_FastBorder
+				DIBLINK SetAttribute,       DIB_SetAttribute
+ 003C			     1	SetAttribute:
+ 003C  EA ---- 0000 E	     1	        jmp     DIB_SetAttribute
+				;DIBLINK DibBlt,             DIB_DibBltExt               _Palettized
+				DIBLINK CreateDIBitmap,     DIB_CreateDIBitmap
+ 0041			     1	CreateDIBitmap:
+ 0041  EA ---- 0000 E	     1	        jmp     DIB_CreateDIBitmap
+				;DIBLINK DibToDevice,        DIB_DibToDevice
+				;;DIBLINK SetPalette        DIB_SetPaletteExt,          lpDriverPDevice
+				DIBLINK GetPalette,         DIB_GetPaletteExt,          lpDriverPDevice
+ 0046			     1	GetPalette:
+ 0046  B8 ---- R	     1	        mov     ax,_DATA
+ 0049  8E C0		     1	        mov     es,ax
+ 004B  66| 59		     1	        pop     ecx
+ 004D  66| 26: FF 36 0000 E  1	        push    es:[lpDriverPDevice]
+ 0053  66| 51		     1	        push    ecx
+ 0055  EA ---- 0000 E	     1	        jmp     DIB_GetPaletteExt
+				DIBLINK SetPaletteTranslate,DIB_SetPaletteTranslateExt, lpDriverPDevice
+ 005A			     1	SetPaletteTranslate:
+ 005A  B8 ---- R	     1	        mov     ax,_DATA
+ 005D  8E C0		     1	        mov     es,ax
+ 005F  66| 59		     1	        pop     ecx
+ 0061  66| 26: FF 36 0000 E  1	        push    es:[lpDriverPDevice]
+ 0067  66| 51		     1	        push    ecx
+ 0069  EA ---- 0000 E	     1	        jmp     DIB_SetPaletteTranslateExt
+				DIBLINK GetPaletteTranslate,DIB_GetPaletteTranslateExt, lpDriverPDevice
+ 006E			     1	GetPaletteTranslate:
+ 006E  B8 ---- R	     1	        mov     ax,_DATA
+ 0071  8E C0		     1	        mov     es,ax
+ 0073  66| 59		     1	        pop     ecx
+ 0075  66| 26: FF 36 0000 E  1	        push    es:[lpDriverPDevice]
+ 007B  66| 51		     1	        push    ecx
+ 007D  EA ---- 0000 E	     1	        jmp     DIB_GetPaletteTranslateExt
+				DIBLINK UpdateColors,       DIB_UpdateColorsExt,        lpDriverPDevice
+ 0082			     1	UpdateColors:
+ 0082  B8 ---- R	     1	        mov     ax,_DATA
+ 0085  8E C0		     1	        mov     es,ax
+ 0087  66| 59		     1	        pop     ecx
+ 0089  66| 26: FF 36 0000 E  1	        push    es:[lpDriverPDevice]
+ 008F  66| 51		     1	        push    ecx
+ 0091  EA ---- 0000 E	     1	        jmp     DIB_UpdateColorsExt
+				;DIBLINK StretchBlt,         DIB_StretchBlt
+				;DIBLINK StretchDIBits,      DIB_StretchDIBits
+				;;DIBLINK SelectBitmap,       DIB_SelectBitmap
+				;;DIBLINK BitmapBits,         DIB_BitmapBits
+				;;DIBLINK  ReEnable,        DIB_ReEnable
+
+				DIBLINK Inquire,            DIB_Inquire
+ 0096			     1	Inquire:
+ 0096  EA ---- 0000 E	     1	        jmp     DIB_Inquire
+				;;DIBLINK SetCursor,          DIB_SetCursorExt,           lpDriverPDevice
+				;;DIBLINK MoveCursor,         DIB_MoveCursorExt,          lpDriverPDevice
+				;;DIBLINK CheckCursor,        DIB_CheckCursorExt,         lpDriverPDevice
+
+				;;DIBLINK BeginAccess,        DIB_BeginAccess
+				;;DIBLINK EndAccess,          DIB_EndAccess
+
+
+				;--------------------------Private-Routine-----------------------------;
+				;keep the C runtime out of our driver
+				;-----------------------------------------------------------------------;
+
+				public __aNulmul
+				public __aNulrem
+				public __acrtused
+
+ 009B				__acrtused:
+ 009B				__aNulrem:
+ 009B				__aNulmul:
+ 009B  CC			        int 3
+
+				;*----------------------------------------------------------------------
+				;Function name:  hook_int2f
+				;
+				;Description:    hook INT 2f so we know when the SysVM is background.
+				;
+				;Information:
+				;
+				;Return:         VOID
+				;----------------------------------------------------------------------*
+				        assume ds:nothing
+				        assume es:nothing
+				public hook_int2f
+ 009C				hook_int2f proc far
+
+ 009C  B8 4000			        mov     ax,4000h  ;  STOP_IO_TRAP
+ 009F  CD 2F			        int     2Fh
+
+ 00A1  1E			        push    ds
+ 00A2  B8 ---- R		        mov     ax,_DATA
+ 00A5  8E D8			        mov     ds,ax
+				        assume  ds:_DATA
+
+ 00A7  66| 83 3E 0010 R		        cmp     [next_int2f],0
+       00
+ 00AD  75 1C			        jnz     hook_int2f_exit
+
+ 00AF  B8 352F			        mov     ax, 352Fh                       ; get interrupt vector
+ 00B2  CD 21			        int     21h                             ; get the current vector in ES:BX
+ 00B4  8C 06 0012 R		        mov     word ptr next_int2f[2], es
+ 00B8  89 1E 0010 R		        mov     word ptr next_int2f[0], bx
+
+ 00BC  BA 00F7 R		        mov     dx, offset int_2f               ; ax:dx -> int 2f handler
+ 00BF  B8 ---- R		        mov     ax, seg int_2f
+ 00C2  1E			        push    ds                              ; save ds
+ 00C3  8E D8			        mov     ds, ax                          ; ds:dx -> int 2f handler
+ 00C5  B8 252F			        mov     ax, 252Fh                       ; set interrupt vector
+ 00C8  CD 21			        int     21h                             ; set the new vector
+ 00CA  1F			        pop     ds                              ; restore ds
+
+ 00CB				hook_int2f_exit:
+ 00CB  1F			        pop     ds
+ 00CC  CB			        retf
+
+ 00CD				hook_int2f endp
+
+
+				;*----------------------------------------------------------------------
+				;Function name:  unhook_int2f
+				;
+				;Description:    unhook previously hooked INT 2f.
+				;
+				;Information:
+				;
+				;Return:         VOID
+				;----------------------------------------------------------------------*
+				        assume ds:nothing
+				        assume es:nothing
+
+				public unhook_int2f
+ 00CD				unhook_int2f proc far
+
+ 00CD  B8 4007			        mov     ax,4007h ; START_IO_TRAP
+ 00D0  CD 2F			        int     2Fh
+
+ 00D2  1E			        push    ds
+ 00D3  B8 ---- R		        mov     ax,_DATA
+ 00D6  8E D8			        mov     ds,ax
+				        assume  ds:_DATA
+
+ 00D8  66| 83 3E 0010 R		        cmp     [next_int2f],0
+       00
+ 00DE  74 15			        jz      unhook_int2f_exit
+
+ 00E0  33 C0			        xor     ax,ax
+ 00E2  33 D2			        xor     dx,dx
+ 00E4  87 06 0012 R		        xchg    ax,word ptr next_int2f[2]      ; ax:dx -> int 2f handler
+ 00E8  87 16 0010 R		        xchg    dx,word ptr next_int2f[0]
+
+ 00EC  1E			        push    ds                              ; save ds
+ 00ED  8E D8			        mov     ds, ax                          ; ds:dx -> int 2f handler
+ 00EF  B8 252F			        mov     ax, 252Fh                       ; set interrupt vector
+ 00F2  CD 21			        int     21h                             ; set the new vector
+ 00F4  1F			        pop     ds                              ; restore ds
+
+ 00F5				unhook_int2f_exit:
+ 00F5  1F			        pop     ds
+ 00F6  CB			        retf
+
+ 00F7				unhook_int2f endp
+
+
+				;*----------------------------------------------------------------------
+				;Function name:  int_2f
+				;
+				;Description:    handle the INT 2f.
+				;
+				;Information:
+				;
+				;Return:         VOID
+				;----------------------------------------------------------------------*
+				        assume ds:nothing
+				        assume es:nothing
+
+ 00F7				int_2f proc far
+ 00F7  66| 50			        push    eax                         ; +34 make retf frame
+ 00F9  1E			        push    ds                          ; +32 save this
+ 00FA  66| 60			        pushad                              ; +0  and these
+
+ 00FC  BB ---- R		        mov     bx,_DATA
+ 00FF  8E DB			        mov     ds,bx
+				        assume  ds:_DATA
+
+ 0101  8B DC			        mov     bx,sp                       ; ss:bx -> pushad, ds, retf, iret
+ 0103  66| 8B 0E 0010 R		        mov     ecx,[next_int2f]            ; get next handler
+ 0108  66| 36: 89 4F 22		        mov     ss:[bx+34],ecx              ; setup so we retf to it.
+
+				;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -;
+				;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -;
+ 010D  3D 4001			        cmp     ax,4001h
+ 0110  74 10			        je      background
+
+ 0112  3D 4002			        cmp     ax,4002h
+ 0115  74 02			        je      foreground
+				        
+ 0117  EB 10			        jmp     int_2f_exit
+
+				;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -;
+				;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -;
+ 0119				foreground:
+ 0119  06			        push    es
+ 011A  9A ---- 0000 E		        call    ToForeground
+ 011F  07			        pop     es
+ 0120  EB 07			        jmp     int_2f_exit
+
+				;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -;
+				;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -;
+ 0122				background:
+ 0122  06			        push    es
+ 0123  9A ---- 0000 E		        call    ToBackground
+ 0128  07			        pop     es
+
+				;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -;
+				;- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -;
+ 0129				int_2f_exit:
+ 0129  66| 61			        popad
+ 012B  1F			        pop     ds
+ 012C  CB			        retf
+
+ 012D				int_2f endp
+
+
+				;*----------------------------------------------------------------------
+				;Function name:  LibEntry
+				;
+				;Description:    Called when DLL is loaded.
+				;
+				;Information:
+				; Entry:
+				;       CX    = size of heap
+				;       DI    = module handle
+				;       DS    = automatic data segment
+				;       ES:SI = address of command line (not used)
+				; Registers Preserved:
+				;       SI,DI,DS,BP
+				; Registers Destroyed:
+				;       AX,BX,CX,DX,ES,FLAGS
+				; Calls:
+				;       None
+				; History:
+				;
+				;       06-27-89 -by-  Todd Laney [ToddLa]
+				;       Created.
+				;
+				;Return:         AX     TRUE  if success or,
+				;                       FALSE if error
+				;----------------------------------------------------------------------*
+				        assume ds:_DATA
+				        assume es:nothing
+				        extern  GlobalSmartPageLock:far
+
+ 012D				LibEntry:
+ 012D  E3 09			        jcxz    @f
+ 012F  66| 6A 00		        pushd   0
+ 0132  51			        push    cx
+ 0133  9A ---- 0000 E		        call    LocalInit
+ 0138				@@:
+ 0138  57			        push    di
+ 0139  9A ---- 0000 E		        call    GetExePtr
+ 013E  A3 0000 E		        mov     [_hModule],ax
+
+ 0141  68 ---- R		        push    _TEXT
+ 0144  9A ---- 0000 E		        call    GlobalSmartPageLock
+ 0149  68 ---- R		        push    _DATA
+ 014C  9A ---- 0000 E		        call    GlobalSmartPageLock
+
+ 0151  B8 0001			        mov     ax,1
+ 0154  CB			        retf
+
+
+				;*----------------------------------------------------------------------
+				;Function name:  WEP
+				;
+				;Description:    Called when the DLL is unloaded.  It is passed 1 WORD
+				;                parameter that is TRUE if the system is going down,
+				;                or zero if the app is.
+				;
+				;Information:
+				;
+				;Return:         AX = 1 is always returned 
+				;----------------------------------------------------------------------*
+				        assume ds:nothing
+				        assume es:nothing
+
+				public  WEP
+ 0155				WEP     proc far
+ 0155  55			        push    bp      
+ 0156  8B EC			        mov     bp, sp
+ 0158  8B 46 06			        mov     ax, [bp+6]
+ 015B  0B C0			        or      ax, ax
+ 015D  74 04			        jz      short SkipUnhook
+ 015F  0E E8 FF6A		        call    unhook_int2f
+ 0163				SkipUnhook:
+ 0163  B8 0001			        mov     ax,1
+ 0166  5D			        pop     bp
+ 0167  CA 0002			        retf    2
+
+ 016A				WEP     endp
+
+ 016A				_TEXT ends
+
+				        end     LibEntry

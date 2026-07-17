@@ -1,0 +1,774 @@
+	TITLE	..\time.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+_PTEXT	SEGMENT PARA USE32 PUBLIC 'PCODE'
+_PTEXT	ENDS
+_LTEXT	SEGMENT PARA USE32 PUBLIC 'LCODE'
+_LTEXT	ENDS
+_PDATA	SEGMENT DWORD USE32 PUBLIC 'PDATA'
+_PDATA	ENDS
+_LDATA	SEGMENT DWORD USE32 PUBLIC 'LCODE'
+_LDATA	ENDS
+FLAT	GROUP _DATA, CONST, _BSS, _PDATA, _LDATA
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+PUBLIC	_dwTimeStamp
+PUBLIC	_nsCycleTime
+_LDATA	SEGMENT
+_dwTimeStamp DD	00H
+_nsCycleTime DW	00H
+_LDATA	ENDS
+PUBLIC	_CycleTime
+EXTRN	_TimeStamp:NEAR
+EXTRN	_GetTime:NEAR
+EXTRN	_TotalTime:NEAR
+EXTRN	_CCODE__Debug_Printf_Service:NEAR
+_LDATA	SEGMENT
+	ORG $+2
+$SG10347 DB	'Total %08lx:%08lx cycle', 0aH, 00H
+	ORG $+3
+$SG10348 DB	'Total %d ns/cycle', 0aH, 00H
+	ORG $+1
+$SG10349 DB	'Start Time %08lx:%08lx', 0aH, 00H
+$SG10350 DB	'End Time %08lx:%08lx', 0aH, 00H
+	ORG $+2
+$SG10351 DB	'Old Time %04lx New Time %04lx', 0aH, 00H
+	ORG $+1
+$SG10363 DB	'Total %d ns per loop', 0aH, 00H
+	ORG $+2
+$SG10364 DB	'Old Time %04lx New Time %04lx', 0aH, 00H
+_LDATA	ENDS
+_LTEXT	SEGMENT
+_dwStartTime$ = -36
+_dwEndTime$ = -44
+_dwTotalTime$ = -12
+_i$ = -20
+_nOldTime$ = -28
+_nNewTime$ = -16
+_nscycle$ = -24
+_bData$ = -4
+_CycleTime PROC NEAR
+
+; 85   : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	83 ec 2c	 sub	 esp, 44			; 0000002cH
+
+; 86   :    DWORD dwStartTime[2];
+; 87   :    DWORD dwEndTime[2];
+; 88   :    DWORD dwTotalTime[2];
+; 89   :    DWORD i;
+; 90   :    WORD nOldTime;      
+; 91   :    WORD nNewTime;      
+; 92   :    WORD nscycle;
+; 93   :    BYTE bData;
+; 94   : 
+; 95   :    if (0 == nsCycleTime)
+
+  00006	33 c0		 xor	 eax, eax
+  00008	66 a1 00 00 00
+	00		 mov	 ax, WORD PTR _nsCycleTime
+  0000e	85 c0		 test	 eax, eax
+  00010	0f 85 a4 03 00
+	00		 jne	 $L10337
+
+; 97   :       // Check to see if Time Stamp is supported
+; 98   :       dwTimeStamp = TimeStamp();
+
+  00016	e8 00 00 00 00	 call	 _TimeStamp
+  0001b	a3 00 00 00 00	 mov	 DWORD PTR _dwTimeStamp, eax
+
+; 99   :       if (dwTimeStamp)
+
+  00020	83 3d 00 00 00
+	00 00		 cmp	 DWORD PTR _dwTimeStamp, 0
+  00027	0f 84 fb 01 00
+	00		 je	 $L10338
+
+; 101  :          outp(TIMER_BASE+TIMER_MODE, 0xB4);
+
+  0002d	68 b4 00 00 00	 push	 180			; 000000b4H
+  00032	6a 43		 push	 67			; 00000043H
+  00034	e8 00 00 00 00	 call	 _outp
+  00039	83 c4 08	 add	 esp, 8
+
+; 102  :          outp(TIMER_BASE+TIMER_CTR2, 0xFF);
+
+  0003c	68 ff 00 00 00	 push	 255			; 000000ffH
+  00041	6a 42		 push	 66			; 00000042H
+  00043	e8 00 00 00 00	 call	 _outp
+  00048	83 c4 08	 add	 esp, 8
+
+; 103  :          outp(TIMER_BASE+TIMER_CTR2, 0xFF);
+
+  0004b	68 ff 00 00 00	 push	 255			; 000000ffH
+  00050	6a 42		 push	 66			; 00000042H
+  00052	e8 00 00 00 00	 call	 _outp
+  00057	83 c4 08	 add	 esp, 8
+
+; 104  :          outp(PORT_B, (BYTE)((inp(PORT_B) & 0xFE) | 0x01));
+
+  0005a	6a 61		 push	 97			; 00000061H
+  0005c	e8 00 00 00 00	 call	 _inp
+  00061	83 c4 04	 add	 esp, 4
+  00064	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00069	25 fe 00 00 00	 and	 eax, 254		; 000000feH
+  0006e	0c 01		 or	 al, 1
+  00070	50		 push	 eax
+  00071	6a 61		 push	 97			; 00000061H
+  00073	e8 00 00 00 00	 call	 _outp
+  00078	83 c4 08	 add	 esp, 8
+
+; 105  :          nNewTime = 0xFFFE;
+
+  0007b	66 c7 45 f0 fe
+	ff		 mov	 WORD PTR _nNewTime$[ebp], 65534 ; 0000fffeH
+
+; 106  : 
+; 107  :          GetTime(dwStartTime);
+
+  00081	8d 4d dc	 lea	 ecx, DWORD PTR _dwStartTime$[ebp]
+  00084	51		 push	 ecx
+  00085	e8 00 00 00 00	 call	 _GetTime
+  0008a	83 c4 04	 add	 esp, 4
+
+; 108  :          outp(TIMER_BASE+TIMER_MODE, 0x80);
+
+  0008d	68 80 00 00 00	 push	 128			; 00000080H
+  00092	6a 43		 push	 67			; 00000043H
+  00094	e8 00 00 00 00	 call	 _outp
+  00099	83 c4 08	 add	 esp, 8
+
+; 109  :          nOldTime = inp(TIMER_BASE+TIMER_CTR2);
+
+  0009c	6a 42		 push	 66			; 00000042H
+  0009e	e8 00 00 00 00	 call	 _inp
+  000a3	83 c4 04	 add	 esp, 4
+  000a6	66 33 d2	 xor	 dx, dx
+  000a9	8a d0		 mov	 dl, al
+  000ab	66 89 55 e4	 mov	 WORD PTR _nOldTime$[ebp], dx
+
+; 110  :          nOldTime |= ((WORD)inp(TIMER_BASE+TIMER_CTR2) << 8);
+
+  000af	6a 42		 push	 66			; 00000042H
+  000b1	e8 00 00 00 00	 call	 _inp
+  000b6	83 c4 04	 add	 esp, 4
+  000b9	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  000be	c1 e0 08	 shl	 eax, 8
+  000c1	66 8b 4d e4	 mov	 cx, WORD PTR _nOldTime$[ebp]
+  000c5	66 0b c8	 or	 cx, ax
+  000c8	66 89 4d e4	 mov	 WORD PTR _nOldTime$[ebp], cx
+$L10342:
+
+; 111  :          for (; nOldTime - nNewTime < 1000; )
+
+  000cc	8b 55 e4	 mov	 edx, DWORD PTR _nOldTime$[ebp]
+  000cf	81 e2 ff ff 00
+	00		 and	 edx, 65535		; 0000ffffH
+  000d5	8b 45 f0	 mov	 eax, DWORD PTR _nNewTime$[ebp]
+  000d8	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  000dd	2b d0		 sub	 edx, eax
+  000df	81 fa e8 03 00
+	00		 cmp	 edx, 1000		; 000003e8H
+  000e5	7d 41		 jge	 SHORT $L10343
+
+; 113  :              outp(TIMER_BASE+TIMER_MODE, 0x80);
+
+  000e7	68 80 00 00 00	 push	 128			; 00000080H
+  000ec	6a 43		 push	 67			; 00000043H
+  000ee	e8 00 00 00 00	 call	 _outp
+  000f3	83 c4 08	 add	 esp, 8
+
+; 114  :              nNewTime = inp(TIMER_BASE+TIMER_CTR2);
+
+  000f6	6a 42		 push	 66			; 00000042H
+  000f8	e8 00 00 00 00	 call	 _inp
+  000fd	83 c4 04	 add	 esp, 4
+  00100	66 33 c9	 xor	 cx, cx
+  00103	8a c8		 mov	 cl, al
+  00105	66 89 4d f0	 mov	 WORD PTR _nNewTime$[ebp], cx
+
+; 115  :              nNewTime |= ((WORD)inp(TIMER_BASE+TIMER_CTR2) << 8);
+
+  00109	6a 42		 push	 66			; 00000042H
+  0010b	e8 00 00 00 00	 call	 _inp
+  00110	83 c4 04	 add	 esp, 4
+  00113	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00118	c1 e0 08	 shl	 eax, 8
+  0011b	66 8b 55 f0	 mov	 dx, WORD PTR _nNewTime$[ebp]
+  0011f	66 0b d0	 or	 dx, ax
+  00122	66 89 55 f0	 mov	 WORD PTR _nNewTime$[ebp], dx
+
+; 116  :              }
+
+  00126	eb a4		 jmp	 SHORT $L10342
+$L10343:
+
+; 117  :          GetTime(dwEndTime);
+
+  00128	8d 45 d4	 lea	 eax, DWORD PTR _dwEndTime$[ebp]
+  0012b	50		 push	 eax
+  0012c	e8 00 00 00 00	 call	 _GetTime
+  00131	83 c4 04	 add	 esp, 4
+
+; 118  :          outp(PORT_B, (BYTE)(inp(PORT_B) & 0xFE));
+
+  00134	6a 61		 push	 97			; 00000061H
+  00136	e8 00 00 00 00	 call	 _inp
+  0013b	83 c4 04	 add	 esp, 4
+  0013e	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00143	25 fe 00 00 00	 and	 eax, 254		; 000000feH
+  00148	50		 push	 eax
+  00149	6a 61		 push	 97			; 00000061H
+  0014b	e8 00 00 00 00	 call	 _outp
+  00150	83 c4 08	 add	 esp, 8
+
+; 119  : 
+; 120  :          TotalTime(dwStartTime, dwEndTime, dwTotalTime);
+
+  00153	8d 4d f4	 lea	 ecx, DWORD PTR _dwTotalTime$[ebp]
+  00156	51		 push	 ecx
+  00157	8d 55 d4	 lea	 edx, DWORD PTR _dwEndTime$[ebp]
+  0015a	52		 push	 edx
+  0015b	8d 45 dc	 lea	 eax, DWORD PTR _dwStartTime$[ebp]
+  0015e	50		 push	 eax
+  0015f	e8 00 00 00 00	 call	 _TotalTime
+  00164	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 121  :          nscycle = (WORD)((nOldTime - nNewTime) * 838/dwTotalTime[0]);   
+
+  00167	8b 45 e4	 mov	 eax, DWORD PTR _nOldTime$[ebp]
+  0016a	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  0016f	8b 4d f0	 mov	 ecx, DWORD PTR _nNewTime$[ebp]
+  00172	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  00178	2b c1		 sub	 eax, ecx
+  0017a	69 c0 46 03 00
+	00		 imul	 eax, 838		; 00000346H
+  00180	33 d2		 xor	 edx, edx
+  00182	f7 75 f4	 div	 DWORD PTR _dwTotalTime$[ebp]
+  00185	66 89 45 e8	 mov	 WORD PTR _nscycle$[ebp], ax
+
+; 122  :          Debug_Printf("Total %08lx:%08lx cycle\n", dwTotalTime[1], dwTotalTime[0]);
+
+  00189	8b 55 f4	 mov	 edx, DWORD PTR _dwTotalTime$[ebp]
+  0018c	52		 push	 edx
+  0018d	8b 45 f8	 mov	 eax, DWORD PTR _dwTotalTime$[ebp+4]
+  00190	50		 push	 eax
+  00191	68 00 00 00 00	 push	 OFFSET FLAT:$SG10347
+  00196	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  0019b	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 123  :          Debug_Printf("Total %d ns/cycle\n", nscycle);
+
+  0019e	8b 4d e8	 mov	 ecx, DWORD PTR _nscycle$[ebp]
+  001a1	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  001a7	51		 push	 ecx
+  001a8	68 00 00 00 00	 push	 OFFSET FLAT:$SG10348
+  001ad	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  001b2	83 c4 08	 add	 esp, 8
+
+; 124  :          Debug_Printf("Start Time %08lx:%08lx\n", dwStartTime[1], dwStartTime[0]);
+
+  001b5	8b 55 dc	 mov	 edx, DWORD PTR _dwStartTime$[ebp]
+  001b8	52		 push	 edx
+  001b9	8b 45 e0	 mov	 eax, DWORD PTR _dwStartTime$[ebp+4]
+  001bc	50		 push	 eax
+  001bd	68 00 00 00 00	 push	 OFFSET FLAT:$SG10349
+  001c2	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  001c7	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 125  :          Debug_Printf("End Time %08lx:%08lx\n", dwEndTime[1], dwEndTime[0]);
+
+  001ca	8b 4d d4	 mov	 ecx, DWORD PTR _dwEndTime$[ebp]
+  001cd	51		 push	 ecx
+  001ce	8b 55 d8	 mov	 edx, DWORD PTR _dwEndTime$[ebp+4]
+  001d1	52		 push	 edx
+  001d2	68 00 00 00 00	 push	 OFFSET FLAT:$SG10350
+  001d7	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  001dc	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 126  :          Debug_Printf("Old Time %04lx New Time %04lx\n", nOldTime, nNewTime);
+
+  001df	8b 45 f0	 mov	 eax, DWORD PTR _nNewTime$[ebp]
+  001e2	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  001e7	50		 push	 eax
+  001e8	8b 4d e4	 mov	 ecx, DWORD PTR _nOldTime$[ebp]
+  001eb	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  001f1	51		 push	 ecx
+  001f2	68 00 00 00 00	 push	 OFFSET FLAT:$SG10351
+  001f7	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  001fc	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 127  :    
+; 128  :          if (0 == nscycle)
+
+  001ff	8b 55 e8	 mov	 edx, DWORD PTR _nscycle$[ebp]
+  00202	81 e2 ff ff 00
+	00		 and	 edx, 65535		; 0000ffffH
+  00208	85 d2		 test	 edx, edx
+  0020a	75 0c		 jne	 SHORT $L10352
+
+; 129  :             nscycle++;
+
+  0020c	66 8b 45 e8	 mov	 ax, WORD PTR _nscycle$[ebp]
+  00210	66 05 01 00	 add	 ax, 1
+  00214	66 89 45 e8	 mov	 WORD PTR _nscycle$[ebp], ax
+$L10352:
+
+; 130  : 
+; 131  :          nsCycleTime = nscycle;
+
+  00218	66 8b 4d e8	 mov	 cx, WORD PTR _nscycle$[ebp]
+  0021c	66 89 0d 00 00
+	00 00		 mov	 WORD PTR _nsCycleTime, cx
+
+; 133  :       else
+
+  00223	e9 90 01 00 00	 jmp	 $L10353
+$L10338:
+
+; 135  :          outp(TIMER_BASE+TIMER_MODE, 0xB4);
+
+  00228	68 b4 00 00 00	 push	 180			; 000000b4H
+  0022d	6a 43		 push	 67			; 00000043H
+  0022f	e8 00 00 00 00	 call	 _outp
+  00234	83 c4 08	 add	 esp, 8
+
+; 136  :          outp(TIMER_BASE+TIMER_CTR2, 0xFF);
+
+  00237	68 ff 00 00 00	 push	 255			; 000000ffH
+  0023c	6a 42		 push	 66			; 00000042H
+  0023e	e8 00 00 00 00	 call	 _outp
+  00243	83 c4 08	 add	 esp, 8
+
+; 137  :          outp(TIMER_BASE+TIMER_CTR2, 0xFF);
+
+  00246	68 ff 00 00 00	 push	 255			; 000000ffH
+  0024b	6a 42		 push	 66			; 00000042H
+  0024d	e8 00 00 00 00	 call	 _outp
+  00252	83 c4 08	 add	 esp, 8
+
+; 138  :          outp(PORT_B, (BYTE)((inp(PORT_B) & 0xFE) | 0x01));
+
+  00255	6a 61		 push	 97			; 00000061H
+  00257	e8 00 00 00 00	 call	 _inp
+  0025c	83 c4 04	 add	 esp, 4
+  0025f	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00264	25 fe 00 00 00	 and	 eax, 254		; 000000feH
+  00269	0c 01		 or	 al, 1
+  0026b	50		 push	 eax
+  0026c	6a 61		 push	 97			; 00000061H
+  0026e	e8 00 00 00 00	 call	 _outp
+  00273	83 c4 08	 add	 esp, 8
+
+; 139  :          nNewTime = 0xFFFE;
+
+  00276	66 c7 45 f0 fe
+	ff		 mov	 WORD PTR _nNewTime$[ebp], 65534 ; 0000fffeH
+
+; 140  : 
+; 141  :          outp(TIMER_BASE+TIMER_MODE, 0x80);
+
+  0027c	68 80 00 00 00	 push	 128			; 00000080H
+  00281	6a 43		 push	 67			; 00000043H
+  00283	e8 00 00 00 00	 call	 _outp
+  00288	83 c4 08	 add	 esp, 8
+
+; 142  :          nOldTime = inp(TIMER_BASE+TIMER_CTR2);
+
+  0028b	6a 42		 push	 66			; 00000042H
+  0028d	e8 00 00 00 00	 call	 _inp
+  00292	83 c4 04	 add	 esp, 4
+  00295	66 33 d2	 xor	 dx, dx
+  00298	8a d0		 mov	 dl, al
+  0029a	66 89 55 e4	 mov	 WORD PTR _nOldTime$[ebp], dx
+
+; 143  :          nOldTime |= ((WORD)inp(TIMER_BASE+TIMER_CTR2) << 8);
+
+  0029e	6a 42		 push	 66			; 00000042H
+  002a0	e8 00 00 00 00	 call	 _inp
+  002a5	83 c4 04	 add	 esp, 4
+  002a8	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  002ad	c1 e0 08	 shl	 eax, 8
+  002b0	66 8b 4d e4	 mov	 cx, WORD PTR _nOldTime$[ebp]
+  002b4	66 0b c8	 or	 cx, ax
+  002b7	66 89 4d e4	 mov	 WORD PTR _nOldTime$[ebp], cx
+
+; 144  : 
+; 145  :          for (i=0; i<LOOP_COUNT; i++)
+
+  002bb	c7 45 ec 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  002c2	eb 09		 jmp	 SHORT $L10356
+$L10357:
+  002c4	8b 55 ec	 mov	 edx, DWORD PTR _i$[ebp]
+  002c7	83 c2 01	 add	 edx, 1
+  002ca	89 55 ec	 mov	 DWORD PTR _i$[ebp], edx
+$L10356:
+  002cd	81 7d ec e8 03
+	00 00		 cmp	 DWORD PTR _i$[ebp], 1000 ; 000003e8H
+  002d4	73 12		 jae	 SHORT $L10358
+
+; 147  :             bData = inp(TEST_PORT);
+
+  002d6	68 c2 03 00 00	 push	 962			; 000003c2H
+  002db	e8 00 00 00 00	 call	 _inp
+  002e0	83 c4 04	 add	 esp, 4
+  002e3	88 45 fc	 mov	 BYTE PTR _bData$[ebp], al
+
+; 148  :             }
+
+  002e6	eb dc		 jmp	 SHORT $L10357
+$L10358:
+
+; 149  : 
+; 150  :          outp(TIMER_BASE+TIMER_MODE, 0x80);
+
+  002e8	68 80 00 00 00	 push	 128			; 00000080H
+  002ed	6a 43		 push	 67			; 00000043H
+  002ef	e8 00 00 00 00	 call	 _outp
+  002f4	83 c4 08	 add	 esp, 8
+
+; 151  :          nNewTime = inp(TIMER_BASE+TIMER_CTR2);
+
+  002f7	6a 42		 push	 66			; 00000042H
+  002f9	e8 00 00 00 00	 call	 _inp
+  002fe	83 c4 04	 add	 esp, 4
+  00301	66 0f b6 c0	 movzx	 ax, al
+  00305	66 89 45 f0	 mov	 WORD PTR _nNewTime$[ebp], ax
+
+; 152  :          nNewTime |= ((WORD)inp(TIMER_BASE+TIMER_CTR2) << 8);
+
+  00309	6a 42		 push	 66			; 00000042H
+  0030b	e8 00 00 00 00	 call	 _inp
+  00310	83 c4 04	 add	 esp, 4
+  00313	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00318	c1 e0 08	 shl	 eax, 8
+  0031b	66 8b 4d f0	 mov	 cx, WORD PTR _nNewTime$[ebp]
+  0031f	66 0b c8	 or	 cx, ax
+  00322	66 89 4d f0	 mov	 WORD PTR _nNewTime$[ebp], cx
+
+; 153  :          outp(PORT_B, (BYTE)(inp(PORT_B) & 0xFE));
+
+  00326	6a 61		 push	 97			; 00000061H
+  00328	e8 00 00 00 00	 call	 _inp
+  0032d	83 c4 04	 add	 esp, 4
+  00330	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00335	25 fe 00 00 00	 and	 eax, 254		; 000000feH
+  0033a	50		 push	 eax
+  0033b	6a 61		 push	 97			; 00000061H
+  0033d	e8 00 00 00 00	 call	 _outp
+  00342	83 c4 08	 add	 esp, 8
+
+; 154  : 
+; 155  :          nscycle = (WORD)((nOldTime - nNewTime) * 838/(DWORD)(LOOP_COUNT));   
+
+  00345	8b 45 e4	 mov	 eax, DWORD PTR _nOldTime$[ebp]
+  00348	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  0034d	8b 55 f0	 mov	 edx, DWORD PTR _nNewTime$[ebp]
+  00350	81 e2 ff ff 00
+	00		 and	 edx, 65535		; 0000ffffH
+  00356	2b c2		 sub	 eax, edx
+  00358	69 c0 46 03 00
+	00		 imul	 eax, 838		; 00000346H
+  0035e	33 d2		 xor	 edx, edx
+  00360	b9 e8 03 00 00	 mov	 ecx, 1000		; 000003e8H
+  00365	f7 f1		 div	 ecx
+  00367	66 89 45 e8	 mov	 WORD PTR _nscycle$[ebp], ax
+
+; 156  :          nscycle++;
+
+  0036b	66 8b 55 e8	 mov	 dx, WORD PTR _nscycle$[ebp]
+  0036f	66 83 c2 01	 add	 dx, 1
+  00373	66 89 55 e8	 mov	 WORD PTR _nscycle$[ebp], dx
+
+; 157  :          Debug_Printf("Total %d ns per loop\n", nscycle);
+
+  00377	8b 45 e8	 mov	 eax, DWORD PTR _nscycle$[ebp]
+  0037a	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  0037f	50		 push	 eax
+  00380	68 00 00 00 00	 push	 OFFSET FLAT:$SG10363
+  00385	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  0038a	83 c4 08	 add	 esp, 8
+
+; 158  :          Debug_Printf("Old Time %04lx New Time %04lx\n", nOldTime, nNewTime);
+
+  0038d	8b 4d f0	 mov	 ecx, DWORD PTR _nNewTime$[ebp]
+  00390	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  00396	51		 push	 ecx
+  00397	8b 55 e4	 mov	 edx, DWORD PTR _nOldTime$[ebp]
+  0039a	81 e2 ff ff 00
+	00		 and	 edx, 65535		; 0000ffffH
+  003a0	52		 push	 edx
+  003a1	68 00 00 00 00	 push	 OFFSET FLAT:$SG10364
+  003a6	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  003ab	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 159  :          nsCycleTime = nscycle;
+
+  003ae	66 8b 45 e8	 mov	 ax, WORD PTR _nscycle$[ebp]
+  003b2	66 a3 00 00 00
+	00		 mov	 WORD PTR _nsCycleTime, ax
+$L10353:
+
+; 162  :    else
+
+  003b8	eb 0b		 jmp	 SHORT $L10365
+$L10337:
+
+; 163  :       nscycle = nsCycleTime;
+
+  003ba	66 8b 0d 00 00
+	00 00		 mov	 cx, WORD PTR _nsCycleTime
+  003c1	66 89 4d e8	 mov	 WORD PTR _nscycle$[ebp], cx
+$L10365:
+
+; 164  : 
+; 165  :    return nscycle;
+
+  003c5	66 8b 45 e8	 mov	 ax, WORD PTR _nscycle$[ebp]
+
+; 166  : }
+
+  003c9	8b e5		 mov	 esp, ebp
+  003cb	5d		 pop	 ebp
+  003cc	c3		 ret	 0
+_CycleTime ENDP
+_wPort$ = 8
+_dbValue$ = 12
+_outp	PROC NEAR
+
+; 274  : {
+
+  003cd	55		 push	 ebp
+  003ce	8b ec		 mov	 ebp, esp
+  003d0	53		 push	 ebx
+  003d1	56		 push	 esi
+  003d2	57		 push	 edi
+
+; 275  :     __asm mov dx,wPort;
+
+  003d3	66 8b 55 08	 mov	 dx, WORD PTR _wPort$[ebp]
+
+; 276  :     __asm mov al,dbValue;
+
+  003d7	8a 45 0c	 mov	 al, BYTE PTR _dbValue$[ebp]
+
+; 277  :     __asm out dx,al;
+
+  003da	ee		 out	 dx, al
+
+; 278  : }
+
+  003db	5f		 pop	 edi
+  003dc	5e		 pop	 esi
+  003dd	5b		 pop	 ebx
+  003de	5d		 pop	 ebp
+  003df	c3		 ret	 0
+_outp	ENDP
+_wPort$ = 8
+_dbR$ = -4
+_inp	PROC NEAR
+
+; 282  : {
+
+  003e0	55		 push	 ebp
+  003e1	8b ec		 mov	 ebp, esp
+  003e3	51		 push	 ecx
+  003e4	53		 push	 ebx
+  003e5	56		 push	 esi
+  003e6	57		 push	 edi
+
+; 283  :     BYTE dbR;
+; 284  : 
+; 285  :     __asm mov dx,wPort;
+
+  003e7	66 8b 55 08	 mov	 dx, WORD PTR _wPort$[ebp]
+
+; 286  :     __asm in  al,dx;
+
+  003eb	ec		 in	 al, dx
+
+; 287  :     __asm mov dbR,al;
+
+  003ec	88 45 fc	 mov	 BYTE PTR _dbR$[ebp], al
+
+; 288  :     return( dbR );
+
+  003ef	8a 45 fc	 mov	 al, BYTE PTR _dbR$[ebp]
+
+; 289  : }
+
+  003f2	5f		 pop	 edi
+  003f3	5e		 pop	 esi
+  003f4	5b		 pop	 ebx
+  003f5	8b e5		 mov	 esp, ebp
+  003f7	5d		 pop	 ebp
+  003f8	c3		 ret	 0
+_inp	ENDP
+_LTEXT	ENDS
+PUBLIC	_WaitTime
+_LTEXT	SEGMENT
+_nTime$ = 8
+_dwStartTime$ = -28
+_dwEndTime$ = -36
+_dwTotalTime$ = -12
+_dwWait$ = -20
+_i$ = -16
+_bData$ = -4
+_WaitTime PROC NEAR
+
+; 179  : {
+
+  003f9	55		 push	 ebp
+  003fa	8b ec		 mov	 ebp, esp
+  003fc	83 ec 24	 sub	 esp, 36			; 00000024H
+
+; 180  :    DWORD dwStartTime[2];
+; 181  :    DWORD dwEndTime[2];
+; 182  :    DWORD dwTotalTime[2];
+; 183  :    DWORD dwWait = nTime / nsCycleTime;
+
+  003ff	33 c0		 xor	 eax, eax
+  00401	66 a1 00 00 00
+	00		 mov	 ax, WORD PTR _nsCycleTime
+  00407	8b c8		 mov	 ecx, eax
+  00409	8b 45 08	 mov	 eax, DWORD PTR _nTime$[ebp]
+  0040c	33 d2		 xor	 edx, edx
+  0040e	f7 f1		 div	 ecx
+  00410	89 45 ec	 mov	 DWORD PTR _dwWait$[ebp], eax
+
+; 184  :    DWORD i;   
+; 185  :    BYTE bData;
+; 186  :    
+; 187  :    if (dwTimeStamp)
+
+  00413	83 3d 00 00 00
+	00 00		 cmp	 DWORD PTR _dwTimeStamp, 0
+  0041a	74 42		 je	 SHORT $L10375
+
+; 189  :       GetTime(dwStartTime);
+
+  0041c	8d 55 e4	 lea	 edx, DWORD PTR _dwStartTime$[ebp]
+  0041f	52		 push	 edx
+  00420	e8 00 00 00 00	 call	 _GetTime
+  00425	83 c4 04	 add	 esp, 4
+$L10377:
+
+; 192  :          GetTime(dwEndTime);
+
+  00428	8d 45 dc	 lea	 eax, DWORD PTR _dwEndTime$[ebp]
+  0042b	50		 push	 eax
+  0042c	e8 00 00 00 00	 call	 _GetTime
+  00431	83 c4 04	 add	 esp, 4
+
+; 193  :          TotalTime(dwStartTime, dwEndTime, dwTotalTime);
+
+  00434	8d 4d f4	 lea	 ecx, DWORD PTR _dwTotalTime$[ebp]
+  00437	51		 push	 ecx
+  00438	8d 55 dc	 lea	 edx, DWORD PTR _dwEndTime$[ebp]
+  0043b	52		 push	 edx
+  0043c	8d 45 e4	 lea	 eax, DWORD PTR _dwStartTime$[ebp]
+  0043f	50		 push	 eax
+  00440	e8 00 00 00 00	 call	 _TotalTime
+  00445	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 194  :          if (dwTotalTime[1])
+
+  00448	83 7d f8 00	 cmp	 DWORD PTR _dwTotalTime$[ebp+4], 0
+  0044c	74 02		 je	 SHORT $L10379
+
+; 195  :             break;
+
+  0044e	eb 0c		 jmp	 SHORT $L10378
+$L10379:
+
+; 196  :          if (dwTotalTime[0] > dwWait)
+
+  00450	8b 4d f4	 mov	 ecx, DWORD PTR _dwTotalTime$[ebp]
+  00453	3b 4d ec	 cmp	 ecx, DWORD PTR _dwWait$[ebp]
+  00456	76 02		 jbe	 SHORT $L10380
+
+; 197  :             break;         
+
+  00458	eb 02		 jmp	 SHORT $L10378
+$L10380:
+
+; 198  :          }
+
+  0045a	eb cc		 jmp	 SHORT $L10377
+$L10378:
+
+; 200  :    else
+
+  0045c	eb 35		 jmp	 SHORT $L10384
+$L10375:
+
+; 202  :       // Add one to take into account remainder
+; 203  :       dwWait++;
+
+  0045e	8b 55 ec	 mov	 edx, DWORD PTR _dwWait$[ebp]
+  00461	83 c2 01	 add	 edx, 1
+  00464	89 55 ec	 mov	 DWORD PTR _dwWait$[ebp], edx
+
+; 204  :       for (i=0; i<dwWait; i++)
+
+  00467	c7 45 f0 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  0046e	eb 09		 jmp	 SHORT $L10382
+$L10383:
+  00470	8b 45 f0	 mov	 eax, DWORD PTR _i$[ebp]
+  00473	83 c0 01	 add	 eax, 1
+  00476	89 45 f0	 mov	 DWORD PTR _i$[ebp], eax
+$L10382:
+  00479	8b 4d f0	 mov	 ecx, DWORD PTR _i$[ebp]
+  0047c	3b 4d ec	 cmp	 ecx, DWORD PTR _dwWait$[ebp]
+  0047f	73 12		 jae	 SHORT $L10384
+
+; 206  :          bData = inp(TEST_PORT);
+
+  00481	68 c2 03 00 00	 push	 962			; 000003c2H
+  00486	e8 00 00 00 00	 call	 _inp
+  0048b	83 c4 04	 add	 esp, 4
+  0048e	88 45 fc	 mov	 BYTE PTR _bData$[ebp], al
+
+; 207  :          }
+
+  00491	eb dd		 jmp	 SHORT $L10383
+$L10384:
+
+; 209  : 
+; 210  :    return 1;
+
+  00493	b8 01 00 00 00	 mov	 eax, 1
+
+; 211  : }
+
+  00498	8b e5		 mov	 esp, ebp
+  0049a	5d		 pop	 ebp
+  0049b	c3		 ret	 0
+_WaitTime ENDP
+_LTEXT	ENDS
+END

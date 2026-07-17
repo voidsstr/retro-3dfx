@@ -1,0 +1,2836 @@
+	TITLE	..\runtime.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+FLAT	GROUP _DATA, CONST, _BSS
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+PUBLIC	_LN_HUN_TAB
+PUBLIC	_LN_TENTH_TAB
+PUBLIC	_LN_TABLE
+PUBLIC	_factoral
+_DATA	SEGMENT
+_f_255_reverse_lookup DD 0437f0000r		; 255
+	DD	0437e0000r			; 254
+	DD	0437d0000r			; 253
+	DD	0437c0000r			; 252
+	DD	0437b0000r			; 251
+	DD	0437a0000r			; 250
+	DD	043790000r			; 249
+	DD	043780000r			; 248
+	DD	043770000r			; 247
+	DD	043760000r			; 246
+	DD	043750000r			; 245
+	DD	043740000r			; 244
+	DD	043730000r			; 243
+	DD	043720000r			; 242
+	DD	043710000r			; 241
+	DD	043700000r			; 240
+	DD	0436f0000r			; 239
+	DD	0436e0000r			; 238
+	DD	0436d0000r			; 237
+	DD	0436c0000r			; 236
+	DD	0436b0000r			; 235
+	DD	0436a0000r			; 234
+	DD	043690000r			; 233
+	DD	043680000r			; 232
+	DD	043670000r			; 231
+	DD	043660000r			; 230
+	DD	043650000r			; 229
+	DD	043640000r			; 228
+	DD	043630000r			; 227
+	DD	043620000r			; 226
+	DD	043610000r			; 225
+	DD	043600000r			; 224
+	DD	0435f0000r			; 223
+	DD	0435e0000r			; 222
+	DD	0435d0000r			; 221
+	DD	0435c0000r			; 220
+	DD	0435b0000r			; 219
+	DD	0435a0000r			; 218
+	DD	043590000r			; 217
+	DD	043580000r			; 216
+	DD	043570000r			; 215
+	DD	043560000r			; 214
+	DD	043550000r			; 213
+	DD	043540000r			; 212
+	DD	043530000r			; 211
+	DD	043520000r			; 210
+	DD	043510000r			; 209
+	DD	043500000r			; 208
+	DD	0434f0000r			; 207
+	DD	0434e0000r			; 206
+	DD	0434d0000r			; 205
+	DD	0434c0000r			; 204
+	DD	0434b0000r			; 203
+	DD	0434a0000r			; 202
+	DD	043490000r			; 201
+	DD	043480000r			; 200
+	DD	043470000r			; 199
+	DD	043460000r			; 198
+	DD	043450000r			; 197
+	DD	043440000r			; 196
+	DD	043430000r			; 195
+	DD	043420000r			; 194
+	DD	043410000r			; 193
+	DD	043400000r			; 192
+	DD	0433f0000r			; 191
+	DD	0433e0000r			; 190
+	DD	0433d0000r			; 189
+	DD	0433c0000r			; 188
+	DD	0433b0000r			; 187
+	DD	0433a0000r			; 186
+	DD	043390000r			; 185
+	DD	043380000r			; 184
+	DD	043370000r			; 183
+	DD	043360000r			; 182
+	DD	043350000r			; 181
+	DD	043340000r			; 180
+	DD	043330000r			; 179
+	DD	043320000r			; 178
+	DD	043310000r			; 177
+	DD	043300000r			; 176
+	DD	0432f0000r			; 175
+	DD	0432e0000r			; 174
+	DD	0432d0000r			; 173
+	DD	0432c0000r			; 172
+	DD	0432b0000r			; 171
+	DD	0432a0000r			; 170
+	DD	043290000r			; 169
+	DD	043280000r			; 168
+	DD	043270000r			; 167
+	DD	043260000r			; 166
+	DD	043250000r			; 165
+	DD	043240000r			; 164
+	DD	043230000r			; 163
+	DD	043220000r			; 162
+	DD	043210000r			; 161
+	DD	043200000r			; 160
+	DD	0431f0000r			; 159
+	DD	0431e0000r			; 158
+	DD	0431d0000r			; 157
+	DD	0431c0000r			; 156
+	DD	0431b0000r			; 155
+	DD	0431a0000r			; 154
+	DD	043190000r			; 153
+	DD	043180000r			; 152
+	DD	043170000r			; 151
+	DD	043160000r			; 150
+	DD	043150000r			; 149
+	DD	043140000r			; 148
+	DD	043130000r			; 147
+	DD	043120000r			; 146
+	DD	043110000r			; 145
+	DD	043100000r			; 144
+	DD	0430f0000r			; 143
+	DD	0430e0000r			; 142
+	DD	0430d0000r			; 141
+	DD	0430c0000r			; 140
+	DD	0430b0000r			; 139
+	DD	0430a0000r			; 138
+	DD	043090000r			; 137
+	DD	043080000r			; 136
+	DD	043070000r			; 135
+	DD	043060000r			; 134
+	DD	043050000r			; 133
+	DD	043040000r			; 132
+	DD	043030000r			; 131
+	DD	043020000r			; 130
+	DD	043010000r			; 129
+	DD	043000000r			; 128
+	DD	042fe0000r			; 127
+	DD	042fc0000r			; 126
+	DD	042fa0000r			; 125
+	DD	042f80000r			; 124
+	DD	042f60000r			; 123
+	DD	042f40000r			; 122
+	DD	042f20000r			; 121
+	DD	042f00000r			; 120
+	DD	042ee0000r			; 119
+	DD	042ec0000r			; 118
+	DD	042ea0000r			; 117
+	DD	042e80000r			; 116
+	DD	042e60000r			; 115
+	DD	042e40000r			; 114
+	DD	042e20000r			; 113
+	DD	042e00000r			; 112
+	DD	042de0000r			; 111
+	DD	042dc0000r			; 110
+	DD	042da0000r			; 109
+	DD	042d80000r			; 108
+	DD	042d60000r			; 107
+	DD	042d40000r			; 106
+	DD	042d20000r			; 105
+	DD	042d00000r			; 104
+	DD	042ce0000r			; 103
+	DD	042cc0000r			; 102
+	DD	042ca0000r			; 101
+	DD	042c80000r			; 100
+	DD	042c60000r			; 99
+	DD	042c40000r			; 98
+	DD	042c20000r			; 97
+	DD	042c00000r			; 96
+	DD	042be0000r			; 95
+	DD	042bc0000r			; 94
+	DD	042ba0000r			; 93
+	DD	042b80000r			; 92
+	DD	042b60000r			; 91
+	DD	042b40000r			; 90
+	DD	042b20000r			; 89
+	DD	042b00000r			; 88
+	DD	042ae0000r			; 87
+	DD	042ac0000r			; 86
+	DD	042aa0000r			; 85
+	DD	042a80000r			; 84
+	DD	042a60000r			; 83
+	DD	042a40000r			; 82
+	DD	042a20000r			; 81
+	DD	042a00000r			; 80
+	DD	0429e0000r			; 79
+	DD	0429c0000r			; 78
+	DD	0429a0000r			; 77
+	DD	042980000r			; 76
+	DD	042960000r			; 75
+	DD	042940000r			; 74
+	DD	042920000r			; 73
+	DD	042900000r			; 72
+	DD	0428e0000r			; 71
+	DD	0428c0000r			; 70
+	DD	0428a0000r			; 69
+	DD	042880000r			; 68
+	DD	042860000r			; 67
+	DD	042840000r			; 66
+	DD	042820000r			; 65
+	DD	042800000r			; 64
+	DD	0427c0000r			; 63
+	DD	042780000r			; 62
+	DD	042740000r			; 61
+	DD	042700000r			; 60
+	DD	0426c0000r			; 59
+	DD	042680000r			; 58
+	DD	042640000r			; 57
+	DD	042600000r			; 56
+	DD	0425c0000r			; 55
+	DD	042580000r			; 54
+	DD	042540000r			; 53
+	DD	042500000r			; 52
+	DD	0424c0000r			; 51
+	DD	042480000r			; 50
+	DD	042440000r			; 49
+	DD	042400000r			; 48
+	DD	0423c0000r			; 47
+	DD	042380000r			; 46
+	DD	042340000r			; 45
+	DD	042300000r			; 44
+	DD	0422c0000r			; 43
+	DD	042280000r			; 42
+	DD	042240000r			; 41
+	DD	042200000r			; 40
+	DD	0421c0000r			; 39
+	DD	042180000r			; 38
+	DD	042140000r			; 37
+	DD	042100000r			; 36
+	DD	0420c0000r			; 35
+	DD	042080000r			; 34
+	DD	042040000r			; 33
+	DD	042000000r			; 32
+	DD	041f80000r			; 31
+	DD	041f00000r			; 30
+	DD	041e80000r			; 29
+	DD	041e00000r			; 28
+	DD	041d80000r			; 27
+	DD	041d00000r			; 26
+	DD	041c80000r			; 25
+	DD	041c00000r			; 24
+	DD	041b80000r			; 23
+	DD	041b00000r			; 22
+	DD	041a80000r			; 21
+	DD	041a00000r			; 20
+	DD	041980000r			; 19
+	DD	041900000r			; 18
+	DD	041880000r			; 17
+	DD	041800000r			; 16
+	DD	041700000r			; 15
+	DD	041600000r			; 14
+	DD	041500000r			; 13
+	DD	041400000r			; 12
+	DD	041300000r			; 11
+	DD	041200000r			; 10
+	DD	041100000r			; 9
+	DD	041000000r			; 8
+	DD	040e00000r			; 7
+	DD	040c00000r			; 6
+	DD	040a00000r			; 5
+	DD	040800000r			; 4
+	DD	040400000r			; 3
+	DD	040000000r			; 2
+	DD	03f800000r			; 1
+	DD	000000000r			; 0
+_LN_HUN_TAB DD	0c9742400r			; -1e+006
+	DD	0c0935d8dr			; -4.60517
+	DD	0c07a5e89r			; -3.91202
+	DD	0c0606b7br			; -3.50656
+	DD	0c04e0221r			; -3.21888
+	DD	0c03fba0ar			; -2.99573
+	DD	0c0340ee9r			; -2.81341
+	DD	0c02a3151r			; -2.65926
+	DD	0c021a58fr			; -2.52573
+	DD	0c01a1bdar			; -2.40795
+	DD	0c0135da2r			; -2.30259
+	DD	0c00d43e9r			; -2.20727
+	DD	0c007b257r			; -2.12026
+	DD	0c00292f7r			; -2.04022
+	DD	0bffba97er			; -1.96611
+	DD	0bff2d4d4r			; -1.89712
+	DD	0bfea91fbr			; -1.83258
+	DD	0bfe2cf96r			; -1.77196
+	DD	0bfdb7e91r			; -1.7148
+	DD	0bfd492cdr			; -1.66073
+	DD	0bfce0221r			; -1.60944
+	DD	0bfc7c361r			; -1.56065
+	DD	0bfc1cf03r			; -1.51413
+	DD	0bfbc1e79r			; -1.46968
+	DD	0bfb6abder			; -1.42712
+	DD	0bfb171f3r			; -1.38629
+	DD	0bfac6ccar			; -1.34707
+	DD	0bfa79820r			; -1.30933
+	DD	0bfa2f0aer			; -1.27297
+	DD	0bf9e7286r			; -1.23787
+	DD	0bf9a1bb0r			; -1.20397
+	DD	0bf95e93ar			; -1.17118
+	DD	0bf91d8d8r			; -1.13943
+	DD	0bf8de892r			; -1.10866
+	DD	0bf8a1672r			; -1.07881
+	DD	0bf866080r			; -1.04982
+	DD	0bf82c56dr			; -1.02165
+	DD	0bf7e872br			; -0.99425
+	DD	0bf77b353r			; -0.96758
+	DD	0bf710d5ar			; -0.94161
+	DD	0bf6a91fbr			; -0.91629
+	DD	0bf643fe6r			; -0.8916
+	DD	0bf5e147br			; -0.8675
+	DD	0bf580e6br			; -0.84397
+	DD	0bf522bbfr			; -0.82098
+	DD	0bf4c6b27r			; -0.79851
+	DD	0bf46caacr			; -0.77653
+	DD	0bf4148fer			; -0.75502
+	DD	0bf3be575r			; -0.73397
+	DD	0bf369e1br			; -0.71335
+	DD	0bf317247r			; -0.69315
+	DD	0bf2c6003r			; -0.67334
+	DD	0bf2767f5r			; -0.65393
+	DD	0bf22877fr			; -0.63488
+	DD	0bf1dbea1r			; -0.61619
+	DD	0bf190c0br			; -0.59784
+	DD	0bf146f15r			; -0.57982
+	DD	0bf0fe719r			; -0.56212
+	DD	0bf0b736dr			; -0.54473
+	DD	0bf0712c2r			; -0.52763
+	DD	0bf02c5c1r			; -0.51083
+	DD	0befd14e4r			; -0.4943
+	DD	0bef4c1a9r			; -0.47804
+	DD	0beec9082r			; -0.46204
+	DD	0bee4801fr			; -0.44629
+	DD	0bedc8f32r			; -0.43078
+	DD	0bed4bf0ar			; -0.41552
+	DD	0becd0bb7r			; -0.40048
+	DD	0bec5753ar			; -0.38566
+	DD	0bebdfb94r			; -0.37106
+	DD	0beb69d73r			; -0.35667
+	DD	0beaf5ad9r			; -0.34249
+	DD	0bea83127r			; -0.3285
+	DD	0bea121abr			; -0.31471
+	DD	0be9a2b17r			; -0.30111
+	DD	0be934acbr			; -0.28768
+	DD	0be8c8366r			; -0.27444
+	DD	0be85d0far			; -0.26136
+	DD	0be7e6c4cr			; -0.24846
+	DD	0be716095r			; -0.23572
+	DD	0be647ed0r			; -0.22314
+	DD	0be57c6fcr			; -0.21072
+	DD	0be4b367ar			; -0.19845
+	DD	0be3ecd4br			; -0.18633
+	DD	0be3288cer			; -0.17435
+	DD	0be266ba5r			; -0.16252
+	DD	0be1a708fr			; -0.15082
+	DD	0be0e9a2cr			; -0.13926
+	DD	0be02e5der			; -0.12783
+	DD	0bdeea748r			; -0.11653
+	DD	0bdd7c6fcr			; -0.10536
+	DD	0bdc1259ar			; -0.09431
+	DD	0bdaac322r			; -0.08338
+	DD	0bd949f95r			; -0.07257
+	DD	0bd7d75e2r			; -0.06188
+	DD	0bd521577r			; -0.05129
+	DD	0bd2732dfr			; -0.04082
+	DD	0bcf98740r			; -0.03046
+	DD	0bca57a78r			; -0.0202
+	DD	0bc24a8c1r			; -0.01005
+	DD	0263ff620r			; 6.66e-016
+	DD	03c230553r			; 0.00995
+	DD	03ca239e7r			; 0.019803
+	DD	03cf225b7r			; 0.029559
+	DD	03d20a633r			; 0.039221
+	DD	03d47d806r			; 0.04879
+	DD	03d6eab7ar			; 0.058269
+	DD	03d8a90cdr			; 0.067659
+	DD	03d9d9dbbr			; 0.076961
+	DD	03db07e17r			; 0.086178
+	DD	03dc331e4r			; 0.09531
+	DD	03dd5bab2r			; 0.10436
+	DD	03de81909r			; 0.113329
+	DD	03dfa4d6er			; 0.122218
+	DD	03e062c34r			; 0.131028
+	DD	03e0f1dc5r			; 0.139762
+	DD	03e17fb6ar			; 0.14842
+	DD	03e20c5a8r			; 0.157004
+	DD	03e297c81r			; 0.165514
+	DD	03e3220bcr			; 0.173953
+	DD	03e3ab29er			; 0.182322
+	DD	03e4331e4r			; 0.19062
+	DD	03e4b9f99r			; 0.198851
+	DD	03e53fb7ar			; 0.207014
+	DD	03e5c460fr			; 0.215111
+	DD	03e647fdcr			; 0.223144
+	DD	03e6ca8a0r			; 0.231112
+	DD	03e74c0dfr			; 0.239017
+	DD	03e7cc8der			; 0.24686
+	DD	03e826070r			; 0.254642
+	DD	03e865493r			; 0.262364
+	DD	03e8a40fbr			; 0.270027
+	DD	03e8e25c8r			; 0.277632
+	DD	03e9202fbr			; 0.285179
+	DD	03e95d8d8r			; 0.29267
+	DD	03e99a75dr			; 0.300105
+	DD	03e9d6eadr			; 0.307485
+	DD	03ea12ee8r			; 0.314811
+	DD	03ea4e810r			; 0.322083
+	DD	03ea89a89r			; 0.329304
+	DD	03eac460fr			; 0.336472
+	DD	03eafeb07r			; 0.34359
+	DD	03eb38950r			; 0.350657
+	DD	03eb7210cr			; 0.357674
+	DD	03ebab27dr			; 0.364643
+	DD	03ebe3da3r			; 0.371564
+	DD	03ec1c25dr			; 0.378436
+	DD	03ec54110r			; 0.385262
+	DD	03ec8b9bbr			; 0.392042
+	DD	03ecc2c5er			; 0.398776
+	DD	03ecf991cr			; 0.405465
+	DD	03ed30015r			; 0.41211
+	DD	03ed66128r			; 0.41871
+	DD	03ed9bcbar			; 0.425268
+	DD	03edd1288r			; 0.431782
+	DD	03ee062f6r			; 0.438255
+	DD	03ee3ade2r			; 0.444686
+	DD	03ee6f36fr			; 0.451076
+	DD	03eea339cr			; 0.457425
+	DD	03eed6e8br			; 0.463734
+	DD	03ef0a45dr			; 0.470004
+	DD	03ef3d4f1r			; 0.476234
+	DD	03ef7008ar			; 0.482426
+	DD	03efa2728r			; 0.48858
+	DD	03efd48cbr			; 0.494696
+	DD	03f0032car			; 0.500775
+	DD	03f01bed3r			; 0.506818
+	DD	03f03486fr			; 0.512824
+	DD	03f04cfafr			; 0.518794
+	DD	03f0654a4r			; 0.524729
+	DD	03f07d73dr			; 0.530628
+	DD	03f09579br			; 0.536493
+	DD	03f0ad5bfr			; 0.542324
+	DD	03f0c51a8r			; 0.548121
+	DD	03f0dcb68r			; 0.553885
+	DD	03f0f42ffr			; 0.559616
+	DD	03f10b86br			; 0.565314
+	DD	03f122bbfr			; 0.57098
+	DD	03f139ce9r			; 0.576613
+	DD	03f150c1cr			; 0.582216
+	DD	03f167935r			; 0.587787
+	DD	03f17e447r			; 0.593327
+	DD	03f194d62r			; 0.598837
+	DD	03f1ab474r			; 0.604316
+	DD	03f1c19a0r			; 0.609766
+	DD	03f1d7cd4r			; 0.615186
+	DD	03f1ede12r			; 0.620576
+	DD	03f203d79r			; 0.625938
+	DD	03f219b0br			; 0.631272
+	DD	03f22f6b6r			; 0.636577
+	DD	03f24508br			; 0.641854
+	DD	03f25a88br			; 0.647103
+	DD	03f26fec5r			; 0.652325
+	DD	03f28533br			; 0.65752
+	DD	03f29a5ecr			; 0.662688
+	DD	03f2af6d7r			; 0.667829
+	DD	03f2c460fr			; 0.672944
+	DD	03f2d93a3r			; 0.678034
+	DD	03f2edf72r			; 0.683097
+	DD	03f30299er			; 0.688135
+	DD	03f317215r			; 0.693147
+	DD	03f32b8far			; 0.698135
+	DD	03f33fe3br			; 0.703098
+	DD	03f3541d9r			; 0.708036
+	DD	03f3683e4r			; 0.71295
+	DD	03f37c45dr			; 0.71784
+	DD	03f390343r			; 0.722706
+	DD	03f3a40a7r			; 0.727549
+	DD	03f3b7c78r			; 0.732368
+	DD	03f3cb6c8r			; 0.737164
+	DD	03f3def95r			; 0.741937
+	DD	03f3f26f2r			; 0.746688
+	DD	03f405ccdr			; 0.751416
+	DD	03f419136r			; 0.756122
+	DD	03f42c42fr			; 0.760806
+	DD	03f43f5b6r			; 0.765468
+	DD	03f4525ccr			; 0.770108
+	DD	03f465482r			; 0.774727
+	DD	03f4781d8r			; 0.779325
+	DD	03f48adcdr			; 0.783902
+	DD	03f49d851r			; 0.788457
+	DD	03f4b0197r			; 0.792993
+	DD	03f4c296br			; 0.797507
+	DD	03f4d5001r			; 0.802002
+	DD	03f4e7536r			; 0.806476
+	DD	03f4f991cr			; 0.81093
+	DD	03f50bbc3r			; 0.815365
+	DD	03f51dd1ar			; 0.81978
+	DD	03f52fd22r			; 0.824175
+	DD	03f541bfcr			; 0.828552
+	DD	03f553986r			; 0.832909
+	DD	03f5655e3r			; 0.837248
+	DD	03f5770efr			; 0.841567
+	DD	03f588acer			; 0.845868
+	DD	03f59a37fr			; 0.850151
+	DD	03f5abaf1r			; 0.854415
+	DD	03f5bd146r			; 0.858662
+	DD	03f5ce65cr			; 0.86289
+	DD	03f5dfa44r			; 0.8671
+	DD	03f5f0d0fr			; 0.871293
+	DD	03f601ebdr			; 0.875469
+	DD	03f612f3cr			; 0.879627
+	DD	03f623e9fr			; 0.883768
+	DD	03f634cd3r			; 0.887891
+	DD	03f6459fbr			; 0.891998
+	DD	03f656606r			; 0.896088
+	DD	03f6670f4r			; 0.900161
+	DD	03f677ad5r			; 0.904218
+	DD	03f6883a9r			; 0.908259
+	DD	03f698b61r			; 0.912283
+	DD	03f6a920cr			; 0.916291
+	DD	03f6b97abr			; 0.920283
+	DD	03f6c9c3dr			; 0.924259
+	DD	03f6d9fc3r			; 0.928219
+	DD	03f6ea24dr			; 0.932164
+	DD	03f6fa3car			; 0.936093
+	DD	03f70a44cr			; 0.940007
+	DD	03f71a3d3r			; 0.943906
+	DD	03f72a24dr			; 0.947789
+	DD	03f739fdcr			; 0.951658
+	DD	03f749c5er			; 0.955511
+	DD	03f7597f6r			; 0.95935
+	DD	03f769292r			; 0.963174
+	DD	03f778c43r			; 0.966984
+	DD	03f7884f9r			; 0.970779
+	DD	03f797cc4r			; 0.97456
+	DD	03f7a7393r			; 0.978326
+	DD	03f7b6977r			; 0.982078
+	DD	03f7c5e81r			; 0.985817
+	DD	03f7d528fr			; 0.989541
+	DD	03f7e45c3r			; 0.993252
+	DD	03f7f380dr			; 0.996949
+	DD	03f8014b6r			; 1.00063
+	DD	03f808cf8r			; 1.0043
+	DD	03f8104c5r			; 1.00796
+	DD	03f817c24r			; 1.0116
+	DD	03f81f317r			; 1.01523
+	DD	03f826994r			; 1.01885
+	DD	03f82dfadr			; 1.02245
+	DD	03f835558r			; 1.02604
+	DD	03f83ca8er			; 1.02962
+	DD	03f843f60r			; 1.03318
+	DD	03f84b3ccr			; 1.03674
+	DD	03f8527ccr			; 1.04028
+	DD	03f859b5fr			; 1.0438
+	DD	03f860e8dr			; 1.04732
+	DD	03f868156r			; 1.05082
+	DD	03f86f3b2r			; 1.05431
+	DD	03f8765aar			; 1.05779
+	DD	03f87d745r			; 1.06126
+	DD	03f884873r			; 1.06471
+	DD	03f88b93dr			; 1.06815
+	DD	03f8929aar			; 1.07158
+	DD	03f8999aar			; 1.075
+	DD	03f8a0957r			; 1.07841
+	DD	03f8a7896r			; 1.0818
+	DD	03f8ae779r			; 1.08519
+	DD	03f8b5600r			; 1.08856
+	DD	03f8bc422r			; 1.09192
+	DD	03f8c31e8r			; 1.09527
+	DD	03f8c9f51r			; 1.09861
+	DD	03f8d0c5fr			; 1.10194
+	DD	03f8d7910r			; 1.10526
+	DD	03f8de564r			; 1.10856
+	DD	03f8e515dr			; 1.11186
+	DD	03f8ebcf9r			; 1.11514
+	DD	03f8f2839r			; 1.11841
+	DD	03f8f9325r			; 1.12168
+	DD	03f8ffdb5r			; 1.12493
+	DD	03f9067e8r			; 1.12817
+	DD	03f90d1c8r			; 1.1314
+	DD	03f913b54r			; 1.13462
+	DD	03f91a483r			; 1.13783
+	DD	03f920d5fr			; 1.14103
+	DD	03f9275e6r			; 1.14422
+	DD	03f92de12r			; 1.1474
+	DD	03f9345f1r			; 1.15057
+	DD	03f93ad7dr			; 1.15373
+	DD	03f9414adr			; 1.15688
+	DD	03f947b91r			; 1.16002
+	DD	03f94e222r			; 1.16315
+	DD	03f95485er			; 1.16627
+	DD	03f95ae47r			; 1.16938
+	DD	03f9613e4r			; 1.17248
+	DD	03f96792dr			; 1.17557
+	DD	03f96de2br			; 1.17866
+	DD	03f9742d5r			; 1.18173
+	DD	03f97a733r			; 1.18479
+	DD	03f980b3dr			; 1.18784
+	DD	03f986f05r			; 1.19089
+	DD	03f98d270r			; 1.19392
+	DD	03f993598r			; 1.19695
+	DD	03f999874r			; 1.19997
+	DD	03f99fafdr			; 1.20297
+	DD	03f9a5d42r			; 1.20597
+	DD	03f9abf34r			; 1.20896
+	DD	03f9b20e2r			; 1.21194
+	DD	03f9b8245r			; 1.21491
+	DD	03f9be35cr			; 1.21788
+	DD	03f9c4428r			; 1.22083
+	DD	03f9ca4a9r			; 1.22378
+	DD	03f9d04e6r			; 1.22671
+	DD	03f9d64e0r			; 1.22964
+	DD	03f9dc487r			; 1.23256
+	DD	03f9e23ear			; 1.23547
+	DD	03f9e830ar			; 1.23837
+	DD	03f9ee1e7r			; 1.24127
+	DD	03f9f4079r			; 1.24416
+	DD	03f9f9ebfr			; 1.24703
+	DD	03f9ffccar			; 1.2499
+	DD	03fa05a8ar			; 1.25276
+	DD	03fa0b806r			; 1.25562
+	DD	03fa11540r			; 1.25846
+	DD	03fa17236r			; 1.2613
+	DD	03fa1ceear			; 1.26413
+	DD	03fa22b5ar			; 1.26695
+	DD	03fa28787r			; 1.26976
+	DD	03fa2e371r			; 1.27257
+	DD	03fa33f18r			; 1.27536
+	DD	03fa39a7cr			; 1.27815
+	DD	03fa3f5a5r			; 1.28093
+	DD	03fa4508br			; 1.28371
+	DD	03fa4ab2er			; 1.28647
+	DD	03fa50596r			; 1.28923
+	DD	03fa55fbbr			; 1.29198
+	DD	03fa5b99dr			; 1.29473
+	DD	03fa61345r			; 1.29746
+	DD	03fa66cb1r			; 1.30019
+	DD	03fa6c5dar			; 1.30291
+	DD	03fa71ec1r			; 1.30563
+	DD	03fa77775r			; 1.30833
+	DD	03fa7cfe6r			; 1.31103
+	DD	03fa8281cr			; 1.31372
+	DD	03fa8800fr			; 1.31641
+	DD	03fa8d7cfr			; 1.31909
+	DD	03fa92f4dr			; 1.32176
+	DD	03fa98690r			; 1.32442
+	DD	03fa9dd98r			; 1.32708
+	DD	03faa3465r			; 1.32972
+	DD	03faa8af8r			; 1.33237
+	DD	03faae150r			; 1.335
+	DD	03fab376dr			; 1.33763
+	DD	03fab8d50r			; 1.34025
+	DD	03fabe300r			; 1.34286
+	DD	03fac386dr			; 1.34547
+	DD	03fac8da8r			; 1.34807
+	DD	03face2a8r			; 1.35067
+	DD	03fad3776r			; 1.35326
+	DD	03fad8c00r			; 1.35583
+	DD	03fade059r			; 1.35841
+	DD	03fae347fr			; 1.36098
+	DD	03fae8861r			; 1.36354
+	DD	03faedc1ar			; 1.36609
+	DD	03faf2f90r			; 1.36864
+	DD	03faf82dcr			; 1.37118
+	DD	03fafd5edr			; 1.37372
+	DD	03fb028c3r			; 1.37624
+	DD	03fb07b67r			; 1.37877
+	DD	03fb0cdd9r			; 1.38128
+	DD	03fb12010r			; 1.38379
+	DD	03fb17215r			; 1.38629
+_LN_TENTH_TAB DD 000000000r			; 0
+	DD	000000000r			; 0
+	DD	041000000r			; 8
+_LN_TABLE DD	000000000r			; 0
+	DD	03f317215r			; 0.693147
+	DD	03f8c9f51r			; 1.09861
+	DD	03fb17215r			; 1.38629
+	DD	03fce0210r			; 1.60944
+	DD	03fe5585cr			; 1.79176
+	DD	03ff91394r			; 1.94591
+	DD	040051594r			; 2.07944
+	DD	0400c9f56r			; 2.19723
+	DD	040135d8dr			; 2.30258
+	DD	04019771dr			; 2.3979
+	DD	0401f08b7r			; 2.48491
+	DD	040242820r			; 2.56495
+	DD	04028e64fr			; 2.63906
+	DD	0402d50b1r			; 2.70805
+	DD	040317219r			; 2.77259
+	DD	04035535dr			; 2.83321
+	DD	04038fbdbr			; 2.89037
+	DD	0403c71b0r			; 2.94444
+	DD	0403fba13r			; 2.99573
+	DD	04042d973r			; 3.04452
+	DD	04045d3a2r			; 3.09104
+	DD	04048abefr			; 3.13549
+	DD	0404b653dr			; 3.17805
+	DD	0404e0210r			; 3.21888
+	DD	0405084a9r			; 3.2581
+	DD	04052eefer			; 3.29584
+	DD	0405542d9r			; 3.33221
+	DD	0405781c7r			; 3.3673
+	DD	04059ad36r			; 3.4012
+	DD	0405bc671r			; 3.43399
+	DD	0405dce9er			; 3.46574
+	DD	0405fc6c9r			; 3.49651
+	DD	04061afe6r			; 3.52636
+	DD	040638ad2r			; 3.55535
+	DD	040655860r			; 3.58352
+	DD	040671948r			; 3.61092
+	DD	04068ce36r			; 3.63759
+	DD	0406a77cdr			; 3.66356
+	DD	0406c1698r			; 3.68888
+	DD	0406dab2ar			; 3.71357
+	DD	0406f35fcr			; 3.73767
+_factoral DD	01H
+	DD	01H
+	DD	02H
+	DD	06H
+	DD	018H
+	DD	078H
+	DD	02d0H
+	DD	013b0H
+	DD	0fc0H
+_DATA	ENDS
+PUBLIC	_ddatoi
+_TEXT	SEGMENT
+_s$ = 8
+_i$ = -4
+_n$ = -12
+_sign$ = -8
+_ddatoi	PROC NEAR
+
+; 77   : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	83 ec 10	 sub	 esp, 16			; 00000010H
+
+; 78   :    int i, n, sign;
+; 79   : 
+; 80   :    for( i=0; s[i] == ' ' || s[i] == '\n' || s[i] == '\t'; i++)
+
+  00006	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  0000d	eb 09		 jmp	 SHORT $L48874
+$L48875:
+  0000f	8b 45 fc	 mov	 eax, DWORD PTR _i$[ebp]
+  00012	83 c0 01	 add	 eax, 1
+  00015	89 45 fc	 mov	 DWORD PTR _i$[ebp], eax
+$L48874:
+  00018	8b 4d 08	 mov	 ecx, DWORD PTR _s$[ebp]
+  0001b	03 4d fc	 add	 ecx, DWORD PTR _i$[ebp]
+  0001e	0f be 11	 movsx	 edx, BYTE PTR [ecx]
+  00021	83 fa 20	 cmp	 edx, 32			; 00000020H
+  00024	74 1c		 je	 SHORT $L48877
+  00026	8b 45 08	 mov	 eax, DWORD PTR _s$[ebp]
+  00029	03 45 fc	 add	 eax, DWORD PTR _i$[ebp]
+  0002c	0f be 08	 movsx	 ecx, BYTE PTR [eax]
+  0002f	83 f9 0a	 cmp	 ecx, 10			; 0000000aH
+  00032	74 0e		 je	 SHORT $L48877
+  00034	8b 55 08	 mov	 edx, DWORD PTR _s$[ebp]
+  00037	03 55 fc	 add	 edx, DWORD PTR _i$[ebp]
+  0003a	0f be 02	 movsx	 eax, BYTE PTR [edx]
+  0003d	83 f8 09	 cmp	 eax, 9
+  00040	75 02		 jne	 SHORT $L48876
+$L48877:
+
+; 81   :      ;
+
+  00042	eb cb		 jmp	 SHORT $L48875
+$L48876:
+
+; 82   :      
+; 83   :    sign = 1;
+
+  00044	c7 45 f8 01 00
+	00 00		 mov	 DWORD PTR _sign$[ebp], 1
+
+; 84   :    if (s[i] == '+' || s[i] == '-')
+
+  0004b	8b 4d 08	 mov	 ecx, DWORD PTR _s$[ebp]
+  0004e	03 4d fc	 add	 ecx, DWORD PTR _i$[ebp]
+  00051	0f be 11	 movsx	 edx, BYTE PTR [ecx]
+  00054	83 fa 2b	 cmp	 edx, 43			; 0000002bH
+  00057	74 0e		 je	 SHORT $L48879
+  00059	8b 45 08	 mov	 eax, DWORD PTR _s$[ebp]
+  0005c	03 45 fc	 add	 eax, DWORD PTR _i$[ebp]
+  0005f	0f be 08	 movsx	 ecx, BYTE PTR [eax]
+  00062	83 f9 2d	 cmp	 ecx, 45			; 0000002dH
+  00065	75 2d		 jne	 SHORT $L48878
+$L48879:
+
+; 85   :      sign = (s[i++] == '+') ? 1 : -1;
+
+  00067	8b 55 08	 mov	 edx, DWORD PTR _s$[ebp]
+  0006a	03 55 fc	 add	 edx, DWORD PTR _i$[ebp]
+  0006d	0f be 02	 movsx	 eax, BYTE PTR [edx]
+  00070	8b 4d fc	 mov	 ecx, DWORD PTR _i$[ebp]
+  00073	83 c1 01	 add	 ecx, 1
+  00076	89 4d fc	 mov	 DWORD PTR _i$[ebp], ecx
+  00079	83 f8 2b	 cmp	 eax, 43			; 0000002bH
+  0007c	75 09		 jne	 SHORT $L49114
+  0007e	c7 45 f0 01 00
+	00 00		 mov	 DWORD PTR -16+[ebp], 1
+  00085	eb 07		 jmp	 SHORT $L49115
+$L49114:
+  00087	c7 45 f0 ff ff
+	ff ff		 mov	 DWORD PTR -16+[ebp], -1
+$L49115:
+  0008e	8b 55 f0	 mov	 edx, DWORD PTR -16+[ebp]
+  00091	89 55 f8	 mov	 DWORD PTR _sign$[ebp], edx
+$L48878:
+
+; 86   :      
+; 87   :    for (n = 0; s[i] >= '0' && s[i] <= '9'; i++)
+
+  00094	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _n$[ebp], 0
+  0009b	eb 09		 jmp	 SHORT $L48880
+$L48881:
+  0009d	8b 45 fc	 mov	 eax, DWORD PTR _i$[ebp]
+  000a0	83 c0 01	 add	 eax, 1
+  000a3	89 45 fc	 mov	 DWORD PTR _i$[ebp], eax
+$L48880:
+  000a6	8b 4d 08	 mov	 ecx, DWORD PTR _s$[ebp]
+  000a9	03 4d fc	 add	 ecx, DWORD PTR _i$[ebp]
+  000ac	0f be 11	 movsx	 edx, BYTE PTR [ecx]
+  000af	83 fa 30	 cmp	 edx, 48			; 00000030H
+  000b2	7c 26		 jl	 SHORT $L48882
+  000b4	8b 45 08	 mov	 eax, DWORD PTR _s$[ebp]
+  000b7	03 45 fc	 add	 eax, DWORD PTR _i$[ebp]
+  000ba	0f be 08	 movsx	 ecx, BYTE PTR [eax]
+  000bd	83 f9 39	 cmp	 ecx, 57			; 00000039H
+  000c0	7f 18		 jg	 SHORT $L48882
+
+; 88   :      n = 10 * n + s[i] - '0';
+
+  000c2	8b 55 f4	 mov	 edx, DWORD PTR _n$[ebp]
+  000c5	6b d2 0a	 imul	 edx, 10			; 0000000aH
+  000c8	8b 45 08	 mov	 eax, DWORD PTR _s$[ebp]
+  000cb	03 45 fc	 add	 eax, DWORD PTR _i$[ebp]
+  000ce	0f be 08	 movsx	 ecx, BYTE PTR [eax]
+  000d1	8d 54 0a d0	 lea	 edx, DWORD PTR [edx+ecx-48]
+  000d5	89 55 f4	 mov	 DWORD PTR _n$[ebp], edx
+  000d8	eb c3		 jmp	 SHORT $L48881
+$L48882:
+
+; 89   :      
+; 90   :    return(sign * n);
+
+  000da	8b 45 f8	 mov	 eax, DWORD PTR _sign$[ebp]
+  000dd	0f af 45 f4	 imul	 eax, DWORD PTR _n$[ebp]
+
+; 91   : }// ddatoi
+
+  000e1	8b e5		 mov	 esp, ebp
+  000e3	5d		 pop	 ebp
+  000e4	c3		 ret	 0
+_ddatoi	ENDP
+_TEXT	ENDS
+PUBLIC	_dd_itof_inv
+PUBLIC	__real@4@3fff8000000000000000
+EXTRN	__fltused:NEAR
+;	COMDAT __real@4@3fff8000000000000000
+; File ..\runtime.c
+CONST	SEGMENT
+__real@4@3fff8000000000000000 DD 03f800000r	; 1
+CONST	ENDS
+_TEXT	SEGMENT
+_i$ = 8
+_dd_itof_inv PROC NEAR
+
+; 102  : {
+
+  000e5	55		 push	 ebp
+  000e6	8b ec		 mov	 ebp, esp
+
+; 103  :    return( (float) 1.0 / (float) i );
+
+  000e8	db 45 08	 fild	 DWORD PTR _i$[ebp]
+  000eb	d8 3d 00 00 00
+	00		 fdivr	 DWORD PTR __real@4@3fff8000000000000000
+
+; 104  : }//  dd_itof_inv
+
+  000f1	5d		 pop	 ebp
+  000f2	c3		 ret	 0
+_dd_itof_inv ENDP
+_TEXT	ENDS
+PUBLIC	_ddftol
+_TEXT	SEGMENT
+_f$ = 8
+_expnt$ = -8
+_mantissa$ = -12
+_neg$ = -4
+_ddftol	PROC NEAR
+
+; 115  : {
+
+  000f3	55		 push	 ebp
+  000f4	8b ec		 mov	 ebp, esp
+  000f6	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 116  :    long       expnt, mantissa;
+; 117  :    BOOL       neg = FALSE;
+
+  000f9	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _neg$[ebp], 0
+
+; 118  : 
+; 119  :    mantissa = expnt = *( long *) &f;
+
+  00100	8b 45 08	 mov	 eax, DWORD PTR _f$[ebp]
+  00103	89 45 f8	 mov	 DWORD PTR _expnt$[ebp], eax
+  00106	8b 4d f8	 mov	 ecx, DWORD PTR _expnt$[ebp]
+  00109	89 4d f4	 mov	 DWORD PTR _mantissa$[ebp], ecx
+
+; 120  : 
+; 121  :    // Special Case
+; 122  :    if( mantissa == 0 )
+
+  0010c	83 7d f4 00	 cmp	 DWORD PTR _mantissa$[ebp], 0
+  00110	75 07		 jne	 SHORT $L48895
+
+; 123  :      return 0;
+
+  00112	33 c0		 xor	 eax, eax
+  00114	e9 85 00 00 00	 jmp	 $L48890
+$L48895:
+
+; 124  : 
+; 125  :    if( expnt & 0x80000000 )
+
+  00119	8b 55 f8	 mov	 edx, DWORD PTR _expnt$[ebp]
+  0011c	81 e2 00 00 00
+	80		 and	 edx, -2147483648	; 80000000H
+  00122	85 d2		 test	 edx, edx
+  00124	74 07		 je	 SHORT $L48896
+
+; 126  :      neg = TRUE;
+
+  00126	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _neg$[ebp], 1
+$L48896:
+
+; 127  : 
+; 128  :    // remove the exponent and add in implicit one
+; 129  :    mantissa &= 0x007fffff;
+
+  0012d	8b 45 f4	 mov	 eax, DWORD PTR _mantissa$[ebp]
+  00130	25 ff ff 7f 00	 and	 eax, 8388607		; 007fffffH
+  00135	89 45 f4	 mov	 DWORD PTR _mantissa$[ebp], eax
+
+; 130  :    mantissa |= 0x00800000;
+
+  00138	8b 4d f4	 mov	 ecx, DWORD PTR _mantissa$[ebp]
+  0013b	81 c9 00 00 80
+	00		 or	 ecx, 8388608		; 00800000H
+  00141	89 4d f4	 mov	 DWORD PTR _mantissa$[ebp], ecx
+
+; 131  : 
+; 132  :    // exponent - remove mantissa and adjust for bias
+; 133  :    expnt &= 0x7F800000;
+
+  00144	8b 55 f8	 mov	 edx, DWORD PTR _expnt$[ebp]
+  00147	81 e2 00 00 80
+	7f		 and	 edx, 2139095040		; 7f800000H
+  0014d	89 55 f8	 mov	 DWORD PTR _expnt$[ebp], edx
+
+; 134  :    expnt >>= 23;
+
+  00150	8b 45 f8	 mov	 eax, DWORD PTR _expnt$[ebp]
+  00153	c1 f8 17	 sar	 eax, 23			; 00000017H
+  00156	89 45 f8	 mov	 DWORD PTR _expnt$[ebp], eax
+
+; 135  :    expnt -= 127;
+
+  00159	8b 4d f8	 mov	 ecx, DWORD PTR _expnt$[ebp]
+  0015c	83 e9 7f	 sub	 ecx, 127		; 0000007fH
+  0015f	89 4d f8	 mov	 DWORD PTR _expnt$[ebp], ecx
+
+; 136  : 
+; 137  :    // shift by the exponent to get rid of the exponent. Need to use
+; 138  :    // 23 - expnt because expnt is number of posistions to the left of
+; 139  :    // decimal and we want to get rid of the posistions to the right of
+; 140  :    // the decimal.
+; 141  :    
+; 142  : //   mantissa >>= (23 - expnt);
+; 143  : //PingZ 8/5/99  The above line is wrong.  It only works if expnt is less than 23. If expnt is 
+; 144  : //greater than 23 it will convert matissa to zero!
+; 145  : //Here is the correct way to do it.
+; 146  : 
+; 147  :    expnt = 23 - expnt;
+
+  00162	ba 17 00 00 00	 mov	 edx, 23			; 00000017H
+  00167	2b 55 f8	 sub	 edx, DWORD PTR _expnt$[ebp]
+  0016a	89 55 f8	 mov	 DWORD PTR _expnt$[ebp], edx
+
+; 148  : 
+; 149  :    if(expnt > 0) 
+
+  0016d	83 7d f8 00	 cmp	 DWORD PTR _expnt$[ebp], 0
+  00171	7e 0d		 jle	 SHORT $L48897
+
+; 150  :       mantissa >>= expnt;
+
+  00173	8b 45 f4	 mov	 eax, DWORD PTR _mantissa$[ebp]
+  00176	8b 4d f8	 mov	 ecx, DWORD PTR _expnt$[ebp]
+  00179	d3 f8		 sar	 eax, cl
+  0017b	89 45 f4	 mov	 DWORD PTR _mantissa$[ebp], eax
+
+; 151  :    else
+
+  0017e	eb 0d		 jmp	 SHORT $L48898
+$L48897:
+
+; 152  :       mantissa <<= (-expnt);
+
+  00180	8b 4d f8	 mov	 ecx, DWORD PTR _expnt$[ebp]
+  00183	f7 d9		 neg	 ecx
+  00185	8b 55 f4	 mov	 edx, DWORD PTR _mantissa$[ebp]
+  00188	d3 e2		 shl	 edx, cl
+  0018a	89 55 f4	 mov	 DWORD PTR _mantissa$[ebp], edx
+$L48898:
+
+; 153  : 
+; 154  : 
+; 155  :    if( neg )
+
+  0018d	83 7d fc 00	 cmp	 DWORD PTR _neg$[ebp], 0
+  00191	74 08		 je	 SHORT $L48899
+
+; 156  :      mantissa = -mantissa;
+
+  00193	8b 45 f4	 mov	 eax, DWORD PTR _mantissa$[ebp]
+  00196	f7 d8		 neg	 eax
+  00198	89 45 f4	 mov	 DWORD PTR _mantissa$[ebp], eax
+$L48899:
+
+; 157  : 
+; 158  :    return mantissa;
+
+  0019b	8b 45 f4	 mov	 eax, DWORD PTR _mantissa$[ebp]
+$L48890:
+
+; 159  : 
+; 160  :    // return( (long) f );
+; 161  : 
+; 162  : }// ddftol
+
+  0019e	8b e5		 mov	 esp, ebp
+  001a0	5d		 pop	 ebp
+  001a1	c3		 ret	 0
+_ddftol	ENDP
+_TEXT	ENDS
+PUBLIC	_dddtol
+_TEXT	SEGMENT
+_f$ = 8
+_expnt$ = -12
+_mantissa$ = -16
+_trails$ = -4
+_neg$ = -8
+_dddtol	PROC NEAR
+
+; 174  : {
+
+  001a2	55		 push	 ebp
+  001a3	8b ec		 mov	 ebp, esp
+  001a5	83 ec 10	 sub	 esp, 16			; 00000010H
+
+; 175  :    long       expnt, mantissa;
+; 176  :    DWORD      trails;
+; 177  :    BOOL       neg = FALSE;
+
+  001a8	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _neg$[ebp], 0
+
+; 178  : 
+; 179  :    trails = *( long *) &f;
+
+  001af	8b 45 08	 mov	 eax, DWORD PTR _f$[ebp]
+  001b2	89 45 fc	 mov	 DWORD PTR _trails$[ebp], eax
+
+; 180  :    trails &= 0xffe00000;
+
+  001b5	8b 4d fc	 mov	 ecx, DWORD PTR _trails$[ebp]
+  001b8	81 e1 00 00 e0
+	ff		 and	 ecx, -2097152		; ffe00000H
+  001be	89 4d fc	 mov	 DWORD PTR _trails$[ebp], ecx
+
+; 181  :    trails >>= 21;
+
+  001c1	8b 55 fc	 mov	 edx, DWORD PTR _trails$[ebp]
+  001c4	c1 ea 15	 shr	 edx, 21			; 00000015H
+  001c7	89 55 fc	 mov	 DWORD PTR _trails$[ebp], edx
+
+; 182  :    mantissa = expnt = *(long *)(( long *)&f + 1);
+
+  001ca	8b 45 0c	 mov	 eax, DWORD PTR _f$[ebp+4]
+  001cd	89 45 f4	 mov	 DWORD PTR _expnt$[ebp], eax
+  001d0	8b 4d f4	 mov	 ecx, DWORD PTR _expnt$[ebp]
+  001d3	89 4d f0	 mov	 DWORD PTR _mantissa$[ebp], ecx
+
+; 183  : 
+; 184  :    if( expnt & 0x80000000 )
+
+  001d6	8b 55 f4	 mov	 edx, DWORD PTR _expnt$[ebp]
+  001d9	81 e2 00 00 00
+	80		 and	 edx, -2147483648	; 80000000H
+  001df	85 d2		 test	 edx, edx
+  001e1	74 07		 je	 SHORT $L48911
+
+; 185  :      neg = TRUE;
+
+  001e3	c7 45 f8 01 00
+	00 00		 mov	 DWORD PTR _neg$[ebp], 1
+$L48911:
+
+; 186  : 
+; 187  :    // remove the exponent and add in implicit one
+; 188  :    mantissa &= 0x000fffff;
+
+  001ea	8b 45 f0	 mov	 eax, DWORD PTR _mantissa$[ebp]
+  001ed	25 ff ff 0f 00	 and	 eax, 1048575		; 000fffffH
+  001f2	89 45 f0	 mov	 DWORD PTR _mantissa$[ebp], eax
+
+; 189  :    mantissa |= 0x00100000;
+
+  001f5	8b 4d f0	 mov	 ecx, DWORD PTR _mantissa$[ebp]
+  001f8	81 c9 00 00 10
+	00		 or	 ecx, 1048576		; 00100000H
+  001fe	89 4d f0	 mov	 DWORD PTR _mantissa$[ebp], ecx
+
+; 190  : 
+; 191  :    mantissa <<= 11;
+
+  00201	8b 55 f0	 mov	 edx, DWORD PTR _mantissa$[ebp]
+  00204	c1 e2 0b	 shl	 edx, 11			; 0000000bH
+  00207	89 55 f0	 mov	 DWORD PTR _mantissa$[ebp], edx
+
+; 192  :    mantissa |= trails;
+
+  0020a	8b 45 f0	 mov	 eax, DWORD PTR _mantissa$[ebp]
+  0020d	0b 45 fc	 or	 eax, DWORD PTR _trails$[ebp]
+  00210	89 45 f0	 mov	 DWORD PTR _mantissa$[ebp], eax
+
+; 193  : 
+; 194  :    // exponent - remove mantissa and adjust for bias
+; 195  : 
+; 196  :    expnt &= 0x7FF00000;
+
+  00213	8b 4d f4	 mov	 ecx, DWORD PTR _expnt$[ebp]
+  00216	81 e1 00 00 f0
+	7f		 and	 ecx, 2146435072		; 7ff00000H
+  0021c	89 4d f4	 mov	 DWORD PTR _expnt$[ebp], ecx
+
+; 197  :    expnt >>= 20;
+
+  0021f	8b 55 f4	 mov	 edx, DWORD PTR _expnt$[ebp]
+  00222	c1 fa 14	 sar	 edx, 20			; 00000014H
+  00225	89 55 f4	 mov	 DWORD PTR _expnt$[ebp], edx
+
+; 198  :    expnt -= 1023;
+
+  00228	8b 45 f4	 mov	 eax, DWORD PTR _expnt$[ebp]
+  0022b	2d ff 03 00 00	 sub	 eax, 1023		; 000003ffH
+  00230	89 45 f4	 mov	 DWORD PTR _expnt$[ebp], eax
+
+; 199  : 
+; 200  :    expnt = 31 - expnt;
+
+  00233	b9 1f 00 00 00	 mov	 ecx, 31			; 0000001fH
+  00238	2b 4d f4	 sub	 ecx, DWORD PTR _expnt$[ebp]
+  0023b	89 4d f4	 mov	 DWORD PTR _expnt$[ebp], ecx
+
+; 201  : 
+; 202  :    if(expnt > 0) 
+
+  0023e	83 7d f4 00	 cmp	 DWORD PTR _expnt$[ebp], 0
+  00242	7e 0d		 jle	 SHORT $L48912
+
+; 203  :       mantissa >>= expnt;
+
+  00244	8b 55 f0	 mov	 edx, DWORD PTR _mantissa$[ebp]
+  00247	8b 4d f4	 mov	 ecx, DWORD PTR _expnt$[ebp]
+  0024a	d3 fa		 sar	 edx, cl
+  0024c	89 55 f0	 mov	 DWORD PTR _mantissa$[ebp], edx
+
+; 204  :    else
+
+  0024f	eb 0d		 jmp	 SHORT $L48913
+$L48912:
+
+; 205  :       mantissa <<= (-expnt);
+
+  00251	8b 4d f4	 mov	 ecx, DWORD PTR _expnt$[ebp]
+  00254	f7 d9		 neg	 ecx
+  00256	8b 45 f0	 mov	 eax, DWORD PTR _mantissa$[ebp]
+  00259	d3 e0		 shl	 eax, cl
+  0025b	89 45 f0	 mov	 DWORD PTR _mantissa$[ebp], eax
+$L48913:
+
+; 206  : 
+; 207  : 
+; 208  :    if( neg )
+
+  0025e	83 7d f8 00	 cmp	 DWORD PTR _neg$[ebp], 0
+  00262	74 08		 je	 SHORT $L48914
+
+; 209  :      mantissa = -mantissa;
+
+  00264	8b 4d f0	 mov	 ecx, DWORD PTR _mantissa$[ebp]
+  00267	f7 d9		 neg	 ecx
+  00269	89 4d f0	 mov	 DWORD PTR _mantissa$[ebp], ecx
+$L48914:
+
+; 210  : 
+; 211  :    return mantissa;
+
+  0026c	8b 45 f0	 mov	 eax, DWORD PTR _mantissa$[ebp]
+
+; 212  : 
+; 213  :    // return( (long) f );
+; 214  : 
+; 215  : }// dddftol
+
+  0026f	8b e5		 mov	 esp, ebp
+  00271	5d		 pop	 ebp
+  00272	c3		 ret	 0
+_dddtol	ENDP
+_TEXT	ENDS
+PUBLIC	_ddatof
+PUBLIC	__real@4@4002a000000000000000
+;	COMDAT __real@4@4002a000000000000000
+; File ..\runtime.c
+CONST	SEGMENT
+__real@4@4002a000000000000000 DD 041200000r	; 10
+CONST	ENDS
+_TEXT	SEGMENT
+_s$ = 8
+_left$ = -20
+_right$ = -8
+_sign$ = -16
+_mult$ = -4
+_i$ = -12
+_ddatof	PROC NEAR
+
+; 225  : {
+
+  00273	55		 push	 ebp
+  00274	8b ec		 mov	 ebp, esp
+  00276	83 ec 20	 sub	 esp, 32			; 00000020H
+
+; 226  :    float left, right, sign, mult;
+; 227  :    int i;
+; 228  : 
+; 229  :    for( i=0; s[i] == ' ' || s[i] == '\n' || s[i] == '\t'; i++)
+
+  00279	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  00280	eb 09		 jmp	 SHORT $L48923
+$L48924:
+  00282	8b 45 f4	 mov	 eax, DWORD PTR _i$[ebp]
+  00285	83 c0 01	 add	 eax, 1
+  00288	89 45 f4	 mov	 DWORD PTR _i$[ebp], eax
+$L48923:
+  0028b	8b 4d 08	 mov	 ecx, DWORD PTR _s$[ebp]
+  0028e	03 4d f4	 add	 ecx, DWORD PTR _i$[ebp]
+  00291	0f be 11	 movsx	 edx, BYTE PTR [ecx]
+  00294	83 fa 20	 cmp	 edx, 32			; 00000020H
+  00297	74 1c		 je	 SHORT $L48926
+  00299	8b 45 08	 mov	 eax, DWORD PTR _s$[ebp]
+  0029c	03 45 f4	 add	 eax, DWORD PTR _i$[ebp]
+  0029f	0f be 08	 movsx	 ecx, BYTE PTR [eax]
+  002a2	83 f9 0a	 cmp	 ecx, 10			; 0000000aH
+  002a5	74 0e		 je	 SHORT $L48926
+  002a7	8b 55 08	 mov	 edx, DWORD PTR _s$[ebp]
+  002aa	03 55 f4	 add	 edx, DWORD PTR _i$[ebp]
+  002ad	0f be 02	 movsx	 eax, BYTE PTR [edx]
+  002b0	83 f8 09	 cmp	 eax, 9
+  002b3	75 02		 jne	 SHORT $L48925
+$L48926:
+
+; 230  :      ;
+
+  002b5	eb cb		 jmp	 SHORT $L48924
+$L48925:
+
+; 231  : 
+; 232  :    if (s[i] == '+' || s[i] == '-')
+
+  002b7	8b 4d 08	 mov	 ecx, DWORD PTR _s$[ebp]
+  002ba	03 4d f4	 add	 ecx, DWORD PTR _i$[ebp]
+  002bd	0f be 11	 movsx	 edx, BYTE PTR [ecx]
+  002c0	83 fa 2b	 cmp	 edx, 43			; 0000002bH
+  002c3	74 0e		 je	 SHORT $L48928
+  002c5	8b 45 08	 mov	 eax, DWORD PTR _s$[ebp]
+  002c8	03 45 f4	 add	 eax, DWORD PTR _i$[ebp]
+  002cb	0f be 08	 movsx	 ecx, BYTE PTR [eax]
+  002ce	83 f9 2d	 cmp	 ecx, 45			; 0000002dH
+  002d1	75 2f		 jne	 SHORT $L48927
+$L48928:
+
+; 233  :      sign = (s[i++] == '+') ? 1.0f : -1.0f;
+
+  002d3	8b 55 08	 mov	 edx, DWORD PTR _s$[ebp]
+  002d6	03 55 f4	 add	 edx, DWORD PTR _i$[ebp]
+  002d9	0f be 02	 movsx	 eax, BYTE PTR [edx]
+  002dc	8b 4d f4	 mov	 ecx, DWORD PTR _i$[ebp]
+  002df	83 c1 01	 add	 ecx, 1
+  002e2	89 4d f4	 mov	 DWORD PTR _i$[ebp], ecx
+  002e5	83 f8 2b	 cmp	 eax, 43			; 0000002bH
+  002e8	75 09		 jne	 SHORT $L49123
+  002ea	c7 45 e8 00 00
+	80 3f		 mov	 DWORD PTR -24+[ebp], 1065353216 ; 3f800000H
+  002f1	eb 07		 jmp	 SHORT $L49124
+$L49123:
+  002f3	c7 45 e8 00 00
+	80 bf		 mov	 DWORD PTR -24+[ebp], -1082130432 ; bf800000H
+$L49124:
+  002fa	8b 55 e8	 mov	 edx, DWORD PTR -24+[ebp]
+  002fd	89 55 f0	 mov	 DWORD PTR _sign$[ebp], edx
+
+; 234  :    else
+
+  00300	eb 07		 jmp	 SHORT $L48929
+$L48927:
+
+; 235  :      sign = 1.0f; 
+
+  00302	c7 45 f0 00 00
+	80 3f		 mov	 DWORD PTR _sign$[ebp], 1065353216 ; 3f800000H
+$L48929:
+
+; 236  :  
+; 237  :    for (left = 0.0f; s[i] >= '0' && s[i] <= '9'; i++)
+
+  00309	c7 45 ec 00 00
+	00 00		 mov	 DWORD PTR _left$[ebp], 0
+  00310	eb 09		 jmp	 SHORT $L48930
+$L48931:
+  00312	8b 45 f4	 mov	 eax, DWORD PTR _i$[ebp]
+  00315	83 c0 01	 add	 eax, 1
+  00318	89 45 f4	 mov	 DWORD PTR _i$[ebp], eax
+$L48930:
+  0031b	8b 4d 08	 mov	 ecx, DWORD PTR _s$[ebp]
+  0031e	03 4d f4	 add	 ecx, DWORD PTR _i$[ebp]
+  00321	0f be 11	 movsx	 edx, BYTE PTR [ecx]
+  00324	83 fa 30	 cmp	 edx, 48			; 00000030H
+  00327	7c 2e		 jl	 SHORT $L48932
+  00329	8b 45 08	 mov	 eax, DWORD PTR _s$[ebp]
+  0032c	03 45 f4	 add	 eax, DWORD PTR _i$[ebp]
+  0032f	0f be 08	 movsx	 ecx, BYTE PTR [eax]
+  00332	83 f9 39	 cmp	 ecx, 57			; 00000039H
+  00335	7f 20		 jg	 SHORT $L48932
+
+; 238  :      left = (left * 10.0f) + (s[i] - '0');
+
+  00337	d9 45 ec	 fld	 DWORD PTR _left$[ebp]
+  0033a	d8 0d 00 00 00
+	00		 fmul	 DWORD PTR __real@4@4002a000000000000000
+  00340	8b 55 08	 mov	 edx, DWORD PTR _s$[ebp]
+  00343	03 55 f4	 add	 edx, DWORD PTR _i$[ebp]
+  00346	0f be 02	 movsx	 eax, BYTE PTR [edx]
+  00349	83 e8 30	 sub	 eax, 48			; 00000030H
+  0034c	89 45 e4	 mov	 DWORD PTR -28+[ebp], eax
+  0034f	da 45 e4	 fiadd	 DWORD PTR -28+[ebp]
+  00352	d9 5d ec	 fstp	 DWORD PTR _left$[ebp]
+  00355	eb bb		 jmp	 SHORT $L48931
+$L48932:
+
+; 239  : 
+; 240  :    if (s[i++] != '.')
+
+  00357	8b 4d 08	 mov	 ecx, DWORD PTR _s$[ebp]
+  0035a	03 4d f4	 add	 ecx, DWORD PTR _i$[ebp]
+  0035d	0f be 11	 movsx	 edx, BYTE PTR [ecx]
+  00360	8b 45 f4	 mov	 eax, DWORD PTR _i$[ebp]
+  00363	83 c0 01	 add	 eax, 1
+  00366	89 45 f4	 mov	 DWORD PTR _i$[ebp], eax
+  00369	83 fa 2e	 cmp	 edx, 46			; 0000002eH
+  0036c	74 08		 je	 SHORT $L48933
+
+; 241  :      return( sign * left );
+
+  0036e	d9 45 f0	 fld	 DWORD PTR _sign$[ebp]
+  00371	d8 4d ec	 fmul	 DWORD PTR _left$[ebp]
+  00374	eb 67		 jmp	 SHORT $L48917
+$L48933:
+
+; 242  :      
+; 243  :    for (mult = 0.1f, right = 0.0f; s[i] >= '0' && s[i] <= '9'; i++, mult /= 10.0f)
+
+  00376	c7 45 fc cd cc
+	cc 3d		 mov	 DWORD PTR _mult$[ebp], 1036831949 ; 3dcccccdH
+  0037d	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _right$[ebp], 0
+  00384	eb 15		 jmp	 SHORT $L48934
+$L48935:
+  00386	8b 4d f4	 mov	 ecx, DWORD PTR _i$[ebp]
+  00389	83 c1 01	 add	 ecx, 1
+  0038c	89 4d f4	 mov	 DWORD PTR _i$[ebp], ecx
+  0038f	d9 45 fc	 fld	 DWORD PTR _mult$[ebp]
+  00392	d8 35 00 00 00
+	00		 fdiv	 DWORD PTR __real@4@4002a000000000000000
+  00398	d9 5d fc	 fstp	 DWORD PTR _mult$[ebp]
+$L48934:
+  0039b	8b 55 08	 mov	 edx, DWORD PTR _s$[ebp]
+  0039e	03 55 f4	 add	 edx, DWORD PTR _i$[ebp]
+  003a1	0f be 02	 movsx	 eax, BYTE PTR [edx]
+  003a4	83 f8 30	 cmp	 eax, 48			; 00000030H
+  003a7	7c 2b		 jl	 SHORT $L48936
+  003a9	8b 4d 08	 mov	 ecx, DWORD PTR _s$[ebp]
+  003ac	03 4d f4	 add	 ecx, DWORD PTR _i$[ebp]
+  003af	0f be 11	 movsx	 edx, BYTE PTR [ecx]
+  003b2	83 fa 39	 cmp	 edx, 57			; 00000039H
+  003b5	7f 1d		 jg	 SHORT $L48936
+
+; 244  :      right = right + (mult * (s[i] - '0'));
+
+  003b7	8b 45 08	 mov	 eax, DWORD PTR _s$[ebp]
+  003ba	03 45 f4	 add	 eax, DWORD PTR _i$[ebp]
+  003bd	0f be 08	 movsx	 ecx, BYTE PTR [eax]
+  003c0	83 e9 30	 sub	 ecx, 48			; 00000030H
+  003c3	89 4d e0	 mov	 DWORD PTR -32+[ebp], ecx
+  003c6	db 45 e0	 fild	 DWORD PTR -32+[ebp]
+  003c9	d8 4d fc	 fmul	 DWORD PTR _mult$[ebp]
+  003cc	d8 45 f8	 fadd	 DWORD PTR _right$[ebp]
+  003cf	d9 5d f8	 fstp	 DWORD PTR _right$[ebp]
+  003d2	eb b2		 jmp	 SHORT $L48935
+$L48936:
+
+; 245  : 
+; 246  :    return (sign * (left + right));
+
+  003d4	d9 45 ec	 fld	 DWORD PTR _left$[ebp]
+  003d7	d8 45 f8	 fadd	 DWORD PTR _right$[ebp]
+  003da	d8 4d f0	 fmul	 DWORD PTR _sign$[ebp]
+$L48917:
+
+; 247  : 
+; 248  :    // return( atof(s) );     // Tests the runtime library
+; 249  : }// ddatof
+
+  003dd	8b e5		 mov	 esp, ebp
+  003df	5d		 pop	 ebp
+  003e0	c3		 ret	 0
+_ddatof	ENDP
+_TEXT	ENDS
+PUBLIC	_ddsscanf
+_TEXT	SEGMENT
+_s$ = 8
+_fmt$ = 12
+_result$ = 16
+_i$ = -4
+_n$ = -12
+_sign$ = -8
+_ddsscanf PROC NEAR
+
+; 260  : {
+
+  003e1	55		 push	 ebp
+  003e2	8b ec		 mov	 ebp, esp
+  003e4	83 ec 10	 sub	 esp, 16			; 00000010H
+
+; 261  :    int i, n, sign;
+; 262  : 
+; 263  :    // XXX convert to lower case for safety, speed not important here
+; 264  :    for (i=0; '\0' != s[i]; i++)
+
+  003e7	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  003ee	eb 09		 jmp	 SHORT $L48947
+$L48948:
+  003f0	8b 45 fc	 mov	 eax, DWORD PTR _i$[ebp]
+  003f3	83 c0 01	 add	 eax, 1
+  003f6	89 45 fc	 mov	 DWORD PTR _i$[ebp], eax
+$L48947:
+  003f9	8b 4d 08	 mov	 ecx, DWORD PTR _s$[ebp]
+  003fc	03 4d fc	 add	 ecx, DWORD PTR _i$[ebp]
+  003ff	0f be 11	 movsx	 edx, BYTE PTR [ecx]
+  00402	85 d2		 test	 edx, edx
+  00404	74 32		 je	 SHORT $L48949
+
+; 266  :       if ((s[i]>='A') && (s[i]<='Z'))
+
+  00406	8b 45 08	 mov	 eax, DWORD PTR _s$[ebp]
+  00409	03 45 fc	 add	 eax, DWORD PTR _i$[ebp]
+  0040c	0f be 08	 movsx	 ecx, BYTE PTR [eax]
+  0040f	83 f9 41	 cmp	 ecx, 65			; 00000041H
+  00412	7c 22		 jl	 SHORT $L48950
+  00414	8b 55 08	 mov	 edx, DWORD PTR _s$[ebp]
+  00417	03 55 fc	 add	 edx, DWORD PTR _i$[ebp]
+  0041a	0f be 02	 movsx	 eax, BYTE PTR [edx]
+  0041d	83 f8 5a	 cmp	 eax, 90			; 0000005aH
+  00420	7f 14		 jg	 SHORT $L48950
+
+; 267  :          s[i]=s[i]-'A'+'a';
+
+  00422	8b 4d 08	 mov	 ecx, DWORD PTR _s$[ebp]
+  00425	03 4d fc	 add	 ecx, DWORD PTR _i$[ebp]
+  00428	0f be 11	 movsx	 edx, BYTE PTR [ecx]
+  0042b	83 c2 20	 add	 edx, 32			; 00000020H
+  0042e	8b 45 08	 mov	 eax, DWORD PTR _s$[ebp]
+  00431	03 45 fc	 add	 eax, DWORD PTR _i$[ebp]
+  00434	88 10		 mov	 BYTE PTR [eax], dl
+$L48950:
+
+; 268  :       }
+
+  00436	eb b8		 jmp	 SHORT $L48948
+$L48949:
+
+; 269  : 
+; 270  :    if ( fmt[0] == '%' && fmt[1] == 'i' )
+
+  00438	8b 4d 0c	 mov	 ecx, DWORD PTR _fmt$[ebp]
+  0043b	0f be 11	 movsx	 edx, BYTE PTR [ecx]
+  0043e	83 fa 25	 cmp	 edx, 37			; 00000025H
+  00441	0f 85 cb 01 00
+	00		 jne	 $L48967
+  00447	8b 45 0c	 mov	 eax, DWORD PTR _fmt$[ebp]
+  0044a	0f be 48 01	 movsx	 ecx, BYTE PTR [eax+1]
+  0044e	83 f9 69	 cmp	 ecx, 105		; 00000069H
+  00451	0f 85 bb 01 00
+	00		 jne	 $L48967
+
+; 272  :      for( i=0; s[i] == ' ' || s[i] == '\n' || s[i] == '\t'; i++)
+
+  00457	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  0045e	eb 09		 jmp	 SHORT $L48952
+$L48953:
+  00460	8b 55 fc	 mov	 edx, DWORD PTR _i$[ebp]
+  00463	83 c2 01	 add	 edx, 1
+  00466	89 55 fc	 mov	 DWORD PTR _i$[ebp], edx
+$L48952:
+  00469	8b 45 08	 mov	 eax, DWORD PTR _s$[ebp]
+  0046c	03 45 fc	 add	 eax, DWORD PTR _i$[ebp]
+  0046f	0f be 08	 movsx	 ecx, BYTE PTR [eax]
+  00472	83 f9 20	 cmp	 ecx, 32			; 00000020H
+  00475	74 1c		 je	 SHORT $L48955
+  00477	8b 55 08	 mov	 edx, DWORD PTR _s$[ebp]
+  0047a	03 55 fc	 add	 edx, DWORD PTR _i$[ebp]
+  0047d	0f be 02	 movsx	 eax, BYTE PTR [edx]
+  00480	83 f8 0a	 cmp	 eax, 10			; 0000000aH
+  00483	74 0e		 je	 SHORT $L48955
+  00485	8b 4d 08	 mov	 ecx, DWORD PTR _s$[ebp]
+  00488	03 4d fc	 add	 ecx, DWORD PTR _i$[ebp]
+  0048b	0f be 11	 movsx	 edx, BYTE PTR [ecx]
+  0048e	83 fa 09	 cmp	 edx, 9
+  00491	75 02		 jne	 SHORT $L48954
+$L48955:
+
+; 273  :        ;
+
+  00493	eb cb		 jmp	 SHORT $L48953
+$L48954:
+
+; 274  :      sign = 1;
+
+  00495	c7 45 f8 01 00
+	00 00		 mov	 DWORD PTR _sign$[ebp], 1
+
+; 275  :      if (s[i] == '+' || s[i] == '-')
+
+  0049c	8b 45 08	 mov	 eax, DWORD PTR _s$[ebp]
+  0049f	03 45 fc	 add	 eax, DWORD PTR _i$[ebp]
+  004a2	0f be 08	 movsx	 ecx, BYTE PTR [eax]
+  004a5	83 f9 2b	 cmp	 ecx, 43			; 0000002bH
+  004a8	74 0e		 je	 SHORT $L48957
+  004aa	8b 55 08	 mov	 edx, DWORD PTR _s$[ebp]
+  004ad	03 55 fc	 add	 edx, DWORD PTR _i$[ebp]
+  004b0	0f be 02	 movsx	 eax, BYTE PTR [edx]
+  004b3	83 f8 2d	 cmp	 eax, 45			; 0000002dH
+  004b6	75 2d		 jne	 SHORT $L48956
+$L48957:
+
+; 276  :        sign = (s[i++] == '+') ? 1 : -1;
+
+  004b8	8b 4d 08	 mov	 ecx, DWORD PTR _s$[ebp]
+  004bb	03 4d fc	 add	 ecx, DWORD PTR _i$[ebp]
+  004be	0f be 11	 movsx	 edx, BYTE PTR [ecx]
+  004c1	8b 45 fc	 mov	 eax, DWORD PTR _i$[ebp]
+  004c4	83 c0 01	 add	 eax, 1
+  004c7	89 45 fc	 mov	 DWORD PTR _i$[ebp], eax
+  004ca	83 fa 2b	 cmp	 edx, 43			; 0000002bH
+  004cd	75 09		 jne	 SHORT $L49128
+  004cf	c7 45 f0 01 00
+	00 00		 mov	 DWORD PTR -16+[ebp], 1
+  004d6	eb 07		 jmp	 SHORT $L49129
+$L49128:
+  004d8	c7 45 f0 ff ff
+	ff ff		 mov	 DWORD PTR -16+[ebp], -1
+$L49129:
+  004df	8b 4d f0	 mov	 ecx, DWORD PTR -16+[ebp]
+  004e2	89 4d f8	 mov	 DWORD PTR _sign$[ebp], ecx
+$L48956:
+
+; 277  : 
+; 278  :      if (s[i] == '0' && s[i+1] == 'x' )    //HEX
+
+  004e5	8b 55 08	 mov	 edx, DWORD PTR _s$[ebp]
+  004e8	03 55 fc	 add	 edx, DWORD PTR _i$[ebp]
+  004eb	0f be 02	 movsx	 eax, BYTE PTR [edx]
+  004ee	83 f8 30	 cmp	 eax, 48			; 00000030H
+  004f1	0f 85 c5 00 00
+	00		 jne	 $L48958
+  004f7	8b 4d 08	 mov	 ecx, DWORD PTR _s$[ebp]
+  004fa	03 4d fc	 add	 ecx, DWORD PTR _i$[ebp]
+  004fd	0f be 51 01	 movsx	 edx, BYTE PTR [ecx+1]
+  00501	83 fa 78	 cmp	 edx, 120		; 00000078H
+  00504	0f 85 b2 00 00
+	00		 jne	 $L48958
+
+; 280  :        i += 2;
+
+  0050a	8b 45 fc	 mov	 eax, DWORD PTR _i$[ebp]
+  0050d	83 c0 02	 add	 eax, 2
+  00510	89 45 fc	 mov	 DWORD PTR _i$[ebp], eax
+
+; 281  :        for (n = 0; ( (s[i] >= '0' && s[i] <= '9') ||
+; 282  :                      (s[i] >= 'a' && s[i] <= 'f') ); i++ )
+
+  00513	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _n$[ebp], 0
+  0051a	eb 09		 jmp	 SHORT $L48959
+$L48960:
+  0051c	8b 4d fc	 mov	 ecx, DWORD PTR _i$[ebp]
+  0051f	83 c1 01	 add	 ecx, 1
+  00522	89 4d fc	 mov	 DWORD PTR _i$[ebp], ecx
+$L48959:
+  00525	8b 55 08	 mov	 edx, DWORD PTR _s$[ebp]
+  00528	03 55 fc	 add	 edx, DWORD PTR _i$[ebp]
+  0052b	0f be 02	 movsx	 eax, BYTE PTR [edx]
+  0052e	83 f8 30	 cmp	 eax, 48			; 00000030H
+  00531	7c 0e		 jl	 SHORT $L48963
+  00533	8b 4d 08	 mov	 ecx, DWORD PTR _s$[ebp]
+  00536	03 4d fc	 add	 ecx, DWORD PTR _i$[ebp]
+  00539	0f be 11	 movsx	 edx, BYTE PTR [ecx]
+  0053c	83 fa 39	 cmp	 edx, 57			; 00000039H
+  0053f	7e 1c		 jle	 SHORT $L48962
+$L48963:
+  00541	8b 45 08	 mov	 eax, DWORD PTR _s$[ebp]
+  00544	03 45 fc	 add	 eax, DWORD PTR _i$[ebp]
+  00547	0f be 08	 movsx	 ecx, BYTE PTR [eax]
+  0054a	83 f9 61	 cmp	 ecx, 97			; 00000061H
+  0054d	7c 5d		 jl	 SHORT $L48961
+  0054f	8b 55 08	 mov	 edx, DWORD PTR _s$[ebp]
+  00552	03 55 fc	 add	 edx, DWORD PTR _i$[ebp]
+  00555	0f be 02	 movsx	 eax, BYTE PTR [edx]
+  00558	83 f8 66	 cmp	 eax, 102		; 00000066H
+  0055b	7f 4f		 jg	 SHORT $L48961
+$L48962:
+
+; 284  :          if (s[i] >= '0' && s[i] <= '9')
+
+  0055d	8b 4d 08	 mov	 ecx, DWORD PTR _s$[ebp]
+  00560	03 4d fc	 add	 ecx, DWORD PTR _i$[ebp]
+  00563	0f be 11	 movsx	 edx, BYTE PTR [ecx]
+  00566	83 fa 30	 cmp	 edx, 48			; 00000030H
+  00569	7c 26		 jl	 SHORT $L48964
+  0056b	8b 45 08	 mov	 eax, DWORD PTR _s$[ebp]
+  0056e	03 45 fc	 add	 eax, DWORD PTR _i$[ebp]
+  00571	0f be 08	 movsx	 ecx, BYTE PTR [eax]
+  00574	83 f9 39	 cmp	 ecx, 57			; 00000039H
+  00577	7f 18		 jg	 SHORT $L48964
+
+; 285  :             n = 16 * n + s[i] - '0';
+
+  00579	8b 55 f4	 mov	 edx, DWORD PTR _n$[ebp]
+  0057c	c1 e2 04	 shl	 edx, 4
+  0057f	8b 45 08	 mov	 eax, DWORD PTR _s$[ebp]
+  00582	03 45 fc	 add	 eax, DWORD PTR _i$[ebp]
+  00585	0f be 08	 movsx	 ecx, BYTE PTR [eax]
+  00588	8d 54 0a d0	 lea	 edx, DWORD PTR [edx+ecx-48]
+  0058c	89 55 f4	 mov	 DWORD PTR _n$[ebp], edx
+
+; 286  :          else
+
+  0058f	eb 16		 jmp	 SHORT $L48965
+$L48964:
+
+; 287  :             n = 16 * n + (s[i] - 'a' + 10);
+
+  00591	8b 45 f4	 mov	 eax, DWORD PTR _n$[ebp]
+  00594	c1 e0 04	 shl	 eax, 4
+  00597	8b 4d 08	 mov	 ecx, DWORD PTR _s$[ebp]
+  0059a	03 4d fc	 add	 ecx, DWORD PTR _i$[ebp]
+  0059d	0f be 11	 movsx	 edx, BYTE PTR [ecx]
+  005a0	8d 44 10 a9	 lea	 eax, DWORD PTR [eax+edx-87]
+  005a4	89 45 f4	 mov	 DWORD PTR _n$[ebp], eax
+$L48965:
+
+; 288  :        }
+
+  005a7	e9 70 ff ff ff	 jmp	 $L48960
+$L48961:
+
+; 289  :        *result = (FxU32) (sign * n);
+
+  005ac	8b 4d f8	 mov	 ecx, DWORD PTR _sign$[ebp]
+  005af	0f af 4d f4	 imul	 ecx, DWORD PTR _n$[ebp]
+  005b3	8b 55 10	 mov	 edx, DWORD PTR _result$[ebp]
+  005b6	89 0a		 mov	 DWORD PTR [edx], ecx
+
+; 290  :        return 0;
+
+  005b8	33 c0		 xor	 eax, eax
+  005ba	eb 59		 jmp	 SHORT $L48943
+$L48958:
+
+; 294  :        for (n = 0; s[i] >= '0' && s[i] <= '9'; i++)
+
+  005bc	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _n$[ebp], 0
+  005c3	eb 09		 jmp	 SHORT $L48968
+$L48969:
+  005c5	8b 45 fc	 mov	 eax, DWORD PTR _i$[ebp]
+  005c8	83 c0 01	 add	 eax, 1
+  005cb	89 45 fc	 mov	 DWORD PTR _i$[ebp], eax
+$L48968:
+  005ce	8b 4d 08	 mov	 ecx, DWORD PTR _s$[ebp]
+  005d1	03 4d fc	 add	 ecx, DWORD PTR _i$[ebp]
+  005d4	0f be 11	 movsx	 edx, BYTE PTR [ecx]
+  005d7	83 fa 30	 cmp	 edx, 48			; 00000030H
+  005da	7c 26		 jl	 SHORT $L48970
+  005dc	8b 45 08	 mov	 eax, DWORD PTR _s$[ebp]
+  005df	03 45 fc	 add	 eax, DWORD PTR _i$[ebp]
+  005e2	0f be 08	 movsx	 ecx, BYTE PTR [eax]
+  005e5	83 f9 39	 cmp	 ecx, 57			; 00000039H
+  005e8	7f 18		 jg	 SHORT $L48970
+
+; 295  :          n = 10 * n + s[i] - '0';
+
+  005ea	8b 55 f4	 mov	 edx, DWORD PTR _n$[ebp]
+  005ed	6b d2 0a	 imul	 edx, 10			; 0000000aH
+  005f0	8b 45 08	 mov	 eax, DWORD PTR _s$[ebp]
+  005f3	03 45 fc	 add	 eax, DWORD PTR _i$[ebp]
+  005f6	0f be 08	 movsx	 ecx, BYTE PTR [eax]
+  005f9	8d 54 0a d0	 lea	 edx, DWORD PTR [edx+ecx-48]
+  005fd	89 55 f4	 mov	 DWORD PTR _n$[ebp], edx
+  00600	eb c3		 jmp	 SHORT $L48969
+$L48970:
+
+; 296  :        *result = (FxU32) (sign * n);
+
+  00602	8b 45 f8	 mov	 eax, DWORD PTR _sign$[ebp]
+  00605	0f af 45 f4	 imul	 eax, DWORD PTR _n$[ebp]
+  00609	8b 4d 10	 mov	 ecx, DWORD PTR _result$[ebp]
+  0060c	89 01		 mov	 DWORD PTR [ecx], eax
+
+; 297  :        return 0;
+
+  0060e	33 c0		 xor	 eax, eax
+  00610	eb 03		 jmp	 SHORT $L48943
+$L48967:
+
+; 300  : 
+; 301  :   return -1;
+
+  00612	83 c8 ff	 or	 eax, -1
+$L48943:
+
+; 302  : }//  ddsscanf
+
+  00615	8b e5		 mov	 esp, ebp
+  00617	5d		 pop	 ebp
+  00618	c3		 ret	 0
+_ddsscanf ENDP
+_TEXT	ENDS
+PUBLIC	_ddxtoa
+_TEXT	SEGMENT
+_val$ = 8
+_result$ = 12
+_temp_val$ = -12
+_rem$ = -4
+_i$ = -16
+_digits$ = -8
+_ddxtoa	PROC NEAR
+
+; 313  : {
+
+  00619	55		 push	 ebp
+  0061a	8b ec		 mov	 ebp, esp
+  0061c	83 ec 10	 sub	 esp, 16			; 00000010H
+
+; 314  :    // Postive Numbers Only
+; 315  : 
+; 316  :    DWORD   temp_val, rem;
+; 317  :    int     i=0;
+
+  0061f	c7 45 f0 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+
+; 318  :    int     digits=0;
+
+  00626	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _digits$[ebp], 0
+
+; 319  : 
+; 320  :    temp_val = val;
+
+  0062d	8b 45 08	 mov	 eax, DWORD PTR _val$[ebp]
+  00630	89 45 f4	 mov	 DWORD PTR _temp_val$[ebp], eax
+$L48982:
+
+; 321  :    while(  (temp_val /= 16) > 0 )
+
+  00633	8b 4d f4	 mov	 ecx, DWORD PTR _temp_val$[ebp]
+  00636	c1 e9 04	 shr	 ecx, 4
+  00639	89 4d f4	 mov	 DWORD PTR _temp_val$[ebp], ecx
+  0063c	83 7d f4 00	 cmp	 DWORD PTR _temp_val$[ebp], 0
+  00640	76 0b		 jbe	 SHORT $L48983
+
+; 322  :       digits++;
+
+  00642	8b 55 f8	 mov	 edx, DWORD PTR _digits$[ebp]
+  00645	83 c2 01	 add	 edx, 1
+  00648	89 55 f8	 mov	 DWORD PTR _digits$[ebp], edx
+  0064b	eb e6		 jmp	 SHORT $L48982
+$L48983:
+
+; 323  : 
+; 324  :    temp_val = val;
+
+  0064d	8b 45 08	 mov	 eax, DWORD PTR _val$[ebp]
+  00650	89 45 f4	 mov	 DWORD PTR _temp_val$[ebp], eax
+
+; 325  : 
+; 326  :    result[digits+1] = '\n';
+
+  00653	8b 4d 0c	 mov	 ecx, DWORD PTR _result$[ebp]
+  00656	03 4d f8	 add	 ecx, DWORD PTR _digits$[ebp]
+  00659	c6 41 01 0a	 mov	 BYTE PTR [ecx+1], 10	; 0000000aH
+
+; 327  : 
+; 328  :    for( i=digits; i>=0; --i)
+
+  0065d	8b 55 f8	 mov	 edx, DWORD PTR _digits$[ebp]
+  00660	89 55 f0	 mov	 DWORD PTR _i$[ebp], edx
+  00663	eb 09		 jmp	 SHORT $L48984
+$L48985:
+  00665	8b 45 f0	 mov	 eax, DWORD PTR _i$[ebp]
+  00668	83 e8 01	 sub	 eax, 1
+  0066b	89 45 f0	 mov	 DWORD PTR _i$[ebp], eax
+$L48984:
+  0066e	83 7d f0 00	 cmp	 DWORD PTR _i$[ebp], 0
+  00672	7c 66		 jl	 SHORT $L48986
+
+; 330  :       rem = temp_val % 16;
+
+  00674	8b 45 f4	 mov	 eax, DWORD PTR _temp_val$[ebp]
+  00677	33 d2		 xor	 edx, edx
+  00679	b9 10 00 00 00	 mov	 ecx, 16			; 00000010H
+  0067e	f7 f1		 div	 ecx
+  00680	89 55 fc	 mov	 DWORD PTR _rem$[ebp], edx
+
+; 331  :       temp_val /= 16;
+
+  00683	8b 55 f4	 mov	 edx, DWORD PTR _temp_val$[ebp]
+  00686	c1 ea 04	 shr	 edx, 4
+  00689	89 55 f4	 mov	 DWORD PTR _temp_val$[ebp], edx
+
+; 332  : 
+; 333  :       if( rem >= 0 &&  rem <= 9)
+
+  0068c	83 7d fc 00	 cmp	 DWORD PTR _rem$[ebp], 0
+  00690	72 25		 jb	 SHORT $L48987
+  00692	83 7d fc 09	 cmp	 DWORD PTR _rem$[ebp], 9
+  00696	77 1f		 ja	 SHORT $L48987
+
+; 335  :         result[i] = (char) rem;
+
+  00698	8b 45 0c	 mov	 eax, DWORD PTR _result$[ebp]
+  0069b	03 45 f0	 add	 eax, DWORD PTR _i$[ebp]
+  0069e	8a 4d fc	 mov	 cl, BYTE PTR _rem$[ebp]
+  006a1	88 08		 mov	 BYTE PTR [eax], cl
+
+; 336  :         result[i] += '0';
+
+  006a3	8b 55 0c	 mov	 edx, DWORD PTR _result$[ebp]
+  006a6	03 55 f0	 add	 edx, DWORD PTR _i$[ebp]
+  006a9	8a 02		 mov	 al, BYTE PTR [edx]
+  006ab	04 30		 add	 al, 48			; 00000030H
+  006ad	8b 4d 0c	 mov	 ecx, DWORD PTR _result$[ebp]
+  006b0	03 4d f0	 add	 ecx, DWORD PTR _i$[ebp]
+  006b3	88 01		 mov	 BYTE PTR [ecx], al
+
+; 338  :       else
+
+  006b5	eb 21		 jmp	 SHORT $L48989
+$L48987:
+
+; 340  :         result[i] = (char) (rem - 10);
+
+  006b7	8b 55 fc	 mov	 edx, DWORD PTR _rem$[ebp]
+  006ba	83 ea 0a	 sub	 edx, 10			; 0000000aH
+  006bd	8b 45 0c	 mov	 eax, DWORD PTR _result$[ebp]
+  006c0	03 45 f0	 add	 eax, DWORD PTR _i$[ebp]
+  006c3	88 10		 mov	 BYTE PTR [eax], dl
+
+; 341  :         result[i] += 'a';
+
+  006c5	8b 4d 0c	 mov	 ecx, DWORD PTR _result$[ebp]
+  006c8	03 4d f0	 add	 ecx, DWORD PTR _i$[ebp]
+  006cb	8a 11		 mov	 dl, BYTE PTR [ecx]
+  006cd	80 c2 61	 add	 dl, 97			; 00000061H
+  006d0	8b 45 0c	 mov	 eax, DWORD PTR _result$[ebp]
+  006d3	03 45 f0	 add	 eax, DWORD PTR _i$[ebp]
+  006d6	88 10		 mov	 BYTE PTR [eax], dl
+$L48989:
+
+; 343  :    }
+
+  006d8	eb 8b		 jmp	 SHORT $L48985
+$L48986:
+
+; 344  :    return 1;
+
+  006da	b8 01 00 00 00	 mov	 eax, 1
+
+; 345  : }// ddxtoa
+
+  006df	8b e5		 mov	 esp, ebp
+  006e1	5d		 pop	 ebp
+  006e2	c3		 ret	 0
+_ddxtoa	ENDP
+_TEXT	ENDS
+PUBLIC	_dditoa
+_TEXT	SEGMENT
+_val$ = 8
+_result$ = 12
+_temp_val$ = -12
+_rem$ = -4
+_i$ = -16
+_digits$ = -8
+_dditoa	PROC NEAR
+
+; 355  : {
+
+  006e3	55		 push	 ebp
+  006e4	8b ec		 mov	 ebp, esp
+  006e6	83 ec 10	 sub	 esp, 16			; 00000010H
+
+; 356  :    DWORD     temp_val, rem; // sign;
+; 357  :    int     i=0;
+
+  006e9	c7 45 f0 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+
+; 358  :    int     digits=0;
+
+  006f0	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _digits$[ebp], 0
+
+; 359  : 
+; 360  : 
+; 361  :    temp_val = (DWORD) val;
+
+  006f7	8b 45 08	 mov	 eax, DWORD PTR _val$[ebp]
+  006fa	89 45 f4	 mov	 DWORD PTR _temp_val$[ebp], eax
+$L49002:
+
+; 362  :    while(  (temp_val /= 10) != 0 )
+
+  006fd	8b 45 f4	 mov	 eax, DWORD PTR _temp_val$[ebp]
+  00700	33 d2		 xor	 edx, edx
+  00702	b9 0a 00 00 00	 mov	 ecx, 10			; 0000000aH
+  00707	f7 f1		 div	 ecx
+  00709	89 45 f4	 mov	 DWORD PTR _temp_val$[ebp], eax
+  0070c	83 7d f4 00	 cmp	 DWORD PTR _temp_val$[ebp], 0
+  00710	74 0b		 je	 SHORT $L49003
+
+; 363  :       digits++;
+
+  00712	8b 55 f8	 mov	 edx, DWORD PTR _digits$[ebp]
+  00715	83 c2 01	 add	 edx, 1
+  00718	89 55 f8	 mov	 DWORD PTR _digits$[ebp], edx
+  0071b	eb e0		 jmp	 SHORT $L49002
+$L49003:
+
+; 364  : 
+; 365  : 
+; 366  :    temp_val = (DWORD) val;
+
+  0071d	8b 45 08	 mov	 eax, DWORD PTR _val$[ebp]
+  00720	89 45 f4	 mov	 DWORD PTR _temp_val$[ebp], eax
+
+; 367  :    for( i=digits; i>=0; --i)
+
+  00723	8b 4d f8	 mov	 ecx, DWORD PTR _digits$[ebp]
+  00726	89 4d f0	 mov	 DWORD PTR _i$[ebp], ecx
+  00729	eb 09		 jmp	 SHORT $L49005
+$L49006:
+  0072b	8b 55 f0	 mov	 edx, DWORD PTR _i$[ebp]
+  0072e	83 ea 01	 sub	 edx, 1
+  00731	89 55 f0	 mov	 DWORD PTR _i$[ebp], edx
+$L49005:
+  00734	83 7d f0 00	 cmp	 DWORD PTR _i$[ebp], 0
+  00738	7c 3e		 jl	 SHORT $L49007
+
+; 369  :       rem = temp_val % 10;
+
+  0073a	8b 45 f4	 mov	 eax, DWORD PTR _temp_val$[ebp]
+  0073d	33 d2		 xor	 edx, edx
+  0073f	b9 0a 00 00 00	 mov	 ecx, 10			; 0000000aH
+  00744	f7 f1		 div	 ecx
+  00746	89 55 fc	 mov	 DWORD PTR _rem$[ebp], edx
+
+; 370  :       temp_val /= 10;
+
+  00749	8b 45 f4	 mov	 eax, DWORD PTR _temp_val$[ebp]
+  0074c	33 d2		 xor	 edx, edx
+  0074e	b9 0a 00 00 00	 mov	 ecx, 10			; 0000000aH
+  00753	f7 f1		 div	 ecx
+  00755	89 45 f4	 mov	 DWORD PTR _temp_val$[ebp], eax
+
+; 371  :       result[i] = (char) rem;
+
+  00758	8b 55 0c	 mov	 edx, DWORD PTR _result$[ebp]
+  0075b	03 55 f0	 add	 edx, DWORD PTR _i$[ebp]
+  0075e	8a 45 fc	 mov	 al, BYTE PTR _rem$[ebp]
+  00761	88 02		 mov	 BYTE PTR [edx], al
+
+; 372  :       result[i] += '0';
+
+  00763	8b 4d 0c	 mov	 ecx, DWORD PTR _result$[ebp]
+  00766	03 4d f0	 add	 ecx, DWORD PTR _i$[ebp]
+  00769	8a 11		 mov	 dl, BYTE PTR [ecx]
+  0076b	80 c2 30	 add	 dl, 48			; 00000030H
+  0076e	8b 45 0c	 mov	 eax, DWORD PTR _result$[ebp]
+  00771	03 45 f0	 add	 eax, DWORD PTR _i$[ebp]
+  00774	88 10		 mov	 BYTE PTR [eax], dl
+
+; 373  :    }
+
+  00776	eb b3		 jmp	 SHORT $L49006
+$L49007:
+
+; 374  : 
+; 375  :    result[digits+1] = '\n';
+
+  00778	8b 4d 0c	 mov	 ecx, DWORD PTR _result$[ebp]
+  0077b	03 4d f8	 add	 ecx, DWORD PTR _digits$[ebp]
+  0077e	c6 41 01 0a	 mov	 BYTE PTR [ecx+1], 10	; 0000000aH
+
+; 376  :    return 1;
+
+  00782	b8 01 00 00 00	 mov	 eax, 1
+
+; 377  : }// dditoa
+
+  00787	8b e5		 mov	 esp, ebp
+  00789	5d		 pop	 ebp
+  0078a	c3		 ret	 0
+_dditoa	ENDP
+_TEXT	ENDS
+PUBLIC	_ddxtoi
+_TEXT	SEGMENT
+_val$ = 8
+_xin$ = -8
+_nibble$ = -12
+_i$ = -16
+_sum$ = -4
+_ddxtoi	PROC NEAR
+
+; 388  : {
+
+  0078b	55		 push	 ebp
+  0078c	8b ec		 mov	 ebp, esp
+  0078e	83 ec 10	 sub	 esp, 16			; 00000010H
+
+; 389  :    DWORD   xin, nibble;
+; 390  :    int     i, sum=0;
+
+  00791	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _sum$[ebp], 0
+
+; 391  : 
+; 392  :    xin = val;
+
+  00798	8b 45 08	 mov	 eax, DWORD PTR _val$[ebp]
+  0079b	89 45 f8	 mov	 DWORD PTR _xin$[ebp], eax
+
+; 393  :    sum = xin & 0xF;
+
+  0079e	8b 4d f8	 mov	 ecx, DWORD PTR _xin$[ebp]
+  007a1	83 e1 0f	 and	 ecx, 15			; 0000000fH
+  007a4	89 4d fc	 mov	 DWORD PTR _sum$[ebp], ecx
+
+; 394  :    xin >>= 4;
+
+  007a7	8b 55 f8	 mov	 edx, DWORD PTR _xin$[ebp]
+  007aa	c1 ea 04	 shr	 edx, 4
+  007ad	89 55 f8	 mov	 DWORD PTR _xin$[ebp], edx
+
+; 395  : 
+; 396  :    for( i=1; i<8; i++)
+
+  007b0	c7 45 f0 01 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 1
+  007b7	eb 09		 jmp	 SHORT $L49016
+$L49017:
+  007b9	8b 45 f0	 mov	 eax, DWORD PTR _i$[ebp]
+  007bc	83 c0 01	 add	 eax, 1
+  007bf	89 45 f0	 mov	 DWORD PTR _i$[ebp], eax
+$L49016:
+  007c2	83 7d f0 08	 cmp	 DWORD PTR _i$[ebp], 8
+  007c6	7d 26		 jge	 SHORT $L49018
+
+; 398  :       nibble = xin & 0xF;
+
+  007c8	8b 4d f8	 mov	 ecx, DWORD PTR _xin$[ebp]
+  007cb	83 e1 0f	 and	 ecx, 15			; 0000000fH
+  007ce	89 4d f4	 mov	 DWORD PTR _nibble$[ebp], ecx
+
+; 399  :       sum += (nibble * 16 * i);
+
+  007d1	8b 55 f4	 mov	 edx, DWORD PTR _nibble$[ebp]
+  007d4	c1 e2 04	 shl	 edx, 4
+  007d7	0f af 55 f0	 imul	 edx, DWORD PTR _i$[ebp]
+  007db	8b 45 fc	 mov	 eax, DWORD PTR _sum$[ebp]
+  007de	03 c2		 add	 eax, edx
+  007e0	89 45 fc	 mov	 DWORD PTR _sum$[ebp], eax
+
+; 400  :       xin >>= 4;
+
+  007e3	8b 4d f8	 mov	 ecx, DWORD PTR _xin$[ebp]
+  007e6	c1 e9 04	 shr	 ecx, 4
+  007e9	89 4d f8	 mov	 DWORD PTR _xin$[ebp], ecx
+
+; 401  :    }
+
+  007ec	eb cb		 jmp	 SHORT $L49017
+$L49018:
+
+; 402  :    return val;
+
+  007ee	8b 45 08	 mov	 eax, DWORD PTR _val$[ebp]
+
+; 403  : }// ddxtoi
+
+  007f1	8b e5		 mov	 esp, ebp
+  007f3	5d		 pop	 ebp
+  007f4	c3		 ret	 0
+_ddxtoi	ENDP
+_TEXT	ENDS
+PUBLIC	_pow_4_R
+PUBLIC	_ddpow
+_TEXT	SEGMENT
+_x$ = 8
+_y$ = 16
+_fx$ = -4
+_fy$ = -8
+_ddpow	PROC NEAR
+
+; 414  : {
+
+  007f5	55		 push	 ebp
+  007f6	8b ec		 mov	 ebp, esp
+  007f8	83 ec 08	 sub	 esp, 8
+
+; 415  :     float fx, fy;
+; 416  : 
+; 417  :     fx = (float) x;
+
+  007fb	dd 45 08	 fld	 QWORD PTR _x$[ebp]
+  007fe	d9 5d fc	 fstp	 DWORD PTR _fx$[ebp]
+
+; 418  :     fy = (float) y;
+
+  00801	dd 45 10	 fld	 QWORD PTR _y$[ebp]
+  00804	d9 5d f8	 fstp	 DWORD PTR _fy$[ebp]
+
+; 419  :     return(  pow_4_R( fx , fy) );
+
+  00807	8b 45 f8	 mov	 eax, DWORD PTR _fy$[ebp]
+  0080a	50		 push	 eax
+  0080b	8b 4d fc	 mov	 ecx, DWORD PTR _fx$[ebp]
+  0080e	51		 push	 ecx
+  0080f	e8 00 00 00 00	 call	 _pow_4_R
+  00814	83 c4 08	 add	 esp, 8
+
+; 420  : }// ddpow
+
+  00817	8b e5		 mov	 esp, ebp
+  00819	5d		 pop	 ebp
+  0081a	c3		 ret	 0
+_ddpow	ENDP
+_TEXT	ENDS
+PUBLIC	_regGetDouble
+EXTRN	__imp__RegQueryValueExA@24:NEAR
+_TEXT	SEGMENT
+_hkey$ = 8
+_keyname$ = 12
+_lpFl$ = 16
+_type$ = -16
+_value$ = -8
+_size$ = -4
+_f$ = -12
+_regGetDouble PROC NEAR
+
+; 434  : {
+
+  0081b	55		 push	 ebp
+  0081c	8b ec		 mov	 ebp, esp
+  0081e	83 ec 10	 sub	 esp, 16			; 00000010H
+
+; 435  :     DWORD    type;
+; 436  :     DWORD    value;
+; 437  :     DWORD    size;
+; 438  :     float    f;
+; 439  : 
+; 440  :     // Don't worry about default if query fails, its handled higher up
+; 441  : 
+; 442  :     size = sizeof( value );
+
+  00821	c7 45 fc 04 00
+	00 00		 mov	 DWORD PTR _size$[ebp], 4
+
+; 443  :    
+; 444  :     if( !RegQueryValueEx( hkey, keyname, NULL, &type, (CONST LPBYTE)&value, &size ))
+
+  00828	8d 45 fc	 lea	 eax, DWORD PTR _size$[ebp]
+  0082b	50		 push	 eax
+  0082c	8d 4d f8	 lea	 ecx, DWORD PTR _value$[ebp]
+  0082f	51		 push	 ecx
+  00830	8d 55 f0	 lea	 edx, DWORD PTR _type$[ebp]
+  00833	52		 push	 edx
+  00834	6a 00		 push	 0
+  00836	8b 45 0c	 mov	 eax, DWORD PTR _keyname$[ebp]
+  00839	50		 push	 eax
+  0083a	8b 4d 08	 mov	 ecx, DWORD PTR _hkey$[ebp]
+  0083d	51		 push	 ecx
+  0083e	ff 15 00 00 00
+	00		 call	 DWORD PTR __imp__RegQueryValueExA@24
+  00844	85 c0		 test	 eax, eax
+  00846	75 1b		 jne	 SHORT $L49042
+
+; 446  :         if( type == REG_DWORD )
+
+  00848	83 7d f0 04	 cmp	 DWORD PTR _type$[ebp], 4
+  0084c	75 15		 jne	 SHORT $L49042
+
+; 448  :             // We are reading a DWORD that is really a FLOAT.
+; 449  : 
+; 450  :             f = *( float *) &value;
+
+  0084e	8b 55 f8	 mov	 edx, DWORD PTR _value$[ebp]
+  00851	89 55 f4	 mov	 DWORD PTR _f$[ebp], edx
+
+; 451  : 
+; 452  :             *lpFl =  (double) f;
+
+  00854	d9 45 f4	 fld	 DWORD PTR _f$[ebp]
+  00857	8b 45 10	 mov	 eax, DWORD PTR _lpFl$[ebp]
+  0085a	dd 18		 fstp	 QWORD PTR [eax]
+
+; 453  :             return( TRUE );
+
+  0085c	b8 01 00 00 00	 mov	 eax, 1
+  00861	eb 02		 jmp	 SHORT $L49034
+$L49042:
+
+; 456  :     return( FALSE );
+
+  00863	33 c0		 xor	 eax, eax
+$L49034:
+
+; 457  : }// regGetDouble
+
+  00865	8b e5		 mov	 esp, ebp
+  00867	5d		 pop	 ebp
+  00868	c3		 ret	 0
+_regGetDouble ENDP
+_TEXT	ENDS
+PUBLIC	_regGetDword
+_TEXT	SEGMENT
+_hkey$ = 8
+_keyname$ = 12
+_lpDw$ = 16
+_type$ = -12
+_value$ = -8
+_size$ = -4
+_regGetDword PROC NEAR
+
+; 471  : {
+
+  00869	55		 push	 ebp
+  0086a	8b ec		 mov	 ebp, esp
+  0086c	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 472  :     DWORD    type;
+; 473  :     DWORD    value;
+; 474  :     DWORD    size;
+; 475  : 
+; 476  :     // Don't worry about default if query fails, its handled higher up
+; 477  : 
+; 478  :     size = sizeof( value );
+
+  0086f	c7 45 fc 04 00
+	00 00		 mov	 DWORD PTR _size$[ebp], 4
+
+; 479  : 
+; 480  :     if( !RegQueryValueEx( hkey, keyname, NULL, &type, (CONST LPBYTE)&value, &size ))
+
+  00876	8d 45 fc	 lea	 eax, DWORD PTR _size$[ebp]
+  00879	50		 push	 eax
+  0087a	8d 4d f8	 lea	 ecx, DWORD PTR _value$[ebp]
+  0087d	51		 push	 ecx
+  0087e	8d 55 f4	 lea	 edx, DWORD PTR _type$[ebp]
+  00881	52		 push	 edx
+  00882	6a 00		 push	 0
+  00884	8b 45 0c	 mov	 eax, DWORD PTR _keyname$[ebp]
+  00887	50		 push	 eax
+  00888	8b 4d 08	 mov	 ecx, DWORD PTR _hkey$[ebp]
+  0088b	51		 push	 ecx
+  0088c	ff 15 00 00 00
+	00		 call	 DWORD PTR __imp__RegQueryValueExA@24
+  00892	85 c0		 test	 eax, eax
+  00894	75 15		 jne	 SHORT $L49058
+
+; 482  :         if( type == REG_DWORD )
+
+  00896	83 7d f4 04	 cmp	 DWORD PTR _type$[ebp], 4
+  0089a	75 0f		 jne	 SHORT $L49058
+
+; 484  :             *lpDw = value;                              
+
+  0089c	8b 55 10	 mov	 edx, DWORD PTR _lpDw$[ebp]
+  0089f	8b 45 f8	 mov	 eax, DWORD PTR _value$[ebp]
+  008a2	89 02		 mov	 DWORD PTR [edx], eax
+
+; 485  :             return( TRUE );
+
+  008a4	b8 01 00 00 00	 mov	 eax, 1
+  008a9	eb 02		 jmp	 SHORT $L49051
+$L49058:
+
+; 488  :     return( FALSE );
+
+  008ab	33 c0		 xor	 eax, eax
+$L49051:
+
+; 489  : }// regGetDword 
+
+  008ad	8b e5		 mov	 esp, ebp
+  008af	5d		 pop	 ebp
+  008b0	c3		 ret	 0
+_regGetDword ENDP
+_TEXT	ENDS
+PUBLIC	_int_exp
+_TEXT	SEGMENT
+_zbase$ = 8
+_zexp$ = 12
+_count$ = -4
+_retval$ = -8
+_int_exp PROC NEAR
+
+; 500  : {
+
+  008b1	55		 push	 ebp
+  008b2	8b ec		 mov	 ebp, esp
+  008b4	83 ec 08	 sub	 esp, 8
+
+; 501  :    int count;
+; 502  :    float retval=1.0f;
+
+  008b7	c7 45 f8 00 00
+	80 3f		 mov	 DWORD PTR _retval$[ebp], 1065353216 ; 3f800000H
+
+; 503  : 
+; 504  :    if (zexp==0)
+
+  008be	83 7d 0c 00	 cmp	 DWORD PTR _zexp$[ebp], 0
+  008c2	75 08		 jne	 SHORT $L49066
+
+; 505  :       return (1.0f);
+
+  008c4	d9 05 00 00 00
+	00		 fld	 DWORD PTR __real@4@3fff8000000000000000
+  008ca	eb 28		 jmp	 SHORT $L49063
+$L49066:
+
+; 506  : 
+; 507  :    for(count=0; count<zexp;count++)
+
+  008cc	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _count$[ebp], 0
+  008d3	eb 09		 jmp	 SHORT $L49067
+$L49068:
+  008d5	8b 45 fc	 mov	 eax, DWORD PTR _count$[ebp]
+  008d8	83 c0 01	 add	 eax, 1
+  008db	89 45 fc	 mov	 DWORD PTR _count$[ebp], eax
+$L49067:
+  008de	8b 4d fc	 mov	 ecx, DWORD PTR _count$[ebp]
+  008e1	3b 4d 0c	 cmp	 ecx, DWORD PTR _zexp$[ebp]
+  008e4	7d 0b		 jge	 SHORT $L49069
+
+; 509  :       retval = (float)(retval*zbase);
+
+  008e6	d9 45 f8	 fld	 DWORD PTR _retval$[ebp]
+  008e9	d8 4d 08	 fmul	 DWORD PTR _zbase$[ebp]
+  008ec	d9 5d f8	 fstp	 DWORD PTR _retval$[ebp]
+
+; 510  :    }
+
+  008ef	eb e4		 jmp	 SHORT $L49068
+$L49069:
+
+; 511  :    
+; 512  :   return (retval);
+
+  008f1	d9 45 f8	 fld	 DWORD PTR _retval$[ebp]
+$L49063:
+
+; 513  : }// int_exp
+
+  008f4	8b e5		 mov	 esp, ebp
+  008f6	5d		 pop	 ebp
+  008f7	c3		 ret	 0
+_int_exp ENDP
+_TEXT	ENDS
+PUBLIC	_MY_LN
+PUBLIC	__real@4@4005c800000000000000
+PUBLIC	__real@4@00000000000000000000
+PUBLIC	__real@4@3ff8a3d70a0000000000
+PUBLIC	__real@4@40008000000000000000
+PUBLIC	__real@4@4001c000000000000000
+EXTRN	__ftol:NEAR
+;	COMDAT __real@4@4005c800000000000000
+; File ..\runtime.c
+CONST	SEGMENT
+__real@4@4005c800000000000000 DD 042c80000r	; 100
+CONST	ENDS
+;	COMDAT __real@4@00000000000000000000
+CONST	SEGMENT
+__real@4@00000000000000000000 DD 000000000r	; 0
+CONST	ENDS
+;	COMDAT __real@4@3ff8a3d70a0000000000
+CONST	SEGMENT
+__real@4@3ff8a3d70a0000000000 DD 03c23d70ar	; 0.01
+CONST	ENDS
+;	COMDAT __real@4@40008000000000000000
+CONST	SEGMENT
+__real@4@40008000000000000000 DD 040000000r	; 2
+CONST	ENDS
+;	COMDAT __real@4@4001c000000000000000
+CONST	SEGMENT
+__real@4@4001c000000000000000 DD 040c00000r	; 6
+CONST	ENDS
+_TEXT	SEGMENT
+_u$ = 8
+_retval$ = -40
+_u_m_u0$ = -28
+_df$ = -36
+_df1$ = -4
+_df2$ = -12
+_df3$ = -16
+_df4$ = -20
+_index$ = -32
+_z_u0$ = -8
+_temp$ = -24
+_MY_LN	PROC NEAR
+
+; 524  : {
+
+  008f8	55		 push	 ebp
+  008f9	8b ec		 mov	 ebp, esp
+  008fb	83 ec 28	 sub	 esp, 40			; 00000028H
+
+; 525  :    float retval;
+; 526  :    float u_m_u0, df, df1, df2 , df3, df4;
+; 527  :   
+; 528  :    int index;
+; 529  :    float z_u0, temp;
+; 530  :    
+; 531  :    //  expand around the nearest 1/100
+; 532  :    index=FTOL(u*100);
+
+  008fe	d9 45 08	 fld	 DWORD PTR _u$[ebp]
+  00901	d8 0d 00 00 00
+	00		 fmul	 DWORD PTR __real@4@4005c800000000000000
+  00907	e8 00 00 00 00	 call	 __ftol
+  0090c	89 45 e0	 mov	 DWORD PTR _index$[ebp], eax
+
+; 533  :    z_u0= ((float)(index))/100;
+
+  0090f	db 45 e0	 fild	 DWORD PTR _index$[ebp]
+  00912	d8 35 00 00 00
+	00		 fdiv	 DWORD PTR __real@4@4005c800000000000000
+  00918	d9 55 f8	 fst	 DWORD PTR _z_u0$[ebp]
+
+; 534  : 
+; 535  :    if (z_u0==0.0f)
+
+  0091b	d8 1d 00 00 00
+	00		 fcomp	 DWORD PTR __real@4@00000000000000000000
+  00921	df e0		 fnstsw	 ax
+  00923	f6 c4 40	 test	 ah, 64			; 00000040H
+  00926	74 0c		 je	 SHORT $L49086
+
+; 536  :      z_u0+=0.01f;
+
+  00928	d9 45 f8	 fld	 DWORD PTR _z_u0$[ebp]
+  0092b	d8 05 00 00 00
+	00		 fadd	 DWORD PTR __real@4@3ff8a3d70a0000000000
+  00931	d9 5d f8	 fstp	 DWORD PTR _z_u0$[ebp]
+$L49086:
+
+; 537  : 
+; 538  :    u_m_u0= u-z_u0;
+
+  00934	d9 45 08	 fld	 DWORD PTR _u$[ebp]
+  00937	d8 65 f8	 fsub	 DWORD PTR _z_u0$[ebp]
+  0093a	d9 55 e4	 fst	 DWORD PTR _u_m_u0$[ebp]
+
+; 539  : 
+; 540  :    df= (u_m_u0/z_u0);
+
+  0093d	d8 75 f8	 fdiv	 DWORD PTR _z_u0$[ebp]
+  00940	d9 5d dc	 fstp	 DWORD PTR _df$[ebp]
+
+; 541  : 
+; 542  :    df1= df;
+
+  00943	8b 45 dc	 mov	 eax, DWORD PTR _df$[ebp]
+  00946	89 45 fc	 mov	 DWORD PTR _df1$[ebp], eax
+
+; 543  :    df2=df1 * df;
+
+  00949	d9 45 fc	 fld	 DWORD PTR _df1$[ebp]
+  0094c	d8 4d dc	 fmul	 DWORD PTR _df$[ebp]
+  0094f	d9 55 f4	 fst	 DWORD PTR _df2$[ebp]
+
+; 544  :    df3=df2 * df;
+
+  00952	d8 4d dc	 fmul	 DWORD PTR _df$[ebp]
+  00955	d9 55 f0	 fst	 DWORD PTR _df3$[ebp]
+
+; 545  :    df4=df3 * df;
+
+  00958	d8 4d dc	 fmul	 DWORD PTR _df$[ebp]
+  0095b	d9 5d ec	 fstp	 DWORD PTR _df4$[ebp]
+
+; 546  :   
+; 547  :    temp=LN_HUN_TAB[index];
+
+  0095e	8b 4d e0	 mov	 ecx, DWORD PTR _index$[ebp]
+  00961	8b 14 8d 00 00
+	00 00		 mov	 edx, DWORD PTR _LN_HUN_TAB[ecx*4]
+  00968	89 55 e8	 mov	 DWORD PTR _temp$[ebp], edx
+
+; 548  :    retval = LN_HUN_TAB[index] + df1 - (df2/factoral[2]) + (2*df2/factoral[3])
+; 549  :      -(6*df3/factoral[4]);
+
+  0096b	8b 45 e0	 mov	 eax, DWORD PTR _index$[ebp]
+  0096e	d9 45 fc	 fld	 DWORD PTR _df1$[ebp]
+  00971	d8 04 85 00 00
+	00 00		 fadd	 DWORD PTR _LN_HUN_TAB[eax*4]
+  00978	db 05 08 00 00
+	00		 fild	 DWORD PTR _factoral+8
+  0097e	d8 7d f4	 fdivr	 DWORD PTR _df2$[ebp]
+  00981	de e9		 fsubp	 ST(1), ST(0)
+  00983	d9 05 00 00 00
+	00		 fld	 DWORD PTR __real@4@40008000000000000000
+  00989	d8 4d f4	 fmul	 DWORD PTR _df2$[ebp]
+  0098c	da 35 0c 00 00
+	00		 fidiv	 DWORD PTR _factoral+12
+  00992	de c1		 faddp	 ST(1), ST(0)
+  00994	d9 05 00 00 00
+	00		 fld	 DWORD PTR __real@4@4001c000000000000000
+  0099a	d8 4d f0	 fmul	 DWORD PTR _df3$[ebp]
+  0099d	da 35 10 00 00
+	00		 fidiv	 DWORD PTR _factoral+16
+  009a3	de e9		 fsubp	 ST(1), ST(0)
+  009a5	d9 55 d8	 fst	 DWORD PTR _retval$[ebp]
+
+; 550  : 
+; 551  :    return(retval);
+; 552  : }// MY_LN
+
+  009a8	8b e5		 mov	 esp, ebp
+  009aa	5d		 pop	 ebp
+  009ab	c3		 ret	 0
+_MY_LN	ENDP
+_TEXT	ENDS
+PUBLIC	__real@4@3fffb333330000000000
+PUBLIC	__real@4@bfff8000000000000000
+PUBLIC	__real@4@3ffe8000000000000000
+PUBLIC	__real@4@40018000000000000000
+;	COMDAT __real@4@40018000000000000000
+; File ..\runtime.c
+CONST	SEGMENT
+__real@4@40018000000000000000 DD 040800000r	; 4
+CONST	ENDS
+;	COMDAT __real@4@3fffb333330000000000
+CONST	SEGMENT
+__real@4@3fffb333330000000000 DD 03fb33333r	; 1.4
+CONST	ENDS
+;	COMDAT __real@4@bfff8000000000000000
+CONST	SEGMENT
+__real@4@bfff8000000000000000 DD 0bf800000r	; -1
+CONST	ENDS
+;	COMDAT __real@4@3ffe8000000000000000
+CONST	SEGMENT
+__real@4@3ffe8000000000000000 DD 03f000000r	; 0.5
+CONST	ENDS
+_TEXT	SEGMENT
+_fbase$ = 8
+_fexp$ = 12
+_z_exp$ = -12
+_lnbase$ = -40
+_lnbase1$ = -36
+_lnbase2$ = -32
+_lnbase3$ = -8
+_lnbase4$ = -4
+_y_m_y0$ = -28
+_retval$ = -24
+_fexp_pos$ = -16
+_ay0$ = -20
+_pow_4_R PROC NEAR
+
+; 572  : {
+
+  009ac	55		 push	 ebp
+  009ad	8b ec		 mov	 ebp, esp
+  009af	83 ec 28	 sub	 esp, 40			; 00000028H
+
+; 573  :    int z_exp;
+; 574  :    float lnbase, lnbase1, lnbase2, lnbase3, lnbase4, y_m_y0;
+; 575  :    float retval, fexp_pos;
+; 576  :    float ay0;
+; 577  : 
+; 578  : //  restrict functions range.  if range is exceeded return a value
+; 579  : //  that can be used to calculate gamma   
+; 580  : //  No negative range
+; 581  : 
+; 582  :   if( fbase > 4.0f )
+
+  009b2	d9 45 08	 fld	 DWORD PTR _fbase$[ebp]
+  009b5	d8 1d 00 00 00
+	00		 fcomp	 DWORD PTR __real@4@40018000000000000000
+  009bb	df e0		 fnstsw	 ax
+  009bd	f6 c4 41	 test	 ah, 65			; 00000041H
+  009c0	75 0b		 jne	 SHORT $L49102
+
+; 583  :     return 1.4f;
+
+  009c2	d9 05 00 00 00
+	00		 fld	 DWORD PTR __real@4@3fffb333330000000000
+  009c8	e9 ee 00 00 00	 jmp	 $L49109
+$L49102:
+
+; 584  : 
+; 585  :   if( fbase < 0.0f )
+
+  009cd	d9 45 08	 fld	 DWORD PTR _fbase$[ebp]
+  009d0	d8 1d 00 00 00
+	00		 fcomp	 DWORD PTR __real@4@00000000000000000000
+  009d6	df e0		 fnstsw	 ax
+  009d8	f6 c4 01	 test	 ah, 1
+  009db	74 0b		 je	 SHORT $L49103
+
+; 586  :     return 1.4f;
+
+  009dd	d9 05 00 00 00
+	00		 fld	 DWORD PTR __real@4@3fffb333330000000000
+  009e3	e9 d3 00 00 00	 jmp	 $L49109
+$L49103:
+
+; 587  : 
+; 588  :   if ( fexp == 0.0f )
+
+  009e8	d9 45 0c	 fld	 DWORD PTR _fexp$[ebp]
+  009eb	d8 1d 00 00 00
+	00		 fcomp	 DWORD PTR __real@4@00000000000000000000
+  009f1	df e0		 fnstsw	 ax
+  009f3	f6 c4 40	 test	 ah, 64			; 00000040H
+  009f6	74 0b		 je	 SHORT $L49104
+
+; 589  :     return 1.0f;
+
+  009f8	d9 05 00 00 00
+	00		 fld	 DWORD PTR __real@4@3fff8000000000000000
+  009fe	e9 b8 00 00 00	 jmp	 $L49109
+$L49104:
+
+; 590  :    
+; 591  :   if ( fexp < 0.0f )
+
+  00a03	d9 45 0c	 fld	 DWORD PTR _fexp$[ebp]
+  00a06	d8 1d 00 00 00
+	00		 fcomp	 DWORD PTR __real@4@00000000000000000000
+  00a0c	df e0		 fnstsw	 ax
+  00a0e	f6 c4 01	 test	 ah, 1
+  00a11	74 0e		 je	 SHORT $L49105
+
+; 592  :     fexp_pos = -1 * fexp;
+
+  00a13	d9 05 00 00 00
+	00		 fld	 DWORD PTR __real@4@bfff8000000000000000
+  00a19	d8 4d 0c	 fmul	 DWORD PTR _fexp$[ebp]
+  00a1c	d9 5d f0	 fstp	 DWORD PTR _fexp_pos$[ebp]
+
+; 593  :   else 
+
+  00a1f	eb 06		 jmp	 SHORT $L49106
+$L49105:
+
+; 594  :     fexp_pos=fexp ;
+
+  00a21	8b 45 0c	 mov	 eax, DWORD PTR _fexp$[ebp]
+  00a24	89 45 f0	 mov	 DWORD PTR _fexp_pos$[ebp], eax
+$L49106:
+
+; 595  :     z_exp = FTOL( fexp_pos+0.5f );
+
+  00a27	d9 45 f0	 fld	 DWORD PTR _fexp_pos$[ebp]
+  00a2a	d8 05 00 00 00
+	00		 fadd	 DWORD PTR __real@4@3ffe8000000000000000
+  00a30	e8 00 00 00 00	 call	 __ftol
+  00a35	89 45 f4	 mov	 DWORD PTR _z_exp$[ebp], eax
+
+; 596  :    
+; 597  :     ay0 = int_exp( fbase, z_exp );
+
+  00a38	8b 4d f4	 mov	 ecx, DWORD PTR _z_exp$[ebp]
+  00a3b	51		 push	 ecx
+  00a3c	8b 55 08	 mov	 edx, DWORD PTR _fbase$[ebp]
+  00a3f	52		 push	 edx
+  00a40	e8 00 00 00 00	 call	 _int_exp
+  00a45	83 c4 08	 add	 esp, 8
+  00a48	d9 5d ec	 fstp	 DWORD PTR _ay0$[ebp]
+
+; 598  :    
+; 599  :     y_m_y0 = fexp_pos-z_exp;
+
+  00a4b	db 45 f4	 fild	 DWORD PTR _z_exp$[ebp]
+  00a4e	d8 6d f0	 fsubr	 DWORD PTR _fexp_pos$[ebp]
+  00a51	d9 5d e4	 fstp	 DWORD PTR _y_m_y0$[ebp]
+
+; 600  :    
+; 601  :     lnbase = MY_LN( fbase ) * y_m_y0;
+
+  00a54	8b 45 08	 mov	 eax, DWORD PTR _fbase$[ebp]
+  00a57	50		 push	 eax
+  00a58	e8 00 00 00 00	 call	 _MY_LN
+  00a5d	83 c4 04	 add	 esp, 4
+  00a60	d8 4d e4	 fmul	 DWORD PTR _y_m_y0$[ebp]
+  00a63	d9 55 d8	 fst	 DWORD PTR _lnbase$[ebp]
+
+; 602  :     lnbase1 = lnbase * ay0;
+
+  00a66	d8 4d ec	 fmul	 DWORD PTR _ay0$[ebp]
+  00a69	d9 55 dc	 fst	 DWORD PTR _lnbase1$[ebp]
+
+; 603  :     lnbase2 = lnbase1 * lnbase;
+
+  00a6c	d8 4d d8	 fmul	 DWORD PTR _lnbase$[ebp]
+  00a6f	d9 55 e0	 fst	 DWORD PTR _lnbase2$[ebp]
+
+; 604  :     lnbase3 = lnbase2 * lnbase; 
+
+  00a72	d8 4d d8	 fmul	 DWORD PTR _lnbase$[ebp]
+  00a75	d9 55 f8	 fst	 DWORD PTR _lnbase3$[ebp]
+
+; 605  :     lnbase4 = lnbase3 * lnbase; 
+
+  00a78	d8 4d d8	 fmul	 DWORD PTR _lnbase$[ebp]
+  00a7b	d9 5d fc	 fstp	 DWORD PTR _lnbase4$[ebp]
+
+; 606  : 
+; 607  :     retval = ay0 + lnbase1 +lnbase2/factoral[2] + lnbase3/factoral[3]   ;
+
+  00a7e	d9 45 ec	 fld	 DWORD PTR _ay0$[ebp]
+  00a81	d8 45 dc	 fadd	 DWORD PTR _lnbase1$[ebp]
+  00a84	db 05 08 00 00
+	00		 fild	 DWORD PTR _factoral+8
+  00a8a	d8 7d e0	 fdivr	 DWORD PTR _lnbase2$[ebp]
+  00a8d	de c1		 faddp	 ST(1), ST(0)
+  00a8f	db 05 0c 00 00
+	00		 fild	 DWORD PTR _factoral+12
+  00a95	d8 7d f8	 fdivr	 DWORD PTR _lnbase3$[ebp]
+  00a98	de c1		 faddp	 ST(1), ST(0)
+  00a9a	d9 5d e8	 fstp	 DWORD PTR _retval$[ebp]
+
+; 608  : 
+; 609  :     if( fexp > 0.0f )
+
+  00a9d	d9 45 0c	 fld	 DWORD PTR _fexp$[ebp]
+  00aa0	d8 1d 00 00 00
+	00		 fcomp	 DWORD PTR __real@4@00000000000000000000
+  00aa6	df e0		 fnstsw	 ax
+  00aa8	f6 c4 41	 test	 ah, 65			; 00000041H
+  00aab	75 05		 jne	 SHORT $L49108
+
+; 610  :       return( retval );
+
+  00aad	d9 45 e8	 fld	 DWORD PTR _retval$[ebp]
+  00ab0	eb 09		 jmp	 SHORT $L49109
+$L49108:
+
+; 611  :     else
+; 612  :       return( (1.0f/retval) );
+
+  00ab2	d9 05 00 00 00
+	00		 fld	 DWORD PTR __real@4@3fff8000000000000000
+  00ab8	d8 75 e8	 fdiv	 DWORD PTR _retval$[ebp]
+$L49109:
+
+; 613  : }//  pow_4_R
+
+  00abb	8b e5		 mov	 esp, ebp
+  00abd	5d		 pop	 ebp
+  00abe	c3		 ret	 0
+_pow_4_R ENDP
+_TEXT	ENDS
+END

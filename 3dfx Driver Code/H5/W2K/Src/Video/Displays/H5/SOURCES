@@ -1,0 +1,266 @@
+MAJORCOMP=ntos
+MINORCOMP=voodoo3
+
+# allow external enviroment variable to control file name; to support velocity, voodoo3, etc.
+!IF "$(DISPNAME)"==""
+
+!if "$(H4VEL)"==""
+TARGETNAME=3dfxvs
+!ELSE
+TARGETNAME=3dfxvs
+!ENDIF
+TARGETPATH=obj
+
+!ELSE
+TARGETNAME=$(DISPNAME)
+TARGETPATH=$(_OBJ_DIR)
+!ENDIF
+
+TARGETTYPE=GDI_DRIVER
+
+!IFNDEF MSC_WARNING_LEVEL
+MSC_WARNING_LEVEL=/W3
+!ENDIF
+MSC_WARNING_LEVEL=$(MSC_WARNING_LEVEL) /WX
+
+X86_CPU_OPTIMIZATION=/G6
+X86_CPU_OPTMIZATION=$(X86_CPU_OPTIMIZATION)
+
+!IF "$(NTDEBUG)"=="retail" || "$(NTDEBUG)"==""
+MSC_OPTIMIZATION=/Ox /Oa
+!ELSE
+MSC_OPTIMIZATION=/Od /Oi
+!ENDIF
+
+!IFNDEF HR
+# HR = hardware revision
+# default to B0
+HR=B0
+!ENDIF
+
+C_DEFINES = -DA0_SILICON -D__MSC__ -DH3_$(HR) -DINCSTBPERF
+#C_DEFINES = -DH3_FIFO -DA0_SILICON -D__MSC__ -DH4 -DH3_$(HR) -DCMDFIFO
+#C_DEFINES = -DCSIM -DINCLUDE_BUFFER_EXPANSION_CODE -DH3_FIFO -DS3_INIT -DUSE_DDRAW_CODE -D__MSC__
+#C_DEFINES = -DCSIM -DINCLUDE_BUFFER_EXPANSION_CODE -DH3_FIFO -DS3_INIT -D__MSC__
+
+# setup for cmdfifo build or direct write build
+# default is cmdfifo build
+!IFNDEF CF
+CF=1
+!ENDIF
+!IF $(CF) != 0
+C_DEFINES = $(C_DEFINES) -DH3_FIFO -DCMDFIFO
+!ENDIF
+
+# setup for hw build or csim build
+# default is hw build
+!IFNDEF CSIM
+CSIM=0
+!ENDIF
+!IF $(CSIM) != 0
+C_DEFINES = $(C_DEFINES) -DCSIM
+!ENDIF
+
+# see if we want to enable ddraw support
+# default to ddraw support enabled
+!IFNDEF DD
+DD=1
+!ENDIF
+!IF $(DD) != 0
+C_DEFINES = $(C_DEFINES) -DUSE_DDRAW_CODE
+!IFNDEF D3D
+D3D=1
+!ENDIF
+!IF $(D3D) != 0
+C_DEFINES = $(C_DEFINES) -DUSE_D3D_CODE -DNUMTEXTUREUNITS=2
+!IFNDEF DX
+DX = 7
+!ENDIF
+C_DEFINES = $(C_DEFINES) -DDX=$(DX)
+
+!IFNDEF DXDDKVERSION
+DXDDKVERSION = 7
+!ENDIF
+C_DEFINES = $(C_DEFINES) -DDXDDKVERSION=$(DXDDKVERSION)
+
+!IFNDEF SA
+SA=1
+!ENDIF
+!IF $(SA) != 0
+C_DEFINES = $(C_DEFINES) -DSLI_AA
+!ENDIF
+!IFNDEF SW_TNL
+SW_TNL=0
+!ENDIF
+!IF $(SW_TNL) != 0
+C_DEFINES = $(C_DEFINES) -DTnL_HAL=1
+!ENDIF
+!ENDIF  # !IF $(D3D) != 0
+!ENDIF  # !IF $(DD) != 0
+
+# see if we need to enable command fifo debug
+!IFNDEF DF
+DF=0
+!ENDIF
+!IF $(DF) != 0
+C_DEFINES = $(C_DEFINES) -DDEBUGFIFO=1
+!ENDIF
+
+# if H4VEL is specified build with "velocity" names
+!if "$(H4VEL)"!=""
+C_DEFINES = $(C_DEFINES) -DH4VEL=1
+!ENDIF
+
+!IFNDEF COD_FILES
+COD_FILES=0
+!ENDIF
+
+!IF $(COD_FILES) != 0
+USER_C_FLAGS = /FAsc /Fa$O\$(@B).cod
+LINKER_FLAGS = $(LINKER_FLAGS) -map:$O\$(@B).map
+!ENDIF
+
+!IFNDEF MEMCHK
+MEMCHK=0
+!ENDIF
+
+!IF $(MEMCHK) != 0
+C_DEFINES = $(C_DEFINES) -DMEMCHECK
+!ENDIF
+
+!IFNDEF LF
+LF=0
+!ENDIF
+
+!IF $(LF) != 0
+C_DEFINES = $(C_DEFINES) -DENABLE_LOG_FILE=$(LF)
+!ENDIF
+
+!IFDEF BUILDER
+C_DEFINES = $(C_DEFINES) -DBUILDER="$(BUILDER)" -DMS_BUILD
+!ENDIF
+
+# For OPENGL_ICD
+USE_LIBCNTPR = 1
+!IFNDEF OGL
+#OGL=0
+OGL=1
+!ENDIF
+!IF $(OGL) != 0
+C_DEFINES = $(C_DEFINES) -DOPENGL_ICD
+!ENDIF
+
+!IFNDEF AFIFO
+AFIFO=0
+!ENDIF
+
+!IF $(AFIFO) != 0
+C_DEFINES = $(C_DEFINES) -DAGP_CMDFIFO
+!ENDIF
+
+!IFNDEF VTUNE
+VTUNE=0
+!ENDIF
+
+!IF $(VTUNE) != 0
+USER_C_FLAGS = $(USER_C_FLAGS) /Zi
+USE_PDB = 1
+!ENDIF
+
+!IFNDEF DXDDK
+INCLUDES=..\inc;..\..\inc;$(NTMAKEENV)
+!ELSE
+INCLUDES=$(DXDDK)\inc;..\inc;..\..\inc;$(NTMAKEENV)
+!ENDIF
+
+!IF $(CSIM) != 0
+TARGETLIBS=h4hal.lib h4csim.lib $(DDK_LIB_PATH)\libcntpr.lib
+!ELSE
+TARGETLIBS=$(DDK_LIB_PATH)\libcntpr.lib
+!ENDIF
+
+DRIVER_ALIGNMENT=0x40
+NTPROFILEINPUT=yes
+
+SOURCES=bitblt.c        \
+        bltmm.c         \
+        brush.c         \
+        cfifo.c         \
+        color.c         \
+        colorapi.c      \
+        debug.c         \
+        dfpapi.c        \
+        edgeesc.c       \
+        enable.c        \
+        fastfill.c      \
+        fillpath.c      \
+        funcapi.c       \
+        heap.c          \
+        lines.c         \
+        lineto.c        \
+        logfile.c       \
+        memcheck.c      \
+        misc.c          \
+        multi.c         \
+        paint.c         \
+        palette.c       \
+        pointer.c       \
+        qmodes.c        \
+        stretch.c       \
+        strips.c        \
+        textout.c       \
+        thunk.c         \
+        tvout.c         \
+        escape.c        \
+        hwcext.c        \
+        clip.c          \
+        ddfxnt.c        \
+        glicd.c         \
+        ddinit.c        \
+        ddsurf.c        \
+        ddblt32.c       \
+        ddsliblt.c      \
+        ddsli2d.c       \
+        ddflip.c        \
+        ddmemmgr.c      \
+        ddovl32.c       \
+        ddstubs.c       \
+        d3init.c        \
+        d3global.c      \
+        d3contxt.c      \
+        d3rstate.c      \
+        d3txtr.c        \
+        d3fog.c         \
+        fxf2i.c         \
+        fxexp.c         \
+        d6line.c        \
+        d6fvf.c         \
+        afifo.c         \
+        d6mt.c          \
+        d6dp2.c         \
+        d6fan.c         \
+        d6tri2.c        \
+        d6strip.c       \
+        d6point.c       \
+        d3stubs.c       \
+        tcutils.c       \
+        fxt.c           \
+        d7d3d.c         \
+        d7dp2.c         \
+        ddvpe32.c       \
+        res.rc
+
+PRECOMPILED_INCLUDE=precomp.h
+PRECOMPILED_PCH=precomp.pch
+PRECOMPILED_OBJ=precomp.obj
+
+# This test has been moved into the POSTBLD.MAK file.
+#!IFNDEF STRIP_SYMBOLS
+#STRIP_SYMBOLS=1
+#!ENDIF
+#!IF $(STRIP_SYMBOLS) != 0
+#POST_BUILD_CMD = rebase -B 0x10000 -X $(O) $(O)\$(TARGETNAME).dll
+#!ENDIF
+
+POST_BUILD_CMD = nmake /f postbld.mak all
+

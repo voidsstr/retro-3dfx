@@ -1,0 +1,144 @@
+#----------------------------------------------------------------------------
+# Project Makefile
+#----------------------------------------------------------------------------
+
+#----------------------------------------------------------------------------
+# Directories
+#----------------------------------------------------------------------------
+TARGET_BSC =
+!ifndef DEBUG
+TARGET_DIR = .\release
+!else
+!if ("$(DEBUG)"=="BC")
+TARGET_DIR = .\bchecker
+!else
+TARGET_DIR = .\debug
+!ifdef BUILD_BROWSE
+TARGET_BSC = $(TARGET_DIR)\opengl.bsc   
+!endif
+!endif
+!endif
+
+#----------------------------------------------------------------------------
+# Target, Default Rule, Common Make Code
+#----------------------------------------------------------------------------
+TARGET_DLL = $(TARGET_DIR)\opengl.dll
+
+all: $(TARGET_DLL) $(TARGET_BSC)
+
+!include "include\make\ogl.mak"
+
+#----------------------------------------------------------------------------
+# Files
+#----------------------------------------------------------------------------
+GLCORE_LIB = glcore.lib
+GLCORE_DIR = .\glcore
+SST_LIB    = sst.lib
+SST_DIR    = .\sst
+WGL_LIB    = wgl.lib
+WGL_DIR    = .\wgl
+MGL_LIB    = mgl.lib
+MGL_DIR    = .\mgl
+TRACE_LIB  = trace.lib
+TRACE_DIR  = .\trace
+COMPONENT_LIBS = $(TARGET_DIR)\$(GLCORE_LIB) \
+                 $(TARGET_DIR)\$(SST_LIB)    \
+                 $(TARGET_DIR)\$(WGL_LIB)    \
+                 $(TARGET_DIR)\$(MGL_LIB)    \
+                 $(TARGET_DIR)\$(TRACE_LIB)
+
+FOREIGN_LIBS   = $(GLIDE_ROOT)\lib\glide2x.lib
+SYSTEM_LIBS    = kernel32.lib                       \
+                 user32.lib                         \
+                 gdi32.lib                          \
+                 advapi32.lib
+DEFFILE        = oglicd.def
+RCFILE         = opengl.rc
+RESFILE        = $(TARGET_DIR)\$(RCFILE:.rc=.res)
+
+#----------------------------------------------------------------------------
+# Rules
+#----------------------------------------------------------------------------
+
+$(TARGET_DLL): "$(TARGET_DIR)" $(COMPONENT_LIBS)     \
+               $(FOREIGN_LIBS) $(DEFFILE) $(RESFILE)
+    $(LNK) @<<"$(TARGET_DIR)\tmp.lnk"
+    $(LNK_OPTS)
+    $(COMPONENT_LIBS)
+    $(FOREIGN_LIBS) 
+    $(SYSTEM_LIBS) 
+    $(RESFILE)
+<<KEEP
+    FOR %%F IN ( $(COMPONENT_LIBS) ) DO $(DEL) %%F
+
+!ifdef DEBUG
+!ifdef BUILD_BROWSE 
+
+$(TARGET_BSC): $(COMPONENT_LIBS)
+    $(BSC) @<<
+    /nologo /o $(TARGET_BSC)
+    $(GLCORE_DIR)\debug\*.sbr
+    $(SST_DIR)\debug\*.sbr
+    $(WGL_DIR)\debug\*.sbr
+    $(MGL_DIR)\debug\*.sbr
+<<
+
+!endif
+!endif
+
+clean:
+    @echo clean intermediate files
+    cd $(GLCORE_DIR)
+    nmake /nologo -f glcore.mak clean
+    cd ..\$(SST_DIR)
+    nmake /nologo -f sst.mak clean
+    cd ..\$(WGL_DIR)
+    nmake /nologo -f wgl.mak clean
+    cd ..\$(MGL_DIR)
+    nmake /nologo -f mgl.mak clean
+    cd ..\$(TRACE_DIR)
+    nmake /nologo -f trace.mak clean
+    cd ..
+
+clobber:
+    @echo clobber all files
+    if exist "$(TARGET_DIR)\*" $(DELDIR) $(TARGET_DIR)
+    cd $(GLCORE_DIR)
+    nmake /nologo -f glcore.mak clobber
+    cd ..\$(SST_DIR)
+    nmake /nologo -f sst.mak clobber
+    cd ..\$(WGL_DIR)
+    nmake /nologo -f wgl.mak clobber
+    cd ..\$(MGL_DIR)
+    nmake /nologo -f mgl.mak clobber
+    cd ..\$(TRACE_DIR)
+    nmake /nologo -f trace.mak clobber
+    cd ..
+
+$(TARGET_DIR)\$(GLCORE_LIB):
+    cd $(GLCORE_DIR)
+    nmake /nologo -f glcore.mak
+    cd ..
+
+$(TARGET_DIR)\$(SST_LIB):
+    cd $(SST_DIR)
+    nmake /nologo -f sst.mak
+    cd ..
+
+$(TARGET_DIR)\$(WGL_LIB):
+    cd $(WGL_DIR)
+    nmake /nologo -f wgl.mak
+    cd ..
+
+$(TARGET_DIR)\$(MGL_LIB):
+    cd $(MGL_DIR)
+    nmake /nologo -f mgl.mak
+    cd ..
+
+$(TARGET_DIR)\$(TRACE_LIB):
+    cd $(TRACE_DIR)
+    nmake /nologo -f trace.mak
+    cd ..
+
+{.}.rc{$(TARGET_DIR)}.res:
+    rc /fo $(RESFILE) $(CPP_PATHS) $(CPP_DEFS) $< 

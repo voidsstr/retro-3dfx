@@ -1,0 +1,1491 @@
+	TITLE	..\ddc.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+_PTEXT	SEGMENT PARA USE32 PUBLIC 'PCODE'
+_PTEXT	ENDS
+_LTEXT	SEGMENT PARA USE32 PUBLIC 'LCODE'
+_LTEXT	ENDS
+_PDATA	SEGMENT DWORD USE32 PUBLIC 'PDATA'
+_PDATA	ENDS
+_LDATA	SEGMENT DWORD USE32 PUBLIC 'LCODE'
+_LDATA	ENDS
+FLAT	GROUP _DATA, CONST, _BSS, _PDATA, _LDATA
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+PUBLIC	_DDCSupport
+PUBLIC	_ReadDDC
+PUBLIC	_DoWakeUp
+EXTRN	_i2c_getaccess:NEAR
+EXTRN	_i2c_endaccess:NEAR
+_LTEXT	SEGMENT
+_pDevTable$ = 8
+_pCR$ = 12
+_key$ = -16
+_pCSRS$ = -12
+_pByte$ = -8
+_nReturn$ = -4
+_i$ = -20
+_nStatus$ = -28
+_bAddr$ = -24
+_DDCSupport PROC NEAR
+
+; 159  : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	83 ec 20	 sub	 esp, 32			; 00000020H
+
+; 160  :   I2CKEY key;
+; 161  :   //********I2CMASK I2CMask;
+; 162  :   CLIENT_STRUCT * pCSRS = (CLIENT_STRUCT *)pCR;
+
+  00006	8b 45 0c	 mov	 eax, DWORD PTR _pCR$[ebp]
+  00009	89 45 f4	 mov	 DWORD PTR _pCSRS$[ebp], eax
+
+; 163  :   PBYTE pByte;
+; 164  :   int nReturn = 0x0;
+
+  0000c	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _nReturn$[ebp], 0
+
+; 165  :   int i;
+; 166  :   WORD nStatus;
+; 167  :   FxU8 bAddr;
+; 168  :    
+; 169  :   if (NULL != pDevTable)
+
+  00013	83 7d 08 00	 cmp	 DWORD PTR _pDevTable$[ebp], 0
+  00017	0f 84 5d 03 00
+	00		 je	 $L11033
+
+; 171  :     key = i2c_getaccess(pDevTable, I2C_MONITORDDC, I2C_NORMALSPEED);
+
+  0001d	6a 00		 push	 0
+  0001f	6a 02		 push	 2
+  00021	8b 4d 08	 mov	 ecx, DWORD PTR _pDevTable$[ebp]
+  00024	51		 push	 ecx
+  00025	e8 00 00 00 00	 call	 _i2c_getaccess
+  0002a	83 c4 0c	 add	 esp, 12			; 0000000cH
+  0002d	89 45 f0	 mov	 DWORD PTR _key$[ebp], eax
+
+; 172  :     if (key == I2C_NOTAKEY)
+
+  00030	83 7d f0 00	 cmp	 DWORD PTR _key$[ebp], 0
+  00034	75 08		 jne	 SHORT $L11031
+
+; 173  :       return nReturn;
+
+  00036	8b 45 fc	 mov	 eax, DWORD PTR _nReturn$[ebp]
+  00039	e9 4f 03 00 00	 jmp	 $L11021
+$L11031:
+
+; 174  : 
+; 175  :     bAddr = DDC_ADDR_1;
+
+  0003e	c6 45 e8 a0	 mov	 BYTE PTR _bAddr$[ebp], 160 ; 000000a0H
+
+; 176  : 
+; 177  : /********
+; 178  : #ifdef WIN_CSIM
+; 179  :     I2CMask.pReg = (DWORD *)(pDevTable->RealRegBase + I2COUT_PORT);
+; 180  : #else
+; 181  :     I2CMask.pReg = (DWORD *)(pDevTable->RegBase[HWINFO_SST_IOREGS_INDEX] + I2COUT_PORT);
+; 182  : #endif
+; 183  : 
+; 184  :     I2CMask.bAddr = DDC_ADDR_1;
+; 185  : 
+; 186  :     I2CMask.bEnableBit = DDC_ENABLE;
+; 187  :     I2CMask.bSCLOutBit = DDC_SCL_OUT_BIT;
+; 188  :     I2CMask.bSDAOutBit = DDC_SDA_OUT_BIT;
+; 189  :     I2CMask.bSCLInBit = DDC_SCL_IN_BIT;
+; 190  :     I2CMask.bSDAInBit = DDC_SDA_IN_BIT;
+; 191  :     I2CInit(&I2CMask);
+; 192  : *********/
+; 193  : 
+; 194  :     switch (pCSRS->CBRS.Client_BL)
+; 195  :     {
+
+  00042	8b 55 f4	 mov	 edx, DWORD PTR _pCSRS$[ebp]
+  00045	33 c0		 xor	 eax, eax
+  00047	8a 42 10	 mov	 al, BYTE PTR [edx+16]
+  0004a	89 45 e0	 mov	 DWORD PTR -32+[ebp], eax
+  0004d	83 7d e0 03	 cmp	 DWORD PTR -32+[ebp], 3
+  00051	0f 87 15 03 00
+	00		 ja	 $L11080
+  00057	8b 4d e0	 mov	 ecx, DWORD PTR -32+[ebp]
+  0005a	ff 24 8d 00 00
+	00 00		 jmp	 DWORD PTR $L11162[ecx*4]
+$L11036:
+
+; 196  :       // Report DDC Capabilities
+; 197  :       case 0:
+; 198  :         // ES:DI should be zero on this call
+; 199  :         // dmon97.exe which is a WHQL test has this wrong
+; 200  :         //
+; 201  : #ifdef NULL_PTR_CHK
+; 202  :         if (0x0 == (pCSRS->CWRS.Client_DI | pCSRS->CRS.Client_ES))
+; 203  : #else
+; 204  :         if (0x0 == pCSRS->CRS.Client_ES)
+
+  00061	8b 55 f4	 mov	 edx, DWORD PTR _pCSRS$[ebp]
+  00064	33 c0		 xor	 eax, eax
+  00066	66 8b 42 38	 mov	 ax, WORD PTR [edx+56]
+  0006a	85 c0		 test	 eax, eax
+  0006c	0f 85 52 01 00
+	00		 jne	 $L11037
+
+; 207  :           nStatus = 0x0100;
+
+  00072	66 c7 45 e4 00
+	01		 mov	 WORD PTR _nStatus$[ebp], 256 ; 00000100H
+
+; 208  :           for (i=0; i < DDC_NUMRETRY; i++)
+
+  00078	c7 45 ec 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  0007f	eb 09		 jmp	 SHORT $L11038
+$L11039:
+  00081	8b 4d ec	 mov	 ecx, DWORD PTR _i$[ebp]
+  00084	83 c1 01	 add	 ecx, 1
+  00087	89 4d ec	 mov	 DWORD PTR _i$[ebp], ecx
+$L11038:
+  0008a	83 7d ec 05	 cmp	 DWORD PTR _i$[ebp], 5
+  0008e	7d 27		 jge	 SHORT $L11040
+
+; 209  :             if (DoWakeUp(pDevTable, key, bAddr))
+
+  00090	8a 55 e8	 mov	 dl, BYTE PTR _bAddr$[ebp]
+  00093	52		 push	 edx
+  00094	8b 45 f0	 mov	 eax, DWORD PTR _key$[ebp]
+  00097	50		 push	 eax
+  00098	8b 4d 08	 mov	 ecx, DWORD PTR _pDevTable$[ebp]
+  0009b	51		 push	 ecx
+  0009c	e8 00 00 00 00	 call	 _DoWakeUp
+  000a1	83 c4 0c	 add	 esp, 12			; 0000000cH
+  000a4	85 c0		 test	 eax, eax
+  000a6	74 0d		 je	 SHORT $L11041
+
+; 211  :               nStatus |= 0x0002;
+
+  000a8	66 8b 55 e4	 mov	 dx, WORD PTR _nStatus$[ebp]
+  000ac	80 ca 02	 or	 dl, 2
+  000af	66 89 55 e4	 mov	 WORD PTR _nStatus$[ebp], dx
+
+; 212  :               break;
+
+  000b3	eb 02		 jmp	 SHORT $L11040
+$L11041:
+
+; 214  : 
+; 215  :           // This IS_NAPALM check is a workaround for an initialization problem that I don't understand
+; 216  :           // enough to fix properly.  Here is what happens.  On a Voodoo3 board this code tries to talk to 
+; 217  :           // a non-existant DFP and it fails and gives up as expected.  However it leaves the I2C bus
+; 218  :           // in a non-working state so that when the BT868 TvOut code tries to talk to the Brooktree
+; 219  :           // part it fails and reports back that TvOut is not present.  This does not happen on a Napalm 
+; 220  :           // board.  Customers have been working around this problem by unchecking the "Automatically detect
+; 221  :           // Plug & Play monitors" box on the Monitor control panel, which works because that cause this 
+; 222  :           // routine to never be called.  Dan O'Connell 7/24/2000
+; 223  :           if (IS_NAPALM(pDevTable->dwVendorDeviceID))
+
+  000b5	eb ca		 jmp	 SHORT $L11039
+$L11040:
+  000b7	8b 45 08	 mov	 eax, DWORD PTR _pDevTable$[ebp]
+  000ba	81 78 04 1a 12
+	06 00		 cmp	 DWORD PTR [eax+4], 397850 ; 0006121aH
+  000c1	74 6c		 je	 SHORT $L11043
+  000c3	8b 4d 08	 mov	 ecx, DWORD PTR _pDevTable$[ebp]
+  000c6	81 79 04 1a 12
+	07 00		 cmp	 DWORD PTR [ecx+4], 463386 ; 0007121aH
+  000cd	74 60		 je	 SHORT $L11043
+  000cf	8b 55 08	 mov	 edx, DWORD PTR _pDevTable$[ebp]
+  000d2	81 7a 04 1a 12
+	08 00		 cmp	 DWORD PTR [edx+4], 528922 ; 0008121aH
+  000d9	74 54		 je	 SHORT $L11043
+  000db	8b 45 08	 mov	 eax, DWORD PTR _pDevTable$[ebp]
+  000de	81 78 04 1a 12
+	09 00		 cmp	 DWORD PTR [eax+4], 594458 ; 0009121aH
+  000e5	74 48		 je	 SHORT $L11043
+  000e7	8b 4d 08	 mov	 ecx, DWORD PTR _pDevTable$[ebp]
+  000ea	81 79 04 1a 12
+	0a 00		 cmp	 DWORD PTR [ecx+4], 659994 ; 000a121aH
+  000f1	74 3c		 je	 SHORT $L11043
+  000f3	8b 55 08	 mov	 edx, DWORD PTR _pDevTable$[ebp]
+  000f6	81 7a 04 1a 12
+	0b 00		 cmp	 DWORD PTR [edx+4], 725530 ; 000b121aH
+  000fd	74 30		 je	 SHORT $L11043
+  000ff	8b 45 08	 mov	 eax, DWORD PTR _pDevTable$[ebp]
+  00102	81 78 04 1a 12
+	0c 00		 cmp	 DWORD PTR [eax+4], 791066 ; 000c121aH
+  00109	74 24		 je	 SHORT $L11043
+  0010b	8b 4d 08	 mov	 ecx, DWORD PTR _pDevTable$[ebp]
+  0010e	81 79 04 1a 12
+	0d 00		 cmp	 DWORD PTR [ecx+4], 856602 ; 000d121aH
+  00115	74 18		 je	 SHORT $L11043
+  00117	8b 55 08	 mov	 edx, DWORD PTR _pDevTable$[ebp]
+  0011a	81 7a 04 1a 12
+	0e 00		 cmp	 DWORD PTR [edx+4], 922138 ; 000e121aH
+  00121	74 0c		 je	 SHORT $L11043
+  00123	8b 45 08	 mov	 eax, DWORD PTR _pDevTable$[ebp]
+  00126	81 78 04 1a 12
+	0f 00		 cmp	 DWORD PTR [eax+4], 987674 ; 000f121aH
+  0012d	75 7f		 jne	 SHORT $L11048
+$L11043:
+
+; 225  :             if(nStatus == 0x0100)
+
+  0012f	8b 4d e4	 mov	 ecx, DWORD PTR _nStatus$[ebp]
+  00132	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  00138	81 f9 00 01 00
+	00		 cmp	 ecx, 256		; 00000100H
+  0013e	75 6e		 jne	 SHORT $L11048
+
+; 227  :               i2c_endaccess(pDevTable, key);
+
+  00140	8b 55 f0	 mov	 edx, DWORD PTR _key$[ebp]
+  00143	52		 push	 edx
+  00144	8b 45 08	 mov	 eax, DWORD PTR _pDevTable$[ebp]
+  00147	50		 push	 eax
+  00148	e8 00 00 00 00	 call	 _i2c_endaccess
+  0014d	83 c4 08	 add	 esp, 8
+
+; 228  :               key = i2c_getaccess(pDevTable, I2C_FLATPANELDDC, I2C_NORMALSPEED);
+
+  00150	6a 00		 push	 0
+  00152	6a 04		 push	 4
+  00154	8b 4d 08	 mov	 ecx, DWORD PTR _pDevTable$[ebp]
+  00157	51		 push	 ecx
+  00158	e8 00 00 00 00	 call	 _i2c_getaccess
+  0015d	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00160	89 45 f0	 mov	 DWORD PTR _key$[ebp], eax
+
+; 229  :               if (key == I2C_NOTAKEY)
+
+  00163	83 7d f0 00	 cmp	 DWORD PTR _key$[ebp], 0
+  00167	75 07		 jne	 SHORT $L11045
+
+; 230  :                 return 0;
+
+  00169	33 c0		 xor	 eax, eax
+  0016b	e9 1d 02 00 00	 jmp	 $L11021
+$L11045:
+
+; 231  : 
+; 232  :               for (i=0; i < DDC_NUMRETRY; i++)
+
+  00170	c7 45 ec 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  00177	eb 09		 jmp	 SHORT $L11046
+$L11047:
+  00179	8b 55 ec	 mov	 edx, DWORD PTR _i$[ebp]
+  0017c	83 c2 01	 add	 edx, 1
+  0017f	89 55 ec	 mov	 DWORD PTR _i$[ebp], edx
+$L11046:
+  00182	83 7d ec 05	 cmp	 DWORD PTR _i$[ebp], 5
+  00186	7d 26		 jge	 SHORT $L11048
+
+; 233  :                 if (DoWakeUp(pDevTable, key, bAddr))
+
+  00188	8a 45 e8	 mov	 al, BYTE PTR _bAddr$[ebp]
+  0018b	50		 push	 eax
+  0018c	8b 4d f0	 mov	 ecx, DWORD PTR _key$[ebp]
+  0018f	51		 push	 ecx
+  00190	8b 55 08	 mov	 edx, DWORD PTR _pDevTable$[ebp]
+  00193	52		 push	 edx
+  00194	e8 00 00 00 00	 call	 _DoWakeUp
+  00199	83 c4 0c	 add	 esp, 12			; 0000000cH
+  0019c	85 c0		 test	 eax, eax
+  0019e	74 0c		 je	 SHORT $L11049
+
+; 235  :                     nStatus |= 0x0002;
+
+  001a0	66 8b 45 e4	 mov	 ax, WORD PTR _nStatus$[ebp]
+  001a4	0c 02		 or	 al, 2
+  001a6	66 89 45 e4	 mov	 WORD PTR _nStatus$[ebp], ax
+
+; 236  :                     break;
+
+  001aa	eb 02		 jmp	 SHORT $L11048
+$L11049:
+
+; 238  :             }
+
+  001ac	eb cb		 jmp	 SHORT $L11047
+$L11048:
+
+; 258  :             pCSRS->CWRS.Client_AX = 0x004F;
+
+  001ae	8b 4d f4	 mov	 ecx, DWORD PTR _pCSRS$[ebp]
+  001b1	66 c7 41 1c 4f
+	00		 mov	 WORD PTR [ecx+28], 79	; 0000004fH
+
+; 259  :             pCSRS->CWRS.Client_BX = nStatus;
+
+  001b7	8b 55 f4	 mov	 edx, DWORD PTR _pCSRS$[ebp]
+  001ba	66 8b 45 e4	 mov	 ax, WORD PTR _nStatus$[ebp]
+  001be	66 89 42 10	 mov	 WORD PTR [edx+16], ax
+
+; 262  :         else
+
+  001c2	eb 09		 jmp	 SHORT $L11050
+$L11037:
+
+; 263  :           pCSRS->CWRS.Client_AX = 0x014F;
+
+  001c4	8b 4d f4	 mov	 ecx, DWORD PTR _pCSRS$[ebp]
+  001c7	66 c7 41 1c 4f
+	01		 mov	 WORD PTR [ecx+28], 335	; 0000014fH
+$L11050:
+
+; 264  : 
+; 265  :         nReturn = 1;
+
+  001cd	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _nReturn$[ebp], 1
+
+; 266  :         break;
+
+  001d4	e9 a1 01 00 00	 jmp	 $L11033
+$L11051:
+
+; 267  : 
+; 268  :       // Read EDID
+; 269  :       case 1:
+; 270  :         pByte = (PBYTE)CLIENT_PTR_FLAT(ES, DI);
+
+  001d9	6a 00		 push	 0
+  001db	6a 38		 push	 56			; 00000038H
+  001dd	e8 00 00 00 00	 call	 _DoMapFlat
+  001e2	83 c4 08	 add	 esp, 8
+  001e5	89 45 f8	 mov	 DWORD PTR _pByte$[ebp], eax
+
+; 271  :         if (0xFFFFFFFF != (DWORD)pByte)
+
+  001e8	83 7d f8 ff	 cmp	 DWORD PTR _pByte$[ebp], -1
+  001ec	0f 84 95 00 00
+	00		 je	 $L11058
+
+; 273  :           if (ReadDDC(pDevTable, key, DDC_ADDR_1, pByte, A0_EDID_SIZE))
+
+  001f2	68 80 00 00 00	 push	 128			; 00000080H
+  001f7	8b 55 f8	 mov	 edx, DWORD PTR _pByte$[ebp]
+  001fa	52		 push	 edx
+  001fb	68 a0 00 00 00	 push	 160			; 000000a0H
+  00200	8b 45 f0	 mov	 eax, DWORD PTR _key$[ebp]
+  00203	50		 push	 eax
+  00204	8b 4d 08	 mov	 ecx, DWORD PTR _pDevTable$[ebp]
+  00207	51		 push	 ecx
+  00208	e8 00 00 00 00	 call	 _ReadDDC
+  0020d	83 c4 14	 add	 esp, 20			; 00000014H
+  00210	85 c0		 test	 eax, eax
+  00212	74 0b		 je	 SHORT $L11059
+
+; 274  :             pCSRS->CWRS.Client_AX = 0x004F;
+
+  00214	8b 55 f4	 mov	 edx, DWORD PTR _pCSRS$[ebp]
+  00217	66 c7 42 1c 4f
+	00		 mov	 WORD PTR [edx+28], 79	; 0000004fH
+
+; 275  :           else
+
+  0021d	eb 66		 jmp	 SHORT $L11063
+$L11059:
+
+; 277  :              i2c_endaccess(pDevTable, key);
+
+  0021f	8b 45 f0	 mov	 eax, DWORD PTR _key$[ebp]
+  00222	50		 push	 eax
+  00223	8b 4d 08	 mov	 ecx, DWORD PTR _pDevTable$[ebp]
+  00226	51		 push	 ecx
+  00227	e8 00 00 00 00	 call	 _i2c_endaccess
+  0022c	83 c4 08	 add	 esp, 8
+
+; 278  :              key = i2c_getaccess(pDevTable, I2C_FLATPANELDDC, I2C_NORMALSPEED);
+
+  0022f	6a 00		 push	 0
+  00231	6a 04		 push	 4
+  00233	8b 55 08	 mov	 edx, DWORD PTR _pDevTable$[ebp]
+  00236	52		 push	 edx
+  00237	e8 00 00 00 00	 call	 _i2c_getaccess
+  0023c	83 c4 0c	 add	 esp, 12			; 0000000cH
+  0023f	89 45 f0	 mov	 DWORD PTR _key$[ebp], eax
+
+; 279  :              if (key == I2C_NOTAKEY)
+
+  00242	83 7d f0 00	 cmp	 DWORD PTR _key$[ebp], 0
+  00246	75 07		 jne	 SHORT $L11061
+
+; 280  :                return 0;
+
+  00248	33 c0		 xor	 eax, eax
+  0024a	e9 3e 01 00 00	 jmp	 $L11021
+$L11061:
+
+; 281  : 
+; 282  :              if (ReadDDC(pDevTable, key, DDC_ADDR_1, pByte, A0_EDID_SIZE))
+
+  0024f	68 80 00 00 00	 push	 128			; 00000080H
+  00254	8b 45 f8	 mov	 eax, DWORD PTR _pByte$[ebp]
+  00257	50		 push	 eax
+  00258	68 a0 00 00 00	 push	 160			; 000000a0H
+  0025d	8b 4d f0	 mov	 ecx, DWORD PTR _key$[ebp]
+  00260	51		 push	 ecx
+  00261	8b 55 08	 mov	 edx, DWORD PTR _pDevTable$[ebp]
+  00264	52		 push	 edx
+  00265	e8 00 00 00 00	 call	 _ReadDDC
+  0026a	83 c4 14	 add	 esp, 20			; 00000014H
+  0026d	85 c0		 test	 eax, eax
+  0026f	74 0b		 je	 SHORT $L11062
+
+; 283  :                pCSRS->CWRS.Client_AX = 0x004F;
+
+  00271	8b 45 f4	 mov	 eax, DWORD PTR _pCSRS$[ebp]
+  00274	66 c7 40 1c 4f
+	00		 mov	 WORD PTR [eax+28], 79	; 0000004fH
+
+; 284  :              else
+
+  0027a	eb 09		 jmp	 SHORT $L11063
+$L11062:
+
+; 285  :                pCSRS->CWRS.Client_AX = 0x014F;
+
+  0027c	8b 4d f4	 mov	 ecx, DWORD PTR _pCSRS$[ebp]
+  0027f	66 c7 41 1c 4f
+	01		 mov	 WORD PTR [ecx+28], 335	; 0000014fH
+$L11063:
+
+; 288  :         else
+
+  00285	eb 09		 jmp	 SHORT $L11064
+$L11058:
+
+; 289  :           pCSRS->CWRS.Client_AX = 0x014F;
+
+  00287	8b 55 f4	 mov	 edx, DWORD PTR _pCSRS$[ebp]
+  0028a	66 c7 42 1c 4f
+	01		 mov	 WORD PTR [edx+28], 335	; 0000014fH
+$L11064:
+
+; 290  : 
+; 291  :         nReturn = 1;
+
+  00290	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _nReturn$[ebp], 1
+
+; 292  :         break;
+
+  00297	e9 de 00 00 00	 jmp	 $L11033
+$L11065:
+
+; 293  : 
+; 294  :       // Read VDIF <unsupported>
+; 295  :       case 2:
+; 296  :         pCSRS->CBRS.Client_AL = 0x0;
+
+  0029c	8b 45 f4	 mov	 eax, DWORD PTR _pCSRS$[ebp]
+  0029f	c6 40 1c 00	 mov	 BYTE PTR [eax+28], 0
+
+; 297  :         nReturn = 1;
+
+  002a3	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _nReturn$[ebp], 1
+
+; 298  :         break;
+
+  002aa	e9 cb 00 00 00	 jmp	 $L11033
+$L11066:
+
+; 299  : 
+; 300  :       // Read EDID 2
+; 301  :       case 3:
+; 302  :         pByte = (PBYTE)CLIENT_PTR_FLAT(ES, DI);
+
+  002af	6a 00		 push	 0
+  002b1	6a 38		 push	 56			; 00000038H
+  002b3	e8 00 00 00 00	 call	 _DoMapFlat
+  002b8	83 c4 08	 add	 esp, 8
+  002bb	89 45 f8	 mov	 DWORD PTR _pByte$[ebp], eax
+
+; 303  :         if (0xFFFFFFFF != (DWORD)pByte)
+
+  002be	83 7d f8 ff	 cmp	 DWORD PTR _pByte$[ebp], -1
+  002c2	0f 84 92 00 00
+	00		 je	 $L11073
+
+; 305  :           if (ReadDDC(pDevTable, key, DDC_ADDR_2, pByte, A2_EDID_SIZE))
+
+  002c8	68 00 01 00 00	 push	 256			; 00000100H
+  002cd	8b 4d f8	 mov	 ecx, DWORD PTR _pByte$[ebp]
+  002d0	51		 push	 ecx
+  002d1	68 a2 00 00 00	 push	 162			; 000000a2H
+  002d6	8b 55 f0	 mov	 edx, DWORD PTR _key$[ebp]
+  002d9	52		 push	 edx
+  002da	8b 45 08	 mov	 eax, DWORD PTR _pDevTable$[ebp]
+  002dd	50		 push	 eax
+  002de	e8 00 00 00 00	 call	 _ReadDDC
+  002e3	83 c4 14	 add	 esp, 20			; 00000014H
+  002e6	85 c0		 test	 eax, eax
+  002e8	74 0b		 je	 SHORT $L11074
+
+; 306  :             pCSRS->CWRS.Client_AX = 0x004F;
+
+  002ea	8b 4d f4	 mov	 ecx, DWORD PTR _pCSRS$[ebp]
+  002ed	66 c7 41 1c 4f
+	00		 mov	 WORD PTR [ecx+28], 79	; 0000004fH
+
+; 307  :           else
+
+  002f3	eb 63		 jmp	 SHORT $L11078
+$L11074:
+
+; 309  :              i2c_endaccess(pDevTable, key);
+
+  002f5	8b 55 f0	 mov	 edx, DWORD PTR _key$[ebp]
+  002f8	52		 push	 edx
+  002f9	8b 45 08	 mov	 eax, DWORD PTR _pDevTable$[ebp]
+  002fc	50		 push	 eax
+  002fd	e8 00 00 00 00	 call	 _i2c_endaccess
+  00302	83 c4 08	 add	 esp, 8
+
+; 310  :              key = i2c_getaccess(pDevTable, I2C_FLATPANELDDC, I2C_NORMALSPEED);
+
+  00305	6a 00		 push	 0
+  00307	6a 04		 push	 4
+  00309	8b 4d 08	 mov	 ecx, DWORD PTR _pDevTable$[ebp]
+  0030c	51		 push	 ecx
+  0030d	e8 00 00 00 00	 call	 _i2c_getaccess
+  00312	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00315	89 45 f0	 mov	 DWORD PTR _key$[ebp], eax
+
+; 311  :              if (key == I2C_NOTAKEY)
+
+  00318	83 7d f0 00	 cmp	 DWORD PTR _key$[ebp], 0
+  0031c	75 04		 jne	 SHORT $L11076
+
+; 312  :                return 0;
+
+  0031e	33 c0		 xor	 eax, eax
+  00320	eb 6b		 jmp	 SHORT $L11021
+$L11076:
+
+; 313  : 
+; 314  :              if (ReadDDC(pDevTable, key, DDC_ADDR_2, pByte, A2_EDID_SIZE))
+
+  00322	68 00 01 00 00	 push	 256			; 00000100H
+  00327	8b 55 f8	 mov	 edx, DWORD PTR _pByte$[ebp]
+  0032a	52		 push	 edx
+  0032b	68 a2 00 00 00	 push	 162			; 000000a2H
+  00330	8b 45 f0	 mov	 eax, DWORD PTR _key$[ebp]
+  00333	50		 push	 eax
+  00334	8b 4d 08	 mov	 ecx, DWORD PTR _pDevTable$[ebp]
+  00337	51		 push	 ecx
+  00338	e8 00 00 00 00	 call	 _ReadDDC
+  0033d	83 c4 14	 add	 esp, 20			; 00000014H
+  00340	85 c0		 test	 eax, eax
+  00342	74 0b		 je	 SHORT $L11077
+
+; 315  :                pCSRS->CWRS.Client_AX = 0x004F;
+
+  00344	8b 55 f4	 mov	 edx, DWORD PTR _pCSRS$[ebp]
+  00347	66 c7 42 1c 4f
+	00		 mov	 WORD PTR [edx+28], 79	; 0000004fH
+
+; 316  :              else
+
+  0034d	eb 09		 jmp	 SHORT $L11078
+$L11077:
+
+; 317  :                pCSRS->CWRS.Client_AX = 0x014F;
+
+  0034f	8b 45 f4	 mov	 eax, DWORD PTR _pCSRS$[ebp]
+  00352	66 c7 40 1c 4f
+	01		 mov	 WORD PTR [eax+28], 335	; 0000014fH
+$L11078:
+
+; 320  :         else
+
+  00358	eb 09		 jmp	 SHORT $L11079
+$L11073:
+
+; 321  :           pCSRS->CWRS.Client_AX = 0x014F;
+
+  0035a	8b 4d f4	 mov	 ecx, DWORD PTR _pCSRS$[ebp]
+  0035d	66 c7 41 1c 4f
+	01		 mov	 WORD PTR [ecx+28], 335	; 0000014fH
+$L11079:
+
+; 322  : 
+; 323  :         nReturn = 1;
+
+  00363	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _nReturn$[ebp], 1
+
+; 324  :         break;
+
+  0036a	eb 0e		 jmp	 SHORT $L11033
+$L11080:
+
+; 325  : 
+; 326  :       // Undefined and Unsupported
+; 327  :       default:
+; 328  :         pCSRS->CBRS.Client_AL = 0x0;
+
+  0036c	8b 55 f4	 mov	 edx, DWORD PTR _pCSRS$[ebp]
+  0036f	c6 42 1c 00	 mov	 BYTE PTR [edx+28], 0
+
+; 329  :         nReturn = 1;
+
+  00373	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _nReturn$[ebp], 1
+$L11033:
+
+; 333  : 
+; 334  :   i2c_endaccess(pDevTable, key);
+
+  0037a	8b 45 f0	 mov	 eax, DWORD PTR _key$[ebp]
+  0037d	50		 push	 eax
+  0037e	8b 4d 08	 mov	 ecx, DWORD PTR _pDevTable$[ebp]
+  00381	51		 push	 ecx
+  00382	e8 00 00 00 00	 call	 _i2c_endaccess
+  00387	83 c4 08	 add	 esp, 8
+
+; 335  :   return nReturn;
+
+  0038a	8b 45 fc	 mov	 eax, DWORD PTR _nReturn$[ebp]
+$L11021:
+
+; 336  : }
+
+  0038d	8b e5		 mov	 esp, ebp
+  0038f	5d		 pop	 ebp
+  00390	c3		 ret	 0
+$L11162:
+  00391	00 00 00 00	 DD	 $L11036
+  00395	00 00 00 00	 DD	 $L11051
+  00399	00 00 00 00	 DD	 $L11065
+  0039d	00 00 00 00	 DD	 $L11066
+_DDCSupport ENDP
+_bAH$ = 8
+_bAL$ = 12
+_retval$ = -4
+_DoMapFlat PROC NEAR
+
+; 133  : {
+
+  003a1	55		 push	 ebp
+  003a2	8b ec		 mov	 ebp, esp
+  003a4	51		 push	 ecx
+  003a5	53		 push	 ebx
+  003a6	56		 push	 esi
+  003a7	57		 push	 edi
+
+; 134  :   DWORD retval;
+; 135  : 
+; 136  :   __asm pushad;
+
+  003a8	60		 pushad
+
+; 137  :   __asm mov ah, bAH;
+
+  003a9	8a 65 08	 mov	 ah, BYTE PTR _bAH$[ebp]
+
+; 138  :   __asm mov al, bAL;
+
+  003ac	8a 45 0c	 mov	 al, BYTE PTR _bAL$[ebp]
+
+; 139  :   VMMCall(Map_Flat);
+
+  003af	cd		 DB	 -51			; ffffffcdH
+  003b0	20		 DB	 32			; 00000020H
+  003b1	1c		 DB	 28			; 0000001cH
+  003b2	00		 DB	 0
+  003b3	01		 DB	 1
+  003b4	00		 DB	 0
+
+; 140  :   __asm mov retval, eax;
+
+  003b5	89 45 fc	 mov	 DWORD PTR _retval$[ebp], eax
+
+; 141  :   __asm popad;
+
+  003b8	61		 popad
+
+; 142  : 
+; 143  :   return retval;
+
+  003b9	8b 45 fc	 mov	 eax, DWORD PTR _retval$[ebp]
+
+; 144  : }
+
+  003bc	5f		 pop	 edi
+  003bd	5e		 pop	 esi
+  003be	5b		 pop	 ebx
+  003bf	8b e5		 mov	 esp, ebp
+  003c1	5d		 pop	 ebp
+  003c2	c3		 ret	 0
+_DoMapFlat ENDP
+_LTEXT	ENDS
+PUBLIC	_DDCCommand
+EXTRN	_CCODE__Debug_Printf_Service:NEAR
+EXTRN	_i2c_stop:NEAR
+EXTRN	_i2c_readbyte:NEAR
+_LDATA	SEGMENT
+$SG11111 DB	'Chksum failure %02x ', 0aH, 00H
+	ORG $+2
+$SG11113 DB	'DDCCommand failed', 0aH, 00H
+	ORG $+1
+$SG11115 DB	'Wake Up Failed', 0aH, 00H
+_LDATA	ENDS
+_LTEXT	SEGMENT
+_pDev$ = 8
+_key$ = 12
+_nAddr$ = 16
+_pBuffer$ = 20
+_nSize$ = 24
+_i$ = -8
+_j$ = -12
+_nReturn$ = -4
+_bChkSum$ = -16
+_ReadDDC PROC NEAR
+
+; 350  : {
+
+  003c3	55		 push	 ebp
+  003c4	8b ec		 mov	 ebp, esp
+  003c6	83 ec 10	 sub	 esp, 16			; 00000010H
+
+; 351  :   //********I2CMASK I2CMask;
+; 352  :   int i;
+; 353  :   int j;
+; 354  :   int nReturn = 0;
+
+  003c9	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _nReturn$[ebp], 0
+
+; 355  :   BYTE bChkSum;
+; 356  : 
+; 357  : /*********
+; 358  :    I2CMask.pReg = (DWORD *)(pMap + I2COUT_PORT);
+; 359  :    I2CMask.bAddr = nAddr;
+; 360  : 
+; 361  :    I2CMask.bEnableBit = DDC_ENABLE;
+; 362  :    I2CMask.bSCLOutBit = DDC_SCL_OUT_BIT;
+; 363  :    I2CMask.bSDAOutBit = DDC_SDA_OUT_BIT;
+; 364  :    I2CMask.bSCLInBit = DDC_SCL_IN_BIT;
+; 365  :    I2CMask.bSDAInBit = DDC_SDA_IN_BIT;
+; 366  : 
+; 367  :    I2CInit(&I2CMask);
+; 368  : **********/
+; 369  : 
+; 370  :   for (j=0; j<DDC_NUMRETRY<<1; j++)
+
+  003d0	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _j$[ebp], 0
+  003d7	eb 09		 jmp	 SHORT $L11096
+$L11097:
+  003d9	8b 45 f4	 mov	 eax, DWORD PTR _j$[ebp]
+  003dc	83 c0 01	 add	 eax, 1
+  003df	89 45 f4	 mov	 DWORD PTR _j$[ebp], eax
+$L11096:
+  003e2	83 7d f4 0a	 cmp	 DWORD PTR _j$[ebp], 10	; 0000000aH
+  003e6	0f 8d 16 01 00
+	00		 jge	 $L11098
+
+; 372  :     if (DoWakeUp(pDev, key, (FxU8)nAddr))
+
+  003ec	8a 4d 10	 mov	 cl, BYTE PTR _nAddr$[ebp]
+  003ef	51		 push	 ecx
+  003f0	8b 55 0c	 mov	 edx, DWORD PTR _key$[ebp]
+  003f3	52		 push	 edx
+  003f4	8b 45 08	 mov	 eax, DWORD PTR _pDev$[ebp]
+  003f7	50		 push	 eax
+  003f8	e8 00 00 00 00	 call	 _DoWakeUp
+  003fd	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00400	85 c0		 test	 eax, eax
+  00402	0f 84 e8 00 00
+	00		 je	 $L11100
+
+; 374  :       if (DDCCommand(pDev, key, (FxU8)nAddr))
+
+  00408	8a 4d 10	 mov	 cl, BYTE PTR _nAddr$[ebp]
+  0040b	51		 push	 ecx
+  0040c	8b 55 0c	 mov	 edx, DWORD PTR _key$[ebp]
+  0040f	52		 push	 edx
+  00410	8b 45 08	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00413	50		 push	 eax
+  00414	e8 00 00 00 00	 call	 _DDCCommand
+  00419	83 c4 0c	 add	 esp, 12			; 0000000cH
+  0041c	85 c0		 test	 eax, eax
+  0041e	0f 84 bd 00 00
+	00		 je	 $L11102
+
+; 376  :         for (i=0; i<nSize-1; i++)
+
+  00424	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  0042b	eb 09		 jmp	 SHORT $L11103
+$L11104:
+  0042d	8b 4d f8	 mov	 ecx, DWORD PTR _i$[ebp]
+  00430	83 c1 01	 add	 ecx, 1
+  00433	89 4d f8	 mov	 DWORD PTR _i$[ebp], ecx
+$L11103:
+  00436	8b 55 18	 mov	 edx, DWORD PTR _nSize$[ebp]
+  00439	83 ea 01	 sub	 edx, 1
+  0043c	39 55 f8	 cmp	 DWORD PTR _i$[ebp], edx
+  0043f	7d 1b		 jge	 SHORT $L11105
+
+; 377  :           i2c_readbyte(pDev, key, &pBuffer[i], 1);
+
+  00441	6a 01		 push	 1
+  00443	8b 45 14	 mov	 eax, DWORD PTR _pBuffer$[ebp]
+  00446	03 45 f8	 add	 eax, DWORD PTR _i$[ebp]
+  00449	50		 push	 eax
+  0044a	8b 4d 0c	 mov	 ecx, DWORD PTR _key$[ebp]
+  0044d	51		 push	 ecx
+  0044e	8b 55 08	 mov	 edx, DWORD PTR _pDev$[ebp]
+  00451	52		 push	 edx
+  00452	e8 00 00 00 00	 call	 _i2c_readbyte
+  00457	83 c4 10	 add	 esp, 16			; 00000010H
+  0045a	eb d1		 jmp	 SHORT $L11104
+$L11105:
+
+; 378  :         i2c_readbyte(pDev, key, &pBuffer[i], 0);
+
+  0045c	6a 00		 push	 0
+  0045e	8b 45 14	 mov	 eax, DWORD PTR _pBuffer$[ebp]
+  00461	03 45 f8	 add	 eax, DWORD PTR _i$[ebp]
+  00464	50		 push	 eax
+  00465	8b 4d 0c	 mov	 ecx, DWORD PTR _key$[ebp]
+  00468	51		 push	 ecx
+  00469	8b 55 08	 mov	 edx, DWORD PTR _pDev$[ebp]
+  0046c	52		 push	 edx
+  0046d	e8 00 00 00 00	 call	 _i2c_readbyte
+  00472	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 379  : 
+; 380  :         i2c_stop(pDev, key);
+
+  00475	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  00478	50		 push	 eax
+  00479	8b 4d 08	 mov	 ecx, DWORD PTR _pDev$[ebp]
+  0047c	51		 push	 ecx
+  0047d	e8 00 00 00 00	 call	 _i2c_stop
+  00482	83 c4 08	 add	 esp, 8
+
+; 381  :         bChkSum=0;
+
+  00485	c6 45 f0 00	 mov	 BYTE PTR _bChkSum$[ebp], 0
+
+; 382  : 
+; 383  :         for (i=0; i<nSize; i++)
+
+  00489	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  00490	eb 09		 jmp	 SHORT $L11106
+$L11107:
+  00492	8b 55 f8	 mov	 edx, DWORD PTR _i$[ebp]
+  00495	83 c2 01	 add	 edx, 1
+  00498	89 55 f8	 mov	 DWORD PTR _i$[ebp], edx
+$L11106:
+  0049b	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  0049e	3b 45 18	 cmp	 eax, DWORD PTR _nSize$[ebp]
+  004a1	7d 10		 jge	 SHORT $L11108
+
+; 385  : #ifdef DDC_DEBUG
+; 386  :           Debug_Printf("%d %02x\n", i, pBuffer[i]);
+; 387  : #endif
+; 388  :           bChkSum += pBuffer[i];
+
+  004a3	8b 4d 14	 mov	 ecx, DWORD PTR _pBuffer$[ebp]
+  004a6	03 4d f8	 add	 ecx, DWORD PTR _i$[ebp]
+  004a9	8a 55 f0	 mov	 dl, BYTE PTR _bChkSum$[ebp]
+  004ac	02 11		 add	 dl, BYTE PTR [ecx]
+  004ae	88 55 f0	 mov	 BYTE PTR _bChkSum$[ebp], dl
+
+; 389  :         }
+
+  004b1	eb df		 jmp	 SHORT $L11107
+$L11108:
+
+; 390  : 
+; 391  :         if (0 == bChkSum)
+
+  004b3	8b 45 f0	 mov	 eax, DWORD PTR _bChkSum$[ebp]
+  004b6	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  004bb	85 c0		 test	 eax, eax
+  004bd	75 09		 jne	 SHORT $L11109
+
+; 393  :           nReturn = 1;
+
+  004bf	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _nReturn$[ebp], 1
+
+; 394  :           break;
+
+  004c6	eb 3a		 jmp	 SHORT $L11098
+$L11109:
+
+; 398  :           Debug_Printf("Chksum failure %02x \n", bChkSum);
+
+  004c8	8b 4d f0	 mov	 ecx, DWORD PTR _bChkSum$[ebp]
+  004cb	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  004d1	51		 push	 ecx
+  004d2	68 00 00 00 00	 push	 OFFSET FLAT:$SG11111
+  004d7	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  004dc	83 c4 08	 add	 esp, 8
+
+; 401  :       else
+
+  004df	eb 0d		 jmp	 SHORT $L11112
+$L11102:
+
+; 403  :         Debug_Printf("DDCCommand failed\n");
+
+  004e1	68 00 00 00 00	 push	 OFFSET FLAT:$SG11113
+  004e6	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  004eb	83 c4 04	 add	 esp, 4
+$L11112:
+
+; 406  :     else
+
+  004ee	eb 0d		 jmp	 SHORT $L11114
+$L11100:
+
+; 408  :       Debug_Printf("Wake Up Failed\n");
+
+  004f0	68 00 00 00 00	 push	 OFFSET FLAT:$SG11115
+  004f5	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  004fa	83 c4 04	 add	 esp, 4
+$L11114:
+
+; 410  :   }
+
+  004fd	e9 d7 fe ff ff	 jmp	 $L11097
+$L11098:
+
+; 411  : 
+; 412  :   return nReturn;
+
+  00502	8b 45 fc	 mov	 eax, DWORD PTR _nReturn$[ebp]
+
+; 413  : }
+
+  00505	8b e5		 mov	 esp, ebp
+  00507	5d		 pop	 ebp
+  00508	c3		 ret	 0
+_ReadDDC ENDP
+_LTEXT	ENDS
+EXTRN	_i2c_start:NEAR
+EXTRN	_i2c_sendbyte:NEAR
+EXTRN	_i2c_setsda:NEAR
+_LDATA	SEGMENT
+$SG11131 DB	'failed to send %x', 0aH, 00H
+	ORG $+1
+$SG11134 DB	'failed to send %x', 0aH, 00H
+_LDATA	ENDS
+_LTEXT	SEGMENT
+_pDev$ = 8
+_key$ = 12
+_bAddr$ = 16
+_nReturn$ = -4
+_DDCCommand PROC NEAR
+
+; 427  : {
+
+  00509	55		 push	 ebp
+  0050a	8b ec		 mov	 ebp, esp
+  0050c	51		 push	 ecx
+
+; 428  :   int nReturn = 0;
+
+  0050d	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _nReturn$[ebp], 0
+
+; 429  : 
+; 430  :   i2c_start(pDev, key);
+
+  00514	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  00517	50		 push	 eax
+  00518	8b 4d 08	 mov	 ecx, DWORD PTR _pDev$[ebp]
+  0051b	51		 push	 ecx
+  0051c	e8 00 00 00 00	 call	 _i2c_start
+  00521	83 c4 08	 add	 esp, 8
+
+; 431  :   if (i2c_sendbyte(pDev, key, (BYTE)(bAddr|I2C_WRITESLAVE)))
+
+  00524	8a 55 10	 mov	 dl, BYTE PTR _bAddr$[ebp]
+  00527	52		 push	 edx
+  00528	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  0052b	50		 push	 eax
+  0052c	8b 4d 08	 mov	 ecx, DWORD PTR _pDev$[ebp]
+  0052f	51		 push	 ecx
+  00530	e8 00 00 00 00	 call	 _i2c_sendbyte
+  00535	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00538	85 c0		 test	 eax, eax
+  0053a	74 7f		 je	 SHORT $L11126
+
+; 433  :     if (i2c_sendbyte(pDev, key, 0x00))
+
+  0053c	6a 00		 push	 0
+  0053e	8b 55 0c	 mov	 edx, DWORD PTR _key$[ebp]
+  00541	52		 push	 edx
+  00542	8b 45 08	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00545	50		 push	 eax
+  00546	e8 00 00 00 00	 call	 _i2c_sendbyte
+  0054b	83 c4 0c	 add	 esp, 12			; 0000000cH
+  0054e	85 c0		 test	 eax, eax
+  00550	74 48		 je	 SHORT $L11127
+
+; 435  :       // Does not work on Vivitron ?
+; 436  : #if 0
+; 437  :       i2c_stop(pDev, key);
+; 438  : #endif
+; 439  :       i2c_start(pDev, key);
+
+  00552	8b 4d 0c	 mov	 ecx, DWORD PTR _key$[ebp]
+  00555	51		 push	 ecx
+  00556	8b 55 08	 mov	 edx, DWORD PTR _pDev$[ebp]
+  00559	52		 push	 edx
+  0055a	e8 00 00 00 00	 call	 _i2c_start
+  0055f	83 c4 08	 add	 esp, 8
+
+; 440  :       i2c_sendbyte(pDev, key, (BYTE)(bAddr|I2C_READSLAVE));
+
+  00562	8b 45 10	 mov	 eax, DWORD PTR _bAddr$[ebp]
+  00565	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  0056a	0c 01		 or	 al, 1
+  0056c	50		 push	 eax
+  0056d	8b 4d 0c	 mov	 ecx, DWORD PTR _key$[ebp]
+  00570	51		 push	 ecx
+  00571	8b 55 08	 mov	 edx, DWORD PTR _pDev$[ebp]
+  00574	52		 push	 edx
+  00575	e8 00 00 00 00	 call	 _i2c_sendbyte
+  0057a	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 441  :       i2c_setsda(pDev, key, 1, 0);
+
+  0057d	6a 00		 push	 0
+  0057f	6a 01		 push	 1
+  00581	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  00584	50		 push	 eax
+  00585	8b 4d 08	 mov	 ecx, DWORD PTR _pDev$[ebp]
+  00588	51		 push	 ecx
+  00589	e8 00 00 00 00	 call	 _i2c_setsda
+  0058e	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 442  :       nReturn = 1;
+
+  00591	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _nReturn$[ebp], 1
+
+; 444  :     else
+
+  00598	eb 1f		 jmp	 SHORT $L11130
+$L11127:
+
+; 446  :       i2c_stop(pDev, key);
+
+  0059a	8b 55 0c	 mov	 edx, DWORD PTR _key$[ebp]
+  0059d	52		 push	 edx
+  0059e	8b 45 08	 mov	 eax, DWORD PTR _pDev$[ebp]
+  005a1	50		 push	 eax
+  005a2	e8 00 00 00 00	 call	 _i2c_stop
+  005a7	83 c4 08	 add	 esp, 8
+
+; 447  :       Debug_Printf("failed to send %x\n", 0x00);
+
+  005aa	6a 00		 push	 0
+  005ac	68 00 00 00 00	 push	 OFFSET FLAT:$SG11131
+  005b1	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  005b6	83 c4 08	 add	 esp, 8
+$L11130:
+
+; 450  :   else
+
+  005b9	eb 26		 jmp	 SHORT $L11132
+$L11126:
+
+; 452  :     i2c_stop(pDev, key);
+
+  005bb	8b 4d 0c	 mov	 ecx, DWORD PTR _key$[ebp]
+  005be	51		 push	 ecx
+  005bf	8b 55 08	 mov	 edx, DWORD PTR _pDev$[ebp]
+  005c2	52		 push	 edx
+  005c3	e8 00 00 00 00	 call	 _i2c_stop
+  005c8	83 c4 08	 add	 esp, 8
+
+; 453  :     Debug_Printf("failed to send %x\n", bAddr|I2C_WRITESLAVE);
+
+  005cb	8b 45 10	 mov	 eax, DWORD PTR _bAddr$[ebp]
+  005ce	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  005d3	50		 push	 eax
+  005d4	68 00 00 00 00	 push	 OFFSET FLAT:$SG11134
+  005d9	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  005de	83 c4 08	 add	 esp, 8
+$L11132:
+
+; 455  : 
+; 456  :   return nReturn;
+
+  005e1	8b 45 fc	 mov	 eax, DWORD PTR _nReturn$[ebp]
+
+; 457  : }
+
+  005e4	8b e5		 mov	 esp, ebp
+  005e6	5d		 pop	 ebp
+  005e7	c3		 ret	 0
+_DDCCommand ENDP
+_LTEXT	ENDS
+EXTRN	_CCODE__CONFIGMG_Yield:NEAR
+EXTRN	_i2c_getsda:NEAR
+EXTRN	_i2c_getscl:NEAR
+EXTRN	_i2c_setscl:NEAR
+_LDATA	SEGMENT
+	ORG $+1
+$SG11154 DB	'Read Failed expected 0xFF got %02x', 0aH, 00H
+$SG11156 DB	'Read Failed expected 0x00 got %02x', 0aH, 00H
+$SG11158 DB	'DDC Command Failed', 0aH, 00H
+_LDATA	ENDS
+_LTEXT	SEGMENT
+_pDev$ = 8
+_key$ = 12
+_bAddr$ = 16
+_i$ = -12
+_nReturn$ = -4
+_bCH$ = -8
+_DoWakeUp PROC NEAR
+
+; 472  : {
+
+  005e8	55		 push	 ebp
+  005e9	8b ec		 mov	 ebp, esp
+  005eb	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 473  :   int i;
+; 474  :   int nReturn = 0;
+
+  005ee	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _nReturn$[ebp], 0
+
+; 475  :   BYTE bCH;
+; 476  : 
+; 477  :   // Possible Switch Box Fix?
+; 478  :   i2c_setsda(pDev, key, 1, 0);
+
+  005f5	6a 00		 push	 0
+  005f7	6a 01		 push	 1
+  005f9	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  005fc	50		 push	 eax
+  005fd	8b 4d 08	 mov	 ecx, DWORD PTR _pDev$[ebp]
+  00600	51		 push	 ecx
+  00601	e8 00 00 00 00	 call	 _i2c_setsda
+  00606	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 479  : 
+; 480  :   // Set the clock line low to let the monitor know we want the bus
+; 481  :   i2c_setscl(pDev, key, 0, 0);
+
+  00609	6a 00		 push	 0
+  0060b	6a 00		 push	 0
+  0060d	8b 55 0c	 mov	 edx, DWORD PTR _key$[ebp]
+  00610	52		 push	 edx
+  00611	8b 45 08	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00614	50		 push	 eax
+  00615	e8 00 00 00 00	 call	 _i2c_setscl
+  0061a	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 482  : 
+; 483  :   DELAY(MSEC);
+
+  0061d	6a 01		 push	 1
+  0061f	68 e8 03 00 00	 push	 1000			; 000003e8H
+  00624	e8 00 00 00 00	 call	 _CCODE__CONFIGMG_Yield
+  00629	83 c4 08	 add	 esp, 8
+
+; 484  : 
+; 485  :   i2c_setsda(pDev, key, 1, 0);
+
+  0062c	6a 00		 push	 0
+  0062e	6a 01		 push	 1
+  00630	8b 4d 0c	 mov	 ecx, DWORD PTR _key$[ebp]
+  00633	51		 push	 ecx
+  00634	8b 55 08	 mov	 edx, DWORD PTR _pDev$[ebp]
+  00637	52		 push	 edx
+  00638	e8 00 00 00 00	 call	 _i2c_setsda
+  0063d	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 486  :   i2c_setscl(pDev, key, 1, 0);
+
+  00640	6a 00		 push	 0
+  00642	6a 01		 push	 1
+  00644	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  00647	50		 push	 eax
+  00648	8b 4d 08	 mov	 ecx, DWORD PTR _pDev$[ebp]
+  0064b	51		 push	 ecx
+  0064c	e8 00 00 00 00	 call	 _i2c_setscl
+  00651	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 487  : 
+; 488  :   // 166 MSEC is approx 60 Hz (Editor's note: Actually, 60Hz is 16.6 MSEC.  But I ain't changin' it!)
+; 489  :   // Wait for the clock line and the data line to be released (both high)
+; 490  :   for (i=0; i<166; i++)
+
+  00654	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  0065b	eb 09		 jmp	 SHORT $L11145
+$L11146:
+  0065d	8b 55 f4	 mov	 edx, DWORD PTR _i$[ebp]
+  00660	83 c2 01	 add	 edx, 1
+  00663	89 55 f4	 mov	 DWORD PTR _i$[ebp], edx
+$L11145:
+  00666	81 7d f4 a6 00
+	00 00		 cmp	 DWORD PTR _i$[ebp], 166	; 000000a6H
+  0066d	7d 4c		 jge	 SHORT $L11147
+
+; 492  :     if ((1 == i2c_getscl(pDev, key)) && (1 == i2c_getsda(pDev, key)))
+
+  0066f	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  00672	50		 push	 eax
+  00673	8b 4d 08	 mov	 ecx, DWORD PTR _pDev$[ebp]
+  00676	51		 push	 ecx
+  00677	e8 00 00 00 00	 call	 _i2c_getscl
+  0067c	83 c4 08	 add	 esp, 8
+  0067f	83 f8 01	 cmp	 eax, 1
+  00682	75 17		 jne	 SHORT $L11148
+  00684	8b 55 0c	 mov	 edx, DWORD PTR _key$[ebp]
+  00687	52		 push	 edx
+  00688	8b 45 08	 mov	 eax, DWORD PTR _pDev$[ebp]
+  0068b	50		 push	 eax
+  0068c	e8 00 00 00 00	 call	 _i2c_getsda
+  00691	83 c4 08	 add	 esp, 8
+  00694	83 f8 01	 cmp	 eax, 1
+  00697	75 02		 jne	 SHORT $L11148
+
+; 493  :       break;
+
+  00699	eb 20		 jmp	 SHORT $L11147
+$L11148:
+
+; 494  :     DELAY(MSEC);
+
+  0069b	6a 01		 push	 1
+  0069d	68 e8 03 00 00	 push	 1000			; 000003e8H
+  006a2	e8 00 00 00 00	 call	 _CCODE__CONFIGMG_Yield
+  006a7	83 c4 08	 add	 esp, 8
+
+; 495  :     DELAY(MSEC);
+
+  006aa	6a 01		 push	 1
+  006ac	68 e8 03 00 00	 push	 1000			; 000003e8H
+  006b1	e8 00 00 00 00	 call	 _CCODE__CONFIGMG_Yield
+  006b6	83 c4 08	 add	 esp, 8
+
+; 496  :   }
+
+  006b9	eb a2		 jmp	 SHORT $L11146
+$L11147:
+
+; 497  : 
+; 498  :   // Send the stop command to make sure that there are 
+; 499  :   // no outstanding writes on the bus
+; 500  :   i2c_stop(pDev, key);
+
+  006bb	8b 4d 0c	 mov	 ecx, DWORD PTR _key$[ebp]
+  006be	51		 push	 ecx
+  006bf	8b 55 08	 mov	 edx, DWORD PTR _pDev$[ebp]
+  006c2	52		 push	 edx
+  006c3	e8 00 00 00 00	 call	 _i2c_stop
+  006c8	83 c4 08	 add	 esp, 8
+
+; 501  : 
+; 502  :   // Wait for the clock line and the data line to be released (both high)
+; 503  :   if ((1 != i2c_getscl(pDev, key)) && (1 != i2c_getsda(pDev, key)))
+
+  006cb	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  006ce	50		 push	 eax
+  006cf	8b 4d 08	 mov	 ecx, DWORD PTR _pDev$[ebp]
+  006d2	51		 push	 ecx
+  006d3	e8 00 00 00 00	 call	 _i2c_getscl
+  006d8	83 c4 08	 add	 esp, 8
+  006db	83 f8 01	 cmp	 eax, 1
+  006de	74 1d		 je	 SHORT $L11149
+  006e0	8b 55 0c	 mov	 edx, DWORD PTR _key$[ebp]
+  006e3	52		 push	 edx
+  006e4	8b 45 08	 mov	 eax, DWORD PTR _pDev$[ebp]
+  006e7	50		 push	 eax
+  006e8	e8 00 00 00 00	 call	 _i2c_getsda
+  006ed	83 c4 08	 add	 esp, 8
+  006f0	83 f8 01	 cmp	 eax, 1
+  006f3	74 08		 je	 SHORT $L11149
+
+; 504  :     return nReturn;
+
+  006f5	8b 45 fc	 mov	 eax, DWORD PTR _nReturn$[ebp]
+  006f8	e9 e1 00 00 00	 jmp	 $L11141
+$L11149:
+
+; 505  : 
+; 506  :   if (DDCCommand(pDev, key, bAddr))
+
+  006fd	8a 4d 10	 mov	 cl, BYTE PTR _bAddr$[ebp]
+  00700	51		 push	 ecx
+  00701	8b 55 0c	 mov	 edx, DWORD PTR _key$[ebp]
+  00704	52		 push	 edx
+  00705	8b 45 08	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00708	50		 push	 eax
+  00709	e8 00 00 00 00	 call	 _DDCCommand
+  0070e	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00711	85 c0		 test	 eax, eax
+  00713	0f 84 b5 00 00
+	00		 je	 $L11150
+
+; 508  :     i2c_readbyte(pDev, key, &bCH, 1);
+
+  00719	6a 01		 push	 1
+  0071b	8d 4d f8	 lea	 ecx, DWORD PTR _bCH$[ebp]
+  0071e	51		 push	 ecx
+  0071f	8b 55 0c	 mov	 edx, DWORD PTR _key$[ebp]
+  00722	52		 push	 edx
+  00723	8b 45 08	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00726	50		 push	 eax
+  00727	e8 00 00 00 00	 call	 _i2c_readbyte
+  0072c	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 509  :     if (0x00 == bCH)
+
+  0072f	8b 4d f8	 mov	 ecx, DWORD PTR _bCH$[ebp]
+  00732	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  00738	85 c9		 test	 ecx, ecx
+  0073a	75 69		 jne	 SHORT $L11151
+
+; 511  :       i2c_readbyte(pDev, key, &bCH, 0);
+
+  0073c	6a 00		 push	 0
+  0073e	8d 55 f8	 lea	 edx, DWORD PTR _bCH$[ebp]
+  00741	52		 push	 edx
+  00742	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  00745	50		 push	 eax
+  00746	8b 4d 08	 mov	 ecx, DWORD PTR _pDev$[ebp]
+  00749	51		 push	 ecx
+  0074a	e8 00 00 00 00	 call	 _i2c_readbyte
+  0074f	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 512  :       if (0xFF == bCH)
+
+  00752	8b 55 f8	 mov	 edx, DWORD PTR _bCH$[ebp]
+  00755	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  0075b	81 fa ff 00 00
+	00		 cmp	 edx, 255		; 000000ffH
+  00761	75 19		 jne	 SHORT $L11152
+
+; 514  :         nReturn = 1;
+
+  00763	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _nReturn$[ebp], 1
+
+; 515  :         i2c_stop(pDev, key);
+
+  0076a	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  0076d	50		 push	 eax
+  0076e	8b 4d 08	 mov	 ecx, DWORD PTR _pDev$[ebp]
+  00771	51		 push	 ecx
+  00772	e8 00 00 00 00	 call	 _i2c_stop
+  00777	83 c4 08	 add	 esp, 8
+
+; 517  :       else
+
+  0077a	eb 27		 jmp	 SHORT $L11153
+$L11152:
+
+; 519  :         i2c_stop(pDev, key);
+
+  0077c	8b 55 0c	 mov	 edx, DWORD PTR _key$[ebp]
+  0077f	52		 push	 edx
+  00780	8b 45 08	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00783	50		 push	 eax
+  00784	e8 00 00 00 00	 call	 _i2c_stop
+  00789	83 c4 08	 add	 esp, 8
+
+; 520  :         Debug_Printf("Read Failed expected 0xFF got %02x\n", bCH);
+
+  0078c	8b 4d f8	 mov	 ecx, DWORD PTR _bCH$[ebp]
+  0078f	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  00795	51		 push	 ecx
+  00796	68 00 00 00 00	 push	 OFFSET FLAT:$SG11154
+  0079b	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  007a0	83 c4 08	 add	 esp, 8
+$L11153:
+
+; 523  :     else
+
+  007a3	eb 27		 jmp	 SHORT $L11155
+$L11151:
+
+; 525  :       i2c_stop(pDev, key);
+
+  007a5	8b 55 0c	 mov	 edx, DWORD PTR _key$[ebp]
+  007a8	52		 push	 edx
+  007a9	8b 45 08	 mov	 eax, DWORD PTR _pDev$[ebp]
+  007ac	50		 push	 eax
+  007ad	e8 00 00 00 00	 call	 _i2c_stop
+  007b2	83 c4 08	 add	 esp, 8
+
+; 526  :       Debug_Printf("Read Failed expected 0x00 got %02x\n", bCH);
+
+  007b5	8b 4d f8	 mov	 ecx, DWORD PTR _bCH$[ebp]
+  007b8	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  007be	51		 push	 ecx
+  007bf	68 00 00 00 00	 push	 OFFSET FLAT:$SG11156
+  007c4	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  007c9	83 c4 08	 add	 esp, 8
+$L11155:
+
+; 529  :   else
+
+  007cc	eb 0d		 jmp	 SHORT $L11157
+$L11150:
+
+; 530  :     Debug_Printf("DDC Command Failed\n");
+
+  007ce	68 00 00 00 00	 push	 OFFSET FLAT:$SG11158
+  007d3	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  007d8	83 c4 04	 add	 esp, 4
+$L11157:
+
+; 531  : 
+; 532  :   return nReturn;
+
+  007db	8b 45 fc	 mov	 eax, DWORD PTR _nReturn$[ebp]
+$L11141:
+
+; 533  : }
+
+  007de	8b e5		 mov	 esp, ebp
+  007e0	5d		 pop	 ebp
+  007e1	c3		 ret	 0
+_DoWakeUp ENDP
+_LTEXT	ENDS
+END

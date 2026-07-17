@@ -1,0 +1,1840 @@
+	TITLE	..\gpio.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+_PTEXT	SEGMENT PARA USE32 PUBLIC 'PCODE'
+_PTEXT	ENDS
+_LTEXT	SEGMENT PARA USE32 PUBLIC 'LCODE'
+_LTEXT	ENDS
+_PDATA	SEGMENT DWORD USE32 PUBLIC 'PDATA'
+_PDATA	ENDS
+_LDATA	SEGMENT DWORD USE32 PUBLIC 'LCODE'
+_LDATA	ENDS
+FLAT	GROUP _DATA, CONST, _BSS, _PDATA, _LDATA
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+PUBLIC	_isGPIOInit
+PUBLIC	_OD
+PUBLIC	_S2S1S0
+_DATA	SEGMENT
+COMM	_GpioMask:BYTE:070H
+_DATA	ENDS
+_PDATA	SEGMENT
+_isGPIOInit DD	00H
+_OD	DD	02H
+	DD	03H
+	DD	04H
+	DD	05H
+	DD	06H
+	DD	07H
+	DD	08H
+	DD	0aH
+_S2S1S0	DD	0fH
+	DD	0fH
+	DD	01H
+	DD	06H
+	DD	03H
+	DD	04H
+	DD	07H
+	DD	05H
+	DD	02H
+	DD	0fH
+	DD	00H
+_PDATA	ENDS
+PUBLIC	_GetGpio
+EXTRN	_PCI_Read_Config:NEAR
+_PTEXT	SEGMENT
+_pPCI_BIT$ = 8
+_GetGpio PROC NEAR
+
+; 53   : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+
+; 54   :    return PCI_Read_Config(pPCI_BIT->dwBus, pPCI_BIT->dwDevFunc, pPCI_BIT->RN);
+
+  00003	8b 45 08	 mov	 eax, DWORD PTR _pPCI_BIT$[ebp]
+  00006	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  00009	51		 push	 ecx
+  0000a	8b 55 08	 mov	 edx, DWORD PTR _pPCI_BIT$[ebp]
+  0000d	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  00010	50		 push	 eax
+  00011	8b 4d 08	 mov	 ecx, DWORD PTR _pPCI_BIT$[ebp]
+  00014	8b 11		 mov	 edx, DWORD PTR [ecx]
+  00016	52		 push	 edx
+  00017	e8 00 00 00 00	 call	 _PCI_Read_Config
+  0001c	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 55   : }
+
+  0001f	5d		 pop	 ebp
+  00020	c3		 ret	 0
+_GetGpio ENDP
+_PTEXT	ENDS
+PUBLIC	_GetGpio_Bit
+_PTEXT	SEGMENT
+_pPCI_BIT$ = 8
+_bData$ = -4
+_GetGpio_Bit PROC NEAR
+
+; 67   : {
+
+  00021	55		 push	 ebp
+  00022	8b ec		 mov	 ebp, esp
+  00024	51		 push	 ecx
+
+; 68   :    DWORD bData;
+; 69   :    bData = PCI_Read_Config(pPCI_BIT->dwBus, pPCI_BIT->dwDevFunc, pPCI_BIT->RN);
+
+  00025	8b 45 08	 mov	 eax, DWORD PTR _pPCI_BIT$[ebp]
+  00028	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  0002b	51		 push	 ecx
+  0002c	8b 55 08	 mov	 edx, DWORD PTR _pPCI_BIT$[ebp]
+  0002f	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  00032	50		 push	 eax
+  00033	8b 4d 08	 mov	 ecx, DWORD PTR _pPCI_BIT$[ebp]
+  00036	8b 11		 mov	 edx, DWORD PTR [ecx]
+  00038	52		 push	 edx
+  00039	e8 00 00 00 00	 call	 _PCI_Read_Config
+  0003e	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00041	89 45 fc	 mov	 DWORD PTR _bData$[ebp], eax
+
+; 70   :    return (bData & pPCI_BIT->dInMask) >> pPCI_BIT->dInShift;
+
+  00044	8b 45 08	 mov	 eax, DWORD PTR _pPCI_BIT$[ebp]
+  00047	8b 55 fc	 mov	 edx, DWORD PTR _bData$[ebp]
+  0004a	23 50 0c	 and	 edx, DWORD PTR [eax+12]
+  0004d	8b 45 08	 mov	 eax, DWORD PTR _pPCI_BIT$[ebp]
+  00050	8b 48 14	 mov	 ecx, DWORD PTR [eax+20]
+  00053	d3 ea		 shr	 edx, cl
+  00055	8b c2		 mov	 eax, edx
+
+; 71   : }
+
+  00057	8b e5		 mov	 esp, ebp
+  00059	5d		 pop	 ebp
+  0005a	c3		 ret	 0
+_GetGpio_Bit ENDP
+_PTEXT	ENDS
+PUBLIC	_SetGpio_Bit
+EXTRN	_PCI_Write_Config:NEAR
+_PTEXT	SEGMENT
+_pPCI_BIT$ = 8
+_dwValue$ = 12
+_dwReg$ = -4
+_SetGpio_Bit PROC NEAR
+
+; 83   : {
+
+  0005b	55		 push	 ebp
+  0005c	8b ec		 mov	 ebp, esp
+  0005e	51		 push	 ecx
+
+; 84   :    DWORD dwReg;
+; 85   : 
+; 86   :    dwReg = GetGpio(pPCI_BIT);
+
+  0005f	8b 45 08	 mov	 eax, DWORD PTR _pPCI_BIT$[ebp]
+  00062	50		 push	 eax
+  00063	e8 00 00 00 00	 call	 _GetGpio
+  00068	83 c4 04	 add	 esp, 4
+  0006b	89 45 fc	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 87   :    dwReg = dwReg & ~pPCI_BIT->dOutMask; 
+
+  0006e	8b 4d 08	 mov	 ecx, DWORD PTR _pPCI_BIT$[ebp]
+  00071	8b 51 10	 mov	 edx, DWORD PTR [ecx+16]
+  00074	f7 d2		 not	 edx
+  00076	8b 45 fc	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00079	23 c2		 and	 eax, edx
+  0007b	89 45 fc	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 88   : 
+; 89   :    dwReg |= ((dwValue & 0x01) << pPCI_BIT->dOutShift);   
+
+  0007e	8b 55 0c	 mov	 edx, DWORD PTR _dwValue$[ebp]
+  00081	83 e2 01	 and	 edx, 1
+  00084	8b 45 08	 mov	 eax, DWORD PTR _pPCI_BIT$[ebp]
+  00087	8b 48 18	 mov	 ecx, DWORD PTR [eax+24]
+  0008a	d3 e2		 shl	 edx, cl
+  0008c	8b 4d fc	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  0008f	0b ca		 or	 ecx, edx
+  00091	89 4d fc	 mov	 DWORD PTR _dwReg$[ebp], ecx
+
+; 90   :    return PCI_Write_Config(pPCI_BIT->dwBus, pPCI_BIT->dwDevFunc, pPCI_BIT->RN, dwReg);
+
+  00094	8b 55 fc	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00097	52		 push	 edx
+  00098	8b 45 08	 mov	 eax, DWORD PTR _pPCI_BIT$[ebp]
+  0009b	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  0009e	51		 push	 ecx
+  0009f	8b 55 08	 mov	 edx, DWORD PTR _pPCI_BIT$[ebp]
+  000a2	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  000a5	50		 push	 eax
+  000a6	8b 4d 08	 mov	 ecx, DWORD PTR _pPCI_BIT$[ebp]
+  000a9	8b 11		 mov	 edx, DWORD PTR [ecx]
+  000ab	52		 push	 edx
+  000ac	e8 00 00 00 00	 call	 _PCI_Write_Config
+  000b1	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 91   : }
+
+  000b4	8b e5		 mov	 esp, ebp
+  000b6	5d		 pop	 ebp
+  000b7	c3		 ret	 0
+_SetGpio_Bit ENDP
+_PTEXT	ENDS
+PUBLIC	_SetGpio
+_PTEXT	SEGMENT
+_pPCI_BIT$ = 8
+_dwValue$ = 12
+_SetGpio PROC NEAR
+
+; 103  : {
+
+  000b8	55		 push	 ebp
+  000b9	8b ec		 mov	 ebp, esp
+
+; 104  :    return PCI_Write_Config(pPCI_BIT->dwBus, pPCI_BIT->dwDevFunc, pPCI_BIT->RN, dwValue);
+
+  000bb	8b 45 0c	 mov	 eax, DWORD PTR _dwValue$[ebp]
+  000be	50		 push	 eax
+  000bf	8b 4d 08	 mov	 ecx, DWORD PTR _pPCI_BIT$[ebp]
+  000c2	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  000c5	52		 push	 edx
+  000c6	8b 45 08	 mov	 eax, DWORD PTR _pPCI_BIT$[ebp]
+  000c9	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  000cc	51		 push	 ecx
+  000cd	8b 55 08	 mov	 edx, DWORD PTR _pPCI_BIT$[ebp]
+  000d0	8b 02		 mov	 eax, DWORD PTR [edx]
+  000d2	50		 push	 eax
+  000d3	e8 00 00 00 00	 call	 _PCI_Write_Config
+  000d8	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 105  : }
+
+  000db	5d		 pop	 ebp
+  000dc	c3		 ret	 0
+_SetGpio ENDP
+_PTEXT	ENDS
+PUBLIC	_gpio_scl
+PUBLIC	_gpio_read_scl
+EXTRN	_CCODE__Debug_Printf_Service:NEAR
+EXTRN	_WaitTime:NEAR
+_PDATA	SEGMENT
+$SG11123 DB	'..\gpio.c', 00H
+	ORG $+2
+$SG11124 DB	'Slave did not respond %s %d', 0aH, 00H
+_PDATA	ENDS
+_PTEXT	SEGMENT
+_pGPIOMask$ = 8
+_bit$ = 12
+_nCount$ = -4
+_gpio_scl PROC NEAR
+
+; 118  : {
+
+  000dd	55		 push	 ebp
+  000de	8b ec		 mov	 ebp, esp
+  000e0	51		 push	 ecx
+
+; 119  : 	int nCount = 0;
+
+  000e1	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _nCount$[ebp], 0
+
+; 120  : 
+; 121  : 	DELAY(DTIME);
+
+  000e8	68 88 13 00 00	 push	 5000			; 00001388H
+  000ed	e8 00 00 00 00	 call	 _WaitTime
+  000f2	83 c4 04	 add	 esp, 4
+
+; 122  : 
+; 123  :    SetGpio_Bit(&pGPIOMask->Clk, bit);
+
+  000f5	8b 45 0c	 mov	 eax, DWORD PTR _bit$[ebp]
+  000f8	50		 push	 eax
+  000f9	8b 4d 08	 mov	 ecx, DWORD PTR _pGPIOMask$[ebp]
+  000fc	83 c1 1c	 add	 ecx, 28			; 0000001cH
+  000ff	51		 push	 ecx
+  00100	e8 00 00 00 00	 call	 _SetGpio_Bit
+  00105	83 c4 08	 add	 esp, 8
+
+; 124  : 	DELAY(DTIME);
+
+  00108	68 88 13 00 00	 push	 5000			; 00001388H
+  0010d	e8 00 00 00 00	 call	 _WaitTime
+  00112	83 c4 04	 add	 esp, 4
+
+; 125  : 
+; 126  : 	if (bit)
+
+  00115	83 7d 0c 00	 cmp	 DWORD PTR _bit$[ebp], 0
+  00119	74 32		 je	 SHORT $L11121
+$L11120:
+
+; 127  : 		while (!gpio_read_scl(pGPIOMask) && (nCount++ < CLOCK_STRETCH))
+
+  0011b	8b 55 08	 mov	 edx, DWORD PTR _pGPIOMask$[ebp]
+  0011e	52		 push	 edx
+  0011f	e8 00 00 00 00	 call	 _gpio_read_scl
+  00124	83 c4 04	 add	 esp, 4
+  00127	85 c0		 test	 eax, eax
+  00129	75 22		 jne	 SHORT $L11121
+  0012b	8b 45 fc	 mov	 eax, DWORD PTR _nCount$[ebp]
+  0012e	8b 4d fc	 mov	 ecx, DWORD PTR _nCount$[ebp]
+  00131	83 c1 01	 add	 ecx, 1
+  00134	89 4d fc	 mov	 DWORD PTR _nCount$[ebp], ecx
+  00137	3d e8 03 00 00	 cmp	 eax, 1000		; 000003e8H
+  0013c	7d 0f		 jge	 SHORT $L11121
+
+; 128  : 			DELAY(DTIME);
+
+  0013e	68 88 13 00 00	 push	 5000			; 00001388H
+  00143	e8 00 00 00 00	 call	 _WaitTime
+  00148	83 c4 04	 add	 esp, 4
+  0014b	eb ce		 jmp	 SHORT $L11120
+$L11121:
+
+; 129  : 
+; 130  : 	if ((bit) && (!gpio_read_scl(pGPIOMask)))
+
+  0014d	83 7d 0c 00	 cmp	 DWORD PTR _bit$[ebp], 0
+  00151	74 27		 je	 SHORT $L11122
+  00153	8b 55 08	 mov	 edx, DWORD PTR _pGPIOMask$[ebp]
+  00156	52		 push	 edx
+  00157	e8 00 00 00 00	 call	 _gpio_read_scl
+  0015c	83 c4 04	 add	 esp, 4
+  0015f	85 c0		 test	 eax, eax
+  00161	75 17		 jne	 SHORT $L11122
+
+; 131  : 		Debug_Printf("Slave did not respond %s %d\n", __FILE__, __LINE__);
+
+  00163	68 83 00 00 00	 push	 131			; 00000083H
+  00168	68 00 00 00 00	 push	 OFFSET FLAT:$SG11123
+  0016d	68 00 00 00 00	 push	 OFFSET FLAT:$SG11124
+  00172	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00177	83 c4 0c	 add	 esp, 12			; 0000000cH
+$L11122:
+
+; 132  : }
+
+  0017a	8b e5		 mov	 esp, ebp
+  0017c	5d		 pop	 ebp
+  0017d	c3		 ret	 0
+_gpio_scl ENDP
+_PTEXT	ENDS
+PUBLIC	_gpio_sda
+_PTEXT	SEGMENT
+_pGPIOMask$ = 8
+_bit$ = 12
+_gpio_sda PROC NEAR
+
+; 145  : {
+
+  0017e	55		 push	 ebp
+  0017f	8b ec		 mov	 ebp, esp
+
+; 146  : 	DELAY(DTIME);
+
+  00181	68 88 13 00 00	 push	 5000			; 00001388H
+  00186	e8 00 00 00 00	 call	 _WaitTime
+  0018b	83 c4 04	 add	 esp, 4
+
+; 147  :    bit = bit >> 7;
+
+  0018e	8b 45 0c	 mov	 eax, DWORD PTR _bit$[ebp]
+  00191	c1 e8 07	 shr	 eax, 7
+  00194	89 45 0c	 mov	 DWORD PTR _bit$[ebp], eax
+
+; 148  :    SetGpio_Bit(&pGPIOMask->Data, bit);
+
+  00197	8b 4d 0c	 mov	 ecx, DWORD PTR _bit$[ebp]
+  0019a	51		 push	 ecx
+  0019b	8b 55 08	 mov	 edx, DWORD PTR _pGPIOMask$[ebp]
+  0019e	52		 push	 edx
+  0019f	e8 00 00 00 00	 call	 _SetGpio_Bit
+  001a4	83 c4 08	 add	 esp, 8
+
+; 149  : 	DELAY(DTIME);
+
+  001a7	68 88 13 00 00	 push	 5000			; 00001388H
+  001ac	e8 00 00 00 00	 call	 _WaitTime
+  001b1	83 c4 04	 add	 esp, 4
+
+; 150  : }
+
+  001b4	5d		 pop	 ebp
+  001b5	c3		 ret	 0
+_gpio_sda ENDP
+_pGPIOMask$ = 8
+_gpio_read_scl PROC NEAR
+
+; 163  : {
+
+  001b6	55		 push	 ebp
+  001b7	8b ec		 mov	 ebp, esp
+
+; 164  : 	return GetGpio_Bit(&pGPIOMask->Clk);
+
+  001b9	8b 45 08	 mov	 eax, DWORD PTR _pGPIOMask$[ebp]
+  001bc	83 c0 1c	 add	 eax, 28			; 0000001cH
+  001bf	50		 push	 eax
+  001c0	e8 00 00 00 00	 call	 _GetGpio_Bit
+  001c5	83 c4 04	 add	 esp, 4
+
+; 165  : }
+
+  001c8	5d		 pop	 ebp
+  001c9	c3		 ret	 0
+_gpio_read_scl ENDP
+_PTEXT	ENDS
+PUBLIC	_gpio_read_sda
+_PTEXT	SEGMENT
+_pGPIOMask$ = 8
+_gpio_read_sda PROC NEAR
+
+; 178  : {
+
+  001ca	55		 push	 ebp
+  001cb	8b ec		 mov	 ebp, esp
+
+; 179  : 	return GetGpio_Bit(&pGPIOMask->Data);
+
+  001cd	8b 45 08	 mov	 eax, DWORD PTR _pGPIOMask$[ebp]
+  001d0	50		 push	 eax
+  001d1	e8 00 00 00 00	 call	 _GetGpio_Bit
+  001d6	83 c4 04	 add	 esp, 4
+
+; 180  : }
+
+  001d9	5d		 pop	 ebp
+  001da	c3		 ret	 0
+_gpio_read_sda ENDP
+_PTEXT	ENDS
+PUBLIC	_gpio_send_byte
+_PDATA	SEGMENT
+	ORG $+3
+$SG11151 DB	'nc', 0aH, 00H
+$SG11156 DB	'nc', 0aH, 00H
+$SG11161 DB	'nc', 0aH, 00H
+_PDATA	ENDS
+_PTEXT	SEGMENT
+_pGPIOMask$ = 8
+_b1$ = 12
+_b2$ = 16
+_b3$ = 20
+_i$ = -8
+_nReturn$ = -4
+_gpio_send_byte PROC NEAR
+
+; 193  : {
+
+  001db	55		 push	 ebp
+  001dc	8b ec		 mov	 ebp, esp
+  001de	83 ec 08	 sub	 esp, 8
+
+; 194  : 	int	i;
+; 195  : 	int nReturn=0;
+
+  001e1	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _nReturn$[ebp], 0
+
+; 196  : 
+; 197  : 	for (i = 0; i < 8; i++)
+
+  001e8	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  001ef	eb 09		 jmp	 SHORT $L11147
+$L11148:
+  001f1	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  001f4	83 c0 01	 add	 eax, 1
+  001f7	89 45 f8	 mov	 DWORD PTR _i$[ebp], eax
+$L11147:
+  001fa	83 7d f8 08	 cmp	 DWORD PTR _i$[ebp], 8
+  001fe	7d 5c		 jge	 SHORT $L11149
+
+; 199  : 	  gpio_sda(pGPIOMask, (b1 << i) & 0x80);
+
+  00200	8b 55 0c	 mov	 edx, DWORD PTR _b1$[ebp]
+  00203	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00209	8b 4d f8	 mov	 ecx, DWORD PTR _i$[ebp]
+  0020c	d3 e2		 shl	 edx, cl
+  0020e	81 e2 80 00 00
+	00		 and	 edx, 128		; 00000080H
+  00214	52		 push	 edx
+  00215	8b 45 08	 mov	 eax, DWORD PTR _pGPIOMask$[ebp]
+  00218	50		 push	 eax
+  00219	e8 00 00 00 00	 call	 _gpio_sda
+  0021e	83 c4 08	 add	 esp, 8
+
+; 200  : 	  gpio_scl(pGPIOMask, 1);
+
+  00221	6a 01		 push	 1
+  00223	8b 4d 08	 mov	 ecx, DWORD PTR _pGPIOMask$[ebp]
+  00226	51		 push	 ecx
+  00227	e8 00 00 00 00	 call	 _gpio_scl
+  0022c	83 c4 08	 add	 esp, 8
+
+; 201  : 	  if (gpio_read_scl(pGPIOMask) == 0)
+
+  0022f	8b 55 08	 mov	 edx, DWORD PTR _pGPIOMask$[ebp]
+  00232	52		 push	 edx
+  00233	e8 00 00 00 00	 call	 _gpio_read_scl
+  00238	83 c4 04	 add	 esp, 4
+  0023b	85 c0		 test	 eax, eax
+  0023d	75 0d		 jne	 SHORT $L11150
+
+; 203  : 	     Debug_Printf("nc\n");
+
+  0023f	68 00 00 00 00	 push	 OFFSET FLAT:$SG11151
+  00244	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00249	83 c4 04	 add	 esp, 4
+$L11150:
+
+; 205  : 	  gpio_scl(pGPIOMask, 0);
+
+  0024c	6a 00		 push	 0
+  0024e	8b 45 08	 mov	 eax, DWORD PTR _pGPIOMask$[ebp]
+  00251	50		 push	 eax
+  00252	e8 00 00 00 00	 call	 _gpio_scl
+  00257	83 c4 08	 add	 esp, 8
+
+; 206  : 	}
+
+  0025a	eb 95		 jmp	 SHORT $L11148
+$L11149:
+
+; 207  : 
+; 208  : 	for (i = 0; i < 8; i++)
+
+  0025c	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  00263	eb 09		 jmp	 SHORT $L11152
+$L11153:
+  00265	8b 4d f8	 mov	 ecx, DWORD PTR _i$[ebp]
+  00268	83 c1 01	 add	 ecx, 1
+  0026b	89 4d f8	 mov	 DWORD PTR _i$[ebp], ecx
+$L11152:
+  0026e	83 7d f8 08	 cmp	 DWORD PTR _i$[ebp], 8
+  00272	7d 5c		 jge	 SHORT $L11154
+
+; 210  : 	  gpio_sda(pGPIOMask, (b2 << i) & 0x80);
+
+  00274	8b 55 10	 mov	 edx, DWORD PTR _b2$[ebp]
+  00277	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  0027d	8b 4d f8	 mov	 ecx, DWORD PTR _i$[ebp]
+  00280	d3 e2		 shl	 edx, cl
+  00282	81 e2 80 00 00
+	00		 and	 edx, 128		; 00000080H
+  00288	52		 push	 edx
+  00289	8b 45 08	 mov	 eax, DWORD PTR _pGPIOMask$[ebp]
+  0028c	50		 push	 eax
+  0028d	e8 00 00 00 00	 call	 _gpio_sda
+  00292	83 c4 08	 add	 esp, 8
+
+; 211  : 	  gpio_scl(pGPIOMask, 1);
+
+  00295	6a 01		 push	 1
+  00297	8b 4d 08	 mov	 ecx, DWORD PTR _pGPIOMask$[ebp]
+  0029a	51		 push	 ecx
+  0029b	e8 00 00 00 00	 call	 _gpio_scl
+  002a0	83 c4 08	 add	 esp, 8
+
+; 212  : 	  if (gpio_read_scl(pGPIOMask) == 0)
+
+  002a3	8b 55 08	 mov	 edx, DWORD PTR _pGPIOMask$[ebp]
+  002a6	52		 push	 edx
+  002a7	e8 00 00 00 00	 call	 _gpio_read_scl
+  002ac	83 c4 04	 add	 esp, 4
+  002af	85 c0		 test	 eax, eax
+  002b1	75 0d		 jne	 SHORT $L11155
+
+; 214  : 	     Debug_Printf("nc\n");
+
+  002b3	68 00 00 00 00	 push	 OFFSET FLAT:$SG11156
+  002b8	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  002bd	83 c4 04	 add	 esp, 4
+$L11155:
+
+; 216  : 	  gpio_scl(pGPIOMask, 0);
+
+  002c0	6a 00		 push	 0
+  002c2	8b 45 08	 mov	 eax, DWORD PTR _pGPIOMask$[ebp]
+  002c5	50		 push	 eax
+  002c6	e8 00 00 00 00	 call	 _gpio_scl
+  002cb	83 c4 08	 add	 esp, 8
+
+; 217  : 	}
+
+  002ce	eb 95		 jmp	 SHORT $L11153
+$L11154:
+
+; 218  : 
+; 219  : 	for (i = 0; i < 8; i++)
+
+  002d0	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  002d7	eb 09		 jmp	 SHORT $L11157
+$L11158:
+  002d9	8b 4d f8	 mov	 ecx, DWORD PTR _i$[ebp]
+  002dc	83 c1 01	 add	 ecx, 1
+  002df	89 4d f8	 mov	 DWORD PTR _i$[ebp], ecx
+$L11157:
+  002e2	83 7d f8 08	 cmp	 DWORD PTR _i$[ebp], 8
+  002e6	7d 5c		 jge	 SHORT $L11159
+
+; 221  : 	  gpio_sda(pGPIOMask, (b3 << i) & 0x80);
+
+  002e8	8b 55 14	 mov	 edx, DWORD PTR _b3$[ebp]
+  002eb	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  002f1	8b 4d f8	 mov	 ecx, DWORD PTR _i$[ebp]
+  002f4	d3 e2		 shl	 edx, cl
+  002f6	81 e2 80 00 00
+	00		 and	 edx, 128		; 00000080H
+  002fc	52		 push	 edx
+  002fd	8b 45 08	 mov	 eax, DWORD PTR _pGPIOMask$[ebp]
+  00300	50		 push	 eax
+  00301	e8 00 00 00 00	 call	 _gpio_sda
+  00306	83 c4 08	 add	 esp, 8
+
+; 222  : 	  gpio_scl(pGPIOMask, 1);
+
+  00309	6a 01		 push	 1
+  0030b	8b 4d 08	 mov	 ecx, DWORD PTR _pGPIOMask$[ebp]
+  0030e	51		 push	 ecx
+  0030f	e8 00 00 00 00	 call	 _gpio_scl
+  00314	83 c4 08	 add	 esp, 8
+
+; 223  : 	  if (gpio_read_scl(pGPIOMask) == 0)
+
+  00317	8b 55 08	 mov	 edx, DWORD PTR _pGPIOMask$[ebp]
+  0031a	52		 push	 edx
+  0031b	e8 00 00 00 00	 call	 _gpio_read_scl
+  00320	83 c4 04	 add	 esp, 4
+  00323	85 c0		 test	 eax, eax
+  00325	75 0d		 jne	 SHORT $L11160
+
+; 225  : 	     Debug_Printf("nc\n");
+
+  00327	68 00 00 00 00	 push	 OFFSET FLAT:$SG11161
+  0032c	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00331	83 c4 04	 add	 esp, 4
+$L11160:
+
+; 227  : 	  gpio_scl(pGPIOMask, 0);
+
+  00334	6a 00		 push	 0
+  00336	8b 45 08	 mov	 eax, DWORD PTR _pGPIOMask$[ebp]
+  00339	50		 push	 eax
+  0033a	e8 00 00 00 00	 call	 _gpio_scl
+  0033f	83 c4 08	 add	 esp, 8
+
+; 228  : 	}
+
+  00342	eb 95		 jmp	 SHORT $L11158
+$L11159:
+
+; 229  : 
+; 230  :    // Strobe to make it happen
+; 231  :    DELAY(DTIME);
+
+  00344	68 88 13 00 00	 push	 5000			; 00001388H
+  00349	e8 00 00 00 00	 call	 _WaitTime
+  0034e	83 c4 04	 add	 esp, 4
+
+; 232  :    SetGpio_Bit(&pGPIOMask->Strobe, 1);
+
+  00351	6a 01		 push	 1
+  00353	8b 4d 08	 mov	 ecx, DWORD PTR _pGPIOMask$[ebp]
+  00356	83 c1 38	 add	 ecx, 56			; 00000038H
+  00359	51		 push	 ecx
+  0035a	e8 00 00 00 00	 call	 _SetGpio_Bit
+  0035f	83 c4 08	 add	 esp, 8
+
+; 233  : 	DELAY(DTIME);
+
+  00362	68 88 13 00 00	 push	 5000			; 00001388H
+  00367	e8 00 00 00 00	 call	 _WaitTime
+  0036c	83 c4 04	 add	 esp, 4
+
+; 234  : 
+; 235  :    DELAY(DTIME);
+
+  0036f	68 88 13 00 00	 push	 5000			; 00001388H
+  00374	e8 00 00 00 00	 call	 _WaitTime
+  00379	83 c4 04	 add	 esp, 4
+
+; 236  :    SetGpio_Bit(&pGPIOMask->Strobe, 0);
+
+  0037c	6a 00		 push	 0
+  0037e	8b 55 08	 mov	 edx, DWORD PTR _pGPIOMask$[ebp]
+  00381	83 c2 38	 add	 edx, 56			; 00000038H
+  00384	52		 push	 edx
+  00385	e8 00 00 00 00	 call	 _SetGpio_Bit
+  0038a	83 c4 08	 add	 esp, 8
+
+; 237  : 	DELAY(DTIME);
+
+  0038d	68 88 13 00 00	 push	 5000			; 00001388H
+  00392	e8 00 00 00 00	 call	 _WaitTime
+  00397	83 c4 04	 add	 esp, 4
+
+; 238  : 
+; 239  : 
+; 240  : 	return nReturn;
+
+  0039a	8b 45 fc	 mov	 eax, DWORD PTR _nReturn$[ebp]
+
+; 241  : }
+
+  0039d	8b e5		 mov	 esp, ebp
+  0039f	5d		 pop	 ebp
+  003a0	c3		 ret	 0
+_gpio_send_byte ENDP
+_PTEXT	ENDS
+PUBLIC	_FindGPIODevice
+_PTEXT	SEGMENT
+_dwDevVenID$ = 8
+_dwBus$ = 12
+_pdwBus$ = 16
+_pdwDevFunc$ = 20
+_FindGPIODevice PROC NEAR
+
+; 253  : {
+
+  003a1	55		 push	 ebp
+  003a2	8b ec		 mov	 ebp, esp
+
+; 254  :    for (*pdwBus=0; *pdwBus<256; *pdwBus += 1)
+
+  003a4	8b 45 10	 mov	 eax, DWORD PTR _pdwBus$[ebp]
+  003a7	c7 00 00 00 00
+	00		 mov	 DWORD PTR [eax], 0
+  003ad	eb 0d		 jmp	 SHORT $L11171
+$L11172:
+  003af	8b 4d 10	 mov	 ecx, DWORD PTR _pdwBus$[ebp]
+  003b2	8b 11		 mov	 edx, DWORD PTR [ecx]
+  003b4	83 c2 01	 add	 edx, 1
+  003b7	8b 45 10	 mov	 eax, DWORD PTR _pdwBus$[ebp]
+  003ba	89 10		 mov	 DWORD PTR [eax], edx
+$L11171:
+  003bc	8b 4d 10	 mov	 ecx, DWORD PTR _pdwBus$[ebp]
+  003bf	81 39 00 01 00
+	00		 cmp	 DWORD PTR [ecx], 256	; 00000100H
+  003c5	73 6c		 jae	 SHORT $L11173
+
+; 256  :       for (*pdwDevFunc = 0; *pdwDevFunc<0x100; *pdwDevFunc += 0x08)
+
+  003c7	8b 55 14	 mov	 edx, DWORD PTR _pdwDevFunc$[ebp]
+  003ca	c7 02 00 00 00
+	00		 mov	 DWORD PTR [edx], 0
+  003d0	eb 0d		 jmp	 SHORT $L11174
+$L11175:
+  003d2	8b 45 14	 mov	 eax, DWORD PTR _pdwDevFunc$[ebp]
+  003d5	8b 08		 mov	 ecx, DWORD PTR [eax]
+  003d7	83 c1 08	 add	 ecx, 8
+  003da	8b 55 14	 mov	 edx, DWORD PTR _pdwDevFunc$[ebp]
+  003dd	89 0a		 mov	 DWORD PTR [edx], ecx
+$L11174:
+  003df	8b 45 14	 mov	 eax, DWORD PTR _pdwDevFunc$[ebp]
+  003e2	81 38 00 01 00
+	00		 cmp	 DWORD PTR [eax], 256	; 00000100H
+  003e8	73 44		 jae	 SHORT $L11176
+
+; 258  :          if (dwDevVenID == PCI_Read_Config(*pdwBus, *pdwDevFunc, 0x0))
+
+  003ea	6a 00		 push	 0
+  003ec	8b 4d 14	 mov	 ecx, DWORD PTR _pdwDevFunc$[ebp]
+  003ef	8b 11		 mov	 edx, DWORD PTR [ecx]
+  003f1	52		 push	 edx
+  003f2	8b 45 10	 mov	 eax, DWORD PTR _pdwBus$[ebp]
+  003f5	8b 08		 mov	 ecx, DWORD PTR [eax]
+  003f7	51		 push	 ecx
+  003f8	e8 00 00 00 00	 call	 _PCI_Read_Config
+  003fd	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00400	39 45 08	 cmp	 DWORD PTR _dwDevVenID$[ebp], eax
+  00403	75 27		 jne	 SHORT $L11178
+
+; 259  :             if (dwBus == (PCI_Read_Config(*pdwBus, *pdwDevFunc, 0x19) & 0xFF))
+
+  00405	6a 19		 push	 25			; 00000019H
+  00407	8b 55 14	 mov	 edx, DWORD PTR _pdwDevFunc$[ebp]
+  0040a	8b 02		 mov	 eax, DWORD PTR [edx]
+  0040c	50		 push	 eax
+  0040d	8b 4d 10	 mov	 ecx, DWORD PTR _pdwBus$[ebp]
+  00410	8b 11		 mov	 edx, DWORD PTR [ecx]
+  00412	52		 push	 edx
+  00413	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00418	83 c4 0c	 add	 esp, 12			; 0000000cH
+  0041b	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00420	39 45 0c	 cmp	 DWORD PTR _dwBus$[ebp], eax
+  00423	75 07		 jne	 SHORT $L11178
+
+; 260  :                return 1;
+
+  00425	b8 01 00 00 00	 mov	 eax, 1
+  0042a	eb 09		 jmp	 SHORT $L11170
+$L11178:
+
+; 261  :          }
+
+  0042c	eb a4		 jmp	 SHORT $L11175
+$L11176:
+
+; 262  :       }
+
+  0042e	e9 7c ff ff ff	 jmp	 $L11172
+$L11173:
+
+; 263  : 
+; 264  :    return 0;
+
+  00433	33 c0		 xor	 eax, eax
+$L11170:
+
+; 265  : }
+
+  00435	5d		 pop	 ebp
+  00436	c3		 ret	 0
+_FindGPIODevice ENDP
+_PTEXT	ENDS
+PUBLIC	_GPIOInit
+_PTEXT	SEGMENT
+_pGPIOMask$ = 8
+_dwNapalmBus$ = 12
+_dwBus$ = -4
+_dwDevFunc$ = -8
+_dwData$ = -12
+_GPIOInit PROC NEAR
+
+; 278  : {
+
+  00437	55		 push	 ebp
+  00438	8b ec		 mov	 ebp, esp
+  0043a	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 279  :    DWORD dwBus;
+; 280  :    DWORD dwDevFunc;
+; 281  :    DWORD dwData;
+; 282  :    
+; 283  :    if (0 == isGPIOInit)
+
+  0043d	83 3d 00 00 00
+	00 00		 cmp	 DWORD PTR _isGPIOInit, 0
+  00444	0f 85 73 01 00
+	00		 jne	 $L11188
+
+; 285  :       if (FindGPIODevice(0x00213388, dwNapalmBus, &dwBus, &dwDevFunc))
+
+  0044a	8d 45 f8	 lea	 eax, DWORD PTR _dwDevFunc$[ebp]
+  0044d	50		 push	 eax
+  0044e	8d 4d fc	 lea	 ecx, DWORD PTR _dwBus$[ebp]
+  00451	51		 push	 ecx
+  00452	8b 55 0c	 mov	 edx, DWORD PTR _dwNapalmBus$[ebp]
+  00455	52		 push	 edx
+  00456	68 88 33 21 00	 push	 2175880			; 00213388H
+  0045b	e8 00 00 00 00	 call	 _FindGPIODevice
+  00460	83 c4 10	 add	 esp, 16			; 00000010H
+  00463	85 c0		 test	 eax, eax
+  00465	0f 84 50 01 00
+	00		 je	 $L11189
+
+; 287  :          isGPIOInit = 1;
+
+  0046b	c7 05 00 00 00
+	00 01 00 00 00	 mov	 DWORD PTR _isGPIOInit, 1
+
+; 288  :          pGPIOMask->Data.dwBus = pGPIOMask->Clk.dwBus = pGPIOMask->Strobe.dwBus = dwBus;
+
+  00475	8b 45 08	 mov	 eax, DWORD PTR _pGPIOMask$[ebp]
+  00478	8b 4d fc	 mov	 ecx, DWORD PTR _dwBus$[ebp]
+  0047b	89 48 38	 mov	 DWORD PTR [eax+56], ecx
+  0047e	8b 55 08	 mov	 edx, DWORD PTR _pGPIOMask$[ebp]
+  00481	8b 45 fc	 mov	 eax, DWORD PTR _dwBus$[ebp]
+  00484	89 42 1c	 mov	 DWORD PTR [edx+28], eax
+  00487	8b 4d 08	 mov	 ecx, DWORD PTR _pGPIOMask$[ebp]
+  0048a	8b 55 fc	 mov	 edx, DWORD PTR _dwBus$[ebp]
+  0048d	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 289  :          pGPIOMask->Data.dwDevFunc = pGPIOMask->Clk.dwDevFunc = pGPIOMask->Strobe.dwDevFunc = dwDevFunc;
+
+  0048f	8b 45 08	 mov	 eax, DWORD PTR _pGPIOMask$[ebp]
+  00492	8b 4d f8	 mov	 ecx, DWORD PTR _dwDevFunc$[ebp]
+  00495	89 48 3c	 mov	 DWORD PTR [eax+60], ecx
+  00498	8b 55 08	 mov	 edx, DWORD PTR _pGPIOMask$[ebp]
+  0049b	8b 45 f8	 mov	 eax, DWORD PTR _dwDevFunc$[ebp]
+  0049e	89 42 20	 mov	 DWORD PTR [edx+32], eax
+  004a1	8b 4d 08	 mov	 ecx, DWORD PTR _pGPIOMask$[ebp]
+  004a4	8b 55 f8	 mov	 edx, DWORD PTR _dwDevFunc$[ebp]
+  004a7	89 51 04	 mov	 DWORD PTR [ecx+4], edx
+
+; 290  :          pGPIOMask->Data.RN = 0xC4;
+
+  004aa	8b 45 08	 mov	 eax, DWORD PTR _pGPIOMask$[ebp]
+  004ad	c7 40 08 c4 00
+	00 00		 mov	 DWORD PTR [eax+8], 196	; 000000c4H
+
+; 291  :          pGPIOMask->Data.dInMask = (DWORD)0x0100;
+
+  004b4	8b 4d 08	 mov	 ecx, DWORD PTR _pGPIOMask$[ebp]
+  004b7	c7 41 0c 00 01
+	00 00		 mov	 DWORD PTR [ecx+12], 256	; 00000100H
+
+; 292  :          pGPIOMask->Data.dInShift = (DWORD)0x08;
+
+  004be	8b 55 08	 mov	 edx, DWORD PTR _pGPIOMask$[ebp]
+  004c1	c7 42 14 08 00
+	00 00		 mov	 DWORD PTR [edx+20], 8
+
+; 293  :          pGPIOMask->Data.dOutMask = (DWORD)0x0400;
+
+  004c8	8b 45 08	 mov	 eax, DWORD PTR _pGPIOMask$[ebp]
+  004cb	c7 40 10 00 04
+	00 00		 mov	 DWORD PTR [eax+16], 1024 ; 00000400H
+
+; 294  :          pGPIOMask->Data.dOutShift = (DWORD)0x0A;
+
+  004d2	8b 4d 08	 mov	 ecx, DWORD PTR _pGPIOMask$[ebp]
+  004d5	c7 41 18 0a 00
+	00 00		 mov	 DWORD PTR [ecx+24], 10	; 0000000aH
+
+; 295  : 
+; 296  :          pGPIOMask->Clk.RN = (DWORD)0xC4;
+
+  004dc	8b 55 08	 mov	 edx, DWORD PTR _pGPIOMask$[ebp]
+  004df	c7 42 24 c4 00
+	00 00		 mov	 DWORD PTR [edx+36], 196	; 000000c4H
+
+; 297  :          pGPIOMask->Clk.dInMask = (DWORD)0x010000;
+
+  004e6	8b 45 08	 mov	 eax, DWORD PTR _pGPIOMask$[ebp]
+  004e9	c7 40 28 00 00
+	01 00		 mov	 DWORD PTR [eax+40], 65536 ; 00010000H
+
+; 298  :          pGPIOMask->Clk.dInShift = (DWORD)0x10;
+
+  004f0	8b 4d 08	 mov	 ecx, DWORD PTR _pGPIOMask$[ebp]
+  004f3	c7 41 30 10 00
+	00 00		 mov	 DWORD PTR [ecx+48], 16	; 00000010H
+
+; 299  :          pGPIOMask->Clk.dOutMask = (DWORD)0x040000;
+
+  004fa	8b 55 08	 mov	 edx, DWORD PTR _pGPIOMask$[ebp]
+  004fd	c7 42 2c 00 00
+	04 00		 mov	 DWORD PTR [edx+44], 262144 ; 00040000H
+
+; 300  :          pGPIOMask->Clk.dOutShift = (DWORD)0x12;
+
+  00504	8b 45 08	 mov	 eax, DWORD PTR _pGPIOMask$[ebp]
+  00507	c7 40 34 12 00
+	00 00		 mov	 DWORD PTR [eax+52], 18	; 00000012H
+
+; 301  : 
+; 302  :          pGPIOMask->Strobe.RN = (DWORD)0xC4;
+
+  0050e	8b 4d 08	 mov	 ecx, DWORD PTR _pGPIOMask$[ebp]
+  00511	c7 41 40 c4 00
+	00 00		 mov	 DWORD PTR [ecx+64], 196	; 000000c4H
+
+; 303  :          pGPIOMask->Strobe.dInMask = (DWORD)0x1000;
+
+  00518	8b 55 08	 mov	 edx, DWORD PTR _pGPIOMask$[ebp]
+  0051b	c7 42 44 00 10
+	00 00		 mov	 DWORD PTR [edx+68], 4096 ; 00001000H
+
+; 304  :          pGPIOMask->Strobe.dInShift = (DWORD)0x0C;
+
+  00522	8b 45 08	 mov	 eax, DWORD PTR _pGPIOMask$[ebp]
+  00525	c7 40 4c 0c 00
+	00 00		 mov	 DWORD PTR [eax+76], 12	; 0000000cH
+
+; 305  :          pGPIOMask->Strobe.dOutMask = (DWORD)0x4000;
+
+  0052c	8b 4d 08	 mov	 ecx, DWORD PTR _pGPIOMask$[ebp]
+  0052f	c7 41 48 00 40
+	00 00		 mov	 DWORD PTR [ecx+72], 16384 ; 00004000H
+
+; 306  :          pGPIOMask->Strobe.dOutShift = (DWORD)0x0E;
+
+  00536	8b 55 08	 mov	 edx, DWORD PTR _pGPIOMask$[ebp]
+  00539	c7 42 50 0e 00
+	00 00		 mov	 DWORD PTR [edx+80], 14	; 0000000eH
+
+; 307  : 
+; 308  :          pGPIOMask->HiVoltage.RN = (DWORD)0xC4;
+
+  00540	8b 45 08	 mov	 eax, DWORD PTR _pGPIOMask$[ebp]
+  00543	c7 40 5c c4 00
+	00 00		 mov	 DWORD PTR [eax+92], 196	; 000000c4H
+
+; 309  :          pGPIOMask->HiVoltage.dInMask = (DWORD)0x100000;
+
+  0054a	8b 4d 08	 mov	 ecx, DWORD PTR _pGPIOMask$[ebp]
+  0054d	c7 41 60 00 00
+	10 00		 mov	 DWORD PTR [ecx+96], 1048576 ; 00100000H
+
+; 310  :          pGPIOMask->HiVoltage.dInShift = (DWORD)0x14;
+
+  00554	8b 55 08	 mov	 edx, DWORD PTR _pGPIOMask$[ebp]
+  00557	c7 42 68 14 00
+	00 00		 mov	 DWORD PTR [edx+104], 20	; 00000014H
+
+; 311  :          pGPIOMask->HiVoltage.dOutMask = (DWORD)0x400000;
+
+  0055e	8b 45 08	 mov	 eax, DWORD PTR _pGPIOMask$[ebp]
+  00561	c7 40 64 00 00
+	40 00		 mov	 DWORD PTR [eax+100], 4194304 ; 00400000H
+
+; 312  :          pGPIOMask->HiVoltage.dOutShift = (DWORD)0x16;
+
+  00568	8b 4d 08	 mov	 ecx, DWORD PTR _pGPIOMask$[ebp]
+  0056b	c7 41 6c 16 00
+	00 00		 mov	 DWORD PTR [ecx+108], 22	; 00000016H
+
+; 313  : 
+; 314  :          // Enable all GPIO as Output
+; 315  :          dwData = PCI_Read_Config(dwBus, dwDevFunc, 0xC4);
+
+  00572	68 c4 00 00 00	 push	 196			; 000000c4H
+  00577	8b 55 f8	 mov	 edx, DWORD PTR _dwDevFunc$[ebp]
+  0057a	52		 push	 edx
+  0057b	8b 45 fc	 mov	 eax, DWORD PTR _dwBus$[ebp]
+  0057e	50		 push	 eax
+  0057f	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00584	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00587	89 45 f4	 mov	 DWORD PTR _dwData$[ebp], eax
+
+; 316  :          dwData &= 0xFF0000FF;
+
+  0058a	8b 4d f4	 mov	 ecx, DWORD PTR _dwData$[ebp]
+  0058d	81 e1 ff 00 00
+	ff		 and	 ecx, -16776961		; ff0000ffH
+  00593	89 4d f4	 mov	 DWORD PTR _dwData$[ebp], ecx
+
+; 317  :          //          C7C6C5C4 
+; 318  :          dwData |= 0x00222200;
+
+  00596	8b 55 f4	 mov	 edx, DWORD PTR _dwData$[ebp]
+  00599	81 ca 00 22 22
+	00		 or	 edx, 2236928		; 00222200H
+  0059f	89 55 f4	 mov	 DWORD PTR _dwData$[ebp], edx
+
+; 319  :          PCI_Write_Config(dwBus, dwDevFunc, 0xC4, dwData);
+
+  005a2	8b 45 f4	 mov	 eax, DWORD PTR _dwData$[ebp]
+  005a5	50		 push	 eax
+  005a6	68 c4 00 00 00	 push	 196			; 000000c4H
+  005ab	8b 4d f8	 mov	 ecx, DWORD PTR _dwDevFunc$[ebp]
+  005ae	51		 push	 ecx
+  005af	8b 55 fc	 mov	 edx, DWORD PTR _dwBus$[ebp]
+  005b2	52		 push	 edx
+  005b3	e8 00 00 00 00	 call	 _PCI_Write_Config
+  005b8	83 c4 10	 add	 esp, 16			; 00000010H
+$L11189:
+
+; 322  :    else
+
+  005bb	eb 53		 jmp	 SHORT $L11209
+$L11188:
+
+; 324  :       dwData = PCI_Read_Config(pGPIOMask->Data.dwBus, pGPIOMask->Data.dwDevFunc, 0xC4);
+
+  005bd	68 c4 00 00 00	 push	 196			; 000000c4H
+  005c2	8b 45 08	 mov	 eax, DWORD PTR _pGPIOMask$[ebp]
+  005c5	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  005c8	51		 push	 ecx
+  005c9	8b 55 08	 mov	 edx, DWORD PTR _pGPIOMask$[ebp]
+  005cc	8b 02		 mov	 eax, DWORD PTR [edx]
+  005ce	50		 push	 eax
+  005cf	e8 00 00 00 00	 call	 _PCI_Read_Config
+  005d4	83 c4 0c	 add	 esp, 12			; 0000000cH
+  005d7	89 45 f4	 mov	 DWORD PTR _dwData$[ebp], eax
+
+; 325  :       dwData &= 0xFF0000FF;
+
+  005da	8b 4d f4	 mov	 ecx, DWORD PTR _dwData$[ebp]
+  005dd	81 e1 ff 00 00
+	ff		 and	 ecx, -16776961		; ff0000ffH
+  005e3	89 4d f4	 mov	 DWORD PTR _dwData$[ebp], ecx
+
+; 326  :       //          C7C6C5C4 
+; 327  :       dwData |= 0x00222200;
+
+  005e6	8b 55 f4	 mov	 edx, DWORD PTR _dwData$[ebp]
+  005e9	81 ca 00 22 22
+	00		 or	 edx, 2236928		; 00222200H
+  005ef	89 55 f4	 mov	 DWORD PTR _dwData$[ebp], edx
+
+; 328  :       PCI_Write_Config(pGPIOMask->Data.dwBus, pGPIOMask->Data.dwDevFunc, 0xC4, dwData);
+
+  005f2	8b 45 f4	 mov	 eax, DWORD PTR _dwData$[ebp]
+  005f5	50		 push	 eax
+  005f6	68 c4 00 00 00	 push	 196			; 000000c4H
+  005fb	8b 4d 08	 mov	 ecx, DWORD PTR _pGPIOMask$[ebp]
+  005fe	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  00601	52		 push	 edx
+  00602	8b 45 08	 mov	 eax, DWORD PTR _pGPIOMask$[ebp]
+  00605	8b 08		 mov	 ecx, DWORD PTR [eax]
+  00607	51		 push	 ecx
+  00608	e8 00 00 00 00	 call	 _PCI_Write_Config
+  0060d	83 c4 10	 add	 esp, 16			; 00000010H
+$L11209:
+
+; 330  : 
+; 331  :    return isGPIOInit;
+
+  00610	a1 00 00 00 00	 mov	 eax, DWORD PTR _isGPIOInit
+
+; 332  : }
+
+  00615	8b e5		 mov	 esp, ebp
+  00617	5d		 pop	 ebp
+  00618	c3		 ret	 0
+_GPIOInit ENDP
+_PTEXT	ENDS
+PUBLIC	__real@8@40028000000000000000
+PUBLIC	__real@8@4017da7a640000000000
+PUBLIC	__real@8@40008000000000000000
+PUBLIC	__real@8@4018d1cef00000000000
+PUBLIC	__real@8@401bbebc200000000000
+PUBLIC	_clock
+PUBLIC	_Output_Clock
+EXTRN	__fltused:NEAR
+EXTRN	_FPU_State:NEAR
+;	COMDAT __real@8@40028000000000000000
+; File ..\gpio.c
+CONST	SEGMENT
+__real@8@40028000000000000000 DQ 04020000000000000r ; 8
+CONST	ENDS
+;	COMDAT __real@8@4017da7a640000000000
+CONST	SEGMENT
+__real@8@4017da7a640000000000 DQ 0417b4f4c80000000r ; 2.86364e+007
+CONST	ENDS
+;	COMDAT __real@8@40008000000000000000
+CONST	SEGMENT
+__real@8@40008000000000000000 DQ 04000000000000000r ; 2
+CONST	ENDS
+;	COMDAT __real@8@4018d1cef00000000000
+CONST	SEGMENT
+__real@8@4018d1cef00000000000 DQ 0418a39de00000000r ; 5.5e+007
+CONST	ENDS
+;	COMDAT __real@8@401bbebc200000000000
+CONST	SEGMENT
+__real@8@401bbebc200000000000 DQ 041b7d78400000000r ; 4e+008
+CONST	ENDS
+_PTEXT	SEGMENT
+_pDev$ = 8
+_d_clk1$ = -52
+_clk1$ = -12
+_d_diff$ = -68
+_d_partial$ = -92
+_rdw$ = -32
+_vdw$ = -40
+_od$ = -28
+_i$ = -44
+_b_rdw$ = -24
+_b_vdw$ = -36
+_b_od$ = -76
+_b_i$ = -60
+_bFound$ = -4
+_pIORegs$ = -20
+_ic$ = -84
+_pixelclock$ = -16
+_n$ = -96
+_m$ = -80
+_k$ = -56
+_kpow$ = -72
+_clock	PROC NEAR
+
+; 353  : {
+
+  00619	55		 push	 ebp
+  0061a	8b ec		 mov	 ebp, esp
+  0061c	81 ec c8 00 00
+	00		 sub	 esp, 200		; 000000c8H
+  00622	53		 push	 ebx
+  00623	56		 push	 esi
+  00624	57		 push	 edi
+
+; 354  :    double d_clk1;
+; 355  :    double clk1;
+; 356  :    double d_diff;
+; 357  :    double d_partial;
+; 358  :    DWORD rdw;
+; 359  :    DWORD vdw;
+; 360  :    DWORD od;
+; 361  :    DWORD i;
+; 362  :    DWORD b_rdw;
+; 363  :    DWORD b_vdw;
+; 364  :    DWORD b_od;
+; 365  :    DWORD b_i;
+; 366  :    DWORD bFound;
+; 367  :    SstIORegs * pIORegs;
+; 368  :    DWORD ic;
+; 369  :    DWORD pixelclock;
+; 370  :    DWORD n;   
+; 371  :    DWORD m;   
+; 372  :    DWORD k;
+; 373  :    DWORD kpow;   
+; 374  : 
+; 375  :    // Get the Clock
+; 376  :    pIORegs = (SstIORegs *)pDev->RegBase[HWINFO_SST_IOREGS_INDEX];
+
+  00625	8b 45 08	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00628	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  0062e	89 4d ec	 mov	 DWORD PTR _pIORegs$[ebp], ecx
+
+; 377  :    pixelclock = pIORegs->pllCtrl0;
+
+  00631	8b 55 ec	 mov	 edx, DWORD PTR _pIORegs$[ebp]
+  00634	8b 42 40	 mov	 eax, DWORD PTR [edx+64]
+  00637	89 45 f0	 mov	 DWORD PTR _pixelclock$[ebp], eax
+
+; 378  :    n = ((pixelclock & 0xFF00) >> 8)+2;
+
+  0063a	8b 4d f0	 mov	 ecx, DWORD PTR _pixelclock$[ebp]
+  0063d	81 e1 00 ff 00
+	00		 and	 ecx, 65280		; 0000ff00H
+  00643	c1 e9 08	 shr	 ecx, 8
+  00646	83 c1 02	 add	 ecx, 2
+  00649	89 4d a0	 mov	 DWORD PTR _n$[ebp], ecx
+
+; 379  :    m = ((pixelclock & 0xFC) >> 2)+2;
+
+  0064c	8b 55 f0	 mov	 edx, DWORD PTR _pixelclock$[ebp]
+  0064f	81 e2 fc 00 00
+	00		 and	 edx, 252		; 000000fcH
+  00655	c1 ea 02	 shr	 edx, 2
+  00658	83 c2 02	 add	 edx, 2
+  0065b	89 55 b0	 mov	 DWORD PTR _m$[ebp], edx
+
+; 380  :    k = pixelclock & 0x03;
+
+  0065e	8b 45 f0	 mov	 eax, DWORD PTR _pixelclock$[ebp]
+  00661	83 e0 03	 and	 eax, 3
+  00664	89 45 c8	 mov	 DWORD PTR _k$[ebp], eax
+
+; 381  : 
+; 382  :    kpow = 1;
+
+  00667	c7 45 b8 01 00
+	00 00		 mov	 DWORD PTR _kpow$[ebp], 1
+
+; 383  :    for (i=0; i<k; i++)
+
+  0066e	c7 45 d4 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  00675	eb 09		 jmp	 SHORT $L11239
+$L11240:
+  00677	8b 4d d4	 mov	 ecx, DWORD PTR _i$[ebp]
+  0067a	83 c1 01	 add	 ecx, 1
+  0067d	89 4d d4	 mov	 DWORD PTR _i$[ebp], ecx
+$L11239:
+  00680	8b 55 d4	 mov	 edx, DWORD PTR _i$[ebp]
+  00683	3b 55 c8	 cmp	 edx, DWORD PTR _k$[ebp]
+  00686	73 0a		 jae	 SHORT $L11241
+
+; 384  :       kpow<<=1;
+
+  00688	8b 45 b8	 mov	 eax, DWORD PTR _kpow$[ebp]
+  0068b	d1 e0		 shl	 eax, 1
+  0068d	89 45 b8	 mov	 DWORD PTR _kpow$[ebp], eax
+  00690	eb e5		 jmp	 SHORT $L11240
+$L11241:
+
+; 385  : 
+; 386  :    // This should work to 4 GigaHertz
+; 387  :    ic = 14318180*n/m/kpow;                    
+
+  00692	8b 45 a0	 mov	 eax, DWORD PTR _n$[ebp]
+  00695	69 c0 64 7a da
+	00		 imul	 eax, 14318180		; 00da7a64H
+  0069b	33 d2		 xor	 edx, edx
+  0069d	f7 75 b0	 div	 DWORD PTR _m$[ebp]
+  006a0	33 d2		 xor	 edx, edx
+  006a2	f7 75 b8	 div	 DWORD PTR _kpow$[ebp]
+  006a5	89 45 ac	 mov	 DWORD PTR _ic$[ebp], eax
+
+; 388  :    ic >>= 2;
+
+  006a8	8b 4d ac	 mov	 ecx, DWORD PTR _ic$[ebp]
+  006ab	c1 e9 02	 shr	 ecx, 2
+  006ae	89 4d ac	 mov	 DWORD PTR _ic$[ebp], ecx
+
+; 389  :    
+; 390  : 	FPU_State( FPU_FUNCTION_SAVE );
+
+  006b1	6a 00		 push	 0
+  006b3	e8 00 00 00 00	 call	 _FPU_State
+  006b8	83 c4 04	 add	 esp, 4
+
+; 391  : 
+; 392  :    d_diff = MHz(500.0);
+
+  006bb	c7 45 bc 00 00
+	00 00		 mov	 DWORD PTR _d_diff$[ebp], 0
+  006c2	c7 45 c0 65 cd
+	bd 41		 mov	 DWORD PTR _d_diff$[ebp+4], 1102957925 ; 41bdcd65H
+
+; 393  :    i = 0;
+
+  006c9	c7 45 d4 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+
+; 394  :    bFound =0;
+
+  006d0	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _bFound$[ebp], 0
+
+; 395  :    for (i=0; i < sizeof(OD)/sizeof(DWORD); i++)
+
+  006d7	c7 45 d4 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  006de	eb 09		 jmp	 SHORT $L11243
+$L11244:
+  006e0	8b 55 d4	 mov	 edx, DWORD PTR _i$[ebp]
+  006e3	83 c2 01	 add	 edx, 1
+  006e6	89 55 d4	 mov	 DWORD PTR _i$[ebp], edx
+$L11243:
+  006e9	83 7d d4 08	 cmp	 DWORD PTR _i$[ebp], 8
+  006ed	0f 83 45 02 00
+	00		 jae	 $L11245
+
+; 397  :       od = OD[i];
+
+  006f3	8b 45 d4	 mov	 eax, DWORD PTR _i$[ebp]
+  006f6	8b 0c 85 00 00
+	00 00		 mov	 ecx, DWORD PTR _OD[eax*4]
+  006fd	89 4d e4	 mov	 DWORD PTR _od$[ebp], ecx
+
+; 398  :       for (rdw=1; rdw<128; rdw++)
+
+  00700	c7 45 e0 01 00
+	00 00		 mov	 DWORD PTR _rdw$[ebp], 1
+  00707	eb 09		 jmp	 SHORT $L11246
+$L11247:
+  00709	8b 55 e0	 mov	 edx, DWORD PTR _rdw$[ebp]
+  0070c	83 c2 01	 add	 edx, 1
+  0070f	89 55 e0	 mov	 DWORD PTR _rdw$[ebp], edx
+$L11246:
+  00712	81 7d e0 80 00
+	00 00		 cmp	 DWORD PTR _rdw$[ebp], 128 ; 00000080H
+  00719	0f 83 14 02 00
+	00		 jae	 $L11248
+
+; 400  :          for (vdw=4; vdw<512; vdw++)
+
+  0071f	c7 45 d8 04 00
+	00 00		 mov	 DWORD PTR _vdw$[ebp], 4
+  00726	eb 09		 jmp	 SHORT $L11249
+$L11250:
+  00728	8b 45 d8	 mov	 eax, DWORD PTR _vdw$[ebp]
+  0072b	83 c0 01	 add	 eax, 1
+  0072e	89 45 d8	 mov	 DWORD PTR _vdw$[ebp], eax
+$L11249:
+  00731	81 7d d8 00 02
+	00 00		 cmp	 DWORD PTR _vdw$[ebp], 512 ; 00000200H
+  00738	0f 83 f0 01 00
+	00		 jae	 $L11251
+
+; 402  :             clk1 = 14318180.0*2.0*((double)vdw+8.0)/(((double)rdw+2.0)*(double)od);
+
+  0073e	8b 4d d8	 mov	 ecx, DWORD PTR _vdw$[ebp]
+  00741	89 4d 98	 mov	 DWORD PTR -104+[ebp], ecx
+  00744	c7 45 9c 00 00
+	00 00		 mov	 DWORD PTR -104+[ebp+4], 0
+  0074b	df 6d 98	 fild	 QWORD PTR -104+[ebp]
+  0074e	dc 05 00 00 00
+	00		 fadd	 QWORD PTR __real@8@40028000000000000000
+  00754	dc 0d 00 00 00
+	00		 fmul	 QWORD PTR __real@8@4017da7a640000000000
+  0075a	8b 55 e0	 mov	 edx, DWORD PTR _rdw$[ebp]
+  0075d	89 55 90	 mov	 DWORD PTR -112+[ebp], edx
+  00760	c7 45 94 00 00
+	00 00		 mov	 DWORD PTR -112+[ebp+4], 0
+  00767	df 6d 90	 fild	 QWORD PTR -112+[ebp]
+  0076a	dc 05 00 00 00
+	00		 fadd	 QWORD PTR __real@8@40008000000000000000
+  00770	8b 45 e4	 mov	 eax, DWORD PTR _od$[ebp]
+  00773	89 45 88	 mov	 DWORD PTR -120+[ebp], eax
+  00776	c7 45 8c 00 00
+	00 00		 mov	 DWORD PTR -120+[ebp+4], 0
+  0077d	df 6d 88	 fild	 QWORD PTR -120+[ebp]
+  00780	de c9		 fmulp	 ST(1), ST(0)
+  00782	de f9		 fdivp	 ST(1), ST(0)
+  00784	dd 5d f4	 fstp	 QWORD PTR _clk1$[ebp]
+
+; 403  :             if (ABS(clk1, (double)ic) < d_diff)
+
+  00787	8b 4d ac	 mov	 ecx, DWORD PTR _ic$[ebp]
+  0078a	89 4d 80	 mov	 DWORD PTR -128+[ebp], ecx
+  0078d	c7 45 84 00 00
+	00 00		 mov	 DWORD PTR -128+[ebp+4], 0
+  00794	df 6d 80	 fild	 QWORD PTR -128+[ebp]
+  00797	dc 5d f4	 fcomp	 QWORD PTR _clk1$[ebp]
+  0079a	df e0		 fnstsw	 ax
+  0079c	f6 c4 41	 test	 ah, 65			; 00000041H
+  0079f	75 24		 jne	 SHORT $L11321
+  007a1	8b 55 ac	 mov	 edx, DWORD PTR _ic$[ebp]
+  007a4	89 95 78 ff ff
+	ff		 mov	 DWORD PTR -136+[ebp], edx
+  007aa	c7 85 7c ff ff
+	ff 00 00 00 00	 mov	 DWORD PTR -136+[ebp+4], 0
+  007b4	df ad 78 ff ff
+	ff		 fild	 QWORD PTR -136+[ebp]
+  007ba	dc 65 f4	 fsub	 QWORD PTR _clk1$[ebp]
+  007bd	dd 9d 70 ff ff
+	ff		 fstp	 QWORD PTR -144+[ebp]
+  007c3	eb 22		 jmp	 SHORT $L11322
+$L11321:
+  007c5	8b 45 ac	 mov	 eax, DWORD PTR _ic$[ebp]
+  007c8	89 85 68 ff ff
+	ff		 mov	 DWORD PTR -152+[ebp], eax
+  007ce	c7 85 6c ff ff
+	ff 00 00 00 00	 mov	 DWORD PTR -152+[ebp+4], 0
+  007d8	df ad 68 ff ff
+	ff		 fild	 QWORD PTR -152+[ebp]
+  007de	dc 6d f4	 fsubr	 QWORD PTR _clk1$[ebp]
+  007e1	dd 9d 70 ff ff
+	ff		 fstp	 QWORD PTR -144+[ebp]
+$L11322:
+  007e7	dd 85 70 ff ff
+	ff		 fld	 QWORD PTR -144+[ebp]
+  007ed	dc 5d bc	 fcomp	 QWORD PTR _d_diff$[ebp]
+  007f0	df e0		 fnstsw	 ax
+  007f2	f6 c4 01	 test	 ah, 1
+  007f5	0f 84 2e 01 00
+	00		 je	 $L11262
+
+; 405  :                // Some constraints on vdw & rdw
+; 406  :                // 55 Mhz < 14318180 * 2* (vdw+8)/(rdw + 2) < 400 Mhz
+; 407  :                d_partial = 14318180.0*2.0*((double)vdw+8.0)/((double)rdw+2.0);
+
+  007fb	8b 4d d8	 mov	 ecx, DWORD PTR _vdw$[ebp]
+  007fe	89 8d 60 ff ff
+	ff		 mov	 DWORD PTR -160+[ebp], ecx
+  00804	c7 85 64 ff ff
+	ff 00 00 00 00	 mov	 DWORD PTR -160+[ebp+4], 0
+  0080e	df ad 60 ff ff
+	ff		 fild	 QWORD PTR -160+[ebp]
+  00814	dc 05 00 00 00
+	00		 fadd	 QWORD PTR __real@8@40028000000000000000
+  0081a	dc 0d 00 00 00
+	00		 fmul	 QWORD PTR __real@8@4017da7a640000000000
+  00820	8b 55 e0	 mov	 edx, DWORD PTR _rdw$[ebp]
+  00823	89 95 58 ff ff
+	ff		 mov	 DWORD PTR -168+[ebp], edx
+  00829	c7 85 5c ff ff
+	ff 00 00 00 00	 mov	 DWORD PTR -168+[ebp+4], 0
+  00833	df ad 58 ff ff
+	ff		 fild	 QWORD PTR -168+[ebp]
+  00839	dc 05 00 00 00
+	00		 fadd	 QWORD PTR __real@8@40008000000000000000
+  0083f	de f9		 fdivp	 ST(1), ST(0)
+  00841	dd 55 a4	 fst	 QWORD PTR _d_partial$[ebp]
+
+; 408  :                if ((d_partial > MHz(55)) && (d_partial < MHz(400)))
+
+  00844	dc 1d 00 00 00
+	00		 fcomp	 QWORD PTR __real@8@4018d1cef00000000000
+  0084a	df e0		 fnstsw	 ax
+  0084c	f6 c4 41	 test	 ah, 65			; 00000041H
+  0084f	0f 85 d4 00 00
+	00		 jne	 $L11262
+  00855	dd 45 a4	 fld	 QWORD PTR _d_partial$[ebp]
+  00858	dc 1d 00 00 00
+	00		 fcomp	 QWORD PTR __real@8@401bbebc200000000000
+  0085e	df e0		 fnstsw	 ax
+  00860	f6 c4 01	 test	 ah, 1
+  00863	0f 84 c0 00 00
+	00		 je	 $L11262
+
+; 410  :                   // Another constraints
+; 411  :                   // 200 kHz < 14318180/(rdw+2)
+; 412  :                   if (14318180/(rdw+2) > kHz(200))
+
+  00869	8b 4d e0	 mov	 ecx, DWORD PTR _rdw$[ebp]
+  0086c	83 c1 02	 add	 ecx, 2
+  0086f	b8 64 7a da 00	 mov	 eax, 14318180		; 00da7a64H
+  00874	33 d2		 xor	 edx, edx
+  00876	f7 f1		 div	 ecx
+  00878	3d 40 0d 03 00	 cmp	 eax, 200000		; 00030d40H
+  0087d	0f 86 a6 00 00
+	00		 jbe	 $L11262
+
+; 414  :                      d_diff = ABS(clk1, (double)ic);
+
+  00883	8b 55 ac	 mov	 edx, DWORD PTR _ic$[ebp]
+  00886	89 95 50 ff ff
+	ff		 mov	 DWORD PTR -176+[ebp], edx
+  0088c	c7 85 54 ff ff
+	ff 00 00 00 00	 mov	 DWORD PTR -176+[ebp+4], 0
+  00896	df ad 50 ff ff
+	ff		 fild	 QWORD PTR -176+[ebp]
+  0089c	dc 5d f4	 fcomp	 QWORD PTR _clk1$[ebp]
+  0089f	df e0		 fnstsw	 ax
+  008a1	f6 c4 41	 test	 ah, 65			; 00000041H
+  008a4	75 24		 jne	 SHORT $L11323
+  008a6	8b 45 ac	 mov	 eax, DWORD PTR _ic$[ebp]
+  008a9	89 85 48 ff ff
+	ff		 mov	 DWORD PTR -184+[ebp], eax
+  008af	c7 85 4c ff ff
+	ff 00 00 00 00	 mov	 DWORD PTR -184+[ebp+4], 0
+  008b9	df ad 48 ff ff
+	ff		 fild	 QWORD PTR -184+[ebp]
+  008bf	dc 65 f4	 fsub	 QWORD PTR _clk1$[ebp]
+  008c2	dd 9d 40 ff ff
+	ff		 fstp	 QWORD PTR -192+[ebp]
+  008c8	eb 22		 jmp	 SHORT $L11324
+$L11323:
+  008ca	8b 4d ac	 mov	 ecx, DWORD PTR _ic$[ebp]
+  008cd	89 8d 38 ff ff
+	ff		 mov	 DWORD PTR -200+[ebp], ecx
+  008d3	c7 85 3c ff ff
+	ff 00 00 00 00	 mov	 DWORD PTR -200+[ebp+4], 0
+  008dd	df ad 38 ff ff
+	ff		 fild	 QWORD PTR -200+[ebp]
+  008e3	dc 6d f4	 fsubr	 QWORD PTR _clk1$[ebp]
+  008e6	dd 9d 40 ff ff
+	ff		 fstp	 QWORD PTR -192+[ebp]
+$L11324:
+  008ec	8b 95 40 ff ff
+	ff		 mov	 edx, DWORD PTR -192+[ebp]
+  008f2	89 55 bc	 mov	 DWORD PTR _d_diff$[ebp], edx
+  008f5	8b 85 44 ff ff
+	ff		 mov	 eax, DWORD PTR -192+[ebp+4]
+  008fb	89 45 c0	 mov	 DWORD PTR _d_diff$[ebp+4], eax
+
+; 415  :                      bFound = 1;
+
+  008fe	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _bFound$[ebp], 1
+
+; 416  :                      b_rdw = rdw;
+
+  00905	8b 4d e0	 mov	 ecx, DWORD PTR _rdw$[ebp]
+  00908	89 4d e8	 mov	 DWORD PTR _b_rdw$[ebp], ecx
+
+; 417  :                      b_vdw = vdw;
+
+  0090b	8b 55 d8	 mov	 edx, DWORD PTR _vdw$[ebp]
+  0090e	89 55 dc	 mov	 DWORD PTR _b_vdw$[ebp], edx
+
+; 418  :                      b_od = od;
+
+  00911	8b 45 e4	 mov	 eax, DWORD PTR _od$[ebp]
+  00914	89 45 b4	 mov	 DWORD PTR _b_od$[ebp], eax
+
+; 419  :                      b_i = i;
+
+  00917	8b 4d d4	 mov	 ecx, DWORD PTR _i$[ebp]
+  0091a	89 4d c4	 mov	 DWORD PTR _b_i$[ebp], ecx
+
+; 420  :                      d_clk1 = clk1;
+
+  0091d	8b 55 f4	 mov	 edx, DWORD PTR _clk1$[ebp]
+  00920	89 55 cc	 mov	 DWORD PTR _d_clk1$[ebp], edx
+  00923	8b 45 f8	 mov	 eax, DWORD PTR _clk1$[ebp+4]
+  00926	89 45 d0	 mov	 DWORD PTR _d_clk1$[ebp+4], eax
+$L11262:
+
+; 424  :             }
+
+  00929	e9 fa fd ff ff	 jmp	 $L11250
+$L11251:
+
+; 425  :          }
+
+  0092e	e9 d6 fd ff ff	 jmp	 $L11247
+$L11248:
+
+; 426  :       }   
+
+  00933	e9 a8 fd ff ff	 jmp	 $L11244
+$L11245:
+
+; 427  : 
+; 428  : 
+; 429  : 	FPU_State( FPU_FUNCTION_RESTORE );
+
+  00938	6a 01		 push	 1
+  0093a	e8 00 00 00 00	 call	 _FPU_State
+  0093f	83 c4 04	 add	 esp, 4
+
+; 430  : 
+; 431  :    if (bFound)
+
+  00942	83 7d fc 00	 cmp	 DWORD PTR _bFound$[ebp], 0
+  00946	74 27		 je	 SHORT $L11266
+
+; 432  :       Output_Clock(pDev, 0x0, 0x1, 0x0, S2S1S0[b_od], b_vdw, b_rdw);
+
+  00948	8b 4d e8	 mov	 ecx, DWORD PTR _b_rdw$[ebp]
+  0094b	51		 push	 ecx
+  0094c	8b 55 dc	 mov	 edx, DWORD PTR _b_vdw$[ebp]
+  0094f	52		 push	 edx
+  00950	8b 45 b4	 mov	 eax, DWORD PTR _b_od$[ebp]
+  00953	8b 0c 85 00 00
+	00 00		 mov	 ecx, DWORD PTR _S2S1S0[eax*4]
+  0095a	51		 push	 ecx
+  0095b	6a 00		 push	 0
+  0095d	6a 01		 push	 1
+  0095f	6a 00		 push	 0
+  00961	8b 55 08	 mov	 edx, DWORD PTR _pDev$[ebp]
+  00964	52		 push	 edx
+  00965	e8 00 00 00 00	 call	 _Output_Clock
+  0096a	83 c4 1c	 add	 esp, 28			; 0000001cH
+
+; 433  :    else
+
+  0096d	eb 01		 jmp	 SHORT $L11267
+$L11266:
+
+; 434  :       _asm int 03;
+
+  0096f	cc		 int	 3
+$L11267:
+
+; 435  : 
+; 436  :    return ic;      
+
+  00970	8b 45 ac	 mov	 eax, DWORD PTR _ic$[ebp]
+
+; 437  : }
+
+  00973	5f		 pop	 edi
+  00974	5e		 pop	 esi
+  00975	5b		 pop	 ebx
+  00976	8b e5		 mov	 esp, ebp
+  00978	5d		 pop	 ebp
+  00979	c3		 ret	 0
+_clock	ENDP
+_pDev$ = 8
+_c$ = 12
+_ttl$ = 16
+_f$ = 20
+_s$ = 24
+_v$ = 28
+_r$ = 32
+_b1$ = -12
+_b2$ = -4
+_b3$ = -8
+_Output_Clock PROC NEAR
+
+; 451  : {
+
+  0097a	55		 push	 ebp
+  0097b	8b ec		 mov	 ebp, esp
+  0097d	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 452  :    BYTE b1, b2, b3;
+; 453  : 
+; 454  :    b1 = BUILD_BYTE(c, 3, 6);
+
+  00980	8b 45 0c	 mov	 eax, DWORD PTR _c$[ebp]
+  00983	83 e0 03	 and	 eax, 3
+  00986	c1 e0 06	 shl	 eax, 6
+  00989	88 45 f4	 mov	 BYTE PTR _b1$[ebp], al
+
+; 455  :    b1 |= BUILD_BYTE(ttl, 1, 5);
+
+  0098c	8b 4d 10	 mov	 ecx, DWORD PTR _ttl$[ebp]
+  0098f	83 e1 01	 and	 ecx, 1
+  00992	c1 e1 05	 shl	 ecx, 5
+  00995	8a 55 f4	 mov	 dl, BYTE PTR _b1$[ebp]
+  00998	0a d1		 or	 dl, cl
+  0099a	88 55 f4	 mov	 BYTE PTR _b1$[ebp], dl
+
+; 456  :    b1 |= BUILD_BYTE(f, 3, 3);
+
+  0099d	8b 45 14	 mov	 eax, DWORD PTR _f$[ebp]
+  009a0	83 e0 03	 and	 eax, 3
+  009a3	c1 e0 03	 shl	 eax, 3
+  009a6	8a 4d f4	 mov	 cl, BYTE PTR _b1$[ebp]
+  009a9	0a c8		 or	 cl, al
+  009ab	88 4d f4	 mov	 BYTE PTR _b1$[ebp], cl
+
+; 457  :    b1 |= BUILD_BYTE(s, 7, 0);
+
+  009ae	8b 55 18	 mov	 edx, DWORD PTR _s$[ebp]
+  009b1	83 e2 07	 and	 edx, 7
+  009b4	8a 45 f4	 mov	 al, BYTE PTR _b1$[ebp]
+  009b7	0a c2		 or	 al, dl
+  009b9	88 45 f4	 mov	 BYTE PTR _b1$[ebp], al
+
+; 458  : 
+; 459  :    b2 = (BYTE)((v & 0x1Fe) >> 1);
+
+  009bc	8b 4d 1c	 mov	 ecx, DWORD PTR _v$[ebp]
+  009bf	81 e1 fe 01 00
+	00		 and	 ecx, 510		; 000001feH
+  009c5	d1 e9		 shr	 ecx, 1
+  009c7	88 4d fc	 mov	 BYTE PTR _b2$[ebp], cl
+
+; 460  :    b3 = BUILD_BYTE(v, 1, 7);
+
+  009ca	8b 55 1c	 mov	 edx, DWORD PTR _v$[ebp]
+  009cd	83 e2 01	 and	 edx, 1
+  009d0	c1 e2 07	 shl	 edx, 7
+  009d3	88 55 f8	 mov	 BYTE PTR _b3$[ebp], dl
+
+; 461  :    b3 |= BUILD_BYTE(r, 0x7F, 0);
+
+  009d6	8b 45 20	 mov	 eax, DWORD PTR _r$[ebp]
+  009d9	83 e0 7f	 and	 eax, 127		; 0000007fH
+  009dc	8a 4d f8	 mov	 cl, BYTE PTR _b3$[ebp]
+  009df	0a c8		 or	 cl, al
+  009e1	88 4d f8	 mov	 BYTE PTR _b3$[ebp], cl
+
+; 462  : 
+; 463  :    if (GPIOInit(&GpioMask, pDev->dwBus))
+
+  009e4	8b 55 08	 mov	 edx, DWORD PTR _pDev$[ebp]
+  009e7	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  009ea	50		 push	 eax
+  009eb	68 00 00 00 00	 push	 OFFSET FLAT:_GpioMask
+  009f0	e8 00 00 00 00	 call	 _GPIOInit
+  009f5	83 c4 08	 add	 esp, 8
+  009f8	85 c0		 test	 eax, eax
+  009fa	74 19		 je	 SHORT $L11294
+
+; 464  :       gpio_send_byte(&GpioMask, b1, b2, b3);
+
+  009fc	8a 4d f8	 mov	 cl, BYTE PTR _b3$[ebp]
+  009ff	51		 push	 ecx
+  00a00	8a 55 fc	 mov	 dl, BYTE PTR _b2$[ebp]
+  00a03	52		 push	 edx
+  00a04	8a 45 f4	 mov	 al, BYTE PTR _b1$[ebp]
+  00a07	50		 push	 eax
+  00a08	68 00 00 00 00	 push	 OFFSET FLAT:_GpioMask
+  00a0d	e8 00 00 00 00	 call	 _gpio_send_byte
+  00a12	83 c4 10	 add	 esp, 16			; 00000010H
+$L11294:
+
+; 465  : 
+; 466  :    return 0;
+
+  00a15	33 c0		 xor	 eax, eax
+
+; 467  : }
+
+  00a17	8b e5		 mov	 esp, ebp
+  00a19	5d		 pop	 ebp
+  00a1a	c3		 ret	 0
+_Output_Clock ENDP
+_PTEXT	ENDS
+PUBLIC	_HiVoltageSet
+_PTEXT	SEGMENT
+_pDev$ = 8
+_bit$ = 12
+_HiVoltageSet PROC NEAR
+
+; 479  : {
+
+  00a1b	55		 push	 ebp
+  00a1c	8b ec		 mov	 ebp, esp
+
+; 480  :    if (GPIOInit(&GpioMask, pDev->dwBus))
+
+  00a1e	8b 45 08	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00a21	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  00a24	51		 push	 ecx
+  00a25	68 00 00 00 00	 push	 OFFSET FLAT:_GpioMask
+  00a2a	e8 00 00 00 00	 call	 _GPIOInit
+  00a2f	83 c4 08	 add	 esp, 8
+  00a32	85 c0		 test	 eax, eax
+  00a34	74 1e		 je	 SHORT $L11300
+
+; 482  :       SetGpio_Bit(&GpioMask.HiVoltage, bit);
+
+  00a36	8b 55 0c	 mov	 edx, DWORD PTR _bit$[ebp]
+  00a39	52		 push	 edx
+  00a3a	68 54 00 00 00	 push	 OFFSET FLAT:_GpioMask+84
+  00a3f	e8 00 00 00 00	 call	 _SetGpio_Bit
+  00a44	83 c4 08	 add	 esp, 8
+
+; 483  : 	   DELAY(DTIME);
+
+  00a47	68 88 13 00 00	 push	 5000			; 00001388H
+  00a4c	e8 00 00 00 00	 call	 _WaitTime
+  00a51	83 c4 04	 add	 esp, 4
+$L11300:
+
+; 485  : }
+
+  00a54	5d		 pop	 ebp
+  00a55	c3		 ret	 0
+_HiVoltageSet ENDP
+_PTEXT	ENDS
+PUBLIC	_HiVoltageOn
+_PTEXT	SEGMENT
+_pDev$ = 8
+_HiVoltageOn PROC NEAR
+
+; 497  : {
+
+  00a56	55		 push	 ebp
+  00a57	8b ec		 mov	 ebp, esp
+
+; 498  :    HiVoltageSet(pDev, 0x01);
+
+  00a59	6a 01		 push	 1
+  00a5b	8b 45 08	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00a5e	50		 push	 eax
+  00a5f	e8 00 00 00 00	 call	 _HiVoltageSet
+  00a64	83 c4 08	 add	 esp, 8
+
+; 499  : }
+
+  00a67	5d		 pop	 ebp
+  00a68	c3		 ret	 0
+_HiVoltageOn ENDP
+_PTEXT	ENDS
+PUBLIC	_HiVoltageOff
+_PTEXT	SEGMENT
+_pDev$ = 8
+_HiVoltageOff PROC NEAR
+
+; 511  : {
+
+  00a69	55		 push	 ebp
+  00a6a	8b ec		 mov	 ebp, esp
+
+; 512  :    HiVoltageSet(pDev, 0x00);
+
+  00a6c	6a 00		 push	 0
+  00a6e	8b 45 08	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00a71	50		 push	 eax
+  00a72	e8 00 00 00 00	 call	 _HiVoltageSet
+  00a77	83 c4 08	 add	 esp, 8
+
+; 513  : }
+
+  00a7a	5d		 pop	 ebp
+  00a7b	c3		 ret	 0
+_HiVoltageOff ENDP
+_PTEXT	ENDS
+END

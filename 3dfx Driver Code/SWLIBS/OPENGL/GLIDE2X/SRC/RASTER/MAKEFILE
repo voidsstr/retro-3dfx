@@ -1,0 +1,143 @@
+#! smake
+
+include $(ROOT)/usr/include/make/commondefs
+
+CPP		= /usr/lib/acpp -P -C
+PERL		= env SGI_CC=-cckr perl
+AG		= ../tools/ag/ag
+
+
+# Framebuffer independent headers
+# Each header file is paired with one C file
+FBI_HFILES	= g_rgbtri.h g_citri.h g_ztest.h g_texel.h g_cipix.h \
+		  g_ciclr.h g_cicmb.h
+
+# Framebuffer dependent headers
+# Each header file corresponds to several C files, as defined in fblist.pl
+FBD_HFILES	= g_rgbpix.h g_rgbclr.h g_rgbcmb.h
+
+# Framebuffer dependent source (see also fblist.pl)
+GPIXELS		= g_rgbpx2.c g_rgbpx4.c g_rgbpx5.c g_rgbpxa.c
+GCOLORS		= g_rgbcl2.c g_rgbcl4.c g_rgbcl5.c g_rgbcla.c
+GCMBINE		= g_rgbcb2.c g_rgbcb4.c g_rgbcb5.c g_rgbcba.c
+
+# Assembler Generator files 
+AGFILES		= fr_og.c ras_og.c
+
+# Targets
+GHFILES		= $(FBI_HFILES) $(FBD_HFILES)
+GCFILES		= $(FBI_HFILES:.h=.c) $(GPIXELS) $(GCOLORS) $(GCMBINE)
+TARGETS		= $(GCFILES) $(GHFILES) $(AGFILES)
+
+# Dependencies, meticulously maintained manually (mumble)
+FBIDEP		= fr_modes.h
+FBDDEP		= $(FBIDEP) fblist.pl fr_fbtype.h
+
+TRIDEP		= $(FBIDEP) tri.pl tri.pro tri.inc
+ZTESTDEP	= $(FBIDEP) ztest.pl ztest.pro ztest.inc ztestasm.inc
+TEXELDEP	= $(FBIDEP) texel.pl texel.pro texel.inc
+PIXDEP		= $(FBDDEP) genpix.pl genpix.pro genpix.inc
+GCLRDEP		= $(FBDDEP) genclr.pl genclr.pro genclr.inc
+CMBINDEP	= $(FBDDEP) combine.pl combine.pro combine.inc
+
+LDIRT		= *.tmp *~
+
+default: $(TARGETS)
+
+include $(COMMONRULES)
+
+g_rgbtri.c: $(TRIDEP)
+	$(PERL) -Ps tri.pl -fr_RGB=1
+	$(CPP) < rgbtripr.tmp | sed 's/^\\#/#/' | awk -f squeeze.awk > rgbtri.tmp
+	echo "#ifdef __GL_PC_RAST" > $@
+	cat tri.pro rgbtri.tmp rgbtrit1.tmp >> $@
+	echo "\n#endif /* __GL_PC_RAST */" >> $@
+	-rm -f rgbtripr.tmp rgbtri.tmp rgbtrit1.tmp
+
+g_citri.c: $(TRIDEP)
+	$(PERL) -Ps tri.pl -fr_RGB=0
+	$(CPP) < citripr.tmp | sed 's/^\\#/#/' | awk -f squeeze.awk > citri.tmp
+	echo "#ifdef __GL_PC_RAST" > $@
+	cat tri.pro citri.tmp citrit1.tmp >> $@
+	echo "\n#endif /* __GL_PC_RAST */" >> $@
+	-rm -f citripr.tmp citri.tmp citrit1.tmp
+
+g_rgbpix.h: $(PIXDEP)
+	$(PERL) -Ps genpix.pl -fr_RGB=1
+
+g_cipix.c: $(PIXDEP)
+	$(PERL) -Ps genpix.pl -fr_RGB=0
+	$(CPP) < cipixpr.tmp | sed 's/^\\#/#/' | \
+		awk -f squeeze.awk > cipix.tmp
+	echo "#ifdef __GL_PC_RAST" > $@
+	cat genpix.pro >> $@
+	echo "\n#define PIXEL_TYPE CINDEX" >> $@
+	echo "#include \"fr_fbconf.h\"" >> $@
+	cat cipix.tmp cipixt1.tmp >> $@
+	echo "\n#endif /* __GL_PC_RAST */" >> $@
+	-rm -f cipixpr.tmp cipix.tmp cipixt1.tmp
+
+g_rgbclr.h: $(GCLRDEP)
+	$(PERL) -Ps genclr.pl -fr_RGB=1
+
+g_ciclr.c: $(GCLRDEP)
+	$(PERL) -Ps genclr.pl -fr_RGB=0
+	$(CPP) < ciclrpr.tmp | awk -f squeeze.awk > ciclr.tmp
+	echo "#ifdef __GL_PC_RAST" > $@
+	cat genclr.pro >> $@
+	echo "\n#define PIXEL_TYPE CINDEX" >> $@
+	echo "#include \"fr_fbconf.h\"" >> $@
+	cat ciclr.tmp ciclrt1.tmp >> $@
+	echo "\n#endif /* __GL_PC_RAST */" >> $@
+	-rm -f ciclrpr.tmp ciclr.tmp ciclrt1.tmp
+
+g_ztest.c: $(ZTESTDEP)
+	$(PERL) -P ztest.pl
+	$(CPP) < ztestpr.tmp | sed 's/^\\#/#/' | awk -f squeeze.awk > ztest.tmp
+	echo "#if defined(__GL_PC_RAST) && !defined(__GL_CODEGEN)" > $@
+	cat ztest.pro ztest.tmp ztestt1.tmp >> $@
+	echo "\n#endif /* __GL_PC_RAST && !__GL_CODEGEN */" >> $@
+	-rm -f ztestpr.tmp ztest.tmp ztestt1.tmp
+
+g_texel.c: $(TEXELDEP)
+	$(PERL) -P texel.pl
+	$(CPP) < texelpr.tmp | sed 's/^\\#/#/' | awk -f squeeze.awk > texel.tmp
+	echo "#if defined(__GL_PC_RAST) && !defined(__GL_CODEGEN)" > $@
+	cat texel.pro texel.tmp texelt1.tmp >> $@
+	echo "\n#endif /* __GL_PC_RAST && !__GL_CODEGEN */" >> $@
+	-rm -f texelpr.tmp texel.tmp texelt1.tmp
+
+g_rgbcmb.h: $(CMBINDEP)
+	$(PERL) -Ps combine.pl -fr_RGB=1
+
+g_cicmb.c: $(CMBINDEP)
+	$(PERL) -Ps combine.pl -fr_RGB=0
+	cat fr_modes.h cicmbpr.tmp | $(CPP) | sed 's/^\\#/#/' | \
+		awk -f squeeze.awk > cicmb.tmp
+	echo "#ifdef __GL_PC_RAST" > $@
+	cat combine.pro >> $@
+	echo "\n#define PIXEL_TYPE CINDEX" >> $@
+	echo "#include \"fr_fbconf.h\"" >> $@
+	cat cicmb.tmp cicmbt1.tmp >> $@
+	echo "\n#endif /* __GL_PC_RAST */" >> $@
+	-rm -f cicmbpr.tmp cicmb.tmp cicmbt1.tmp
+
+g_rgbtri.h	: g_rgbtri.c
+g_citri.h	: g_citri.c
+g_ztest.h	: g_ztest.c
+g_texel.h	: g_texel.c
+g_cipix.h 	: g_cipix.c
+g_ciclr.h	: g_ciclr.c
+g_cicmb.h	: g_cicmb.c
+$(GPIXELS)	: g_rgbpix.h
+$(GCOLORS)	: g_rgbclr.h
+$(GCMBINE)	: g_rgbcmb.h
+
+fr_og.c: fr_og.ag $(AG)
+	$(AG) < fr_og.ag > fr_og.c
+
+ras_og.c: ras_og.ag $(AG)
+	$(AG) < ras_og.ag > ras_og.c
+
+light_og.c: light_og.ag $(AG)
+	$(AG) < light_og.ag > light_og.c

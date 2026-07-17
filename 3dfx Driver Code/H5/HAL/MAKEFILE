@@ -1,0 +1,107 @@
+#
+# Copyright (c) 1997, 3Dfx Interactive, Inc.
+# All Rights Reserved.
+#
+# This is UNPUBLISHED PROPRIETARY SOURCE CODE of 3Dfx Interactive, Inc.;
+# the contents of this file may not be disclosed to third parties, copied or
+# duplicated in any form, in whole or in part, without the prior written
+# permission of 3Dfx Interactive, Inc.
+#
+# RESTRICTED RIGHTS LEGEND:
+# Use, duplication or disclosure by the Government is subject to restrictions
+# as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+# and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+# successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished  -
+# rights reserved under the Copyright Laws of the United States.
+#
+# $Revision: 16 $
+# $Date: 6/24/99 5:19p $
+#
+
+# Build Options: define these either in environment or makefile
+#
+# define HAL_CSIM to include the C simulator and interface into the HAL code
+# define HAL_HSIM to include the VCS simulator interface into the HAL code
+# define HAL_HW   to include the real HardWare interface into the HAL code
+#
+
+# GMT: compile only for CSIM right now
+HAL_CSIM=1
+#HAL_HW=1
+
+!if defined(HAL_HW)
+HALDEFS = -DHAL_HW
+CINITLIBS=$(BUILD_ROOT)\$(FX_GLIDE_HW)\lib\h3cinit.lib
+!else
+HALDEFS =
+CINITLIBS =
+!endif
+
+!if defined(HAL_HSIM)
+HALDEFS = $(HALDEFS) -DHAL_HSIM
+# the HSIM requires the CSIM also
+HAL_CSIM=1
+!endif
+
+!if defined(HAL_CSIM)
+HALDEFS = $(HALDEFS) -DHAL_CSIM
+!endif
+
+# local defines, options, includes
+LCDEFS  = -DH4 -DBUILD_HAL $(HALDEFS) 
+
+!if defined(KERNEL)
+#
+# gets rid of those pesky _chkstk calls
+#
+LCDEFS = $(LCDEFS) -Gs99999
+!endif
+
+!if !defined(KERNEL) && !defined(THUNK)
+GUI=1
+!endif
+
+!ifdef GUI
+LCDEFS  = $(LCDEFS) -DGUI=WIN32
+RCFILE  = gui.rc
+!endif
+LCOPTS  = 
+LCINCS  = -I$(BUILD_ROOT_SWLIBS)\include -I$(BUILD_ROOT)\$(FX_GLIDE_HW)\include
+
+# sources
+#HEADERS        = 
+PRIVATE_HEADERS = gui.h init.h ..\incsrc\fxhal.h ..\csim\csim.h
+CFILES  = dllmain.c gdebug.c fxhal.c halio.c info.c guim.c guiv.c \
+        util.c video.c agpio.c \
+        kernel.c
+
+
+!ifdef THUNK
+LADEFS  = -DIS_32
+AFILES  = h4halthk.asm
+KERNLIBS= $(MSDEVDIR)\lib\kernel32.lib $(MSDEVDIR)\lib\thunk32.lib
+LLDOPTS = /DEF:h4hal.def
+!endif
+
+INSTALL_DESTINATION = $(BUILD_ROOT)\$(FX_GLIDE_HW)
+
+# targets
+LIBRARIES= h4hal.lib
+!ifndef KERNEL_NT
+SUBLIBRARIES = $(BUILD_ROOT_SWLIBS)\lib\fxagp.lib \
+		$(BUILD_ROOT_SWLIBS)\lib\fxpci.lib \
+                $(BUILD_ROOT)\$(FX_GLIDE_HW)\lib\h4csim.lib \
+                $(BUILD_ROOT_SWLIBS)\lib\fxmisc.lib \
+                $(CINITLIBS)\
+                $(KERNLIBS)
+
+FX_DLL_LIBRARY=1
+
+LDIRT = halctrl.obj h4hal.vxd h4hal.nms *.c~ *.h~
+!else
+LDIRT = h4hal.lib
+!endif
+
+
+!include $(BUILD_ROOT_SWLIBS)/include/nmake/3dfx.mak
+

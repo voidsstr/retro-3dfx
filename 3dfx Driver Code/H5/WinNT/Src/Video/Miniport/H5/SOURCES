@@ -1,0 +1,89 @@
+MAJORCOMP=ntos
+MINORCOMP=video
+
+# allow external enviroment variable to control file name; to support velocity, voodoo3, etc.
+!IF "$(MININAME)"==""
+# if H4VEL is specified use "velocity" name else use "voodoo3" name.
+!if "$(H4VEL)"==""
+TARGETNAME=3dfxvsnm
+!ELSE
+TARGETNAME=3dfxvsnm
+!ENDIF
+
+!IFNDEF LOCAL_TARGET
+# if LOCAL_TARGET isn't specified
+# let TARGETPATH be the old default location
+TARGETPATH=$(BASEDIR)\lib
+!ELSE
+TARGETPATH=obj
+# tweak the TARGETNAME so the sys file actually ends up in the obj\i386 directory
+TARGETNAME=..\$(TARGETNAME)
+!ENDIF
+
+!ELSE
+TARGETNAME=$(MININAME)
+TARGETPATH=$(_OBJ_DIR)
+!ENDIF
+
+TARGETTYPE=DRIVER
+
+TARGETLIBS=$(DDK_LIB_PATH)\videoprt.lib
+
+INCLUDES=..\..\inc
+
+MSC_OPTIMIZATION= /Ox /GB /O2 /Ot /Ox
+
+C_DEFINES = -DGRAPHICS_CLOCK=166 -DINCSTBCUST
+!IFNDEF MSC_WARNING_LEVEL
+MSC_WARNING_LEVEL=/W3
+!ENDIF
+MSC_WARNING_LEVEL=$(MSC_WARNING_LEVEL) /WX
+
+# if H4VEL is specified build with "velocity" names
+!if "$(H4VEL)"!=""
+C_DEFINES = $(C_DEFINES) -DH4VEL=1
+!ENDIF
+
+!IFNDEF COD_FILES
+COD_FILES=0
+!ENDIF
+
+!IF $(COD_FILES) != 0
+USER_C_FLAGS = /FAsc /Fa$O\$(@B).cod
+LINKER_FLAGS = $(LINKER_FLAGS) -map:$O\$(@B).map
+!ENDIF
+
+!IFNDEF LF
+LF=0
+!ENDIF
+
+!IF $(LF) != 0
+C_DEFINES = $(C_DEFINES) -DENABLE_LOG_FILE=$(LF)
+!ENDIF
+
+!IFNDEF SA
+SA=1
+!ENDIF
+!IF $(SA) != 0
+C_DEFINES = $(C_DEFINES) -DSLI_AA
+!ENDIF
+
+SOURCES=        \
+  bt868.c       \
+  ddc.c         \
+  debug.c       \
+  dfp.c         \
+  di_i2c.c      \
+  ds_i2c.c      \
+  h3.c          \
+  h3data.c      \
+  h3modes.c     \
+  h3modeset.c   \
+  h3modetab.c   \
+  h3registry.c  \
+  mapmem.c      \
+  nvram.c       \
+  pci.c         \
+  power.c       \
+  sliaa.c       \
+  voodoo3.rc

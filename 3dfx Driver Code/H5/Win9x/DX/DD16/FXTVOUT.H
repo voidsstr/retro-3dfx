@@ -1,0 +1,206 @@
+/* $Header: fxtvout.h, 7, 10/11/00 8:51:45 PM, Brent$ */
+/*
+** Copyright (c) 1995-1999, 3Dfx Interactive, Inc.
+** All Rights Reserved.
+**
+** This is UNPUBLISHED PROPRIETARY SOURCE CODE of 3Dfx Interactive, Inc.;
+** the contents of this file may not be disclosed to third parties, copied or
+** duplicated in any form, in whole or in part, without the prior written
+** permission of 3Dfx Interactive, Inc.
+**
+** RESTRICTED RIGHTS LEGEND:
+** Use, duplication or disclosure by the Government is subject to restrictions
+** as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+** and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+** successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished  -
+** rights reserved under the Copyright Laws of the United States.
+**
+** File name:   tvout.h
+**
+** Description: Defines the VIDEO_PARAMETER structure and calling
+**              parameters change to the ChangeDisplaySettingEx()
+**              Win32 API. 
+**              The audience for this file are Win32 developers who
+**              want to call ChangeDisplaySettingEx with the
+**              CDS_VIDEOPARAMETERS flag set, and display driver
+**              developers who want to implement the VIDEO_PARAMETERS 
+**              escape in their Control() function.
+**
+** $Revision: 7$ 
+** $Date: 10/11/00 8:51:45 PM$
+**
+** $History: tvout.h $
+** 
+** *****************  Version 5  *****************
+** User: Doconnell    Date: 9/03/99    Time: 10:51a
+** Updated in $/devel/h5/WinNT/Src/Video/Displays/h5
+** Add WinNT4 specific changes wrapped in #ifdef WINNT.
+** 
+** *****************  Version 3  *****************
+** User: Michael      Date: 12/30/98   Time: 2:29p
+** Updated in $/devel/h3/Win95/dx/dd16
+** Implement the 3Dfx/STB unified header.
+** 
+*/
+//
+// the follow file defines the VIDEO_PARAMETER structure and calling parameters
+// change to the ChangeDisplaySettingEx() Win32 API. 
+//
+// The audience for this file are Win32 developers who want to call
+// ChangeDisplaySettingEx with the CDS_VIDEOPARAMETERS flag set, and
+// display driver developers who want to implement the VIDEO_PARAMETERS 
+// escape in their Control() function.
+
+// Display driver Escape value to get/set the parameters.
+//
+#define VIDEO_PARAMETERS        3077    // escape value used in Control()
+
+// Flags for ChangeDisplaySettings 
+// these must match the flags in WINUSER.H 
+
+#define CDS_UPDATEREGISTRY  0x00000001
+#define CDS_TEST            0x00000002
+#define CDS_FULLSCREEN      0x00000004
+#define CDS_GLOBAL          0x00000008
+#define CDS_SET_PRIMARY     0x00000010
+#define CDS_VIDEOPARAMETERS 0x00000020
+
+/* Return values for ChangeDisplaySettings */
+#define DISP_CHANGE_SUCCESSFUL       0
+#define DISP_CHANGE_RESTART          1
+#define DISP_CHANGE_FAILED          -1
+#define DISP_CHANGE_BADMODE         -2
+#define DISP_CHANGE_NOTUPDATED      -3
+#define DISP_CHANGE_BADFLAGS        -4
+#define DISP_CHANGE_BADPARAM        -5
+#define DISP_CHANGE_BADESC          -6
+
+// the GUID for this structure is:
+//    {02C62061-1097-11d1-920F-00A024DF156E}
+static const GUID vpguid = { 0x2c62061, 0x1097, 0x11d1, { 0x92, 0xf, 0x0, 0xa0, 0x24, 0xdf, 0x15, 0x6e } };
+
+
+typedef struct _VIDEOPARAMETERS {
+    GUID  Guid;                         // GUID for this structure
+    DWORD dwOffset;                     // leave it 0 for now.
+    DWORD dwCommand;                    // VP_COMMAND_*            SET or GET
+    DWORD dwFlags;                      // bitfield, defined below SET or GET
+    DWORD dwMode;                       // bitfield, defined below SET or GET
+    DWORD dwTVStandard;                 // bitfield, defined below SET or GET
+    DWORD dwAvailableModes;             // bitfield, defined below GET
+    DWORD dwAvailableTVStandard;        // bitfield, defined below GET
+    DWORD dwFlickerFilter;              // value                   SET or GET
+    DWORD dwOverScanX;                  // value                   SET or GET
+    DWORD dwOverScanY;                  //                         SET or GET
+    DWORD dwMaxUnscaledX;               // value                   SET or GET
+    DWORD dwMaxUnscaledY;               //                         SET or GET
+    DWORD dwPositionX;                  // value                   SET or GET
+    DWORD dwPositionY;                  //                         SET or GET
+    DWORD dwBrightness;                 // value                   SET or GET
+    DWORD dwContrast;                   // value                   SET or GET
+    DWORD dwCPType;                     // copy protection type    SET or GET
+    DWORD dwCPCommand;                  // VP_CP_CMD_
+    DWORD dwCPStandard;                 // what TV standards CP is available on. GET
+    DWORD dwCPKey;
+    DWORD bCP_APSTriggerBits;           // (a dword for alignment) SET(bits 0 and 1 valid).
+    BYTE  bOEMCopyProtection[256];      // oem specific copy protection data SET or GET
+} VIDEOPARAMETERS, *PVIDEOPARAMETERS, FAR *LPVIDEOPARAMETERS;
+
+#define VP_COMMAND_GET          0x0001  // size set, return caps.
+                                        // returned Flags = 0 if not supported.
+#define VP_COMMAND_SET          0x0002  // size and params set.
+
+#define VP_FLAGS_TV_MODE        0x0001
+#define VP_FLAGS_TV_STANDARD    0x0002
+#define VP_FLAGS_FLICKER        0x0004
+#define VP_FLAGS_OVERSCAN       0x0008
+#define VP_FLAGS_MAX_UNSCALED   0x0010  // do not use on SET
+#define VP_FLAGS_POSITION       0x0020
+#define VP_FLAGS_BRIGHTNESS     0x0040
+#define VP_FLAGS_CONTRAST       0x0080
+#define VP_FLAGS_COPYPROTECT    0x0100
+
+#define VP_MODE_WIN_GRAPHICS    0x0001
+#define VP_MODE_TV_PLAYBACK     0x0002  // optimize for TV video playback
+
+#define VP_TV_STANDARD_NTSC_M   0x0001  //        75 IRE Setup
+#define VP_TV_STANDARD_NTSC_M_J 0x0002  // Japan,  0 IRE Setup
+#define VP_TV_STANDARD_PAL_B    0x0004
+#define VP_TV_STANDARD_PAL_D    0x0008
+#define VP_TV_STANDARD_PAL_H    0x0010
+#define VP_TV_STANDARD_PAL_I    0x0020
+#define VP_TV_STANDARD_PAL_M    0x0040
+#define VP_TV_STANDARD_PAL_N    0x0080
+#define VP_TV_STANDARD_SECAM_B  0x0100  
+#define VP_TV_STANDARD_SECAM_D  0x0200
+#define VP_TV_STANDARD_SECAM_G  0x0400
+#define VP_TV_STANDARD_SECAM_H  0x0800
+#define VP_TV_STANDARD_SECAM_K  0x1000
+#define VP_TV_STANDARD_SECAM_K1 0x2000
+#define VP_TV_STANDARD_SECAM_L  0x4000
+#define VP_TV_STANDARD_WIN_VGA  0x8000
+// and the rest
+#define VP_TV_STANDARD_NTSC_433 0x00010000  
+#define VP_TV_STANDARD_PAL_G    0x00020000
+#define VP_TV_STANDARD_PAL_60   0x00040000
+#define VP_TV_STANDARD_SECAM_L1 0x00080000
+
+#define VP_CP_TYPE_APS_TRIGGER  0x0001  // DVD trigger bits only
+#define VP_CP_TYPE_MACROVISION  0x0002  // full macrovision data available
+
+#define VP_CP_CMD_ACTIVATE      0x0001  // CP command type
+#define VP_CP_CMD_DEACTIVATE    0x0002
+#define VP_CP_CMD_CHANGE        0x0004
+    
+
+typedef struct _MACROVISION {
+    WORD    wVersion;
+    WORD    wFlags;
+    BYTE    bCPCData;
+    BYTE    bCPSData[34];
+} MACROVISION, *PMACROVISION, FAR *LPMACROVISION;
+
+#define MV_FLAGS_CPC_ONLY   0x0001
+#define MV_FLAGS_CPS_ONLY   0x0002      // dont know if this is valid or not.
+#define MV_FLAGS_CPC_CPS    0x0004      // both 8 bit and 132 bits are def'ed.
+
+
+#ifdef WINNT
+// For WinNT this file defines the external interfaces for the routines in tvout.c
+// This file is named "fxtvout.h" in order to avoid conflict with "tvout.h" which is a Win2K DDK file.
+
+// The definitions for the  VIDEO_PARAMETER structure which are include above in this file for Win9x
+// are in the miniport file "tvout.h" for WinNT.
+
+extern void TVOutStatus( PDEV *ppdev, LPQIN lpQIN, LPQTVSTATUS lpOutput );
+extern void TVOutConStatus( PDEV *ppdev, LPQIN lpQIN, LPTVCONSTATUS lpOutput );
+extern void TVOutGetPicCap( PDEV *ppdev, LPQIND lpQIN, LPTVCAPDATA lpOutput );
+extern void TVOutGetFilterCap( PDEV *ppdev, LPQIND lpQIN, LPTVCURCAP lpOutput );
+extern void TVOutGetPosCap( PDEV *ppdev, LPQIN lpQIN, LPTVPOSCAP lpOutput );
+extern void TVOutGetSizeCap( PDEV *ppdev, LPQIN lpQIN, LPTVSIZECAP lpOutput );
+extern void TVOutGetSpecialCap( PDEV *ppdev, LPQIND lpQIN, LPVOID lpOutput );
+extern void TVOutGetStandard( PDEV *ppdev, LPQIN lpQIN, LPTVGETSTANDARD lpOutput );
+extern void TVOutGetPicControl( PDEV *ppdev, LPTVCURCAP lpQIN, LPTVCURCAP lpOutput );
+extern void TVOutGetFilterControl( PDEV *ppdev, LPQIND lpQIN, LPTVCURCAP lpOutput );
+extern void TVOutGetPosControl( PDEV *ppdev, LPQIN lpQIN, LPTVCURPOS lpOutput );
+extern void TVOutGetSizeControl( PDEV *ppdev, LPQIN lpQIN, LPTVCURSIZE lpOutput );
+extern void TVOutGetSpecialCtl( PDEV *ppdev, LPQIND lpQIN, LPVOID lpOutput );
+extern void TVOutGetConStatus( PDEV *ppdev, LPQIN lpQIN, LPTVCON lpOutput );
+extern void TVOutSetStandard( PDEV *ppdev, LPTVSETSTANDARD lpQIN );
+extern void TVOutSetPicControl( PDEV *ppdev, LPTVSETCAP lpQIN );
+extern void TVOutSetFilterControl( PDEV *ppdev, LPTVSETCAP lpQIN );
+extern void TVOutSetPosControl( PDEV *ppdev, LPTVSETPOS lpQIN );
+extern void TVOutSetSizeControl( PDEV *ppdev, LPTVSETSIZE lpQIN );
+extern void TVOutSetSpecial( PDEV *ppdev, LPTVSETSPECIAL lpQIN );
+extern void TVOutSetConStatus( PDEV *ppdev, LPTVSETCONNECTOR lpQIN );
+extern void TVOutCommitReg( PDEV *ppdev, LPQIN lpQIN );
+extern void TVOutRefreshMem( PDEV *ppdev, LPQIN lpQIN );
+extern void TVOutDisable( PDEV *ppdev );
+extern void TVOutEnable( PDEV *ppdev, LPQIN lpQIN );
+extern int  TVOutVideoParameters (PDEV *ppdev, LPVIDEOPARAMETERS lpVidParamsIn,
+                                               LPVIDEOPARAMETERS lpVidParamsOut);
+extern void TVOutGetOverride( PDEV *ppdev, LPQIN lpQIN, PTVGETOVERRIDE lpOutput);
+extern void TVOutSetOverride( PDEV *ppdev, PTVSETOVERRIDE lpQIN);
+extern void TVOutCancelSettings( PDEV *ppdev, void * pInData, void * pOutData);
+#endif //def WINNT
+

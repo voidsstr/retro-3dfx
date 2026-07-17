@@ -1,0 +1,119 @@
+------------
+Monday Jan. 5h 98
+
+Here is a list of issues (questions and bugs) that I compiled
+after my first pass at porting ATB & Demos to Glide3.
+
+In brief, I've got Fight/Valley of Ra, Wiz/dtower, Flipper and DemoRoom
+to run (almost) correctly on Glide3/Voodoo2, but there are
+a few undefined/unspecified behaviours and a couple of bugs maybe.
+You might find that some of these bugs lack details and could have
+gone under more investigations from my part, but Xmas break being
+what it is (a break) and Win95 being what it is (I spend looong hours
+reconfiguring my machine -it's still not finished- which brought to
+a halt any development), I'll do my best to look into these in more
+details in the coming week. Also, I didn't have the sources for the
+latest glide, so I couldn't go find some xtra answers by looking
+at the code...
+
+- I used the "pure glide3x" as opposed to the miggration dll.
+my home system has an SLI Voodoo2.
+I have been able to reproduce the same bugs listed below
+on my work system with a Voodoo2 single board.
+
+- At some point, I would like some of the Glide3 designers/implementors to take
+a quick look at the arcade\src\drivers\glide\*.c (once I've checked them in),
+and check that I am using glide3 calls the right way. The glide3 doc is
+kind of ambigious by lack of details, so that'd be a way to check
+that these are kosher uses for it. Glide3 calls are wrapped around
+#ifdef GLIDE3...
+/* glide3 stuff */
+#else
+/* glide2 stuff */
+#endif
+
+- Help Screens don't show up. There are done with LFBs.
+I haven't looked at that thru the debugger yet. 
+
+- The 3dfx logo (in the lower right corner) doesn't show up either.
+It's done with LFB too. same as above.
+
+- SPLASH screen: if I don't set FX_GLIDE_NO_SPLASH=1,
+then the boards freezes (there's like a couple of RGB triangles on the screen).
+I guess it dies somewhere in the old splash screen.
+I don't have the new splash screen. Is that a new dll? is that supposed
+to work with Glide3? Anyway, by disabling the splash screen, thing
+work fine (it took a while to find this one...)
+
+- replacing grQueryHardware( &hdwConfig ):	
+ATB looks at some of the hardware features: the # of TMU, of FBI,
+their rev number etc... and even whether it's an SLI or not.
+but it doesn't necessarly use the info.
+I seem to have weird values coming back on my system,
+which is an SLI (2220 x 2) for the second entries of the
+arrays of return values for	
+grGet( GR_REVISION_FB, fb_revision ); /* pixelFx revision # */
+for example (when there is more than 1 value).
+I might have done something wrong, I'll do some more testing.
+
+- general question about the grGet( *, param ) function.
+In some cases, we know that the call will never return
+more than one value:
+FxU32 pending_buffers;
+grGet( GR_PENDING_BUFFERSWAPS , &pending_buffers ) 
+But in other cases, we can't anticipate for sure:
+grGet( GR_FB_REVISION, fb_revision)
+so, for sure, one should never declare fb_revision as
+FxU32 fb_revision but
+should one declare fb_revision as
+FxU32 fb_revision[2] or FxU32 fb_revision[3] ?
+The idea is that one should never assume that there can not
+be more than 1 value returned, but there's no upper limit
+(3 is in theory the max but no such board exists).
+
+- what about grGet( GR_TMU_MEMORY, &tmu_mem)? 
+Can tmu_mem be an array? Does the call return the amount of tmu_mem
+per TMU? (it should be, since one could have tmu0=2Mb and tm1=4Mb, right?)
+
+- grSstScreenWidth/Height: ATB is using this glide2x call right after grSstWinOpen, 
+as if there was a default value. In glide3 the equivalent is to grGet(VIEWPORT),
+but this will fail since there doesn't seem to be a default viewport value.
+Right now, I'm doing a hack, where I first call grViewport with 640x480.
+
+- vertex layout stuff was fun. I had to be carefull since ATB does both
+a direct mapping of its vertex datastructure and of glide's grVertex, and
+but also overloads the Z field of the structure (it uses it as Clipping flags).
+
+- things I found would be easy to forget when moving to glide2 to glide3:
+grViewport
+grEnable/Disable of AA
+grCoordinateSpace(GR_WINDOW_COORDS )
+
+- SPLASH screen again: what is the equivalent of  grSlpash ???? didn't find the equivalent
+in glide3
+
+- errors in the GLIDE3.0 doc:
+the grGet constants are all called TMU_REVISION/MEMORY instead of REVISION_TMU/FB etc...
+
+- grReset() is missing. this is a glide3 function that's supposed to reset statistic values.
+it doesn't seem to be there.
+
+- Issues with grHint :
+  * why wasn't it made obsolete? it's still in glide3x.
+  * bug:
+well, indeed, if I don't use grHint (in glide3), Flipper doesn't work.... more exactly:
+the demo runs, but the multipass texture is wrong. The 2nd set of s,t that's computed
+dynamically is not taken into account on a 2tmu system. On one tmu, things are ok
+(Flipper adapts to the # of tmu, and does the multipass in either one or 2 passes).
+Here is the diagnostic:
+
+2 passes, one tmu -> works fine (the light texture slides <==> s,t are recomputed
+dynamically and are different than the base s,t), with or without grHints (in glide3). 
+This makes sense, as grHint is of no use  in that case (2 passes, only one tmu).
+
+1 pass, 2 tmus -> fails. (the light texture doesn't slide) as soon as I don't use grHint. 
+if I use grHint things work fine. But grHint is supposed to be obsoleted by the explicit 
+use of grVertexLayout.
+
+
+- note: no test was done with the vertex array. 

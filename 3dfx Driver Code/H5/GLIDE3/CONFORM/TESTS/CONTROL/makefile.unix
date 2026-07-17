@@ -1,0 +1,94 @@
+#
+# Copyright (c) 1995, 3Dfx Interactive, Inc.
+# All Rights Reserved.
+#
+# This is UNPUBLISHED PROPRIETARY SOURCE CODE of 3Dfx Interactive, Inc.;
+# the contents of this file may not be disclosed to third parties, copied or
+# duplicated in any form, in whole or in part, without the prior written
+# permission of 3Dfx Interactive, Inc.
+#
+# RESTRICTED RIGHTS LEGEND:
+# Use, duplication or disclosure by the Government is subject to restrictions
+# as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+# and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+# successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished  -
+# rights reserved under the Copyright Laws of the United States.
+#
+# $Revision: 7 $
+# $Date: 9/03/95 11:58a $
+#
+
+PRIVATE_HEADERS = tlib.h tlib.c tldata.inc
+
+HEADERS =
+
+CFILES   = 
+
+CPPFILES = buffer-swap.cpp \
+           clear.cpp \
+           error-callback.cpp \
+           query-res.cpp \
+           query-state.cpp \
+           query.cpp \
+           simple-clear.cpp
+ 
+PROGRAMS = $(TESTS:.cpp=.exe)
+
+LIBOBJS = 
+
+ifdef DEBUG
+DBGOPTS = -DHWC_DEBUG -DGDBG_INFO_ON -g
+endif
+
+# local defines, options, includes
+LCDEFS	= -DHWC_CSIM 
+LCOPTS = $(DBGOPTS) 
+LADEFS	= -DIS_32
+LCOPTS	=
+LCINCS	:= $(LCINCS) -I. -I$(BUILD_ROOT)/$(FX_GLIDE_HW)/glide3/src/ \
+          -I$(BUILD_ROOT)/$(FX_GLIDE_HW)/include \
+	      -I$(BUILD_ROOT)/$(FX_GLIDE_HW)/glide3/conform/include \
+          -I$(BUILD_ROOT_SST2)/csim -I$(BUILD_ROOT_SST2)/hwc \
+          -I$(BUILD_ROOT_SST2)/include -I$(BUILD_ROOT_SST2)/build  \
+          -I$(BUILD_ROOT_SWLIBS)/include -I$(BUILD_ROOT_SST2)/diags/uinc
+
+DIAGS   = $(CFILES:.c=) $(CPPFILES:.cpp=) 
+
+LOGS    = $(CFILES:.c=.log)
+BATFILES= $(wildcard *.bat)
+BATS	= $(BATFILES:.bat=.sh)
+LDIRT	= $(wildcard *.log) $(LIBOBJS)
+
+include $(BUILD_ROOT_SWLIBS)/include/make/3dfx.mak
+
+LLDLIBS = $(LIBOBJS) \
+          $(BUILD_ROOT)/$(FX_GLIDE_HW)/glide3/conform/lib/conform.a
+
+SYSLIBS = -L$(BUILD_ROOT_SST2)/lib -lgdiags -ltexus -lglide3x -lhwc -lsst2hwc -lsst2csim \
+          $(BUILD_ROOT_SWLIBS)/lib/fxmisc.a $(TDFX_CHIPROOT)/src/common/diags/tstbench_solaris.a \
+          -L/home/mark/tcl/new/lib -ltk8.0 -ltcl8.0 \
+          -L/usr/openwin/lib -lX11 -lm -lsocket -lnsl -ldl -lc
+
+$(OBJECTS): $(BUILD_ROOT)/$(FX_GLIDE_HW)/glide3/src/glide.h
+
+$(DIAGS): % : $(LLDLIBS) %.o
+	@$(ECHO) $@ making on \\c > $*.log
+	@$(DATE) >> $*.log
+	$(LINK) -o $@ $*.o $(LDLIBS) $(SYSLIBS) $(LDFLAGS)
+	@$(ECHO) $@ made on \\c > $*.log
+	@$(DATE) >> $*.log
+
+.SUFFIXES: .log
+
+.FORCE:
+
+testlist: .FORCE
+	@$(ECHO) $(TARGETS)
+
+testsum:
+	@awk -f ../testsum.awk *.log
+
+.SUFFIXES: .cpp
+
+.cpp.o: fred
+	$(CC) $(CFLAGS) -c $*.cpp

@@ -1,0 +1,1219 @@
+	TITLE	..\thunk32.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+FLAT	GROUP _DATA, CONST, _BSS
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+PUBLIC	_hwAll
+PUBLIC	_hwBlt
+PUBLIC	_hwBitBltSS
+PUBLIC	_hwBitBltPS
+PUBLIC	_hwBitBltHS
+PUBLIC	_hwText
+PUBLIC	_hwAltPolygon
+PUBLIC	_hwWindPolygon
+PUBLIC	_hwPolyline
+PUBLIC	_hwRect
+PUBLIC	_hwOutput
+PUBLIC	_hwScanline
+PUBLIC	_hwPolyScanline
+PUBLIC	_hwbreakStall
+PUBLIC	_hwpollStall
+PUBLIC	_hwpciFree
+PUBLIC	_pollCount
+PUBLIC	_hwBitmapBits
+PUBLIC	_hwBitmapBitsHS
+PUBLIC	_hwBitmapBitsSS
+PUBLIC	_hwBitmapBitsSH
+PUBLIC	_InitThunks32@20
+PUBLIC	_BitBlt32@8
+PUBLIC	_Output32@8
+PUBLIC	_ExtTextOut32@8
+PUBLIC	_DeviceBitmapBits32@8
+PUBLIC	_SetDIBitsToDevice32@8
+PUBLIC	_StretchBlt32@8
+PUBLIC	_StretchDIBits32@8
+PUBLIC	_SelectBitmap32@8
+PUBLIC	_BitmapBits32@8
+PUBLIC	_MapSharedData32@8
+PUBLIC	_initFifo32@8
+PUBLIC	_func_table
+PUBLIC	_hwStretchBlt
+PUBLIC	_hwStretchBltSS
+PUBLIC	_hwStretchBltHS
+PUBLIC	_hwStretchBltPS
+PUBLIC	_hwTextLPDX
+PUBLIC	_hwTextNoLPDX
+PUBLIC	_hwSetDIBitsToDevice
+PUBLIC	_hwDeviceBitmapBits
+PUBLIC	_hwStretchDIBits
+PUBLIC	_hwDibBlt
+PUBLIC	_hwDibToDevice
+_DATA	SEGMENT
+COMM	_lpDriverData:DWORD
+COMM	_dwLdtPtr:DWORD
+COMM	_bPunt:DWORD
+_DATA	ENDS
+_BSS	SEGMENT
+_hwWindPolygon DD 01H DUP (?)
+_hwbreakStall DD 01H DUP (?)
+_hwpollStall DD	01H DUP (?)
+_hwpciFree DD	01H DUP (?)
+_hwBitmapBits DD 01H DUP (?)
+_hwBitmapBitsHS DD 01H DUP (?)
+_hwBitmapBitsSS DD 01H DUP (?)
+_hwBitmapBitsSH DD 01H DUP (?)
+_BSS	ENDS
+_DATA	SEGMENT
+COMM	_dwDevNode:DWORD
+COMM	_count:DWORD
+COMM	_DriverData:BYTE:01c20H
+_func_table DD	FLAT:_InitThunks32@20
+	DD	FLAT:_BitBlt32@8
+	DD	00H
+	DD	00H
+	DD	00H
+	DD	00H
+	DD	00H
+	DD	00H
+	DD	FLAT:_Output32@8
+	DD	00H
+	DD	00H
+	DD	00H
+	DD	00H
+	DD	00H
+	DD	FLAT:_ExtTextOut32@8
+	DD	00H
+	DD	00H
+	DD	00H
+	DD	00H
+	DD	00H
+	DD	FLAT:_DeviceBitmapBits32@8
+	DD	00H
+	DD	00H
+	DD	FLAT:_SetDIBitsToDevice32@8
+	DD	00H
+	DD	00H
+	DD	00H
+	DD	00H
+	DD	00H
+	DD	FLAT:_StretchBlt32@8
+	DD	FLAT:_StretchDIBits32@8
+	DD	FLAT:_SelectBitmap32@8
+	DD	FLAT:_BitmapBits32@8
+	DD	00H
+	DD	FLAT:_MapSharedData32@8
+	DD	FLAT:_initFifo32@8
+_hwAll	DD	01H
+_hwBlt	DD	01H
+_hwBitBltSS DD	01H
+_hwBitBltPS DD	01H
+_hwBitBltHS DD	01H
+_hwStretchBlt DD 01H
+_hwStretchBltSS DD 01H
+_hwStretchBltHS DD 01H
+_hwStretchBltPS DD 01H
+_hwText	DD	01H
+_hwTextLPDX DD	01H
+_hwTextNoLPDX DD 01H
+_hwOutput DD	01H
+_hwAltPolygon DD 01H
+_hwPolyline DD	01H
+_hwRect	DD	01H
+_hwPolyScanline DD 01H
+_hwScanline DD	01H
+_hwSetDIBitsToDevice DD 01H
+_hwDeviceBitmapBits DD 01H
+_hwStretchDIBits DD 01H
+_hwDibBlt DD	01H
+_hwDibToDevice DD 01H
+_pollCount DD	0fffffffdH
+_DATA	ENDS
+EXTRN	_pfnCSIM:DWORD
+EXTRN	_InitFifo:NEAR
+EXTRN	_InitRegs:NEAR
+EXTRN	_SetLPFromDevNode:NEAR
+_TEXT	SEGMENT
+_dwLocalDevNode$ = 12
+_dwPfnGlobalData$ = 16
+_dwLdtAliasPtr$ = 20
+_dwPfnCSIM$ = 24
+_pParams$ = -4
+_lpPDevice32$ = 24
+_tf$2060 = 20
+_tf$2062 = 20
+_dwDummy$ = 8
+_InitThunks32@20 PROC NEAR
+
+; 236  :     VOID* pParams;  // this makes THUNK_PROLOG work
+; 237  :     DWORD lpPDevice32;
+; 238  : 
+; 239  :     THUNK_PROLOG;
+
+  00000	55		 push	 ebp
+  00001	0f b7 ec	 movzx	 ebp, sp
+  00004	83 ec 04	 sub	 esp, 4
+  00007	66 8e d8	 mov	 ds, ax
+  0000a	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _dwLdtPtr
+  00010	8b 45 fc	 mov	 eax, DWORD PTR _pParams$[ebp]
+  00013	a3 00 00 00 00	 mov	 DWORD PTR _dwDevNode, eax
+  00018	66 8c d0	 mov	 ax, ss
+  0001b	25 f8 ff 00 00	 and	 eax, 65528		; 0000fff8H
+  00020	03 d0		 add	 edx, eax
+  00022	8a 42 04	 mov	 al, BYTE PTR [edx+4]
+  00025	8a 62 07	 mov	 ah, BYTE PTR [edx+7]
+  00028	c1 e0 10	 shl	 eax, 16			; 00000010H
+  0002b	66 8b 42 02	 mov	 ax, WORD PTR [edx+2]
+  0002f	03 45 00	 add	 eax, DWORD PTR [ebp]
+  00032	83 c0 0c	 add	 eax, 12			; 0000000cH
+  00035	89 45 fc	 mov	 DWORD PTR _pParams$[ebp], eax
+
+; 240  : 
+; 241  :     dwLdtPtr = dwLdtAliasPtr;
+
+  00038	8b 45 14	 mov	 eax, DWORD PTR _dwLdtAliasPtr$[ebp]
+
+; 242  :     pfnCSIM = dwPfnCSIM;
+
+  0003b	8b 4d 18	 mov	 ecx, DWORD PTR _dwPfnCSIM$[ebp]
+
+; 243  : 
+; 244  :     FarToFlat(dwPfnGlobalData,  lpDriverData);
+
+  0003e	8b 55 10	 mov	 edx, DWORD PTR _dwPfnGlobalData$[ebp]
+  00041	a3 00 00 00 00	 mov	 DWORD PTR _dwLdtPtr, eax
+  00046	89 0d 00 00 00
+	00		 mov	 DWORD PTR _pfnCSIM, ecx
+  0004c	89 55 14	 mov	 DWORD PTR _tf$2060[ebp], edx
+  0004f	8b 1d 00 00 00
+	00		 mov	 ebx, DWORD PTR _dwLdtPtr
+  00055	8b 45 14	 mov	 eax, DWORD PTR _tf$2060[ebp]
+  00058	c1 e8 10	 shr	 eax, 16			; 00000010H
+  0005b	83 e0 f8	 and	 eax, -8			; fffffff8H
+  0005e	03 d8		 add	 ebx, eax
+  00060	8b 43 04	 mov	 eax, DWORD PTR [ebx+4]
+  00063	8b c8		 mov	 ecx, eax
+  00065	25 00 00 00 ff	 and	 eax, -16777216		; ff000000H
+  0006a	c1 e1 10	 shl	 ecx, 16			; 00000010H
+  0006d	81 e1 00 00 ff
+	00		 and	 ecx, 16711680		; 00ff0000H
+  00073	0b c1		 or	 eax, ecx
+  00075	8b 4b 02	 mov	 ecx, DWORD PTR [ebx+2]
+  00078	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  0007e	0b c1		 or	 eax, ecx
+  00080	0f b7 5d 14	 movzx	 ebx, WORD PTR _tf$2060[ebp]
+  00084	03 c3		 add	 eax, ebx
+  00086	a3 00 00 00 00	 mov	 DWORD PTR _lpDriverData, eax
+
+; 245  : 
+; 246  :     // make this screen's pdevice conveniently accessible to GDI32 functions
+; 247  :     //
+; 248  :     FarToFlat(lpDriverData->lpPDevice, lpPDevice32);
+
+  0008b	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  00090	8b 08		 mov	 ecx, DWORD PTR [eax]
+  00092	89 4d 14	 mov	 DWORD PTR _tf$2062[ebp], ecx
+  00095	8b 1d 00 00 00
+	00		 mov	 ebx, DWORD PTR _dwLdtPtr
+  0009b	8b 45 14	 mov	 eax, DWORD PTR _tf$2062[ebp]
+  0009e	c1 e8 10	 shr	 eax, 16			; 00000010H
+  000a1	83 e0 f8	 and	 eax, -8			; fffffff8H
+  000a4	03 d8		 add	 ebx, eax
+  000a6	8b 43 04	 mov	 eax, DWORD PTR [ebx+4]
+  000a9	8b c8		 mov	 ecx, eax
+  000ab	25 00 00 00 ff	 and	 eax, -16777216		; ff000000H
+  000b0	c1 e1 10	 shl	 ecx, 16			; 00000010H
+  000b3	81 e1 00 00 ff
+	00		 and	 ecx, 16711680		; 00ff0000H
+  000b9	0b c1		 or	 eax, ecx
+  000bb	8b 4b 02	 mov	 ecx, DWORD PTR [ebx+2]
+  000be	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  000c4	0b c1		 or	 eax, ecx
+  000c6	0f b7 5d 14	 movzx	 ebx, WORD PTR _tf$2062[ebp]
+  000ca	03 c3		 add	 eax, ebx
+  000cc	89 45 18	 mov	 DWORD PTR _lpPDevice32$[ebp], eax
+
+; 249  :     lpDriverData->lpDeFlags = (DWORD *) &((LPDIBENGINE)lpPDevice32)->deFlags;
+
+  000cf	8b 4d 18	 mov	 ecx, DWORD PTR _lpPDevice32$[ebp]
+  000d2	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+
+; 250  : 
+; 251  :     // set up a flat32 screen pdevice accessible to GDI32 functions
+; 252  :     //
+; 253  :     lpDriverData->lpPDevice32 = lpPDevice32;
+; 254  : 
+; 255  :     // set up the mapping from this devnode to its lpDriverData
+; 256  :     // 
+; 257  :     SetLPFromDevNode(dwLocalDevNode, lpDriverData);
+
+  000d7	50		 push	 eax
+  000d8	8d 51 1c	 lea	 edx, DWORD PTR [ecx+28]
+  000db	89 50 04	 mov	 DWORD PTR [eax+4], edx
+  000de	89 48 14	 mov	 DWORD PTR [eax+20], ecx
+  000e1	8b 45 0c	 mov	 eax, DWORD PTR _dwLocalDevNode$[ebp]
+  000e4	50		 push	 eax
+  000e5	e8 00 00 00 00	 call	 _SetLPFromDevNode
+
+; 258  : 
+; 259  :     // put the 2d regs in a known state
+; 260  :     //
+; 261  :     InitRegs();
+
+  000ea	e8 00 00 00 00	 call	 _InitRegs
+
+; 262  : 
+; 263  :     // get the command fifo up & running
+; 264  :     // 
+; 265  :     InitFifo(lpDriverData->fifoStart, lpDriverData->fifoSize);
+
+  000ef	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  000f4	8b 88 0c 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1292]
+  000fa	8b 90 08 05 00
+	00		 mov	 edx, DWORD PTR [eax+1288]
+  00100	51		 push	 ecx
+  00101	52		 push	 edx
+  00102	e8 00 00 00 00	 call	 _InitFifo
+  00107	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 266  : 
+; 267  : #ifdef TRACE
+; 268  :     InitDebugLevel();
+; 269  : #endif
+; 270  : 
+; 271  :     THUNK_EPILOG;
+
+  0010a	8b 45 08	 mov	 eax, DWORD PTR _dwDummy$[ebp]
+  0010d	8b e5		 mov	 esp, ebp
+  0010f	5d		 pop	 ebp
+  00110	cb		 retf	 0
+_InitThunks32@20 ENDP
+_TEXT	ENDS
+EXTRN	_FxBitBlt:NEAR
+EXTRN	_dwNumDevices:DWORD
+EXTRN	_FindLPFromDevNode:NEAR
+_TEXT	SEGMENT
+_dwDummy$ = 8
+_pParams$ = 12
+_BitBlt32@8 PROC NEAR
+
+; 307  :     THUNK_PROLOG
+
+  00120	55		 push	 ebp
+  00121	0f b7 ec	 movzx	 ebp, sp
+  00124	83 ec 00	 sub	 esp, 0
+  00127	66 8e d8	 mov	 ds, ax
+  0012a	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _dwLdtPtr
+  00130	8b 45 0c	 mov	 eax, DWORD PTR _pParams$[ebp]
+  00133	a3 00 00 00 00	 mov	 DWORD PTR _dwDevNode, eax
+  00138	66 8c d0	 mov	 ax, ss
+  0013b	25 f8 ff 00 00	 and	 eax, 65528		; 0000fff8H
+  00140	03 d0		 add	 edx, eax
+  00142	8a 42 04	 mov	 al, BYTE PTR [edx+4]
+  00145	8a 62 07	 mov	 ah, BYTE PTR [edx+7]
+  00148	c1 e0 10	 shl	 eax, 16			; 00000010H
+  0014b	66 8b 42 02	 mov	 ax, WORD PTR [edx+2]
+  0014f	03 45 00	 add	 eax, DWORD PTR [ebp]
+  00152	83 c0 0c	 add	 eax, 12			; 0000000cH
+  00155	89 45 0c	 mov	 DWORD PTR _pParams$[ebp], eax
+
+; 308  : 
+; 309  :     // This is how we find which device to use in a Multi-Monitor Situation
+; 310  :     if (dwNumDevices > 1)
+
+  00158	83 3d 00 00 00
+	00 01		 cmp	 DWORD PTR _dwNumDevices, 1
+  0015f	76 13		 jbe	 SHORT $L2071
+
+; 311  :       lpDriverData = (GLOBALDATA *)FindLPFromDevNode(dwDevNode);
+
+  00161	a1 00 00 00 00	 mov	 eax, DWORD PTR _dwDevNode
+  00166	50		 push	 eax
+  00167	e8 00 00 00 00	 call	 _FindLPFromDevNode
+  0016c	83 c4 04	 add	 esp, 4
+  0016f	a3 00 00 00 00	 mov	 DWORD PTR _lpDriverData, eax
+$L2071:
+
+; 312  : 
+; 313  :     bPunt = FALSE;
+
+  00174	c7 05 00 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _bPunt, 0
+
+; 314  : 
+; 315  : #ifdef NULLDRIVER
+; 316  :     if (!nullAll && !nullBitBlt)
+; 317  : #endif // #ifdef NULLDRIVER
+; 318  : 	(DWORD) pParams = FxBitBlt( pParams );
+
+  0017e	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  00181	51		 push	 ecx
+  00182	e8 00 00 00 00	 call	 _FxBitBlt
+  00187	83 c4 04	 add	 esp, 4
+  0018a	89 45 0c	 mov	 DWORD PTR _pParams$[ebp], eax
+
+; 319  : 
+; 320  :     if (bPunt)
+
+  0018d	83 3d 00 00 00
+	00 00		 cmp	 DWORD PTR _bPunt, 0
+  00194	74 0c		 je	 SHORT $L2074
+
+; 321  :         dwDummy |= PUNT_BIT;
+
+  00196	8b 55 08	 mov	 edx, DWORD PTR _dwDummy$[ebp]
+  00199	81 ca 00 00 00
+	80		 or	 edx, -2147483648	; 80000000H
+  0019f	89 55 08	 mov	 DWORD PTR _dwDummy$[ebp], edx
+$L2074:
+
+; 322  : 
+; 323  :     THUNK_EPILOG
+
+  001a2	8b 45 08	 mov	 eax, DWORD PTR _dwDummy$[ebp]
+  001a5	8b e5		 mov	 esp, ebp
+  001a7	5d		 pop	 ebp
+  001a8	cb		 retf	 0
+_BitBlt32@8 ENDP
+_TEXT	ENDS
+EXTRN	_FxStretchBlt:NEAR
+_TEXT	SEGMENT
+_dwDummy$ = 8
+_pParams$ = 12
+_StretchBlt32@8 PROC NEAR
+
+; 344  :     THUNK_PROLOG
+
+  001a9	55		 push	 ebp
+  001aa	0f b7 ec	 movzx	 ebp, sp
+  001ad	83 ec 00	 sub	 esp, 0
+  001b0	66 8e d8	 mov	 ds, ax
+  001b3	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _dwLdtPtr
+  001b9	8b 45 0c	 mov	 eax, DWORD PTR _pParams$[ebp]
+  001bc	a3 00 00 00 00	 mov	 DWORD PTR _dwDevNode, eax
+  001c1	66 8c d0	 mov	 ax, ss
+  001c4	25 f8 ff 00 00	 and	 eax, 65528		; 0000fff8H
+  001c9	03 d0		 add	 edx, eax
+  001cb	8a 42 04	 mov	 al, BYTE PTR [edx+4]
+  001ce	8a 62 07	 mov	 ah, BYTE PTR [edx+7]
+  001d1	c1 e0 10	 shl	 eax, 16			; 00000010H
+  001d4	66 8b 42 02	 mov	 ax, WORD PTR [edx+2]
+  001d8	03 45 00	 add	 eax, DWORD PTR [ebp]
+  001db	83 c0 0c	 add	 eax, 12			; 0000000cH
+  001de	89 45 0c	 mov	 DWORD PTR _pParams$[ebp], eax
+
+; 345  : 
+; 346  :     // This is how we find which device to use in a Multi-Monitor Situation
+; 347  :     if (dwNumDevices > 1)
+
+  001e1	83 3d 00 00 00
+	00 01		 cmp	 DWORD PTR _dwNumDevices, 1
+  001e8	76 13		 jbe	 SHORT $L2080
+
+; 348  :       lpDriverData = (GLOBALDATA *)FindLPFromDevNode(dwDevNode);
+
+  001ea	a1 00 00 00 00	 mov	 eax, DWORD PTR _dwDevNode
+  001ef	50		 push	 eax
+  001f0	e8 00 00 00 00	 call	 _FindLPFromDevNode
+  001f5	83 c4 04	 add	 esp, 4
+  001f8	a3 00 00 00 00	 mov	 DWORD PTR _lpDriverData, eax
+$L2080:
+
+; 349  : 
+; 350  :     bPunt = FALSE;
+
+  001fd	c7 05 00 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _bPunt, 0
+
+; 351  : 
+; 352  : #ifdef NULLDRIVER
+; 353  :     if (!nullAll && !nullStretchBlt)
+; 354  : #endif // #ifdef NULLDRIVER
+; 355  : 	(DWORD) pParams = FxStretchBlt( pParams );
+
+  00207	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  0020a	51		 push	 ecx
+  0020b	e8 00 00 00 00	 call	 _FxStretchBlt
+  00210	83 c4 04	 add	 esp, 4
+  00213	89 45 0c	 mov	 DWORD PTR _pParams$[ebp], eax
+
+; 356  : 
+; 357  :     if (bPunt)
+
+  00216	83 3d 00 00 00
+	00 00		 cmp	 DWORD PTR _bPunt, 0
+  0021d	74 0c		 je	 SHORT $L2083
+
+; 358  :         dwDummy |= PUNT_BIT;
+
+  0021f	8b 55 08	 mov	 edx, DWORD PTR _dwDummy$[ebp]
+  00222	81 ca 00 00 00
+	80		 or	 edx, -2147483648	; 80000000H
+  00228	89 55 08	 mov	 DWORD PTR _dwDummy$[ebp], edx
+$L2083:
+
+; 359  : 
+; 360  :     THUNK_EPILOG
+
+  0022b	8b 45 08	 mov	 eax, DWORD PTR _dwDummy$[ebp]
+  0022e	8b e5		 mov	 esp, ebp
+  00230	5d		 pop	 ebp
+  00231	cb		 retf	 0
+_StretchBlt32@8 ENDP
+_TEXT	ENDS
+EXTRN	_FxExtTextOut:NEAR
+_TEXT	SEGMENT
+_dwDummy$ = 8
+_pParams$ = 12
+_ExtTextOut32@8 PROC NEAR
+
+; 381  :     THUNK_PROLOG
+
+  00232	55		 push	 ebp
+  00233	0f b7 ec	 movzx	 ebp, sp
+  00236	83 ec 00	 sub	 esp, 0
+  00239	66 8e d8	 mov	 ds, ax
+  0023c	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _dwLdtPtr
+  00242	8b 45 0c	 mov	 eax, DWORD PTR _pParams$[ebp]
+  00245	a3 00 00 00 00	 mov	 DWORD PTR _dwDevNode, eax
+  0024a	66 8c d0	 mov	 ax, ss
+  0024d	25 f8 ff 00 00	 and	 eax, 65528		; 0000fff8H
+  00252	03 d0		 add	 edx, eax
+  00254	8a 42 04	 mov	 al, BYTE PTR [edx+4]
+  00257	8a 62 07	 mov	 ah, BYTE PTR [edx+7]
+  0025a	c1 e0 10	 shl	 eax, 16			; 00000010H
+  0025d	66 8b 42 02	 mov	 ax, WORD PTR [edx+2]
+  00261	03 45 00	 add	 eax, DWORD PTR [ebp]
+  00264	83 c0 0c	 add	 eax, 12			; 0000000cH
+  00267	89 45 0c	 mov	 DWORD PTR _pParams$[ebp], eax
+
+; 382  : 
+; 383  :     // This is how we find which device to use in a Multi-Monitor Situation
+; 384  :     if (dwNumDevices > 1)
+
+  0026a	83 3d 00 00 00
+	00 01		 cmp	 DWORD PTR _dwNumDevices, 1
+  00271	76 13		 jbe	 SHORT $L2089
+
+; 385  :       lpDriverData = (GLOBALDATA *)FindLPFromDevNode(dwDevNode);
+
+  00273	a1 00 00 00 00	 mov	 eax, DWORD PTR _dwDevNode
+  00278	50		 push	 eax
+  00279	e8 00 00 00 00	 call	 _FindLPFromDevNode
+  0027e	83 c4 04	 add	 esp, 4
+  00281	a3 00 00 00 00	 mov	 DWORD PTR _lpDriverData, eax
+$L2089:
+
+; 386  : 
+; 387  :     bPunt = FALSE;
+
+  00286	c7 05 00 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _bPunt, 0
+
+; 388  : 
+; 389  : #ifdef NULLDRIVER
+; 390  :     if (!nullAll && !nullText)
+; 391  : #endif // #ifdef NULLDRIVER
+; 392  : 	(DWORD) pParams = FxExtTextOut( pParams );
+
+  00290	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  00293	51		 push	 ecx
+  00294	e8 00 00 00 00	 call	 _FxExtTextOut
+  00299	83 c4 04	 add	 esp, 4
+  0029c	89 45 0c	 mov	 DWORD PTR _pParams$[ebp], eax
+
+; 393  : 
+; 394  :     if (bPunt)
+
+  0029f	83 3d 00 00 00
+	00 00		 cmp	 DWORD PTR _bPunt, 0
+  002a6	74 0c		 je	 SHORT $L2092
+
+; 395  :         dwDummy |= PUNT_BIT;
+
+  002a8	8b 55 08	 mov	 edx, DWORD PTR _dwDummy$[ebp]
+  002ab	81 ca 00 00 00
+	80		 or	 edx, -2147483648	; 80000000H
+  002b1	89 55 08	 mov	 DWORD PTR _dwDummy$[ebp], edx
+$L2092:
+
+; 396  : 
+; 397  :     THUNK_EPILOG
+
+  002b4	8b 45 08	 mov	 eax, DWORD PTR _dwDummy$[ebp]
+  002b7	8b e5		 mov	 esp, ebp
+  002b9	5d		 pop	 ebp
+  002ba	cb		 retf	 0
+_ExtTextOut32@8 ENDP
+_TEXT	ENDS
+EXTRN	_FxOutput:NEAR
+_TEXT	SEGMENT
+_dwDummy$ = 8
+_pParams$ = 12
+_Output32@8 PROC NEAR
+
+; 418  :     THUNK_PROLOG
+
+  002bb	55		 push	 ebp
+  002bc	0f b7 ec	 movzx	 ebp, sp
+  002bf	83 ec 00	 sub	 esp, 0
+  002c2	66 8e d8	 mov	 ds, ax
+  002c5	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _dwLdtPtr
+  002cb	8b 45 0c	 mov	 eax, DWORD PTR _pParams$[ebp]
+  002ce	a3 00 00 00 00	 mov	 DWORD PTR _dwDevNode, eax
+  002d3	66 8c d0	 mov	 ax, ss
+  002d6	25 f8 ff 00 00	 and	 eax, 65528		; 0000fff8H
+  002db	03 d0		 add	 edx, eax
+  002dd	8a 42 04	 mov	 al, BYTE PTR [edx+4]
+  002e0	8a 62 07	 mov	 ah, BYTE PTR [edx+7]
+  002e3	c1 e0 10	 shl	 eax, 16			; 00000010H
+  002e6	66 8b 42 02	 mov	 ax, WORD PTR [edx+2]
+  002ea	03 45 00	 add	 eax, DWORD PTR [ebp]
+  002ed	83 c0 0c	 add	 eax, 12			; 0000000cH
+  002f0	89 45 0c	 mov	 DWORD PTR _pParams$[ebp], eax
+
+; 419  : 
+; 420  :     // This is how we find which device to use in a Multi-Monitor Situation
+; 421  :     if (dwNumDevices > 1)
+
+  002f3	83 3d 00 00 00
+	00 01		 cmp	 DWORD PTR _dwNumDevices, 1
+  002fa	76 13		 jbe	 SHORT $L2098
+
+; 422  :       lpDriverData = (GLOBALDATA *)FindLPFromDevNode(dwDevNode);
+
+  002fc	a1 00 00 00 00	 mov	 eax, DWORD PTR _dwDevNode
+  00301	50		 push	 eax
+  00302	e8 00 00 00 00	 call	 _FindLPFromDevNode
+  00307	83 c4 04	 add	 esp, 4
+  0030a	a3 00 00 00 00	 mov	 DWORD PTR _lpDriverData, eax
+$L2098:
+
+; 423  : 
+; 424  :     bPunt = FALSE;
+
+  0030f	c7 05 00 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _bPunt, 0
+
+; 425  : 
+; 426  : #ifdef NULLDRIVER
+; 427  :     if (!nullAll && !nullOutput)
+; 428  : #endif // #ifdef NULLDRIVER
+; 429  : 	(DWORD) pParams = FxOutput( pParams );
+
+  00319	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  0031c	51		 push	 ecx
+  0031d	e8 00 00 00 00	 call	 _FxOutput
+  00322	83 c4 04	 add	 esp, 4
+  00325	89 45 0c	 mov	 DWORD PTR _pParams$[ebp], eax
+
+; 430  : 
+; 431  :     if (bPunt)
+
+  00328	83 3d 00 00 00
+	00 00		 cmp	 DWORD PTR _bPunt, 0
+  0032f	74 0c		 je	 SHORT $L2101
+
+; 432  :         dwDummy |= PUNT_BIT;
+
+  00331	8b 55 08	 mov	 edx, DWORD PTR _dwDummy$[ebp]
+  00334	81 ca 00 00 00
+	80		 or	 edx, -2147483648	; 80000000H
+  0033a	89 55 08	 mov	 DWORD PTR _dwDummy$[ebp], edx
+$L2101:
+
+; 433  : 
+; 434  :     THUNK_EPILOG
+
+  0033d	8b 45 08	 mov	 eax, DWORD PTR _dwDummy$[ebp]
+  00340	8b e5		 mov	 esp, ebp
+  00342	5d		 pop	 ebp
+  00343	cb		 retf	 0
+_Output32@8 ENDP
+_TEXT	ENDS
+EXTRN	_FXWAITFORIDLE:NEAR
+EXTRN	_FxDeviceBitmapBits:NEAR
+_TEXT	SEGMENT
+_dwDummy$ = 8
+_pParams$ = 12
+_DeviceBitmapBits32@8 PROC NEAR
+
+; 454  :     THUNK_PROLOG;
+
+  00344	55		 push	 ebp
+  00345	0f b7 ec	 movzx	 ebp, sp
+  00348	83 ec 00	 sub	 esp, 0
+  0034b	66 8e d8	 mov	 ds, ax
+  0034e	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _dwLdtPtr
+  00354	8b 45 0c	 mov	 eax, DWORD PTR _pParams$[ebp]
+  00357	a3 00 00 00 00	 mov	 DWORD PTR _dwDevNode, eax
+  0035c	66 8c d0	 mov	 ax, ss
+  0035f	25 f8 ff 00 00	 and	 eax, 65528		; 0000fff8H
+  00364	03 d0		 add	 edx, eax
+  00366	8a 42 04	 mov	 al, BYTE PTR [edx+4]
+  00369	8a 62 07	 mov	 ah, BYTE PTR [edx+7]
+  0036c	c1 e0 10	 shl	 eax, 16			; 00000010H
+  0036f	66 8b 42 02	 mov	 ax, WORD PTR [edx+2]
+  00373	03 45 00	 add	 eax, DWORD PTR [ebp]
+  00376	83 c0 0c	 add	 eax, 12			; 0000000cH
+  00379	89 45 0c	 mov	 DWORD PTR _pParams$[ebp], eax
+
+; 455  :     
+; 456  :     // This is how we find which device to use in a Multi-Monitor Situation
+; 457  :     if (dwNumDevices > 1)
+
+  0037c	83 3d 00 00 00
+	00 01		 cmp	 DWORD PTR _dwNumDevices, 1
+  00383	76 13		 jbe	 SHORT $L2107
+
+; 458  :       lpDriverData = (GLOBALDATA *)FindLPFromDevNode(dwDevNode);
+
+  00385	a1 00 00 00 00	 mov	 eax, DWORD PTR _dwDevNode
+  0038a	50		 push	 eax
+  0038b	e8 00 00 00 00	 call	 _FindLPFromDevNode
+  00390	83 c4 04	 add	 esp, 4
+  00393	a3 00 00 00 00	 mov	 DWORD PTR _lpDriverData, eax
+$L2107:
+
+; 459  : 
+; 460  :     bPunt = FALSE;
+
+  00398	c7 05 00 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _bPunt, 0
+
+; 461  : 
+; 462  :     (DWORD) pParams = FxDeviceBitmapBits( pParams );
+
+  003a2	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  003a5	51		 push	 ecx
+  003a6	e8 00 00 00 00	 call	 _FxDeviceBitmapBits
+  003ab	83 c4 04	 add	 esp, 4
+  003ae	89 45 0c	 mov	 DWORD PTR _pParams$[ebp], eax
+
+; 463  :     
+; 464  :     if (bPunt)
+
+  003b1	83 3d 00 00 00
+	00 00		 cmp	 DWORD PTR _bPunt, 0
+  003b8	74 26		 je	 SHORT $L2112
+
+; 466  :         dwDummy |= PUNT_BIT;
+
+  003ba	8b 55 08	 mov	 edx, DWORD PTR _dwDummy$[ebp]
+  003bd	81 ca 00 00 00
+	80		 or	 edx, -2147483648	; 80000000H
+  003c3	89 55 08	 mov	 DWORD PTR _dwDummy$[ebp], edx
+
+; 467  : 
+; 468  :     if  (!(GET(_FF(lpIOregs)->dacMode) & DAC_DPMS_BITS)) // ignore wait for idle if we are in DPMS power save.
+
+  003c6	a1 00 00 00 00	 mov	 eax, DWORD PTR _lpDriverData
+  003cb	8b 88 78 1a 00
+	00		 mov	 ecx, DWORD PTR [eax+6776]
+  003d1	8b 51 4c	 mov	 edx, DWORD PTR [ecx+76]
+  003d4	83 e2 1e	 and	 edx, 30			; 0000001eH
+  003d7	85 d2		 test	 edx, edx
+  003d9	75 05		 jne	 SHORT $L2112
+
+; 469  :      	FXWAITFORIDLE();
+
+  003db	e8 00 00 00 00	 call	 _FXWAITFORIDLE
+$L2112:
+
+; 471  :     
+; 472  :     THUNK_EPILOG;
+
+  003e0	8b 45 08	 mov	 eax, DWORD PTR _dwDummy$[ebp]
+  003e3	8b e5		 mov	 esp, ebp
+  003e5	5d		 pop	 ebp
+  003e6	cb		 retf	 0
+_DeviceBitmapBits32@8 ENDP
+_TEXT	ENDS
+EXTRN	_FxSetDIBitsToDevice:NEAR
+_TEXT	SEGMENT
+_dwDummy$ = 8
+_pParams$ = 12
+_SetDIBitsToDevice32@8 PROC NEAR
+
+; 493  :     THUNK_PROLOG
+
+  003e7	55		 push	 ebp
+  003e8	0f b7 ec	 movzx	 ebp, sp
+  003eb	83 ec 00	 sub	 esp, 0
+  003ee	66 8e d8	 mov	 ds, ax
+  003f1	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _dwLdtPtr
+  003f7	8b 45 0c	 mov	 eax, DWORD PTR _pParams$[ebp]
+  003fa	a3 00 00 00 00	 mov	 DWORD PTR _dwDevNode, eax
+  003ff	66 8c d0	 mov	 ax, ss
+  00402	25 f8 ff 00 00	 and	 eax, 65528		; 0000fff8H
+  00407	03 d0		 add	 edx, eax
+  00409	8a 42 04	 mov	 al, BYTE PTR [edx+4]
+  0040c	8a 62 07	 mov	 ah, BYTE PTR [edx+7]
+  0040f	c1 e0 10	 shl	 eax, 16			; 00000010H
+  00412	66 8b 42 02	 mov	 ax, WORD PTR [edx+2]
+  00416	03 45 00	 add	 eax, DWORD PTR [ebp]
+  00419	83 c0 0c	 add	 eax, 12			; 0000000cH
+  0041c	89 45 0c	 mov	 DWORD PTR _pParams$[ebp], eax
+
+; 494  : 
+; 495  :     // This is how we find which device to use in a Multi-Monitor Situation
+; 496  :     if (dwNumDevices > 1)
+
+  0041f	83 3d 00 00 00
+	00 01		 cmp	 DWORD PTR _dwNumDevices, 1
+  00426	76 13		 jbe	 SHORT $L2118
+
+; 497  :       lpDriverData = (GLOBALDATA *)FindLPFromDevNode(dwDevNode);
+
+  00428	a1 00 00 00 00	 mov	 eax, DWORD PTR _dwDevNode
+  0042d	50		 push	 eax
+  0042e	e8 00 00 00 00	 call	 _FindLPFromDevNode
+  00433	83 c4 04	 add	 esp, 4
+  00436	a3 00 00 00 00	 mov	 DWORD PTR _lpDriverData, eax
+$L2118:
+
+; 498  : 
+; 499  :     bPunt = FALSE;
+
+  0043b	c7 05 00 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _bPunt, 0
+
+; 500  : 
+; 501  : #ifdef NULLDRIVER
+; 502  :     if (!nullAll && !nullDibToDev)
+; 503  : #endif // #ifdef NULLDRIVER
+; 504  : 	(DWORD) pParams = FxSetDIBitsToDevice( pParams );
+
+  00445	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  00448	51		 push	 ecx
+  00449	e8 00 00 00 00	 call	 _FxSetDIBitsToDevice
+  0044e	83 c4 04	 add	 esp, 4
+  00451	89 45 0c	 mov	 DWORD PTR _pParams$[ebp], eax
+
+; 505  : 
+; 506  :     if (bPunt)
+
+  00454	83 3d 00 00 00
+	00 00		 cmp	 DWORD PTR _bPunt, 0
+  0045b	74 0c		 je	 SHORT $L2121
+
+; 507  :         dwDummy |= PUNT_BIT;
+
+  0045d	8b 55 08	 mov	 edx, DWORD PTR _dwDummy$[ebp]
+  00460	81 ca 00 00 00
+	80		 or	 edx, -2147483648	; 80000000H
+  00466	89 55 08	 mov	 DWORD PTR _dwDummy$[ebp], edx
+$L2121:
+
+; 508  : 
+; 509  :     THUNK_EPILOG
+
+  00469	8b 45 08	 mov	 eax, DWORD PTR _dwDummy$[ebp]
+  0046c	8b e5		 mov	 esp, ebp
+  0046e	5d		 pop	 ebp
+  0046f	cb		 retf	 0
+_SetDIBitsToDevice32@8 ENDP
+_TEXT	ENDS
+EXTRN	_FxStretchDIBits:NEAR
+_TEXT	SEGMENT
+_dwDummy$ = 8
+_pParams$ = 12
+_StretchDIBits32@8 PROC NEAR
+
+; 530  :     THUNK_PROLOG
+
+  00470	55		 push	 ebp
+  00471	0f b7 ec	 movzx	 ebp, sp
+  00474	83 ec 00	 sub	 esp, 0
+  00477	66 8e d8	 mov	 ds, ax
+  0047a	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _dwLdtPtr
+  00480	8b 45 0c	 mov	 eax, DWORD PTR _pParams$[ebp]
+  00483	a3 00 00 00 00	 mov	 DWORD PTR _dwDevNode, eax
+  00488	66 8c d0	 mov	 ax, ss
+  0048b	25 f8 ff 00 00	 and	 eax, 65528		; 0000fff8H
+  00490	03 d0		 add	 edx, eax
+  00492	8a 42 04	 mov	 al, BYTE PTR [edx+4]
+  00495	8a 62 07	 mov	 ah, BYTE PTR [edx+7]
+  00498	c1 e0 10	 shl	 eax, 16			; 00000010H
+  0049b	66 8b 42 02	 mov	 ax, WORD PTR [edx+2]
+  0049f	03 45 00	 add	 eax, DWORD PTR [ebp]
+  004a2	83 c0 0c	 add	 eax, 12			; 0000000cH
+  004a5	89 45 0c	 mov	 DWORD PTR _pParams$[ebp], eax
+
+; 531  : 
+; 532  :     // This is how we find which device to use in a Multi-Monitor Situation
+; 533  :     if (dwNumDevices > 1)
+
+  004a8	83 3d 00 00 00
+	00 01		 cmp	 DWORD PTR _dwNumDevices, 1
+  004af	76 13		 jbe	 SHORT $L2127
+
+; 534  :       lpDriverData = (GLOBALDATA *)FindLPFromDevNode(dwDevNode);
+
+  004b1	a1 00 00 00 00	 mov	 eax, DWORD PTR _dwDevNode
+  004b6	50		 push	 eax
+  004b7	e8 00 00 00 00	 call	 _FindLPFromDevNode
+  004bc	83 c4 04	 add	 esp, 4
+  004bf	a3 00 00 00 00	 mov	 DWORD PTR _lpDriverData, eax
+$L2127:
+
+; 535  : 
+; 536  :     bPunt = FALSE;
+
+  004c4	c7 05 00 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _bPunt, 0
+
+; 537  : 
+; 538  : #ifdef NULLDRIVER
+; 539  :     if (!nullAll && !nullStretchDib)
+; 540  : #endif // #ifdef NULLDRIVER
+; 541  : 	(DWORD) pParams = FxStretchDIBits( pParams );
+
+  004ce	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  004d1	51		 push	 ecx
+  004d2	e8 00 00 00 00	 call	 _FxStretchDIBits
+  004d7	83 c4 04	 add	 esp, 4
+  004da	89 45 0c	 mov	 DWORD PTR _pParams$[ebp], eax
+
+; 542  : 
+; 543  :     if (bPunt)
+
+  004dd	83 3d 00 00 00
+	00 00		 cmp	 DWORD PTR _bPunt, 0
+  004e4	74 0c		 je	 SHORT $L2130
+
+; 544  :         dwDummy |= PUNT_BIT;
+
+  004e6	8b 55 08	 mov	 edx, DWORD PTR _dwDummy$[ebp]
+  004e9	81 ca 00 00 00
+	80		 or	 edx, -2147483648	; 80000000H
+  004ef	89 55 08	 mov	 DWORD PTR _dwDummy$[ebp], edx
+$L2130:
+
+; 545  : 
+; 546  :     THUNK_EPILOG
+
+  004f2	8b 45 08	 mov	 eax, DWORD PTR _dwDummy$[ebp]
+  004f5	8b e5		 mov	 esp, ebp
+  004f7	5d		 pop	 ebp
+  004f8	cb		 retf	 0
+_StretchDIBits32@8 ENDP
+_TEXT	ENDS
+EXTRN	_FxSelectBitmap:NEAR
+_TEXT	SEGMENT
+_dwDummy$ = 8
+_pParams$ = 12
+_SelectBitmap32@8 PROC NEAR
+
+; 567  :     THUNK_PROLOG
+
+  004f9	55		 push	 ebp
+  004fa	0f b7 ec	 movzx	 ebp, sp
+  004fd	83 ec 00	 sub	 esp, 0
+  00500	66 8e d8	 mov	 ds, ax
+  00503	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _dwLdtPtr
+  00509	8b 45 0c	 mov	 eax, DWORD PTR _pParams$[ebp]
+  0050c	a3 00 00 00 00	 mov	 DWORD PTR _dwDevNode, eax
+  00511	66 8c d0	 mov	 ax, ss
+  00514	25 f8 ff 00 00	 and	 eax, 65528		; 0000fff8H
+  00519	03 d0		 add	 edx, eax
+  0051b	8a 42 04	 mov	 al, BYTE PTR [edx+4]
+  0051e	8a 62 07	 mov	 ah, BYTE PTR [edx+7]
+  00521	c1 e0 10	 shl	 eax, 16			; 00000010H
+  00524	66 8b 42 02	 mov	 ax, WORD PTR [edx+2]
+  00528	03 45 00	 add	 eax, DWORD PTR [ebp]
+  0052b	83 c0 0c	 add	 eax, 12			; 0000000cH
+  0052e	89 45 0c	 mov	 DWORD PTR _pParams$[ebp], eax
+
+; 568  : 
+; 569  :     // This is how we find which device to use in a Multi-Monitor Situation
+; 570  :     if (dwNumDevices > 1)
+
+  00531	83 3d 00 00 00
+	00 01		 cmp	 DWORD PTR _dwNumDevices, 1
+  00538	76 13		 jbe	 SHORT $L2136
+
+; 571  :       lpDriverData = (GLOBALDATA *)FindLPFromDevNode(dwDevNode);
+
+  0053a	a1 00 00 00 00	 mov	 eax, DWORD PTR _dwDevNode
+  0053f	50		 push	 eax
+  00540	e8 00 00 00 00	 call	 _FindLPFromDevNode
+  00545	83 c4 04	 add	 esp, 4
+  00548	a3 00 00 00 00	 mov	 DWORD PTR _lpDriverData, eax
+$L2136:
+
+; 572  : 
+; 573  :     bPunt = FALSE;
+
+  0054d	c7 05 00 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _bPunt, 0
+
+; 574  : 
+; 575  : #ifdef NULLDRIVER
+; 576  :     if (!nullSelectBitmap)
+; 577  : #endif // #ifdef NULLDRIVER
+; 578  : 	(DWORD) pParams = FxSelectBitmap( pParams );
+
+  00557	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  0055a	51		 push	 ecx
+  0055b	e8 00 00 00 00	 call	 _FxSelectBitmap
+  00560	83 c4 04	 add	 esp, 4
+  00563	89 45 0c	 mov	 DWORD PTR _pParams$[ebp], eax
+
+; 579  : 
+; 580  :     if (bPunt)
+
+  00566	83 3d 00 00 00
+	00 00		 cmp	 DWORD PTR _bPunt, 0
+  0056d	74 0c		 je	 SHORT $L2139
+
+; 581  :         dwDummy |= PUNT_BIT;
+
+  0056f	8b 55 08	 mov	 edx, DWORD PTR _dwDummy$[ebp]
+  00572	81 ca 00 00 00
+	80		 or	 edx, -2147483648	; 80000000H
+  00578	89 55 08	 mov	 DWORD PTR _dwDummy$[ebp], edx
+$L2139:
+
+; 582  : 
+; 583  :     THUNK_EPILOG
+
+  0057b	8b 45 08	 mov	 eax, DWORD PTR _dwDummy$[ebp]
+  0057e	8b e5		 mov	 esp, ebp
+  00580	5d		 pop	 ebp
+  00581	cb		 retf	 0
+_SelectBitmap32@8 ENDP
+_TEXT	ENDS
+EXTRN	_FxBitmapBits:NEAR
+_TEXT	SEGMENT
+_dwDummy$ = 8
+_pParams$ = 12
+_BitmapBits32@8 PROC NEAR
+
+; 604  :     THUNK_PROLOG
+
+  00582	55		 push	 ebp
+  00583	0f b7 ec	 movzx	 ebp, sp
+  00586	83 ec 00	 sub	 esp, 0
+  00589	66 8e d8	 mov	 ds, ax
+  0058c	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _dwLdtPtr
+  00592	8b 45 0c	 mov	 eax, DWORD PTR _pParams$[ebp]
+  00595	a3 00 00 00 00	 mov	 DWORD PTR _dwDevNode, eax
+  0059a	66 8c d0	 mov	 ax, ss
+  0059d	25 f8 ff 00 00	 and	 eax, 65528		; 0000fff8H
+  005a2	03 d0		 add	 edx, eax
+  005a4	8a 42 04	 mov	 al, BYTE PTR [edx+4]
+  005a7	8a 62 07	 mov	 ah, BYTE PTR [edx+7]
+  005aa	c1 e0 10	 shl	 eax, 16			; 00000010H
+  005ad	66 8b 42 02	 mov	 ax, WORD PTR [edx+2]
+  005b1	03 45 00	 add	 eax, DWORD PTR [ebp]
+  005b4	83 c0 0c	 add	 eax, 12			; 0000000cH
+  005b7	89 45 0c	 mov	 DWORD PTR _pParams$[ebp], eax
+
+; 605  : 
+; 606  :     // This is how we find which device to use in a Multi-Monitor Situation
+; 607  :     if (dwNumDevices > 1)
+
+  005ba	83 3d 00 00 00
+	00 01		 cmp	 DWORD PTR _dwNumDevices, 1
+  005c1	76 13		 jbe	 SHORT $L2145
+
+; 608  :       lpDriverData = (GLOBALDATA *)FindLPFromDevNode(dwDevNode);
+
+  005c3	a1 00 00 00 00	 mov	 eax, DWORD PTR _dwDevNode
+  005c8	50		 push	 eax
+  005c9	e8 00 00 00 00	 call	 _FindLPFromDevNode
+  005ce	83 c4 04	 add	 esp, 4
+  005d1	a3 00 00 00 00	 mov	 DWORD PTR _lpDriverData, eax
+$L2145:
+
+; 609  : 
+; 610  :     bPunt = FALSE;
+
+  005d6	c7 05 00 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _bPunt, 0
+
+; 611  : 
+; 612  : #ifdef NULLDRIVER
+; 613  :     if (!nullBitmapBits)
+; 614  : #endif // #ifdef NULLDRIVER
+; 615  : 	(DWORD) pParams = FxBitmapBits( pParams );
+
+  005e0	8b 4d 0c	 mov	 ecx, DWORD PTR _pParams$[ebp]
+  005e3	51		 push	 ecx
+  005e4	e8 00 00 00 00	 call	 _FxBitmapBits
+  005e9	83 c4 04	 add	 esp, 4
+  005ec	89 45 0c	 mov	 DWORD PTR _pParams$[ebp], eax
+
+; 616  : 
+; 617  :     if (bPunt)
+
+  005ef	83 3d 00 00 00
+	00 00		 cmp	 DWORD PTR _bPunt, 0
+  005f6	74 0c		 je	 SHORT $L2148
+
+; 618  :         dwDummy |= PUNT_BIT;
+
+  005f8	8b 55 08	 mov	 edx, DWORD PTR _dwDummy$[ebp]
+  005fb	81 ca 00 00 00
+	80		 or	 edx, -2147483648	; 80000000H
+  00601	89 55 08	 mov	 DWORD PTR _dwDummy$[ebp], edx
+$L2148:
+
+; 619  : 
+; 620  :     THUNK_EPILOG
+
+  00604	8b 45 08	 mov	 eax, DWORD PTR _dwDummy$[ebp]
+  00607	8b e5		 mov	 esp, ebp
+  00609	5d		 pop	 ebp
+  0060a	cb		 retf	 0
+_BitmapBits32@8 ENDP
+_dwDummy$ = 8
+_pParams$ = 12
+_tf$2154 = 12
+_MapSharedData32@8 PROC NEAR
+
+; 643  :     THUNK_PROLOG
+
+  0060b	55		 push	 ebp
+  0060c	0f b7 ec	 movzx	 ebp, sp
+  0060f	83 ec 00	 sub	 esp, 0
+  00612	66 8e d8	 mov	 ds, ax
+  00615	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _dwLdtPtr
+  0061b	8b 45 0c	 mov	 eax, DWORD PTR _pParams$[ebp]
+  0061e	a3 00 00 00 00	 mov	 DWORD PTR _dwDevNode, eax
+  00623	66 8c d0	 mov	 ax, ss
+  00626	25 f8 ff 00 00	 and	 eax, 65528		; 0000fff8H
+  0062b	03 d0		 add	 edx, eax
+  0062d	8a 42 04	 mov	 al, BYTE PTR [edx+4]
+  00630	8a 62 07	 mov	 ah, BYTE PTR [edx+7]
+  00633	c1 e0 10	 shl	 eax, 16			; 00000010H
+  00636	66 8b 42 02	 mov	 ax, WORD PTR [edx+2]
+  0063a	03 45 00	 add	 eax, DWORD PTR [ebp]
+  0063d	83 c0 0c	 add	 eax, 12			; 0000000cH
+  00640	89 45 0c	 mov	 DWORD PTR _pParams$[ebp], eax
+
+; 644  : 
+; 645  : 	DEBUG_FIX
+
+  00643	0f b7 ed	 movzx	 ebp, bp
+  00646	8b 45 00	 mov	 eax, DWORD PTR [ebp]
+  00649	0f b7 c0	 movzx	 eax, ax
+  0064c	89 45 00	 mov	 DWORD PTR [ebp], eax
+
+; 646  : 
+; 647  : 	
+; 648  : 	FarToFlat(pParams->lpDriverData,lpDriverData);
+
+  0064f	8b 45 0c	 mov	 eax, DWORD PTR _pParams$[ebp]
+  00652	8b 08		 mov	 ecx, DWORD PTR [eax]
+  00654	89 4d 0c	 mov	 DWORD PTR _tf$2154[ebp], ecx
+  00657	8b 1d 00 00 00
+	00		 mov	 ebx, DWORD PTR _dwLdtPtr
+  0065d	8b 45 0c	 mov	 eax, DWORD PTR _tf$2154[ebp]
+  00660	c1 e8 10	 shr	 eax, 16			; 00000010H
+  00663	83 e0 f8	 and	 eax, -8			; fffffff8H
+  00666	03 d8		 add	 ebx, eax
+  00668	8b 43 04	 mov	 eax, DWORD PTR [ebx+4]
+  0066b	8b c8		 mov	 ecx, eax
+  0066d	25 00 00 00 ff	 and	 eax, -16777216		; ff000000H
+  00672	c1 e1 10	 shl	 ecx, 16			; 00000010H
+  00675	81 e1 00 00 ff
+	00		 and	 ecx, 16711680		; 00ff0000H
+  0067b	0b c1		 or	 eax, ecx
+  0067d	8b 4b 02	 mov	 ecx, DWORD PTR [ebx+2]
+  00680	81 e1 ff ff 00
+	00		 and	 ecx, 65535		; 0000ffffH
+  00686	0b c1		 or	 eax, ecx
+  00688	0f b7 5d 0c	 movzx	 ebx, WORD PTR _tf$2154[ebp]
+  0068c	03 c3		 add	 eax, ebx
+  0068e	a3 00 00 00 00	 mov	 DWORD PTR _lpDriverData, eax
+
+; 649  : 
+; 650  : 
+; 651  :     THUNK_EPILOG
+
+  00693	8b 45 08	 mov	 eax, DWORD PTR _dwDummy$[ebp]
+  00696	8b e5		 mov	 esp, ebp
+  00698	5d		 pop	 ebp
+  00699	cb		 retf	 0
+_MapSharedData32@8 ENDP
+_dwDummy$ = 8
+_pParams$ = 12
+_initFifo32@8 PROC NEAR
+
+; 671  : 	DWORD temp;
+; 672  : 
+; 673  :     THUNK_PROLOG
+
+  0069b	55		 push	 ebp
+  0069c	0f b7 ec	 movzx	 ebp, sp
+  0069f	83 ec 00	 sub	 esp, 0
+  006a2	66 8e d8	 mov	 ds, ax
+  006a5	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR _dwLdtPtr
+  006ab	8b 45 0c	 mov	 eax, DWORD PTR _pParams$[ebp]
+  006ae	a3 00 00 00 00	 mov	 DWORD PTR _dwDevNode, eax
+  006b3	66 8c d0	 mov	 ax, ss
+  006b6	25 f8 ff 00 00	 and	 eax, 65528		; 0000fff8H
+  006bb	03 d0		 add	 edx, eax
+  006bd	8a 42 04	 mov	 al, BYTE PTR [edx+4]
+  006c0	8a 62 07	 mov	 ah, BYTE PTR [edx+7]
+  006c3	c1 e0 10	 shl	 eax, 16			; 00000010H
+  006c6	66 8b 42 02	 mov	 ax, WORD PTR [edx+2]
+  006ca	03 45 00	 add	 eax, DWORD PTR [ebp]
+  006cd	83 c0 0c	 add	 eax, 12			; 0000000cH
+  006d0	89 45 0c	 mov	 DWORD PTR _pParams$[ebp], eax
+
+; 674  : 
+; 675  : 	DEBUG_FIX
+
+  006d3	0f b7 ed	 movzx	 ebp, bp
+  006d6	8b 45 00	 mov	 eax, DWORD PTR [ebp]
+  006d9	0f b7 c0	 movzx	 eax, ax
+  006dc	89 45 00	 mov	 DWORD PTR [ebp], eax
+
+; 676  : 
+; 677  : 	temp = pParams->size;
+; 678  : 	
+; 679  : 
+; 680  :     THUNK_EPILOG
+
+  006df	8b 45 08	 mov	 eax, DWORD PTR _dwDummy$[ebp]
+  006e2	8b e5		 mov	 esp, ebp
+  006e4	5d		 pop	 ebp
+  006e5	cb		 retf	 0
+_initFifo32@8 ENDP
+_TEXT	ENDS
+END

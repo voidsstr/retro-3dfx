@@ -1,0 +1,587 @@
+	TITLE	..\agp.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+FLAT	GROUP _DATA, CONST, _BSS
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+PUBLIC	_AgpService
+EXTRN	_CCODE__Debug_Printf_Service:NEAR
+_DATA	SEGMENT
+$SG9248	DB	'H3VDD: GartReserve: ', 00H
+	ORG $+3
+$SG9250	DB	'Succeeded', 00H
+	ORG $+2
+$SG9251	DB	'FAILED', 00H
+	ORG $+1
+$SG9252	DB	'NP:0x%lx, LA:0x%08lx, GA:0x%08lx, %s', 0aH, 0dH, 00H
+	ORG $+1
+$SG9254	DB	'H3VDD: GartCommit: ', 00H
+$SG9256	DB	'Succeeded', 00H
+	ORG $+2
+$SG9257	DB	'FAILED', 00H
+	ORG $+1
+$SG9258	DB	'LA:0x%08lx, PO:0x%lx, NP:0x%lx, GA:0x%08lx, %s', 0aH, 0dH
+	DB	00H
+	ORG $+3
+$SG9260	DB	'H3VDD: GartUncommit: ', 00H
+	ORG $+2
+$SG9261	DB	'LA:0x%08lx, PO:0x%lx, NP:0x%lx', 0aH, 0dH, 00H
+	ORG $+3
+$SG9263	DB	'H3VDD: GartFree: ', 00H
+	ORG $+2
+$SG9264	DB	'LA: 0x%08lx', 0aH, 0dH, 00H
+_DATA	ENDS
+_TEXT	SEGMENT
+_pAs$ = 8
+_AgpService PROC NEAR
+
+; 206  : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 207  :     switch (pAs->service)
+; 208  :     {
+
+  00006	8b 45 08	 mov	 eax, DWORD PTR _pAs$[ebp]
+  00009	8b 08		 mov	 ecx, DWORD PTR [eax]
+  0000b	89 4d fc	 mov	 DWORD PTR -4+[ebp], ecx
+  0000e	83 7d fc 03	 cmp	 DWORD PTR -4+[ebp], 3
+  00012	0f 87 81 01 00
+	00		 ja	 $L9244
+  00018	8b 55 fc	 mov	 edx, DWORD PTR -4+[ebp]
+  0001b	ff 24 95 00 00
+	00 00		 jmp	 DWORD PTR $L9272[edx*4]
+$L9247:
+
+; 209  :       case RESERVE:
+; 210  : #ifdef DEBUG
+; 211  : 	  _Debug_Printf_Service("H3VDD: GartReserve: ");
+
+  00022	68 00 00 00 00	 push	 OFFSET FLAT:$SG9248
+  00027	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  0002c	83 c4 04	 add	 esp, 4
+
+; 212  : #endif
+; 213  : 	  pAs->params.reserve.gartLinAddr = 
+; 214  : 	      VgartD_Reserve(pAs->params.reserve.devNode,
+; 215  : 			     pAs->params.reserve.nPages,
+; 216  : 			     0,	// 4K alignment of start address
+; 217  : 			     (DWORD) & pAs->params.reserve.gartPhysAddr,
+; 218  : 			     PG_WRITECOMBINED);	// get USWC memory
+
+  0002f	6a 02		 push	 2
+  00031	8b 45 08	 mov	 eax, DWORD PTR _pAs$[ebp]
+  00034	83 c0 10	 add	 eax, 16			; 00000010H
+  00037	50		 push	 eax
+  00038	6a 00		 push	 0
+  0003a	8b 4d 08	 mov	 ecx, DWORD PTR _pAs$[ebp]
+  0003d	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  00040	52		 push	 edx
+  00041	8b 45 08	 mov	 eax, DWORD PTR _pAs$[ebp]
+  00044	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  00047	51		 push	 ecx
+  00048	e8 00 00 00 00	 call	 _VgartD_Reserve
+  0004d	83 c4 14	 add	 esp, 20			; 00000014H
+  00050	8b 55 08	 mov	 edx, DWORD PTR _pAs$[ebp]
+  00053	89 42 0c	 mov	 DWORD PTR [edx+12], eax
+
+; 219  : 
+; 220  : #ifdef DEBUG
+; 221  : 	  _Debug_Printf_Service("NP:0x%lx, LA:0x%08lx, GA:0x%08lx, %s\n\r",
+; 222  : 				pAs->params.reserve.nPages,
+; 223  : 				pAs->params.reserve.gartLinAddr,
+; 224  : 				pAs->params.reserve.gartPhysAddr,
+; 225  : 				((pAs->params.reserve.gartLinAddr != 0) ?
+; 226  : 				                  "Succeeded" : "FAILED"));
+
+  00056	8b 45 08	 mov	 eax, DWORD PTR _pAs$[ebp]
+  00059	83 78 0c 00	 cmp	 DWORD PTR [eax+12], 0
+  0005d	74 09		 je	 SHORT $L9268
+  0005f	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR -8+[ebp], OFFSET FLAT:$SG9250
+  00066	eb 07		 jmp	 SHORT $L9269
+$L9268:
+  00068	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR -8+[ebp], OFFSET FLAT:$SG9251
+$L9269:
+  0006f	8b 4d f8	 mov	 ecx, DWORD PTR -8+[ebp]
+  00072	51		 push	 ecx
+  00073	8b 55 08	 mov	 edx, DWORD PTR _pAs$[ebp]
+  00076	8b 42 10	 mov	 eax, DWORD PTR [edx+16]
+  00079	50		 push	 eax
+  0007a	8b 4d 08	 mov	 ecx, DWORD PTR _pAs$[ebp]
+  0007d	8b 51 0c	 mov	 edx, DWORD PTR [ecx+12]
+  00080	52		 push	 edx
+  00081	8b 45 08	 mov	 eax, DWORD PTR _pAs$[ebp]
+  00084	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  00087	51		 push	 ecx
+  00088	68 00 00 00 00	 push	 OFFSET FLAT:$SG9252
+  0008d	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00092	83 c4 14	 add	 esp, 20			; 00000014H
+
+; 227  : #endif
+; 228  : 	  break;
+
+  00095	e9 ff 00 00 00	 jmp	 $L9244
+$L9253:
+
+; 229  : 	  
+; 230  :       case COMMIT:
+; 231  : #ifdef DEBUG
+; 232  : 	  _Debug_Printf_Service("H3VDD: GartCommit: ");
+
+  0009a	68 00 00 00 00	 push	 OFFSET FLAT:$SG9254
+  0009f	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  000a4	83 c4 04	 add	 esp, 4
+
+; 233  : #endif
+; 234  : 
+; 235  : 	  pAs->params.commit.retval = 
+; 236  : 	      VgartD_Commit(pAs->params.commit.gartLinAddr,
+; 237  : 			    pAs->params.commit.pageOffset,
+; 238  : 			    pAs->params.commit.nPages,
+; 239  : 			    (DWORD) &  pAs->params.commit.gartPhysAddr,
+; 240  : 			    0);	// don't memfill(0) memory
+
+  000a7	6a 00		 push	 0
+  000a9	8b 55 08	 mov	 edx, DWORD PTR _pAs$[ebp]
+  000ac	83 c2 10	 add	 edx, 16			; 00000010H
+  000af	52		 push	 edx
+  000b0	8b 45 08	 mov	 eax, DWORD PTR _pAs$[ebp]
+  000b3	8b 48 0c	 mov	 ecx, DWORD PTR [eax+12]
+  000b6	51		 push	 ecx
+  000b7	8b 55 08	 mov	 edx, DWORD PTR _pAs$[ebp]
+  000ba	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  000bd	50		 push	 eax
+  000be	8b 4d 08	 mov	 ecx, DWORD PTR _pAs$[ebp]
+  000c1	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  000c4	52		 push	 edx
+  000c5	e8 00 00 00 00	 call	 _VgartD_Commit
+  000ca	83 c4 14	 add	 esp, 20			; 00000014H
+  000cd	8b 4d 08	 mov	 ecx, DWORD PTR _pAs$[ebp]
+  000d0	89 41 14	 mov	 DWORD PTR [ecx+20], eax
+
+; 241  : 
+; 242  : #ifdef DEBUG
+; 243  : 	  _Debug_Printf_Service("LA:0x%08lx, PO:0x%lx, NP:0x%lx, GA:0x%08lx, "
+; 244  : 				"%s\n\r",
+; 245  : 				pAs->params.commit.gartLinAddr,
+; 246  : 				pAs->params.commit.pageOffset,
+; 247  : 				pAs->params.commit.nPages,
+; 248  : 				pAs->params.commit.gartPhysAddr,
+; 249  : 				((pAs->params.commit.retval == 1) ?
+; 250  : 				                   "Succeeded" : "FAILED"));
+
+  000d3	8b 55 08	 mov	 edx, DWORD PTR _pAs$[ebp]
+  000d6	83 7a 14 01	 cmp	 DWORD PTR [edx+20], 1
+  000da	75 09		 jne	 SHORT $L9270
+  000dc	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR -12+[ebp], OFFSET FLAT:$SG9256
+  000e3	eb 07		 jmp	 SHORT $L9271
+$L9270:
+  000e5	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR -12+[ebp], OFFSET FLAT:$SG9257
+$L9271:
+  000ec	8b 45 f4	 mov	 eax, DWORD PTR -12+[ebp]
+  000ef	50		 push	 eax
+  000f0	8b 4d 08	 mov	 ecx, DWORD PTR _pAs$[ebp]
+  000f3	8b 51 10	 mov	 edx, DWORD PTR [ecx+16]
+  000f6	52		 push	 edx
+  000f7	8b 45 08	 mov	 eax, DWORD PTR _pAs$[ebp]
+  000fa	8b 48 0c	 mov	 ecx, DWORD PTR [eax+12]
+  000fd	51		 push	 ecx
+  000fe	8b 55 08	 mov	 edx, DWORD PTR _pAs$[ebp]
+  00101	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  00104	50		 push	 eax
+  00105	8b 4d 08	 mov	 ecx, DWORD PTR _pAs$[ebp]
+  00108	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  0010b	52		 push	 edx
+  0010c	68 00 00 00 00	 push	 OFFSET FLAT:$SG9258
+  00111	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00116	83 c4 18	 add	 esp, 24			; 00000018H
+
+; 251  : #endif
+; 252  : 	  break;
+
+  00119	eb 7e		 jmp	 SHORT $L9244
+$L9259:
+
+; 253  : 	  
+; 254  :       case UNCOMMIT:
+; 255  : #ifdef DEBUG
+; 256  : 	  _Debug_Printf_Service("H3VDD: GartUncommit: ");
+
+  0011b	68 00 00 00 00	 push	 OFFSET FLAT:$SG9260
+  00120	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00125	83 c4 04	 add	 esp, 4
+
+; 257  : #endif
+; 258  : 
+; 259  : 	  VgartD_Uncommit(pAs->params.uncommit.gartLinAddr,
+; 260  : 			  pAs->params.uncommit.pageOffset,
+; 261  : 			  pAs->params.uncommit.nPages);
+
+  00128	8b 45 08	 mov	 eax, DWORD PTR _pAs$[ebp]
+  0012b	8b 48 0c	 mov	 ecx, DWORD PTR [eax+12]
+  0012e	51		 push	 ecx
+  0012f	8b 55 08	 mov	 edx, DWORD PTR _pAs$[ebp]
+  00132	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  00135	50		 push	 eax
+  00136	8b 4d 08	 mov	 ecx, DWORD PTR _pAs$[ebp]
+  00139	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  0013c	52		 push	 edx
+  0013d	e8 00 00 00 00	 call	 _VgartD_Uncommit
+  00142	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 262  : 
+; 263  : #ifdef DEBUG
+; 264  : 	  _Debug_Printf_Service("LA:0x%08lx, PO:0x%lx, NP:0x%lx\n\r",
+; 265  : 				pAs->params.uncommit.gartLinAddr,
+; 266  : 				pAs->params.uncommit.pageOffset,
+; 267  : 				pAs->params.uncommit.nPages);
+
+  00145	8b 45 08	 mov	 eax, DWORD PTR _pAs$[ebp]
+  00148	8b 48 0c	 mov	 ecx, DWORD PTR [eax+12]
+  0014b	51		 push	 ecx
+  0014c	8b 55 08	 mov	 edx, DWORD PTR _pAs$[ebp]
+  0014f	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  00152	50		 push	 eax
+  00153	8b 4d 08	 mov	 ecx, DWORD PTR _pAs$[ebp]
+  00156	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  00159	52		 push	 edx
+  0015a	68 00 00 00 00	 push	 OFFSET FLAT:$SG9261
+  0015f	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00164	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 268  : #endif
+; 269  : 	  break;
+
+  00167	eb 30		 jmp	 SHORT $L9244
+$L9262:
+
+; 270  : 	  
+; 271  :       case FREE:
+; 272  : #ifdef DEBUG
+; 273  : 	  _Debug_Printf_Service("H3VDD: GartFree: ");
+
+  00169	68 00 00 00 00	 push	 OFFSET FLAT:$SG9263
+  0016e	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00173	83 c4 04	 add	 esp, 4
+
+; 274  : #endif
+; 275  : 
+; 276  : 	  VgartD_Free(pAs->params.free.gartLinAddr);
+
+  00176	8b 45 08	 mov	 eax, DWORD PTR _pAs$[ebp]
+  00179	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  0017c	51		 push	 ecx
+  0017d	e8 00 00 00 00	 call	 _VgartD_Free
+  00182	83 c4 04	 add	 esp, 4
+
+; 277  : 
+; 278  : #ifdef DEBUG
+; 279  : 	  _Debug_Printf_Service("LA: 0x%08lx\n\r",
+; 280  : 				pAs->params.free.gartLinAddr);
+
+  00185	8b 55 08	 mov	 edx, DWORD PTR _pAs$[ebp]
+  00188	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  0018b	50		 push	 eax
+  0018c	68 00 00 00 00	 push	 OFFSET FLAT:$SG9264
+  00191	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00196	83 c4 08	 add	 esp, 8
+$L9244:
+
+; 284  : }
+
+  00199	8b e5		 mov	 esp, ebp
+  0019b	5d		 pop	 ebp
+  0019c	c3		 ret	 0
+$L9272:
+  0019d	00 00 00 00	 DD	 $L9247
+  001a1	00 00 00 00	 DD	 $L9253
+  001a5	00 00 00 00	 DD	 $L9259
+  001a9	00 00 00 00	 DD	 $L9262
+_AgpService ENDP
+_devObj$ = 8
+_numPages$ = 12
+_alignMask$ = 16
+_pGARTDev$ = 20
+_flags$ = 24
+_retval$ = -4
+_VgartD_Reserve PROC NEAR
+
+; 92   : {
+
+  001ad	55		 push	 ebp
+  001ae	8b ec		 mov	 ebp, esp
+  001b0	51		 push	 ecx
+  001b1	53		 push	 ebx
+  001b2	56		 push	 esi
+  001b3	57		 push	 edi
+
+; 93   :     DWORD retval;
+; 94   : 
+; 95   :     __asm pushad;
+
+  001b4	60		 pushad
+
+; 96   :     
+; 97   :     __asm push flags;
+
+  001b5	ff 75 18	 push	 DWORD PTR _flags$[ebp]
+
+; 98   :     __asm push pGARTDev;
+
+  001b8	ff 75 14	 push	 DWORD PTR _pGARTDev$[ebp]
+
+; 99   :     __asm push alignMask;
+
+  001bb	ff 75 10	 push	 DWORD PTR _alignMask$[ebp]
+
+; 100  :     __asm push numPages;
+
+  001be	ff 75 0c	 push	 DWORD PTR _numPages$[ebp]
+
+; 101  :     __asm push devObj;
+
+  001c1	ff 75 08	 push	 DWORD PTR _devObj$[ebp]
+
+; 102  :     VMMCall(_GARTReserve);
+
+  001c4	cd		 DB	 -51			; ffffffcdH
+  001c5	20		 DB	 32			; 00000020H
+  001c6	ae		 DB	 -82			; ffffffaeH
+  001c7	01		 DB	 1
+  001c8	01		 DB	 1
+  001c9	00		 DB	 0
+
+; 103  :     __asm mov  retval, eax;
+
+  001ca	89 45 fc	 mov	 DWORD PTR _retval$[ebp], eax
+
+; 104  :     __asm add  esp, 5*4;
+
+  001cd	83 c4 14	 add	 esp, 20			; 00000014H
+
+; 105  : 
+; 106  :     __asm popad;
+
+  001d0	61		 popad
+
+; 107  : 
+; 108  :     return(retval);
+
+  001d1	8b 45 fc	 mov	 eax, DWORD PTR _retval$[ebp]
+
+; 109  : }
+
+  001d4	5f		 pop	 edi
+  001d5	5e		 pop	 esi
+  001d6	5b		 pop	 ebx
+  001d7	8b e5		 mov	 esp, ebp
+  001d9	5d		 pop	 ebp
+  001da	c3		 ret	 0
+_VgartD_Reserve ENDP
+_pageOffset$ = 12
+_numPages$ = 16
+_pGARTDev$ = 20
+_flags$ = 24
+_retval$ = -4
+_gartLinAddr$ = 8
+_VgartD_Commit PROC NEAR
+
+; 127  : {
+
+  001db	55		 push	 ebp
+  001dc	8b ec		 mov	 ebp, esp
+  001de	51		 push	 ecx
+  001df	53		 push	 ebx
+  001e0	56		 push	 esi
+  001e1	57		 push	 edi
+
+; 128  :     DWORD retval;
+; 129  : 
+; 130  :     __asm pushad;
+
+  001e2	60		 pushad
+
+; 131  :     
+; 132  :     __asm push flags;
+
+  001e3	ff 75 18	 push	 DWORD PTR _flags$[ebp]
+
+; 133  :     __asm push pGARTDev;
+
+  001e6	ff 75 14	 push	 DWORD PTR _pGARTDev$[ebp]
+
+; 134  :     __asm push numPages;
+
+  001e9	ff 75 10	 push	 DWORD PTR _numPages$[ebp]
+
+; 135  :     __asm push pageOffset;
+
+  001ec	ff 75 0c	 push	 DWORD PTR _pageOffset$[ebp]
+
+; 136  :     __asm push gartLinAddr;
+
+  001ef	ff 75 08	 push	 DWORD PTR _gartLinAddr$[ebp]
+
+; 137  :     VMMCall(_GARTCommit);
+
+  001f2	cd		 DB	 -51			; ffffffcdH
+  001f3	20		 DB	 32			; 00000020H
+  001f4	af		 DB	 -81			; ffffffafH
+  001f5	01		 DB	 1
+  001f6	01		 DB	 1
+  001f7	00		 DB	 0
+
+; 138  :     __asm mov  retval, eax;
+
+  001f8	89 45 fc	 mov	 DWORD PTR _retval$[ebp], eax
+
+; 139  :     __asm add  esp, 5*4;
+
+  001fb	83 c4 14	 add	 esp, 20			; 00000014H
+
+; 140  : 
+; 141  :     __asm popad;
+
+  001fe	61		 popad
+
+; 142  : 
+; 143  :     return(retval);
+
+  001ff	8b 45 fc	 mov	 eax, DWORD PTR _retval$[ebp]
+
+; 144  : }
+
+  00202	5f		 pop	 edi
+  00203	5e		 pop	 esi
+  00204	5b		 pop	 ebx
+  00205	8b e5		 mov	 esp, ebp
+  00207	5d		 pop	 ebp
+  00208	c3		 ret	 0
+_VgartD_Commit ENDP
+_gartLinAddr$ = 8
+_pageOffset$ = 12
+_numPages$ = 16
+_VgartD_Uncommit PROC NEAR
+
+; 160  : {
+
+  00209	55		 push	 ebp
+  0020a	8b ec		 mov	 ebp, esp
+  0020c	53		 push	 ebx
+  0020d	56		 push	 esi
+  0020e	57		 push	 edi
+
+; 161  :     __asm pushad;
+
+  0020f	60		 pushad
+
+; 162  :     
+; 163  :     __asm push numPages;
+
+  00210	ff 75 10	 push	 DWORD PTR _numPages$[ebp]
+
+; 164  :     __asm push pageOffset;
+
+  00213	ff 75 0c	 push	 DWORD PTR _pageOffset$[ebp]
+
+; 165  :     __asm push gartLinAddr;
+
+  00216	ff 75 08	 push	 DWORD PTR _gartLinAddr$[ebp]
+
+; 166  :     VMMCall(_GARTUnCommit);
+
+  00219	cd		 DB	 -51			; ffffffcdH
+  0021a	20		 DB	 32			; 00000020H
+  0021b	b0		 DB	 -80			; ffffffb0H
+  0021c	01		 DB	 1
+  0021d	01		 DB	 1
+  0021e	00		 DB	 0
+
+; 167  :     __asm add  esp, 3*4;
+
+  0021f	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 168  : 
+; 169  :     __asm popad;
+
+  00222	61		 popad
+
+; 170  : }
+
+  00223	5f		 pop	 edi
+  00224	5e		 pop	 esi
+  00225	5b		 pop	 ebx
+  00226	5d		 pop	 ebp
+  00227	c3		 ret	 0
+_VgartD_Uncommit ENDP
+_gartLinAddr$ = 8
+_VgartD_Free PROC NEAR
+
+; 184  : {
+
+  00228	55		 push	 ebp
+  00229	8b ec		 mov	 ebp, esp
+  0022b	53		 push	 ebx
+  0022c	56		 push	 esi
+  0022d	57		 push	 edi
+
+; 185  :     __asm pushad;
+
+  0022e	60		 pushad
+
+; 186  :     
+; 187  :     __asm push gartLinAddr;
+
+  0022f	ff 75 08	 push	 DWORD PTR _gartLinAddr$[ebp]
+
+; 188  :     VMMCall(_GARTFree);
+
+  00232	cd		 DB	 -51			; ffffffcdH
+  00233	20		 DB	 32			; 00000020H
+  00234	b1		 DB	 -79			; ffffffb1H
+  00235	01		 DB	 1
+  00236	01		 DB	 1
+  00237	00		 DB	 0
+
+; 189  :     __asm add  esp, 1*4;
+
+  00238	83 c4 04	 add	 esp, 4
+
+; 190  : 
+; 191  :     __asm popad;
+
+  0023b	61		 popad
+
+; 192  : }
+
+  0023c	5f		 pop	 edi
+  0023d	5e		 pop	 esi
+  0023e	5b		 pop	 ebx
+  0023f	5d		 pop	 ebp
+  00240	c3		 ret	 0
+_VgartD_Free ENDP
+_TEXT	ENDS
+END

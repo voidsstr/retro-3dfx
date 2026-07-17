@@ -1,0 +1,2908 @@
+	TITLE	..\dfp.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+_PTEXT	SEGMENT PARA USE32 PUBLIC 'PCODE'
+_PTEXT	ENDS
+_LTEXT	SEGMENT PARA USE32 PUBLIC 'LCODE'
+_LTEXT	ENDS
+_PDATA	SEGMENT DWORD USE32 PUBLIC 'PDATA'
+_PDATA	ENDS
+_LDATA	SEGMENT DWORD USE32 PUBLIC 'LCODE'
+_LDATA	ENDS
+FLAT	GROUP _DATA, CONST, _BSS, _PDATA, _LDATA
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+_PDATA	SEGMENT
+_EstTimings DW	0320H
+	DW	0258H
+	DB	03cH
+	ORG $+1
+	DW	0320H
+	DW	0258H
+	DB	038H
+	ORG $+1
+	DW	0280H
+	DW	01e0H
+	DB	04bH
+	ORG $+1
+	DW	0280H
+	DW	01e0H
+	DB	048H
+	ORG $+1
+	DW	0280H
+	DW	01e0H
+	DB	043H
+	ORG $+1
+	DW	0280H
+	DW	01e0H
+	DB	03cH
+	ORG $+1
+	DW	02d0H
+	DW	0190H
+	DB	058H
+	ORG $+1
+	DW	02d0H
+	DW	0190H
+	DB	046H
+	ORG $+1
+	DW	0500H
+	DW	0400H
+	DB	04bH
+	ORG $+1
+	DW	0400H
+	DW	0300H
+	DB	04bH
+	ORG $+1
+	DW	0400H
+	DW	0300H
+	DB	046H
+	ORG $+1
+	DW	0400H
+	DW	0300H
+	DB	03cH
+	ORG $+1
+	DW	0400H
+	DW	0300H
+	DB	057H
+	ORG $+1
+	DW	0340H
+	DW	0270H
+	DB	04bH
+	ORG $+1
+	DW	0320H
+	DW	0258H
+	DB	04bH
+	ORG $+1
+	DW	0320H
+	DW	0258H
+	DB	048H
+	ORG $+1
+	DW	0480H
+	DW	02bcH
+	DB	04bH
+	ORG $+1
+	DW	00H
+	DW	00H
+	DB	00H
+	ORG $+1
+_PDATA	ENDS
+PUBLIC	_panelEDID_help
+EXTRN	_i2c_getaccess:NEAR
+EXTRN	_i2c_endaccess:NEAR
+EXTRN	_i2c_stop:NEAR
+EXTRN	_i2c_start:NEAR
+EXTRN	_i2c_sendbyte:NEAR
+EXTRN	_i2c_readbyte:NEAR
+EXTRN	_CCODE__CONFIGMG_Yield:NEAR
+_PTEXT	SEGMENT
+_pContext$ = 8
+_bAddress$ = 12
+_ddcData$ = 16
+_dfpddc$ = -4
+_nb$ = 8
+_sum$ = -8
+_retstat$ = 8
+_retries$ = -9
+_panelEDID_help PROC NEAR
+
+; 293  : {
+
+  00000	83 ec 0c	 sub	 esp, 12			; 0000000cH
+  00003	53		 push	 ebx
+  00004	55		 push	 ebp
+  00005	56		 push	 esi
+
+; 294  : #ifdef WINNT
+; 295  :     H3_MEMBASE0 *sstIO = (PH3_MEMBASE0) DFP_DEVINFOPTR(pContext)->MappedAddress[SST_IO_REGS_INDEX];
+; 296  : #else
+; 297  : 	SstIORegs *sstIO = (void *)DFP_DEVINFOPTR(pContext)->RegBase[HWINFO_SST_IOREGS_INDEX];
+; 298  : #endif
+; 299  :    I2CKEY dfpddc;
+; 300  : 	int i, nb, sum, retstat;
+; 301  : 	DFP_MODE *eTiming = 0;
+; 302  : 	FxU8 retries = 2;
+
+  00006	8b 74 24 1c	 mov	 esi, DWORD PTR _retstat$[esp+20]
+  0000a	57		 push	 edi
+  0000b	8b 7c 24 20	 mov	 edi, DWORD PTR _nb$[esp+24]
+  0000f	c6 44 24 13 02	 mov	 BYTE PTR _retries$[esp+28], 2
+$retry$12158:
+
+; 303  : 
+; 304  : retry:
+; 305  :    
+; 306  :    dfpddc = i2c_getaccess(pContext, I2C_FLATPANELDDC, I2C_NORMALSPEED);
+
+  00014	8b 6c 24 20	 mov	 ebp, DWORD PTR _pContext$[esp+24]
+  00018	6a 00		 push	 0
+  0001a	6a 04		 push	 4
+  0001c	55		 push	 ebp
+  0001d	e8 00 00 00 00	 call	 _i2c_getaccess
+  00022	8b d8		 mov	 ebx, eax
+  00024	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 307  :    if (dfpddc == I2C_NOTAKEY)
+
+  00027	85 db		 test	 ebx, ebx
+  00029	89 5c 24 18	 mov	 DWORD PTR _dfpddc$[esp+28], ebx
+  0002d	0f 84 50 01 00
+	00		 je	 $bailout$12160
+
+; 308  :       goto bailout;
+; 309  : 
+; 310  :    retstat = 0;
+; 311  :    retstat |= !i2c_start(pContext, dfpddc);
+
+  00033	53		 push	 ebx
+  00034	55		 push	 ebp
+  00035	e8 00 00 00 00	 call	 _i2c_start
+  0003a	8b f0		 mov	 esi, eax
+
+; 312  :    retstat |= !i2c_sendbyte(pContext, dfpddc, (FxU8)(bAddress | I2C_WRITESLAVE));
+
+  0003c	8b 44 24 2c	 mov	 eax, DWORD PTR _bAddress$[esp+32]
+  00040	f7 de		 neg	 esi
+  00042	50		 push	 eax
+  00043	53		 push	 ebx
+  00044	1b f6		 sbb	 esi, esi
+  00046	55		 push	 ebp
+  00047	46		 inc	 esi
+  00048	e8 00 00 00 00	 call	 _i2c_sendbyte
+  0004d	f7 d8		 neg	 eax
+  0004f	1b c0		 sbb	 eax, eax
+
+; 313  :    retstat |= !i2c_sendbyte(pContext, dfpddc, 0);
+
+  00051	6a 00		 push	 0
+  00053	40		 inc	 eax
+  00054	53		 push	 ebx
+  00055	55		 push	 ebp
+  00056	0b f0		 or	 esi, eax
+  00058	e8 00 00 00 00	 call	 _i2c_sendbyte
+  0005d	f7 d8		 neg	 eax
+  0005f	1b c0		 sbb	 eax, eax
+
+; 314  :    retstat |= !i2c_stop(pContext, dfpddc);
+
+  00061	53		 push	 ebx
+  00062	40		 inc	 eax
+  00063	55		 push	 ebp
+  00064	0b f0		 or	 esi, eax
+  00066	e8 00 00 00 00	 call	 _i2c_stop
+  0006b	f7 d8		 neg	 eax
+  0006d	1b c0		 sbb	 eax, eax
+
+; 315  :    retstat |= !i2c_start(pContext, dfpddc);
+
+  0006f	53		 push	 ebx
+  00070	40		 inc	 eax
+  00071	55		 push	 ebp
+  00072	0b f0		 or	 esi, eax
+  00074	e8 00 00 00 00	 call	 _i2c_start
+
+; 316  :    retstat |= !i2c_sendbyte(pContext, dfpddc, (FxU8)(bAddress | I2C_READSLAVE));
+
+  00079	8a 4c 24 54	 mov	 cl, BYTE PTR _bAddress$[esp+72]
+  0007d	f7 d8		 neg	 eax
+  0007f	1b c0		 sbb	 eax, eax
+  00081	80 c9 01	 or	 cl, 1
+  00084	51		 push	 ecx
+  00085	40		 inc	 eax
+  00086	53		 push	 ebx
+  00087	55		 push	 ebp
+  00088	0b f0		 or	 esi, eax
+  0008a	e8 00 00 00 00	 call	 _i2c_sendbyte
+  0008f	83 c4 3c	 add	 esp, 60			; 0000003cH
+  00092	f7 d8		 neg	 eax
+  00094	1b c0		 sbb	 eax, eax
+  00096	40		 inc	 eax
+  00097	0b f0		 or	 esi, eax
+
+; 317  : 
+; 318  :    if (retstat)
+
+  00099	0f 85 e4 00 00
+	00		 jne	 $bailout$12160
+
+; 319  :       goto bailout; // it's obvious this retry won't work; try to speed things up
+; 320  : 
+; 321  : 
+; 322  : #define LCD_BUG_PRINCETONDFP
+; 323  : #ifdef LCD_BUG_PRINCETONDFP
+; 324  :    // @RBISSELL: The Princeton "directdigital" DFP returns a bogus EDID header.
+; 325  :    //            Instead of "00,FF,FF,FF,FF,FF,FF,00", it starts the EDID with the
+; 326  :    //            the header "00,00,FF,FF,FF,FF,FF,00".  The checksum reported within
+; 327  :    //            the EDID is consistent with this error.
+; 328  : 
+; 329  :    *(FxU32*)&ddcData[0] = 0x00000000;
+
+  0009f	8b 7c 24 28	 mov	 edi, DWORD PTR _ddcData$[esp+24]
+
+; 330  :    for (sum = i = 0; i < 4; i++)
+
+  000a3	33 ed		 xor	 ebp, ebp
+  000a5	89 6c 24 14	 mov	 DWORD PTR _sum$[esp+28], ebp
+  000a9	c7 07 00 00 00
+	00		 mov	 DWORD PTR [edi], 0
+$L12167:
+
+; 331  : 	{
+; 332  :         retstat |= !i2c_readbyte(pContext, dfpddc, &ddcData[i], 1);
+
+  000af	8b 54 24 20	 mov	 edx, DWORD PTR _pContext$[esp+24]
+  000b3	6a 01		 push	 1
+  000b5	57		 push	 edi
+  000b6	53		 push	 ebx
+  000b7	52		 push	 edx
+  000b8	e8 00 00 00 00	 call	 _i2c_readbyte
+  000bd	8b f0		 mov	 esi, eax
+  000bf	83 c4 10	 add	 esp, 16			; 00000010H
+  000c2	f7 de		 neg	 esi
+  000c4	1b f6		 sbb	 esi, esi
+  000c6	46		 inc	 esi
+
+; 333  :         if (retstat)
+
+  000c7	75 24		 jne	 SHORT $L12500
+
+; 334  :            break;
+; 335  : 		sum += ddcData[i];
+
+  000c9	8b 4c 24 14	 mov	 ecx, DWORD PTR _sum$[esp+28]
+  000cd	33 c0		 xor	 eax, eax
+  000cf	8a 07		 mov	 al, BYTE PTR [edi]
+
+; 336  : 		DELAY(10000);
+
+  000d1	6a 01		 push	 1
+  000d3	03 c8		 add	 ecx, eax
+  000d5	68 10 27 00 00	 push	 10000			; 00002710H
+  000da	89 4c 24 1c	 mov	 DWORD PTR _sum$[esp+36], ecx
+  000de	e8 00 00 00 00	 call	 _CCODE__CONFIGMG_Yield
+  000e3	83 c4 08	 add	 esp, 8
+  000e6	45		 inc	 ebp
+  000e7	47		 inc	 edi
+  000e8	83 fd 04	 cmp	 ebp, 4
+  000eb	7c c2		 jl	 SHORT $L12167
+$L12500:
+
+; 337  : 	}
+; 338  : #if 0
+; 339  : //??? start testonly - problems with Compaq FP720
+; 340  :       _asm int 3;
+; 341  :    if ((*(FxU32*)&ddcData[0]) == 0xFFfdfd43)  // is it a broken COMPAQ
+; 342  :    {
+; 343  :       *(FxU32*)&ddcData[0] = 0xFFFF0001;
+; 344  :       for (sum = i = 0; i < 4; i++)
+; 345  : 	     sum += ddcData[i];
+; 346  :    }
+; 347  : //??? end testonly
+; 348  : #endif //zero
+; 349  :    if ((*(FxU32*)&ddcData[0]) == 0xFFFF0000)  // is it a broken Princeton DFP?
+
+  000ed	8b 44 24 28	 mov	 eax, DWORD PTR _ddcData$[esp+24]
+  000f1	81 38 00 00 ff
+	ff		 cmp	 DWORD PTR [eax], -65536	; ffff0000H
+  000f7	75 14		 jne	 SHORT $L12172
+
+; 350  :    {
+; 351  :       // change the second byte to 0xFF, and adjust the checksum accordingly.
+; 352  :       sum += 0xFF;
+
+  000f9	8b 4c 24 14	 mov	 ecx, DWORD PTR _sum$[esp+28]
+
+; 353  :       *(FxU32*)&ddcData[0] = 0xFFFFFF00;
+
+  000fd	c7 00 00 ff ff
+	ff		 mov	 DWORD PTR [eax], -256	; ffffff00H
+  00103	81 c1 ff 00 00
+	00		 add	 ecx, 255		; 000000ffH
+  00109	89 4c 24 14	 mov	 DWORD PTR _sum$[esp+28], ecx
+$L12172:
+
+; 354  :    }
+; 355  :    for (nb = 128; i < nb; i++) //read the remainder of the edid
+
+  0010d	bf 80 00 00 00	 mov	 edi, 128		; 00000080H
+  00112	3b ef		 cmp	 ebp, edi
+  00114	7d 69		 jge	 SHORT $L12508
+  00116	8b 4c 24 28	 mov	 ecx, DWORD PTR _ddcData$[esp+24]
+  0011a	8d 1c 29	 lea	 ebx, DWORD PTR [ecx+ebp]
+$L12174:
+
+; 356  : #else
+; 357  : 	for (sum = i = 0, nb = 128; i < nb; i++)
+; 358  : #endif
+; 359  :    {
+; 360  :         retstat |= !i2c_readbyte(pContext, dfpddc, &ddcData[i], i != (nb - 1));
+
+  0011d	8b 4c 24 18	 mov	 ecx, DWORD PTR _dfpddc$[esp+28]
+  00121	8d 57 ff	 lea	 edx, DWORD PTR [edi-1]
+  00124	33 c0		 xor	 eax, eax
+  00126	3b ea		 cmp	 ebp, edx
+  00128	8b 54 24 20	 mov	 edx, DWORD PTR _pContext$[esp+24]
+  0012c	0f 95 c0	 setne	 al
+  0012f	50		 push	 eax
+  00130	53		 push	 ebx
+  00131	51		 push	 ecx
+  00132	52		 push	 edx
+  00133	e8 00 00 00 00	 call	 _i2c_readbyte
+  00138	83 c4 10	 add	 esp, 16			; 00000010H
+  0013b	f7 d8		 neg	 eax
+  0013d	1b c0		 sbb	 eax, eax
+  0013f	40		 inc	 eax
+  00140	0b f0		 or	 esi, eax
+
+; 361  :         if (retstat)
+
+  00142	75 37		 jne	 SHORT $L12507
+
+; 362  :            break;
+; 363  : 		nb = ddcData[0] >= 0x20 ? 256 : 128;
+
+  00144	8b 44 24 28	 mov	 eax, DWORD PTR _ddcData$[esp+24]
+
+; 364  : 		sum += ddcData[i];
+; 365  : 		DELAY(10000);
+
+  00148	6a 01		 push	 1
+  0014a	68 10 27 00 00	 push	 10000			; 00002710H
+  0014f	8a 08		 mov	 cl, BYTE PTR [eax]
+  00151	8b 44 24 1c	 mov	 eax, DWORD PTR _sum$[esp+36]
+  00155	80 f9 20	 cmp	 cl, 32			; 00000020H
+  00158	1b ff		 sbb	 edi, edi
+  0015a	33 c9		 xor	 ecx, ecx
+  0015c	8a 0b		 mov	 cl, BYTE PTR [ebx]
+  0015e	83 e7 80	 and	 edi, -128		; ffffff80H
+  00161	03 c1		 add	 eax, ecx
+  00163	81 c7 00 01 00
+	00		 add	 edi, 256		; 00000100H
+  00169	89 44 24 1c	 mov	 DWORD PTR _sum$[esp+36], eax
+  0016d	e8 00 00 00 00	 call	 _CCODE__CONFIGMG_Yield
+  00172	83 c4 08	 add	 esp, 8
+  00175	45		 inc	 ebp
+  00176	43		 inc	 ebx
+  00177	3b ef		 cmp	 ebp, edi
+  00179	7c a2		 jl	 SHORT $L12174
+$L12507:
+
+; 354  :    }
+; 355  :    for (nb = 128; i < nb; i++) //read the remainder of the edid
+
+  0017b	8b 5c 24 18	 mov	 ebx, DWORD PTR _dfpddc$[esp+28]
+$L12508:
+  0017f	8b 6c 24 20	 mov	 ebp, DWORD PTR _pContext$[esp+24]
+$bailout$12160:
+
+; 366  : 	}
+; 367  : 
+; 368  : bailout:
+; 369  :    i2c_stop(pContext, dfpddc);
+
+  00183	53		 push	 ebx
+  00184	55		 push	 ebp
+  00185	e8 00 00 00 00	 call	 _i2c_stop
+
+; 370  :    i2c_endaccess(pContext, dfpddc);
+
+  0018a	53		 push	 ebx
+  0018b	55		 push	 ebp
+  0018c	e8 00 00 00 00	 call	 _i2c_endaccess
+  00191	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 371  : 
+; 372  : #if 0
+; 373  : //??? start testonly - problems with Compaq FP720
+; 374  : if (!retstat && ((sum & 255)!=0))
+; 375  : {
+; 376  : _asm int 3;
+; 377  : sum = 0;
+; 378  : }
+; 379  : //??? end testonly
+; 380  : #endif //zero
+; 381  : 	if (!retstat && !(sum & 255) /*???&& ddcData[0] < 0x80 && sum???*/)
+
+  00194	85 f6		 test	 esi, esi
+  00196	75 08		 jne	 SHORT $L12178
+  00198	8a 44 24 14	 mov	 al, BYTE PTR _sum$[esp+28]
+  0019c	84 c0		 test	 al, al
+  0019e	74 11		 je	 SHORT $L12502
+$L12178:
+
+; 401  : }
+; 402  : 	else if (--retries)
+
+  001a0	8a 44 24 13	 mov	 al, BYTE PTR _retries$[esp+28]
+  001a4	fe c8		 dec	 al
+  001a6	88 44 24 13	 mov	 BYTE PTR _retries$[esp+28], al
+  001aa	74 49		 je	 SHORT $L12187
+
+; 403  : 		goto retry;
+
+  001ac	e9 63 fe ff ff	 jmp	 $retry$12158
+$L12502:
+
+; 382  : {
+; 383  :    // @DANO:     The Compaq FP720 DFP returns an EDID header not understood by Win2K.
+; 384  :    //            Instead of "00,FF,FF,FF,FF,FF,FF,00", it starts the EDID with the
+; 385  :    //            the header "01,00,FF,FF,FF,FF,FF,00".  The following kludge changes the EDID
+; 386  :    //            to be as Win2k expects.
+; 387  : 
+; 388  :    if (((*(FxU32*)&ddcData[0]) == 0xFFFF0001)  &&
+; 389  :        ((*(FxU32*)&ddcData[8]) == 0x3011110E))  // is it a broken COMPAQ DFP?
+
+  001b1	8b 6c 24 28	 mov	 ebp, DWORD PTR _ddcData$[esp+24]
+  001b5	81 7d 00 01 00
+	ff ff		 cmp	 DWORD PTR [ebp], -65535	; ffff0001H
+  001bc	75 2d		 jne	 SHORT $L12181
+  001be	81 7d 08 0e 11
+	11 30		 cmp	 DWORD PTR [ebp+8], 806424846 ; 3011110eH
+  001c5	75 24		 jne	 SHORT $L12181
+
+; 390  :    {
+; 391  :       // change the first byte to zero and the second byte to 0xFF, and adjust
+; 392  :       // the checksum accordingly.
+; 393  :       *(FxU32*)&ddcData[0] = 0xFFFFFF00;
+; 394  :       //  compute the revised EDID checksum
+; 395  :       for (sum = i = 0; i < (nb-1); i++)
+
+  001c7	8d 77 ff	 lea	 esi, DWORD PTR [edi-1]
+  001ca	33 c0		 xor	 eax, eax
+  001cc	33 c9		 xor	 ecx, ecx
+  001ce	c7 45 00 00 ff
+	ff ff		 mov	 DWORD PTR [ebp], -256	; ffffff00H
+  001d5	85 f6		 test	 esi, esi
+  001d7	7e 0c		 jle	 SHORT $L12185
+$L12183:
+
+; 396  : 	     sum += ddcData[i];
+
+  001d9	33 d2		 xor	 edx, edx
+  001db	8a 14 28	 mov	 dl, BYTE PTR [eax+ebp]
+  001de	03 ca		 add	 ecx, edx
+  001e0	40		 inc	 eax
+  001e1	3b c6		 cmp	 eax, esi
+  001e3	7c f4		 jl	 SHORT $L12183
+$L12185:
+
+; 397  :       ddcData[nb-1] = -sum;  //fill in checksum
+
+  001e5	f6 d9		 neg	 cl
+  001e7	88 4c 2f ff	 mov	 BYTE PTR [edi+ebp-1], cl
+$L12181:
+  001eb	5f		 pop	 edi
+  001ec	5e		 pop	 esi
+  001ed	5d		 pop	 ebp
+
+; 398  : 
+; 399  :    }
+; 400  :       return 0;
+
+  001ee	33 c0		 xor	 eax, eax
+  001f0	5b		 pop	 ebx
+
+; 406  : }
+
+  001f1	83 c4 0c	 add	 esp, 12			; 0000000cH
+  001f4	c3		 ret	 0
+$L12187:
+  001f5	5f		 pop	 edi
+  001f6	5e		 pop	 esi
+  001f7	5d		 pop	 ebp
+
+; 404  : 	else
+; 405  :       return -1;
+
+  001f8	83 c8 ff	 or	 eax, -1
+  001fb	5b		 pop	 ebx
+
+; 406  : }
+
+  001fc	83 c4 0c	 add	 esp, 12			; 0000000cH
+  001ff	c3		 ret	 0
+_panelEDID_help ENDP
+_PTEXT	ENDS
+PUBLIC	_panelEDID
+_PTEXT	SEGMENT
+_pContext$ = 8
+_ddcData$ = 12
+_bufSize$ = 16
+_tempBuff$ = -256
+_panelEDID PROC NEAR
+
+; 418  : {
+
+  00200	81 ec 00 01 00
+	00		 sub	 esp, 256		; 00000100H
+  00206	53		 push	 ebx
+
+; 419  : UCHAR tempBuff[A2_EDID_SIZE];
+; 420  : 
+; 421  :     if ((DFP_DEVINFOPTR(pContext)->dwDFPState & EDID_CACHE_VALID_BIT)!=EDID_CACHE_VALID_BIT)
+
+  00207	8b 9c 24 08 01
+	00 00		 mov	 ebx, DWORD PTR _pContext$[esp+256]
+  0020e	56		 push	 esi
+  0020f	57		 push	 edi
+  00210	8b 83 40 05 00
+	00		 mov	 eax, DWORD PTR [ebx+1344]
+  00216	83 e0 04	 and	 eax, 4
+  00219	3c 04		 cmp	 al, 4
+  0021b	74 5a		 je	 SHORT $L12198
+
+; 422  :     {
+; 423  :         // read and validate EDID
+; 424  :         if (panelEDID_help(pContext, DDC_ADDR_2, tempBuff))
+
+  0021d	8d 4c 24 0c	 lea	 ecx, DWORD PTR _tempBuff$[esp+268]
+  00221	51		 push	 ecx
+  00222	68 a2 00 00 00	 push	 162			; 000000a2H
+  00227	53		 push	 ebx
+  00228	e8 00 00 00 00	 call	 _panelEDID_help
+  0022d	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00230	85 c0		 test	 eax, eax
+  00232	74 24		 je	 SHORT $L12200
+
+; 425  :             if (panelEDID_help(pContext, DDC_ADDR_1, tempBuff))
+
+  00234	8d 54 24 0c	 lea	 edx, DWORD PTR _tempBuff$[esp+268]
+  00238	52		 push	 edx
+  00239	68 a0 00 00 00	 push	 160			; 000000a0H
+  0023e	53		 push	 ebx
+  0023f	e8 00 00 00 00	 call	 _panelEDID_help
+  00244	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00247	85 c0		 test	 eax, eax
+  00249	74 0d		 je	 SHORT $L12200
+  0024b	5f		 pop	 edi
+  0024c	5e		 pop	 esi
+
+; 426  :                 return -1;
+
+  0024d	83 c8 ff	 or	 eax, -1
+  00250	5b		 pop	 ebx
+
+; 441  : }
+
+  00251	81 c4 00 01 00
+	00		 add	 esp, 256		; 00000100H
+  00257	c3		 ret	 0
+$L12200:
+
+; 427  : 
+; 428  :         // save edid information just read
+; 429  :         memcpy( DFP_DEVINFOPTR(pContext)->dfpEdidCache, 
+; 430  :                 tempBuff, 
+; 431  :                 A2_EDID_SIZE );
+; 432  :         DFP_DEVINFOPTR(pContext)->dwDFPState |= EDID_CACHE_VALID_BIT;
+
+  00258	8b 83 40 05 00
+	00		 mov	 eax, DWORD PTR [ebx+1344]
+  0025e	8d bb 49 05 00
+	00		 lea	 edi, DWORD PTR [ebx+1353]
+  00264	b9 40 00 00 00	 mov	 ecx, 64			; 00000040H
+  00269	8d 74 24 0c	 lea	 esi, DWORD PTR _tempBuff$[esp+268]
+  0026d	0c 04		 or	 al, 4
+  0026f	f3 a5		 rep movsd
+  00271	89 83 40 05 00
+	00		 mov	 DWORD PTR [ebx+1344], eax
+$L12198:
+
+; 433  :     }
+; 434  : 
+; 435  :     // return edid information previously read.
+; 436  :     memcpy( ddcData, 
+; 437  :             DFP_DEVINFOPTR(pContext)->dfpEdidCache, 
+; 438  :             bufSize );
+
+  00277	8b 8c 24 18 01
+	00 00		 mov	 ecx, DWORD PTR _bufSize$[esp+264]
+  0027e	8b bc 24 14 01
+	00 00		 mov	 edi, DWORD PTR _ddcData$[esp+264]
+  00285	8b c1		 mov	 eax, ecx
+  00287	8d b3 49 05 00
+	00		 lea	 esi, DWORD PTR [ebx+1353]
+  0028d	c1 e9 02	 shr	 ecx, 2
+  00290	f3 a5		 rep movsd
+  00292	8b c8		 mov	 ecx, eax
+  00294	83 e1 03	 and	 ecx, 3
+
+; 439  : 
+; 440  :     return 0;
+
+  00297	33 c0		 xor	 eax, eax
+  00299	f3 a4		 rep movsb
+  0029b	5f		 pop	 edi
+  0029c	5e		 pop	 esi
+  0029d	5b		 pop	 ebx
+
+; 441  : }
+
+  0029e	81 c4 00 01 00
+	00		 add	 esp, 256		; 00000100H
+  002a4	c3		 ret	 0
+_panelEDID ENDP
+_PTEXT	ENDS
+PUBLIC	_panelDDC
+_PTEXT	SEGMENT
+_pContext$ = 8
+_disp$ = 12
+_ddcData$ = -256
+_panelDDC PROC NEAR
+
+; 456  : {
+
+  002b0	81 ec 0c 01 00
+	00		 sub	 esp, 268		; 0000010cH
+
+; 457  : #ifdef WINNT
+; 458  :     H3_MEMBASE0 *sstIO = (PH3_MEMBASE0) DFP_DEVINFOPTR(pContext)->MappedAddress[SST_IO_REGS_INDEX];
+; 459  : #else
+; 460  :     SstIORegs *sstIO = (void *)DFP_DEVINFOPTR(pContext)->RegBase[HWINFO_SST_IOREGS_INDEX];
+; 461  : #endif
+; 462  : 	int i, j, blk, clk, retstat;
+; 463  :     FxU8 ddcData[A2_EDID_SIZE], *dt;
+; 464  :     DFP_MODE *eTiming = 0;
+; 465  :     FxU8 retries = 2;
+; 466  : 
+; 467  : retry:
+; 468  : 
+; 469  :    if (panelEDID(pContext, ddcData, A2_EDID_SIZE) != -1)
+
+  002b6	8d 44 24 0c	 lea	 eax, DWORD PTR _ddcData$[esp+268]
+  002ba	53		 push	 ebx
+  002bb	55		 push	 ebp
+  002bc	56		 push	 esi
+  002bd	57		 push	 edi
+  002be	8b bc 24 20 01
+	00 00		 mov	 edi, DWORD PTR _pContext$[esp+280]
+  002c5	68 00 01 00 00	 push	 256			; 00000100H
+  002ca	50		 push	 eax
+  002cb	57		 push	 edi
+  002cc	b3 02		 mov	 bl, 2
+  002ce	e8 00 00 00 00	 call	 _panelEDID
+  002d3	83 c4 0c	 add	 esp, 12			; 0000000cH
+  002d6	83 f8 ff	 cmp	 eax, -1
+  002d9	75 20		 jne	 SHORT $L12516
+$retry$12222:
+
+; 666  : 	}
+; 667  : 	else if (--retries)
+
+  002db	fe cb		 dec	 bl
+  002dd	0f 84 d8 05 00
+	00		 je	 $L12297
+  002e3	8d 4c 24 1c	 lea	 ecx, DWORD PTR _ddcData$[esp+284]
+  002e7	68 00 01 00 00	 push	 256			; 00000100H
+  002ec	51		 push	 ecx
+  002ed	57		 push	 edi
+  002ee	e8 00 00 00 00	 call	 _panelEDID
+  002f3	83 c4 0c	 add	 esp, 12			; 0000000cH
+  002f6	83 f8 ff	 cmp	 eax, -1
+  002f9	74 e0		 je	 SHORT $retry$12222
+$L12516:
+
+; 470  : 	{
+; 471  : 		/* EDID parsing is taken from VESA EDID Standard v3 r0, 1997 */
+; 472  : 
+; 473  : #ifndef WINNT
+; 474  :         // Uncompress Manufacturer Name.
+; 475  :         disp->uniqueName[0] = ((ddcData[8] >> 2) & 0x1f) + 'A' - 1;
+
+  002fb	8a 44 24 24	 mov	 al, BYTE PTR _ddcData$[esp+292]
+  002ff	8b b4 24 24 01
+	00 00		 mov	 esi, DWORD PTR _disp$[esp+280]
+
+; 476  :         disp->uniqueName[1] = ((ddcData[8] << 3) & 0x18) + ((ddcData[9] >> 5) & 0x07) + 'A' - 1;
+
+  00306	8a 4c 24 25	 mov	 cl, BYTE PTR _ddcData$[esp+293]
+  0030a	8a d0		 mov	 dl, al
+  0030c	c0 ea 02	 shr	 dl, 2
+  0030f	80 e2 1f	 and	 dl, 31			; 0000001fH
+  00312	24 03		 and	 al, 3
+  00314	80 c2 40	 add	 dl, 64			; 00000040H
+  00317	04 08		 add	 al, 8
+  00319	88 56 3c	 mov	 BYTE PTR [esi+60], dl
+  0031c	8a d1		 mov	 dl, cl
+  0031e	c0 e0 03	 shl	 al, 3
+  00321	c0 ea 05	 shr	 dl, 5
+  00324	02 c2		 add	 al, dl
+
+; 477  :         disp->uniqueName[2] = (ddcData[9] & 0x1f) + 'A' - 1;
+
+  00326	80 e1 1f	 and	 cl, 31			; 0000001fH
+  00329	88 46 3d	 mov	 BYTE PTR [esi+61], al
+
+; 478  : 
+; 479  :         // convert Product Code to Hex string
+; 480  :         disp->uniqueName[3] = (ddcData[11] & 0x0f) + '0';
+
+  0032c	8a 44 24 27	 mov	 al, BYTE PTR _ddcData$[esp+295]
+  00330	80 c1 40	 add	 cl, 64			; 00000040H
+
+; 481  :         disp->uniqueName[4] = ((ddcData[11] & 0x0f0) >> 4) + '0';
+; 482  :         disp->uniqueName[5] = (ddcData[10] & 0x0f) + '0';
+; 483  :         disp->uniqueName[6] = ((ddcData[10] & 0x0f0) >> 4) + '0';
+; 484  : 
+; 485  :         // Serial Number field to Hex string
+; 486  :         disp->uniqueName[7] = (ddcData[12] & 0x0f) + '0';
+; 487  :         disp->uniqueName[8] = ((ddcData[12] & 0x0f0) >> 4) + '0';
+; 488  :         disp->uniqueName[9] = (ddcData[13] & 0x0f) + '0';
+; 489  :         disp->uniqueName[10] = ((ddcData[13] & 0x0f0) >> 4) + '0';
+; 490  :         disp->uniqueName[11] = (ddcData[14] & 0x0f) + '0';
+; 491  :         disp->uniqueName[12] = ((ddcData[14] & 0x0f0) >> 4) + '0';
+; 492  :         disp->uniqueName[13] = (ddcData[15] & 0x0f) + '0';
+; 493  :         disp->uniqueName[14] = ((ddcData[15] & 0x0f0) >> 4) + '0';
+; 494  :         disp->uniqueName[15] = '\0';
+
+  00333	c6 46 4b 00	 mov	 BYTE PTR [esi+75], 0
+  00337	88 4e 3e	 mov	 BYTE PTR [esi+62], cl
+  0033a	8a c8		 mov	 cl, al
+  0033c	c0 e8 04	 shr	 al, 4
+  0033f	04 30		 add	 al, 48			; 00000030H
+  00341	80 e1 0f	 and	 cl, 15			; 0000000fH
+  00344	88 46 40	 mov	 BYTE PTR [esi+64], al
+  00347	8a 44 24 26	 mov	 al, BYTE PTR _ddcData$[esp+294]
+  0034b	8a d0		 mov	 dl, al
+  0034d	80 c1 30	 add	 cl, 48			; 00000030H
+  00350	c0 e8 04	 shr	 al, 4
+  00353	04 30		 add	 al, 48			; 00000030H
+  00355	88 4e 3f	 mov	 BYTE PTR [esi+63], cl
+  00358	88 46 42	 mov	 BYTE PTR [esi+66], al
+  0035b	8a 44 24 28	 mov	 al, BYTE PTR _ddcData$[esp+296]
+  0035f	8a c8		 mov	 cl, al
+  00361	80 e2 0f	 and	 dl, 15			; 0000000fH
+  00364	c0 e8 04	 shr	 al, 4
+  00367	04 30		 add	 al, 48			; 00000030H
+  00369	80 c2 30	 add	 dl, 48			; 00000030H
+  0036c	88 46 44	 mov	 BYTE PTR [esi+68], al
+  0036f	8a 44 24 29	 mov	 al, BYTE PTR _ddcData$[esp+297]
+  00373	88 56 41	 mov	 BYTE PTR [esi+65], dl
+  00376	8a d0		 mov	 dl, al
+  00378	c0 e8 04	 shr	 al, 4
+  0037b	80 e1 0f	 and	 cl, 15			; 0000000fH
+  0037e	04 30		 add	 al, 48			; 00000030H
+  00380	80 c1 30	 add	 cl, 48			; 00000030H
+  00383	88 46 46	 mov	 BYTE PTR [esi+70], al
+  00386	8a 44 24 2a	 mov	 al, BYTE PTR _ddcData$[esp+298]
+  0038a	88 4e 43	 mov	 BYTE PTR [esi+67], cl
+  0038d	8a c8		 mov	 cl, al
+  0038f	80 e2 0f	 and	 dl, 15			; 0000000fH
+  00392	c0 e8 04	 shr	 al, 4
+  00395	04 30		 add	 al, 48			; 00000030H
+  00397	80 c2 30	 add	 dl, 48			; 00000030H
+  0039a	88 46 48	 mov	 BYTE PTR [esi+72], al
+  0039d	8a 44 24 2b	 mov	 al, BYTE PTR _ddcData$[esp+299]
+  003a1	88 56 45	 mov	 BYTE PTR [esi+69], dl
+  003a4	8a d0		 mov	 dl, al
+  003a6	c0 e8 04	 shr	 al, 4
+  003a9	04 30		 add	 al, 48			; 00000030H
+  003ab	80 e1 0f	 and	 cl, 15			; 0000000fH
+  003ae	80 e2 0f	 and	 dl, 15			; 0000000fH
+  003b1	88 46 4a	 mov	 BYTE PTR [esi+74], al
+
+; 495  : #endif
+; 496  : 
+; 497  : 		if (ddcData[0] >= 0x20)   // decode V2.X EDID
+
+  003b4	8a 44 24 1c	 mov	 al, BYTE PTR _ddcData$[esp+284]
+  003b8	80 c1 30	 add	 cl, 48			; 00000030H
+  003bb	80 c2 30	 add	 dl, 48			; 00000030H
+  003be	3c 20		 cmp	 al, 32			; 00000020H
+  003c0	88 4e 47	 mov	 BYTE PTR [esi+71], cl
+  003c3	88 56 49	 mov	 BYTE PTR [esi+73], dl
+  003c6	0f 82 57 02 00
+	00		 jb	 $L12224
+
+; 498  : 		{
+; 499  : 			dt = &ddcData[128];   
+; 500  : 			// skip over luma table if present
+; 501  : 			if (ddcData[0x7e] & 0x20)
+
+  003cc	8b 9c 24 9a 00
+	00 00		 mov	 ebx, DWORD PTR _ddcData$[esp+410]
+
+; 502  : 			{
+; 503  : 				if (ddcData[0x80] & 0x80)
+
+  003d3	8b 94 24 9b 00
+	00 00		 mov	 edx, DWORD PTR _ddcData$[esp+411]
+  003da	f6 c3 20	 test	 bl, 32			; 00000020H
+  003dd	8d 8c 24 9c 00
+	00 00		 lea	 ecx, DWORD PTR _ddcData$[esp+412]
+  003e4	74 20		 je	 SHORT $L12227
+  003e6	f6 c6 80	 test	 dh, 128			; 00000080H
+
+; 504  : 					dt += ((ddcData[0x80] & 0x1f) * 3);
+
+  003e9	8a c6		 mov	 al, dh
+  003eb	74 0f		 je	 SHORT $L12226
+  003ed	83 e0 1f	 and	 eax, 31			; 0000001fH
+  003f0	8d 8c 04 9c 00
+	00 00		 lea	 ecx, DWORD PTR _ddcData$[esp+eax+412]
+  003f7	8d 0c 41	 lea	 ecx, DWORD PTR [ecx+eax*2]
+
+; 505  : 				else
+
+  003fa	eb 0a		 jmp	 SHORT $L12227
+$L12226:
+
+; 506  : 					dt += (ddcData[0x80] & 0x1f);
+
+  003fc	83 e0 1f	 and	 eax, 31			; 0000001fH
+  003ff	8d 8c 04 9c 00
+	00 00		 lea	 ecx, DWORD PTR _ddcData$[esp+eax+412]
+$L12227:
+
+; 507  : 			}
+; 508  : 			// skip frequency ranges
+; 509  : 			dt += (8 * ((ddcData[0x7e] >> 2) & 7));
+
+  00406	8b c3		 mov	 eax, ebx
+  00408	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  0040d	8b f8		 mov	 edi, eax
+  0040f	89 44 24 18	 mov	 DWORD PTR -260+[esp+284], eax
+  00413	c1 ef 02	 shr	 edi, 2
+  00416	83 e7 07	 and	 edi, 7
+
+; 510  : 			// if timing ranges are present
+; 511  : 			if (ddcData[0x7e] & 3)
+
+  00419	f6 c3 03	 test	 bl, 3
+  0041c	8d 0c f9	 lea	 ecx, DWORD PTR [ecx+edi*8]
+  0041f	0f 84 22 01 00
+	00		 je	 $L12228
+
+; 512  : 			{
+; 513  : 				// extract H parameters
+; 514  : 				blk = ((dt[4] << 4) & 0xf00) | dt[2];
+; 515  : 				blk += (((dt[13] << 4) & 0xf00) | dt[11]);
+; 516  : 				disp->dispWidth = ((dt[23] << 4) & 0xf00) | dt[21];
+
+  00425	8a 41 17	 mov	 al, BYTE PTR [ecx+23]
+
+; 517  : 				disp->htotal = disp->dispWidth + (blk / 2);
+
+  00428	33 db		 xor	 ebx, ebx
+  0042a	88 44 24 13	 mov	 BYTE PTR -265+[esp+284], al
+  0042e	24 f0		 and	 al, 240			; 000000f0H
+  00430	66 0f b6 51 15	 movzx	 dx, BYTE PTR [ecx+21]
+  00435	66 0f b6 e8	 movzx	 bp, al
+
+; 671  : 
+; 672  : 	return (retstat ? -1 : 0);
+
+  00439	33 c0		 xor	 eax, eax
+  0043b	8a 59 0b	 mov	 bl, BYTE PTR [ecx+11]
+  0043e	8a 41 0d	 mov	 al, BYTE PTR [ecx+13]
+  00441	8b f8		 mov	 edi, eax
+  00443	33 c0		 xor	 eax, eax
+  00445	8a 41 04	 mov	 al, BYTE PTR [ecx+4]
+  00448	c1 e5 04	 shl	 ebp, 4
+  0044b	0b ea		 or	 ebp, edx
+  0044d	89 44 24 14	 mov	 DWORD PTR -264+[esp+284], eax
+  00451	25 f0 00 00 00	 and	 eax, 240		; 000000f0H
+  00456	33 d2		 xor	 edx, edx
+  00458	8a 51 02	 mov	 dl, BYTE PTR [ecx+2]
+  0045b	66 89 6e 02	 mov	 WORD PTR [esi+2], bp
+  0045f	c1 e0 04	 shl	 eax, 4
+  00462	0b c2		 or	 eax, edx
+  00464	8b d7		 mov	 edx, edi
+  00466	81 e2 f0 00 00
+	00		 and	 edx, 240		; 000000f0H
+  0046c	83 e7 0f	 and	 edi, 15			; 0000000fH
+  0046f	c1 e2 04	 shl	 edx, 4
+  00472	0b d3		 or	 edx, ebx
+  00474	8a 59 08	 mov	 bl, BYTE PTR [ecx+8]
+  00477	03 c2		 add	 eax, edx
+  00479	99		 cdq
+  0047a	2b c2		 sub	 eax, edx
+  0047c	66 33 d2	 xor	 dx, dx
+  0047f	d1 f8		 sar	 eax, 1
+  00481	03 c5		 add	 eax, ebp
+  00483	66 89 06	 mov	 WORD PTR [esi], ax
+  00486	8a c3		 mov	 al, bl
+  00488	24 c0		 and	 al, 192			; 000000c0H
+  0048a	8a d0		 mov	 dl, al
+  0048c	66 0f b6 41 05	 movzx	 ax, BYTE PTR [ecx+5]
+  00491	c1 e2 02	 shl	 edx, 2
+  00494	0b d0		 or	 edx, eax
+  00496	66 33 c0	 xor	 ax, ax
+  00499	66 89 56 06	 mov	 WORD PTR [esi+6], dx
+  0049d	8a d3		 mov	 dl, bl
+  0049f	80 e2 30	 and	 dl, 48			; 00000030H
+  004a2	8a c2		 mov	 al, dl
+  004a4	66 0f b6 51 06	 movzx	 dx, BYTE PTR [ecx+6]
+  004a9	c1 e0 04	 shl	 eax, 4
+  004ac	0b c2		 or	 eax, edx
+  004ae	33 d2		 xor	 edx, edx
+  004b0	66 89 46 04	 mov	 WORD PTR [esi+4], ax
+  004b4	8a 44 24 13	 mov	 al, BYTE PTR -265+[esp+284]
+  004b8	24 0f		 and	 al, 15			; 0000000fH
+  004ba	8a f0		 mov	 dh, al
+  004bc	66 0f b6 41 16	 movzx	 ax, BYTE PTR [ecx+22]
+  004c1	8b ea		 mov	 ebp, edx
+  004c3	33 d2		 xor	 edx, edx
+  004c5	8a 51 03	 mov	 dl, BYTE PTR [ecx+3]
+  004c8	0b e8		 or	 ebp, eax
+  004ca	8b 44 24 14	 mov	 eax, DWORD PTR -264+[esp+284]
+  004ce	66 89 6e 0a	 mov	 WORD PTR [esi+10], bp
+  004d2	83 e0 0f	 and	 eax, 15			; 0000000fH
+  004d5	c1 e0 08	 shl	 eax, 8
+  004d8	0b c2		 or	 eax, edx
+  004da	33 d2		 xor	 edx, edx
+  004dc	8a 51 0c	 mov	 dl, BYTE PTR [ecx+12]
+  004df	c1 e7 08	 shl	 edi, 8
+  004e2	0b fa		 or	 edi, edx
+  004e4	03 c7		 add	 eax, edi
+  004e6	99		 cdq
+  004e7	2b c2		 sub	 eax, edx
+  004e9	8a d3		 mov	 dl, bl
+  004eb	d1 f8		 sar	 eax, 1
+  004ed	03 c5		 add	 eax, ebp
+  004ef	80 e2 0c	 and	 dl, 12			; 0000000cH
+  004f2	66 89 46 08	 mov	 WORD PTR [esi+8], ax
+  004f6	8a 41 07	 mov	 al, BYTE PTR [ecx+7]
+  004f9	88 44 24 13	 mov	 BYTE PTR -265+[esp+284], al
+  004fd	c0 e2 02	 shl	 dl, 2
+  00500	c0 e8 04	 shr	 al, 4
+  00503	0a d0		 or	 dl, al
+  00505	88 56 0d	 mov	 BYTE PTR [esi+13], dl
+  00508	8a 44 24 13	 mov	 al, BYTE PTR -265+[esp+284]
+  0050c	80 e3 03	 and	 bl, 3
+  0050f	c0 e3 04	 shl	 bl, 4
+  00512	24 0f		 and	 al, 15			; 0000000fH
+  00514	33 d2		 xor	 edx, edx
+  00516	8a 51 09	 mov	 dl, BYTE PTR [ecx+9]
+  00519	0a d8		 or	 bl, al
+  0051b	33 c0		 xor	 eax, eax
+  0051d	88 5e 0c	 mov	 BYTE PTR [esi+12], bl
+  00520	8a 41 0a	 mov	 al, BYTE PTR [ecx+10]
+  00523	c1 e0 08	 shl	 eax, 8
+  00526	03 c2		 add	 eax, edx
+  00528	33 d2		 xor	 edx, edx
+  0052a	66 8b 11	 mov	 dx, WORD PTR [ecx]
+  0052d	03 c2		 add	 eax, edx
+  0052f	99		 cdq
+  00530	2b c2		 sub	 eax, edx
+  00532	8b 94 24 9b 00
+	00 00		 mov	 edx, DWORD PTR _ddcData$[esp+411]
+  00539	d1 f8		 sar	 eax, 1
+  0053b	8d 04 80	 lea	 eax, DWORD PTR [eax+eax*4]
+  0053e	d1 e0		 shl	 eax, 1
+  00540	89 46 10	 mov	 DWORD PTR [esi+16], eax
+  00543	8b 44 24 18	 mov	 eax, DWORD PTR -260+[esp+284]
+$L12228:
+  00547	83 e0 03	 and	 eax, 3
+  0054a	8d 04 40	 lea	 eax, DWORD PTR [eax+eax*2]
+  0054d	03 c8		 add	 ecx, eax
+  0054f	f6 c2 f8	 test	 dl, 248			; 000000f8H
+  00552	8d 3c c1	 lea	 edi, DWORD PTR [ecx+eax*8]
+  00555	0f 84 4f 03 00
+	00		 je	 $L12255
+  0055b	8b da		 mov	 ebx, edx
+  0055d	33 ed		 xor	 ebp, ebp
+  0055f	81 e3 f8 00 00
+	00		 and	 ebx, 248		; 000000f8H
+  00565	0f 8e 3f 03 00
+	00		 jle	 $L12255
+  0056b	8b 94 24 20 01
+	00 00		 mov	 edx, DWORD PTR _pContext$[esp+280]
+  00572	8d 8a 0a 05 00
+	00		 lea	 ecx, DWORD PTR [edx+1290]
+$L12233:
+  00578	66 0f b6 07	 movzx	 ax, BYTE PTR [edi]
+  0057c	33 d2		 xor	 edx, edx
+  0057e	83 c0 10	 add	 eax, 16			; 00000010H
+  00581	8a 57 02	 mov	 dl, BYTE PTR [edi+2]
+  00584	c1 e0 04	 shl	 eax, 4
+  00587	8d 72 83	 lea	 esi, DWORD PTR [edx-125]
+  0058a	66 89 41 fe	 mov	 WORD PTR [ecx-2], ax
+  0058e	83 fe 35	 cmp	 esi, 53			; 00000035H
+  00591	77 61		 ja	 SHORT $L12238
+
+; 518  : 				disp->hsyncOfst = ((dt[8] << 2) & 0x300) | dt[5];
+; 519  : 				disp->hsyncWidth = ((dt[8] << 4) & 0x300) | dt[6];
+; 520  : 				// extract V parameters
+; 521  : 				blk = ((dt[4] << 8) & 0xf00) | dt[3];
+; 522  : 				blk += ((dt[13] << 8) & 0xf00) | dt[12];
+; 523  : 				disp->dispHeight = ((dt[23] << 8) & 0xf00) | dt[22];
+; 524  : 				disp->vtotal = disp->dispHeight + (blk / 2);
+; 525  : 				disp->vsyncOfst = ((dt[8] << 2) & 0x030) | (dt[7] >> 4);
+; 526  : 				disp->vsyncWidth = ((dt[8] << 4) & 0x030) | (dt[7] & 15);
+; 527  : 				// get the average clk rate
+; 528  : 				clk = *(FxU16 *)&dt[0];
+; 529  : 				clk += (dt[9] + (dt[10] << 8));
+; 530  : 				disp->dispClock = (long)(clk / 2) * (long)10;
+; 531  : 
+; 532  : #if WINNT
+; 533  :                 DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.width = disp->dispWidth;
+; 534  :                 DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.height = disp->dispHeight;
+; 535  :                 DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.HTotal = disp->htotal;
+; 536  :                 DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.HSyncStart = disp->dispWidth + disp->hsyncOfst;
+; 537  :                 DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.HSyncEnd = disp->dispWidth + disp->hsyncOfst + disp->hsyncWidth;
+; 538  :                 DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.VTotal = disp->vtotal;
+; 539  :                 DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.VSyncStart = disp->dispHeight + disp->vsyncOfst;
+; 540  :                 DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.VSyncEnd = disp->dispHeight + disp->vsyncOfst + disp->vsyncWidth;
+; 541  :                 DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.PixelClock = disp->dispClock * 1000;
+; 542  : #endif
+; 543  : 			}
+; 544  :          // skip detailed range limits
+; 545  :          dt += 27 * (ddcData[0x7e] & 3);
+; 546  :          // if the 4-byte timing codes are present
+; 547  :          if (ddcData[0x7f] & 0xf8)
+; 548  :          {
+; 549  :             for(i=0; i<(ddcData[0x7f] & 0xf8); i++)
+; 550  :             {
+; 551  :                DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[i].width = (dt[0] * 16) + 256;
+; 552  :                switch(dt[2])
+; 553  :                {
+
+  00593	33 d2		 xor	 edx, edx
+  00595	8a 96 00 00 00
+	00		 mov	 dl, BYTE PTR $L12541[esi]
+  0059b	ff 24 95 00 00
+	00 00		 jmp	 DWORD PTR $L12542[edx*4]
+$L12241:
+
+; 554  :                   case 160: // 16:10 Aspect Ratio
+; 555  :                      DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[i].height = (DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[i].width * 10) / 16;
+
+  005a2	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  005a7	8d 04 80	 lea	 eax, DWORD PTR [eax+eax*4]
+  005aa	d1 e0		 shl	 eax, 1
+
+; 556  :                      break;
+
+  005ac	eb 3a		 jmp	 SHORT $L12537
+$L12244:
+
+; 557  :                   case 133: //  4: 3 Aspect Ratio
+; 558  :                      DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[i].height = (DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[i].width * 3 ) /  4;
+
+  005ae	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  005b3	8d 04 40	 lea	 eax, DWORD PTR [eax+eax*2]
+  005b6	99		 cdq
+  005b7	83 e2 03	 and	 edx, 3
+  005ba	03 c2		 add	 eax, edx
+  005bc	c1 f8 02	 sar	 eax, 2
+
+; 559  :                      break;
+
+  005bf	eb 30		 jmp	 SHORT $L12538
+$L12247:
+
+; 560  :                   case 125: //  5: 4 Aspect Ratio
+; 561  :                      DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[i].height = (DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[i].width * 4 ) /  5;
+
+  005c1	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  005c6	c1 e0 02	 shl	 eax, 2
+  005c9	8b d0		 mov	 edx, eax
+  005cb	b8 67 66 66 66	 mov	 eax, 1717986919		; 66666667H
+  005d0	f7 ea		 imul	 edx
+  005d2	d1 fa		 sar	 edx, 1
+  005d4	8b c2		 mov	 eax, edx
+  005d6	c1 e8 1f	 shr	 eax, 31			; 0000001fH
+  005d9	03 d0		 add	 edx, eax
+  005db	66 89 11	 mov	 WORD PTR [ecx], dx
+
+; 562  :                      break;
+
+  005de	eb 14		 jmp	 SHORT $L12238
+$L12250:
+
+; 563  :                   case 178: // 16: 9 Aspect Ratio
+; 564  :                      DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[i].height = (DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[i].width * 9 ) / 16;
+
+  005e0	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  005e5	8d 04 c0	 lea	 eax, DWORD PTR [eax+eax*8]
+$L12537:
+  005e8	99		 cdq
+  005e9	83 e2 0f	 and	 edx, 15			; 0000000fH
+  005ec	03 c2		 add	 eax, edx
+  005ee	c1 f8 04	 sar	 eax, 4
+$L12538:
+  005f1	66 89 01	 mov	 WORD PTR [ecx], ax
+$L12238:
+
+; 565  :                      break;
+; 566  :                }
+; 567  :                DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[i].refresh = dt[3];
+
+  005f4	8a 57 03	 mov	 dl, BYTE PTR [edi+3]
+
+; 568  :                if (i == MAX_DFP_MODES)
+
+  005f7	83 fd 06	 cmp	 ebp, 6
+  005fa	88 51 02	 mov	 BYTE PTR [ecx+2], dl
+  005fd	0f 84 a7 02 00
+	00		 je	 $L12255
+
+; 569  :                   break;
+; 570  : 
+; 571  :                dt += 4;
+
+  00603	83 c7 04	 add	 edi, 4
+  00606	45		 inc	 ebp
+  00607	83 c1 06	 add	 ecx, 6
+  0060a	3b eb		 cmp	 ebp, ebx
+  0060c	0f 8c 66 ff ff
+	ff		 jl	 $L12233
+
+; 651  : 
+; 652  : #if WINNT
+; 653  :             DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.width = disp->dispWidth;
+; 654  :             DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.height = disp->dispHeight;
+; 655  :             DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.HTotal = disp->htotal;
+; 656  :             DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.HSyncStart = disp->dispWidth + disp->hsyncOfst;
+; 657  :             DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.HSyncEnd = disp->dispWidth + disp->hsyncOfst + disp->hsyncWidth;
+; 658  :             DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.VTotal = disp->vtotal;
+; 659  :             DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.VSyncStart = disp->dispHeight + disp->vsyncOfst;
+; 660  :             DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.VSyncEnd = disp->dispHeight + disp->vsyncOfst + disp->vsyncWidth;
+; 661  :             DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.PixelClock = disp->dispClock * 1000;
+; 662  : #endif
+; 663  : 		}
+; 664  : 
+; 665  :         retstat = 0;
+
+  00612	33 c0		 xor	 eax, eax
+  00614	5f		 pop	 edi
+
+; 671  : 
+; 672  : 	return (retstat ? -1 : 0);
+
+  00615	f7 d8		 neg	 eax
+  00617	5e		 pop	 esi
+  00618	5d		 pop	 ebp
+  00619	1b c0		 sbb	 eax, eax
+  0061b	5b		 pop	 ebx
+
+; 673  : }
+
+  0061c	81 c4 0c 01 00
+	00		 add	 esp, 268		; 0000010cH
+  00622	c3		 ret	 0
+$L12224:
+
+; 572  :             }
+; 573  :          }
+; 574  : 		}
+; 575  : 		else    // EDID V1.X
+; 576  : 		{
+; 577  : 			// parse out the established timings to get the minimum we need to
+; 578  : 			// know - display height, width and refresh.  Give preference to 
+; 579  : 			// highest resolution and allow only 60hz refresh.
+; 580  : 
+; 581  :          j=0;
+; 582  : 			for (i = 0; i < 8; i++)
+; 583  : 			{
+; 584  : 				if ((ddcData[0x24] & (1 << i)) &&
+; 585  : 					EstTimings[i + 8].refresh == 60)
+
+  00623	8b 54 24 40	 mov	 edx, DWORD PTR _ddcData$[esp+320]
+  00627	33 ed		 xor	 ebp, ebp
+  00629	33 c9		 xor	 ecx, ecx
+  0062b	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00631	8d 9f 08 05 00
+	00		 lea	 ebx, DWORD PTR [edi+1288]
+  00637	89 54 24 18	 mov	 DWORD PTR -260+[esp+284], edx
+  0063b	b8 30 00 00 00	 mov	 eax, OFFSET FLAT:_EstTimings+48
+  00640	89 5c 24 14	 mov	 DWORD PTR -264+[esp+284], ebx
+$L12256:
+  00644	bb 01 00 00 00	 mov	 ebx, 1
+  00649	d3 e3		 shl	 ebx, cl
+  0064b	85 da		 test	 ebx, edx
+  0064d	74 34		 je	 SHORT $L12257
+  0064f	80 78 04 3c	 cmp	 BYTE PTR [eax+4], 60	; 0000003cH
+  00653	75 2e		 jne	 SHORT $L12257
+
+; 586  :             {
+; 587  : 						DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[j++] = EstTimings[i + 8];
+
+  00655	8b 7c 24 14	 mov	 edi, DWORD PTR -264+[esp+284]
+  00659	8b d0		 mov	 edx, eax
+  0065b	45		 inc	 ebp
+  0065c	8b 1a		 mov	 ebx, DWORD PTR [edx]
+  0065e	89 1f		 mov	 DWORD PTR [edi], ebx
+  00660	66 8b 52 04	 mov	 dx, WORD PTR [edx+4]
+  00664	66 89 57 04	 mov	 WORD PTR [edi+4], dx
+  00668	83 c7 06	 add	 edi, 6
+
+; 588  :                   if (j == MAX_DFP_MODES)
+
+  0066b	83 fd 06	 cmp	 ebp, 6
+  0066e	89 7c 24 14	 mov	 DWORD PTR -264+[esp+284], edi
+  00672	0f 84 48 01 00
+	00		 je	 $mode_list_full$12262
+  00678	8b 54 24 18	 mov	 edx, DWORD PTR -260+[esp+284]
+  0067c	8b bc 24 20 01
+	00 00		 mov	 edi, DWORD PTR _pContext$[esp+280]
+$L12257:
+  00683	83 c0 06	 add	 eax, 6
+  00686	41		 inc	 ecx
+  00687	3d 60 00 00 00	 cmp	 eax, OFFSET FLAT:_EstTimings+96
+  0068c	7c b6		 jl	 SHORT $L12256
+
+; 589  :                      goto mode_list_full;
+; 590  :             }
+; 591  : 			}
+; 592  : 			for (i = 0; i < 8; i++)
+; 593  : 			{
+; 594  : 				if ((ddcData[0x23] & (1 << i)) &&
+; 595  : 					EstTimings[i + 0].refresh == 60)
+
+  0068e	8b 54 24 3f	 mov	 edx, DWORD PTR _ddcData$[esp+319]
+  00692	8d 5c 6d 00	 lea	 ebx, DWORD PTR [ebp+ebp*2]
+  00696	33 c9		 xor	 ecx, ecx
+  00698	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  0069e	8d 9c 5f 08 05
+	00 00		 lea	 ebx, DWORD PTR [edi+ebx*2+1288]
+  006a5	89 54 24 18	 mov	 DWORD PTR -260+[esp+284], edx
+  006a9	b8 00 00 00 00	 mov	 eax, OFFSET FLAT:_EstTimings
+  006ae	89 5c 24 14	 mov	 DWORD PTR -264+[esp+284], ebx
+$L12263:
+  006b2	bb 01 00 00 00	 mov	 ebx, 1
+  006b7	d3 e3		 shl	 ebx, cl
+  006b9	85 da		 test	 ebx, edx
+  006bb	74 34		 je	 SHORT $L12264
+  006bd	80 78 04 3c	 cmp	 BYTE PTR [eax+4], 60	; 0000003cH
+  006c1	75 2e		 jne	 SHORT $L12264
+
+; 596  :             {
+; 597  : 						DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[j++] = EstTimings[i + 0];
+
+  006c3	8b 7c 24 14	 mov	 edi, DWORD PTR -264+[esp+284]
+  006c7	8b d0		 mov	 edx, eax
+  006c9	45		 inc	 ebp
+  006ca	8b 1a		 mov	 ebx, DWORD PTR [edx]
+  006cc	89 1f		 mov	 DWORD PTR [edi], ebx
+  006ce	66 8b 52 04	 mov	 dx, WORD PTR [edx+4]
+  006d2	66 89 57 04	 mov	 WORD PTR [edi+4], dx
+  006d6	83 c7 06	 add	 edi, 6
+
+; 598  :                   if (j == MAX_DFP_MODES)
+
+  006d9	83 fd 06	 cmp	 ebp, 6
+  006dc	89 7c 24 14	 mov	 DWORD PTR -264+[esp+284], edi
+  006e0	0f 84 da 00 00
+	00		 je	 $mode_list_full$12262
+  006e6	8b bc 24 20 01
+	00 00		 mov	 edi, DWORD PTR _pContext$[esp+280]
+  006ed	8b 54 24 18	 mov	 edx, DWORD PTR -260+[esp+284]
+$L12264:
+  006f1	83 c0 06	 add	 eax, 6
+  006f4	41		 inc	 ecx
+  006f5	3d 30 00 00 00	 cmp	 eax, OFFSET FLAT:_EstTimings+48
+  006fa	7c b6		 jl	 SHORT $L12263
+
+; 599  :                      goto mode_list_full;
+; 600  :             }
+; 601  : 			}
+; 602  :          for (i = 0; i < 16; i+=2)
+
+  006fc	8d 84 6d 85 02
+	00 00		 lea	 eax, DWORD PTR [ebp+ebp*2+645]
+  00703	33 db		 xor	 ebx, ebx
+  00705	8d 0c 47	 lea	 ecx, DWORD PTR [edi+eax*2]
+$L12269:
+
+; 603  :          {
+; 604  :             if((ddcData[0x26 + i]     != 0x01) || //STI is valid
+; 605  :                (ddcData[0x26 + i + 1] != 0x01))
+
+  00708	8a 44 1c 42	 mov	 al, BYTE PTR _ddcData$[esp+ebx+322]
+  0070c	3c 01		 cmp	 al, 1
+  0070e	75 0a		 jne	 SHORT $L12273
+  00710	38 44 1c 43	 cmp	 BYTE PTR _ddcData$[esp+ebx+323], al
+  00714	0f 84 9a 00 00
+	00		 je	 $L12270
+$L12273:
+
+; 606  :             {
+; 607  :                if((ddcData[0x26 + i + 1] & 0x3f) == 0) //Refresh rate == 60Hz
+
+  0071a	8a 54 1c 43	 mov	 dl, BYTE PTR _ddcData$[esp+ebx+323]
+  0071e	f6 c2 3f	 test	 dl, 63			; 0000003fH
+  00721	0f 85 8d 00 00
+	00		 jne	 $L12270
+
+; 608  :                {
+; 609  :                   DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[j].width = (ddcData[0x26 + i] + 31) * 8;
+
+  00727	66 0f b6 c0	 movzx	 ax, al
+
+; 610  :                   switch(ddcData[0x26 + i + 1] & 0xc0)
+; 611  :                   {
+
+  0072b	8b fa		 mov	 edi, edx
+  0072d	81 e7 c0 00 00
+	00		 and	 edi, 192		; 000000c0H
+  00733	8d 04 c5 f8 00
+	00 00		 lea	 eax, DWORD PTR [eax*8+248]
+  0073a	81 ff c0 00 00
+	00		 cmp	 edi, 192		; 000000c0H
+  00740	66 89 41 fe	 mov	 WORD PTR [ecx-2], ax
+  00744	77 61		 ja	 SHORT $L12277
+  00746	33 d2		 xor	 edx, edx
+  00748	8a 97 00 00 00
+	00		 mov	 dl, BYTE PTR $L12543[edi]
+  0074e	ff 24 95 00 00
+	00 00		 jmp	 DWORD PTR $L12544[edx*4]
+$L12280:
+
+; 612  :                   case 0x00: // 16:10 Aspect Ratio
+; 613  :                      DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[j].height = (DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[j].width * 10) / 16;
+
+  00755	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  0075a	8d 04 80	 lea	 eax, DWORD PTR [eax+eax*4]
+  0075d	d1 e0		 shl	 eax, 1
+
+; 614  :                      break;
+
+  0075f	eb 3a		 jmp	 SHORT $L12539
+$L12283:
+
+; 615  :                   case 0x40: //  4: 3 Aspect Ratio
+; 616  :                      DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[j].height = (DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[j].width * 3 ) /  4;
+
+  00761	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  00766	8d 04 40	 lea	 eax, DWORD PTR [eax+eax*2]
+  00769	99		 cdq
+  0076a	83 e2 03	 and	 edx, 3
+  0076d	03 c2		 add	 eax, edx
+  0076f	c1 f8 02	 sar	 eax, 2
+
+; 617  :                      break;
+
+  00772	eb 30		 jmp	 SHORT $L12540
+$L12286:
+
+; 618  :                   case 0x80: //  5: 4 Aspect Ratio
+; 619  :                      DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[j].height = (DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[j].width * 4 ) /  5;
+
+  00774	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  00779	c1 e0 02	 shl	 eax, 2
+  0077c	8b d0		 mov	 edx, eax
+  0077e	b8 67 66 66 66	 mov	 eax, 1717986919		; 66666667H
+  00783	f7 ea		 imul	 edx
+  00785	d1 fa		 sar	 edx, 1
+  00787	8b c2		 mov	 eax, edx
+  00789	c1 e8 1f	 shr	 eax, 31			; 0000001fH
+  0078c	03 d0		 add	 edx, eax
+  0078e	66 89 11	 mov	 WORD PTR [ecx], dx
+
+; 620  :                      break;
+
+  00791	eb 14		 jmp	 SHORT $L12277
+$L12289:
+
+; 621  :                   case 0xc0: // 16: 9 Aspect Ratio
+; 622  :                      DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[j].height = (DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[j].width * 9 ) / 16;
+
+  00793	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  00798	8d 04 c0	 lea	 eax, DWORD PTR [eax+eax*8]
+$L12539:
+  0079b	99		 cdq
+  0079c	83 e2 0f	 and	 edx, 15			; 0000000fH
+  0079f	03 c2		 add	 eax, edx
+  007a1	c1 f8 04	 sar	 eax, 4
+$L12540:
+  007a4	66 89 01	 mov	 WORD PTR [ecx], ax
+$L12277:
+
+; 623  :                      break;
+; 624  :                   }
+; 625  :                   DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[j].refresh = 60;
+
+  007a7	c6 41 02 3c	 mov	 BYTE PTR [ecx+2], 60	; 0000003cH
+
+; 626  :                   j++;
+
+  007ab	45		 inc	 ebp
+  007ac	83 c1 06	 add	 ecx, 6
+
+; 627  :                   if (j == MAX_DFP_MODES)
+
+  007af	83 fd 06	 cmp	 ebp, 6
+  007b2	74 0c		 je	 SHORT $mode_list_full$12262
+$L12270:
+
+; 599  :                      goto mode_list_full;
+; 600  :             }
+; 601  : 			}
+; 602  :          for (i = 0; i < 16; i+=2)
+
+  007b4	83 c3 02	 add	 ebx, 2
+  007b7	83 fb 10	 cmp	 ebx, 16			; 00000010H
+  007ba	0f 8c 48 ff ff
+	ff		 jl	 $L12269
+$mode_list_full$12262:
+
+; 628  :                      goto mode_list_full;
+; 629  :                }
+; 630  :             }
+; 631  :          }
+; 632  : mode_list_full:
+; 633  : 
+; 634  : 			dt = &ddcData[54];
+; 635  : 			if ((clk = *(FxU16 *)&dt[0]) <= 0x0101)
+
+  007c0	8b 44 24 52	 mov	 eax, DWORD PTR _ddcData$[esp+338]
+  007c4	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  007c9	3d 01 01 00 00	 cmp	 eax, 257		; 00000101H
+  007ce	7f 11		 jg	 SHORT $L12295
+
+; 636  : 			{
+; 637  : 				disp->vsyncWidth = 6;    // HACK HACK
+
+  007d0	c6 46 0c 06	 mov	 BYTE PTR [esi+12], 6
+  007d4	5f		 pop	 edi
+  007d5	5e		 pop	 esi
+  007d6	5d		 pop	 ebp
+
+; 638  : 				return (0);    // no detailed timing, just dimensions
+
+  007d7	33 c0		 xor	 eax, eax
+  007d9	5b		 pop	 ebx
+
+; 673  : }
+
+  007da	81 c4 0c 01 00
+	00		 add	 esp, 268		; 0000010cH
+  007e0	c3		 ret	 0
+$L12295:
+
+; 639  : 			}
+; 640  : 			disp->dispClock = clk * 10;
+
+  007e1	8d 0c 80	 lea	 ecx, DWORD PTR [eax+eax*4]
+
+; 641  : 			// extract H parameters
+; 642  : 			disp->dispWidth = ((dt[4] << 4) & 0xf00) | dt[2];
+
+  007e4	66 33 c0	 xor	 ax, ax
+  007e7	d1 e1		 shl	 ecx, 1
+  007e9	89 4e 10	 mov	 DWORD PTR [esi+16], ecx
+  007ec	8a 4c 24 56	 mov	 cl, BYTE PTR _ddcData$[esp+342]
+  007f0	8a d1		 mov	 dl, cl
+
+; 643  : 			disp->htotal = ((dt[4] << 8) & 0xf00) + dt[3] + disp->dispWidth;
+
+  007f2	80 e1 0f	 and	 cl, 15			; 0000000fH
+  007f5	80 e2 f0	 and	 dl, 240			; 000000f0H
+  007f8	8a c2		 mov	 al, dl
+  007fa	66 0f b6 54 24
+	54		 movzx	 dx, BYTE PTR _ddcData$[esp+340]
+  00800	66 0f b6 c9	 movzx	 cx, cl
+  00804	c1 e0 04	 shl	 eax, 4
+  00807	0b c2		 or	 eax, edx
+  00809	66 0f b6 54 24
+	55		 movzx	 dx, BYTE PTR _ddcData$[esp+341]
+  0080f	c1 e1 08	 shl	 ecx, 8
+  00812	66 89 46 02	 mov	 WORD PTR [esi+2], ax
+  00816	03 c1		 add	 eax, ecx
+  00818	03 d0		 add	 edx, eax
+
+; 644  : 			disp->hsyncOfst = ((dt[11] << 2) & 0x300) | dt[8];
+
+  0081a	8a 44 24 5d	 mov	 al, BYTE PTR _ddcData$[esp+349]
+  0081e	8a c8		 mov	 cl, al
+  00820	66 89 16	 mov	 WORD PTR [esi], dx
+  00823	80 e1 c0	 and	 cl, 192			; 000000c0H
+  00826	66 33 d2	 xor	 dx, dx
+  00829	8a d1		 mov	 dl, cl
+  0082b	66 0f b6 4c 24
+	5a		 movzx	 cx, BYTE PTR _ddcData$[esp+346]
+  00831	c1 e2 02	 shl	 edx, 2
+  00834	0b d1		 or	 edx, ecx
+
+; 645  : 			disp->hsyncWidth = ((dt[11] << 4) & 0x300) | dt[9];
+
+  00836	66 33 c9	 xor	 cx, cx
+  00839	66 89 56 06	 mov	 WORD PTR [esi+6], dx
+  0083d	8a d0		 mov	 dl, al
+  0083f	80 e2 30	 and	 dl, 48			; 00000030H
+  00842	8a ca		 mov	 cl, dl
+  00844	66 0f b6 54 24
+	5b		 movzx	 dx, BYTE PTR _ddcData$[esp+347]
+  0084a	c1 e1 04	 shl	 ecx, 4
+  0084d	0b ca		 or	 ecx, edx
+
+; 646  : 			// extract V parameters
+; 647  : 			disp->dispHeight = ((dt[7] << 4) & 0xf00) | dt[5];
+
+  0084f	8a 54 24 59	 mov	 dl, BYTE PTR _ddcData$[esp+345]
+  00853	66 0f b6 7c 24
+	57		 movzx	 di, BYTE PTR _ddcData$[esp+343]
+  00859	66 89 4e 04	 mov	 WORD PTR [esi+4], cx
+  0085d	8a ca		 mov	 cl, dl
+  0085f	80 e1 f0	 and	 cl, 240			; 000000f0H
+
+; 648  : 			disp->vtotal = ((dt[7] << 8) & 0xf00) + dt[6] + disp->dispHeight;
+
+  00862	80 e2 0f	 and	 dl, 15			; 0000000fH
+  00865	66 0f b6 c9	 movzx	 cx, cl
+  00869	66 0f b6 d2	 movzx	 dx, dl
+  0086d	c1 e1 04	 shl	 ecx, 4
+  00870	0b cf		 or	 ecx, edi
+  00872	66 0f b6 7c 24
+	58		 movzx	 di, BYTE PTR _ddcData$[esp+344]
+  00878	c1 e2 08	 shl	 edx, 8
+  0087b	66 89 4e 0a	 mov	 WORD PTR [esi+10], cx
+  0087f	03 ca		 add	 ecx, edx
+  00881	03 f9		 add	 edi, ecx
+
+; 649  : 			disp->vsyncOfst = ((dt[11] << 2) & 0x30) | (dt[10] >> 4);
+
+  00883	8a 4c 24 5c	 mov	 cl, BYTE PTR _ddcData$[esp+348]
+  00887	8a d0		 mov	 dl, al
+  00889	8a d9		 mov	 bl, cl
+  0088b	80 e2 0c	 and	 dl, 12			; 0000000cH
+
+; 650  : 			disp->vsyncWidth = ((dt[11] << 4) & 0x30) | (dt[10] & 15);
+
+  0088e	24 03		 and	 al, 3
+  00890	c0 e2 02	 shl	 dl, 2
+  00893	c0 eb 04	 shr	 bl, 4
+  00896	c0 e0 04	 shl	 al, 4
+  00899	80 e1 0f	 and	 cl, 15			; 0000000fH
+  0089c	0a d3		 or	 dl, bl
+  0089e	0a c1		 or	 al, cl
+  008a0	66 89 7e 08	 mov	 WORD PTR [esi+8], di
+  008a4	88 56 0d	 mov	 BYTE PTR [esi+13], dl
+  008a7	88 46 0c	 mov	 BYTE PTR [esi+12], al
+$L12255:
+
+; 651  : 
+; 652  : #if WINNT
+; 653  :             DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.width = disp->dispWidth;
+; 654  :             DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.height = disp->dispHeight;
+; 655  :             DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.HTotal = disp->htotal;
+; 656  :             DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.HSyncStart = disp->dispWidth + disp->hsyncOfst;
+; 657  :             DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.HSyncEnd = disp->dispWidth + disp->hsyncOfst + disp->hsyncWidth;
+; 658  :             DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.VTotal = disp->vtotal;
+; 659  :             DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.VSyncStart = disp->dispHeight + disp->vsyncOfst;
+; 660  :             DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.VSyncEnd = disp->dispHeight + disp->vsyncOfst + disp->vsyncWidth;
+; 661  :             DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings.PixelClock = disp->dispClock * 1000;
+; 662  : #endif
+; 663  : 		}
+; 664  : 
+; 665  :         retstat = 0;
+
+  008aa	33 c0		 xor	 eax, eax
+  008ac	5f		 pop	 edi
+
+; 671  : 
+; 672  : 	return (retstat ? -1 : 0);
+
+  008ad	f7 d8		 neg	 eax
+  008af	5e		 pop	 esi
+  008b0	5d		 pop	 ebp
+  008b1	1b c0		 sbb	 eax, eax
+  008b3	5b		 pop	 ebx
+
+; 673  : }
+
+  008b4	81 c4 0c 01 00
+	00		 add	 esp, 268		; 0000010cH
+  008ba	c3		 ret	 0
+$L12297:
+
+; 668  : 		goto retry;
+; 669  : 	else
+; 670  : 		retstat = 1;
+
+  008bb	b8 01 00 00 00	 mov	 eax, 1
+  008c0	5f		 pop	 edi
+
+; 671  : 
+; 672  : 	return (retstat ? -1 : 0);
+
+  008c1	f7 d8		 neg	 eax
+  008c3	5e		 pop	 esi
+  008c4	5d		 pop	 ebp
+  008c5	1b c0		 sbb	 eax, eax
+  008c7	5b		 pop	 ebx
+
+; 673  : }
+
+  008c8	81 c4 0c 01 00
+	00		 add	 esp, 268		; 0000010cH
+  008ce	c3		 ret	 0
+  008cf	90		 npad	 1
+$L12542:
+  008d0	00 00 00 00	 DD	 $L12247
+  008d4	00 00 00 00	 DD	 $L12244
+  008d8	00 00 00 00	 DD	 $L12241
+  008dc	00 00 00 00	 DD	 $L12250
+  008e0	00 00 00 00	 DD	 $L12238
+$L12541:
+  008e4	00		 DB	 0
+  008e5	04		 DB	 4
+  008e6	04		 DB	 4
+  008e7	04		 DB	 4
+  008e8	04		 DB	 4
+  008e9	04		 DB	 4
+  008ea	04		 DB	 4
+  008eb	04		 DB	 4
+  008ec	01		 DB	 1
+  008ed	04		 DB	 4
+  008ee	04		 DB	 4
+  008ef	04		 DB	 4
+  008f0	04		 DB	 4
+  008f1	04		 DB	 4
+  008f2	04		 DB	 4
+  008f3	04		 DB	 4
+  008f4	04		 DB	 4
+  008f5	04		 DB	 4
+  008f6	04		 DB	 4
+  008f7	04		 DB	 4
+  008f8	04		 DB	 4
+  008f9	04		 DB	 4
+  008fa	04		 DB	 4
+  008fb	04		 DB	 4
+  008fc	04		 DB	 4
+  008fd	04		 DB	 4
+  008fe	04		 DB	 4
+  008ff	04		 DB	 4
+  00900	04		 DB	 4
+  00901	04		 DB	 4
+  00902	04		 DB	 4
+  00903	04		 DB	 4
+  00904	04		 DB	 4
+  00905	04		 DB	 4
+  00906	04		 DB	 4
+  00907	02		 DB	 2
+  00908	04		 DB	 4
+  00909	04		 DB	 4
+  0090a	04		 DB	 4
+  0090b	04		 DB	 4
+  0090c	04		 DB	 4
+  0090d	04		 DB	 4
+  0090e	04		 DB	 4
+  0090f	04		 DB	 4
+  00910	04		 DB	 4
+  00911	04		 DB	 4
+  00912	04		 DB	 4
+  00913	04		 DB	 4
+  00914	04		 DB	 4
+  00915	04		 DB	 4
+  00916	04		 DB	 4
+  00917	04		 DB	 4
+  00918	04		 DB	 4
+  00919	03		 DB	 3
+  0091a	8b ff		 npad	 2
+$L12544:
+  0091c	00 00 00 00	 DD	 $L12280
+  00920	00 00 00 00	 DD	 $L12283
+  00924	00 00 00 00	 DD	 $L12286
+  00928	00 00 00 00	 DD	 $L12289
+  0092c	00 00 00 00	 DD	 $L12277
+$L12543:
+  00930	00		 DB	 0
+  00931	04		 DB	 4
+  00932	04		 DB	 4
+  00933	04		 DB	 4
+  00934	04		 DB	 4
+  00935	04		 DB	 4
+  00936	04		 DB	 4
+  00937	04		 DB	 4
+  00938	04		 DB	 4
+  00939	04		 DB	 4
+  0093a	04		 DB	 4
+  0093b	04		 DB	 4
+  0093c	04		 DB	 4
+  0093d	04		 DB	 4
+  0093e	04		 DB	 4
+  0093f	04		 DB	 4
+  00940	04		 DB	 4
+  00941	04		 DB	 4
+  00942	04		 DB	 4
+  00943	04		 DB	 4
+  00944	04		 DB	 4
+  00945	04		 DB	 4
+  00946	04		 DB	 4
+  00947	04		 DB	 4
+  00948	04		 DB	 4
+  00949	04		 DB	 4
+  0094a	04		 DB	 4
+  0094b	04		 DB	 4
+  0094c	04		 DB	 4
+  0094d	04		 DB	 4
+  0094e	04		 DB	 4
+  0094f	04		 DB	 4
+  00950	04		 DB	 4
+  00951	04		 DB	 4
+  00952	04		 DB	 4
+  00953	04		 DB	 4
+  00954	04		 DB	 4
+  00955	04		 DB	 4
+  00956	04		 DB	 4
+  00957	04		 DB	 4
+  00958	04		 DB	 4
+  00959	04		 DB	 4
+  0095a	04		 DB	 4
+  0095b	04		 DB	 4
+  0095c	04		 DB	 4
+  0095d	04		 DB	 4
+  0095e	04		 DB	 4
+  0095f	04		 DB	 4
+  00960	04		 DB	 4
+  00961	04		 DB	 4
+  00962	04		 DB	 4
+  00963	04		 DB	 4
+  00964	04		 DB	 4
+  00965	04		 DB	 4
+  00966	04		 DB	 4
+  00967	04		 DB	 4
+  00968	04		 DB	 4
+  00969	04		 DB	 4
+  0096a	04		 DB	 4
+  0096b	04		 DB	 4
+  0096c	04		 DB	 4
+  0096d	04		 DB	 4
+  0096e	04		 DB	 4
+  0096f	04		 DB	 4
+  00970	01		 DB	 1
+  00971	04		 DB	 4
+  00972	04		 DB	 4
+  00973	04		 DB	 4
+  00974	04		 DB	 4
+  00975	04		 DB	 4
+  00976	04		 DB	 4
+  00977	04		 DB	 4
+  00978	04		 DB	 4
+  00979	04		 DB	 4
+  0097a	04		 DB	 4
+  0097b	04		 DB	 4
+  0097c	04		 DB	 4
+  0097d	04		 DB	 4
+  0097e	04		 DB	 4
+  0097f	04		 DB	 4
+  00980	04		 DB	 4
+  00981	04		 DB	 4
+  00982	04		 DB	 4
+  00983	04		 DB	 4
+  00984	04		 DB	 4
+  00985	04		 DB	 4
+  00986	04		 DB	 4
+  00987	04		 DB	 4
+  00988	04		 DB	 4
+  00989	04		 DB	 4
+  0098a	04		 DB	 4
+  0098b	04		 DB	 4
+  0098c	04		 DB	 4
+  0098d	04		 DB	 4
+  0098e	04		 DB	 4
+  0098f	04		 DB	 4
+  00990	04		 DB	 4
+  00991	04		 DB	 4
+  00992	04		 DB	 4
+  00993	04		 DB	 4
+  00994	04		 DB	 4
+  00995	04		 DB	 4
+  00996	04		 DB	 4
+  00997	04		 DB	 4
+  00998	04		 DB	 4
+  00999	04		 DB	 4
+  0099a	04		 DB	 4
+  0099b	04		 DB	 4
+  0099c	04		 DB	 4
+  0099d	04		 DB	 4
+  0099e	04		 DB	 4
+  0099f	04		 DB	 4
+  009a0	04		 DB	 4
+  009a1	04		 DB	 4
+  009a2	04		 DB	 4
+  009a3	04		 DB	 4
+  009a4	04		 DB	 4
+  009a5	04		 DB	 4
+  009a6	04		 DB	 4
+  009a7	04		 DB	 4
+  009a8	04		 DB	 4
+  009a9	04		 DB	 4
+  009aa	04		 DB	 4
+  009ab	04		 DB	 4
+  009ac	04		 DB	 4
+  009ad	04		 DB	 4
+  009ae	04		 DB	 4
+  009af	04		 DB	 4
+  009b0	02		 DB	 2
+  009b1	04		 DB	 4
+  009b2	04		 DB	 4
+  009b3	04		 DB	 4
+  009b4	04		 DB	 4
+  009b5	04		 DB	 4
+  009b6	04		 DB	 4
+  009b7	04		 DB	 4
+  009b8	04		 DB	 4
+  009b9	04		 DB	 4
+  009ba	04		 DB	 4
+  009bb	04		 DB	 4
+  009bc	04		 DB	 4
+  009bd	04		 DB	 4
+  009be	04		 DB	 4
+  009bf	04		 DB	 4
+  009c0	04		 DB	 4
+  009c1	04		 DB	 4
+  009c2	04		 DB	 4
+  009c3	04		 DB	 4
+  009c4	04		 DB	 4
+  009c5	04		 DB	 4
+  009c6	04		 DB	 4
+  009c7	04		 DB	 4
+  009c8	04		 DB	 4
+  009c9	04		 DB	 4
+  009ca	04		 DB	 4
+  009cb	04		 DB	 4
+  009cc	04		 DB	 4
+  009cd	04		 DB	 4
+  009ce	04		 DB	 4
+  009cf	04		 DB	 4
+  009d0	04		 DB	 4
+  009d1	04		 DB	 4
+  009d2	04		 DB	 4
+  009d3	04		 DB	 4
+  009d4	04		 DB	 4
+  009d5	04		 DB	 4
+  009d6	04		 DB	 4
+  009d7	04		 DB	 4
+  009d8	04		 DB	 4
+  009d9	04		 DB	 4
+  009da	04		 DB	 4
+  009db	04		 DB	 4
+  009dc	04		 DB	 4
+  009dd	04		 DB	 4
+  009de	04		 DB	 4
+  009df	04		 DB	 4
+  009e0	04		 DB	 4
+  009e1	04		 DB	 4
+  009e2	04		 DB	 4
+  009e3	04		 DB	 4
+  009e4	04		 DB	 4
+  009e5	04		 DB	 4
+  009e6	04		 DB	 4
+  009e7	04		 DB	 4
+  009e8	04		 DB	 4
+  009e9	04		 DB	 4
+  009ea	04		 DB	 4
+  009eb	04		 DB	 4
+  009ec	04		 DB	 4
+  009ed	04		 DB	 4
+  009ee	04		 DB	 4
+  009ef	04		 DB	 4
+  009f0	03		 DB	 3
+_panelDDC ENDP
+_PTEXT	ENDS
+PUBLIC	_panelOff
+_PTEXT	SEGMENT
+_pContext$ = 8
+_dfpbits$ = 8
+_panelOff PROC NEAR
+
+; 686  :     FxU8 dfpbits;
+; 687  : #ifdef WINNT
+; 688  :     H3_MEMBASE0 *sstIOregs = (PH3_MEMBASE0) DFP_DEVINFOPTR(pContext)->MappedAddress[SST_IO_REGS_INDEX];
+; 689  : #else
+; 690  :     SstIORegs *sstIOregs = (void *)DFP_DEVINFOPTR(pContext)->RegBase[HWINFO_SST_IOREGS_INDEX];
+
+  00a00	8b 44 24 04	 mov	 eax, DWORD PTR _pContext$[esp-4]
+  00a04	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+
+; 691  : #endif
+; 692  :     sstIOregs->vidInFormat &= ~(SST_VIDEOIN_TVOUT_ENABLE);  // off
+
+  00a0a	8b 51 70	 mov	 edx, DWORD PTR [ecx+112]
+  00a0d	80 e6 7f	 and	 dh, 127			; 0000007fH
+  00a10	89 51 70	 mov	 DWORD PTR [ecx+112], edx
+
+; 693  :     sstIOregs->vidInFormat |= SST_VIDEOIN_G4_FOR_POSEDGE;  // Like Brooktree.
+
+  00a13	8b 51 70	 mov	 edx, DWORD PTR [ecx+112]
+  00a16	80 ce 01	 or	 dh, 1
+  00a19	89 51 70	 mov	 DWORD PTR [ecx+112], edx
+
+; 694  : 
+; 695  :     // If its not V3 then clear the bit so we don't break TVout code.
+; 696  :     if(!IS_VOODOO3_X(pContext)) 
+
+  00a1c	8b 50 04	 mov	 edx, DWORD PTR [eax+4]
+  00a1f	81 fa 1a 12 05
+	00		 cmp	 edx, 332314		; 0005121aH
+  00a25	74 0c		 je	 SHORT $L12307
+
+; 697  :     {
+; 698  :        sstIOregs->vidInFormat &= ~SST_VIDEOIN_TV_DATA_SCRAMBLE_DISABLE;
+
+  00a27	8b 51 70	 mov	 edx, DWORD PTR [ecx+112]
+  00a2a	81 e2 ff ff bf
+	ff		 and	 edx, -4194305		; ffbfffffH
+  00a30	89 51 70	 mov	 DWORD PTR [ecx+112], edx
+$L12307:
+  00a33	53		 push	 ebx
+  00a34	56		 push	 esi
+
+; 699  :     }
+; 700  : 
+; 701  :     DFP_DEVINFOPTR(pContext)->dwDFPState &= ~ACTIVE_BIT; // clear "active" bit
+
+  00a35	8b b0 40 05 00
+	00		 mov	 esi, DWORD PTR [eax+1344]
+  00a3b	83 e6 fd	 and	 esi, -3			; fffffffdH
+  00a3e	89 b0 40 05 00
+	00		 mov	 DWORD PTR [eax+1344], esi
+
+; 702  : 
+; 703  :     // let BIOS know DFP is not active
+; 704  :     READSCRATCHREGISTER3(pContext, dfpbits);
+
+  00a44	66 8b b0 84 00
+	00 00		 mov	 si, WORD PTR [eax+132]
+  00a4b	8d 8e d4 00 00
+	00		 lea	 ecx, DWORD PTR [esi+212]
+  00a51	81 c6 d5 00 00
+	00		 add	 esi, 213		; 000000d5H
+  00a57	66 8b d1	 mov	 dx, cx
+  00a5a	ec		 in	 al, dx
+  00a5b	8a d8		 mov	 bl, al
+  00a5d	b0 1f		 mov	 al, 31			; 0000001fH
+  00a5f	ee		 out	 dx, al
+  00a60	66 8b d6	 mov	 dx, si
+  00a63	ec		 in	 al, dx
+  00a64	88 44 24 0c	 mov	 BYTE PTR _dfpbits$[esp+4], al
+  00a68	66 8b d1	 mov	 dx, cx
+  00a6b	8a c3		 mov	 al, bl
+  00a6d	ee		 out	 dx, al
+
+; 705  :     dfpbits &= ~BIOS_CRx1F_DFPACTIVE;
+; 706  :     WRITESCRATCHREGISTER3(pContext, dfpbits);
+
+  00a6e	ec		 in	 al, dx
+  00a6f	8a d8		 mov	 bl, al
+  00a71	b0 1f		 mov	 al, 31			; 0000001fH
+  00a73	ee		 out	 dx, al
+  00a74	8a 44 24 0c	 mov	 al, BYTE PTR _dfpbits$[esp+4]
+  00a78	66 8b d6	 mov	 dx, si
+  00a7b	24 fe		 and	 al, 254			; 000000feH
+  00a7d	5e		 pop	 esi
+  00a7e	ee		 out	 dx, al
+  00a7f	66 8b d1	 mov	 dx, cx
+  00a82	8a c3		 mov	 al, bl
+  00a84	ee		 out	 dx, al
+  00a85	5b		 pop	 ebx
+
+; 707  : 
+; 708  : #ifdef WINNT
+; 709  :     // set the timing again because the DFP timing may be different from the monitor timing
+; 710  :     H3SetModeResetTiming(DFP_DEVINFOPTR(pContext));
+; 711  : #endif
+; 712  : }
+
+  00a86	c3		 ret	 0
+_panelOff ENDP
+_PTEXT	ENDS
+PUBLIC	_panelOn
+_PTEXT	SEGMENT
+_pContext$ = 8
+_dfpbits$ = 8
+_panelOn PROC NEAR
+
+; 726  :     FxU8 dfpbits;
+; 727  : #ifdef WINNT
+; 728  :     H3_MEMBASE0 *sstIOregs = (PH3_MEMBASE0) DFP_DEVINFOPTR(pContext)->MappedAddress[SST_IO_REGS_INDEX];
+; 729  : #else
+; 730  :     SstIORegs *sstIOregs = (void *)DFP_DEVINFOPTR(pContext)->RegBase[HWINFO_SST_IOREGS_INDEX];
+
+  00a90	8b 44 24 04	 mov	 eax, DWORD PTR _pContext$[esp-4]
+  00a94	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+
+; 731  : #endif
+; 732  :     sstIOregs->vidInFormat |= SST_VIDEOIN_TVOUT_ENABLE;
+
+  00a9a	8b 51 70	 mov	 edx, DWORD PTR [ecx+112]
+  00a9d	80 ce 80	 or	 dh, -128		; ffffff80H
+  00aa0	89 51 70	 mov	 DWORD PTR [ecx+112], edx
+
+; 733  :     sstIOregs->vidInFormat &= ~SST_VIDEOIN_G4_FOR_POSEDGE;  // Like Chrontel.
+
+  00aa3	8b 51 70	 mov	 edx, DWORD PTR [ecx+112]
+  00aa6	80 e6 fe	 and	 dh, -2			; fffffffeH
+  00aa9	89 51 70	 mov	 DWORD PTR [ecx+112], edx
+
+; 734  : 
+; 735  :     // If its not V3 then set the bit for direct connect to SII part.
+; 736  :     if(!IS_VOODOO3_X(pContext)) 
+
+  00aac	8b 50 04	 mov	 edx, DWORD PTR [eax+4]
+  00aaf	81 fa 1a 12 05
+	00		 cmp	 edx, 332314		; 0005121aH
+  00ab5	74 0c		 je	 SHORT $L12335
+
+; 737  :     {
+; 738  :        sstIOregs->vidInFormat |= SST_VIDEOIN_TV_DATA_SCRAMBLE_DISABLE;
+
+  00ab7	8b 51 70	 mov	 edx, DWORD PTR [ecx+112]
+  00aba	81 ca 00 00 40
+	00		 or	 edx, 4194304		; 00400000H
+  00ac0	89 51 70	 mov	 DWORD PTR [ecx+112], edx
+$L12335:
+  00ac3	53		 push	 ebx
+  00ac4	56		 push	 esi
+
+; 739  :     }
+; 740  : 
+; 741  :     DFP_DEVINFOPTR(pContext)->dwDFPState |= ACTIVE_BIT; // set "active" bit
+
+  00ac5	8b b0 40 05 00
+	00		 mov	 esi, DWORD PTR [eax+1344]
+  00acb	83 ce 02	 or	 esi, 2
+  00ace	89 b0 40 05 00
+	00		 mov	 DWORD PTR [eax+1344], esi
+
+; 742  : 
+; 743  :     // let BIOS know DFP is active
+; 744  :     READSCRATCHREGISTER3(pContext, dfpbits);
+
+  00ad4	66 8b b0 84 00
+	00 00		 mov	 si, WORD PTR [eax+132]
+  00adb	8d 8e d4 00 00
+	00		 lea	 ecx, DWORD PTR [esi+212]
+  00ae1	81 c6 d5 00 00
+	00		 add	 esi, 213		; 000000d5H
+  00ae7	66 8b d1	 mov	 dx, cx
+  00aea	ec		 in	 al, dx
+  00aeb	8a d8		 mov	 bl, al
+  00aed	b0 1f		 mov	 al, 31			; 0000001fH
+  00aef	ee		 out	 dx, al
+  00af0	66 8b d6	 mov	 dx, si
+  00af3	ec		 in	 al, dx
+  00af4	88 44 24 0c	 mov	 BYTE PTR _dfpbits$[esp+4], al
+  00af8	66 8b d1	 mov	 dx, cx
+  00afb	8a c3		 mov	 al, bl
+  00afd	ee		 out	 dx, al
+
+; 745  :     dfpbits |= BIOS_CRx1F_DFPACTIVE;
+; 746  :     WRITESCRATCHREGISTER3(pContext, dfpbits);
+
+  00afe	ec		 in	 al, dx
+  00aff	8a d8		 mov	 bl, al
+  00b01	b0 1f		 mov	 al, 31			; 0000001fH
+  00b03	ee		 out	 dx, al
+  00b04	8a 44 24 0c	 mov	 al, BYTE PTR _dfpbits$[esp+4]
+  00b08	66 8b d6	 mov	 dx, si
+  00b0b	0c 01		 or	 al, 1
+  00b0d	5e		 pop	 esi
+  00b0e	ee		 out	 dx, al
+  00b0f	66 8b d1	 mov	 dx, cx
+  00b12	8a c3		 mov	 al, bl
+  00b14	ee		 out	 dx, al
+  00b15	5b		 pop	 ebx
+
+; 747  : 
+; 748  : #ifdef WINNT
+; 749  :     // set the timing again because the DFP timing may be different from the monitor timing
+; 750  :     H3SetModeResetTiming(DFP_DEVINFOPTR(pContext));
+; 751  : #endif WINNT
+; 752  : 
+; 753  : }
+
+  00b16	c3		 ret	 0
+_panelOn ENDP
+_PTEXT	ENDS
+PUBLIC	_isPanelActive
+_PTEXT	SEGMENT
+_pContext$ = 8
+_isPanelActive PROC NEAR
+
+; 765  :     // No released Voodoo3 boards are supported by this driver.
+; 766  :     if (IS_VOODOO3_X(pContext))
+
+  00b20	8b 44 24 04	 mov	 eax, DWORD PTR _pContext$[esp-4]
+  00b24	81 78 04 1a 12
+	05 00		 cmp	 DWORD PTR [eax+4], 332314 ; 0005121aH
+  00b2b	75 03		 jne	 SHORT $L12359
+
+; 767  :         return(FALSE);
+
+  00b2d	32 c0		 xor	 al, al
+
+; 770  : }
+
+  00b2f	c3		 ret	 0
+$L12359:
+
+; 768  : 
+; 769  :     return ((DFP_DEVINFOPTR(pContext)->dwDFPState & ACTIVE_BIT)==ACTIVE_BIT);
+
+  00b30	8b 80 40 05 00
+	00		 mov	 eax, DWORD PTR [eax+1344]
+  00b36	33 c9		 xor	 ecx, ecx
+  00b38	83 e0 02	 and	 eax, 2
+  00b3b	3c 02		 cmp	 al, 2
+  00b3d	0f 94 c1	 sete	 cl
+  00b40	8a c1		 mov	 al, cl
+
+; 770  : }
+
+  00b42	c3		 ret	 0
+_isPanelActive ENDP
+_PTEXT	ENDS
+PUBLIC	_isPanelPresent
+_PTEXT	SEGMENT
+_pContext$ = 8
+_isPanelPresent PROC NEAR
+
+; 781  :     // No released Voodoo3 boards are supported by this driver.
+; 782  :     if (IS_VOODOO3_X(pContext))
+
+  00b50	8b 44 24 04	 mov	 eax, DWORD PTR _pContext$[esp-4]
+  00b54	81 78 04 1a 12
+	05 00		 cmp	 DWORD PTR [eax+4], 332314 ; 0005121aH
+  00b5b	75 03		 jne	 SHORT $L12365
+
+; 783  :         return(FALSE);
+
+  00b5d	32 c0		 xor	 al, al
+
+; 786  : }
+
+  00b5f	c3		 ret	 0
+$L12365:
+
+; 784  : 
+; 785  :     return ((DFP_DEVINFOPTR(pContext)->dwDFPState & PRESENT_BIT)==PRESENT_BIT);
+
+  00b60	8b 80 40 05 00
+	00		 mov	 eax, DWORD PTR [eax+1344]
+  00b66	83 e0 01	 and	 eax, 1
+  00b69	fe c8		 dec	 al
+  00b6b	f6 d8		 neg	 al
+  00b6d	1b c0		 sbb	 eax, eax
+  00b6f	40		 inc	 eax
+
+; 786  : }
+
+  00b70	c3		 ret	 0
+_isPanelPresent ENDP
+_PTEXT	ENDS
+PUBLIC	_panelFixupVGA
+_PTEXT	SEGMENT
+_pContext$ = 8
+_panelFixupVGA PROC NEAR
+
+; 802  :     outpw ((FxU16)(DFP_DEVINFOPTR(pContext)->IoBase + 0xd4), 0x0c11);   // unlock VGA registers
+
+  00b80	8b 44 24 04	 mov	 eax, DWORD PTR _pContext$[esp-4]
+  00b84	66 8b 88 84 00
+	00 00		 mov	 cx, WORD PTR [eax+132]
+  00b8b	66 b8 11 0c	 mov	 ax, 3089		; 00000c11H
+  00b8f	66 81 c1 d4 00	 add	 cx, 212			; 000000d4H
+  00b94	66 8b d1	 mov	 dx, cx
+  00b97	66 ef		 out	 dx, ax
+
+; 803  :     outpw ((FxU16)(DFP_DEVINFOPTR(pContext)->IoBase + 0xd4), 0xff06);   // adjust refresh rate
+
+  00b99	66 b8 06 ff	 mov	 ax, 65286		; 0000ff06H
+  00b9d	66 ef		 out	 dx, ax
+
+; 804  :     outpw ((FxU16)(DFP_DEVINFOPTR(pContext)->IoBase + 0xd4), 0x8c11);   // relock VGA registers
+
+  00b9f	66 b8 11 8c	 mov	 ax, 35857		; 00008c11H
+  00ba3	66 ef		 out	 dx, ax
+
+; 805  :     return (0);
+
+  00ba5	33 c0		 xor	 eax, eax
+
+; 806  : }
+
+  00ba7	c3		 ret	 0
+_panelFixupVGA ENDP
+_PTEXT	ENDS
+PUBLIC	_UpdateAttributes
+_PTEXT	SEGMENT
+_pContext$ = 8
+_bSavedIndex$12389 = 8
+_bSavedIndex$12413 = 8
+_UpdateAttributes PROC NEAR
+
+; 811  : {
+
+  00bb0	56		 push	 esi
+
+; 812  :     FxU8 dfpbits;
+; 813  : 
+; 814  :     // panel attributes can change because of hotplug event.  The hotplug "unplug" interrupt clears the
+; 815  :     // dfpDisp.dispWidth variable which will force us to read the EDID again here.  Since all outside requests
+; 816  :     // eventually pass though this routine the "DFP_scaling" attribute will be updated before it is used.
+; 817  :     if (isPanelPresent(pContext) &&
+; 818  :         (DFP_DEVINFOPTR(pContext)->dfpDisp.dispWidth == 0))    // if dfpDisp.dispWidth != 0, then we must have EDID.
+
+  00bb1	8b 74 24 08	 mov	 esi, DWORD PTR _pContext$[esp]
+  00bb5	56		 push	 esi
+  00bb6	e8 00 00 00 00	 call	 _isPanelPresent
+  00bbb	83 c4 04	 add	 esp, 4
+  00bbe	84 c0		 test	 al, al
+  00bc0	0f 84 b1 00 00
+	00		 je	 $L12384
+  00bc6	66 83 be f6 04
+	00 00 00	 cmp	 WORD PTR [esi+1270], 0
+  00bce	0f 85 a3 00 00
+	00		 jne	 $L12384
+  00bd4	53		 push	 ebx
+
+; 819  :     {
+; 820  :         // setup default values if the read EDID fails.
+; 821  :         DFP_DEVINFOPTR(pContext)->dfpDisp.dispWidth = 1024;
+; 822  :         DFP_DEVINFOPTR(pContext)->dfpDisp.dispWidth = 768;
+; 823  :         DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[1].width = 0;  // key value for "is DFP scaling";
+; 824  :         
+; 825  : #if WINNT
+; 826  :         // initialize centered mode current timings, hardcode to 1024x768@60hz
+; 827  :         memcpy( &DFP_DEVINFOPTR(pContext)->centeredDfpCurrentTimings, 
+; 828  :                 &DFP_DEVINFOPTR(pContext)->centeredDfpBaseTimings, 
+; 829  :                             sizeof(TIMING_PARAMS) );
+; 830  : #endif
+; 831  : 
+; 832  :         // try to read the EDID, ignore errors
+; 833  :         panelDDC (pContext, &DFP_DEVINFOPTR(pContext)->dfpDisp);
+
+  00bd5	8d 86 f4 04 00
+	00		 lea	 eax, DWORD PTR [esi+1268]
+  00bdb	57		 push	 edi
+  00bdc	50		 push	 eax
+  00bdd	56		 push	 esi
+  00bde	66 c7 86 f6 04
+	00 00 00 03	 mov	 WORD PTR [esi+1270], 768 ; 00000300H
+  00be7	66 c7 86 0e 05
+	00 00 00 00	 mov	 WORD PTR [esi+1294], 0
+  00bf0	e8 00 00 00 00	 call	 _panelDDC
+
+; 834  : 
+; 835  :         // inform BIOS of DFP configuration using NAPALM style bit pattern    
+; 836  : 
+; 837  :         READSCRATCHREGISTER3(pContext, dfpbits);
+
+  00bf5	66 8b be 84 00
+	00 00		 mov	 di, WORD PTR [esi+132]
+  00bfc	83 c4 08	 add	 esp, 8
+  00bff	8d 8f d4 00 00
+	00		 lea	 ecx, DWORD PTR [edi+212]
+  00c05	81 c7 d5 00 00
+	00		 add	 edi, 213		; 000000d5H
+  00c0b	66 8b d1	 mov	 dx, cx
+  00c0e	ec		 in	 al, dx
+  00c0f	88 44 24 10	 mov	 BYTE PTR _bSavedIndex$12389[esp+8], al
+  00c13	b0 1f		 mov	 al, 31			; 0000001fH
+  00c15	ee		 out	 dx, al
+  00c16	66 8b d7	 mov	 dx, di
+  00c19	ec		 in	 al, dx
+  00c1a	8a d8		 mov	 bl, al
+  00c1c	8a 44 24 10	 mov	 al, BYTE PTR _bSavedIndex$12389[esp+8]
+  00c20	66 8b d1	 mov	 dx, cx
+  00c23	ee		 out	 dx, al
+
+; 838  : 
+; 839  :         //Set up the res bit field
+; 840  :         if(DFP_DEVINFOPTR(pContext)->dfpDisp.dispWidth >= 1600)
+
+  00c24	66 8b 86 f6 04
+	00 00		 mov	 ax, WORD PTR [esi+1270]
+  00c2b	66 3d 40 06	 cmp	 ax, 1600		; 00000640H
+  00c2f	72 08		 jb	 SHORT $L12399
+
+; 841  :         {
+; 842  :             dfpbits &= ~BIOS_CRx1F_DFPCONNECTED;
+
+  00c31	80 e3 fd	 and	 bl, 253			; 000000fdH
+
+; 843  :             dfpbits |= BIOS_CRx1F_1600x1200;
+
+  00c34	80 cb 04	 or	 bl, 4
+
+; 844  :         }
+; 845  :         else if(DFP_DEVINFOPTR(pContext)->dfpDisp.dispWidth >= 1280)
+
+  00c37	eb 11		 jmp	 SHORT $L12407
+$L12399:
+  00c39	66 3d 00 05	 cmp	 ax, 1280		; 00000500H
+  00c3d	72 08		 jb	 SHORT $L12404
+
+; 846  :         {
+; 847  :             dfpbits &= ~BIOS_CRx1F_DFPCONNECTED;
+
+  00c3f	80 e3 fb	 and	 bl, 251			; 000000fbH
+
+; 848  :             dfpbits |= BIOS_CRx1F_1280x1024;
+
+  00c42	80 cb 02	 or	 bl, 2
+
+; 849  :         }
+; 850  :         else
+
+  00c45	eb 03		 jmp	 SHORT $L12407
+$L12404:
+
+; 851  :         {
+; 852  :             dfpbits &= ~BIOS_CRx1F_DFPCONNECTED;
+
+  00c47	80 e3 f9	 and	 bl, 249			; 000000f9H
+$L12407:
+
+; 853  :             dfpbits |= BIOS_CRx1F_1024x768;
+; 854  :         }
+; 855  : 
+; 856  :         //Set up the scaling bit
+; 857  :         if (DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[1].width != 0)
+
+  00c4a	66 83 be 0e 05
+	00 00 00	 cmp	 WORD PTR [esi+1294], 0
+  00c52	74 05		 je	 SHORT $L12411
+
+; 858  :             dfpbits |= BIOS_CRx1F_PANELSCALING;
+
+  00c54	80 cb 08	 or	 bl, 8
+
+; 859  :         else
+
+  00c57	eb 03		 jmp	 SHORT $L12412
+$L12411:
+
+; 860  :             dfpbits &= ~BIOS_CRx1F_PANELSCALING;
+
+  00c59	80 e3 f7	 and	 bl, 247			; 000000f7H
+$L12412:
+
+; 861  : 
+; 862  :         WRITESCRATCHREGISTER3(pContext, dfpbits);
+
+  00c5c	66 8b d1	 mov	 dx, cx
+  00c5f	ec		 in	 al, dx
+  00c60	88 44 24 10	 mov	 BYTE PTR _bSavedIndex$12413[esp+8], al
+  00c64	b0 1f		 mov	 al, 31			; 0000001fH
+  00c66	ee		 out	 dx, al
+  00c67	66 8b d7	 mov	 dx, di
+  00c6a	8a c3		 mov	 al, bl
+  00c6c	ee		 out	 dx, al
+  00c6d	8a 44 24 10	 mov	 al, BYTE PTR _bSavedIndex$12413[esp+8]
+  00c71	66 8b d1	 mov	 dx, cx
+  00c74	5f		 pop	 edi
+  00c75	5b		 pop	 ebx
+  00c76	ee		 out	 dx, al
+$L12384:
+  00c77	5e		 pop	 esi
+
+; 863  :     }
+; 864  : }
+
+  00c78	c3		 ret	 0
+_UpdateAttributes ENDP
+_PTEXT	ENDS
+PUBLIC	_isPanelScaling
+_PTEXT	SEGMENT
+_pContext$ = 8
+_isPanelScaling PROC NEAR
+
+; 878  : {
+
+  00c80	56		 push	 esi
+
+; 879  :     UpdateAttributes(pContext);
+
+  00c81	8b 74 24 08	 mov	 esi, DWORD PTR _pContext$[esp]
+  00c85	56		 push	 esi
+  00c86	e8 00 00 00 00	 call	 _UpdateAttributes
+
+; 880  : 
+; 881  :     return DFP_DEVINFOPTR(pContext)->dfpDisp.stdModes[1].width != 0;
+
+  00c8b	33 c0		 xor	 eax, eax
+  00c8d	83 c4 04	 add	 esp, 4
+  00c90	66 39 86 0e 05
+	00 00		 cmp	 WORD PTR [esi+1294], ax
+  00c97	5e		 pop	 esi
+  00c98	0f 95 c0	 setne	 al
+
+; 882  : }
+
+  00c9b	c3		 ret	 0
+_isPanelScaling ENDP
+_PTEXT	ENDS
+PUBLIC	_DFP_ProcessRequest
+_PTEXT	SEGMENT
+_pContext$ = 8
+_RequestPacket$ = 12
+_DFP_ProcessRequest PROC NEAR
+
+; 930  : {
+
+  00ca0	56		 push	 esi
+
+; 931  :     int status = 0;
+; 932  : 
+; 933  :     UpdateAttributes(pContext);
+
+  00ca1	8b 74 24 08	 mov	 esi, DWORD PTR _pContext$[esp]
+  00ca5	57		 push	 edi
+  00ca6	56		 push	 esi
+  00ca7	e8 00 00 00 00	 call	 _UpdateAttributes
+
+; 934  : 
+; 935  :     switch (RequestPacket->dfpPacketFunc)
+; 936  :     {
+
+  00cac	8b 7c 24 14	 mov	 edi, DWORD PTR _RequestPacket$[esp+8]
+  00cb0	83 c4 04	 add	 esp, 4
+  00cb3	8b 07		 mov	 eax, DWORD PTR [edi]
+  00cb5	83 f8 04	 cmp	 eax, 4
+  00cb8	77 7d		 ja	 SHORT $L12433
+  00cba	ff 24 85 00 00
+	00 00		 jmp	 DWORD PTR $L12554[eax*4]
+$L12436:
+
+; 937  : 
+; 938  : #ifndef WINNT
+; 939  :     case dfpGetPanelUniqueName:
+; 940  :         memcpy( RequestPacket->dfpOptData.uniqueName,
+; 941  :                 DFP_DEVINFOPTR(pContext)->dfpDisp.uniqueName, UNIQUENAMELEN);
+
+  00cc1	81 c6 30 05 00
+	00		 add	 esi, 1328		; 00000530H
+  00cc7	83 c7 04	 add	 edi, 4
+  00cca	8b 06		 mov	 eax, DWORD PTR [esi]
+  00ccc	89 07		 mov	 DWORD PTR [edi], eax
+  00cce	8b 4e 04	 mov	 ecx, DWORD PTR [esi+4]
+  00cd1	89 4f 04	 mov	 DWORD PTR [edi+4], ecx
+  00cd4	8b 56 08	 mov	 edx, DWORD PTR [esi+8]
+  00cd7	89 57 08	 mov	 DWORD PTR [edi+8], edx
+  00cda	8b 46 0c	 mov	 eax, DWORD PTR [esi+12]
+  00cdd	89 47 0c	 mov	 DWORD PTR [edi+12], eax
+  00ce0	5f		 pop	 edi
+
+; 962  :         break;
+; 963  :     }
+; 964  : 
+; 965  :     return (status);
+
+  00ce1	33 c0		 xor	 eax, eax
+  00ce3	5e		 pop	 esi
+
+; 966  : 
+; 967  : }
+
+  00ce4	c3		 ret	 0
+$L12438:
+
+; 942  :         break;
+; 943  : #endif
+; 944  : 
+; 945  :     case dfpGetFlatPanelStatus:
+; 946  :         RequestPacket->dfpOptData.dfpStatusResponse.panelPresent = isPanelPresent(pContext);
+
+  00ce5	56		 push	 esi
+  00ce6	e8 00 00 00 00	 call	 _isPanelPresent
+
+; 947  :         RequestPacket->dfpOptData.dfpStatusResponse.panelActiveAtBoot = DFP_DEVINFOPTR(pContext)->bDfpActiveAtBoot;
+
+  00ceb	8a 8e 48 05 00
+	00		 mov	 cl, BYTE PTR [esi+1352]
+
+; 948  :         RequestPacket->dfpOptData.dfpStatusResponse.panelActive = isPanelActive(pContext);
+
+  00cf1	56		 push	 esi
+  00cf2	88 47 04	 mov	 BYTE PTR [edi+4], al
+  00cf5	88 4f 05	 mov	 BYTE PTR [edi+5], cl
+  00cf8	e8 00 00 00 00	 call	 _isPanelActive
+
+; 949  : #ifndef WINNT
+; 950  :         RequestPacket->dfpOptData.dfpStatusResponse.panelScaling = isPanelScaling(pContext);
+
+  00cfd	56		 push	 esi
+  00cfe	88 47 06	 mov	 BYTE PTR [edi+6], al
+  00d01	e8 00 00 00 00	 call	 _isPanelScaling
+
+; 951  : #endif
+; 952  :         RequestPacket->dfpOptData.dfpStatusResponse.dfpCapable = 
+; 953  :                            ((DFP_DEVINFOPTR(pContext)->biosBoardConfigInfo & BIOS_BOARDCONFIG_DFPSUPPORT)!=0);
+
+  00d06	8b 96 44 05 00
+	00		 mov	 edx, DWORD PTR [esi+1348]
+  00d0c	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00d0f	c1 ea 07	 shr	 edx, 7
+  00d12	80 e2 01	 and	 dl, 1
+  00d15	88 47 07	 mov	 BYTE PTR [edi+7], al
+  00d18	88 57 08	 mov	 BYTE PTR [edi+8], dl
+  00d1b	5f		 pop	 edi
+
+; 962  :         break;
+; 963  :     }
+; 964  : 
+; 965  :     return (status);
+
+  00d1c	33 c0		 xor	 eax, eax
+  00d1e	5e		 pop	 esi
+
+; 966  : 
+; 967  : }
+
+  00d1f	c3		 ret	 0
+$L12441:
+
+; 954  :         break;
+; 955  : 
+; 956  :     case dfpTurnOnFlatPanel:
+; 957  :         panelOn( pContext );
+
+  00d20	56		 push	 esi
+  00d21	e8 00 00 00 00	 call	 _panelOn
+
+; 958  :         break;
+; 959  : 
+; 960  :     case dfpTurnOffFlatPanel:
+; 961  :         panelOff( pContext );
+
+  00d26	83 c4 04	 add	 esp, 4
+
+; 962  :         break;
+; 963  :     }
+; 964  : 
+; 965  :     return (status);
+
+  00d29	33 c0		 xor	 eax, eax
+  00d2b	5f		 pop	 edi
+  00d2c	5e		 pop	 esi
+
+; 966  : 
+; 967  : }
+
+  00d2d	c3		 ret	 0
+$L12442:
+
+; 958  :         break;
+; 959  : 
+; 960  :     case dfpTurnOffFlatPanel:
+; 961  :         panelOff( pContext );
+
+  00d2e	56		 push	 esi
+  00d2f	e8 00 00 00 00	 call	 _panelOff
+  00d34	83 c4 04	 add	 esp, 4
+$L12433:
+  00d37	5f		 pop	 edi
+
+; 962  :         break;
+; 963  :     }
+; 964  : 
+; 965  :     return (status);
+
+  00d38	33 c0		 xor	 eax, eax
+  00d3a	5e		 pop	 esi
+
+; 966  : 
+; 967  : }
+
+  00d3b	c3		 ret	 0
+$L12554:
+  00d3c	00 00 00 00	 DD	 $L12436
+  00d40	00 00 00 00	 DD	 $L12438
+  00d44	00 00 00 00	 DD	 $L12433
+  00d48	00 00 00 00	 DD	 $L12441
+  00d4c	00 00 00 00	 DD	 $L12442
+_DFP_ProcessRequest ENDP
+_PTEXT	ENDS
+PUBLIC	_DFP_Initialize
+EXTRN	_PCI_Read_Config:NEAR
+_PTEXT	SEGMENT
+_pContext$ = 8
+_ucTemp$ = 8
+_DFP_Initialize PROC NEAR
+
+; 972  : {
+
+  00d50	56		 push	 esi
+
+; 973  :     FxU8 ucTemp;
+; 974  : #ifdef WINNT
+; 975  :     ULONG 	       dwReg;
+; 976  : #if REDUCED_MEMORY_MAPPINGS
+; 977  :     PH3_3D_REGISTERS sstRegs = (PH3_3D_REGISTERS) ((UCHAR *) DFP_DEVINFOPTR(pContext)->MappedAddress[SST_3D_REGS_INDEX]);
+; 978  : #else
+; 979  :     PH3_3D_REGISTERS sstRegs = (PH3_3D_REGISTERS) ((UCHAR *) DFP_DEVINFOPTR(pContext)->MappedAddress[SST_IO_REGS_INDEX] + SST_3D_OFFSET);
+; 980  : #endif  
+; 981  :     PHW_DEVICE_EXTENSION HwDeviceExtension = DFP_DEVINFOPTR(pContext);  // needed for PCI_CFG_RD macro
+; 982  : #endif  
+; 983  :     DWORD cfgSliAaMisc;
+; 984  : 
+; 985  :     DFP_DEVINFOPTR(pContext)->dwDFPState = 0;     // clear "present" bit
+
+  00d51	8b 74 24 08	 mov	 esi, DWORD PTR _pContext$[esp]
+
+; 986  :     DFP_DEVINFOPTR(pContext)->bDfpActiveAtBoot  = FALSE;
+; 987  : 
+; 988  :     // No Voodoo3 boards are supported by this driver.
+; 989  :     if (IS_VOODOO3_X(pContext))
+
+  00d55	8b 46 04	 mov	 eax, DWORD PTR [esi+4]
+  00d58	c7 86 40 05 00
+	00 00 00 00 00	 mov	 DWORD PTR [esi+1344], 0
+  00d62	3d 1a 12 05 00	 cmp	 eax, 332314		; 0005121aH
+  00d67	c6 86 48 05 00
+	00 00		 mov	 BYTE PTR [esi+1352], 0
+  00d6e	74 7d		 je	 SHORT $L12453
+
+; 990  :     {
+; 991  :         return;
+; 992  :     }
+; 993  : 
+; 994  :     // test if BIOS supports DFP
+; 995  :     if ((DFP_DEVINFOPTR(pContext)->biosBoardConfigInfo & BIOS_BOARDCONFIG_DFPSUPPORT)!=0)
+
+  00d70	f6 86 44 05 00
+	00 80		 test	 BYTE PTR [esi+1348], 128 ; 00000080H
+  00d77	74 74		 je	 SHORT $L12453
+
+; 996  :     {
+; 997  : 	    cfgSliAaMisc = PCI_CFG_RD(CFG_SLI_AA_MISC, 0);
+
+  00d79	8b 46 0c	 mov	 eax, DWORD PTR [esi+12]
+  00d7c	8b 4e 08	 mov	 ecx, DWORD PTR [esi+8]
+  00d7f	68 ac 00 00 00	 push	 172			; 000000acH
+  00d84	50		 push	 eax
+  00d85	51		 push	 ecx
+  00d86	e8 00 00 00 00	 call	 _PCI_Read_Config
+  00d8b	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 998  : 	    if(cfgSliAaMisc & CFG_HOTPLUG_PIN)
+
+  00d8e	f6 c4 08	 test	 ah, 8
+  00d91	74 0a		 je	 SHORT $L12456
+
+; 999  : 	        DFP_DEVINFOPTR(pContext)->dwDFPState = PRESENT_BIT;
+
+  00d93	c7 86 40 05 00
+	00 01 00 00 00	 mov	 DWORD PTR [esi+1344], 1
+$L12456:
+  00d9d	53		 push	 ebx
+  00d9e	57		 push	 edi
+
+; 1000 : 
+; 1001 : 	    // if Bios says panel is active the first time we check then we believe it was present at boot.
+; 1002 :         READSCRATCHREGISTER3(pContext, ucTemp);
+
+  00d9f	66 8b be 84 00
+	00 00		 mov	 di, WORD PTR [esi+132]
+  00da6	8d 8f d4 00 00
+	00		 lea	 ecx, DWORD PTR [edi+212]
+  00dac	66 8b d1	 mov	 dx, cx
+  00daf	ec		 in	 al, dx
+  00db0	8a d8		 mov	 bl, al
+  00db2	b0 1f		 mov	 al, 31			; 0000001fH
+  00db4	ee		 out	 dx, al
+  00db5	8d 97 d5 00 00
+	00		 lea	 edx, DWORD PTR [edi+213]
+  00dbb	5f		 pop	 edi
+  00dbc	ec		 in	 al, dx
+  00dbd	88 44 24 0c	 mov	 BYTE PTR _ucTemp$[esp+4], al
+  00dc1	66 8b d1	 mov	 dx, cx
+  00dc4	8a c3		 mov	 al, bl
+  00dc6	5b		 pop	 ebx
+  00dc7	ee		 out	 dx, al
+
+; 1003 :         DFP_DEVINFOPTR(pContext)->bDfpActiveAtBoot  = (!!(ucTemp & BIOS_CRx1F_DFPACTIVE));
+
+  00dc8	8a 44 24 08	 mov	 al, BYTE PTR _ucTemp$[esp]
+  00dcc	24 01		 and	 al, 1
+  00dce	88 86 48 05 00
+	00		 mov	 BYTE PTR [esi+1352], al
+
+; 1004 : 
+; 1005 :         if (DFP_DEVINFOPTR(pContext)->bDfpActiveAtBoot)
+
+  00dd4	74 0e		 je	 SHORT $L12469
+
+; 1006 :             DFP_DEVINFOPTR(pContext)->dwDFPState |= ACTIVE_BIT; // set "active" bit
+
+  00dd6	8b 86 40 05 00
+	00		 mov	 eax, DWORD PTR [esi+1344]
+  00ddc	0c 02		 or	 al, 2
+  00dde	89 86 40 05 00
+	00		 mov	 DWORD PTR [esi+1344], eax
+$L12469:
+
+; 1007 : 
+; 1008 : 	    // force dfpDisp.dispWidth, and dfpDisp.dispHeight to be filled in with values read from EDID
+; 1009 : 	    DFP_DEVINFOPTR(pContext)->dfpDisp.dispWidth = 0;     // insure it's zero so EDID is read.
+
+  00de4	66 c7 86 f6 04
+	00 00 00 00	 mov	 WORD PTR [esi+1270], 0
+$L12453:
+  00ded	5e		 pop	 esi
+
+; 1010 : 
+; 1011 : 	    //??? should update be called here???
+; 1012 : 
+; 1013 : // Win9x HotPlug interrupt is set up elsewhere.
+; 1014 : // hotplug is supported by Win2K but not WinNT4
+; 1015 : #if (_WIN32_WINNT >= 0x500)
+; 1016 : 	    // test if BIOS supports DFP
+; 1017 : 	    if ((DFP_DEVINFOPTR(pContext)->biosBoardConfigInfo & BIOS_BOARDCONFIG_DFPSUPPORT)!=0)
+; 1018 : 	    {
+; 1019 : 	        // enable hotplug interrupt
+; 1020 : 	        dwReg = sstRegs->intrCtrl & 0x7FFFFFFF;
+; 1021 : 	        dwReg |= H5_HP_INT_ENABLE;
+; 1022 : 	        sstRegs->intrCtrl = dwReg;
+; 1023 : 	    }
+; 1024 : #endif
+; 1025 : 	}
+; 1026 : }
+
+  00dee	c3		 ret	 0
+_DFP_Initialize ENDP
+_PTEXT	ENDS
+PUBLIC	_DFP_SetActiveState
+_PTEXT	SEGMENT
+_pContext$ = 8
+_activeStateMask$ = 12
+_DFP_SetActiveState PROC NEAR
+
+; 1042 : {
+
+  00df0	56		 push	 esi
+
+; 1043 :     SstIORegs *sstIOregs = (void *)DFP_DEVINFOPTR(pContext)->RegBase[HWINFO_SST_IOREGS_INDEX];
+
+  00df1	8b 74 24 08	 mov	 esi, DWORD PTR _pContext$[esp]
+  00df5	8b 86 90 00 00
+	00		 mov	 eax, DWORD PTR [esi+144]
+
+; 1044 :     ULONG xres = sstIOregs->vidScreenSize & 0xfff;
+
+  00dfb	8b 80 98 00 00
+	00		 mov	 eax, DWORD PTR [eax+152]
+
+; 1045 :     ULONG result = 0;
+; 1046 : 
+; 1047 : 
+; 1048 :     if (isPanelPresent(pContext))
+
+  00e01	56		 push	 esi
+  00e02	e8 00 00 00 00	 call	 _isPanelPresent
+  00e07	83 c4 04	 add	 esp, 4
+  00e0a	84 c0		 test	 al, al
+  00e0c	74 3b		 je	 SHORT $L12484
+
+; 1049 :     {
+; 1050 :         // the card is DFP Capable, check if DFP is supposed to be on.
+; 1051 :         if ((activeStateMask & STB_FUNCTION_DFP) == STB_FUNCTION_DFP)
+
+  00e0e	8b 4c 24 0c	 mov	 ecx, DWORD PTR _activeStateMask$[esp]
+
+; 1052 :         { // DFP should be turned on
+; 1053 :             // check if DFP is off and needs to be turned on
+; 1054 :             if (!isPanelActive(pContext))
+
+  00e12	56		 push	 esi
+  00e13	83 e1 04	 and	 ecx, 4
+  00e16	80 f9 04	 cmp	 cl, 4
+  00e19	75 19		 jne	 SHORT $L12483
+  00e1b	e8 00 00 00 00	 call	 _isPanelActive
+  00e20	83 c4 04	 add	 esp, 4
+  00e23	84 c0		 test	 al, al
+  00e25	75 22		 jne	 SHORT $L12484
+
+; 1055 :             {
+; 1056 :                 // turn on DFP here and return status so that a modeset is done
+; 1057 :                 panelOn( pContext );
+
+  00e27	56		 push	 esi
+  00e28	e8 00 00 00 00	 call	 _panelOn
+  00e2d	83 c4 04	 add	 esp, 4
+
+; 1058 :                 result = 0;
+
+  00e30	33 c0		 xor	 eax, eax
+  00e32	5e		 pop	 esi
+
+; 1077 : 
+; 1078 :     return(result);
+; 1079 : }
+
+  00e33	c3		 ret	 0
+$L12483:
+
+; 1059 :             }
+; 1060 :             // DFP is already on, do nothing and return success
+; 1061 :             else
+; 1062 :             {
+; 1063 : 				result = STB_FUNCTION_DFP;
+; 1064 :             }
+; 1065 :         }
+; 1066 :         else
+; 1067 :         {// DFP should be turned off
+; 1068 :             // check if DFP is on and needs to be turned off
+; 1069 :             if (isPanelActive(pContext))
+
+  00e34	e8 00 00 00 00	 call	 _isPanelActive
+  00e39	83 c4 04	 add	 esp, 4
+  00e3c	84 c0		 test	 al, al
+  00e3e	74 09		 je	 SHORT $L12484
+
+; 1070 :                  panelOff( pContext );
+
+  00e40	56		 push	 esi
+  00e41	e8 00 00 00 00	 call	 _panelOff
+  00e46	83 c4 04	 add	 esp, 4
+$L12484:
+
+; 1071 : 
+; 1072 :             result = STB_FUNCTION_DFP;
+; 1073 :         }
+; 1074 :     }
+; 1075 :     else
+; 1076 :         result = STB_FUNCTION_DFP;  // if DFP is not present just say everything is ok.
+
+  00e49	b8 04 00 00 00	 mov	 eax, 4
+  00e4e	5e		 pop	 esi
+
+; 1077 : 
+; 1078 :     return(result);
+; 1079 : }
+
+  00e4f	c3		 ret	 0
+_DFP_SetActiveState ENDP
+_PTEXT	ENDS
+PUBLIC	_panelGbl
+_PTEXT	SEGMENT
+_pContext$ = 8
+_panelGbl PROC NEAR
+
+; 1092 :     return &(DFP_DEVINFOPTR(pContext)->dwDFPState);
+
+  00e50	8b 44 24 04	 mov	 eax, DWORD PTR _pContext$[esp-4]
+  00e54	05 40 05 00 00	 add	 eax, 1344		; 00000540H
+
+; 1093 : }
+
+  00e59	c3		 ret	 0
+_panelGbl ENDP
+_PTEXT	ENDS
+END

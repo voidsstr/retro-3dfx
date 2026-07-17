@@ -1,0 +1,2222 @@
+	TITLE	..\ddmemmgr.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+FLAT	GROUP _DATA, CONST, _BSS
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+_DATA	SEGMENT
+_f_255_reverse_lookup DD 0437f0000r		; 255
+	DD	0437e0000r			; 254
+	DD	0437d0000r			; 253
+	DD	0437c0000r			; 252
+	DD	0437b0000r			; 251
+	DD	0437a0000r			; 250
+	DD	043790000r			; 249
+	DD	043780000r			; 248
+	DD	043770000r			; 247
+	DD	043760000r			; 246
+	DD	043750000r			; 245
+	DD	043740000r			; 244
+	DD	043730000r			; 243
+	DD	043720000r			; 242
+	DD	043710000r			; 241
+	DD	043700000r			; 240
+	DD	0436f0000r			; 239
+	DD	0436e0000r			; 238
+	DD	0436d0000r			; 237
+	DD	0436c0000r			; 236
+	DD	0436b0000r			; 235
+	DD	0436a0000r			; 234
+	DD	043690000r			; 233
+	DD	043680000r			; 232
+	DD	043670000r			; 231
+	DD	043660000r			; 230
+	DD	043650000r			; 229
+	DD	043640000r			; 228
+	DD	043630000r			; 227
+	DD	043620000r			; 226
+	DD	043610000r			; 225
+	DD	043600000r			; 224
+	DD	0435f0000r			; 223
+	DD	0435e0000r			; 222
+	DD	0435d0000r			; 221
+	DD	0435c0000r			; 220
+	DD	0435b0000r			; 219
+	DD	0435a0000r			; 218
+	DD	043590000r			; 217
+	DD	043580000r			; 216
+	DD	043570000r			; 215
+	DD	043560000r			; 214
+	DD	043550000r			; 213
+	DD	043540000r			; 212
+	DD	043530000r			; 211
+	DD	043520000r			; 210
+	DD	043510000r			; 209
+	DD	043500000r			; 208
+	DD	0434f0000r			; 207
+	DD	0434e0000r			; 206
+	DD	0434d0000r			; 205
+	DD	0434c0000r			; 204
+	DD	0434b0000r			; 203
+	DD	0434a0000r			; 202
+	DD	043490000r			; 201
+	DD	043480000r			; 200
+	DD	043470000r			; 199
+	DD	043460000r			; 198
+	DD	043450000r			; 197
+	DD	043440000r			; 196
+	DD	043430000r			; 195
+	DD	043420000r			; 194
+	DD	043410000r			; 193
+	DD	043400000r			; 192
+	DD	0433f0000r			; 191
+	DD	0433e0000r			; 190
+	DD	0433d0000r			; 189
+	DD	0433c0000r			; 188
+	DD	0433b0000r			; 187
+	DD	0433a0000r			; 186
+	DD	043390000r			; 185
+	DD	043380000r			; 184
+	DD	043370000r			; 183
+	DD	043360000r			; 182
+	DD	043350000r			; 181
+	DD	043340000r			; 180
+	DD	043330000r			; 179
+	DD	043320000r			; 178
+	DD	043310000r			; 177
+	DD	043300000r			; 176
+	DD	0432f0000r			; 175
+	DD	0432e0000r			; 174
+	DD	0432d0000r			; 173
+	DD	0432c0000r			; 172
+	DD	0432b0000r			; 171
+	DD	0432a0000r			; 170
+	DD	043290000r			; 169
+	DD	043280000r			; 168
+	DD	043270000r			; 167
+	DD	043260000r			; 166
+	DD	043250000r			; 165
+	DD	043240000r			; 164
+	DD	043230000r			; 163
+	DD	043220000r			; 162
+	DD	043210000r			; 161
+	DD	043200000r			; 160
+	DD	0431f0000r			; 159
+	DD	0431e0000r			; 158
+	DD	0431d0000r			; 157
+	DD	0431c0000r			; 156
+	DD	0431b0000r			; 155
+	DD	0431a0000r			; 154
+	DD	043190000r			; 153
+	DD	043180000r			; 152
+	DD	043170000r			; 151
+	DD	043160000r			; 150
+	DD	043150000r			; 149
+	DD	043140000r			; 148
+	DD	043130000r			; 147
+	DD	043120000r			; 146
+	DD	043110000r			; 145
+	DD	043100000r			; 144
+	DD	0430f0000r			; 143
+	DD	0430e0000r			; 142
+	DD	0430d0000r			; 141
+	DD	0430c0000r			; 140
+	DD	0430b0000r			; 139
+	DD	0430a0000r			; 138
+	DD	043090000r			; 137
+	DD	043080000r			; 136
+	DD	043070000r			; 135
+	DD	043060000r			; 134
+	DD	043050000r			; 133
+	DD	043040000r			; 132
+	DD	043030000r			; 131
+	DD	043020000r			; 130
+	DD	043010000r			; 129
+	DD	043000000r			; 128
+	DD	042fe0000r			; 127
+	DD	042fc0000r			; 126
+	DD	042fa0000r			; 125
+	DD	042f80000r			; 124
+	DD	042f60000r			; 123
+	DD	042f40000r			; 122
+	DD	042f20000r			; 121
+	DD	042f00000r			; 120
+	DD	042ee0000r			; 119
+	DD	042ec0000r			; 118
+	DD	042ea0000r			; 117
+	DD	042e80000r			; 116
+	DD	042e60000r			; 115
+	DD	042e40000r			; 114
+	DD	042e20000r			; 113
+	DD	042e00000r			; 112
+	DD	042de0000r			; 111
+	DD	042dc0000r			; 110
+	DD	042da0000r			; 109
+	DD	042d80000r			; 108
+	DD	042d60000r			; 107
+	DD	042d40000r			; 106
+	DD	042d20000r			; 105
+	DD	042d00000r			; 104
+	DD	042ce0000r			; 103
+	DD	042cc0000r			; 102
+	DD	042ca0000r			; 101
+	DD	042c80000r			; 100
+	DD	042c60000r			; 99
+	DD	042c40000r			; 98
+	DD	042c20000r			; 97
+	DD	042c00000r			; 96
+	DD	042be0000r			; 95
+	DD	042bc0000r			; 94
+	DD	042ba0000r			; 93
+	DD	042b80000r			; 92
+	DD	042b60000r			; 91
+	DD	042b40000r			; 90
+	DD	042b20000r			; 89
+	DD	042b00000r			; 88
+	DD	042ae0000r			; 87
+	DD	042ac0000r			; 86
+	DD	042aa0000r			; 85
+	DD	042a80000r			; 84
+	DD	042a60000r			; 83
+	DD	042a40000r			; 82
+	DD	042a20000r			; 81
+	DD	042a00000r			; 80
+	DD	0429e0000r			; 79
+	DD	0429c0000r			; 78
+	DD	0429a0000r			; 77
+	DD	042980000r			; 76
+	DD	042960000r			; 75
+	DD	042940000r			; 74
+	DD	042920000r			; 73
+	DD	042900000r			; 72
+	DD	0428e0000r			; 71
+	DD	0428c0000r			; 70
+	DD	0428a0000r			; 69
+	DD	042880000r			; 68
+	DD	042860000r			; 67
+	DD	042840000r			; 66
+	DD	042820000r			; 65
+	DD	042800000r			; 64
+	DD	0427c0000r			; 63
+	DD	042780000r			; 62
+	DD	042740000r			; 61
+	DD	042700000r			; 60
+	DD	0426c0000r			; 59
+	DD	042680000r			; 58
+	DD	042640000r			; 57
+	DD	042600000r			; 56
+	DD	0425c0000r			; 55
+	DD	042580000r			; 54
+	DD	042540000r			; 53
+	DD	042500000r			; 52
+	DD	0424c0000r			; 51
+	DD	042480000r			; 50
+	DD	042440000r			; 49
+	DD	042400000r			; 48
+	DD	0423c0000r			; 47
+	DD	042380000r			; 46
+	DD	042340000r			; 45
+	DD	042300000r			; 44
+	DD	0422c0000r			; 43
+	DD	042280000r			; 42
+	DD	042240000r			; 41
+	DD	042200000r			; 40
+	DD	0421c0000r			; 39
+	DD	042180000r			; 38
+	DD	042140000r			; 37
+	DD	042100000r			; 36
+	DD	0420c0000r			; 35
+	DD	042080000r			; 34
+	DD	042040000r			; 33
+	DD	042000000r			; 32
+	DD	041f80000r			; 31
+	DD	041f00000r			; 30
+	DD	041e80000r			; 29
+	DD	041e00000r			; 28
+	DD	041d80000r			; 27
+	DD	041d00000r			; 26
+	DD	041c80000r			; 25
+	DD	041c00000r			; 24
+	DD	041b80000r			; 23
+	DD	041b00000r			; 22
+	DD	041a80000r			; 21
+	DD	041a00000r			; 20
+	DD	041980000r			; 19
+	DD	041900000r			; 18
+	DD	041880000r			; 17
+	DD	041800000r			; 16
+	DD	041700000r			; 15
+	DD	041600000r			; 14
+	DD	041500000r			; 13
+	DD	041400000r			; 12
+	DD	041300000r			; 11
+	DD	041200000r			; 10
+	DD	041100000r			; 9
+	DD	041000000r			; 8
+	DD	040e00000r			; 7
+	DD	040c00000r			; 6
+	DD	040a00000r			; 5
+	DD	040800000r			; 4
+	DD	040400000r			; 3
+	DD	040000000r			; 2
+	DD	03f800000r			; 1
+	DD	000000000r			; 0
+_DATA	ENDS
+PUBLIC	_memMgr_allocSurface
+PUBLIC	_LfbPtrToHwPtr
+PUBLIC	_AdjustLfbPtr
+EXTRN	_DDHAL32_VidMemAlloc@16:NEAR
+EXTRN	_DoKMTV:NEAR
+_TEXT	SEGMENT
+_lpDD$ = 8
+_type$ = 12
+_width$ = 16
+_height$ = 20
+_tWidth$ = 24
+_tHeight$ = 28
+_fpVidMem$ = 32
+_hwVidMem$ = 36
+_lpPitch$ = 40
+_tileFlag$ = 44
+_heapID$ = 48
+_heap$ = 20
+_pitch$ = -36
+_blockSize$ = -44
+_tileWidth$ = -48
+_tileHeight$ = 16
+_useExtraHeap$ = -40
+_searchHeaps$ = -32
+_memMgr_allocSurface PROC NEAR
+
+; 71   :   DWORD heap, pitch, hwPtr, lfbPtr;
+; 72   :   DWORD blockSize, tileWidth, tileHeight;
+; 73   :   DWORD useExtraHeap;
+; 74   :   DWORD numberHeaps;
+; 75   :   DWORD searchHeaps[8];
+; 76   : 
+; 77   :   DD_ENTRY_SETUP(lpDD)
+
+  00000	8b 44 24 04	 mov	 eax, DWORD PTR _lpDD$[esp-4]
+  00004	83 ec 30	 sub	 esp, 48			; 00000030H
+  00007	53		 push	 ebx
+  00008	55		 push	 ebp
+  00009	56		 push	 esi
+  0000a	57		 push	 edi
+  0000b	8b b8 30 04 00
+	00		 mov	 edi, DWORD PTR [eax+1072]
+  00011	8b 57 08	 mov	 edx, DWORD PTR [edi+8]
+  00014	be 02 00 00 00	 mov	 esi, 2
+  00019	0b d6		 or	 edx, esi
+  0001b	8b c2		 mov	 eax, edx
+  0001d	f6 c4 10	 test	 ah, 16			; 00000010H
+  00020	89 57 08	 mov	 DWORD PTR [edi+8], edx
+  00023	74 09		 je	 SHORT $L36430
+  00025	57		 push	 edi
+  00026	e8 00 00 00 00	 call	 _DoKMTV
+  0002b	83 c4 04	 add	 esp, 4
+$L36430:
+
+; 78   : 
+; 79   :   /* Setup order to search heaps, based on surface type. */
+; 80   : 
+; 81   :   useExtraHeap = 0;
+; 82   :   if((width <= (DWORD) (GETPRIMARYBYTEDEPTH)) && (height == 1))
+
+  0002e	8b 4c 24 4c	 mov	 ecx, DWORD PTR _width$[esp+60]
+  00032	33 c0		 xor	 eax, eax
+  00034	66 8b 87 e4 04
+	00 00		 mov	 ax, WORD PTR [edi+1252]
+  0003b	33 db		 xor	 ebx, ebx
+  0003d	89 5c 24 18	 mov	 DWORD PTR _useExtraHeap$[esp+64], ebx
+  00041	c1 e8 03	 shr	 eax, 3
+  00044	3b c8		 cmp	 ecx, eax
+  00046	b9 01 00 00 00	 mov	 ecx, 1
+  0004b	77 0a		 ja	 SHORT $L36432
+  0004d	39 4c 24 50	 cmp	 DWORD PTR _height$[esp+60], ecx
+
+; 83   :   {
+; 84   :     // 1x1 surface allocation - only from Linear space!
+; 85   :     D3DPRINT(DLALLOC,"AllocSurf: 1x1 surface");
+; 86   : 
+; 87   : 	numberHeaps = 5;
+; 88   : 	searchHeaps[0] = LINEAR_HEAP0_ID;    // linear only
+; 89   : 	searchHeaps[1] = LINEAR_HEAP1_ID;
+; 90   : 	searchHeaps[2] = LINEAR_HEAP2_ID;
+; 91   : 	searchHeaps[3] = LINEAR_HEAP3_ID;
+; 92   : 	searchHeaps[4] = LINEAR_HEAP4_ID;
+; 93   :   }
+; 94   :   else if (type & DDSCAPS_OVERLAY)
+
+  00051	0f 84 a8 01 00
+	00		 je	 $L36713
+$L36432:
+  00057	8b 54 24 48	 mov	 edx, DWORD PTR _type$[esp+60]
+  0005b	f6 c2 80	 test	 dl, 128			; 00000080H
+
+; 95   :   {
+; 96   :     // Overlay Allocation
+; 97   :     D3DPRINT(DLALLOC,"AllocSurf: Overlay");
+; 98   : 
+; 99   : 	numberHeaps = 5;
+; 100  : 	searchHeaps[0] = LINEAR_HEAP0_ID;    // linear only
+; 101  : 	searchHeaps[1] = LINEAR_HEAP1_ID;
+; 102  : 	searchHeaps[2] = LINEAR_HEAP2_ID;
+; 103  : 	searchHeaps[3] = LINEAR_HEAP3_ID;
+; 104  : 	searchHeaps[4] = LINEAR_HEAP4_ID;
+; 105  :   }
+; 106  :   else if (type & DDSCAPS_TEXTURE)
+
+  0005e	0f 85 9b 01 00
+	00		 jne	 $L36713
+  00064	f6 c6 10	 test	 dh, 16			; 00000010H
+  00067	74 4c		 je	 SHORT $L36440
+
+; 107  :   {
+; 108  :     // Texture Allocation
+; 109  :     D3DPRINT(DLALLOC, "AllocSurf: Texture");
+; 110  : 
+; 111  : 	numberHeaps = 5;
+; 112  : 	searchHeaps[0] = LINEAR_HEAP0_ID;    // linear only
+; 113  : 	searchHeaps[1] = LINEAR_HEAP1_ID;
+; 114  : 	searchHeaps[2] = LINEAR_HEAP2_ID;
+; 115  : 	searchHeaps[3] = LINEAR_HEAP3_ID;
+; 116  : 	searchHeaps[4] = LINEAR_HEAP4_ID;
+; 117  : 
+; 118  :     /* Enable extra heap in SLI/!AA mode. */
+; 119  : 
+; 120  :     if (_DD(ddSLIModeRequested) && (!_DD(ddAAModeRequested)))
+
+  00069	8b 87 14 18 00
+	00		 mov	 eax, DWORD PTR [edi+6164]
+  0006f	39 98 7a 03 00
+	00		 cmp	 DWORD PTR [eax+890], ebx
+  00075	bd 05 00 00 00	 mov	 ebp, 5
+  0007a	89 5c 24 20	 mov	 DWORD PTR _searchHeaps$[esp+64], ebx
+  0007e	c7 44 24 24 04
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+68], 4
+  00086	89 6c 24 28	 mov	 DWORD PTR _searchHeaps$[esp+72], ebp
+  0008a	c7 44 24 2c 06
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+76], 6
+  00092	c7 44 24 30 07
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+80], 7
+  0009a	0f 84 33 02 00
+	00		 je	 $L36474
+  000a0	39 98 8a 03 00
+	00		 cmp	 DWORD PTR [eax+906], ebx
+  000a6	0f 85 27 02 00
+	00		 jne	 $L36474
+
+; 121  :     {
+; 122  :       useExtraHeap = 1;
+
+  000ac	89 4c 24 18	 mov	 DWORD PTR _useExtraHeap$[esp+64], ecx
+
+; 123  :     }
+; 124  :   }
+; 125  :   else if (type & DDSCAPS_BACKBUFFER )
+
+  000b0	e9 1e 02 00 00	 jmp	 $L36474
+$L36440:
+  000b5	8b 54 24 48	 mov	 edx, DWORD PTR _type$[esp+60]
+  000b9	f6 c2 04	 test	 dl, 4
+  000bc	74 18		 je	 SHORT $L36447
+
+; 126  :   {
+; 127  :     // Back Buffer Allocation
+; 128  :     D3DPRINT(DLALLOC, "AllocSurf: Backbuffer");
+; 129  : 
+; 130  :     numberHeaps = 1;
+; 131  :     searchHeaps[0] = _DS(ddPrimaryInTile) ? TILED_HEAP0_ID : LINEAR_HEAP0_ID;
+
+  000be	8b 87 4c 05 00
+	00		 mov	 eax, DWORD PTR [edi+1356]
+  000c4	8b e9		 mov	 ebp, ecx
+  000c6	33 c9		 xor	 ecx, ecx
+  000c8	3b c3		 cmp	 eax, ebx
+  000ca	0f 95 c1	 setne	 cl
+  000cd	89 4c 24 20	 mov	 DWORD PTR _searchHeaps$[esp+64], ecx
+
+; 132  :   }
+; 133  :   else if (type & DDSCAPS_ZBUFFER) 
+
+  000d1	e9 fd 01 00 00	 jmp	 $L36474
+$L36447:
+  000d6	f7 c2 00 00 02
+	00		 test	 edx, 131072		; 00020000H
+  000dc	0f 84 b0 00 00
+	00		 je	 $L36451
+
+; 134  :   {
+; 135  :     // Zbuffer Allocation
+; 136  :     D3DPRINT(DLALLOC, "AllocSurf: ZBuffer");
+; 137  : 
+; 138  :     numberHeaps = 6;
+; 139  :     searchHeaps[0] = TILED_HEAP1_ID;
+; 140  :     searchHeaps[1] = LINEAR_HEAP0_ID;
+; 141  :     searchHeaps[2] = LINEAR_HEAP1_ID;
+; 142  :     searchHeaps[3] = LINEAR_HEAP2_ID;
+; 143  :     searchHeaps[4] = LINEAR_HEAP3_ID;
+; 144  :     searchHeaps[5] = LINEAR_HEAP4_ID;
+; 145  : 
+; 146  :     // Disallow fullscreen zbuffer allocation from linear memory,
+; 147  :     // when primary is tiled.
+; 148  : 
+; 149  :     if ((height == _FF(vres)) && _DS(ddPrimaryInTile))
+
+  000e2	8b 44 24 50	 mov	 eax, DWORD PTR _height$[esp+60]
+  000e6	33 d2		 xor	 edx, edx
+  000e8	66 8b 97 e2 04
+	00 00		 mov	 dx, WORD PTR [edi+1250]
+  000ef	bd 06 00 00 00	 mov	 ebp, 6
+  000f4	89 74 24 20	 mov	 DWORD PTR _searchHeaps$[esp+64], esi
+  000f8	89 5c 24 24	 mov	 DWORD PTR _searchHeaps$[esp+68], ebx
+  000fc	c7 44 24 28 04
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+72], 4
+  00104	c7 44 24 2c 05
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+76], 5
+  0010c	89 6c 24 30	 mov	 DWORD PTR _searchHeaps$[esp+80], ebp
+  00110	3b c2		 cmp	 eax, edx
+  00112	c7 44 24 34 07
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+84], 7
+  0011a	0f 85 b3 01 00
+	00		 jne	 $L36474
+  00120	39 9f 4c 05 00
+	00		 cmp	 DWORD PTR [edi+1356], ebx
+  00126	0f 84 a7 01 00
+	00		 je	 $L36474
+
+; 150  :     {
+; 151  :       // Hack for DCT 300 Blt Exotic test, which creates a 32bpp zbuffer and attaches
+; 152  :       // it to a 16bpp primary, then fills the 32bpp zbuffer using DdBlt and checks the
+; 153  :       // contents.  If we force allocation from tiled space, the test will fail in low
+; 154  :       // resolution modes, so this hack allows linear allocation only for these modes. - CGW-
+; 155  : 
+; 156  :       if (IS_NAPALM && (_FF(hres) >= 640))
+
+  0012c	8b 87 b0 04 00
+	00		 mov	 eax, DWORD PTR [edi+1200]
+  00132	3d 1a 12 06 00	 cmp	 eax, 397850		; 0006121aH
+  00137	74 43		 je	 SHORT $L36456
+  00139	3d 1a 12 07 00	 cmp	 eax, 463386		; 0007121aH
+  0013e	74 3c		 je	 SHORT $L36456
+  00140	3d 1a 12 08 00	 cmp	 eax, 528922		; 0008121aH
+  00145	74 35		 je	 SHORT $L36456
+  00147	3d 1a 12 09 00	 cmp	 eax, 594458		; 0009121aH
+  0014c	74 2e		 je	 SHORT $L36456
+  0014e	3d 1a 12 0a 00	 cmp	 eax, 659994		; 000a121aH
+  00153	74 27		 je	 SHORT $L36456
+  00155	3d 1a 12 0b 00	 cmp	 eax, 725530		; 000b121aH
+  0015a	74 20		 je	 SHORT $L36456
+  0015c	3d 1a 12 0c 00	 cmp	 eax, 791066		; 000c121aH
+  00161	74 19		 je	 SHORT $L36456
+  00163	3d 1a 12 0d 00	 cmp	 eax, 856602		; 000d121aH
+  00168	74 12		 je	 SHORT $L36456
+  0016a	3d 1a 12 0e 00	 cmp	 eax, 922138		; 000e121aH
+  0016f	74 0b		 je	 SHORT $L36456
+  00171	3d 1a 12 0f 00	 cmp	 eax, 987674		; 000f121aH
+  00176	0f 85 57 01 00
+	00		 jne	 $L36474
+$L36456:
+  0017c	66 81 bf e0 04
+	00 00 80 02	 cmp	 WORD PTR [edi+1248], 640 ; 00000280H
+  00185	0f 82 48 01 00
+	00		 jb	 $L36474
+
+; 157  :       {
+; 158  :         numberHeaps = 1;
+
+  0018b	8b e9		 mov	 ebp, ecx
+
+; 159  :       }
+; 160  :     }
+; 161  :   }
+; 162  :   else if ((type & DDSCAPS_COMPLEX) && (type & DDSCAPS_FLIP))
+
+  0018d	e9 41 01 00 00	 jmp	 $L36474
+$L36451:
+  00192	8b 54 24 48	 mov	 edx, DWORD PTR _type$[esp+60]
+  00196	f6 c2 08	 test	 dl, 8
+  00199	74 1d		 je	 SHORT $L36458
+  0019b	f6 c2 10	 test	 dl, 16			; 00000010H
+  0019e	74 18		 je	 SHORT $L36458
+
+; 163  :   {
+; 164  :     // Third Buffer Allocation
+; 165  :     D3DPRINT(DLALLOC, "AllocSurf: Third Buffer");
+; 166  : 
+; 167  :     numberHeaps = 1;
+; 168  :     searchHeaps[0] = _DS(ddPrimaryInTile) ? TILED_HEAP2_ID : LINEAR_HEAP0_ID;
+
+  001a0	8b 87 4c 05 00
+	00		 mov	 eax, DWORD PTR [edi+1356]
+  001a6	f7 d8		 neg	 eax
+  001a8	1b c0		 sbb	 eax, eax
+  001aa	83 e0 03	 and	 eax, 3
+  001ad	8b e9		 mov	 ebp, ecx
+  001af	89 44 24 20	 mov	 DWORD PTR _searchHeaps$[esp+64], eax
+
+; 169  :   }
+; 170  :   else if (type & DDSCAPS_3DDEVICE)
+
+  001b3	e9 1b 01 00 00	 jmp	 $L36474
+$L36458:
+  001b8	f6 c6 20	 test	 dh, 32			; 00000020H
+  001bb	0f 84 a3 00 00
+	00		 je	 $L36462
+
+; 171  :   {
+; 172  :     // 3D Offscreen Allocation
+; 173  :     D3DPRINT(DLALLOC, "AllocSurf: 3DDevice Offscreen");
+; 174  : 
+; 175  : 	// When in AA mode, force non-FS-3DDEVICE-VIDEOMEMORY-OFFSCREENPLAIN surfaces
+; 176  : 	// to be allocated in linear memory.
+; 177  : 	if ((_DD(ddAAModeRequested)) &&															// Are we in AA mode?
+; 178  : 	    ((width != (DWORD) (_FF(hres) * GETPRIMARYBYTEDEPTH)) || (height != _FF(vres)) ) &&	// Is the surface full screen?
+; 179  : 		((type & DDSCAPS_VIDEOMEMORY) && (type & DDSCAPS_OFFSCREENPLAIN) ))					// Caps = 6040? - could be taken out to make the case more general !!!
+
+  001c1	8b 97 14 18 00
+	00		 mov	 edx, DWORD PTR [edi+6164]
+  001c7	39 9a 8a 03 00
+	00		 cmp	 DWORD PTR [edx+906], ebx
+  001cd	74 5a		 je	 SHORT $L36467
+  001cf	33 d2		 xor	 edx, edx
+  001d1	66 8b 97 e0 04
+	00 00		 mov	 dx, WORD PTR [edi+1248]
+  001d8	0f af d0	 imul	 edx, eax
+  001db	39 54 24 4c	 cmp	 DWORD PTR _width$[esp+60], edx
+  001df	75 11		 jne	 SHORT $L36468
+  001e1	8b 54 24 50	 mov	 edx, DWORD PTR _height$[esp+60]
+  001e5	33 c0		 xor	 eax, eax
+  001e7	66 8b 87 e2 04
+	00 00		 mov	 ax, WORD PTR [edi+1250]
+  001ee	3b d0		 cmp	 edx, eax
+  001f0	74 37		 je	 SHORT $L36467
+$L36468:
+  001f2	8b 44 24 48	 mov	 eax, DWORD PTR _type$[esp+60]
+  001f6	f6 c4 40	 test	 ah, 64			; 00000040H
+  001f9	74 2e		 je	 SHORT $L36467
+  001fb	a8 40		 test	 al, 64			; 00000040H
+  001fd	74 2a		 je	 SHORT $L36467
+$L36713:
+
+; 180  : 	{
+; 181  : 		numberHeaps = 5;
+
+  001ff	bd 05 00 00 00	 mov	 ebp, 5
+
+; 182  : 		searchHeaps[0] = LINEAR_HEAP0_ID;    // linear only
+
+  00204	89 5c 24 20	 mov	 DWORD PTR _searchHeaps$[esp+64], ebx
+
+; 183  : 		searchHeaps[1] = LINEAR_HEAP1_ID;
+
+  00208	c7 44 24 24 04
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+68], 4
+
+; 184  : 		searchHeaps[2] = LINEAR_HEAP2_ID;
+
+  00210	89 6c 24 28	 mov	 DWORD PTR _searchHeaps$[esp+72], ebp
+
+; 185  : 		searchHeaps[3] = LINEAR_HEAP3_ID;
+
+  00214	c7 44 24 2c 06
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+76], 6
+
+; 186  : 		searchHeaps[4] = LINEAR_HEAP4_ID;
+
+  0021c	c7 44 24 30 07
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+80], 7
+
+; 187  : 	}
+; 188  : 	else
+
+  00224	e9 aa 00 00 00	 jmp	 $L36474
+$L36467:
+
+; 189  : 	{
+; 190  : 	    numberHeaps = 8;
+
+  00229	bd 08 00 00 00	 mov	 ebp, 8
+
+; 191  : 	    searchHeaps[0] = TILED_HEAP2_ID;
+
+  0022e	c7 44 24 20 03
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+64], 3
+
+; 192  : 	    searchHeaps[1] = TILED_HEAP0_ID;
+
+  00236	89 4c 24 24	 mov	 DWORD PTR _searchHeaps$[esp+68], ecx
+
+; 193  : 	    searchHeaps[2] = TILED_HEAP1_ID;
+
+  0023a	89 74 24 28	 mov	 DWORD PTR _searchHeaps$[esp+72], esi
+$L36714:
+
+; 194  : 	    searchHeaps[3] = LINEAR_HEAP0_ID;
+
+  0023e	89 5c 24 2c	 mov	 DWORD PTR _searchHeaps$[esp+76], ebx
+
+; 195  : 	    searchHeaps[4] = LINEAR_HEAP1_ID;
+
+  00242	c7 44 24 30 04
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+80], 4
+
+; 196  : 	    searchHeaps[5] = LINEAR_HEAP2_ID;
+
+  0024a	c7 44 24 34 05
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+84], 5
+
+; 197  : 	    searchHeaps[6] = LINEAR_HEAP3_ID;
+
+  00252	c7 44 24 38 06
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+88], 6
+
+; 198  : 	    searchHeaps[7] = LINEAR_HEAP4_ID;
+
+  0025a	c7 44 24 3c 07
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+92], 7
+
+; 199  : 	}
+; 200  :   }
+; 201  :   else if (type == DDSCAPS_LIVEVIDEO)
+
+  00262	eb 6f		 jmp	 SHORT $L36474
+$L36462:
+  00264	81 7c 24 48 00
+	00 08 00	 cmp	 DWORD PTR _type$[esp+60], 524288 ; 00080000H
+  0026c	75 17		 jne	 SHORT $L36471
+
+; 202  :   {
+; 203  :     // Overlay Shrink surface Allocation
+; 204  :     D3DPRINT(DLALLOC, "AllocSurf: Overlay Shrink surface");
+; 205  : 
+; 206  :     numberHeaps = 8;
+
+  0026e	bd 08 00 00 00	 mov	 ebp, 8
+
+; 207  :     searchHeaps[0] = TILED_HEAP2_ID;
+
+  00273	c7 44 24 20 03
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+64], 3
+
+; 208  :     searchHeaps[1] = TILED_HEAP1_ID;
+
+  0027b	89 74 24 24	 mov	 DWORD PTR _searchHeaps$[esp+68], esi
+
+; 209  :     searchHeaps[2] = TILED_HEAP0_ID;
+
+  0027f	89 4c 24 28	 mov	 DWORD PTR _searchHeaps$[esp+72], ecx
+
+; 210  :     searchHeaps[3] = LINEAR_HEAP0_ID;
+; 211  :     searchHeaps[4] = LINEAR_HEAP1_ID;
+; 212  :     searchHeaps[5] = LINEAR_HEAP2_ID;
+; 213  :     searchHeaps[6] = LINEAR_HEAP3_ID;
+; 214  :     searchHeaps[7] = LINEAR_HEAP4_ID;
+; 215  :   }
+; 216  :   else
+
+  00283	eb b9		 jmp	 SHORT $L36714
+$L36471:
+
+; 217  :   {
+; 218  :     // Generic Offscreen Allocation
+; 219  :     D3DPRINT(DLALLOC, "AllocSurf: Generic Offscreen");
+; 220  : 
+; 221  :     // Don't allow generic allocation from Tiled memory
+; 222  : 	// once the 3D Flipping chain has been created.
+; 223  : 	// Fixes PRS 13876
+; 224  :     if(_DD(dwFlags) & DDGLOBAL_3DCHAINON)
+
+  00285	8b 97 14 18 00
+	00		 mov	 edx, DWORD PTR [edi+6164]
+  0028b	8b 82 ce 03 00
+	00		 mov	 eax, DWORD PTR [edx+974]
+  00291	24 01		 and	 al, 1
+  00293	f6 d8		 neg	 al
+
+; 225  :       numberHeaps = 5;
+; 226  : 	else
+; 227  :       numberHeaps = 8;
+; 228  : 
+; 229  :     searchHeaps[0] = LINEAR_HEAP0_ID;
+
+  00295	89 5c 24 20	 mov	 DWORD PTR _searchHeaps$[esp+64], ebx
+
+; 230  :     searchHeaps[1] = LINEAR_HEAP1_ID;
+
+  00299	c7 44 24 24 04
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+68], 4
+
+; 231  :     searchHeaps[2] = LINEAR_HEAP2_ID;
+
+  002a1	c7 44 24 28 05
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+72], 5
+
+; 232  :     searchHeaps[3] = LINEAR_HEAP3_ID;
+
+  002a9	c7 44 24 2c 06
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+76], 6
+
+; 233  :     searchHeaps[4] = LINEAR_HEAP4_ID;
+
+  002b1	c7 44 24 30 07
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+80], 7
+
+; 234  :     searchHeaps[5] = TILED_HEAP2_ID;
+
+  002b9	c7 44 24 34 03
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+84], 3
+  002c1	1b c0		 sbb	 eax, eax
+  002c3	83 e0 fd	 and	 eax, -3			; fffffffdH
+  002c6	83 c0 08	 add	 eax, 8
+  002c9	8b e8		 mov	 ebp, eax
+
+; 235  :     searchHeaps[6] = TILED_HEAP1_ID;
+
+  002cb	89 74 24 38	 mov	 DWORD PTR _searchHeaps$[esp+88], esi
+
+; 236  :     searchHeaps[7] = TILED_HEAP0_ID;
+
+  002cf	89 4c 24 3c	 mov	 DWORD PTR _searchHeaps$[esp+92], ecx
+$L36474:
+
+; 237  :   }
+; 238  : 
+; 239  :   /* Calculate width and height for tiled allocation, blocksize for linear allocation. */
+; 240  : 
+; 241  :   pitch = (width + 0xf) & ~0xf;  // 16 byte align
+
+  002d3	8b 4c 24 4c	 mov	 ecx, DWORD PTR _width$[esp+60]
+
+; 242  :   blockSize = pitch * height; 
+; 243  : 
+; 244  :   if((DDSCAPS_LIVEVIDEO != type) || !_DS(ddTileStride))
+
+  002d7	8b 44 24 48	 mov	 eax, DWORD PTR _type$[esp+60]
+  002db	83 c1 0f	 add	 ecx, 15			; 0000000fH
+  002de	83 e1 f0	 and	 ecx, -16		; fffffff0H
+  002e1	89 4c 24 1c	 mov	 DWORD PTR _pitch$[esp+64], ecx
+  002e5	0f af 4c 24 50	 imul	 ecx, DWORD PTR _height$[esp+60]
+  002ea	3d 00 00 08 00	 cmp	 eax, 524288		; 00080000H
+  002ef	89 4c 24 14	 mov	 DWORD PTR _blockSize$[esp+64], ecx
+  002f3	75 29		 jne	 SHORT $L36481
+  002f5	8b b7 8c 05 00
+	00		 mov	 esi, DWORD PTR [edi+1420]
+  002fb	3b f3		 cmp	 esi, ebx
+  002fd	74 1f		 je	 SHORT $L36481
+
+; 248  :   }
+; 249  :   else
+; 250  :   {
+; 251  :     // Make sure the allocation is continuous.
+; 252  :     tileWidth = _DS(ddTileStride)* SST_TILE_WIDTH;
+
+  002ff	c1 e6 07	 shl	 esi, 7
+
+; 253  :     tileHeight = ( blockSize + tileWidth -1 ) / tileWidth;
+
+  00302	33 d2		 xor	 edx, edx
+
+; 254  :     // Make sure allocation is large enough so there is no overlap
+; 255  :     // with the next tile block if it is used as linear memory.
+; 256  :     tileHeight = (tileHeight  + SST_TILE_HEIGHT -1 ) & ~(SST_TILE_HEIGHT- 1);
+
+  00304	8d 44 0e ff	 lea	 eax, DWORD PTR [esi+ecx-1]
+  00308	f7 f6		 div	 esi
+  0030a	89 74 24 10	 mov	 DWORD PTR _tileWidth$[esp+64], esi
+  0030e	8b d0		 mov	 edx, eax
+  00310	83 c2 1f	 add	 edx, 31			; 0000001fH
+  00313	83 e2 e0	 and	 edx, -32		; ffffffe0H
+  00316	89 54 24 4c	 mov	 DWORD PTR _tileHeight$[esp+60], edx
+  0031a	33 db		 xor	 ebx, ebx
+  0031c	eb 18		 jmp	 SHORT $L36482
+$L36481:
+
+; 245  :   {
+; 246  :       tileWidth  = tWidth  << SST_TILE_WIDTH_BITS;
+
+  0031e	8b 44 24 54	 mov	 eax, DWORD PTR _tWidth$[esp+60]
+  00322	c1 e0 07	 shl	 eax, 7
+  00325	89 44 24 10	 mov	 DWORD PTR _tileWidth$[esp+64], eax
+
+; 247  :       tileHeight = tHeight << SST_TILE_HEIGHT_BITS;
+
+  00329	8b 44 24 58	 mov	 eax, DWORD PTR _tHeight$[esp+60]
+  0032d	c1 e0 05	 shl	 eax, 5
+  00330	89 44 24 4c	 mov	 DWORD PTR _tileHeight$[esp+60], eax
+  00334	8b d0		 mov	 edx, eax
+$L36482:
+
+; 257  :   }
+; 258  :   
+; 259  :   D3DPRINT(DLALLOC, "         : Blocksize %d", blockSize);
+; 260  :   D3DPRINT(DLALLOC, "         : ddNumHeap %d", _DS(ddNumHeap));
+; 261  : 
+; 262  :   /* Search heaps to allocate memory. */
+; 263  : 
+; 264  :   lfbPtr = 0;
+
+  00336	33 f6		 xor	 esi, esi
+
+; 265  :   for (heap = 0; heap < numberHeaps; heap++)
+
+  00338	89 5c 24 50	 mov	 DWORD PTR _heap$[esp+60], ebx
+  0033c	3b eb		 cmp	 ebp, ebx
+  0033e	8b 5c 24 68	 mov	 ebx, DWORD PTR _tileFlag$[esp+60]
+  00342	76 6b		 jbe	 SHORT $L36707
+  00344	8d 44 24 20	 lea	 eax, DWORD PTR _searchHeaps$[esp+64]
+  00348	89 44 24 54	 mov	 DWORD PTR 24+[esp+60], eax
+$L36487:
+
+; 266  :   {
+; 267  :     if (searchHeaps[heap] < _DS(ddNumHeap))
+
+  0034c	8b 44 24 54	 mov	 eax, DWORD PTR 24+[esp+60]
+  00350	8b 00		 mov	 eax, DWORD PTR [eax]
+  00352	3b 87 40 05 00
+	00		 cmp	 eax, DWORD PTR [edi+1344]
+  00358	73 46		 jae	 SHORT $L36488
+
+; 268  :     {
+; 269  :       switch (searchHeaps[heap])
+; 270  :       {
+
+  0035a	85 c0		 test	 eax, eax
+  0035c	76 20		 jbe	 SHORT $L36496
+  0035e	83 f8 03	 cmp	 eax, 3
+  00361	77 1b		 ja	 SHORT $L36496
+
+; 271  :         case TILED_HEAP0_ID:   
+; 272  :         case TILED_HEAP1_ID:   
+; 273  : 		case TILED_HEAP2_ID:   
+; 274  : 
+; 275  :           lfbPtr = DDHAL32_VidMemAlloc(lpDD, searchHeaps[heap], tileWidth, tileHeight);
+
+  00363	8b 4c 24 10	 mov	 ecx, DWORD PTR _tileWidth$[esp+64]
+  00367	52		 push	 edx
+  00368	8b 54 24 48	 mov	 edx, DWORD PTR _lpDD$[esp+64]
+  0036c	51		 push	 ecx
+  0036d	50		 push	 eax
+  0036e	52		 push	 edx
+  0036f	e8 00 00 00 00	 call	 _DDHAL32_VidMemAlloc@16
+  00374	8b f0		 mov	 esi, eax
+
+; 276  :           *tileFlag = MEM_IN_TILED;
+
+  00376	c7 03 01 00 00
+	00		 mov	 DWORD PTR [ebx], 1
+
+; 277  :           break;
+
+  0037c	eb 16		 jmp	 SHORT $L36492
+$L36496:
+
+; 278  : 
+; 279  :         default:
+; 280  :         
+; 281  :           lfbPtr = DDHAL32_VidMemAlloc(lpDD, searchHeaps[heap], blockSize, 1);
+
+  0037e	6a 01		 push	 1
+  00380	51		 push	 ecx
+  00381	50		 push	 eax
+  00382	8b 44 24 50	 mov	 eax, DWORD PTR _lpDD$[esp+72]
+  00386	50		 push	 eax
+  00387	e8 00 00 00 00	 call	 _DDHAL32_VidMemAlloc@16
+  0038c	8b f0		 mov	 esi, eax
+
+; 282  :           *tileFlag = MEM_IN_LINEAR;
+
+  0038e	c7 03 02 00 00
+	00		 mov	 DWORD PTR [ebx], 2
+$L36492:
+
+; 283  :           break;
+; 284  :       }
+; 285  : 
+; 286  :       if (lfbPtr)
+
+  00394	85 f6		 test	 esi, esi
+  00396	75 5d		 jne	 SHORT $L36703
+  00398	8b 4c 24 14	 mov	 ecx, DWORD PTR _blockSize$[esp+64]
+  0039c	8b 54 24 4c	 mov	 edx, DWORD PTR _tileHeight$[esp+60]
+$L36488:
+  003a0	ff 44 24 50	 inc	 DWORD PTR _heap$[esp+60]
+  003a4	83 44 24 54 04	 add	 DWORD PTR 24+[esp+60], 4
+  003a9	39 6c 24 50	 cmp	 DWORD PTR _heap$[esp+60], ebp
+  003ad	72 9d		 jb	 SHORT $L36487
+$L36707:
+
+; 287  :       {
+; 288  :         *heapID = searchHeaps[heap];
+
+  003af	8b 6c 24 6c	 mov	 ebp, DWORD PTR _heapID$[esp+60]
+$L36489:
+
+; 289  :         break;
+; 290  :       }
+; 291  :     }
+; 292  :   }
+; 293  : 
+; 294  :   /* Search extra heap, if necessary. */
+; 295  : 
+; 296  :   if ((useExtraHeap) && (lfbPtr == 0))
+
+  003b3	8b 44 24 18	 mov	 eax, DWORD PTR _useExtraHeap$[esp+64]
+  003b7	85 c0		 test	 eax, eax
+  003b9	74 29		 je	 SHORT $L36498
+  003bb	85 f6		 test	 esi, esi
+  003bd	75 4b		 jne	 SHORT $L36499
+
+; 297  :   {
+; 298  :     lfbPtr = DDHAL32_VidMemAlloc(lpDD, _FF(ddExtraMemoryHeap), blockSize, 1);
+
+  003bf	8b 87 74 05 00
+	00		 mov	 eax, DWORD PTR [edi+1396]
+  003c5	6a 01		 push	 1
+  003c7	51		 push	 ecx
+  003c8	8b 4c 24 4c	 mov	 ecx, DWORD PTR _lpDD$[esp+68]
+  003cc	50		 push	 eax
+  003cd	51		 push	 ecx
+  003ce	e8 00 00 00 00	 call	 _DDHAL32_VidMemAlloc@16
+
+; 299  :     *tileFlag = MEM_IN_LINEAR;
+; 300  :     *heapID = _FF(ddExtraMemoryHeap);
+
+  003d3	8b 97 74 05 00
+	00		 mov	 edx, DWORD PTR [edi+1396]
+  003d9	8b f0		 mov	 esi, eax
+  003db	c7 03 02 00 00
+	00		 mov	 DWORD PTR [ebx], 2
+  003e1	89 55 00	 mov	 DWORD PTR [ebp], edx
+$L36498:
+
+; 301  :   }
+; 302  : 
+; 303  :   /* Could not allocate from any heap. */
+; 304  :   
+; 305  :   if(lfbPtr == 0)
+
+  003e4	85 f6		 test	 esi, esi
+  003e6	75 22		 jne	 SHORT $L36499
+  003e8	5f		 pop	 edi
+  003e9	5e		 pop	 esi
+  003ea	5d		 pop	 ebp
+
+; 306  :   {
+; 307  :     D3DPRINT(DLALLOC, "         : OutOfVideoMemory, %s", (*tileFlag == MEM_IN_TILED ? "Tiled" : "Linear"));
+; 308  :     return (DWORD) DDERR_OUTOFVIDEOMEMORY;
+
+  003eb	b8 7c 01 76 88	 mov	 eax, -2005532292	; 8876017cH
+  003f0	5b		 pop	 ebx
+
+; 355  :   
+; 356  : } // memMgr_allocSurface
+
+  003f1	83 c4 30	 add	 esp, 48			; 00000030H
+  003f4	c3		 ret	 0
+$L36703:
+
+; 287  :       {
+; 288  :         *heapID = searchHeaps[heap];
+
+  003f5	8b 4c 24 50	 mov	 ecx, DWORD PTR _heap$[esp+60]
+  003f9	8b 54 8c 20	 mov	 edx, DWORD PTR _searchHeaps$[esp+ecx*4+64]
+  003fd	8b 6c 24 6c	 mov	 ebp, DWORD PTR _heapID$[esp+60]
+  00401	8b 4c 24 14	 mov	 ecx, DWORD PTR _blockSize$[esp+64]
+  00405	89 55 00	 mov	 DWORD PTR [ebp], edx
+  00408	eb a9		 jmp	 SHORT $L36489
+$L36499:
+
+; 309  :   }
+; 310  : 
+; 311  :   if (type & DDSCAPS_3DDEVICE)
+
+  0040a	8b 44 24 48	 mov	 eax, DWORD PTR _type$[esp+60]
+  0040e	f6 c4 20	 test	 ah, 32			; 00000020H
+  00411	74 06		 je	 SHORT $L36507
+
+; 312  :   {    
+; 313  :     _FF(dd3DSurfaceCount)++;
+
+  00413	ff 87 88 05 00
+	00		 inc	 DWORD PTR [edi+1416]
+$L36507:
+
+; 314  :   }
+; 315  : 
+; 316  :   // Calculate hardware pointer.
+; 317  :     
+; 318  :   if (*tileFlag == MEM_IN_LINEAR)
+
+  00419	83 3b 02	 cmp	 DWORD PTR [ebx], 2
+  0041c	75 0c		 jne	 SHORT $L36508
+
+; 319  :   {
+; 320  :     hwPtr = lfbPtr - _FF(LFBBASE);
+
+  0041e	8b 8f 7c 17 00
+	00		 mov	 ecx, DWORD PTR [edi+6012]
+  00424	8b c6		 mov	 eax, esi
+  00426	2b c1		 sub	 eax, ecx
+
+; 321  : 
+; 322  :     *lpPitch = pitch;
+; 323  :   }
+; 324  :   else
+
+  00428	eb 50		 jmp	 SHORT $L36715
+$L36508:
+
+; 325  :   {
+; 326  : #ifdef SLI_AA
+; 327  :     // Adjust lfbPtr for SLI mode.
+; 328  : 
+; 329  :     lfbPtr = AdjustLfbPtr(ppdev, lfbPtr, heapID);
+
+  0042a	55		 push	 ebp
+  0042b	56		 push	 esi
+  0042c	57		 push	 edi
+  0042d	e8 00 00 00 00	 call	 _AdjustLfbPtr
+  00432	8b f0		 mov	 esi, eax
+
+; 330  : 
+; 331  : #endif
+; 332  :     // Compute hwPtr from lfbPtr.
+; 333  : 
+; 334  :     hwPtr = LfbPtrToHwPtr(ppdev, lfbPtr, *heapID);
+
+  00434	8b 45 00	 mov	 eax, DWORD PTR [ebp]
+  00437	50		 push	 eax
+  00438	56		 push	 esi
+  00439	57		 push	 edi
+  0043a	e8 00 00 00 00	 call	 _LfbPtrToHwPtr
+
+; 335  : 
+; 336  :     if(type != DDSCAPS_LIVEVIDEO)
+
+  0043f	8b 4c 24 60	 mov	 ecx, DWORD PTR _type$[esp+84]
+  00443	83 c4 18	 add	 esp, 24			; 00000018H
+  00446	81 f9 00 00 08
+	00		 cmp	 ecx, 524288		; 00080000H
+  0044c	74 27		 je	 SHORT $L36510
+
+; 337  :     {
+; 338  :         hwPtr |= SSTG_IS_TILED;
+; 339  :         *lpPitch = _DS(ddTilePitch);
+
+  0044e	8b 8f 94 05 00
+	00		 mov	 ecx, DWORD PTR [edi+1428]
+  00454	8b 54 24 64	 mov	 edx, DWORD PTR _lpPitch$[esp+60]
+  00458	89 0a		 mov	 DWORD PTR [edx], ecx
+
+; 345  :     }
+; 346  :   }
+; 347  : 
+; 348  :   *hwVidMem = hwPtr;
+; 349  :   *fpVidMem = lfbPtr;
+
+  0045a	8b 54 24 5c	 mov	 edx, DWORD PTR _fpVidMem$[esp+60]
+  0045e	8b 4c 24 60	 mov	 ecx, DWORD PTR _hwVidMem$[esp+60]
+  00462	5f		 pop	 edi
+  00463	89 32		 mov	 DWORD PTR [edx], esi
+  00465	5e		 pop	 esi
+  00466	0d 00 00 00 80	 or	 eax, -2147483648	; 80000000H
+  0046b	5d		 pop	 ebp
+  0046c	89 01		 mov	 DWORD PTR [ecx], eax
+
+; 350  : 
+; 351  :   D3DPRINT(DLALLOC, "         : hID %d, hw %08x, fp %08x, %s",
+; 352  : 		*heapID, *hwVidMem, *fpVidMem, (*tileFlag == MEM_IN_TILED ? "Tiled" : "Linear"));
+; 353  : 
+; 354  :   return DD_OK;
+
+  0046e	33 c0		 xor	 eax, eax
+  00470	5b		 pop	 ebx
+
+; 355  :   
+; 356  : } // memMgr_allocSurface
+
+  00471	83 c4 30	 add	 esp, 48			; 00000030H
+  00474	c3		 ret	 0
+$L36510:
+
+; 340  :     }
+; 341  :     else 
+; 342  :     {
+; 343  :         hwPtr &= ~SSTG_IS_TILED;
+
+  00475	25 ff ff ff 7f	 and	 eax, 2147483647		; 7fffffffH
+$L36715:
+
+; 344  :         *lpPitch = pitch;   // Set pitch as linear surface
+
+  0047a	8b 4c 24 64	 mov	 ecx, DWORD PTR _lpPitch$[esp+60]
+  0047e	8b 54 24 1c	 mov	 edx, DWORD PTR _pitch$[esp+64]
+  00482	89 11		 mov	 DWORD PTR [ecx], edx
+
+; 345  :     }
+; 346  :   }
+; 347  : 
+; 348  :   *hwVidMem = hwPtr;
+; 349  :   *fpVidMem = lfbPtr;
+
+  00484	8b 54 24 5c	 mov	 edx, DWORD PTR _fpVidMem$[esp+60]
+  00488	8b 4c 24 60	 mov	 ecx, DWORD PTR _hwVidMem$[esp+60]
+  0048c	5f		 pop	 edi
+  0048d	89 32		 mov	 DWORD PTR [edx], esi
+  0048f	5e		 pop	 esi
+  00490	5d		 pop	 ebp
+  00491	89 01		 mov	 DWORD PTR [ecx], eax
+
+; 350  : 
+; 351  :   D3DPRINT(DLALLOC, "         : hID %d, hw %08x, fp %08x, %s",
+; 352  : 		*heapID, *hwVidMem, *fpVidMem, (*tileFlag == MEM_IN_TILED ? "Tiled" : "Linear"));
+; 353  : 
+; 354  :   return DD_OK;
+
+  00493	33 c0		 xor	 eax, eax
+  00495	5b		 pop	 ebx
+
+; 355  :   
+; 356  : } // memMgr_allocSurface
+
+  00496	83 c4 30	 add	 esp, 48			; 00000030H
+  00499	c3		 ret	 0
+_memMgr_allocSurface ENDP
+_TEXT	ENDS
+PUBLIC	_memMgr_allocSecondary
+PUBLIC	_HwPtrToLfbPtr
+PUBLIC	_AdjustHwPtr
+_TEXT	SEGMENT
+_lpDD$ = 8
+_type$ = 12
+_tWidth$ = 24
+_tHeight$ = 28
+_fpVidMem$ = 32
+_hwVidMem$ = 36
+_lpPitch$ = 40
+_tileFlag$ = 44
+_heapID$ = 48
+_hwPtr$ = 12
+_searchHeaps$ = -8
+_memMgr_allocSecondary PROC NEAR
+
+; 382  :   DWORD heap, hwPtr, lfbPtr;
+; 383  :   DWORD blockSize, tileWidth, tileHeight;
+; 384  :   DWORD numberHeaps;
+; 385  :   DWORD searchHeaps[2];
+; 386  : 
+; 387  :   DD_ENTRY_SETUP(lpDD)
+
+  004a0	8b 44 24 04	 mov	 eax, DWORD PTR _lpDD$[esp-4]
+  004a4	83 ec 08	 sub	 esp, 8
+  004a7	53		 push	 ebx
+  004a8	55		 push	 ebp
+  004a9	56		 push	 esi
+  004aa	57		 push	 edi
+  004ab	8b b8 30 04 00
+	00		 mov	 edi, DWORD PTR [eax+1072]
+  004b1	8b 4f 08	 mov	 ecx, DWORD PTR [edi+8]
+  004b4	83 c9 02	 or	 ecx, 2
+  004b7	8b c1		 mov	 eax, ecx
+  004b9	f6 c4 10	 test	 ah, 16			; 00000010H
+  004bc	89 4f 08	 mov	 DWORD PTR [edi+8], ecx
+  004bf	74 09		 je	 SHORT $L36547
+  004c1	57		 push	 edi
+  004c2	e8 00 00 00 00	 call	 _DoKMTV
+  004c7	83 c4 04	 add	 esp, 4
+$L36547:
+
+; 388  : 
+; 389  :   D3DPRINT(DLALLOC, "AllocSecondary: ");
+; 390  : 
+; 391  :   if (!_DD(ddSLIModeRequested))
+
+  004ca	8b 8f 14 18 00
+	00		 mov	 ecx, DWORD PTR [edi+6164]
+  004d0	8b 81 7a 03 00
+	00		 mov	 eax, DWORD PTR [ecx+890]
+  004d6	85 c0		 test	 eax, eax
+  004d8	0f 85 bb 00 00
+	00		 jne	 $L36551
+
+; 392  :   {
+; 393  :     /* Allocate from secondary heaps in linear memory. */
+; 394  :     D3DPRINT(DLALLOC, "              : Alloc from secondary heaps in linear mem");
+; 395  : 
+; 396  :     numberHeaps = 1;
+; 397  :     if (type & DDSCAPS_PRIMARYSURFACE)
+
+  004de	8b 54 24 20	 mov	 edx, DWORD PTR _type$[esp+20]
+  004e2	f6 c6 02	 test	 dh, 2
+  004e5	74 0a		 je	 SHORT $L36554
+
+; 398  :     {
+; 399  :       D3DPRINT(DLALLOC, "              : Primary");
+; 400  :       searchHeaps[0] = LINEAR_HEAP1_ID; // Primary (AA) Allocation
+
+  004e7	c7 44 24 10 04
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+24], 4
+
+; 401  :     }
+; 402  :     else if (type & DDSCAPS_BACKBUFFER)
+
+  004ef	eb 33		 jmp	 SHORT $L36566
+$L36554:
+  004f1	f6 c2 04	 test	 dl, 4
+  004f4	74 0a		 je	 SHORT $L36558
+
+; 403  :     {
+; 404  :       D3DPRINT(DLALLOC, "              : BackBuffer");
+; 405  :       searchHeaps[0] = LINEAR_HEAP2_ID; // Back Buffer (AA) Allocation
+
+  004f6	c7 44 24 10 05
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+24], 5
+
+; 406  :     }
+; 407  :     else if (type & DDSCAPS_ZBUFFER) 
+
+  004fe	eb 24		 jmp	 SHORT $L36566
+$L36558:
+  00500	f7 c2 00 00 02
+	00		 test	 edx, 131072		; 00020000H
+  00506	74 0a		 je	 SHORT $L36562
+
+; 408  :     {
+; 409  :       D3DPRINT(DLALLOC, "              : Z Buffer");
+; 410  :       searchHeaps[0] = LINEAR_HEAP3_ID; // Zbuffer (AA) Allocation
+
+  00508	c7 44 24 10 06
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+24], 6
+
+; 411  :     }
+; 412  :     else if ((type & DDSCAPS_COMPLEX) && (type & DDSCAPS_FLIP))
+
+  00510	eb 12		 jmp	 SHORT $L36566
+$L36562:
+  00512	f6 c2 08	 test	 dl, 8
+  00515	74 0d		 je	 SHORT $L36566
+  00517	f6 c2 10	 test	 dl, 16			; 00000010H
+  0051a	74 08		 je	 SHORT $L36566
+
+; 413  :     {
+; 414  :       D3DPRINT(DLALLOC, "              : Complex & Flip");
+; 415  :       searchHeaps[0] = LINEAR_HEAP4_ID; // Third Buffer (AA) Allocation
+
+  0051c	c7 44 24 10 07
+	00 00 00	 mov	 DWORD PTR _searchHeaps$[esp+24], 7
+$L36566:
+
+; 416  :     }
+; 417  :   
+; 418  :     // Ensure correct alignment of buffers, even when SLI is enabled.
+; 419  : 
+; 420  :     tHeight = (tHeight + 1) & 0xFFFFFFFE; // must be multiple of 2
+; 421  :     tWidth = (tWidth + 1) & 0xFFFFFFFE; // must be multiple of 2
+; 422  : 
+; 423  :     /* Calculate width and height for tiled allocation, blocksize for linear allocation. */
+; 424  : 
+; 425  :     tileWidth  = tWidth  << SST_TILE_WIDTH_BITS;
+; 426  :     tileHeight = tHeight << SST_TILE_HEIGHT_BITS;
+; 427  :     blockSize = tileWidth * tileHeight;
+
+  00524	8b 44 24 2c	 mov	 eax, DWORD PTR _tWidth$[esp+20]
+  00528	8b 4c 24 30	 mov	 ecx, DWORD PTR _tHeight$[esp+20]
+  0052c	8d 70 01	 lea	 esi, DWORD PTR [eax+1]
+  0052f	c1 e6 07	 shl	 esi, 7
+  00532	81 e6 00 ff ff
+	ff		 and	 esi, -256		; ffffff00H
+  00538	41		 inc	 ecx
+  00539	c1 e1 05	 shl	 ecx, 5
+  0053c	83 e1 c0	 and	 ecx, -64		; ffffffc0H
+  0053f	0f af f1	 imul	 esi, ecx
+
+; 428  : 
+; 429  :     D3DPRINT(DLALLOC, "              : blocksize %d", blockSize);
+; 430  :     D3DPRINT(DLALLOC, "              : ddNumHeap %d", _DS(ddNumHeap));
+; 431  : 
+; 432  :     /* Search heaps to allocate memory. */
+; 433  : 
+; 434  :     lfbPtr = 0;
+
+  00542	33 c0		 xor	 eax, eax
+
+; 435  :     for (heap = 0; heap < numberHeaps; heap++)
+
+  00544	33 ed		 xor	 ebp, ebp
+
+; 502  :   {
+; 503  :     D3DPRINT(DLALLOC, "              : OutOfVideoMemory, %s", (*tileFlag == MEM_IN_TILED ? "Tiled" : "Linear"));
+; 504  :     return (DWORD) DDERR_OUTOFVIDEOMEMORY;
+
+  00546	8d 5c 24 10	 lea	 ebx, DWORD PTR _searchHeaps$[esp+24]
+$L36573:
+  0054a	8b 0b		 mov	 ecx, DWORD PTR [ebx]
+  0054c	3b 8f 40 05 00
+	00		 cmp	 ecx, DWORD PTR [edi+1344]
+  00552	73 20		 jae	 SHORT $L36574
+
+; 436  :     {
+; 437  :       if (searchHeaps[heap] < _DS(ddNumHeap))
+; 438  :       {
+; 439  :         switch (searchHeaps[heap])
+; 440  :         {
+
+  00554	83 f9 04	 cmp	 ecx, 4
+  00557	72 17		 jb	 SHORT $L36578
+  00559	83 f9 07	 cmp	 ecx, 7
+  0055c	77 12		 ja	 SHORT $L36578
+
+; 441  :           case LINEAR_HEAP1_ID:  
+; 442  :           case LINEAR_HEAP2_ID:  
+; 443  :           case LINEAR_HEAP3_ID:  
+; 444  :           case LINEAR_HEAP4_ID:
+; 445  :         
+; 446  :             lfbPtr = DDHAL32_VidMemAlloc(lpDD, searchHeaps[heap], blockSize, 1);
+
+  0055e	8b 54 24 1c	 mov	 edx, DWORD PTR _lpDD$[esp+20]
+  00562	6a 01		 push	 1
+  00564	56		 push	 esi
+  00565	51		 push	 ecx
+  00566	52		 push	 edx
+  00567	e8 00 00 00 00	 call	 _DDHAL32_VidMemAlloc@16
+  0056c	8b 54 24 20	 mov	 edx, DWORD PTR _type$[esp+20]
+$L36578:
+
+; 447  :             break;
+; 448  :         }
+; 449  : 
+; 450  :         if (lfbPtr)
+
+  00570	85 c0		 test	 eax, eax
+  00572	75 0f		 jne	 SHORT $L36718
+$L36574:
+
+; 435  :     for (heap = 0; heap < numberHeaps; heap++)
+
+  00574	45		 inc	 ebp
+  00575	83 c3 04	 add	 ebx, 4
+  00578	83 fd 01	 cmp	 ebp, 1
+  0057b	72 cd		 jb	 SHORT $L36573
+
+; 447  :             break;
+; 448  :         }
+; 449  : 
+; 450  :         if (lfbPtr)
+
+  0057d	8b 74 24 20	 mov	 esi, DWORD PTR _hwPtr$[esp+20]
+  00581	eb 7b		 jmp	 SHORT $L36601
+$L36718:
+
+; 451  :         {
+; 452  :           // Calculate hardware pointer.
+; 453  : 
+; 454  :           hwPtr = lfbPtr - _FF(LFBBASE);
+
+  00583	8b 8f 7c 17 00
+	00		 mov	 ecx, DWORD PTR [edi+6012]
+
+; 455  : 
+; 456  :           *heapID = searchHeaps[heap];
+
+  00589	8b 5c 24 44	 mov	 ebx, DWORD PTR _heapID$[esp+20]
+  0058d	8b f0		 mov	 esi, eax
+  0058f	2b f1		 sub	 esi, ecx
+  00591	8b 4c ac 10	 mov	 ecx, DWORD PTR _searchHeaps$[esp+ebp*4+24]
+  00595	89 0b		 mov	 DWORD PTR [ebx], ecx
+
+; 457  :           break;
+; 458  :         }
+; 459  :       }
+; 460  :     }
+; 461  :   }
+; 462  :   else
+
+  00597	eb 65		 jmp	 SHORT $L36601
+$L36551:
+
+; 463  :   {
+; 464  :     /* Allocate from fixed addresses in "extra" tiled memory provided by SLI mode. */
+; 465  :     D3DPRINT(DLALLOC, "              : Alloc from fixed addr in extra tiled mem");
+; 466  : 
+; 467  :     hwPtr = 0;
+; 468  :     if (type & DDSCAPS_PRIMARYSURFACE)
+
+  00599	8b 4c 24 20	 mov	 ecx, DWORD PTR _type$[esp+20]
+  0059d	33 c0		 xor	 eax, eax
+  0059f	f6 c5 02	 test	 ch, 2
+  005a2	74 08		 je	 SHORT $L36586
+
+; 469  :     {
+; 470  :       D3DPRINT(DLALLOC, "              : Primary");
+; 471  :       hwPtr = _DS(secondaryFrontBuffer); // Primary (AA) Allocation
+
+  005a4	8b 87 78 05 00
+	00		 mov	 eax, DWORD PTR [edi+1400]
+
+; 472  :     }
+; 473  :     else if (type & DDSCAPS_BACKBUFFER)
+
+  005aa	eb 2d		 jmp	 SHORT $L36598
+$L36586:
+  005ac	f6 c1 04	 test	 cl, 4
+  005af	74 08		 je	 SHORT $L36590
+
+; 474  :     {
+; 475  :       D3DPRINT(DLALLOC, "              : BackBuffer");
+; 476  :       hwPtr = _DS(secondaryBackBuffer);  // Back Buffer (AA) Allocation
+
+  005b1	8b 87 7c 05 00
+	00		 mov	 eax, DWORD PTR [edi+1404]
+
+; 477  :     }
+; 478  :     else if (type & DDSCAPS_ZBUFFER) 
+
+  005b7	eb 20		 jmp	 SHORT $L36598
+$L36590:
+  005b9	f7 c1 00 00 02
+	00		 test	 ecx, 131072		; 00020000H
+  005bf	74 08		 je	 SHORT $L36594
+
+; 479  :     {
+; 480  :       D3DPRINT(DLALLOC, "              : Z Buffer");
+; 481  :       hwPtr = _DS(secondaryZBuffer);     // Zbuffer (AA) Allocation
+
+  005c1	8b 87 80 05 00
+	00		 mov	 eax, DWORD PTR [edi+1408]
+
+; 482  :     }
+; 483  :     else if ((type & DDSCAPS_COMPLEX) && (type & DDSCAPS_FLIP))
+
+  005c7	eb 10		 jmp	 SHORT $L36598
+$L36594:
+  005c9	f6 c1 08	 test	 cl, 8
+  005cc	74 0b		 je	 SHORT $L36598
+  005ce	f6 c1 10	 test	 cl, 16			; 00000010H
+  005d1	74 06		 je	 SHORT $L36598
+
+; 484  :     {
+; 485  :       D3DPRINT(DLALLOC, "              : Complex & Flip");
+; 486  :       hwPtr = _DS(secondaryThirdBuffer); // Third Buffer (AA) Allocation
+
+  005d3	8b 87 84 05 00
+	00		 mov	 eax, DWORD PTR [edi+1412]
+$L36598:
+
+; 487  :     }
+; 488  :     *heapID = HEAP_INVALID;
+; 489  : 
+; 490  :     // Translate hardware offset into linear frame buffer pointer.
+; 491  : 
+; 492  :     if (hwPtr)
+
+  005d9	85 c0		 test	 eax, eax
+  005db	8b 54 24 44	 mov	 edx, DWORD PTR _heapID$[esp+20]
+  005df	c7 02 ff ff 00
+	00		 mov	 DWORD PTR [edx], 65535	; 0000ffffH
+  005e5	74 5c		 je	 SHORT $L36603
+
+; 493  :     {
+; 494  :       hwPtr = AdjustHwPtr(ppdev, hwPtr);
+
+  005e7	50		 push	 eax
+  005e8	57		 push	 edi
+  005e9	e8 00 00 00 00	 call	 _AdjustHwPtr
+  005ee	8b f0		 mov	 esi, eax
+
+; 495  :       lfbPtr = HwPtrToLfbPtr(ppdev, hwPtr);
+
+  005f0	56		 push	 esi
+  005f1	57		 push	 edi
+  005f2	e8 00 00 00 00	 call	 _HwPtrToLfbPtr
+  005f7	8b 54 24 30	 mov	 edx, DWORD PTR _type$[esp+36]
+  005fb	83 c4 10	 add	 esp, 16			; 00000010H
+$L36601:
+
+; 496  :     }
+; 497  :   }
+; 498  : 
+; 499  :   /* Could not allocate from any heap. */
+; 500  :   
+; 501  :   if ((hwPtr == 0) || (lfbPtr == 0))
+
+  005fe	85 f6		 test	 esi, esi
+  00600	74 41		 je	 SHORT $L36603
+  00602	85 c0		 test	 eax, eax
+  00604	74 3d		 je	 SHORT $L36603
+
+; 505  :   }
+; 506  : 
+; 507  :   if (type & DDSCAPS_3DDEVICE)
+
+  00606	f6 c6 20	 test	 dh, 32			; 00000020H
+  00609	74 06		 je	 SHORT $L36611
+
+; 508  :   {    
+; 509  :     _FF(dd3DSurfaceCount)++;
+
+  0060b	ff 87 88 05 00
+	00		 inc	 DWORD PTR [edi+1416]
+$L36611:
+
+; 510  :   }
+; 511  : 
+; 512  :   // Secondary surfaces are always in tiled memory!
+; 513  : 
+; 514  :   *hwVidMem = hwPtr | SSTG_IS_TILED;
+
+  00611	8b 4c 24 38	 mov	 ecx, DWORD PTR _hwVidMem$[esp+20]
+
+; 515  :   *fpVidMem = lfbPtr;
+
+  00615	8b 54 24 34	 mov	 edx, DWORD PTR _fpVidMem$[esp+20]
+  00619	81 ce 00 00 00
+	80		 or	 esi, -2147483648	; 80000000H
+  0061f	89 31		 mov	 DWORD PTR [ecx], esi
+
+; 516  :   *tileFlag = MEM_IN_TILED;      
+; 517  :   *lpPitch = _DS(ddTilePitch);
+
+  00621	8b 8f 94 05 00
+	00		 mov	 ecx, DWORD PTR [edi+1428]
+  00627	5f		 pop	 edi
+  00628	89 02		 mov	 DWORD PTR [edx], eax
+  0062a	8b 44 24 3c	 mov	 eax, DWORD PTR _tileFlag$[esp+16]
+  0062e	8b 54 24 38	 mov	 edx, DWORD PTR _lpPitch$[esp+16]
+  00632	5e		 pop	 esi
+  00633	5d		 pop	 ebp
+  00634	c7 00 01 00 00
+	00		 mov	 DWORD PTR [eax], 1
+  0063a	89 0a		 mov	 DWORD PTR [edx], ecx
+
+; 518  : 
+; 519  :   D3DPRINT(DLALLOC, "              : hID %d, hw %08x, fp %08x, %s",
+; 520  : 			*heapID, *hwVidMem, *fpVidMem,  (*tileFlag == MEM_IN_TILED ? "Tiled" : "Linear"));
+; 521  : 
+; 522  :   return DD_OK;
+
+  0063c	33 c0		 xor	 eax, eax
+  0063e	5b		 pop	 ebx
+
+; 523  :   
+; 524  : } // memMgr_allocSecondary
+
+  0063f	83 c4 08	 add	 esp, 8
+  00642	c3		 ret	 0
+$L36603:
+  00643	5f		 pop	 edi
+  00644	5e		 pop	 esi
+  00645	5d		 pop	 ebp
+
+; 502  :   {
+; 503  :     D3DPRINT(DLALLOC, "              : OutOfVideoMemory, %s", (*tileFlag == MEM_IN_TILED ? "Tiled" : "Linear"));
+; 504  :     return (DWORD) DDERR_OUTOFVIDEOMEMORY;
+
+  00646	b8 7c 01 76 88	 mov	 eax, -2005532292	; 8876017cH
+  0064b	5b		 pop	 ebx
+
+; 523  :   
+; 524  : } // memMgr_allocSecondary
+
+  0064c	83 c4 08	 add	 esp, 8
+  0064f	c3		 ret	 0
+_memMgr_allocSecondary ENDP
+_TEXT	ENDS
+PUBLIC	_memMgr_freeSurface
+EXTRN	_DDHAL32_VidMemFree@12:NEAR
+_TEXT	SEGMENT
+_lpDD$ = 8
+_type$ = 12
+_fpVidMem$ = 16
+_heapID$ = 28
+_memMgr_freeSurface PROC NEAR
+
+; 543  : {
+
+  00650	56		 push	 esi
+  00651	57		 push	 edi
+
+; 544  :   DD_ENTRY_SETUP(lpDD);
+
+  00652	8b 7c 24 0c	 mov	 edi, DWORD PTR _lpDD$[esp+4]
+  00656	8b b7 30 04 00
+	00		 mov	 esi, DWORD PTR [edi+1072]
+  0065c	8b 4e 08	 mov	 ecx, DWORD PTR [esi+8]
+  0065f	83 c9 02	 or	 ecx, 2
+  00662	8b c1		 mov	 eax, ecx
+  00664	f6 c4 10	 test	 ah, 16			; 00000010H
+  00667	89 4e 08	 mov	 DWORD PTR [esi+8], ecx
+  0066a	74 09		 je	 SHORT $L36629
+  0066c	56		 push	 esi
+  0066d	e8 00 00 00 00	 call	 _DoKMTV
+  00672	83 c4 04	 add	 esp, 4
+$L36629:
+
+; 545  : 
+; 546  :   D3DPRINT(DLALLOC, "FreeSurf: hID %d, hw %08x, fp %08x, %s",
+; 547  : 	  heapID, hwVidMem, fpVidMem, (tileFlag == MEM_IN_TILED ? "Tiled" : "Linear"));
+; 548  : 
+; 549  :   if (heapID != HEAP_INVALID)
+
+  00675	8b 44 24 20	 mov	 eax, DWORD PTR _heapID$[esp+4]
+  00679	3d ff ff 00 00	 cmp	 eax, 65535		; 0000ffffH
+  0067e	74 38		 je	 SHORT $L36636
+
+; 550  :   {
+; 551  :     if (type & DDSCAPS_3DDEVICE)
+
+  00680	8b 4c 24 10	 mov	 ecx, DWORD PTR _type$[esp+4]
+  00684	f6 c5 20	 test	 ch, 32			; 00000020H
+  00687	74 11		 je	 SHORT $L36634
+
+; 552  :     {    
+; 553  :       if(_FF(dd3DSurfaceCount))     //don't allow it go to negative.
+
+  00689	8b 8e 88 05 00
+	00		 mov	 ecx, DWORD PTR [esi+1416]
+  0068f	85 c9		 test	 ecx, ecx
+  00691	74 07		 je	 SHORT $L36634
+
+; 554  :       _FF(dd3DSurfaceCount)--;
+
+  00693	49		 dec	 ecx
+  00694	89 8e 88 05 00
+	00		 mov	 DWORD PTR [esi+1416], ecx
+$L36634:
+
+; 555  :     }
+; 556  : 
+; 557  : #ifdef SLI_AA
+; 558  :     // Restore lfbPtr from SLI mode.
+; 559  : 
+; 560  :     if (heapID & LFBPTR_TRANSLATED)
+
+  0069a	a9 00 00 00 40	 test	 eax, 1073741824		; 40000000H
+
+; 561  :     {
+; 562  :       fpVidMem -= _FF(ddExtraMemorySize);
+
+  0069f	8b 4c 24 14	 mov	 ecx, DWORD PTR _fpVidMem$[esp+4]
+  006a3	74 06		 je	 SHORT $L36635
+  006a5	2b 8e 70 05 00
+	00		 sub	 ecx, DWORD PTR [esi+1392]
+$L36635:
+
+; 563  :     }
+; 564  : #endif
+; 565  : 
+; 566  :     // Call DirectDraw memory manager.
+; 567  : 
+; 568  :     if (heapID != HEAP_INVALID)
+; 569  :     {
+; 570  :       DDHAL32_VidMemFree(lpDD, (heapID & HEAP_MASK), fpVidMem);
+
+  006ab	51		 push	 ecx
+  006ac	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  006b1	50		 push	 eax
+  006b2	57		 push	 edi
+  006b3	e8 00 00 00 00	 call	 _DDHAL32_VidMemFree@12
+$L36636:
+  006b8	5f		 pop	 edi
+  006b9	5e		 pop	 esi
+
+; 571  :     }
+; 572  :   }
+; 573  : } // memMgr_freeSurface
+
+  006ba	c3		 ret	 0
+_memMgr_freeSurface ENDP
+_ppdev$ = 8
+_hwPtr$ = 12
+_HwPtrToLfbPtr PROC NEAR
+
+; 587  :   DWORD tileOffset;
+; 588  :   DWORD tileInY;
+; 589  :   DWORD tileInX;
+; 590  :   DWORD yOffset;
+; 591  :   DWORD xOffset;
+; 592  :   DWORD lfbPtr;
+; 593  : 
+; 594  :   // Compute byte offset from tile mark.
+; 595  : 
+; 596  :   tileOffset = (hwPtr & ~SSTG_IS_TILED) - _FF(ddTiledHeapStart);
+
+  006c0	8b 44 24 08	 mov	 eax, DWORD PTR _hwPtr$[esp-4]
+  006c4	53		 push	 ebx
+  006c5	55		 push	 ebp
+  006c6	25 ff ff ff 7f	 and	 eax, 2147483647		; 7fffffffH
+  006cb	56		 push	 esi
+  006cc	8b 74 24 10	 mov	 esi, DWORD PTR _ppdev$[esp+8]
+  006d0	8b ae 30 05 00
+	00		 mov	 ebp, DWORD PTR [esi+1328]
+
+; 597  : 
+; 598  :   // Compute tile offset from tile mark.
+; 599  : 
+; 600  :   tileInY = (tileOffset / SST_TILE_SIZE) / _FF(ddTileStride);
+
+  006d6	8b 9e 8c 05 00
+	00		 mov	 ebx, DWORD PTR [esi+1420]
+  006dc	2b c5		 sub	 eax, ebp
+  006de	57		 push	 edi
+  006df	8b f8		 mov	 edi, eax
+  006e1	c1 ef 0c	 shr	 edi, 12			; 0000000cH
+  006e4	33 d2		 xor	 edx, edx
+  006e6	8b c7		 mov	 eax, edi
+  006e8	f7 f3		 div	 ebx
+
+; 601  :   tileInX = (tileOffset / SST_TILE_SIZE) % _FF(ddTileStride);
+
+  006ea	33 d2		 xor	 edx, edx
+  006ec	8b c8		 mov	 ecx, eax
+  006ee	8b c7		 mov	 eax, edi
+
+; 602  : 
+; 603  :   // Compute scanline and byte offsets.
+; 604  : 
+; 605  :   yOffset = (tileInY * SST_TILE_HEIGHT) * _FF(ddTilePitch);
+; 606  :   xOffset = (tileInX * SST_TILE_WIDTH);
+; 607  : 
+; 608  : #ifdef SLI_AA
+; 609  :   // Expand lfbPtr in SLI mode.
+; 610  : 
+; 611  :   if (_DD(ddSLIModeRequested))
+; 612  :   {
+; 613  :     yOffset *= _DD(ddSLINumberWays);
+; 614  :   }
+; 615  : #endif
+; 616  : 
+; 617  :   // Compute lfb offset from tile mark.
+; 618  : 
+; 619  :   lfbPtr  = yOffset + xOffset;
+; 620  :   
+; 621  :   // Add tile mark and lfb base.
+; 622  : 
+; 623  :   lfbPtr += _FF(ddTiledHeapStart);
+; 624  :   lfbPtr += _FF(LFBBASE);
+; 625  : 
+; 626  :   return lfbPtr;
+
+  006f0	0f af 8e 94 05
+	00 00		 imul	 ecx, DWORD PTR [esi+1428]
+  006f7	f7 f3		 div	 ebx
+  006f9	8b 86 14 18 00
+	00		 mov	 eax, DWORD PTR [esi+6164]
+  006ff	8b b8 7a 03 00
+	00		 mov	 edi, DWORD PTR [eax+890]
+  00705	c1 e1 05	 shl	 ecx, 5
+  00708	c1 e2 07	 shl	 edx, 7
+  0070b	85 ff		 test	 edi, edi
+  0070d	74 09		 je	 SHORT $L36649
+  0070f	8b 80 82 03 00
+	00		 mov	 eax, DWORD PTR [eax+898]
+  00715	0f af c8	 imul	 ecx, eax
+$L36649:
+  00718	8b 86 7c 17 00
+	00		 mov	 eax, DWORD PTR [esi+6012]
+  0071e	5f		 pop	 edi
+  0071f	03 c5		 add	 eax, ebp
+  00721	5e		 pop	 esi
+  00722	03 c2		 add	 eax, edx
+  00724	5d		 pop	 ebp
+  00725	03 c1		 add	 eax, ecx
+  00727	5b		 pop	 ebx
+
+; 627  : 
+; 628  : } // HwPtrToLfbPtr
+
+  00728	c3		 ret	 0
+_HwPtrToLfbPtr ENDP
+_ppdev$ = 8
+_lfbPtr$ = 12
+_heapID$ = 16
+_LfbPtrToHwPtr PROC NEAR
+
+; 638  :   DWORD tileInY;
+; 639  :   DWORD tileInX;
+; 640  :   DWORD yScanlines;
+; 641  :   DWORD xBytes;
+; 642  :   DWORD yOffset;
+; 643  :   DWORD xOffset;
+; 644  :   DWORD hwPtr;
+; 645  : 
+; 646  :   // Subtract lfb base.
+; 647  :   
+; 648  :   lfbPtr -= _FF(LFBBASE);
+; 649  : 
+; 650  :   // Subtract tile mark.
+; 651  : 
+; 652  :   lfbPtr -= _FF(ddTiledHeapStart);
+
+  00730	8b 4c 24 08	 mov	 ecx, DWORD PTR _lfbPtr$[esp-4]
+  00734	53		 push	 ebx
+  00735	55		 push	 ebp
+  00736	56		 push	 esi
+  00737	57		 push	 edi
+  00738	8b 7c 24 14	 mov	 edi, DWORD PTR _ppdev$[esp+12]
+  0073c	8b 9f 30 05 00
+	00		 mov	 ebx, DWORD PTR [edi+1328]
+  00742	8b 87 7c 17 00
+	00		 mov	 eax, DWORD PTR [edi+6012]
+  00748	03 c3		 add	 eax, ebx
+  0074a	2b c8		 sub	 ecx, eax
+
+; 653  : 
+; 654  : #ifdef SLI_AA
+; 655  :   // Restore lfbPtr from SLI mode.
+; 656  : 
+; 657  :   if (heapID & LFBPTR_TRANSLATED)
+
+  0074c	8b 44 24 1c	 mov	 eax, DWORD PTR _heapID$[esp+12]
+  00750	25 00 00 00 40	 and	 eax, 1073741824		; 40000000H
+  00755	89 44 24 14	 mov	 DWORD PTR 8+[esp+12], eax
+  00759	74 06		 je	 SHORT $L36665
+
+; 658  :   {
+; 659  :     lfbPtr -= _FF(ddExtraMemorySize);
+
+  0075b	2b 8f 70 05 00
+	00		 sub	 ecx, DWORD PTR [edi+1392]
+$L36665:
+
+; 660  :   }
+; 661  : #endif
+; 662  : 
+; 663  :   // Compute scanline and byte offset from tile mark.
+; 664  : 
+; 665  :   yScanlines = lfbPtr / _DS(ddTilePitch);
+
+  00761	8b af 94 05 00
+	00		 mov	 ebp, DWORD PTR [edi+1428]
+  00767	33 d2		 xor	 edx, edx
+  00769	8b c1		 mov	 eax, ecx
+  0076b	f7 f5		 div	 ebp
+
+; 666  :   xBytes     = lfbPtr % _DS(ddTilePitch);
+
+  0076d	33 d2		 xor	 edx, edx
+  0076f	8b f0		 mov	 esi, eax
+  00771	8b c1		 mov	 eax, ecx
+  00773	f7 f5		 div	 ebp
+
+; 667  : 
+; 668  : #ifdef SLI_AA
+; 669  :   // Compress hwPtr in SLI mode.
+; 670  : 
+; 671  :   if (_DD(ddSLIModeRequested))
+
+  00775	8b af 14 18 00
+	00		 mov	 ebp, DWORD PTR [edi+6164]
+  0077b	8b 85 7a 03 00
+	00		 mov	 eax, DWORD PTR [ebp+890]
+  00781	85 c0		 test	 eax, eax
+  00783	8b ca		 mov	 ecx, edx
+  00785	74 0c		 je	 SHORT $L36667
+
+; 672  :   {
+; 673  :     yScanlines /= _DD(ddSLINumberWays);
+
+  00787	8b c6		 mov	 eax, esi
+  00789	33 d2		 xor	 edx, edx
+  0078b	f7 b5 82 03 00
+	00		 div	 DWORD PTR [ebp+898]
+  00791	8b f0		 mov	 esi, eax
+$L36667:
+
+; 674  :   }
+; 675  : #endif
+; 676  : 
+; 677  :   // Compute tile offset from tile mark.
+; 678  : 
+; 679  :   tileInY = yScanlines / SST_TILE_HEIGHT;
+; 680  :   tileInX = xBytes / SST_TILE_WIDTH;
+; 681  : 
+; 682  :   // Compute offsets within tile.
+; 683  : 
+; 684  :   yOffset = yScanlines % SST_TILE_HEIGHT;
+; 685  :   xOffset = xBytes % SST_TILE_WIDTH;
+; 686  : 
+; 687  :   // Calculate hardware offset.
+; 688  : 
+; 689  :   hwPtr  = ((tileInY * _FF(ddTileStride)) + tileInX) * SST_TILE_SIZE;
+; 690  :   hwPtr += (yOffset * SST_TILE_WIDTH) + xOffset;
+; 691  :   
+; 692  :   // Add tile mark.
+; 693  : 
+; 694  :   hwPtr += _FF(ddTiledHeapStart);
+
+  00793	8b 87 8c 05 00
+	00		 mov	 eax, DWORD PTR [edi+1420]
+  00799	8b d6		 mov	 edx, esi
+  0079b	c1 ea 05	 shr	 edx, 5
+  0079e	0f af c2	 imul	 eax, edx
+  007a1	8b d1		 mov	 edx, ecx
+  007a3	c1 ea 07	 shr	 edx, 7
+  007a6	03 c2		 add	 eax, edx
+  007a8	c1 e0 05	 shl	 eax, 5
+  007ab	83 e6 1f	 and	 esi, 31			; 0000001fH
+  007ae	03 c6		 add	 eax, esi
+  007b0	c1 e0 07	 shl	 eax, 7
+
+; 695  : 
+; 696  : #ifdef SLI_AA
+; 697  :   // Add extra memory to hardware offset in SLI/!AA mode.
+; 698  : 
+; 699  :   if (heapID & LFBPTR_TRANSLATED)
+; 700  :   {
+; 701  :     hwPtr += _FF(ddExtraMemorySize);
+; 702  :   }
+; 703  : #endif
+; 704  : 
+; 705  :   hwPtr |= SSTG_IS_TILED;
+; 706  : 
+; 707  :   return hwPtr;
+
+  007b3	03 d8		 add	 ebx, eax
+  007b5	8b 44 24 14	 mov	 eax, DWORD PTR 8+[esp+12]
+  007b9	83 e1 7f	 and	 ecx, 127		; 0000007fH
+  007bc	03 cb		 add	 ecx, ebx
+  007be	85 c0		 test	 eax, eax
+  007c0	74 06		 je	 SHORT $L36669
+  007c2	03 8f 70 05 00
+	00		 add	 ecx, DWORD PTR [edi+1392]
+$L36669:
+  007c8	5f		 pop	 edi
+  007c9	5e		 pop	 esi
+  007ca	8b c1		 mov	 eax, ecx
+  007cc	5d		 pop	 ebp
+  007cd	0d 00 00 00 80	 or	 eax, -2147483648	; 80000000H
+  007d2	5b		 pop	 ebx
+
+; 708  : 
+; 709  : } // LfbPtrToHwPtr
+
+  007d3	c3		 ret	 0
+_LfbPtrToHwPtr ENDP
+_ppdev$ = 8
+_lfbPtr$ = 12
+_heapID$ = 16
+_AdjustLfbPtr PROC NEAR
+
+; 721  :   // Adjust lfbPtr for SLI mode.
+; 722  : 
+; 723  :   if (_DD(ddSLIModeRequested) && !_DD(ddAAModeRequested))
+
+  007e0	8b 54 24 04	 mov	 edx, DWORD PTR _ppdev$[esp-4]
+  007e4	8b 82 14 18 00
+	00		 mov	 eax, DWORD PTR [edx+6164]
+  007ea	8b 88 7a 03 00
+	00		 mov	 ecx, DWORD PTR [eax+890]
+  007f0	85 c9		 test	 ecx, ecx
+  007f2	74 29		 je	 SHORT $L36679
+  007f4	8b 88 8a 03 00
+	00		 mov	 ecx, DWORD PTR [eax+906]
+  007fa	85 c9		 test	 ecx, ecx
+  007fc	75 1f		 jne	 SHORT $L36679
+
+; 724  :   {
+; 725  :     if (!(*heapID & LFBPTR_TRANSLATED))
+
+  007fe	8b 4c 24 0c	 mov	 ecx, DWORD PTR _heapID$[esp-4]
+  00802	8b 01		 mov	 eax, DWORD PTR [ecx]
+  00804	a9 00 00 00 40	 test	 eax, 1073741824		; 40000000H
+  00809	75 31		 jne	 SHORT $L36682
+
+; 726  :     {
+; 727  :       *heapID |= LFBPTR_TRANSLATED;
+
+  0080b	0d 00 00 00 40	 or	 eax, 1073741824		; 40000000H
+  00810	89 01		 mov	 DWORD PTR [ecx], eax
+
+; 728  :       return (lfbPtr + _FF(ddExtraMemorySize));
+
+  00812	8b 82 70 05 00
+	00		 mov	 eax, DWORD PTR [edx+1392]
+  00818	03 44 24 08	 add	 eax, DWORD PTR _lfbPtr$[esp-4]
+
+; 740  : 
+; 741  : } // AdjustLfbPtrHwPtr
+
+  0081c	c3		 ret	 0
+$L36679:
+
+; 729  :     }
+; 730  :   }
+; 731  :   else
+; 732  :   {
+; 733  :     if (*heapID & LFBPTR_TRANSLATED)
+
+  0081d	8b 4c 24 0c	 mov	 ecx, DWORD PTR _heapID$[esp-4]
+  00821	8b 01		 mov	 eax, DWORD PTR [ecx]
+  00823	a9 00 00 00 40	 test	 eax, 1073741824		; 40000000H
+  00828	74 12		 je	 SHORT $L36682
+
+; 734  :     {
+; 735  :       *heapID &= ~LFBPTR_TRANSLATED;
+
+  0082a	25 ff ff ff bf	 and	 eax, -1073741825	; bfffffffH
+  0082f	89 01		 mov	 DWORD PTR [ecx], eax
+
+; 736  :       return (lfbPtr - _FF(ddExtraMemorySize));
+
+  00831	8b 44 24 08	 mov	 eax, DWORD PTR _lfbPtr$[esp-4]
+  00835	2b 82 70 05 00
+	00		 sub	 eax, DWORD PTR [edx+1392]
+
+; 740  : 
+; 741  : } // AdjustLfbPtrHwPtr
+
+  0083b	c3		 ret	 0
+$L36682:
+
+; 737  :     }
+; 738  :   }
+; 739  :   return lfbPtr;
+
+  0083c	8b 44 24 08	 mov	 eax, DWORD PTR _lfbPtr$[esp-4]
+
+; 740  : 
+; 741  : } // AdjustLfbPtrHwPtr
+
+  00840	c3		 ret	 0
+_AdjustLfbPtr ENDP
+_ppdev$ = 8
+_hwPtr$ = 12
+_AdjustHwPtr PROC NEAR
+
+; 752  :   DWORD tileOffset;
+; 753  :   DWORD tileInY;
+; 754  :   DWORD tileInX;
+; 755  :   DWORD yOffset;
+; 756  :   DWORD xOffset;
+; 757  : 
+; 758  :   // Compute byte offset from tile mark.
+; 759  : 
+; 760  :   tileOffset = (hwPtr & ~SSTG_IS_TILED) - _FF(ddTiledHeapStart);
+
+  00850	8b 44 24 08	 mov	 eax, DWORD PTR _hwPtr$[esp-4]
+  00854	53		 push	 ebx
+  00855	8b 5c 24 08	 mov	 ebx, DWORD PTR _ppdev$[esp]
+  00859	25 ff ff ff 7f	 and	 eax, 2147483647		; 7fffffffH
+  0085e	55		 push	 ebp
+  0085f	8b ab 30 05 00
+	00		 mov	 ebp, DWORD PTR [ebx+1328]
+  00865	2b c5		 sub	 eax, ebp
+  00867	56		 push	 esi
+
+; 761  : 
+; 762  :   // Compute tile offset from tile mark.
+; 763  : 
+; 764  :   tileInY = (tileOffset / SST_TILE_SIZE) / _FF(ddTileStride);
+
+  00868	8b b3 8c 05 00
+	00		 mov	 esi, DWORD PTR [ebx+1420]
+  0086e	57		 push	 edi
+  0086f	8b f8		 mov	 edi, eax
+  00871	c1 ef 0c	 shr	 edi, 12			; 0000000cH
+  00874	33 d2		 xor	 edx, edx
+  00876	8b c7		 mov	 eax, edi
+  00878	f7 f6		 div	 esi
+
+; 765  :   tileInX = (tileOffset / SST_TILE_SIZE) % _FF(ddTileStride);
+
+  0087a	33 d2		 xor	 edx, edx
+  0087c	8b c8		 mov	 ecx, eax
+  0087e	8b c7		 mov	 eax, edi
+
+; 766  : 
+; 767  :   // Compute scanline and byte offsets.
+; 768  : 
+; 769  :   yOffset = (tileInY * _FF(ddTileStride) * SST_TILE_SIZE);
+; 770  :   xOffset = (tileInX * SST_TILE_SIZE);
+; 771  : 
+; 772  :   // Adjust linear frame buffer pointer for extra tiled memory in SLI mode.
+; 773  : 
+; 774  :   if (_DD(ddSLIModeRequested))
+; 775  :   {
+; 776  :     // Compress hwPtr in SLI mode.
+; 777  : 
+; 778  :     yOffset /= _DD(ddSLINumberWays);
+; 779  :   }
+; 780  : 
+; 781  :   // Compute lfb offset from tile mark.
+; 782  : 
+; 783  :   hwPtr  = yOffset + xOffset;
+; 784  :   
+; 785  :   // Add tile mark.
+; 786  : 
+; 787  :   hwPtr += _FF(ddTiledHeapStart);
+; 788  : 
+; 789  :   // Add extra memory to hardware offset in SLI/!AA mode.
+; 790  : 
+; 791  :   if (_DD(ddSLIModeRequested) && !_DD(ddAAModeRequested))
+; 792  :   {
+; 793  :     hwPtr += _FF(ddExtraMemorySize);
+; 794  :   }
+; 795  : 
+; 796  :   hwPtr |= SSTG_IS_TILED;
+; 797  : 
+; 798  :   return hwPtr;
+
+  00880	0f af ce	 imul	 ecx, esi
+  00883	f7 f6		 div	 esi
+  00885	8b 83 14 18 00
+	00		 mov	 eax, DWORD PTR [ebx+6164]
+  0088b	8b b8 7a 03 00
+	00		 mov	 edi, DWORD PTR [eax+890]
+  00891	c1 e1 0c	 shl	 ecx, 12			; 0000000cH
+  00894	8b f2		 mov	 esi, edx
+  00896	c1 e6 0c	 shl	 esi, 12			; 0000000cH
+  00899	85 ff		 test	 edi, edi
+  0089b	74 12		 je	 SHORT $L36694
+  0089d	8b c1		 mov	 eax, ecx
+  0089f	8b 8b 14 18 00
+	00		 mov	 ecx, DWORD PTR [ebx+6164]
+  008a5	33 d2		 xor	 edx, edx
+  008a7	f7 b1 82 03 00
+	00		 div	 DWORD PTR [ecx+898]
+  008ad	8b c8		 mov	 ecx, eax
+$L36694:
+  008af	8d 04 2e	 lea	 eax, DWORD PTR [esi+ebp]
+  008b2	03 c1		 add	 eax, ecx
+  008b4	85 ff		 test	 edi, edi
+  008b6	74 16		 je	 SHORT $L36698
+  008b8	8b 8b 14 18 00
+	00		 mov	 ecx, DWORD PTR [ebx+6164]
+  008be	8b 91 8a 03 00
+	00		 mov	 edx, DWORD PTR [ecx+906]
+  008c4	85 d2		 test	 edx, edx
+  008c6	75 06		 jne	 SHORT $L36698
+  008c8	03 83 70 05 00
+	00		 add	 eax, DWORD PTR [ebx+1392]
+$L36698:
+  008ce	5f		 pop	 edi
+  008cf	5e		 pop	 esi
+  008d0	5d		 pop	 ebp
+  008d1	0d 00 00 00 80	 or	 eax, -2147483648	; 80000000H
+  008d6	5b		 pop	 ebx
+
+; 799  : 
+; 800  : } // AdjustHwPtr
+
+  008d7	c3		 ret	 0
+_AdjustHwPtr ENDP
+_TEXT	ENDS
+END

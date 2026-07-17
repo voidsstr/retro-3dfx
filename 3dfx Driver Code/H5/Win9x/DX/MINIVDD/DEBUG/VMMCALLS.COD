@@ -1,0 +1,480 @@
+	TITLE	..\vmmcalls.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+FLAT	GROUP _DATA, CONST, _BSS
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+PUBLIC	_PhysicalToLinear
+_TEXT	SEGMENT
+_dwPhysical$ = 8
+_dwRet$ = -4
+_PhysicalToLinear PROC NEAR
+
+; 58   : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	51		 push	 ecx
+  00004	53		 push	 ebx
+  00005	56		 push	 esi
+  00006	57		 push	 edi
+
+; 59   :  DWORD dwRet;
+; 60   :    _asm push ecx         //keep ecx,edx
+
+  00007	51		 push	 ecx
+
+; 61   :    _asm push edx
+
+  00008	52		 push	 edx
+
+; 62   :    _asm push 0
+
+  00009	6a 00		 push	 0
+
+; 63   :    _asm push 0x400       //one page only
+
+  0000b	68 00 04 00 00	 push	 1024			; 00000400H
+
+; 64   :    _asm push dwPhysical
+
+  00010	ff 75 08	 push	 DWORD PTR _dwPhysical$[ebp]
+
+; 65   :    VMMCall (_MapPhysToLinear);
+
+  00013	cd		 DB	 -51			; ffffffcdH
+  00014	20		 DB	 32			; 00000020H
+  00015	6c		 DB	 108			; 0000006cH
+  00016	00		 DB	 0
+  00017	01		 DB	 1
+  00018	00		 DB	 0
+
+; 66   :    _asm add  esp, 12
+
+  00019	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 67   :    _asm pop  edx
+
+  0001c	5a		 pop	 edx
+
+; 68   :    _asm pop  ecx
+
+  0001d	59		 pop	 ecx
+
+; 69   :    _asm mov    dwRet,eax
+
+  0001e	89 45 fc	 mov	 DWORD PTR _dwRet$[ebp], eax
+
+; 70   : 
+; 71   :   return dwRet;
+
+  00021	8b 45 fc	 mov	 eax, DWORD PTR _dwRet$[ebp]
+
+; 72   : }
+
+  00024	5f		 pop	 edi
+  00025	5e		 pop	 esi
+  00026	5b		 pop	 ebx
+  00027	8b e5		 mov	 esp, ebp
+  00029	5d		 pop	 ebp
+  0002a	c3		 ret	 0
+_PhysicalToLinear ENDP
+_TEXT	ENDS
+PUBLIC	_GetDBLinear
+_TEXT	SEGMENT
+_DBLinear$ = 8
+_dwRet$ = -12
+_dwOffset$ = -8
+_dwPhysAddr$ = -4
+_dwLocked$ = -16
+_GetDBLinear PROC NEAR
+
+; 75   : {
+
+  0002b	55		 push	 ebp
+  0002c	8b ec		 mov	 ebp, esp
+  0002e	83 ec 10	 sub	 esp, 16			; 00000010H
+  00031	53		 push	 ebx
+  00032	56		 push	 esi
+  00033	57		 push	 edi
+
+; 76   :   DWORD dwRet;
+; 77   :   DWORD dwOffset;
+; 78   :   DWORD dwPhysAddr;
+; 79   :   DWORD dwLocked;
+; 80   :    //First find the physcal address of DBLinear
+; 81   :     _asm mov    eax, cr3
+
+  00034	0f 20 d8	 mov	 eax, cr3
+
+; 82   :     _asm mov    dwRet, eax
+
+  00037	89 45 f4	 mov	 DWORD PTR _dwRet$[ebp], eax
+
+; 83   :     dwRet = PhysicalToLinear( dwRet & 0xFFFFF000);
+
+  0003a	8b 45 f4	 mov	 eax, DWORD PTR _dwRet$[ebp]
+  0003d	25 00 f0 ff ff	 and	 eax, -4096		; fffff000H
+  00042	50		 push	 eax
+  00043	e8 00 00 00 00	 call	 _PhysicalToLinear
+  00048	83 c4 04	 add	 esp, 4
+  0004b	89 45 f4	 mov	 DWORD PTR _dwRet$[ebp], eax
+
+; 84   : 
+; 85   :     if( dwRet == 0xFFFFFFFF)
+
+  0004e	83 7d f4 ff	 cmp	 DWORD PTR _dwRet$[ebp], -1
+  00052	75 0a		 jne	 SHORT $L908
+
+; 86   :        return 1;      //Error
+
+  00054	b8 01 00 00 00	 mov	 eax, 1
+  00059	e9 fa 00 00 00	 jmp	 $L903
+$L908:
+
+; 87   :     //Now dwRet has the linear address of CR3
+; 88   : 
+; 89   :     dwOffset = DBLinear >> 22;
+
+  0005e	8b 4d 08	 mov	 ecx, DWORD PTR _DBLinear$[ebp]
+  00061	c1 e9 16	 shr	 ecx, 22			; 00000016H
+  00064	89 4d f8	 mov	 DWORD PTR _dwOffset$[ebp], ecx
+
+; 90   :     dwRet +=dwOffset * 4;
+
+  00067	8b 55 f8	 mov	 edx, DWORD PTR _dwOffset$[ebp]
+  0006a	8b 45 f4	 mov	 eax, DWORD PTR _dwRet$[ebp]
+  0006d	8d 0c 90	 lea	 ecx, DWORD PTR [eax+edx*4]
+  00070	89 4d f4	 mov	 DWORD PTR _dwRet$[ebp], ecx
+
+; 91   :     //find page table address -- a physical address
+; 92   :     dwOffset = * ((DWORD *)dwRet);
+
+  00073	8b 55 f4	 mov	 edx, DWORD PTR _dwRet$[ebp]
+  00076	8b 02		 mov	 eax, DWORD PTR [edx]
+  00078	89 45 f8	 mov	 DWORD PTR _dwOffset$[ebp], eax
+
+; 93   : 
+; 94   :     dwRet = PhysicalToLinear( dwOffset & 0xFFFFF000);
+
+  0007b	8b 4d f8	 mov	 ecx, DWORD PTR _dwOffset$[ebp]
+  0007e	81 e1 00 f0 ff
+	ff		 and	 ecx, -4096		; fffff000H
+  00084	51		 push	 ecx
+  00085	e8 00 00 00 00	 call	 _PhysicalToLinear
+  0008a	83 c4 04	 add	 esp, 4
+  0008d	89 45 f4	 mov	 DWORD PTR _dwRet$[ebp], eax
+
+; 95   : 
+; 96   :     if( dwRet == 0xFFFFFFFF)
+
+  00090	83 7d f4 ff	 cmp	 DWORD PTR _dwRet$[ebp], -1
+  00094	75 0a		 jne	 SHORT $L910
+
+; 97   :        return 2;
+
+  00096	b8 02 00 00 00	 mov	 eax, 2
+  0009b	e9 b8 00 00 00	 jmp	 $L903
+$L910:
+
+; 98   : 
+; 99   :     dwOffset = (DBLinear & 0x3FF000) >> 12;
+
+  000a0	8b 55 08	 mov	 edx, DWORD PTR _DBLinear$[ebp]
+  000a3	81 e2 00 f0 3f
+	00		 and	 edx, 4190208		; 003ff000H
+  000a9	c1 ea 0c	 shr	 edx, 12			; 0000000cH
+  000ac	89 55 f8	 mov	 DWORD PTR _dwOffset$[ebp], edx
+
+; 100  :     dwRet +=dwOffset * 4;
+
+  000af	8b 45 f8	 mov	 eax, DWORD PTR _dwOffset$[ebp]
+  000b2	8b 4d f4	 mov	 ecx, DWORD PTR _dwRet$[ebp]
+  000b5	8d 14 81	 lea	 edx, DWORD PTR [ecx+eax*4]
+  000b8	89 55 f4	 mov	 DWORD PTR _dwRet$[ebp], edx
+
+; 101  :     //find page start address -- a physical address
+; 102  :     dwPhysAddr = * ((DWORD *)dwRet);
+
+  000bb	8b 45 f4	 mov	 eax, DWORD PTR _dwRet$[ebp]
+  000be	8b 08		 mov	 ecx, DWORD PTR [eax]
+  000c0	89 4d fc	 mov	 DWORD PTR _dwPhysAddr$[ebp], ecx
+
+; 103  : 
+; 104  :     //Reserve on page of linear address to map to
+; 105  :     //this physical address too.
+; 106  :     _asm  push  ecx         //keep ecx 
+
+  000c3	51		 push	 ecx
+
+; 107  :     _asm  push  edx         //keep edx 
+
+  000c4	52		 push	 edx
+
+; 108  :     _asm  push  PR_FIXED
+
+  000c5	6a 08		 push	 8
+
+; 109  :     _asm  push  1
+
+  000c7	6a 01		 push	 1
+
+; 110  :     _asm  push  PR_SHARED
+
+  000c9	68 00 00 06 80	 push	 -2147090432		; 80060000H
+
+; 111  :     VMMCall (_PageReserve);
+
+  000ce	cd		 DB	 -51			; ffffffcdH
+  000cf	20		 DB	 32			; 00000020H
+  000d0	1d		 DB	 29			; 0000001dH
+  000d1	01		 DB	 1
+  000d2	01		 DB	 1
+  000d3	00		 DB	 0
+
+; 112  :     _asm  add  esp, 12
+
+  000d4	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 113  :     _asm  pop  edx
+
+  000d7	5a		 pop	 edx
+
+; 114  :     _asm  pop  ecx
+
+  000d8	59		 pop	 ecx
+
+; 115  :     _asm  mov   dwRet,eax
+
+  000d9	89 45 f4	 mov	 DWORD PTR _dwRet$[ebp], eax
+
+; 116  : 
+; 117  :     if( dwRet == 0xFFFFFFFF)
+
+  000dc	83 7d f4 ff	 cmp	 DWORD PTR _dwRet$[ebp], -1
+  000e0	75 07		 jne	 SHORT $L912
+
+; 118  :        return 3;
+
+  000e2	b8 03 00 00 00	 mov	 eax, 3
+  000e7	eb 6f		 jmp	 SHORT $L903
+$L912:
+
+; 119  : 
+; 120  :     dwLocked = dwRet;
+
+  000e9	8b 55 f4	 mov	 edx, DWORD PTR _dwRet$[ebp]
+  000ec	89 55 f0	 mov	 DWORD PTR _dwLocked$[ebp], edx
+
+; 121  :     dwPhysAddr >>= 12;
+
+  000ef	8b 45 fc	 mov	 eax, DWORD PTR _dwPhysAddr$[ebp]
+  000f2	c1 e8 0c	 shr	 eax, 12			; 0000000cH
+  000f5	89 45 fc	 mov	 DWORD PTR _dwPhysAddr$[ebp], eax
+
+; 122  :     dwRet >>= 12;
+
+  000f8	8b 4d f4	 mov	 ecx, DWORD PTR _dwRet$[ebp]
+  000fb	c1 e9 0c	 shr	 ecx, 12			; 0000000cH
+  000fe	89 4d f4	 mov	 DWORD PTR _dwRet$[ebp], ecx
+
+; 123  : 
+; 124  :      _asm push  ecx         //keep ecx 
+
+  00101	51		 push	 ecx
+
+; 125  :      _asm push  edx         //keep edx 
+
+  00102	52		 push	 edx
+
+; 126  :      _asm push  PC_USER|PC_WRITEABLE
+
+  00103	68 00 00 06 00	 push	 393216			; 00060000H
+
+; 127  :      _asm push  dwPhysAddr
+
+  00108	ff 75 fc	 push	 DWORD PTR _dwPhysAddr$[ebp]
+
+; 128  :      _asm push  1
+
+  0010b	6a 01		 push	 1
+
+; 129  :      _asm push  dwRet
+
+  0010d	ff 75 f4	 push	 DWORD PTR _dwRet$[ebp]
+
+; 130  :      VMMCall (_PageCommitPhys);
+
+  00110	cd		 DB	 -51			; ffffffcdH
+  00111	20		 DB	 32			; 00000020H
+  00112	28		 DB	 40			; 00000028H
+  00113	01		 DB	 1
+  00114	01		 DB	 1
+  00115	00		 DB	 0
+
+; 131  :      _asm  add  esp, 16
+
+  00116	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 132  :      _asm  pop  edx
+
+  00119	5a		 pop	 edx
+
+; 133  :      _asm  pop  ecx
+
+  0011a	59		 pop	 ecx
+
+; 134  :      _asm mov dwRet ,eax
+
+  0011b	89 45 f4	 mov	 DWORD PTR _dwRet$[ebp], eax
+
+; 135  : 
+; 136  :      if( !dwRet )
+
+  0011e	83 7d f4 00	 cmp	 DWORD PTR _dwRet$[ebp], 0
+  00122	75 07		 jne	 SHORT $L913
+
+; 137  :          return 4;
+
+  00124	b8 04 00 00 00	 mov	 eax, 4
+  00129	eb 2d		 jmp	 SHORT $L903
+$L913:
+
+; 138  : 
+; 139  :      //Page lock it
+; 140  :       _asm push ecx
+
+  0012b	51		 push	 ecx
+
+; 141  :       _asm push PAGEMAPGLOBAL
+
+  0012c	68 00 00 00 40	 push	 1073741824		; 40000000H
+
+; 142  :       _asm push 1
+
+  00131	6a 01		 push	 1
+
+; 143  :       _asm mov  eax, dwLocked
+
+  00133	8b 45 f0	 mov	 eax, DWORD PTR _dwLocked$[ebp]
+
+; 144  :       _asm shr  eax, 12
+
+  00136	c1 e8 0c	 shr	 eax, 12			; 0000000cH
+
+; 145  :       _asm push eax
+
+  00139	50		 push	 eax
+
+; 146  :       VMMCall (_LinPageLock);
+
+  0013a	cd		 DB	 -51			; ffffffcdH
+  0013b	20		 DB	 32			; 00000020H
+  0013c	63		 DB	 99			; 00000063H
+  0013d	00		 DB	 0
+  0013e	01		 DB	 1
+  0013f	00		 DB	 0
+
+; 147  :      _asm  add  esp, 12
+
+  00140	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 148  :      _asm  pop  ecx
+
+  00143	59		 pop	 ecx
+
+; 149  : 
+; 150  :       dwLocked |= DBLinear & 0xFFF;
+
+  00144	8b 55 08	 mov	 edx, DWORD PTR _DBLinear$[ebp]
+  00147	81 e2 ff 0f 00
+	00		 and	 edx, 4095		; 00000fffH
+  0014d	8b 45 f0	 mov	 eax, DWORD PTR _dwLocked$[ebp]
+  00150	0b c2		 or	 eax, edx
+  00152	89 45 f0	 mov	 DWORD PTR _dwLocked$[ebp], eax
+
+; 151  : 
+; 152  :       return dwLocked;
+
+  00155	8b 45 f0	 mov	 eax, DWORD PTR _dwLocked$[ebp]
+$L903:
+
+; 153  : 
+; 154  : }
+
+  00158	5f		 pop	 edi
+  00159	5e		 pop	 esi
+  0015a	5b		 pop	 ebx
+  0015b	8b e5		 mov	 esp, ebp
+  0015d	5d		 pop	 ebp
+  0015e	c3		 ret	 0
+_GetDBLinear ENDP
+_TEXT	ENDS
+PUBLIC	_GetExtraAddr
+_TEXT	SEGMENT
+_lpParams$ = 8
+_GetExtraAddr PROC NEAR
+
+; 157  : {
+
+  0015f	55		 push	 ebp
+  00160	8b ec		 mov	 ebp, esp
+
+; 158  :    if( (lpParams->cbOutBuffer >= 4) &&
+; 159  :        ( lpParams->cbInBuffer >= 4))
+
+  00162	8b 45 08	 mov	 eax, DWORD PTR _lpParams$[ebp]
+  00165	83 78 1c 04	 cmp	 DWORD PTR [eax+28], 4
+  00169	72 26		 jb	 SHORT $L918
+  0016b	8b 4d 08	 mov	 ecx, DWORD PTR _lpParams$[ebp]
+  0016e	83 79 14 04	 cmp	 DWORD PTR [ecx+20], 4
+  00172	72 1d		 jb	 SHORT $L918
+
+; 161  :       *(DWORD *)lpParams->lpvOutBuffer = GetDBLinear( *(DWORD *)lpParams->lpvInBuffer);
+
+  00174	8b 55 08	 mov	 edx, DWORD PTR _lpParams$[ebp]
+  00177	8b 42 10	 mov	 eax, DWORD PTR [edx+16]
+  0017a	8b 08		 mov	 ecx, DWORD PTR [eax]
+  0017c	51		 push	 ecx
+  0017d	e8 00 00 00 00	 call	 _GetDBLinear
+  00182	83 c4 04	 add	 esp, 4
+  00185	8b 55 08	 mov	 edx, DWORD PTR _lpParams$[ebp]
+  00188	8b 4a 18	 mov	 ecx, DWORD PTR [edx+24]
+  0018b	89 01		 mov	 DWORD PTR [ecx], eax
+
+; 162  :       return 0;
+
+  0018d	33 c0		 xor	 eax, eax
+  0018f	eb 05		 jmp	 SHORT $L921
+$L918:
+
+; 164  :     else
+; 165  :       return 1;
+
+  00191	b8 01 00 00 00	 mov	 eax, 1
+$L921:
+
+; 166  : }
+
+  00196	5d		 pop	 ebp
+  00197	c3		 ret	 0
+_GetExtraAddr ENDP
+_TEXT	ENDS
+END

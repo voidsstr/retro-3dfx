@@ -1,0 +1,267 @@
+Microsoft (R) Macro Assembler Version 6.14.8444		    11/10/00 19:12:51
+..\k6_2.asm						     Page 1 - 1
+
+
+
+				.586p
+				.model FLAT
+
+				include k6common.inc
+			      C ;
+			      C ;  Common eques for .asm module (structure member offsets, consts, etc...)
+			      C ;
+			      C 
+			      C ;include         ofs4asm.inc
+			      C 
+ = nop			      C CacheNOP        equ     nop
+ = 00000000		      C Zero            equ     0
+			      C 
+ = db 0Fh, 6Fh, 46h, 00h      C movq_mm0_esi    equ     db 0Fh, 6Fh, 46h, 00h
+ = db 0Fh, 6Fh, 4Eh, 00h      C movq_mm1_esi    equ     db 0Fh, 6Fh, 4Eh, 00h
+ = db 0Fh, 6Fh, 56h, 00h      C movq_mm2_esi    equ     db 0Fh, 6Fh, 56h, 00h
+ = db 0Fh, 6Fh, 5Eh, 00h      C movq_mm3_esi    equ     db 0Fh, 6Fh, 5Eh, 00h
+ = db 0Fh, 6Fh, 66h, 00h      C movq_mm4_esi    equ     db 0Fh, 6Fh, 66h, 00h
+ = db 0Fh, 6Fh, 6Eh, 00h      C movq_mm5_esi    equ     db 0Fh, 6Fh, 6Eh, 00h
+ = db 0Fh, 6Fh, 76h, 00h      C movq_mm6_esi    equ     db 0Fh, 6Fh, 76h, 00h
+ = db 0Fh, 6Fh, 7Eh, 00h      C movq_mm7_esi    equ     db 0Fh, 6Fh, 7Eh, 00h
+			      C 
+ = 1000BC53		      C HW2_STRIP_CONTINUE      equ     1000BC53h
+ = 1040BC53		      C HW2_FAN_CONTINUE        equ     1040bc53H
+			      C 
+ = 00000040		      C FOG_TABLE_SIZE  equ     64
+			      C 
+ = 00000000		      C AA_X            equ     0
+ = 00000001		      C AA_Y            equ     1
+			      C 
+ = 00000000		      C aaEdgeSenseTop  equ     0
+ = 00000001		      C aaEdgeSenseLeft equ     1
+ = 00000002		      C aaEdgeSenseBottom equ   2
+ = 00000003		      C aaEdgeSenseRight equ    3
+			      C 
+
+				.K3D
+
+				public  __3DNowAllowed
+
+				IFNDEF WINNT  ; K6-2 optimized fogGenerateLinear not implemented under WinNT
+				public  _fogGenerateLinear_K62O
+				public  _fogGenerateLinear
+
+				extrn   _indexToW : DWORD
+				extrn   _fogGenerateLinear_Orig : proc
+				public  _fogGenerateLinear
+				public  _fogGenerateLinear_K62O
+
+				extrn   _indexToW : DWORD
+				ENDIF
+
+ 00000000			_DATA   segment
+
+				align 16
+
+ 00000000 00000000		__3DNowAllowed          dd      0
+
+				IFNDEF WINNT
+				; Function ptr table:
+ 00000004 00000000 E		_fogGenerateLinear      dd      _fogGenerateLinear_Orig
+
+ 00000008 47800000		_65536f                 REAL4   65536.0R
+ 0000000C  00000000		                        REAL4   0.0R
+
+ 00000010 437F0000		_255f                   REAL4   255.0R
+
+ 00000014 3F800000		oneminusone             REAL4   1.0R
+ 00000018  BF800000		                        REAL4   -1.0R
+
+ 0000001C  00000000		                dd      0 ; for safe
+				ENDIF
+
+ 00000020			_DATA   ends
+
+ 00000000			_TEXT   segment
+
+
+				ifdef WINNT	; OLD CPUID CODE
+				endif ;WINNT
+
+				IFNDEF WINNT    ; shouston - K6-2 optimized fogGenerateLinear not implemented under WinNT
+
+				; **************************************************************************
+				;void fogGenerateLinear( unsigned char fogtable[FOG_TABLE_SIZE], float nearZ, float farZ )
+ 00000000			_fogGenerateLinear_K62O proc
+				; Parameters:
+ = [esp+12]			        p_farZ          equ     [esp+12]
+ = [esp+ 8]			        p_nearZ         equ     [esp+ 8]
+ = [esp+ 4]			        p_fogtable      equ     [esp+ 4]
+				        ; eip is here - [esp]
+				        ; local vars further
+ 00000000  0F 0E		                femms
+				;{
+				;   int i;
+				;   float world_w;
+				;   float f;
+				;
+ 00000002  B9 0000003F		                mov     ecx, FOG_TABLE_SIZE - 1
+				                ; indexes be gone through backward and be muled by 4
+ 00000007  8B 54 24 04		                mov     edx, p_fogTable
+ 0000000B  0F 6E 3D		                movd    mm7, _65536f
+	   00000008 R
+ 00000012  0F 6E 35		                movd    mm6, oneminusone    ; mm6: - | 1.0
+	   00000014 R
+ 00000019  0F EF ED		                pxor    mm5, mm5            ; mm5: 0 | 0
+ 0000001C  0F 6E 25		                movd    mm4, _255f
+	   00000010 R
+ 00000023  0F 6E 4C 24 08	                movd    mm1, dword ptr p_nearZ
+ 00000028  8D 04 8D		                lea     eax, [ecx*4]
+	   00000000
+ 0000002F  EB 0F		                jmp     fgl_do_cycle
+				align 16
+ 00000040			        fgl_do_cycle:
+				;   for ( i = 0; i < FOG_TABLE_SIZE; i++ )
+				;   {
+				;      world_w = INDEXTOW( i ); //guFogTableIndexToW( i );
+ 00000040  0F 6E 54 24 0C	                movd    mm2, dword ptr p_farZ
+ 00000045  0F 6E 80		                movd    mm0, [_indexToW+eax]          ; mm0: 0 | world_w
+	   00000000 E
+
+ 0000004C  0F 0F D1 9A		                pfsub   mm2, mm1            ; mm2: - | (farZ - nearZ)
+ 00000050  0F 0F DA 96		                pfrcp   mm3, mm2
+
+ 00000054  0F 0F C7 94 3A	                pfmin   mm0, mm7
+ 00000058  0F 0F D3 A6		                pfrcpit1 mm2, mm3
+				;      if ( world_w > 65535.0F )
+				;         world_w = 65535.0F;
+				;
+				;      f = ( world_w - nearZ ) / ( farZ - nearZ );
+ 0000005C  0F 0F C1 9A		                pfsub   mm0, mm1            ; mm0: - | (world_w - nearZ)
+ 00000060  0F 0F D3 B6		                pfrcpit2 mm2, mm3           ; mm2: - | 1/(farZ - nearZ)
+
+ 00000064  0F 0F C2 3AB4	                pfmul   mm0, mm2  ; mm0: - | (world_w - nearZ) / (farZ - nearZ)
+ 00000068  0F 0F C5 A4 3A	                pfmax   mm0, mm5
+				;      if ( f > 1.0F )
+				;         f = 1.0F;
+				;      else if ( f < 0.0F )
+				;         f = 0.0F;
+ 0000006C  0F 0F C6 94 3A	                pfmin   mm0, mm6
+ 00000070  0F 0F C4 B4 3A	                pfmul   mm0, mm4
+
+ 00000074  0F 0F C0 1D		                pf2id   mm0, mm0
+ 00000078  0F 7E C0		                movd    eax, mm0
+				;      f *= 255.0F;
+				;
+				;      fogtable[i] = ( unsigned char ) float2int(f);
+ 0000007B  88 04 11		                mov     byte ptr [edx+ecx], al
+ 0000007E  49			                dec     ecx
+
+ 0000007F  8D 04 8D		                lea     eax, [ecx*4]
+	   00000000
+ 00000086  79 B8		                jns     fgl_do_cycle
+				;   }
+				;}
+ 00000088  0F 0E		                femms
+ 0000008A  C3			                ret
+ 0000008B			_fogGenerateLinear_K62O endp
+
+				ENDIF ; WINNT
+
+				align   16
+
+ 00000090			_TEXT   ends
+
+				        end
+Microsoft (R) Macro Assembler Version 6.14.8444		    11/10/00 19:12:51
+..\k6_2.asm						     Symbols 2 - 1
+
+
+
+
+Segments and Groups:
+
+                N a m e                 Size     Length   Align   Combine Class
+
+FLAT . . . . . . . . . . . . . .	GROUP
+_DATA  . . . . . . . . . . . . .	32 Bit	 00000020 Para	  Public  'DATA'	
+_TEXT  . . . . . . . . . . . . .	32 Bit	 00000090 Para	  Public  'CODE'	
+
+
+Procedures,  parameters and locals:
+
+                N a m e                 Type     Value    Attr
+
+_fogGenerateLinear_K62O  . . . .	P Near	 00000000 _TEXT	Length= 0000008B Public
+
+
+Symbols:
+
+                N a m e                 Type     Value    Attr
+
+@CodeSize  . . . . . . . . . . .	Number	 00000000h   
+@DataSize  . . . . . . . . . . .	Number	 00000000h   
+@Interface . . . . . . . . . . .	Number	 00000000h   
+@Model . . . . . . . . . . . . .	Number	 00000007h   
+@code  . . . . . . . . . . . . .	Text   	 _TEXT
+@data  . . . . . . . . . . . . .	Text   	 FLAT
+@fardata?  . . . . . . . . . . .	Text   	 FLAT
+@fardata . . . . . . . . . . . .	Text   	 FLAT
+@stack . . . . . . . . . . . . .	Text   	 FLAT
+AA_X . . . . . . . . . . . . . .	Number	 00000000h   
+AA_Y . . . . . . . . . . . . . .	Number	 00000001h   
+AGP_CMDFIFO  . . . . . . . . . .	Text   	 
+BLD_COFF . . . . . . . . . . . .	Text   	 
+CMDFIFO  . . . . . . . . . . . .	Text   	 
+CacheNOP . . . . . . . . . . . .	Text   	 nop
+DEBUG  . . . . . . . . . . . . .	Text   	 
+DX . . . . . . . . . . . . . . .	Text   	 7
+ENABLE_AA  . . . . . . . . . . .	Text   	 1
+FOG_TABLE_SIZE . . . . . . . . .	Number	 00000040h   
+H3_A2  . . . . . . . . . . . . .	Text   	 
+H5 . . . . . . . . . . . . . . .	Text   	 
+HW2_FAN_CONTINUE . . . . . . . .	Number	 1040BC53h   
+HW2_STRIP_CONTINUE . . . . . . .	Number	 1000BC53h   
+IS_32  . . . . . . . . . . . . .	Text   	 
+K6_2 . . . . . . . . . . . . . .	Text   	 
+MASM6  . . . . . . . . . . . . .	Text   	 
+MM0  . . . . . . . . . . . . . .	Text   	 MM(0)
+MM1  . . . . . . . . . . . . . .	Text   	 MM(1)
+MM2  . . . . . . . . . . . . . .	Text   	 MM(2)
+MM3  . . . . . . . . . . . . . .	Text   	 MM(3)
+MM4  . . . . . . . . . . . . . .	Text   	 MM(4)
+MM5  . . . . . . . . . . . . . .	Text   	 MM(5)
+MM6  . . . . . . . . . . . . . .	Text   	 MM(6)
+MM7  . . . . . . . . . . . . . .	Text   	 MM(7)
+MM . . . . . . . . . . . . . . .	Text   	 
+NAPALM_CU  . . . . . . . . . . .	Text   	 
+NUMTEXTUREUNITS  . . . . . . . .	Text   	 2
+SLI_AA . . . . . . . . . . . . .	Text   	 
+SM . . . . . . . . . . . . . . .	Text   	 3
+STD_CALL . . . . . . . . . . . .	Text   	 
+WIN32  . . . . . . . . . . . . .	Text   	 
+Zero . . . . . . . . . . . . . .	Number	 00000000h   
+_255f  . . . . . . . . . . . . .	DWord	 00000010 _DATA	
+_65536f  . . . . . . . . . . . .	DWord	 00000008 _DATA	
+_DEBUG . . . . . . . . . . . . .	Text   	 
+__3DNowAllowed . . . . . . . . .	DWord	 00000000 _DATA	Public
+__MSC__  . . . . . . . . . . . .	Text   	 
+_fogGenerateLinear_Orig  . . . .	L Near	 00000000 FLAT	External
+_fogGenerateLinear . . . . . . .	DWord	 00000004 _DATA	Public
+_indexToW  . . . . . . . . . . .	DWord	 00000000 FLAT	External
+aaEdgeSenseBottom  . . . . . . .	Number	 00000002h   
+aaEdgeSenseLeft  . . . . . . . .	Number	 00000001h   
+aaEdgeSenseRight . . . . . . . .	Number	 00000003h   
+aaEdgeSenseTop . . . . . . . . .	Number	 00000000h   
+fgl_do_cycle . . . . . . . . . .	L Near	 00000040 _TEXT	
+movq_mm0_esi . . . . . . . . . .	Text   	 db 0Fh, 6Fh, 46h, 00h
+movq_mm1_esi . . . . . . . . . .	Text   	 db 0Fh, 6Fh, 4Eh, 00h
+movq_mm2_esi . . . . . . . . . .	Text   	 db 0Fh, 6Fh, 56h, 00h
+movq_mm3_esi . . . . . . . . . .	Text   	 db 0Fh, 6Fh, 5Eh, 00h
+movq_mm4_esi . . . . . . . . . .	Text   	 db 0Fh, 6Fh, 66h, 00h
+movq_mm5_esi . . . . . . . . . .	Text   	 db 0Fh, 6Fh, 6Eh, 00h
+movq_mm6_esi . . . . . . . . . .	Text   	 db 0Fh, 6Fh, 76h, 00h
+movq_mm7_esi . . . . . . . . . .	Text   	 db 0Fh, 6Fh, 7Eh, 00h
+oneminusone  . . . . . . . . . .	DWord	 00000014 _DATA	
+p_farZ . . . . . . . . . . . . .	Text   	 [esp+12]
+p_fogtable . . . . . . . . . . .	Text   	 [esp+ 4]
+p_nearZ  . . . . . . . . . . . .	Text   	 [esp+ 8]
+
+	   0 Warnings
+	   0 Errors

@@ -1,0 +1,2 @@
+rundiags -f fbid
+

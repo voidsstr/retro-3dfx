@@ -1,0 +1,2477 @@
+	TITLE	..\i2cfx.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+FLAT	GROUP _DATA, CONST, _BSS
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+_DATA	SEGMENT
+_f_255_reverse_lookup DD 0437f0000r		; 255
+	DD	0437e0000r			; 254
+	DD	0437d0000r			; 253
+	DD	0437c0000r			; 252
+	DD	0437b0000r			; 251
+	DD	0437a0000r			; 250
+	DD	043790000r			; 249
+	DD	043780000r			; 248
+	DD	043770000r			; 247
+	DD	043760000r			; 246
+	DD	043750000r			; 245
+	DD	043740000r			; 244
+	DD	043730000r			; 243
+	DD	043720000r			; 242
+	DD	043710000r			; 241
+	DD	043700000r			; 240
+	DD	0436f0000r			; 239
+	DD	0436e0000r			; 238
+	DD	0436d0000r			; 237
+	DD	0436c0000r			; 236
+	DD	0436b0000r			; 235
+	DD	0436a0000r			; 234
+	DD	043690000r			; 233
+	DD	043680000r			; 232
+	DD	043670000r			; 231
+	DD	043660000r			; 230
+	DD	043650000r			; 229
+	DD	043640000r			; 228
+	DD	043630000r			; 227
+	DD	043620000r			; 226
+	DD	043610000r			; 225
+	DD	043600000r			; 224
+	DD	0435f0000r			; 223
+	DD	0435e0000r			; 222
+	DD	0435d0000r			; 221
+	DD	0435c0000r			; 220
+	DD	0435b0000r			; 219
+	DD	0435a0000r			; 218
+	DD	043590000r			; 217
+	DD	043580000r			; 216
+	DD	043570000r			; 215
+	DD	043560000r			; 214
+	DD	043550000r			; 213
+	DD	043540000r			; 212
+	DD	043530000r			; 211
+	DD	043520000r			; 210
+	DD	043510000r			; 209
+	DD	043500000r			; 208
+	DD	0434f0000r			; 207
+	DD	0434e0000r			; 206
+	DD	0434d0000r			; 205
+	DD	0434c0000r			; 204
+	DD	0434b0000r			; 203
+	DD	0434a0000r			; 202
+	DD	043490000r			; 201
+	DD	043480000r			; 200
+	DD	043470000r			; 199
+	DD	043460000r			; 198
+	DD	043450000r			; 197
+	DD	043440000r			; 196
+	DD	043430000r			; 195
+	DD	043420000r			; 194
+	DD	043410000r			; 193
+	DD	043400000r			; 192
+	DD	0433f0000r			; 191
+	DD	0433e0000r			; 190
+	DD	0433d0000r			; 189
+	DD	0433c0000r			; 188
+	DD	0433b0000r			; 187
+	DD	0433a0000r			; 186
+	DD	043390000r			; 185
+	DD	043380000r			; 184
+	DD	043370000r			; 183
+	DD	043360000r			; 182
+	DD	043350000r			; 181
+	DD	043340000r			; 180
+	DD	043330000r			; 179
+	DD	043320000r			; 178
+	DD	043310000r			; 177
+	DD	043300000r			; 176
+	DD	0432f0000r			; 175
+	DD	0432e0000r			; 174
+	DD	0432d0000r			; 173
+	DD	0432c0000r			; 172
+	DD	0432b0000r			; 171
+	DD	0432a0000r			; 170
+	DD	043290000r			; 169
+	DD	043280000r			; 168
+	DD	043270000r			; 167
+	DD	043260000r			; 166
+	DD	043250000r			; 165
+	DD	043240000r			; 164
+	DD	043230000r			; 163
+	DD	043220000r			; 162
+	DD	043210000r			; 161
+	DD	043200000r			; 160
+	DD	0431f0000r			; 159
+	DD	0431e0000r			; 158
+	DD	0431d0000r			; 157
+	DD	0431c0000r			; 156
+	DD	0431b0000r			; 155
+	DD	0431a0000r			; 154
+	DD	043190000r			; 153
+	DD	043180000r			; 152
+	DD	043170000r			; 151
+	DD	043160000r			; 150
+	DD	043150000r			; 149
+	DD	043140000r			; 148
+	DD	043130000r			; 147
+	DD	043120000r			; 146
+	DD	043110000r			; 145
+	DD	043100000r			; 144
+	DD	0430f0000r			; 143
+	DD	0430e0000r			; 142
+	DD	0430d0000r			; 141
+	DD	0430c0000r			; 140
+	DD	0430b0000r			; 139
+	DD	0430a0000r			; 138
+	DD	043090000r			; 137
+	DD	043080000r			; 136
+	DD	043070000r			; 135
+	DD	043060000r			; 134
+	DD	043050000r			; 133
+	DD	043040000r			; 132
+	DD	043030000r			; 131
+	DD	043020000r			; 130
+	DD	043010000r			; 129
+	DD	043000000r			; 128
+	DD	042fe0000r			; 127
+	DD	042fc0000r			; 126
+	DD	042fa0000r			; 125
+	DD	042f80000r			; 124
+	DD	042f60000r			; 123
+	DD	042f40000r			; 122
+	DD	042f20000r			; 121
+	DD	042f00000r			; 120
+	DD	042ee0000r			; 119
+	DD	042ec0000r			; 118
+	DD	042ea0000r			; 117
+	DD	042e80000r			; 116
+	DD	042e60000r			; 115
+	DD	042e40000r			; 114
+	DD	042e20000r			; 113
+	DD	042e00000r			; 112
+	DD	042de0000r			; 111
+	DD	042dc0000r			; 110
+	DD	042da0000r			; 109
+	DD	042d80000r			; 108
+	DD	042d60000r			; 107
+	DD	042d40000r			; 106
+	DD	042d20000r			; 105
+	DD	042d00000r			; 104
+	DD	042ce0000r			; 103
+	DD	042cc0000r			; 102
+	DD	042ca0000r			; 101
+	DD	042c80000r			; 100
+	DD	042c60000r			; 99
+	DD	042c40000r			; 98
+	DD	042c20000r			; 97
+	DD	042c00000r			; 96
+	DD	042be0000r			; 95
+	DD	042bc0000r			; 94
+	DD	042ba0000r			; 93
+	DD	042b80000r			; 92
+	DD	042b60000r			; 91
+	DD	042b40000r			; 90
+	DD	042b20000r			; 89
+	DD	042b00000r			; 88
+	DD	042ae0000r			; 87
+	DD	042ac0000r			; 86
+	DD	042aa0000r			; 85
+	DD	042a80000r			; 84
+	DD	042a60000r			; 83
+	DD	042a40000r			; 82
+	DD	042a20000r			; 81
+	DD	042a00000r			; 80
+	DD	0429e0000r			; 79
+	DD	0429c0000r			; 78
+	DD	0429a0000r			; 77
+	DD	042980000r			; 76
+	DD	042960000r			; 75
+	DD	042940000r			; 74
+	DD	042920000r			; 73
+	DD	042900000r			; 72
+	DD	0428e0000r			; 71
+	DD	0428c0000r			; 70
+	DD	0428a0000r			; 69
+	DD	042880000r			; 68
+	DD	042860000r			; 67
+	DD	042840000r			; 66
+	DD	042820000r			; 65
+	DD	042800000r			; 64
+	DD	0427c0000r			; 63
+	DD	042780000r			; 62
+	DD	042740000r			; 61
+	DD	042700000r			; 60
+	DD	0426c0000r			; 59
+	DD	042680000r			; 58
+	DD	042640000r			; 57
+	DD	042600000r			; 56
+	DD	0425c0000r			; 55
+	DD	042580000r			; 54
+	DD	042540000r			; 53
+	DD	042500000r			; 52
+	DD	0424c0000r			; 51
+	DD	042480000r			; 50
+	DD	042440000r			; 49
+	DD	042400000r			; 48
+	DD	0423c0000r			; 47
+	DD	042380000r			; 46
+	DD	042340000r			; 45
+	DD	042300000r			; 44
+	DD	0422c0000r			; 43
+	DD	042280000r			; 42
+	DD	042240000r			; 41
+	DD	042200000r			; 40
+	DD	0421c0000r			; 39
+	DD	042180000r			; 38
+	DD	042140000r			; 37
+	DD	042100000r			; 36
+	DD	0420c0000r			; 35
+	DD	042080000r			; 34
+	DD	042040000r			; 33
+	DD	042000000r			; 32
+	DD	041f80000r			; 31
+	DD	041f00000r			; 30
+	DD	041e80000r			; 29
+	DD	041e00000r			; 28
+	DD	041d80000r			; 27
+	DD	041d00000r			; 26
+	DD	041c80000r			; 25
+	DD	041c00000r			; 24
+	DD	041b80000r			; 23
+	DD	041b00000r			; 22
+	DD	041a80000r			; 21
+	DD	041a00000r			; 20
+	DD	041980000r			; 19
+	DD	041900000r			; 18
+	DD	041880000r			; 17
+	DD	041800000r			; 16
+	DD	041700000r			; 15
+	DD	041600000r			; 14
+	DD	041500000r			; 13
+	DD	041400000r			; 12
+	DD	041300000r			; 11
+	DD	041200000r			; 10
+	DD	041100000r			; 9
+	DD	041000000r			; 8
+	DD	040e00000r			; 7
+	DD	040c00000r			; 6
+	DD	040a00000r			; 5
+	DD	040800000r			; 4
+	DD	040400000r			; 3
+	DD	040000000r			; 2
+	DD	03f800000r			; 1
+	DD	000000000r			; 0
+_DATA	ENDS
+PUBLIC	_I2C_OUT
+_TEXT	SEGMENT
+_ppdev$ = 8
+_type$ = 12
+_data$ = 16
+_dwReg$ = -8
+_i$ = -4
+_I2C_OUT PROC NEAR
+
+; 63   : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 64   :      FxU32 dwReg;
+; 65   :      int i;
+; 66   : 
+; 67   :      switch (type) 
+; 68   :      {
+
+  00006	8a 45 0c	 mov	 al, BYTE PTR _type$[ebp]
+  00009	88 45 f4	 mov	 BYTE PTR -12+[ebp], al
+  0000c	80 7d f4 00	 cmp	 BYTE PTR -12+[ebp], 0
+  00010	74 0f		 je	 SHORT $L36656
+  00012	80 7d f4 01	 cmp	 BYTE PTR -12+[ebp], 1
+  00016	0f 84 9d 00 00
+	00		 je	 $L36669
+  0001c	e9 47 01 00 00	 jmp	 $L36653
+$L36656:
+
+; 69   : 		 case SCL:                
+; 70   :             dwReg = GET(ghwIO->vidSerialParallelPort);
+
+  00021	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00024	8b 91 78 1a 00
+	00		 mov	 edx, DWORD PTR [ecx+6776]
+  0002a	8b 42 78	 mov	 eax, DWORD PTR [edx+120]
+  0002d	89 45 f8	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 71   :             if (data & 1) 
+
+  00030	8b 4d 10	 mov	 ecx, DWORD PTR _data$[ebp]
+  00033	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  00039	83 e1 01	 and	 ecx, 1
+  0003c	85 c9		 test	 ecx, ecx
+  0003e	74 0e		 je	 SHORT $L36658
+
+; 72   :                dwReg |= H3_VMI_I2C_CLOCK_MASK;
+
+  00040	8b 55 f8	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00043	81 ca 00 00 00
+	01		 or	 edx, 16777216		; 01000000H
+  00049	89 55 f8	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 73   :             else
+
+  0004c	eb 0b		 jmp	 SHORT $L36659
+$L36658:
+
+; 74   :                dwReg &= ~H3_VMI_I2C_CLOCK_MASK;
+
+  0004e	8b 45 f8	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00051	25 ff ff ff fe	 and	 eax, -16777217		; feffffffH
+  00056	89 45 f8	 mov	 DWORD PTR _dwReg$[ebp], eax
+$L36659:
+
+; 75   :             dwReg |= H3_VMI_I2C_ENABLE_MASK;
+
+  00059	8b 4d f8	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  0005c	81 c9 00 00 80
+	00		 or	 ecx, 8388608		; 00800000H
+  00062	89 4d f8	 mov	 DWORD PTR _dwReg$[ebp], ecx
+
+; 76   :             
+; 77   :             //Set Video Serial Parallel Port register
+; 78   :             SETDW(ghwIO->vidSerialParallelPort, dwReg); 
+
+  00065	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00068	8b 82 78 1a 00
+	00		 mov	 eax, DWORD PTR [edx+6776]
+  0006e	8b 4d f8	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00071	89 48 78	 mov	 DWORD PTR [eax+120], ecx
+$L36662:
+
+; 83   :                dwReg = GET(ghwIO->vidSerialParallelPort);
+
+  00074	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00077	8b 82 78 1a 00
+	00		 mov	 eax, DWORD PTR [edx+6776]
+  0007d	8b 48 78	 mov	 ecx, DWORD PTR [eax+120]
+  00080	89 4d f8	 mov	 DWORD PTR _dwReg$[ebp], ecx
+
+; 84   :                if ( data & 1 )
+
+  00083	8b 55 10	 mov	 edx, DWORD PTR _data$[ebp]
+  00086	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  0008c	83 e2 01	 and	 edx, 1
+  0008f	85 d2		 test	 edx, edx
+  00091	74 10		 je	 SHORT $L36665
+
+; 86   :                    if ( dwReg & H3_VMI_I2C_CLOCK_STATE_MASK )
+
+  00093	8b 45 f8	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00096	25 00 00 00 04	 and	 eax, 67108864		; 04000000H
+  0009b	85 c0		 test	 eax, eax
+  0009d	74 02		 je	 SHORT $L36666
+
+; 87   :                        break;
+
+  0009f	eb 13		 jmp	 SHORT $L36663
+$L36666:
+
+; 89   :                else
+
+  000a1	eb 0f		 jmp	 SHORT $L36668
+$L36665:
+
+; 91   :                    if ( !(dwReg & H3_VMI_I2C_CLOCK_STATE_MASK) )
+
+  000a3	8b 4d f8	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  000a6	81 e1 00 00 00
+	04		 and	 ecx, 67108864		; 04000000H
+  000ac	85 c9		 test	 ecx, ecx
+  000ae	75 02		 jne	 SHORT $L36668
+
+; 92   :                        break;
+
+  000b0	eb 02		 jmp	 SHORT $L36663
+$L36668:
+
+; 94   :             }
+
+  000b2	eb c0		 jmp	 SHORT $L36662
+$L36663:
+
+; 95   :             break;
+
+  000b4	e9 af 00 00 00	 jmp	 $L36653
+$L36669:
+
+; 96   : 			    
+; 97   : 		 case SDA:
+; 98   :             dwReg = GET(ghwIO->vidSerialParallelPort);
+
+  000b9	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  000bc	8b 82 78 1a 00
+	00		 mov	 eax, DWORD PTR [edx+6776]
+  000c2	8b 48 78	 mov	 ecx, DWORD PTR [eax+120]
+  000c5	89 4d f8	 mov	 DWORD PTR _dwReg$[ebp], ecx
+
+; 99   :             if (data & 1)
+
+  000c8	8b 55 10	 mov	 edx, DWORD PTR _data$[ebp]
+  000cb	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  000d1	83 e2 01	 and	 edx, 1
+  000d4	85 d2		 test	 edx, edx
+  000d6	74 0d		 je	 SHORT $L36671
+
+; 100  :             	dwReg |= H3_VMI_I2C_DATA_MASK;
+
+  000d8	8b 45 f8	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  000db	0d 00 00 00 02	 or	 eax, 33554432		; 02000000H
+  000e0	89 45 f8	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 101  :             else
+
+  000e3	eb 0c		 jmp	 SHORT $L36672
+$L36671:
+
+; 102  :             	dwReg &= ~H3_VMI_I2C_DATA_MASK;
+
+  000e5	8b 4d f8	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  000e8	81 e1 ff ff ff
+	fd		 and	 ecx, -33554433		; fdffffffH
+  000ee	89 4d f8	 mov	 DWORD PTR _dwReg$[ebp], ecx
+$L36672:
+
+; 103  :             dwReg |= H3_VMI_I2C_ENABLE_MASK;
+
+  000f1	8b 55 f8	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  000f4	81 ca 00 00 80
+	00		 or	 edx, 8388608		; 00800000H
+  000fa	89 55 f8	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 104  :             
+; 105  :             //Set Video Serial Parallel Port register
+; 106  :             SETDW(ghwIO->vidSerialParallelPort, dwReg); 
+
+  000fd	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00100	8b 88 78 1a 00
+	00		 mov	 ecx, DWORD PTR [eax+6776]
+  00106	8b 55 f8	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00109	89 51 78	 mov	 DWORD PTR [ecx+120], edx
+
+; 107  : 
+; 108  :             //Wait until the new data state latched on the bus
+; 109  :             for ( i=0 ;; )
+
+  0010c	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+$L36675:
+
+; 111  :                dwReg = GET(ghwIO->vidSerialParallelPort);
+
+  00113	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00116	8b 88 78 1a 00
+	00		 mov	 ecx, DWORD PTR [eax+6776]
+  0011c	8b 51 78	 mov	 edx, DWORD PTR [ecx+120]
+  0011f	89 55 f8	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 112  :                if (data & 1)
+
+  00122	8b 45 10	 mov	 eax, DWORD PTR _data$[ebp]
+  00125	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  0012a	83 e0 01	 and	 eax, 1
+  0012d	85 c0		 test	 eax, eax
+  0012f	74 27		 je	 SHORT $L36678
+
+; 114  :                    if ( dwReg & H3_VMI_I2C_DATA_STATE_MASK )
+
+  00131	8b 4d f8	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00134	81 e1 00 00 00
+	08		 and	 ecx, 134217728		; 08000000H
+  0013a	85 c9		 test	 ecx, ecx
+  0013c	74 02		 je	 SHORT $L36679
+
+; 115  :                        break;
+
+  0013e	eb 28		 jmp	 SHORT $L36676
+$L36679:
+
+; 116  :                    else if ( ++i > 50 )
+
+  00140	8b 55 fc	 mov	 edx, DWORD PTR _i$[ebp]
+  00143	83 c2 01	 add	 edx, 1
+  00146	89 55 fc	 mov	 DWORD PTR _i$[ebp], edx
+  00149	83 7d fc 32	 cmp	 DWORD PTR _i$[ebp], 50	; 00000032H
+  0014d	7e 07		 jle	 SHORT $L36681
+
+; 117  :                        return(1);  //Someone is holding bus low
+
+  0014f	b8 01 00 00 00	 mov	 eax, 1
+  00154	eb 14		 jmp	 SHORT $L36649
+$L36681:
+
+; 119  :                else
+
+  00156	eb 0e		 jmp	 SHORT $L36683
+$L36678:
+
+; 121  :                    if ( !(dwReg & H3_VMI_I2C_DATA_STATE_MASK) )
+
+  00158	8b 45 f8	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  0015b	25 00 00 00 08	 and	 eax, 134217728		; 08000000H
+  00160	85 c0		 test	 eax, eax
+  00162	75 02		 jne	 SHORT $L36683
+
+; 122  :                        break;
+
+  00164	eb 02		 jmp	 SHORT $L36676
+$L36683:
+
+; 124  :             }
+
+  00166	eb ab		 jmp	 SHORT $L36675
+$L36676:
+$L36653:
+
+; 127  :      return(0);
+
+  00168	33 c0		 xor	 eax, eax
+$L36649:
+
+; 128  : }// I2C_Out
+
+  0016a	8b e5		 mov	 esp, ebp
+  0016c	5d		 pop	 ebp
+  0016d	c3		 ret	 0
+_I2C_OUT ENDP
+_TEXT	ENDS
+PUBLIC	_I2C_REL
+_TEXT	SEGMENT
+_ppdev$ = 8
+_type$ = 12
+_dwReg$ = -4
+_I2C_REL PROC NEAR
+
+; 139  : {
+
+  0016e	55		 push	 ebp
+  0016f	8b ec		 mov	 ebp, esp
+  00171	83 ec 08	 sub	 esp, 8
+
+; 140  :      FxU32 dwReg;
+; 141  : 
+; 142  :      switch (type) 
+; 143  :      {
+
+  00174	8a 45 0c	 mov	 al, BYTE PTR _type$[ebp]
+  00177	88 45 f8	 mov	 BYTE PTR -8+[ebp], al
+  0017a	80 7d f8 00	 cmp	 BYTE PTR -8+[ebp], 0
+  0017e	74 08		 je	 SHORT $L36694
+  00180	80 7d f8 01	 cmp	 BYTE PTR -8+[ebp], 1
+  00184	74 3a		 je	 SHORT $L36697
+  00186	eb 6d		 jmp	 SHORT $L36691
+$L36694:
+
+; 144  : 		 case SCL:                
+; 145  :             dwReg = GET(ghwIO->vidSerialParallelPort);
+
+  00188	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0018b	8b 91 78 1a 00
+	00		 mov	 edx, DWORD PTR [ecx+6776]
+  00191	8b 42 78	 mov	 eax, DWORD PTR [edx+120]
+  00194	89 45 fc	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 146  :             dwReg |= H3_VMI_I2C_CLOCK_MASK;
+
+  00197	8b 4d fc	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  0019a	81 c9 00 00 00
+	01		 or	 ecx, 16777216		; 01000000H
+  001a0	89 4d fc	 mov	 DWORD PTR _dwReg$[ebp], ecx
+
+; 147  :             dwReg |= H3_VMI_I2C_ENABLE_MASK;
+
+  001a3	8b 55 fc	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  001a6	81 ca 00 00 80
+	00		 or	 edx, 8388608		; 00800000H
+  001ac	89 55 fc	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 148  :             SETDW(ghwIO->vidSerialParallelPort, dwReg);
+
+  001af	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  001b2	8b 88 78 1a 00
+	00		 mov	 ecx, DWORD PTR [eax+6776]
+  001b8	8b 55 fc	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  001bb	89 51 78	 mov	 DWORD PTR [ecx+120], edx
+
+; 149  :             break;
+
+  001be	eb 35		 jmp	 SHORT $L36691
+$L36697:
+
+; 150  : 			    
+; 151  : 		 case SDA:
+; 152  :             dwReg = GET(ghwIO->vidSerialParallelPort);
+
+  001c0	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  001c3	8b 88 78 1a 00
+	00		 mov	 ecx, DWORD PTR [eax+6776]
+  001c9	8b 51 78	 mov	 edx, DWORD PTR [ecx+120]
+  001cc	89 55 fc	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 153  :             dwReg |= H3_VMI_I2C_DATA_MASK;
+
+  001cf	8b 45 fc	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  001d2	0d 00 00 00 02	 or	 eax, 33554432		; 02000000H
+  001d7	89 45 fc	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 154  :             dwReg |= H3_VMI_I2C_ENABLE_MASK;
+
+  001da	8b 4d fc	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  001dd	81 c9 00 00 80
+	00		 or	 ecx, 8388608		; 00800000H
+  001e3	89 4d fc	 mov	 DWORD PTR _dwReg$[ebp], ecx
+
+; 155  :             SETDW(ghwIO->vidSerialParallelPort, dwReg);
+
+  001e6	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  001e9	8b 82 78 1a 00
+	00		 mov	 eax, DWORD PTR [edx+6776]
+  001ef	8b 4d fc	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  001f2	89 48 78	 mov	 DWORD PTR [eax+120], ecx
+$L36691:
+
+; 158  : }// I2C_Rel
+
+  001f5	8b e5		 mov	 esp, ebp
+  001f7	5d		 pop	 ebp
+  001f8	c3		 ret	 0
+_I2C_REL ENDP
+_TEXT	ENDS
+PUBLIC	_I2C_IN
+_TEXT	SEGMENT
+_ppdev$ = 8
+_type$ = 12
+_dwReg$ = -4
+_I2C_IN	PROC NEAR
+
+; 169  : {           
+
+  001f9	55		 push	 ebp
+  001fa	8b ec		 mov	 ebp, esp
+  001fc	83 ec 08	 sub	 esp, 8
+
+; 170  :     FxU32 dwReg;
+; 171  :   
+; 172  :     switch (type) 
+; 173  :     {
+
+  001ff	8a 45 0c	 mov	 al, BYTE PTR _type$[ebp]
+  00202	88 45 f8	 mov	 BYTE PTR -8+[ebp], al
+  00205	80 7d f8 00	 cmp	 BYTE PTR -8+[ebp], 0
+  00209	74 0b		 je	 SHORT $L36710
+  0020b	80 7d f8 01	 cmp	 BYTE PTR -8+[ebp], 1
+  0020f	74 4e		 je	 SHORT $L36714
+  00211	e9 92 00 00 00	 jmp	 $L36718
+$L36710:
+
+; 174  : 		  case SCL:
+; 175  :             dwReg = GET(ghwIO->vidSerialParallelPort);
+
+  00216	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00219	8b 91 78 1a 00
+	00		 mov	 edx, DWORD PTR [ecx+6776]
+  0021f	8b 42 78	 mov	 eax, DWORD PTR [edx+120]
+  00222	89 45 fc	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 176  :             dwReg |= H3_VMI_I2C_ENABLE_MASK;
+
+  00225	8b 4d fc	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00228	81 c9 00 00 80
+	00		 or	 ecx, 8388608		; 00800000H
+  0022e	89 4d fc	 mov	 DWORD PTR _dwReg$[ebp], ecx
+
+; 177  :             SETDW(ghwIO->vidSerialParallelPort, dwReg);
+
+  00231	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00234	8b 82 78 1a 00
+	00		 mov	 eax, DWORD PTR [edx+6776]
+  0023a	8b 4d fc	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  0023d	89 48 78	 mov	 DWORD PTR [eax+120], ecx
+
+; 178  :             dwReg = GET(ghwIO->vidSerialParallelPort);
+
+  00240	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00243	8b 82 78 1a 00
+	00		 mov	 eax, DWORD PTR [edx+6776]
+  00249	8b 48 78	 mov	 ecx, DWORD PTR [eax+120]
+  0024c	89 4d fc	 mov	 DWORD PTR _dwReg$[ebp], ecx
+
+; 179  :             return( (dwReg & H3_VMI_I2C_CLOCK_STATE_MASK) ? 1:0 );
+
+  0024f	8b 45 fc	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00252	25 00 00 00 04	 and	 eax, 67108864		; 04000000H
+  00257	f7 d8		 neg	 eax
+  00259	1b c0		 sbb	 eax, eax
+  0025b	f7 d8		 neg	 eax
+  0025d	eb 4b		 jmp	 SHORT $L36707
+$L36714:
+
+; 180  : 
+; 181  : 		  case SDA: 
+; 182  :             dwReg = GET(ghwIO->vidSerialParallelPort);
+
+  0025f	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00262	8b 82 78 1a 00
+	00		 mov	 eax, DWORD PTR [edx+6776]
+  00268	8b 48 78	 mov	 ecx, DWORD PTR [eax+120]
+  0026b	89 4d fc	 mov	 DWORD PTR _dwReg$[ebp], ecx
+
+; 183  :             dwReg |= H3_VMI_I2C_ENABLE_MASK;
+
+  0026e	8b 55 fc	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00271	81 ca 00 00 80
+	00		 or	 edx, 8388608		; 00800000H
+  00277	89 55 fc	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 184  :             SETDW(ghwIO->vidSerialParallelPort, dwReg);
+
+  0027a	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0027d	8b 88 78 1a 00
+	00		 mov	 ecx, DWORD PTR [eax+6776]
+  00283	8b 55 fc	 mov	 edx, DWORD PTR _dwReg$[ebp]
+  00286	89 51 78	 mov	 DWORD PTR [ecx+120], edx
+
+; 185  :             dwReg = GET(ghwIO->vidSerialParallelPort);
+
+  00289	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0028c	8b 88 78 1a 00
+	00		 mov	 ecx, DWORD PTR [eax+6776]
+  00292	8b 51 78	 mov	 edx, DWORD PTR [ecx+120]
+  00295	89 55 fc	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 186  :             return( (dwReg & H3_VMI_I2C_DATA_STATE_MASK) ? 1:0 );
+
+  00298	8b 45 fc	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  0029b	25 00 00 00 08	 and	 eax, 134217728		; 08000000H
+  002a0	f7 d8		 neg	 eax
+  002a2	1b c0		 sbb	 eax, eax
+  002a4	f7 d8		 neg	 eax
+  002a6	eb 02		 jmp	 SHORT $L36707
+$L36718:
+
+; 187  : 
+; 188  : 		  default:
+; 189  : 				return(0xff);
+
+  002a8	0c ff		 or	 al, 255			; 000000ffH
+$L36707:
+
+; 191  : }// I2C_In
+
+  002aa	8b e5		 mov	 esp, ebp
+  002ac	5d		 pop	 ebp
+  002ad	c3		 ret	 0
+_I2C_IN	ENDP
+_TEXT	ENDS
+PUBLIC	_I2C_START
+_TEXT	SEGMENT
+_ppdev$ = 8
+_I2C_START PROC NEAR
+
+; 203  : {
+
+  002ae	55		 push	 ebp
+  002af	8b ec		 mov	 ebp, esp
+
+; 204  :     if ( I2C_IN(ppdev, SCL) == 0 )
+
+  002b1	6a 00		 push	 0
+  002b3	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  002b6	50		 push	 eax
+  002b7	e8 00 00 00 00	 call	 _I2C_IN
+  002bc	83 c4 08	 add	 esp, 8
+  002bf	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  002c4	85 c0		 test	 eax, eax
+  002c6	75 20		 jne	 SHORT $L36722
+
+; 206  :        I2C_OUT(ppdev, SDA, 1);
+
+  002c8	6a 01		 push	 1
+  002ca	6a 01		 push	 1
+  002cc	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  002cf	51		 push	 ecx
+  002d0	e8 00 00 00 00	 call	 _I2C_OUT
+  002d5	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 207  :        I2C_OUT(ppdev, SCL, HICLK);
+
+  002d8	6a 01		 push	 1
+  002da	6a 00		 push	 0
+  002dc	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  002df	52		 push	 edx
+  002e0	e8 00 00 00 00	 call	 _I2C_OUT
+  002e5	83 c4 0c	 add	 esp, 12			; 0000000cH
+$L36722:
+
+; 209  :     I2C_OUT(ppdev, SDA, 0);
+
+  002e8	6a 00		 push	 0
+  002ea	6a 01		 push	 1
+  002ec	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  002ef	50		 push	 eax
+  002f0	e8 00 00 00 00	 call	 _I2C_OUT
+  002f5	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 210  :     I2C_OUT(ppdev, SCL, LOCLK);
+
+  002f8	6a 00		 push	 0
+  002fa	6a 00		 push	 0
+  002fc	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  002ff	51		 push	 ecx
+  00300	e8 00 00 00 00	 call	 _I2C_OUT
+  00305	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 211  : }// I2C_Start
+
+  00308	5d		 pop	 ebp
+  00309	c3		 ret	 0
+_I2C_START ENDP
+_TEXT	ENDS
+PUBLIC	_I2C_STOP
+_TEXT	SEGMENT
+_ppdev$ = 8
+_I2C_STOP PROC NEAR
+
+; 223  : {
+
+  0030a	55		 push	 ebp
+  0030b	8b ec		 mov	 ebp, esp
+
+; 224  :     I2C_OUT(ppdev, SDA, 0);
+
+  0030d	6a 00		 push	 0
+  0030f	6a 01		 push	 1
+  00311	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00314	50		 push	 eax
+  00315	e8 00 00 00 00	 call	 _I2C_OUT
+  0031a	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 225  :     I2C_OUT(ppdev, SCL, HICLK);
+
+  0031d	6a 01		 push	 1
+  0031f	6a 00		 push	 0
+  00321	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00324	51		 push	 ecx
+  00325	e8 00 00 00 00	 call	 _I2C_OUT
+  0032a	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 226  :     I2C_OUT(ppdev, SDA, 1);
+
+  0032d	6a 01		 push	 1
+  0032f	6a 01		 push	 1
+  00331	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00334	52		 push	 edx
+  00335	e8 00 00 00 00	 call	 _I2C_OUT
+  0033a	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 227  : }// I2C_Stop
+
+  0033d	5d		 pop	 ebp
+  0033e	c3		 ret	 0
+_I2C_STOP ENDP
+_TEXT	ENDS
+PUBLIC	_I2C_SENDACK
+_TEXT	SEGMENT
+_ppdev$ = 8
+_I2C_SENDACK PROC NEAR
+
+; 238  : {
+
+  0033f	55		 push	 ebp
+  00340	8b ec		 mov	 ebp, esp
+
+; 239  :     I2C_OUT(ppdev, SCL, LOCLK);        // make sure clk is lo
+
+  00342	6a 00		 push	 0
+  00344	6a 00		 push	 0
+  00346	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00349	50		 push	 eax
+  0034a	e8 00 00 00 00	 call	 _I2C_OUT
+  0034f	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 240  :     I2C_OUT(ppdev, SDA, 0);            // data lo for ack
+
+  00352	6a 00		 push	 0
+  00354	6a 01		 push	 1
+  00356	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00359	51		 push	 ecx
+  0035a	e8 00 00 00 00	 call	 _I2C_OUT
+  0035f	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 241  :     I2C_OUT(ppdev, SCL, HICLK);        // make clk valid
+
+  00362	6a 01		 push	 1
+  00364	6a 00		 push	 0
+  00366	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00369	52		 push	 edx
+  0036a	e8 00 00 00 00	 call	 _I2C_OUT
+  0036f	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 242  :     I2C_OUT(ppdev, SCL, LOCLK);        // finish off
+
+  00372	6a 00		 push	 0
+  00374	6a 00		 push	 0
+  00376	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00379	50		 push	 eax
+  0037a	e8 00 00 00 00	 call	 _I2C_OUT
+  0037f	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 243  :     I2C_OUT(ppdev, SDA, 1);            // make data marking for wired and
+
+  00382	6a 01		 push	 1
+  00384	6a 01		 push	 1
+  00386	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00389	51		 push	 ecx
+  0038a	e8 00 00 00 00	 call	 _I2C_OUT
+  0038f	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 244  : }//  I2C_SendACK
+
+  00392	5d		 pop	 ebp
+  00393	c3		 ret	 0
+_I2C_SENDACK ENDP
+_TEXT	ENDS
+PUBLIC	_I2C_SENDNACK
+_TEXT	SEGMENT
+_ppdev$ = 8
+_I2C_SENDNACK PROC NEAR
+
+; 255  : {
+
+  00394	55		 push	 ebp
+  00395	8b ec		 mov	 ebp, esp
+
+; 256  :     I2C_OUT(ppdev, SCL, LOCLK);        // make sure clk is lo
+
+  00397	6a 00		 push	 0
+  00399	6a 00		 push	 0
+  0039b	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0039e	50		 push	 eax
+  0039f	e8 00 00 00 00	 call	 _I2C_OUT
+  003a4	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 257  :     I2C_OUT(ppdev, SDA, 1);            // data hi for nack
+
+  003a7	6a 01		 push	 1
+  003a9	6a 01		 push	 1
+  003ab	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  003ae	51		 push	 ecx
+  003af	e8 00 00 00 00	 call	 _I2C_OUT
+  003b4	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 258  :     I2C_OUT(ppdev, SCL, HICLK);        // make clk valid
+
+  003b7	6a 01		 push	 1
+  003b9	6a 00		 push	 0
+  003bb	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  003be	52		 push	 edx
+  003bf	e8 00 00 00 00	 call	 _I2C_OUT
+  003c4	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 259  :     I2C_OUT(ppdev, SCL, LOCLK);        // finish off
+
+  003c7	6a 00		 push	 0
+  003c9	6a 00		 push	 0
+  003cb	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  003ce	50		 push	 eax
+  003cf	e8 00 00 00 00	 call	 _I2C_OUT
+  003d4	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 260  :     I2C_OUT(ppdev, SDA, 1);            // make data marking for wired and
+
+  003d7	6a 01		 push	 1
+  003d9	6a 01		 push	 1
+  003db	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  003de	51		 push	 ecx
+  003df	e8 00 00 00 00	 call	 _I2C_OUT
+  003e4	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 261  : }// I2C_SendNACK
+
+  003e7	5d		 pop	 ebp
+  003e8	c3		 ret	 0
+_I2C_SENDNACK ENDP
+_TEXT	ENDS
+PUBLIC	_I2C_ACK
+_TEXT	SEGMENT
+_ppdev$ = 8
+_i$ = -4
+_I2C_ACK PROC NEAR
+
+; 272  : {   
+
+  003e9	55		 push	 ebp
+  003ea	8b ec		 mov	 ebp, esp
+  003ec	51		 push	 ecx
+
+; 273  :     int i;
+; 274  :     
+; 275  :     I2C_REL(ppdev, SDA);               // Release SDA line
+
+  003ed	6a 01		 push	 1
+  003ef	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  003f2	50		 push	 eax
+  003f3	e8 00 00 00 00	 call	 _I2C_REL
+  003f8	83 c4 08	 add	 esp, 8
+
+; 276  :     I2C_OUT(ppdev, SCL, HICLK);
+
+  003fb	6a 01		 push	 1
+  003fd	6a 00		 push	 0
+  003ff	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00402	51		 push	 ecx
+  00403	e8 00 00 00 00	 call	 _I2C_OUT
+  00408	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 277  :     i = !I2C_IN(ppdev, SDA);
+
+  0040b	6a 01		 push	 1
+  0040d	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00410	52		 push	 edx
+  00411	e8 00 00 00 00	 call	 _I2C_IN
+  00416	83 c4 08	 add	 esp, 8
+  00419	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  0041e	f7 d8		 neg	 eax
+  00420	1b c0		 sbb	 eax, eax
+  00422	40		 inc	 eax
+  00423	89 45 fc	 mov	 DWORD PTR _i$[ebp], eax
+
+; 278  :     I2C_OUT(ppdev, SCL, LOCLK);
+
+  00426	6a 00		 push	 0
+  00428	6a 00		 push	 0
+  0042a	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0042d	50		 push	 eax
+  0042e	e8 00 00 00 00	 call	 _I2C_OUT
+  00433	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 279  :     return(i);
+
+  00436	8b 45 fc	 mov	 eax, DWORD PTR _i$[ebp]
+
+; 280  : }// I2C_ACK
+
+  00439	8b e5		 mov	 esp, ebp
+  0043b	5d		 pop	 ebp
+  0043c	c3		 ret	 0
+_I2C_ACK ENDP
+_TEXT	ENDS
+PUBLIC	_I2C_INIT
+_TEXT	SEGMENT
+_ppdev$ = 8
+_dwReg$ = -4
+_I2C_INIT PROC NEAR
+
+; 291  : {        
+
+  0043d	55		 push	 ebp
+  0043e	8b ec		 mov	 ebp, esp
+  00440	51		 push	 ecx
+
+; 292  :    FxU32 dwReg;
+; 293  : 
+; 294  :    //Release data line and toggle SCL as long as data line is driven to 0
+; 295  :    dwReg = GET(ghwIO->vidSerialParallelPort) | H3_VMI_I2C_ENABLE_MASK | H3_VMI_I2C_DATA_MASK;
+
+  00441	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00444	8b 88 78 1a 00
+	00		 mov	 ecx, DWORD PTR [eax+6776]
+  0044a	8b 51 78	 mov	 edx, DWORD PTR [ecx+120]
+  0044d	81 ca 00 00 80
+	00		 or	 edx, 8388608		; 00800000H
+  00453	81 ca 00 00 00
+	02		 or	 edx, 33554432		; 02000000H
+  00459	89 55 fc	 mov	 DWORD PTR _dwReg$[ebp], edx
+
+; 296  :    dwReg &= ~H3_VMI_I2C_CLOCK_MASK;
+
+  0045c	8b 45 fc	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  0045f	25 ff ff ff fe	 and	 eax, -16777217		; feffffffH
+  00464	89 45 fc	 mov	 DWORD PTR _dwReg$[ebp], eax
+
+; 297  :    SETDW(ghwIO->vidSerialParallelPort, dwReg);
+
+  00467	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0046a	8b 91 78 1a 00
+	00		 mov	 edx, DWORD PTR [ecx+6776]
+  00470	8b 45 fc	 mov	 eax, DWORD PTR _dwReg$[ebp]
+  00473	89 42 78	 mov	 DWORD PTR [edx+120], eax
+$L36744:
+
+; 298  : 
+; 299  :    for ( ; !((dwReg = GET(ghwIO->vidSerialParallelPort)) & H3_VMI_I2C_DATA_MASK);  )
+
+  00476	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00479	8b 91 78 1a 00
+	00		 mov	 edx, DWORD PTR [ecx+6776]
+  0047f	8b 42 78	 mov	 eax, DWORD PTR [edx+120]
+  00482	89 45 fc	 mov	 DWORD PTR _dwReg$[ebp], eax
+  00485	8b 4d fc	 mov	 ecx, DWORD PTR _dwReg$[ebp]
+  00488	81 e1 00 00 00
+	02		 and	 ecx, 33554432		; 02000000H
+  0048e	85 c9		 test	 ecx, ecx
+  00490	75 22		 jne	 SHORT $L36745
+
+; 301  : 		I2C_OUT(ppdev, SCL, HICLK);
+
+  00492	6a 01		 push	 1
+  00494	6a 00		 push	 0
+  00496	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00499	52		 push	 edx
+  0049a	e8 00 00 00 00	 call	 _I2C_OUT
+  0049f	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 302  : 		I2C_OUT(ppdev, SCL, LOCLK);    
+
+  004a2	6a 00		 push	 0
+  004a4	6a 00		 push	 0
+  004a6	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  004a9	50		 push	 eax
+  004aa	e8 00 00 00 00	 call	 _I2C_OUT
+  004af	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 303  :    }
+
+  004b2	eb c2		 jmp	 SHORT $L36744
+$L36745:
+
+; 304  :    I2C_STOP(ppdev); //Reset all devices
+
+  004b4	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  004b7	51		 push	 ecx
+  004b8	e8 00 00 00 00	 call	 _I2C_STOP
+  004bd	83 c4 04	 add	 esp, 4
+
+; 305  : }// I2C_Init
+
+  004c0	8b e5		 mov	 esp, ebp
+  004c2	5d		 pop	 ebp
+  004c3	c3		 ret	 0
+_I2C_INIT ENDP
+_TEXT	ENDS
+PUBLIC	_I2C_WBYTE
+_TEXT	SEGMENT
+_ppdev$ = 8
+_data$ = 12
+_i$ = -4
+_I2C_WBYTE PROC NEAR
+
+; 316  : {
+
+  004c4	55		 push	 ebp
+  004c5	8b ec		 mov	 ebp, esp
+  004c7	51		 push	 ecx
+
+; 317  :     BYTE i;
+; 318  : 
+; 319  : 	 // Send out data stream MSbit goes out first
+; 320  :     for (i = 0x80; i; i >>= 1)  
+
+  004c8	c6 45 fc 80	 mov	 BYTE PTR _i$[ebp], 128	; 00000080H
+  004cc	eb 08		 jmp	 SHORT $L36752
+$L36753:
+  004ce	8a 45 fc	 mov	 al, BYTE PTR _i$[ebp]
+  004d1	d0 e8		 shr	 al, 1
+  004d3	88 45 fc	 mov	 BYTE PTR _i$[ebp], al
+$L36752:
+  004d6	8b 4d fc	 mov	 ecx, DWORD PTR _i$[ebp]
+  004d9	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  004df	85 c9		 test	 ecx, ecx
+  004e1	74 72		 je	 SHORT $L36754
+
+; 322  : 		if ( data & i )
+
+  004e3	8b 55 0c	 mov	 edx, DWORD PTR _data$[ebp]
+  004e6	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  004ec	8b 45 fc	 mov	 eax, DWORD PTR _i$[ebp]
+  004ef	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  004f4	23 d0		 and	 edx, eax
+  004f6	85 d2		 test	 edx, edx
+  004f8	74 26		 je	 SHORT $L36755
+
+; 324  : 			if ( I2C_OUT(ppdev, SDA, 1) )
+
+  004fa	6a 01		 push	 1
+  004fc	6a 01		 push	 1
+  004fe	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00501	51		 push	 ecx
+  00502	e8 00 00 00 00	 call	 _I2C_OUT
+  00507	83 c4 0c	 add	 esp, 12			; 0000000cH
+  0050a	85 c0		 test	 eax, eax
+  0050c	74 10		 je	 SHORT $L36756
+
+; 326  :                 I2C_INIT(ppdev);
+
+  0050e	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00511	52		 push	 edx
+  00512	e8 00 00 00 00	 call	 _I2C_INIT
+  00517	83 c4 04	 add	 esp, 4
+
+; 327  :                 return(0);
+
+  0051a	33 c0		 xor	 eax, eax
+  0051c	eb 43		 jmp	 SHORT $L36750
+$L36756:
+
+; 330  : 		else
+
+  0051e	eb 10		 jmp	 SHORT $L36757
+$L36755:
+
+; 332  : 			I2C_OUT(ppdev, SDA, 0);
+
+  00520	6a 00		 push	 0
+  00522	6a 01		 push	 1
+  00524	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00527	50		 push	 eax
+  00528	e8 00 00 00 00	 call	 _I2C_OUT
+  0052d	83 c4 0c	 add	 esp, 12			; 0000000cH
+$L36757:
+
+; 334  : 		I2C_OUT(ppdev, SCL, HICLK);
+
+  00530	6a 01		 push	 1
+  00532	6a 00		 push	 0
+  00534	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00537	51		 push	 ecx
+  00538	e8 00 00 00 00	 call	 _I2C_OUT
+  0053d	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 335  : 		I2C_OUT(ppdev, SCL, LOCLK);    
+
+  00540	6a 00		 push	 0
+  00542	6a 00		 push	 0
+  00544	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00547	52		 push	 edx
+  00548	e8 00 00 00 00	 call	 _I2C_OUT
+  0054d	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 336  :     }
+
+  00550	e9 79 ff ff ff	 jmp	 $L36753
+$L36754:
+
+; 337  :     return( I2C_ACK(ppdev) );    // Wait for acknowledge
+
+  00555	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00558	50		 push	 eax
+  00559	e8 00 00 00 00	 call	 _I2C_ACK
+  0055e	83 c4 04	 add	 esp, 4
+$L36750:
+
+; 338  : }// I2C_WByte
+
+  00561	8b e5		 mov	 esp, ebp
+  00563	5d		 pop	 ebp
+  00564	c3		 ret	 0
+_I2C_WBYTE ENDP
+_TEXT	ENDS
+PUBLIC	_GETREGPTR
+_TEXT	SEGMENT
+_ppdev$ = 8
+_addr$ = 12
+_index$ = 16
+_i$ = -4
+_j$ = -8
+_dptr$ = -12
+_GETREGPTR PROC NEAR
+
+; 349  : {
+
+  00565	55		 push	 ebp
+  00566	8b ec		 mov	 ebp, esp
+  00568	83 ec 10	 sub	 esp, 16			; 00000010H
+
+; 350  :    int i, j;
+; 351  : 	I2C_DEV *dptr;
+; 352  : 
+; 353  : 	switch (addr)				//Get ptr to device struct
+; 354  : 	{
+
+  0056b	8b 45 0c	 mov	 eax, DWORD PTR _addr$[ebp]
+  0056e	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00573	89 45 f0	 mov	 DWORD PTR -16+[ebp], eax
+
+; 355  : 		case DEV_SAA7110:
+; 356  : 		case DEV_BT829:
+; 357  : 		default:
+; 358  : 			dptr = I2CDev;		
+
+  00576	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00579	8b 91 14 18 00
+	00		 mov	 edx, DWORD PTR [ecx+6164]
+  0057f	81 c2 46 01 00
+	00		 add	 edx, 326		; 00000146H
+  00585	89 55 f4	 mov	 DWORD PTR _dptr$[ebp], edx
+
+; 359  : 			for ( i=0; i < MAX_I2C_DEVICES; i++ )
+
+  00588	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  0058f	eb 09		 jmp	 SHORT $L36774
+$L36775:
+  00591	8b 45 fc	 mov	 eax, DWORD PTR _i$[ebp]
+  00594	83 c0 01	 add	 eax, 1
+  00597	89 45 fc	 mov	 DWORD PTR _i$[ebp], eax
+$L36774:
+  0059a	83 7d fc 02	 cmp	 DWORD PTR _i$[ebp], 2
+  0059e	0f 8d 87 00 00
+	00		 jge	 $L36776
+
+; 361  : 				if ( dptr->wDevAddr == addr )
+
+  005a4	8b 4d f4	 mov	 ecx, DWORD PTR _dptr$[ebp]
+  005a7	33 d2		 xor	 edx, edx
+  005a9	66 8b 51 02	 mov	 dx, WORD PTR [ecx+2]
+  005ad	8b 45 0c	 mov	 eax, DWORD PTR _addr$[ebp]
+  005b0	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  005b5	3b d0		 cmp	 edx, eax
+  005b7	75 61		 jne	 SHORT $L36777
+
+; 363  : 				    if ( 0 <= dptr->wRegCnt && dptr->wRegCnt <= I2C_REGSPERDEV ) 
+
+  005b9	8b 4d f4	 mov	 ecx, DWORD PTR _dptr$[ebp]
+  005bc	33 d2		 xor	 edx, edx
+  005be	66 8b 11	 mov	 dx, WORD PTR [ecx]
+  005c1	85 d2		 test	 edx, edx
+  005c3	7c 53		 jl	 SHORT $L36782
+  005c5	8b 45 f4	 mov	 eax, DWORD PTR _dptr$[ebp]
+  005c8	33 c9		 xor	 ecx, ecx
+  005ca	66 8b 08	 mov	 cx, WORD PTR [eax]
+  005cd	83 f9 78	 cmp	 ecx, 120		; 00000078H
+  005d0	7f 46		 jg	 SHORT $L36782
+
+; 365  : 						 for ( j=0; j < (int)dptr->wRegCnt; j++) 
+
+  005d2	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _j$[ebp], 0
+  005d9	eb 09		 jmp	 SHORT $L36780
+$L36781:
+  005db	8b 55 f8	 mov	 edx, DWORD PTR _j$[ebp]
+  005de	83 c2 01	 add	 edx, 1
+  005e1	89 55 f8	 mov	 DWORD PTR _j$[ebp], edx
+$L36780:
+  005e4	8b 45 f4	 mov	 eax, DWORD PTR _dptr$[ebp]
+  005e7	33 c9		 xor	 ecx, ecx
+  005e9	66 8b 08	 mov	 cx, WORD PTR [eax]
+  005ec	39 4d f8	 cmp	 DWORD PTR _j$[ebp], ecx
+  005ef	7d 27		 jge	 SHORT $L36782
+
+; 367  : 						 	if (dptr->Regs[j].Index == index)
+
+  005f1	8b 55 f8	 mov	 edx, DWORD PTR _j$[ebp]
+  005f4	8b 45 f4	 mov	 eax, DWORD PTR _dptr$[ebp]
+  005f7	33 c9		 xor	 ecx, ecx
+  005f9	8a 4c 50 04	 mov	 cl, BYTE PTR [eax+edx*2+4]
+  005fd	8b 55 10	 mov	 edx, DWORD PTR _index$[ebp]
+  00600	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00606	3b ca		 cmp	 ecx, edx
+  00608	75 0c		 jne	 SHORT $L36783
+
+; 368  : 								return(&dptr->Regs[j].Data);
+
+  0060a	8b 45 f8	 mov	 eax, DWORD PTR _j$[ebp]
+  0060d	8b 4d f4	 mov	 ecx, DWORD PTR _dptr$[ebp]
+  00610	8d 44 41 05	 lea	 eax, DWORD PTR [ecx+eax*2+5]
+  00614	eb 17		 jmp	 SHORT $L36764
+$L36783:
+
+; 369  : 						 }            
+
+  00616	eb c3		 jmp	 SHORT $L36781
+$L36782:
+
+; 371  : 					break;
+
+  00618	eb 11		 jmp	 SHORT $L36776
+$L36777:
+
+; 375  : 					dptr++;
+
+  0061a	8b 55 f4	 mov	 edx, DWORD PTR _dptr$[ebp]
+  0061d	81 c2 f4 00 00
+	00		 add	 edx, 244		; 000000f4H
+  00623	89 55 f4	 mov	 DWORD PTR _dptr$[ebp], edx
+
+; 377  : 			}
+
+  00626	e9 66 ff ff ff	 jmp	 $L36775
+$L36776:
+
+; 380  :    return(NULL);
+
+  0062b	33 c0		 xor	 eax, eax
+$L36764:
+
+; 381  : }//  GetRegPtr
+
+  0062d	8b e5		 mov	 esp, ebp
+  0062f	5d		 pop	 ebp
+  00630	c3		 ret	 0
+_GETREGPTR ENDP
+_TEXT	ENDS
+PUBLIC	_WRITEI2CREG
+_TEXT	SEGMENT
+_ppdev$ = 8
+_addr$ = 12
+_subaddr$ = 16
+_data$ = 20
+_rptr$ = -4
+_i$ = -8
+_WRITEI2CREG PROC NEAR
+
+; 393  : {
+
+  00631	55		 push	 ebp
+  00632	8b ec		 mov	 ebp, esp
+  00634	83 ec 08	 sub	 esp, 8
+
+; 394  :     PSTR rptr;
+; 395  :     int i;
+; 396  : 
+; 397  :     for ( i = 0 ; i < 1000; i++ )
+
+  00637	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  0063e	eb 09		 jmp	 SHORT $L36797
+$L36798:
+  00640	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  00643	83 c0 01	 add	 eax, 1
+  00646	89 45 f8	 mov	 DWORD PTR _i$[ebp], eax
+$L36797:
+  00649	81 7d f8 e8 03
+	00 00		 cmp	 DWORD PTR _i$[ebp], 1000 ; 000003e8H
+  00650	0f 8d 89 00 00
+	00		 jge	 $L36799
+
+; 399  :        I2C_START(ppdev);
+
+  00656	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00659	51		 push	 ecx
+  0065a	e8 00 00 00 00	 call	 _I2C_START
+  0065f	83 c4 04	 add	 esp, 4
+
+; 400  :        if ( !I2C_WBYTE(ppdev, (BYTE)(addr & I2C_WRITE)) ) //Addr LSB is 0 for write
+
+  00662	8b 55 0c	 mov	 edx, DWORD PTR _addr$[ebp]
+  00665	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  0066b	81 e2 fe 00 00
+	00		 and	 edx, 254		; 000000feH
+  00671	52		 push	 edx
+  00672	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00675	50		 push	 eax
+  00676	e8 00 00 00 00	 call	 _I2C_WBYTE
+  0067b	83 c4 08	 add	 esp, 8
+  0067e	85 c0		 test	 eax, eax
+  00680	75 0e		 jne	 SHORT $L36801
+
+; 401  :           I2C_STOP(ppdev);
+
+  00682	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00685	51		 push	 ecx
+  00686	e8 00 00 00 00	 call	 _I2C_STOP
+  0068b	83 c4 04	 add	 esp, 4
+
+; 402  :        else if ( !I2C_WBYTE(ppdev, subaddr) )
+
+  0068e	eb 4a		 jmp	 SHORT $L36806
+$L36801:
+  00690	33 d2		 xor	 edx, edx
+  00692	8a 55 10	 mov	 dl, BYTE PTR _subaddr$[ebp]
+  00695	52		 push	 edx
+  00696	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00699	50		 push	 eax
+  0069a	e8 00 00 00 00	 call	 _I2C_WBYTE
+  0069f	83 c4 08	 add	 esp, 8
+  006a2	85 c0		 test	 eax, eax
+  006a4	75 0e		 jne	 SHORT $L36803
+
+; 403  :           I2C_STOP(ppdev);
+
+  006a6	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  006a9	51		 push	 ecx
+  006aa	e8 00 00 00 00	 call	 _I2C_STOP
+  006af	83 c4 04	 add	 esp, 4
+
+; 404  :        else if ( !I2C_WBYTE(ppdev, data) )
+
+  006b2	eb 26		 jmp	 SHORT $L36806
+$L36803:
+  006b4	33 d2		 xor	 edx, edx
+  006b6	8a 55 14	 mov	 dl, BYTE PTR _data$[ebp]
+  006b9	52		 push	 edx
+  006ba	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  006bd	50		 push	 eax
+  006be	e8 00 00 00 00	 call	 _I2C_WBYTE
+  006c3	83 c4 08	 add	 esp, 8
+  006c6	85 c0		 test	 eax, eax
+  006c8	75 0e		 jne	 SHORT $L36805
+
+; 405  :           I2C_STOP(ppdev);
+
+  006ca	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  006cd	51		 push	 ecx
+  006ce	e8 00 00 00 00	 call	 _I2C_STOP
+  006d3	83 c4 04	 add	 esp, 4
+
+; 406  :        else 
+
+  006d6	eb 02		 jmp	 SHORT $L36806
+$L36805:
+
+; 407  :           break;
+
+  006d8	eb 05		 jmp	 SHORT $L36799
+$L36806:
+
+; 408  :     }
+
+  006da	e9 61 ff ff ff	 jmp	 $L36798
+$L36799:
+
+; 409  :        
+; 410  :     I2C_STOP(ppdev);
+
+  006df	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  006e2	52		 push	 edx
+  006e3	e8 00 00 00 00	 call	 _I2C_STOP
+  006e8	83 c4 04	 add	 esp, 4
+
+; 411  : 
+; 412  :     //If device has been initialized record the new register value for future reads 
+; 413  :     if ( (rptr = GETREGPTR(ppdev, addr, subaddr)) )
+
+  006eb	33 c0		 xor	 eax, eax
+  006ed	8a 45 10	 mov	 al, BYTE PTR _subaddr$[ebp]
+  006f0	50		 push	 eax
+  006f1	33 c9		 xor	 ecx, ecx
+  006f3	8a 4d 0c	 mov	 cl, BYTE PTR _addr$[ebp]
+  006f6	51		 push	 ecx
+  006f7	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  006fa	52		 push	 edx
+  006fb	e8 00 00 00 00	 call	 _GETREGPTR
+  00700	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00703	89 45 fc	 mov	 DWORD PTR _rptr$[ebp], eax
+  00706	83 7d fc 00	 cmp	 DWORD PTR _rptr$[ebp], 0
+  0070a	74 08		 je	 SHORT $L36807
+
+; 414  : 		*rptr = data;
+
+  0070c	8b 45 fc	 mov	 eax, DWORD PTR _rptr$[ebp]
+  0070f	8a 4d 14	 mov	 cl, BYTE PTR _data$[ebp]
+  00712	88 08		 mov	 BYTE PTR [eax], cl
+$L36807:
+
+; 415  : }// WriteI2CReg
+
+  00714	8b e5		 mov	 esp, ebp
+  00716	5d		 pop	 ebp
+  00717	c3		 ret	 0
+_WRITEI2CREG ENDP
+_TEXT	ENDS
+PUBLIC	_READI2CREGCACHE
+_TEXT	SEGMENT
+_ppdev$ = 8
+_addr$ = 12
+_subaddr$ = 16
+_rptr$ = -4
+_READI2CREGCACHE PROC NEAR
+
+; 426  : {
+
+  00718	55		 push	 ebp
+  00719	8b ec		 mov	 ebp, esp
+  0071b	51		 push	 ecx
+
+; 427  :     PSTR rptr;
+; 428  : 
+; 429  :     if ( (rptr = GETREGPTR(ppdev, addr, subaddr)) )
+
+  0071c	33 c0		 xor	 eax, eax
+  0071e	8a 45 10	 mov	 al, BYTE PTR _subaddr$[ebp]
+  00721	50		 push	 eax
+  00722	33 c9		 xor	 ecx, ecx
+  00724	8a 4d 0c	 mov	 cl, BYTE PTR _addr$[ebp]
+  00727	51		 push	 ecx
+  00728	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0072b	52		 push	 edx
+  0072c	e8 00 00 00 00	 call	 _GETREGPTR
+  00731	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00734	89 45 fc	 mov	 DWORD PTR _rptr$[ebp], eax
+  00737	83 7d fc 00	 cmp	 DWORD PTR _rptr$[ebp], 0
+  0073b	74 07		 je	 SHORT $L36816
+
+; 430  : 		return *rptr;
+
+  0073d	8b 45 fc	 mov	 eax, DWORD PTR _rptr$[ebp]
+  00740	8a 00		 mov	 al, BYTE PTR [eax]
+  00742	eb 02		 jmp	 SHORT $L36817
+$L36816:
+
+; 431  :     else
+; 432  : 		return 0xFF;
+
+  00744	0c ff		 or	 al, 255			; 000000ffH
+$L36817:
+
+; 433  : }// ReadI3CRegCache
+
+  00746	8b e5		 mov	 esp, ebp
+  00748	5d		 pop	 ebp
+  00749	c3		 ret	 0
+_READI2CREGCACHE ENDP
+_TEXT	ENDS
+PUBLIC	_READI2CSTATUS
+_TEXT	SEGMENT
+_ppdev$ = 8
+_addr$ = 12
+_j$ = -8
+_data$ = -4
+_READI2CSTATUS PROC NEAR
+
+; 444  : {
+
+  0074a	55		 push	 ebp
+  0074b	8b ec		 mov	 ebp, esp
+  0074d	83 ec 08	 sub	 esp, 8
+  00750	53		 push	 ebx
+
+; 445  :     int j;
+; 446  :     BYTE data;
+; 447  : 	
+; 448  :     I2C_START(ppdev);
+
+  00751	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00754	50		 push	 eax
+  00755	e8 00 00 00 00	 call	 _I2C_START
+  0075a	83 c4 04	 add	 esp, 4
+
+; 449  :     I2C_WBYTE(ppdev, (BYTE)(addr|I2C_READ));	//Addr LSB is 1 for read
+
+  0075d	8b 4d 0c	 mov	 ecx, DWORD PTR _addr$[ebp]
+  00760	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  00766	83 c9 01	 or	 ecx, 1
+  00769	51		 push	 ecx
+  0076a	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0076d	52		 push	 edx
+  0076e	e8 00 00 00 00	 call	 _I2C_WBYTE
+  00773	83 c4 08	 add	 esp, 8
+
+; 450  : 
+; 451  :     for (data = j = 0; j < 8 ; j++) 
+
+  00776	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _j$[ebp], 0
+  0077d	8a 45 f8	 mov	 al, BYTE PTR _j$[ebp]
+  00780	88 45 fc	 mov	 BYTE PTR _data$[ebp], al
+  00783	eb 09		 jmp	 SHORT $L36826
+$L36827:
+  00785	8b 4d f8	 mov	 ecx, DWORD PTR _j$[ebp]
+  00788	83 c1 01	 add	 ecx, 1
+  0078b	89 4d f8	 mov	 DWORD PTR _j$[ebp], ecx
+$L36826:
+  0078e	83 7d f8 08	 cmp	 DWORD PTR _j$[ebp], 8
+  00792	7d 45		 jge	 SHORT $L36828
+
+; 453  :       I2C_OUT(ppdev, SCL, LOCLK);      
+
+  00794	6a 00		 push	 0
+  00796	6a 00		 push	 0
+  00798	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0079b	52		 push	 edx
+  0079c	e8 00 00 00 00	 call	 _I2C_OUT
+  007a1	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 454  :       I2C_OUT(ppdev, SCL, HICLK);
+
+  007a4	6a 01		 push	 1
+  007a6	6a 00		 push	 0
+  007a8	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  007ab	50		 push	 eax
+  007ac	e8 00 00 00 00	 call	 _I2C_OUT
+  007b1	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 455  :       data = (data << 1) | I2C_IN(ppdev, SDA); // read when clk is high
+
+  007b4	8b 5d fc	 mov	 ebx, DWORD PTR _data$[ebp]
+  007b7	81 e3 ff 00 00
+	00		 and	 ebx, 255		; 000000ffH
+  007bd	d1 e3		 shl	 ebx, 1
+  007bf	6a 01		 push	 1
+  007c1	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  007c4	51		 push	 ecx
+  007c5	e8 00 00 00 00	 call	 _I2C_IN
+  007ca	83 c4 08	 add	 esp, 8
+  007cd	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  007d2	0b d8		 or	 ebx, eax
+  007d4	88 5d fc	 mov	 BYTE PTR _data$[ebp], bl
+
+; 456  :     }
+
+  007d7	eb ac		 jmp	 SHORT $L36827
+$L36828:
+
+; 457  :     I2C_OUT(ppdev, SCL, LOCLK);
+
+  007d9	6a 00		 push	 0
+  007db	6a 00		 push	 0
+  007dd	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  007e0	52		 push	 edx
+  007e1	e8 00 00 00 00	 call	 _I2C_OUT
+  007e6	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 458  :     I2C_SENDACK(ppdev);						// send an ACK (or NACK for finish?)
+
+  007e9	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  007ec	50		 push	 eax
+  007ed	e8 00 00 00 00	 call	 _I2C_SENDACK
+  007f2	83 c4 04	 add	 esp, 4
+
+; 459  :     I2C_STOP(ppdev);
+
+  007f5	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  007f8	51		 push	 ecx
+  007f9	e8 00 00 00 00	 call	 _I2C_STOP
+  007fe	83 c4 04	 add	 esp, 4
+
+; 460  :     return(data);
+
+  00801	8a 45 fc	 mov	 al, BYTE PTR _data$[ebp]
+
+; 461  : }// ReadI2CStatus
+
+  00804	5b		 pop	 ebx
+  00805	8b e5		 mov	 esp, ebp
+  00807	5d		 pop	 ebp
+  00808	c3		 ret	 0
+_READI2CSTATUS ENDP
+_TEXT	ENDS
+PUBLIC	_WRITEI2CDATA
+_TEXT	SEGMENT
+_ppdev$ = 8
+_addr$ = 12
+_numbytes$ = 16
+_sptr$ = 20
+_i$ = -4
+_WRITEI2CDATA PROC NEAR
+
+; 476  : {
+
+  00809	55		 push	 ebp
+  0080a	8b ec		 mov	 ebp, esp
+  0080c	83 ec 08	 sub	 esp, 8
+
+; 477  : 	int i;
+; 478  : 
+; 479  : 	if (numbytes > 0 && sptr != NULL)
+
+  0080f	8b 45 10	 mov	 eax, DWORD PTR _numbytes$[ebp]
+  00812	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00817	85 c0		 test	 eax, eax
+  00819	7e 7f		 jle	 SHORT $L36840
+  0081b	83 7d 14 00	 cmp	 DWORD PTR _sptr$[ebp], 0
+  0081f	74 79		 je	 SHORT $L36840
+
+; 481  : 	    I2C_START(ppdev);
+
+  00821	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00824	51		 push	 ecx
+  00825	e8 00 00 00 00	 call	 _I2C_START
+  0082a	83 c4 04	 add	 esp, 4
+
+; 482  : 	    I2C_WBYTE(ppdev, (BYTE)(addr & I2C_WRITE));
+
+  0082d	8b 55 0c	 mov	 edx, DWORD PTR _addr$[ebp]
+  00830	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00836	81 e2 fe 00 00
+	00		 and	 edx, 254		; 000000feH
+  0083c	52		 push	 edx
+  0083d	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00840	50		 push	 eax
+  00841	e8 00 00 00 00	 call	 _I2C_WBYTE
+  00846	83 c4 08	 add	 esp, 8
+
+; 483  : 		for ( i = 0; i < numbytes; i++ )
+
+  00849	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  00850	eb 09		 jmp	 SHORT $L36842
+$L36843:
+  00852	8b 4d fc	 mov	 ecx, DWORD PTR _i$[ebp]
+  00855	83 c1 01	 add	 ecx, 1
+  00858	89 4d fc	 mov	 DWORD PTR _i$[ebp], ecx
+$L36842:
+  0085b	8b 55 10	 mov	 edx, DWORD PTR _numbytes$[ebp]
+  0085e	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00864	39 55 fc	 cmp	 DWORD PTR _i$[ebp], edx
+  00867	7d 25		 jge	 SHORT $L36844
+
+; 484  : 	    	I2C_WBYTE(ppdev, *sptr++);
+
+  00869	8b 45 14	 mov	 eax, DWORD PTR _sptr$[ebp]
+  0086c	8a 08		 mov	 cl, BYTE PTR [eax]
+  0086e	88 4d fb	 mov	 BYTE PTR -5+[ebp], cl
+  00871	33 d2		 xor	 edx, edx
+  00873	8a 55 fb	 mov	 dl, BYTE PTR -5+[ebp]
+  00876	52		 push	 edx
+  00877	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0087a	50		 push	 eax
+  0087b	8b 4d 14	 mov	 ecx, DWORD PTR _sptr$[ebp]
+  0087e	83 c1 01	 add	 ecx, 1
+  00881	89 4d 14	 mov	 DWORD PTR _sptr$[ebp], ecx
+  00884	e8 00 00 00 00	 call	 _I2C_WBYTE
+  00889	83 c4 08	 add	 esp, 8
+  0088c	eb c4		 jmp	 SHORT $L36843
+$L36844:
+
+; 485  : 	    I2C_STOP(ppdev);
+
+  0088e	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00891	52		 push	 edx
+  00892	e8 00 00 00 00	 call	 _I2C_STOP
+  00897	83 c4 04	 add	 esp, 4
+$L36840:
+
+; 487  : }// WriteI2CData
+
+  0089a	8b e5		 mov	 esp, ebp
+  0089c	5d		 pop	 ebp
+  0089d	c3		 ret	 0
+_WRITEI2CDATA ENDP
+_TEXT	ENDS
+PUBLIC	_READI2CDATA
+_TEXT	SEGMENT
+_ppdev$ = 8
+_addr$ = 12
+_subaddr$ = 16
+_numbytes$ = 20
+_dptr$ = 24
+_i$ = -8
+_j$ = -12
+_data$ = -4
+_READI2CDATA PROC NEAR
+
+; 502  : {  
+
+  0089e	55		 push	 ebp
+  0089f	8b ec		 mov	 ebp, esp
+  008a1	83 ec 0c	 sub	 esp, 12			; 0000000cH
+  008a4	53		 push	 ebx
+
+; 503  :    int i, j;
+; 504  :    BYTE data;
+; 505  : 	
+; 506  : 	if (numbytes > 0 && dptr != NULL)
+
+  008a5	8b 45 14	 mov	 eax, DWORD PTR _numbytes$[ebp]
+  008a8	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  008ad	85 c0		 test	 eax, eax
+  008af	0f 8e 6e 01 00
+	00		 jle	 $L36860
+  008b5	83 7d 18 00	 cmp	 DWORD PTR _dptr$[ebp], 0
+  008b9	0f 84 64 01 00
+	00		 je	 $L36860
+$L36862:
+
+; 510  : 	        I2C_START(ppdev);
+
+  008bf	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  008c2	51		 push	 ecx
+  008c3	e8 00 00 00 00	 call	 _I2C_START
+  008c8	83 c4 04	 add	 esp, 4
+
+; 511  :            
+; 512  :            if ( !I2C_WBYTE(ppdev, (BYTE)(addr & I2C_WRITE)) ) //Addr LSB is 0 for write
+
+  008cb	8b 55 0c	 mov	 edx, DWORD PTR _addr$[ebp]
+  008ce	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  008d4	81 e2 fe 00 00
+	00		 and	 edx, 254		; 000000feH
+  008da	52		 push	 edx
+  008db	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  008de	50		 push	 eax
+  008df	e8 00 00 00 00	 call	 _I2C_WBYTE
+  008e4	83 c4 08	 add	 esp, 8
+  008e7	85 c0		 test	 eax, eax
+  008e9	75 0e		 jne	 SHORT $L36865
+
+; 513  :                I2C_STOP(ppdev);
+
+  008eb	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  008ee	51		 push	 ecx
+  008ef	e8 00 00 00 00	 call	 _I2C_STOP
+  008f4	83 c4 04	 add	 esp, 4
+
+; 514  :            else if ( !I2C_WBYTE(ppdev, subaddr) )
+
+  008f7	eb 26		 jmp	 SHORT $L36868
+$L36865:
+  008f9	33 d2		 xor	 edx, edx
+  008fb	8a 55 10	 mov	 dl, BYTE PTR _subaddr$[ebp]
+  008fe	52		 push	 edx
+  008ff	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00902	50		 push	 eax
+  00903	e8 00 00 00 00	 call	 _I2C_WBYTE
+  00908	83 c4 08	 add	 esp, 8
+  0090b	85 c0		 test	 eax, eax
+  0090d	75 0e		 jne	 SHORT $L36867
+
+; 515  :                I2C_STOP(ppdev);
+
+  0090f	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00912	51		 push	 ecx
+  00913	e8 00 00 00 00	 call	 _I2C_STOP
+  00918	83 c4 04	 add	 esp, 4
+
+; 516  :            else
+
+  0091b	eb 02		 jmp	 SHORT $L36868
+$L36867:
+
+; 517  :                break;
+
+  0091d	eb 02		 jmp	 SHORT $L36863
+$L36868:
+
+; 518  :        }
+
+  0091f	eb 9e		 jmp	 SHORT $L36862
+$L36863:
+
+; 522  : 	        I2C_START(ppdev);
+
+  00921	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00924	52		 push	 edx
+  00925	e8 00 00 00 00	 call	 _I2C_START
+  0092a	83 c4 04	 add	 esp, 4
+
+; 523  : 	        if ( !I2C_WBYTE(ppdev, (BYTE)(addr | I2C_READ)) ) //Addr LSB is 1 for read
+
+  0092d	8b 45 0c	 mov	 eax, DWORD PTR _addr$[ebp]
+  00930	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00935	83 c8 01	 or	 eax, 1
+  00938	50		 push	 eax
+  00939	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0093c	51		 push	 ecx
+  0093d	e8 00 00 00 00	 call	 _I2C_WBYTE
+  00942	83 c4 08	 add	 esp, 8
+  00945	85 c0		 test	 eax, eax
+  00947	75 0e		 jne	 SHORT $L36873
+
+; 524  :                I2C_STOP(ppdev);
+
+  00949	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0094c	52		 push	 edx
+  0094d	e8 00 00 00 00	 call	 _I2C_STOP
+  00952	83 c4 04	 add	 esp, 4
+
+; 525  :            else
+
+  00955	eb 02		 jmp	 SHORT $L36874
+$L36873:
+
+; 526  :                break;
+
+  00957	eb 02		 jmp	 SHORT $L36871
+$L36874:
+
+; 527  :        }
+
+  00959	eb c6		 jmp	 SHORT $L36863
+$L36871:
+
+; 528  : 
+; 529  : 		for (i = 0; i < numbytes; )
+
+  0095b	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+$L36876:
+  00962	8b 45 14	 mov	 eax, DWORD PTR _numbytes$[ebp]
+  00965	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  0096a	39 45 f8	 cmp	 DWORD PTR _i$[ebp], eax
+  0096d	0f 8d 98 00 00
+	00		 jge	 $L36877
+
+; 531  : 		    for (data = j = 0; j < 8 ; j++) 
+
+  00973	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _j$[ebp], 0
+  0097a	8a 4d f4	 mov	 cl, BYTE PTR _j$[ebp]
+  0097d	88 4d fc	 mov	 BYTE PTR _data$[ebp], cl
+  00980	eb 09		 jmp	 SHORT $L36878
+$L36879:
+  00982	8b 55 f4	 mov	 edx, DWORD PTR _j$[ebp]
+  00985	83 c2 01	 add	 edx, 1
+  00988	89 55 f4	 mov	 DWORD PTR _j$[ebp], edx
+$L36878:
+  0098b	83 7d f4 08	 cmp	 DWORD PTR _j$[ebp], 8
+  0098f	7d 45		 jge	 SHORT $L36880
+
+; 533  : 			  I2C_OUT(ppdev, SCL, LOCLK);      
+
+  00991	6a 00		 push	 0
+  00993	6a 00		 push	 0
+  00995	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00998	50		 push	 eax
+  00999	e8 00 00 00 00	 call	 _I2C_OUT
+  0099e	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 534  : 			  I2C_OUT(ppdev, SCL, HICLK);
+
+  009a1	6a 01		 push	 1
+  009a3	6a 00		 push	 0
+  009a5	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  009a8	51		 push	 ecx
+  009a9	e8 00 00 00 00	 call	 _I2C_OUT
+  009ae	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 535  : 			  data = (data << 1) | I2C_IN(ppdev, SDA);   // read when clk is high
+
+  009b1	8b 5d fc	 mov	 ebx, DWORD PTR _data$[ebp]
+  009b4	81 e3 ff 00 00
+	00		 and	 ebx, 255		; 000000ffH
+  009ba	d1 e3		 shl	 ebx, 1
+  009bc	6a 01		 push	 1
+  009be	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  009c1	52		 push	 edx
+  009c2	e8 00 00 00 00	 call	 _I2C_IN
+  009c7	83 c4 08	 add	 esp, 8
+  009ca	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  009cf	0b d8		 or	 ebx, eax
+  009d1	88 5d fc	 mov	 BYTE PTR _data$[ebp], bl
+
+; 536  : 		    }
+
+  009d4	eb ac		 jmp	 SHORT $L36879
+$L36880:
+
+; 537  : 		    I2C_OUT(ppdev, SCL, LOCLK);
+
+  009d6	6a 00		 push	 0
+  009d8	6a 00		 push	 0
+  009da	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  009dd	50		 push	 eax
+  009de	e8 00 00 00 00	 call	 _I2C_OUT
+  009e3	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 538  : 			dptr[i++] = data;
+
+  009e6	8b 4d 18	 mov	 ecx, DWORD PTR _dptr$[ebp]
+  009e9	03 4d f8	 add	 ecx, DWORD PTR _i$[ebp]
+  009ec	8a 55 fc	 mov	 dl, BYTE PTR _data$[ebp]
+  009ef	88 11		 mov	 BYTE PTR [ecx], dl
+  009f1	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  009f4	83 c0 01	 add	 eax, 1
+  009f7	89 45 f8	 mov	 DWORD PTR _i$[ebp], eax
+
+; 539  : 	    	I2C_SENDACK(ppdev);
+
+  009fa	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  009fd	51		 push	 ecx
+  009fe	e8 00 00 00 00	 call	 _I2C_SENDACK
+  00a03	83 c4 04	 add	 esp, 4
+
+; 540  : 		}
+
+  00a06	e9 57 ff ff ff	 jmp	 $L36876
+$L36877:
+
+; 541  : 	    I2C_SENDACK(ppdev);
+
+  00a0b	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00a0e	52		 push	 edx
+  00a0f	e8 00 00 00 00	 call	 _I2C_SENDACK
+  00a14	83 c4 04	 add	 esp, 4
+
+; 542  : 	    I2C_STOP(ppdev);
+
+  00a17	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00a1a	50		 push	 eax
+  00a1b	e8 00 00 00 00	 call	 _I2C_STOP
+  00a20	83 c4 04	 add	 esp, 4
+$L36860:
+
+; 544  :    return(i);
+
+  00a23	8a 45 f8	 mov	 al, BYTE PTR _i$[ebp]
+
+; 545  : }// ReadI2CData
+
+  00a26	5b		 pop	 ebx
+  00a27	8b e5		 mov	 esp, ebp
+  00a29	5d		 pop	 ebp
+  00a2a	c3		 ret	 0
+_READI2CDATA ENDP
+_TEXT	ENDS
+PUBLIC	_I2CDEV_INIT
+_TEXT	SEGMENT
+_ppdev$ = 8
+_devptr$ = 12
+_i$ = -4
+_j$ = -8
+_I2CDEV_INIT PROC NEAR
+
+; 558  : {
+
+  00a2b	55		 push	 ebp
+  00a2c	8b ec		 mov	 ebp, esp
+  00a2e	83 ec 08	 sub	 esp, 8
+  00a31	56		 push	 esi
+  00a32	57		 push	 edi
+
+; 559  : 	unsigned int i, j;
+; 560  : 
+; 561  : 	//Need to check if hardware has been enabled for I2C communication?
+; 562  : 
+; 563  : 	if ( devptr->wDevAddr != 0 && devptr->wRegCnt > 0 )
+
+  00a33	8b 45 0c	 mov	 eax, DWORD PTR _devptr$[ebp]
+  00a36	33 c9		 xor	 ecx, ecx
+  00a38	66 8b 48 02	 mov	 cx, WORD PTR [eax+2]
+  00a3c	85 c9		 test	 ecx, ecx
+  00a3e	0f 84 a7 01 00
+	00		 je	 $L36891
+  00a44	8b 55 0c	 mov	 edx, DWORD PTR _devptr$[ebp]
+  00a47	33 c0		 xor	 eax, eax
+  00a49	66 8b 02	 mov	 ax, WORD PTR [edx]
+  00a4c	85 c0		 test	 eax, eax
+  00a4e	0f 8e 97 01 00
+	00		 jle	 $L36891
+
+; 565  : 		for ( i = 0; i < MAX_I2C_DEVICES; i++ )
+
+  00a54	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  00a5b	eb 09		 jmp	 SHORT $L36889
+$L36890:
+  00a5d	8b 4d fc	 mov	 ecx, DWORD PTR _i$[ebp]
+  00a60	83 c1 01	 add	 ecx, 1
+  00a63	89 4d fc	 mov	 DWORD PTR _i$[ebp], ecx
+$L36889:
+  00a66	83 7d fc 02	 cmp	 DWORD PTR _i$[ebp], 2
+  00a6a	0f 83 7b 01 00
+	00		 jae	 $L36891
+
+; 567  : 			if ( I2CDev[i].wDevAddr == 0 && I2CDev[i].wRegCnt == 0 )
+
+  00a70	33 d2		 xor	 edx, edx
+  00a72	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00a75	8b 82 14 18 00
+	00		 mov	 eax, DWORD PTR [edx+6164]
+  00a7b	8b 4d fc	 mov	 ecx, DWORD PTR _i$[ebp]
+  00a7e	69 c9 f4 00 00
+	00		 imul	 ecx, 244		; 000000f4H
+  00a84	33 d2		 xor	 edx, edx
+  00a86	66 8b 94 08 48
+	01 00 00	 mov	 dx, WORD PTR [eax+ecx+328]
+  00a8e	85 d2		 test	 edx, edx
+  00a90	0f 85 25 01 00
+	00		 jne	 $L36894
+  00a96	33 c0		 xor	 eax, eax
+  00a98	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00a9b	8b 88 14 18 00
+	00		 mov	 ecx, DWORD PTR [eax+6164]
+  00aa1	8b 55 fc	 mov	 edx, DWORD PTR _i$[ebp]
+  00aa4	69 d2 f4 00 00
+	00		 imul	 edx, 244		; 000000f4H
+  00aaa	33 c0		 xor	 eax, eax
+  00aac	66 8b 84 11 46
+	01 00 00	 mov	 ax, WORD PTR [ecx+edx+326]
+  00ab4	85 c0		 test	 eax, eax
+  00ab6	0f 85 ff 00 00
+	00		 jne	 $L36894
+
+; 569  : 				I2CDev[i] = *devptr;						//Save device's ID and configuration
+
+  00abc	8b 75 0c	 mov	 esi, DWORD PTR _devptr$[ebp]
+  00abf	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00ac2	8b 91 14 18 00
+	00		 mov	 edx, DWORD PTR [ecx+6164]
+  00ac8	8b 45 fc	 mov	 eax, DWORD PTR _i$[ebp]
+  00acb	69 c0 f4 00 00
+	00		 imul	 eax, 244		; 000000f4H
+  00ad1	8d bc 02 46 01
+	00 00		 lea	 edi, DWORD PTR [edx+eax+326]
+  00ad8	b9 3d 00 00 00	 mov	 ecx, 61			; 0000003dH
+  00add	f3 a5		 rep movsd
+
+; 570  : 
+; 571  : 				for ( j = 0; j < I2CDev[i].wRegCnt; j++ )	//Initialize I2C device
+
+  00adf	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _j$[ebp], 0
+  00ae6	eb 09		 jmp	 SHORT $L36897
+$L36898:
+  00ae8	8b 4d f8	 mov	 ecx, DWORD PTR _j$[ebp]
+  00aeb	83 c1 01	 add	 ecx, 1
+  00aee	89 4d f8	 mov	 DWORD PTR _j$[ebp], ecx
+$L36897:
+  00af1	33 d2		 xor	 edx, edx
+  00af3	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00af6	8b 82 14 18 00
+	00		 mov	 eax, DWORD PTR [edx+6164]
+  00afc	8b 4d fc	 mov	 ecx, DWORD PTR _i$[ebp]
+  00aff	69 c9 f4 00 00
+	00		 imul	 ecx, 244		; 000000f4H
+  00b05	33 d2		 xor	 edx, edx
+  00b07	66 8b 94 08 46
+	01 00 00	 mov	 dx, WORD PTR [eax+ecx+326]
+  00b0f	39 55 f8	 cmp	 DWORD PTR _j$[ebp], edx
+  00b12	0f 83 9f 00 00
+	00		 jae	 $L36899
+
+; 573  :                    if ( I2CDev[i].Regs[j].Index != 0xff )
+
+  00b18	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00b1b	8b 88 14 18 00
+	00		 mov	 ecx, DWORD PTR [eax+6164]
+  00b21	33 d2		 xor	 edx, edx
+  00b23	8b 55 fc	 mov	 edx, DWORD PTR _i$[ebp]
+  00b26	69 d2 f4 00 00
+	00		 imul	 edx, 244		; 000000f4H
+  00b2c	8d 84 11 46 01
+	00 00		 lea	 eax, DWORD PTR [ecx+edx+326]
+  00b33	8b 4d f8	 mov	 ecx, DWORD PTR _j$[ebp]
+  00b36	33 d2		 xor	 edx, edx
+  00b38	8a 54 48 04	 mov	 dl, BYTE PTR [eax+ecx*2+4]
+  00b3c	81 fa ff 00 00
+	00		 cmp	 edx, 255		; 000000ffH
+  00b42	74 6e		 je	 SHORT $L36901
+
+; 574  : 			    	    WRITEI2CREG(ppdev, (BYTE)I2CDev[i].wDevAddr, I2CDev[i].Regs[j].Index, I2CDev[i].Regs[j].Data);
+
+  00b44	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00b47	8b 88 14 18 00
+	00		 mov	 ecx, DWORD PTR [eax+6164]
+  00b4d	8b 55 fc	 mov	 edx, DWORD PTR _i$[ebp]
+  00b50	69 d2 f4 00 00
+	00		 imul	 edx, 244		; 000000f4H
+  00b56	8d 84 11 46 01
+	00 00		 lea	 eax, DWORD PTR [ecx+edx+326]
+  00b5d	8b 4d f8	 mov	 ecx, DWORD PTR _j$[ebp]
+  00b60	33 d2		 xor	 edx, edx
+  00b62	8a 54 48 05	 mov	 dl, BYTE PTR [eax+ecx*2+5]
+  00b66	52		 push	 edx
+  00b67	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00b6a	8b 88 14 18 00
+	00		 mov	 ecx, DWORD PTR [eax+6164]
+  00b70	8b 55 fc	 mov	 edx, DWORD PTR _i$[ebp]
+  00b73	69 d2 f4 00 00
+	00		 imul	 edx, 244		; 000000f4H
+  00b79	8d 84 11 46 01
+	00 00		 lea	 eax, DWORD PTR [ecx+edx+326]
+  00b80	8b 4d f8	 mov	 ecx, DWORD PTR _j$[ebp]
+  00b83	33 d2		 xor	 edx, edx
+  00b85	8a 54 48 04	 mov	 dl, BYTE PTR [eax+ecx*2+4]
+  00b89	52		 push	 edx
+  00b8a	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00b8d	8b 88 14 18 00
+	00		 mov	 ecx, DWORD PTR [eax+6164]
+  00b93	8b 55 fc	 mov	 edx, DWORD PTR _i$[ebp]
+  00b96	69 d2 f4 00 00
+	00		 imul	 edx, 244		; 000000f4H
+  00b9c	33 c0		 xor	 eax, eax
+  00b9e	8a 84 11 48 01
+	00 00		 mov	 al, BYTE PTR [ecx+edx+328]
+  00ba5	50		 push	 eax
+  00ba6	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00ba9	51		 push	 ecx
+  00baa	e8 00 00 00 00	 call	 _WRITEI2CREG
+  00baf	83 c4 10	 add	 esp, 16			; 00000010H
+$L36901:
+
+; 575  :                }
+
+  00bb2	e9 31 ff ff ff	 jmp	 $L36898
+$L36899:
+
+; 576  : 				return(0); 
+
+  00bb7	33 c0		 xor	 eax, eax
+  00bb9	eb 33		 jmp	 SHORT $L36885
+$L36894:
+
+; 578  : 			else if ( devptr->wDevAddr == I2CDev[i].wDevAddr )
+
+  00bbb	8b 55 0c	 mov	 edx, DWORD PTR _devptr$[ebp]
+  00bbe	33 c0		 xor	 eax, eax
+  00bc0	66 8b 42 02	 mov	 ax, WORD PTR [edx+2]
+  00bc4	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00bc7	8b 91 14 18 00
+	00		 mov	 edx, DWORD PTR [ecx+6164]
+  00bcd	8b 4d fc	 mov	 ecx, DWORD PTR _i$[ebp]
+  00bd0	69 c9 f4 00 00
+	00		 imul	 ecx, 244		; 000000f4H
+  00bd6	33 f6		 xor	 esi, esi
+  00bd8	66 8b b4 0a 48
+	01 00 00	 mov	 si, WORD PTR [edx+ecx+328]
+  00be0	3b c6		 cmp	 eax, esi
+  00be2	75 02		 jne	 SHORT $L36908
+
+; 580  : 				break; //Device already exist
+
+  00be4	eb 05		 jmp	 SHORT $L36891
+$L36908:
+
+; 582  : 		}		
+
+  00be6	e9 72 fe ff ff	 jmp	 $L36890
+$L36891:
+
+; 584  : 	return(-1);
+
+  00beb	83 c8 ff	 or	 eax, -1
+$L36885:
+
+; 585  : }// I2CDev_Init
+
+  00bee	5f		 pop	 edi
+  00bef	5e		 pop	 esi
+  00bf0	8b e5		 mov	 esp, ebp
+  00bf2	5d		 pop	 ebp
+  00bf3	c3		 ret	 0
+_I2CDEV_INIT ENDP
+_TEXT	ENDS
+PUBLIC	_I2CDEV_CLOSE
+_TEXT	SEGMENT
+_ppdev$ = 8
+_addr$ = 12
+_i$ = -4
+_I2CDEV_CLOSE PROC NEAR
+
+; 596  : {
+
+  00bf4	55		 push	 ebp
+  00bf5	8b ec		 mov	 ebp, esp
+  00bf7	51		 push	 ecx
+
+; 597  : 	int i;
+; 598  : 
+; 599  : 	if ( addr != 0 )
+
+  00bf8	8b 45 0c	 mov	 eax, DWORD PTR _addr$[ebp]
+  00bfb	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00c00	85 c0		 test	 eax, eax
+  00c02	0f 84 a8 00 00
+	00		 je	 $L36918
+
+; 601  : 		for ( i = 0; i < MAX_I2C_DEVICES; i++ )
+
+  00c08	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  00c0f	eb 09		 jmp	 SHORT $L36916
+$L36917:
+  00c11	8b 4d fc	 mov	 ecx, DWORD PTR _i$[ebp]
+  00c14	83 c1 01	 add	 ecx, 1
+  00c17	89 4d fc	 mov	 DWORD PTR _i$[ebp], ecx
+$L36916:
+  00c1a	83 7d fc 02	 cmp	 DWORD PTR _i$[ebp], 2
+  00c1e	0f 8d 8c 00 00
+	00		 jge	 $L36918
+
+; 603  : 			if ( I2CDev[i].wDevAddr != 0 && I2CDev[i].wDevAddr == addr )
+
+  00c24	33 d2		 xor	 edx, edx
+  00c26	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00c29	8b 82 14 18 00
+	00		 mov	 eax, DWORD PTR [edx+6164]
+  00c2f	8b 4d fc	 mov	 ecx, DWORD PTR _i$[ebp]
+  00c32	69 c9 f4 00 00
+	00		 imul	 ecx, 244		; 000000f4H
+  00c38	33 d2		 xor	 edx, edx
+  00c3a	66 8b 94 08 48
+	01 00 00	 mov	 dx, WORD PTR [eax+ecx+328]
+  00c42	85 d2		 test	 edx, edx
+  00c44	74 65		 je	 SHORT $L36921
+  00c46	33 c0		 xor	 eax, eax
+  00c48	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00c4b	8b 88 14 18 00
+	00		 mov	 ecx, DWORD PTR [eax+6164]
+  00c51	8b 55 fc	 mov	 edx, DWORD PTR _i$[ebp]
+  00c54	69 d2 f4 00 00
+	00		 imul	 edx, 244		; 000000f4H
+  00c5a	33 c0		 xor	 eax, eax
+  00c5c	66 8b 84 11 48
+	01 00 00	 mov	 ax, WORD PTR [ecx+edx+328]
+  00c64	8b 4d 0c	 mov	 ecx, DWORD PTR _addr$[ebp]
+  00c67	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  00c6d	3b c1		 cmp	 eax, ecx
+  00c6f	75 3a		 jne	 SHORT $L36921
+
+; 605  : 				I2CDev[i].wDevAddr = 0;
+
+  00c71	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00c74	8b 82 14 18 00
+	00		 mov	 eax, DWORD PTR [edx+6164]
+  00c7a	8b 4d fc	 mov	 ecx, DWORD PTR _i$[ebp]
+  00c7d	69 c9 f4 00 00
+	00		 imul	 ecx, 244		; 000000f4H
+  00c83	66 c7 84 08 48
+	01 00 00 00 00	 mov	 WORD PTR [eax+ecx+328], 0
+
+; 606  : 				I2CDev[i].wRegCnt  = 0;
+
+  00c8d	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00c90	8b 82 14 18 00
+	00		 mov	 eax, DWORD PTR [edx+6164]
+  00c96	8b 4d fc	 mov	 ecx, DWORD PTR _i$[ebp]
+  00c99	69 c9 f4 00 00
+	00		 imul	 ecx, 244		; 000000f4H
+  00c9f	66 c7 84 08 46
+	01 00 00 00 00	 mov	 WORD PTR [eax+ecx+326], 0
+
+; 607  : 				break;				
+
+  00ca9	eb 05		 jmp	 SHORT $L36918
+$L36921:
+
+; 609  : 		}
+
+  00cab	e9 61 ff ff ff	 jmp	 $L36917
+$L36918:
+
+; 611  : }// I2CDev_Close
+
+  00cb0	8b e5		 mov	 esp, ebp
+  00cb2	5d		 pop	 ebp
+  00cb3	c3		 ret	 0
+_I2CDEV_CLOSE ENDP
+_TEXT	ENDS
+END

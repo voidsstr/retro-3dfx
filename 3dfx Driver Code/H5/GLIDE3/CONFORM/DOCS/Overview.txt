@@ -1,0 +1,632 @@
+Glide Conformance Test Suite Overview                                05/06/99
+
+
+General Info
+------------------------------------------------------------------------------
+
+The test suite lives in $DEVEL/sst2/glide3/conform, and has build and runtime
+dependencies on glide and fxmisc. Two individual tests have other dependencies:
+  - texture/texture-load-ncc is dependent on texus
+  - extensions/ext-surface is dependent on the DirectDraw SDK. 
+
+Generally, the test suite is a set of tests, some self-checking and some
+image-based, and some analysis tools. The image-based tests generate 
+sets of images that need to be compared to reference images via external
+tools (such as logcmp and bmpcmp). The self-checking tests use LFB reads
+into a local buffer and try to verify that it contains what they think it
+should should contain (within a tolerance). The direction of the test suite
+is that future tests should be self-checking, and the current image-based
+tests should be converted when possible.
+
+Note:
+ At the moment, some of the self-checking tests have features that they
+ can't self-check yet. This means that to use them completely, you'd
+ want to run them and generate images for each frame. The "-dump"
+ framework option will cause an image to be saved for each call to
+ end_frame(). In effect, this lets you run the self-checking tests as
+ if they were image based.
+
+Tests can be run individually or in groups. When a test runs various bits
+of information are logged in a log file, "conform.log" by default, which is
+appended to if it already exists (or created, if not).  The framework logs
+state information about the test at startup (name, description, random 
+seed, resolution, glide version, command line args, etc), and how many
+passes and failures it reported at shutdown. In between those, the test
+itself may use the log_debug(), log_message() and log_perror() utilities
+to make entries in the log. If a group of tests is run, the utility 'logcmp' 
+will compare two conform.log files and give a summary of the differences. 
+
+
+
+How to Build and Run
+------------------------------------------------------------------------------
+
+ A 'make all' from the conform directory will make the complete tree,
+ including tools, framework, and tests. You can also build the subdirectories
+ individually, though you'd need to build the incsrc and utiltiies subdirs 
+ before building anything in the tests subdir. 
+
+ Two build-time environment variables to be aware of:
+
+  HWC_CSIM  - if this != 0, the framework will link in some csim-specific
+              things. (NOTE: Do we still need this? I think it's needed for
+              the csim surface stuff now).
+              
+  DXSDKROOT - set this to the location of your DirectDraw SDK installation,
+              if you have one. If this is set, the framework will build in
+              support for direct draw surfaces and the extension/ext-surface
+              (surface extension) test will work.
+
+ Once built, executables are copied to:
+   $BUILD_ROOT/$FX_GLIDE_HW/glide3/conform/{bin,lib,include}
+ but I usually just run everything from the conform/tests directory in
+ the source tree.
+
+ Some runtime environment variables to be aware of:
+
+  GLIDE_CONFORM_OUTPUTDIR - by default, all output from tests (images, dat
+                            files, conform.log) go into ".". Set this to
+                            a directory (that already exists) if you want
+                            to redirect all output there. This is handy when
+                            you need to save the results of multiple runs.
+
+  GLIDE_CONFORM_LOGFILE   - use this to change the name of the log file from
+                            "conform.log" to whatever you'd like.
+
+  GCDBG_LEVEL             - use this to set the verbosity level. Tests can 
+                            use log_debug() for messages, but they will only
+                            appear if the debug level is high enough. (this
+                            is not used much at the moment)
+
+  FX_GLIDE_LFB_HW         - set this to '1' if you're running on csim or
+                            you'll get strange things back from the LFB.
+
+
+ So, let's say you've built the test suite and you want to run some tests.
+ Here's what I typically do:
+
+  >cd conform/tests
+  >setenv GLIDE_CONFORM_OUTPUTDIR output-cvg  // this says put all output (log
+                                              // images, data) in ./output-cvg
+
+ To run specific tests, I might do:
+
+  >raster/ras-tri -h  // find out what options the ras-tri tests supports
+  >raster/ras-tri     // run the triangle rasterization test with it's defaults
+  >raster/ras-tri -wid 100 -hei 100 -wc // 100x100 conform window, window coords
+  >texture/texture-combine // run the texture combine test
+
+ To run sets of tests, the currently recommended method is to use the
+ perl script 'runtests.pl', which lives in the conform/tests directory.
+
+  >perl runtests.pl -help  // see what options it supports
+  >perl runtests.pl -stests -dirs // run all the self-checking tests, 
+                                  // prepending the subdirectory name to the
+                                  // test name (this is necessary if you're 
+                                  // running from the build hierarchy)
+  >perl runtests.pl -itests -dirs // run all the image-based tests, and prepend
+                                  // the subdirectory name to the test name.
+  >perl runtests.pl -all -dirs    // run 'em all.
+  >perl runtests.pl -dirs -itests -file 640.args // run image tests using
+                                  // subdirectory names, and arguments from
+                                  // the file '640.args'
+
+ 'runtests.pl' will report the results of the run when it's finished (and it's
+ also stored in ./runtests.log). If you ran just the self-checking tests,
+ you'll have only a conform.log in your output-cvg directory. If you ran
+ the image-based tests, you'll have a conform.log and LOTS of ppm images in
+ there.
+
+ If you're comparing two image-based runs, the next thing to do is to use
+ the 'logcmp' tool to compare the results of the two runs. Do this like so:
+
+ >..\logcmp\logcmp output-cvg output-sst2 // assuming the other run was in 
+                                          // output-sst2
+
+ 'logcmp' walks through the log files and images and tries to summarize the 
+ differences. It's helpful because of the sheer number of images that can get
+ generated.
+
+ Once you've got some images that differ, use the 'bmpcmp' tool to load them
+ both in. It'll show you the differences in the images in various ways,
+ and has useful zooming and overlay abilities.
+
+ 
+
+ 
+Framework Command line options
+------------------------------------------------------------------------------
+
+Because these arguments are framework arguments, they're available to all 
+tests. Note, however, that some tests will override them.
+
+  -h (-help)   print help
+  -bn <n>      board number
+  -seed <n>    random number seed
+
+  -res <n>     display resolution
+  -cbuf <n>    number of color buffers
+  -abuf <n>    number of aux buffers
+  -orig <xx>   origin [ll, ul]
+  -cf <xxxx>   color format [RGBA, ARGB, BGRA, ARGB]
+  -wid <n>     active width (the width of the conform window)
+  -hei <n>     active height (the height of the conform window)
+  -tile        tile (lay the conform windows out in multiple calls to
+               do_conform() such that they are tiled on the screen)
+  -n <n>       repeat count (the number of times to call do_conform() -
+               usually overridden by the test itself)
+  -dump        generate image of all frames (regardless of whether
+               you're a self-checking test or not)
+  -noimages    don't save any images to disk (regardless of whether 
+               you're an image-based test or not)
+  -dither      turn on HW dithering by default (it's off by default to
+               cut down on noise when using the image comparison method)
+  -i           interactive, wait for input after each frame.
+  -rand  <n>   use random seed n
+  -maxfail <n> maximum allowed number of failures [%d]
+  -xylimit <n> allow conform window to be up to n pixels
+               into the guardband.  A value of 0 (the default)
+               means the conform window will be completely on
+               screen. A positive value means that it can be
+               up to that many pixels off the edge of the screen.
+               A negative value means it can be as far offscreen
+               as the hardware supports.
+  -xycheck <n> add a border of <n> pixels to the conform window
+               when checking pixels.
+  -f <file>    read arguments from file
+
+ 
+
+
+Test Structure
+------------------------------------------------------------------------------
+
+A conformance test is built from 3 conceptual parts. The 'framework', the 
+utility library, and the test code itself. The framework is the executor -
+it is what runs first and last when a test is started. It handles various 
+startup and shutdown chores (like init'ing glide, opening and closing windows,
+opening and closing log files, etc) and calls fixed entrypoints in the test 
+code to actually accomplish the test. The utility library is a set of routines
+that tests can make use of when they need to, ranging from pixel-format
+conversion to hardware emulation functions. The last part is the test-specific
+code. Each test MUST implement four entrypoints:
+
+  init_conform()   - called once by the framework before it selects a display 
+                     mode (and other things) for the test. The test can set
+                     it's preferred window size, buffer configuration, etc,
+                     here before giving control back to the framework. Any
+                     command line arguments not handled by the framework are
+                     passed to the test here, and the test should look through
+                     them for test-specific options. Most tests will also use
+                     this time to allocate data structures that exist for the
+                     duration of the test.
+                 
+  do_conform()     - the framework calls this as many times as required. The
+                     size and location of the conform window may or may not
+                     change between calls. This is where the test program 
+                     should perform whatever functionality checks it wants.
+                     Single or multiple tests can be performed inside of 
+                     one call to do_conform(), but each should be followed 
+                     with a call to end_frame() and log_status(). 
+
+                     end_frame() lets the framework know that a test has
+                     been completed (it bumps some counters), and gives it
+                     a chance to save an image to disk if it needs to.
+   
+                     log_status() reports a pass/fail to the framework.
+
+  close_conform()  - called by the framework after all calls to do_conform()
+                     have been completed and before it shuts down glide, closes
+                     windows, and releases resources. This is a good place to
+                     free any allocated resources.
+
+  help_conform()   - called by the framework if the "-help" or "-h" option
+                     is given on the command line. It gives the test a chance
+                     to display any test-specific options that it supports.
+
+Although the tests are statically linked to the framework at the moment
+(which means you get a new instance of the framework and of glide for
+each test), they were designed so that it wouldn't be hard to make the
+framework able to load and run the tests dynamically. 
+
+If you're implementing a new test, I'd recommend using something like
+tests/raster/ras-tri.cpp as a reference point. There is a template test
+(in the 'conform/template' subdirectory) that is a fine example of the
+the image-based test structure, but it hasn't been updated to show the
+self-checking style yet.
+
+
+
+Runtime Flow
+------------------------------------------------------------------------------
+
+The general flow of things when you run a test is as follows:
+
+  - the framework starts up, initializes some platform-specific function
+    pointers, opens the log file, and allocs the conform_state structure.
+
+  - the framework handles the command line arguments passed to it, saving
+    the ones it doesn't know about.
+
+  - the framework calls grGlideInit() and grSstSelect()
+
+  - the framework calls the test's init_conform() method, passing it the
+    conform_state structure and the list of command line arguments that
+    it didn't handle.
+  
+  - the test's init_conform() method does any once-per-test initialization,
+    such as allocating local data structures, parses the command line
+    arguments for test-specific args, and then sets the parameters in the 
+    conform_state structure to what it requires (for instance, it might
+    require 2 color buffers but no aux buffer and 50x50 window).
+
+  - the framework uses the information in the conform_state structure to
+    select a display mode for the test to run in. It does this by querying
+    glide for all the supported resolutions it supports given the parameters
+    specified by the test and then chooses one at random from the returned
+    list.
+
+    NOTE: It's not clear that this is the best algorithm for choosing a 
+          display mode because different hw platforms can return different 
+          lists of supported resolutions for a given query. This means
+          means that the same tests run with the same random seed on two
+          different platforms might choose two different display modes,
+          which can be confusing.
+
+  - the framework opens up a window-system window for the test to use and
+    hands it to grSstWinOpen() along with the other display parameters.
+    (this is done slightly differently for the surface extension test)
+
+  - the framework records the test's state in the conform.log 
+
+  - for (the # of times the framework was told to call the test's do_conform()) {
+      - the framework selects a random location for the conform window
+      - the framework calls the tests do_conform() method
+      - the test's do_conform() method:
+        - performs some functionality test. Generally, this goes something
+          like:   
+           - set the clipwindow and viewport to the conform window
+           - draw some stuff in the conform window
+           - call end_frame() (to save an image, if it's an image-based test)
+           - if self-checking, call vmgrGetPixels() to read back the
+             image for checking, check it and report the results via
+             log_status()
+        - may or may not perform multiple tests
+    }
+
+  - the framework reports the results of the tests (the number of passes
+    and failures) and writes them to the log.
+
+  - the framework calls the test's close_conform() method to let it free
+    and resources it may have allocated.
+
+  - the framework releases any windows and glide resources it may have
+    allocated.
+
+  - the framework calls grGlideShutdown() and exits.
+
+
+
+
+The Conform Window
+------------------------------------------------------------------------------
+
+The "conform window" is the region that a test is expected to operate in. The
+framework is responsible for choosing the location and width and height of 
+the window, and it can change each time a test's do_conform method is called.
+Many of the tests select a preferred width and height to operate in during
+their init_conform() call. 
+
+The conform window does not need to be completely on screen (for testing
+guardband clipping), and can even be completely off screen. Because of this,
+tests should use the vmgrClipWindow() and vmgrViewport() functions (instead
+of their glide counterparts) so that the framework's LFB reading utilities 
+can clip the conformance window to the screen.  
+
+Self-checking tests will generally:
+ - set their clip window and viewport to the conform window passed to them.
+ - draw some stuff in the conform window
+ - call end_frame() (used as a test delimiter by the framework)
+ - call vmgrGetPixels() to read back the conform window into a memory buffer.
+ - examine each pixel in the memory buffer to see if it has the value they
+   think it should have.
+
+Related to the conform window is the "check region". This is the region 
+that the test is supposed to verify and it's usually the same as the
+conform window. The "-xycheck" argument, however, is used to specify the
+width of a border of pixels surrounding the conform window that the test
+should also verify. (generally, the test should verify that nothing was
+drawn in it). 
+
+The following command line options apply to the conform window:
+
+ -wid <n>      - Specify the width of the conform window. Can be (and often 
+                 is) overridden by the tests themselves.
+ -hei <n>      - Specify the height of the conform window. Can be (and often
+                 is) overridden by the tests themselves.
+ -xycheck <n>  - specify the width of a border of pixels surrounding the 
+                 conform window that the test should also verify.
+ -xylimit <n>  - specify the number of pixels offscreen that the conform
+                 window can be placed. A negative value means use the 
+                 greatest amount the hardware can handle.
+
+Examples:
+
+  "ras-tri -wid 100 -hei 120" 
+   runs ras-tri in a 100x120 conformance window and it checks that same 
+   region for validity.
+
+  "ras-tri -wid 100 -hei 120 -xycheck 20"
+   runs ras-tri in a 100x120 conformance window but it checks the surrounding
+   20 pixels, too (so it ends up checking a 140x160 window).
+
+  "ras-tri -wid 100 -hei 120 -xylimit 50"
+   runs ras-tri in a 100x120 conformance window and it checks that same 
+   region for validity. The conformance window may be located at up to 
+   50 pixels offscreen on any side.
+
+  "ras-tri -wid 100 -hei 120 -xycheck 20 -xylimit 50"
+   runs ras-tri in a 100x120 conformance window but it checks the surrounding
+   20 pixels, too (so it ends up checking a 140x160 window). The conformance
+   window may be located at up to 50 pixels offscreen on any side.
+   
+At the moment, the location of the conform window is not randomly generated
+unless you specify an xylimit argument. 
+
+
+
+
+Tools
+------------------------------------------------------------------------------
+
+runtests.pl - is a perl script that can be used to run the tests. It knows
+              which are image-based and which are self-checking, and you
+              can decide which group (or both) to run. It lives in the
+              'conform/tests' directory. (You need perl to use it)
+
+bmpcmp - is used to compare two images. It shows both images at the same
+         time, and allows you to display the differences between the images
+         in various ways. It will also tell you if they match exactly. 
+         Very handy when you're trying to figure out why two images that 
+         look the same have different checksums. It lives in the 
+         'conform/bmpcmp' directory.
+
+logcmp - is used to compare two conform.log files. It goes through each log
+         looking for the same tests in each (all of the state has to match),
+         and will then try to give a summary of results. It was meant for
+         use with the image-based tests (because they generate 100's of
+         images). It lives in the 'conform/logcmp' directory.
+
+runner  - is a win32 GUI based tool for running the tests. It's most useful
+          feature is that it will time out a test (say, if it hangs) 
+          and let the rest of the tests continue. This is useful when
+          you start the whole set of tests running and then leave your
+          computer for a while. It lives in the 'conform/runner' directory,
+          and uses an imput format similar to batch files. See the 
+          "all.run" file in the tests directory for reference. A bad thing
+          is that runner requires MFC to build and run.
+
+
+
+Directory Structure, Files, and Tests
+------------------------------------------------------------------------------
+
+conform/bin:
+conform/include:
+conform/lib:
+
+conform/bmpcmp: - Where the bmpcmp image comparison tool lives
+
+conform/bmpdos: 
+
+conform/docs:   - documents relating to the conformance test suite
+
+conform/incsrc:
+  conform.h     - the general framework data structures and protos
+  matrix.h      - matrix math protos and defines
+  vertex.h      - vertex definitions
+  vmglide.h     - protos for vmglide.cpp, the emulation routines.
+
+
+conform/logcmp:       - where the logcmp utility lives
+
+conform/runner:       - where the 'runner' utility lives (it needs MFC)
+conform/runner/res:
+
+conform/template:
+
+conform/utility:      - where the framework and utility functions live
+  checksum.cpp   - checkum computation for images. From the OpenGL suite.
+  data.cpp       - utils for writing the .dat files. Though this stuff is 
+                   called, it's not really used for anything. And, with the
+                   advent of the new vertex format, many tests are passing 
+                   bogus values into it. The routines in here were designed
+                   so that tests could record the glide commands they used 
+                   and the output could be fed to post processing image 
+                   checkers. It hasn't worked out this way, though.
+  hwc_surf.cpp   - the csim-specific functions for surface extension support.
+  image.cpp      - utils for handling end_frame() commands, reading back from 
+                   LFB, etc.
+  intrface.cpp   - general methods that may be platform-dependent.
+  log.cpp        - utils for writing to the conforn.log file.
+  main.cpp       - the starting point for the framework (and therefore all 
+                   tests).
+  matrix.cpp     - matrix math utils.
+  mode.cpp       - display mode utils.
+  surface_stubs.cpp - stubs for surface-extension routines that get loaded when
+                      you don't have surface extentions support.
+  utility.cpp    - misc utility routines (color format conversions, etc).
+  vmglide.cpp    - the self-checking utilities.
+  win32.cpp      - win32-specific routines. Window creation, etc.
+  win32_ddsurf.cpp - win32-specific directdraw surface support.
+  xlib.cpp       - unix-specific routines.
+
+
+conform/tests: - the tests
+
+  Legend: 'SC'  == has self-checking support
+          'SC*' == self-checking, but might still have some functionality that 
+                   isn't covered by the self-checking code. (if you need to,
+                   you can test this stuff by running the tests with the '-dump'
+                   option and then comparing the images).
+          'IB'  == generates images
+
+conform/tests/control:
+  buffer-swap.cpp    - SC/IB, tests GrBufferSwap(), and attempts to make sure
+                              that grGet()s of GR_VIDEO_POSITION, 
+                              GR_NUM_SWAP_HISTORY_BUFFERS, and GR_SWAP_HISTORY 
+                              work. Also tries to make sure they do what 
+                              they're supposed to.
+  clear.cpp          - IB, calls grBufferClear() on color and aux buffers,
+                           with and without clip windows.
+  error-callback.cpp - SC, calls grErrorSetCallback() to set a callback 
+                           function and then triggers it.
+  query-res.cpp      - SC, first calls grQueryResolutions() with GR_QUERY_ANY 
+                           and verifies that grSstWinOpen() returns a context
+                           for all of returned list of display configurations.
+                           Then calls grQueryResolutions() with various 
+                           values and makes sure that any returned results
+                           are within the bounds specified (filtering test).
+  query-state.cpp    - SC, tests grGetGlideState() and grSetGlideState(). Sets
+                           some state, draws stuff, saves image, saves state,
+                           sets more state, draws stuff, saves image, 
+                           compares images, restores state, draws same stuff,
+                           saves image, compares images.
+  query.cpp          - SC, tests that many grGet() parameters work. Tests 
+                           whether the statistical parameters (GR_STATS_*) are
+                           working.
+ 
+  simple-clear.cpp   - SC, tests clearing front, back, and aux buffers, with
+                           and without clip windows.
+ 
+
+conform/tests/extensions:
+  ext-chroma.cpp    - IB, tests grChromaRangeModeExt() and grChromaRangeExt()
+                      extensions.
+  ext-fogcoord.cpp  - IB, tests FOGCOORD fog coord per vertex extension.
+  ext-palette.cpp   - IB, tests PALETTE6666 color palette format extension.
+  ext-surface.cpp   - SC (NEEDS UPDATING). Tests that the surface extensions
+                      are working.
+                      NOTE: If you want to build this test, you must have the 
+                            DirectDraw SDK installed and the DXSDKROOT 
+                            environment variable set to it's location. 
+                            You must then rebuild the framework and test to 
+                            pull in the surface extension support.
+  ext-tex-chroma.cpp - IB, tests TEXCHROMA texture chroma range extension.
+  ext-texture-mirror.cpp - IB, tests TEXMIRROR mirroring of textures extension.
+
+conform/tests/raster: 
+
+    These tests all test both clip and window coords ('-wc' for window coords).
+
+  ras-edge.cpp           - IB, draws lines and tris at the edge of the FB.
+  ras-line.cpp           - SC*, tests line rasterization. Draws many random
+                                and transformed lines. AA isn't self-checked.
+  ras-point.cpp          - SC*, tests point rasterization, AA isn't self-
+                                checked.  Draws a fixed pattern of points at 
+                                random locations.
+  ras-tri.cpp            - SC, tests triangle rasterization. Draws various 
+                                randomly located and oriented triangles.
+  ras-tri-2.cpp          - SC*, tests two triangles with a shared edge.
+                                Draws two triangles randomly located and 
+                                stretched.
+                                AA isn't self-checked.
+  ras-va.cpp             - SC, tests rasterization of all grDrawVertexArray()
+                               and grDrawVertexArrayContiguous() prims.
+  ras-va-cont.cpp        - SC, continuation modes of above prims.
+  simple-interp-alpha.cpp - IB, draws lines, triangles, and VA prims with an
+                                alpha fading from opaque to transparent on a
+                                background of opaque lines. For testing alpha 
+                                interpolation.
+  simple-interp-depth.cpp - IB, draws lines, triangles, and VA prims with 
+                                changing depths against a staggered (depth-wise)
+                                set of lines.  For checking linear depth
+                                interpolation.
+  simple-interp-rgb.cpp   - IB, draws various orientations of lines, tris,
+                                points, and all VA prims with interpolated RGB.
+  simple-interp-tex.cpp   - IB, draws various rotations of triangles with decal
+                                and iterated RGB textures applied. Also draws
+                                fixed triangles with rotated texture coords.
+  simple-ras.cpp          - IB, draws various orientations of lines, tris, 
+                                points, and all VA prims.
+
+conform/tests/state:
+  alpha-blend.cpp         - IB, tests alpha blending with no destination alpha. 
+  alpha-buffer.cpp        - IB, tests alpha blending with destination alpha.
+  alpha-combine.cpp       - SC, tests many permutations of paramaters to 
+                                grAlphaCombine().
+  alpha-funky.cpp         - IB, tests that grAlphaControlsITRGBLighting() works.
+  alpha-test.cpp          - IB, tests grAlphaTestFunction() and 
+                                grAlphaTestReferenceValue().
+  backface-cull.cpp       - IB, draws various orientations of all prims with the
+                                three cull modes.
+  color-chroma.cpp        - IB, tests chroma-keying (grChromaKeyMode(), 
+                                grChromaKeyValue()).
+  color-combine.cpp       - SC, tests many permutations of parameters to 
+                                grColorCombine().
+  color-constant.cpp      - IB, tests drawing with constant color and blending
+                                with alpha .
+  color-dither.cpp        - IB, tests grDitherMode(). Draws ramps with 
+                                different dither modes.
+  depth-wbias.cpp         - SC, tests grDepthBiasLevel() for w buffering.
+  depth-wbuffer-sc.cpp    - SC, tests basic w buffering by drawing at different 
+                                depths with different grDepthBufferFunction()s.
+  depth-wbuffer.cpp       - IB, tests basic w buffering by drawing at different 
+                                depths with different grDepthBufferFunction()s.
+                                This test hits the edge cases better than the 
+                                -sc version.
+  depth-zbias.cpp         - SC, tests grDepthBiasLevel() for z buffering.
+  depth-zbuffer-sc.cpp    - SC, tests basic z buffering by drawing at different 
+                                depths with different grDepthBufferFunction()s.
+  depth-zbuffer.cpp       - IB, tests basic z buffering by drawing at different 
+                                depths with different grDepthBufferFunction()s. 
+                                This test hits the edge cases better than the 
+                                -sc version.
+  disable-effects.cpp     - IB, tests that grDisableEffects() works on alpha 
+                                blending, fog, chroma keying, depth buffering,  
+                                and alpha testing.
+  flex-coords.cpp             - IB, creates random vertex layouts and draws various orientations
+                                of all prims.
+  flex-coords-depth-color.cpp - IB, same, but with depth and color coords.
+  flex-coords-texture.cpp     - IB, same, but with texture coords.
+  flex-coords-texture-fog.cpp - IB, same, but with texture and fog coords.
+  fog.cpp                 - IB, tests combinations of grFogMode(), 
+                                guFogGenerate*(), and color. 
+  gamma.cpp               - Needs user input. Tests gamma correction utils 
+                            grLoadGammaTable() and guGammaCorrectionRGB().
+  lfb-region.cpp          - SC, tests grLfbReadRegion() and grLfbWriteRegion().
+  lfb.cpp                 - SC, tests various LFB reads and writes.
+
+conform/tests/texture:
+  texture-bias.cpp            -IB, tests MIP mapped texture LOD bias.
+  texture-combine-detail.cpp  -IB, tests texture combine with detail blending.
+  texture-combine-lod.cpp     -IB, tests texture combine with LOD blending.
+  texture-combine-multi.cpp   -IB, tests texture combine with multiple TMUs.
+  texture-combine.cpp         -IB, tests texture combine functionality.
+  texture-filter.cpp          -IB, tests filtering of single level textures.
+  texture-interp.cpp          -IB, tests texture interpolation across various
+                                   odd-shaped triangles. 
+  texture-interp-2tmu.cpp     -IB, same, but uses two TMUs.
+  texture-interp-large.cpp    -IB, same, but uses very large texture coords.
+  texture-interp-2tmu-large.cpp  -IB, but uses two TMUS and very large texture 
+                                      coords.
+  texture-interp-3df.cpp      -IB, tests decal and iterated RGB texture 
+                                   interpolation on various triangles. The
+                                   texture is a .3df file, so it tests the 
+                                   various gu3df utils. Also does AA and 
+                                   bilinear filtering.
+  texture-load-format.cpp     -IB, tests various texture formats. 
+  texture-load-level.cpp      -IB, tests loading of MIP mapped texture levels.
+  texture-load-mip.cpp        -IB, tests loading of MIP mapped textures.
+  texture-load-multi.cpp      -IB, tests loading of Multibase textures.
+  texture-load-ncc.cpp        -IB, tests NCC texture formats.
+  texture-load-palette.cpp    -IB, tests palettized texture formats.
+  texture-load-partial.cpp    -IB, tests loading of MIP mapped texture chunks.
+  texture-load-simple.cpp     -IB, tests loading of single level textures.
+  texture-lod.cpp             -IB, tests MIP mapped texture level of detail.
+  texture-mode.cpp            -IB, tests MIP map disable, nearest and dither.
+  texture-wrap.cpp            -IB, tests wrapping of single level textures.
+
+
+
+

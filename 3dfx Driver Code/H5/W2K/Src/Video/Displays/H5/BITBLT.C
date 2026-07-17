@@ -1,0 +1,3007 @@
+/******************************Module*Header*******************************\
+* Module Name: bitblt.c
+*
+* Contains the high-level DrvBitBlt and DrvCopyBits functions.  The low-
+* level stuff lives in the 'blt??.c' files.
+*
+* Note: Since we've implemented device-bitmaps, any surface that GDI passes
+*       to us can have 3 values for its 'iType': STYPE_BITMAP, STYPE_DEVICE
+*       or STYPE_DEVBITMAP.  We filter device-bitmaps that we've stored
+*       as DIBs fairly high in the code, so after we adjust its 'pptlSrc',
+*       we can treat STYPE_DEVBITMAP surfaces the same as STYPE_DEVICE
+*       surfaces (e.g., a blt from an off-screen device bitmap to the screen
+*       gets treated as a normal screen-to-screen blt).
+*
+*       Unfortunately, if we've created our primary surface as a device-
+*       managed surface, it has an 'iType' of STYPE_BITMAP and not
+*       STYPE_DEVICE.  So throughout this code, we will determine if a
+*       surface is one of ours by checking 'dhsurf' -- a NULL value means
+*       that it's a GDI-created DIB, otherwise it's one of our surfaces and
+*       'dhsurf' points to our DSURF structure.
+*
+* Copyright (c) 1992-1999 Microsoft Corporation
+* Copyright (c) 1998-1999 3Dfx Interactive, Inc.
+*
+\**************************************************************************/
+
+#include "precomp.h"
+
+#ifdef INCSTBPERF
+//        H3\DISPLAYS\VIDEO\DRV\BUILD\stbperf.inc
+#ifndef MS_VIEW
+#include "..\..\..\..\build\stbperf.inc"
+#else
+#include "stbperf.inc"
+#endif
+#endif
+
+#ifdef PERF_COPY_BITS_OPT	//STB_DAD   This could be moved to driver.h
+BOOL STBXfer8to16Bpp(
+PDEV*		ppdev, 		
+OH*			pohDst,	
+RECTL*		prclDst,	
+SURFOBJ*	psoSrcDIB,	
+POINTL*		pptlSrc,	
+XLATEOBJ*	pxlo);
+
+BOOL STBXfer8to24Bpp(
+PDEV*		ppdev, 		
+OH*			pohDst,	
+RECTL*		prclDst,	
+SURFOBJ*	psoSrcDIB,	
+POINTL*		pptlSrc,	
+XLATEOBJ*	pxlo);
+
+// Some global data
+ULONG	aulDstMask[] = {0, 0x00ffffff, 0x0000ffff, 0x000000ff, 0};//zero-th element not used
+ULONG	aulSrcMask[] = {0, 0xff000000, 0xffff0000, 0xffffff00, 0xffffffff};//zero-th element not used
+ULONG	aulBitShift[] = {0, 3*8, 2*8, 1*8, 0};	//zero-th element not used
+ULONG	ulEngineWaitFlag = 0;
+#endif	// PERF_COPY_BITS_OPT
+
+#if defined(DBG) || defined(PUNT_OPTION)
+
+    BOOL gbPuntBitBlt       = FALSE;
+    BOOL gbPuntCopyBits     = FALSE;
+    BOOL gbPuntGradientFill = FALSE;
+
+#else
+
+    #define gbPuntBitBlt        FALSE
+    #define gbPuntCopyBits      FALSE
+    #define gbPuntGradientFill  FALSE
+
+#endif
+
+/******************************Public*Table********************************\
+* BYTE gajLeftMask[] and BYTE gajRightMask[]
+*
+* Edge tables for vXferScreenTo1bpp.
+\**************************************************************************/
+
+BYTE gajLeftMask[]  = { 0xff, 0x7f, 0x3f, 0x1f, 0x0f, 0x07, 0x03, 0x01 };
+BYTE gajRightMask[] = { 0xff, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe };
+
+/******************************Public*Routine******************************\
+* VOID vXferNativeSrccopy
+*
+* Does a SRCCOPY transfer of a bitmap to the screen using the frame
+* buffer.
+*
+\**************************************************************************/
+
+VOID vXferNativeSrccopy(        // Type FNXFER
+PDEV*       ppdev,
+LONG        c,                  // Count of rectangles, can't be zero
+RECTL*      prcl,               // List of destination rectangles, in relative
+                                //   coordinates
+ULONG       rop4,               // Not used
+SURFOBJ*    psoSrc,             // Source surface
+POINTL*     pptlSrc,            // Original unclipped source point
+RECTL*      prclDst,            // Original unclipped destination rectangle
+XLATEOBJ*   pxlo)               // Not used
+{
+    LONG    xOffset;
+    LONG    yOffset;
+    LONG    dx;
+    LONG    dy;
+    RECTL   rclDst;
+    POINTL  ptlSrc;
+
+    ASSERTDD((pxlo == NULL) || (pxlo->flXlate & XO_TRIVIAL),
+            "Can handle trivial xlate only");
+    ASSERTDD(psoSrc->iBitmapFormat == ppdev->iBitmapFormat,
+            "Source must be same colour depth as screen");
+    ASSERTDD(c > 0, "Can't handle zero rectangles");
+    ASSERTDD(rop4 == 0xcccc, "Must be a SRCCOPY rop");
+
+    xOffset = ppdev->xOffset;
+    yOffset = ppdev->yOffset;
+
+    dx = pptlSrc->x - prclDst->left;
+    dy = pptlSrc->y - prclDst->top;     // Add to destination to get source
+
+    while (TRUE)
+    {
+        ptlSrc.x      = prcl->left   + dx;
+        ptlSrc.y      = prcl->top    + dy;
+
+        // 'vPutBits' takes only absolute coordinates, so add in the
+        // off-screen bitmap offset here:
+
+        rclDst.left   = prcl->left   + xOffset;
+        rclDst.right  = prcl->right  + xOffset;
+        rclDst.top    = prcl->top    + yOffset;
+        rclDst.bottom = prcl->bottom + yOffset;
+
+        #if ENABLE_LINEAR_DFBS
+        // Call with relative coordinates.
+        vPutBits(ppdev, psoSrc, &rclDst, pptlSrc);
+        #else
+        // Call with absolute coordinates.
+        vPutBits(ppdev, psoSrc, &rclDst, &ptlSrc);
+        #endif
+
+        if (--c == 0)
+            return;
+
+        prcl++;
+    }
+}
+
+/******************************Public*Routine******************************\
+* VOID vXferScreenTo1bpp
+*
+* Performs a SRCCOPY transfer from the screen (when it's 8bpp) to a 1bpp
+* bitmap.
+*
+\**************************************************************************/
+
+#if defined(_X86_)
+
+VOID vXferScreenTo1bpp(         // Type FNXFER
+PDEV*       ppdev,
+LONG        c,                  // Count of rectangles, can't be zero
+RECTL*      prcl,               // List of destination rectangles, in relative
+                                //   coordinates
+ULONG       ulHwMix,            // Not used
+SURFOBJ*    psoDst,             // Destination surface
+POINTL*     pptlSrc,            // Original unclipped source point
+RECTL*      prclDst,            // Original unclipped destination rectangle
+XLATEOBJ*   pxlo)               // Provides colour-compressions information
+{
+    LONG    cjPelSize;
+    VOID*   pfnCompute;
+    SURFOBJ soTmp;
+    ULONG*  pulXlate;
+    ULONG   ulForeColor;
+    POINTL  ptlSrc;
+    RECTL   rclTmp;
+    BYTE*   pjDst;
+    BYTE    jLeftMask;
+    BYTE    jRightMask;
+    BYTE    jNotLeftMask;
+    BYTE    jNotRightMask;
+    LONG    cjMiddle;
+    LONG    lDstDelta;
+    LONG    lSrcDelta;
+    LONG    cyTmpScans;
+    LONG    cyThis;
+    LONG    cyToGo;
+
+    ASSERTDD(c > 0, "Can't handle zero rectangles");
+    ASSERTDD(psoDst->iBitmapFormat == BMF_1BPP, "Only 1bpp destinations");
+    ASSERTDD(TMP_BUFFER_SIZE >= (ppdev->cxMemory * ppdev->cjPelSize),
+                "Temp buffer has to be larger than widest possible scan");
+
+    // When the destination is a 1bpp bitmap, the foreground colour
+    // maps to '1', and any other colour maps to '0'.
+
+    if (ppdev->iBitmapFormat == BMF_8BPP)
+    {
+        // When the source is 8bpp or less, we find the forground colour
+        // by searching the translate table for the only '1':
+
+        pulXlate = pxlo->pulXlate;
+        while (*pulXlate != 1)
+            pulXlate++;
+
+        ulForeColor = pulXlate - pxlo->pulXlate;
+    }
+    else
+    {
+        ASSERTDD((ppdev->iBitmapFormat == BMF_16BPP) ||
+                 (ppdev->iBitmapFormat == BMF_32BPP),
+                 "This routine only supports 8, 16 or 32bpp");
+
+        // When the source has a depth greater than 8bpp, the foreground
+        // colour will be the first entry in the translate table we get
+        // from calling 'piVector':
+
+        pulXlate = XLATEOBJ_piVector(pxlo);
+
+        ulForeColor = 0;
+        if (pulXlate != NULL)           // This check isn't really needed...
+            ulForeColor = pulXlate[0];
+    }
+
+    // We use the temporary buffer to keep a copy of the source
+    // rectangle:
+
+    soTmp.pvScan0 = ppdev->pvTmpBuffer;
+
+    do {
+        // ptlSrc points to the upper-left corner of the screen rectangle
+        // for the current batch:
+
+        ptlSrc.x = prcl->left + (pptlSrc->x - prclDst->left);
+        ptlSrc.y = prcl->top  + (pptlSrc->y - prclDst->top);
+
+        // vGetBits takes absolute coordinates for the source point:
+
+        ptlSrc.x += ppdev->xOffset;
+        ptlSrc.y += ppdev->yOffset;
+
+        pjDst = (BYTE*) psoDst->pvScan0 + (prcl->top * psoDst->lDelta)
+                                        + (prcl->left >> 3);
+
+        cjPelSize = ppdev->cjPelSize;
+
+        soTmp.lDelta = (((prcl->right + 7L) & ~7L) - (prcl->left & ~7L))
+                       * cjPelSize;
+
+        // Our temporary buffer, into which we read a copy of the source,
+        // may be smaller than the source rectangle.  In that case, we
+        // process the source rectangle in batches.
+        //
+        // cyTmpScans is the number of scans we can do in each batch.
+        // cyToGo is the total number of scans we have to do for this
+        // rectangle.
+        //
+        // We take the buffer size less four so that the right edge case
+        // can safely read one dword past the end:
+
+        cyTmpScans = (TMP_BUFFER_SIZE - 4) / soTmp.lDelta;
+        cyToGo     = prcl->bottom - prcl->top;
+
+        ASSERTDD(cyTmpScans > 0, "Buffer too small for largest possible scan");
+
+        // Initialize variables that don't change within the batch loop:
+
+        rclTmp.top    = 0;
+        rclTmp.left   = prcl->left & 7L;
+        rclTmp.right  = (prcl->right - prcl->left) + rclTmp.left;
+
+        // Note that we have to be careful with the right mask so that it
+        // isn't zero.  A right mask of zero would mean that we'd always be
+        // touching one byte past the end of the scan (even though we
+        // wouldn't actually be modifying that byte), and we must never
+        // access memory past the end of the bitmap (because we can access
+        // violate if the bitmap end is exactly page-aligned).
+
+        jLeftMask     = gajLeftMask[rclTmp.left & 7];
+        jRightMask    = gajRightMask[rclTmp.right & 7];
+        cjMiddle      = ((rclTmp.right - 1) >> 3) - (rclTmp.left >> 3) - 1;
+
+        if (cjMiddle < 0)
+        {
+            // The blt starts and ends in the same byte:
+
+            jLeftMask &= jRightMask;
+            jRightMask = 0;
+            cjMiddle   = 0;
+        }
+
+        jNotLeftMask  = ~jLeftMask;
+        jNotRightMask = ~jRightMask;
+        lDstDelta     = psoDst->lDelta - cjMiddle - 2;
+                                // Delta from the end of the destination
+                                //  to the start on the next scan, accounting
+                                //  for 'left' and 'right' bytes
+
+        lSrcDelta     = soTmp.lDelta - ((8 * (cjMiddle + 2)) * cjPelSize);
+                                // Compute source delta for special cases
+                                //  like when cjMiddle gets bumped up to '0',
+                                //  and to correct aligned cases
+
+        do {
+            // This is the loop that breaks the source rectangle into
+            // manageable batches.
+
+            cyThis  = cyTmpScans;
+            cyToGo -= cyThis;
+            if (cyToGo < 0)
+                cyThis += cyToGo;
+
+            rclTmp.bottom = cyThis;
+
+            // NVH whoever called bPuntBlt already set lDeltaSrc and lDeltaDest.
+            vGetBits(ppdev, &soTmp, &rclTmp, &ptlSrc);
+
+            ptlSrc.y += cyThis;         // Get ready for next batch loop
+
+            _asm {
+                mov     eax,ulForeColor     ;eax = foreground colour
+                                            ;ebx = temporary storage
+                                            ;ecx = count of middle dst bytes
+                                            ;dl  = destination byte accumulator
+                                            ;dh  = temporary storage
+                mov     esi,soTmp.pvScan0   ;esi = source pointer
+                mov     edi,pjDst           ;edi = destination pointer
+
+                ; Figure out the appropriate compute routine:
+
+                mov     ebx,cjPelSize
+                mov     pfnCompute,offset Compute_Destination_Byte_From_8bpp
+                dec     ebx
+                jz      short Do_Left_Byte
+                mov     pfnCompute,offset Compute_Destination_Byte_From_16bpp
+                dec     ebx
+                jz      short Do_Left_Byte
+                mov     pfnCompute,offset Compute_Destination_Byte_From_32bpp
+
+            Do_Left_Byte:
+                call    pfnCompute
+                and     dl,jLeftMask
+                mov     dh,jNotLeftMask
+                and     dh,[edi]
+                or      dh,dl
+                mov     [edi],dh
+                inc     edi
+                mov     ecx,cjMiddle
+                dec     ecx
+                jl      short Do_Right_Byte
+
+            Do_Middle_Bytes:
+                call    pfnCompute
+                mov     [edi],dl
+                inc     edi
+                dec     ecx
+                jge     short Do_Middle_Bytes
+
+            Do_Right_Byte:
+                call    pfnCompute
+                and     dl,jRightMask
+                mov     dh,jNotRightMask
+                and     dh,[edi]
+                or      dh,dl
+                mov     [edi],dh
+                inc     edi
+
+                add     edi,lDstDelta
+                add     esi,lSrcDelta
+                dec     cyThis
+                jnz     short Do_Left_Byte
+
+                mov     pjDst,edi               ;save for next batch
+
+                jmp     All_Done
+
+            Compute_Destination_Byte_From_8bpp:
+                mov     bl,[esi]
+                sub     bl,al
+                cmp     bl,1
+                adc     dl,dl                   ;bit 0
+
+                mov     bl,[esi+1]
+                sub     bl,al
+                cmp     bl,1
+                adc     dl,dl                   ;bit 1
+
+                mov     bl,[esi+2]
+                sub     bl,al
+                cmp     bl,1
+                adc     dl,dl                   ;bit 2
+
+                mov     bl,[esi+3]
+                sub     bl,al
+                cmp     bl,1
+                adc     dl,dl                   ;bit 3
+
+                mov     bl,[esi+4]
+                sub     bl,al
+                cmp     bl,1
+                adc     dl,dl                   ;bit 4
+
+                mov     bl,[esi+5]
+                sub     bl,al
+                cmp     bl,1
+                adc     dl,dl                   ;bit 5
+
+                mov     bl,[esi+6]
+                sub     bl,al
+                cmp     bl,1
+                adc     dl,dl                   ;bit 6
+
+                mov     bl,[esi+7]
+                sub     bl,al
+                cmp     bl,1
+                adc     dl,dl                   ;bit 7
+
+                add     esi,8                   ;advance the source
+                ret
+
+            Compute_Destination_Byte_From_16bpp:
+                mov     bx,[esi]
+                sub     bx,ax
+                cmp     bx,1
+                adc     dl,dl                   ;bit 0
+
+                mov     bx,[esi+2]
+                sub     bx,ax
+                cmp     bx,1
+                adc     dl,dl                   ;bit 1
+
+                mov     bx,[esi+4]
+                sub     bx,ax
+                cmp     bx,1
+                adc     dl,dl                   ;bit 2
+
+                mov     bx,[esi+6]
+                sub     bx,ax
+                cmp     bx,1
+                adc     dl,dl                   ;bit 3
+
+                mov     bx,[esi+8]
+                sub     bx,ax
+                cmp     bx,1
+                adc     dl,dl                   ;bit 4
+
+                mov     bx,[esi+10]
+                sub     bx,ax
+                cmp     bx,1
+                adc     dl,dl                   ;bit 5
+
+                mov     bx,[esi+12]
+                sub     bx,ax
+                cmp     bx,1
+                adc     dl,dl                   ;bit 6
+
+                mov     bx,[esi+14]
+                sub     bx,ax
+                cmp     bx,1
+                adc     dl,dl                   ;bit 7
+
+                add     esi,16                  ;advance the source
+                ret
+
+            Compute_Destination_Byte_From_32bpp:
+                mov     ebx,[esi]
+                sub     ebx,eax
+                cmp     ebx,1
+                adc     dl,dl                   ;bit 0
+
+                mov     ebx,[esi+4]
+                sub     ebx,eax
+                cmp     ebx,1
+                adc     dl,dl                   ;bit 1
+
+                mov     ebx,[esi+8]
+                sub     ebx,eax
+                cmp     ebx,1
+                adc     dl,dl                   ;bit 2
+
+                mov     ebx,[esi+12]
+                sub     ebx,eax
+                cmp     ebx,1
+                adc     dl,dl                   ;bit 3
+
+                mov     ebx,[esi+16]
+                sub     ebx,eax
+                cmp     ebx,1
+                adc     dl,dl                   ;bit 4
+
+                mov     ebx,[esi+20]
+                sub     ebx,eax
+                cmp     ebx,1
+                adc     dl,dl                   ;bit 5
+
+                mov     ebx,[esi+24]
+                sub     ebx,eax
+                cmp     ebx,1
+                adc     dl,dl                   ;bit 6
+
+                mov     ebx,[esi+28]
+                sub     ebx,eax
+                cmp     ebx,1
+                adc     dl,dl                   ;bit 7
+
+                add     esi,32                  ;advance the source
+                ret
+
+            All_Done:
+            }
+        } while (cyToGo > 0);
+
+        prcl++;
+    } while (--c != 0);
+}
+
+#endif // i386
+
+/******************************Public*Routine******************************\
+* BOOL bPuntBlt
+*
+* Has GDI do any drawing operations that we don't specifically handle
+* in the driver.
+*
+\**************************************************************************/
+
+BOOL bPuntBlt(
+SURFOBJ*    psoDst,
+SURFOBJ*    psoSrc,
+SURFOBJ*    psoMsk,
+CLIPOBJ*    pco,
+XLATEOBJ*   pxlo,
+RECTL*      prclDst,
+POINTL*     pptlSrc,
+POINTL*     pptlMsk,
+BRUSHOBJ*   pbo,
+POINTL*     pptlBrush,
+ROP4        rop4)
+{
+    PDEV*    ppdev;
+    BOOL     b = FALSE;
+
+#if (_WIN32_WINNT >= 0x0500)
+    if (psoDst->dhsurf != NULL)
+#else
+    if (psoDst->iType != STYPE_BITMAP)
+#endif
+        ppdev = (PDEV*) psoDst->dhpdev;
+    else
+        ppdev = (PDEV*) psoSrc->dhpdev;
+
+    #if defined(DBG) || defined(PUNT_OPTION)
+    {
+        //////////////////////////////////////////////////////////////////////
+        // Diagnostics
+        //
+        // Since calling the engine to do any drawing can be rather painful,
+        // particularly when the source is an off-screen DFB (since GDI will
+        // have to allocate a DIB and call us to make a temporary copy before
+        // it can even start drawing), we'll try to avoid it as much as
+        // possible.
+        //
+        // Here we simply spew out information describing the blt whenever
+        // this routine gets called (checked builds only, of course):
+
+        ULONG ulClip;
+        PDEV* ppdev;
+
+#if USE_NT5_DDMEMMGR
+        if (psoDst->dhsurf != NULL)
+#else
+        if (psoDst->dhpdev != NULL)
+#endif
+            ppdev = (PDEV*) psoDst->dhpdev;
+        else
+            ppdev = (PDEV*) psoSrc->dhpdev;
+
+        ulClip = (pco == NULL) ? DC_TRIVIAL : pco->iDComplexity;
+
+        DISPDBG((2, ">> Punt << Dst format: %li Dst type: %li Clip: %li Rop: %lx",
+            psoDst->iBitmapFormat, psoDst->iType, ulClip, rop4));
+
+        if (psoSrc != NULL)
+        {
+            DISPDBG((2, "        << Src format: %li Src type: %li",
+                psoSrc->iBitmapFormat, psoSrc->iType));
+
+            if (psoSrc->iBitmapFormat == BMF_1BPP)
+            {
+                DISPDBG((2, "        << Foreground: %lx  Background: %lx",
+                    pxlo->pulXlate[1], pxlo->pulXlate[0]));
+            }
+        }
+
+        if ((pxlo != NULL) && !(pxlo->flXlate & XO_TRIVIAL) && (psoSrc != NULL))
+        {
+            if (((psoSrc->dhsurf == NULL) &&
+                 (psoSrc->iBitmapFormat != ppdev->iBitmapFormat)) ||
+                ((psoDst->dhsurf == NULL) &&
+                 (psoDst->iBitmapFormat != ppdev->iBitmapFormat)))
+            {
+                // Don't bother printing the 'xlate' message when the source
+                // is a different bitmap format from the destination -- in
+                // those cases we know there always has to be a translate.
+            }
+            else
+            {
+                DISPDBG((2, "        << With xlate"));
+            }
+        }
+
+        // If the rop4 requires a pattern, and it's a non-solid brush...
+
+        if (((((rop4 >> 4) ^ (rop4)) & 0x0f0f) != 0) &&
+            (pbo->iSolidColor == -1))
+        {
+            if (pbo->pvRbrush == NULL)
+                DISPDBG((2, "        << With brush -- Not created"));
+            else
+                DISPDBG((2, "        << With brush -- Created Ok"));
+        }
+    }
+    #endif
+
+    if (DIRECT_ACCESS(ppdev))
+    {
+        //////////////////////////////////////////////////////////////////////
+        // Linear Framebuffer punt
+        //
+        // This section of code handles a PuntBlt when GDI can directly draw
+        // on the framebuffer.
+
+        POINTL  ptlSrc;
+        DSURF*  pdsurfDst;
+        DSURF*  pdsurfSrc;
+#if !USE_NT5_DDMEMMGR
+        OH*     pohSrc;
+        OH*     pohDst;
+#endif
+
+#if USE_NT5_DDMEMMGR
+        if ((psoDst->dhsurf != NULL) && (! (((DSURF *)psoDst->dhsurf)->dt & DT_DIB)))
+#else
+        if (psoDst->dhsurf != NULL)
+#endif
+        {
+            pdsurfDst       = (DSURF*) psoDst->dhsurf;
+#if !USE_NT5_DDMEMMGR
+            psoDst          = ppdev->psoPunt;
+            psoDst->pvScan0 = pdsurfDst->poh->pvScan0;
+            psoDst->lDelta  = ppdev->lDelta;
+#endif
+
+            if (psoSrc != NULL)
+            {
+                pdsurfSrc = (DSURF*) psoSrc->dhsurf;
+                if ((pdsurfSrc != NULL) &&
+#if USE_NT5_DDMEMMGR
+                    (! (pdsurfSrc->dt & DT_DIB)) &&
+#endif
+                    (pdsurfSrc != pdsurfDst))
+                {
+                    // If we're doing a BitBlt between different off-screen
+                    // surfaces, we have to be sure to give GDI different
+                    // surfaces, otherwise it may get confused when it has
+                    // to do screen-to-screen blts with a translate...
+
+#if !USE_NT5_DDMEMMGR
+                    pohSrc = pdsurfSrc->poh;
+                    pohDst = pdsurfDst->poh;
+
+                    psoSrc          = ppdev->psoPunt2;
+                    psoSrc->pvScan0 = pohSrc->pvScan0;
+                    psoSrc->lDelta  = ppdev->lDelta;
+#endif
+
+                    // Undo the source pointer adjustment we did earlier:
+                    //
+                    // Note that If linear DFBs are enabled, then we did not
+                    // do a source pointer adjustment, so don't undo it now.
+                    //
+#if USE_NT5_DDMEMMGR
+                    #if !ENABLE_LINEAR_DFBS
+                    ptlSrc.x = pptlSrc->x + (pdsurfDst->x - pdsurfSrc->x);
+                    ptlSrc.y = pptlSrc->y + (pdsurfDst->y - pdsurfSrc->y);
+                    pptlSrc  = &ptlSrc;
+                    #endif
+#else
+                    ptlSrc.x = pptlSrc->x + (pohDst->x - pohSrc->x);
+                    ptlSrc.y = pptlSrc->y + (pohDst->y - pohSrc->y);
+                    pptlSrc  = &ptlSrc;
+#endif
+                }
+            }
+        }
+        else
+        {
+            ppdev           = (PDEV*)  psoSrc->dhpdev;
+#if !USE_NT5_DDMEMMGR
+            pdsurfSrc       = (DSURF*) psoSrc->dhsurf;
+            psoSrc          = ppdev->psoPunt;
+            psoSrc->pvScan0 = pdsurfSrc->poh->pvScan0;
+            psoSrc->lDelta  = ppdev->lDelta;
+#endif
+        }
+
+        START_DIRECT_ACCESS_H3(ppdev, ppdev->pjH3Base);
+
+        b = EngBitBlt(psoDst, psoSrc, psoMsk, pco, pxlo, prclDst, pptlSrc,
+                         pptlMsk, pbo, pptlBrush, rop4);
+
+        END_DIRECT_ACCESS_H3(ppdev, ppdev->pjH3Base);
+
+        return b;
+    }
+
+#if !defined(_X86_)
+
+    else
+    {
+        //////////////////////////////////////////////////////////////////////
+        // Really Slow bPuntBlt
+        //
+        // Here we handle a PuntBlt when GDI can't draw directly on the
+        // framebuffer (as on the Alpha, which can't do it because of its
+        // 32 bit bus).  If you thought the banked version was slow, just
+        // look at this one.  Guaranteed, there will be at least one bitmap
+        // allocation and extra copy involved; there could be two if it's a
+        // screen-to-screen operation.
+
+        POINTL  ptlSrc;
+        RECTL   rclDst;
+        SIZEL   sizl;
+        BOOL    bSrcIsScreen;
+        HSURF   hsurfSrc;
+        RECTL   rclTmp;
+        BOOL    b;
+        LONG    lDelta;
+        BYTE*   pjBits;
+        BYTE*   pjScan0;
+        HSURF   hsurfDst;
+        RECTL   rclScreen;
+
+        b = FALSE;          // For error cases, assume we'll fail
+
+        rclDst = *prclDst;
+        if (pptlSrc != NULL)
+            ptlSrc = *pptlSrc;
+
+        if ((pco != NULL) && (pco->iDComplexity != DC_TRIVIAL))
+        {
+            // We have to intersect the destination rectangle with
+            // the clip bounds if there is one (consider the case
+            // where the app asked to blt a really, really big
+            // rectangle from the screen -- prclDst would be really,
+            // really big but pco->rclBounds would be the actual
+            // area of interest):
+
+            rclDst.left   = max(rclDst.left,   pco->rclBounds.left);
+            rclDst.top    = max(rclDst.top,    pco->rclBounds.top);
+            rclDst.right  = min(rclDst.right,  pco->rclBounds.right);
+            rclDst.bottom = min(rclDst.bottom, pco->rclBounds.bottom);
+
+            ptlSrc.x += (rclDst.left - prclDst->left);
+            ptlSrc.y += (rclDst.top  - prclDst->top);
+        }
+
+        sizl.cx = rclDst.right  - rclDst.left;
+        sizl.cy = rclDst.bottom - rclDst.top;
+
+        // We only need to make a copy from the screen if the source is
+        // the screen, and the source is involved in the rop.  Note that
+        // we have to check the rop before dereferencing 'psoSrc'
+        // (because 'psoSrc' may be NULL if the source isn't involved):
+
+#if (_WIN32_WINNT >= 0x0500)
+        bSrcIsScreen = (((((rop4 >> 2) ^ (rop4)) & 0x3333) != 0) &&
+                        (psoSrc->dhsurf != NULL));
+#else
+        bSrcIsScreen = (((((rop4 >> 2) ^ (rop4)) & 0x3333) != 0) &&
+                        (psoSrc->iType != STYPE_BITMAP));
+#endif
+
+        if (bSrcIsScreen)
+        {
+            // We need to create a copy of the source rectangle:
+
+            hsurfSrc = (HSURF) EngCreateBitmap(sizl, 0, ppdev->iBitmapFormat,
+                                               0, NULL);
+            if (hsurfSrc == 0)
+                goto Error_0;
+
+            psoSrc = EngLockSurface(hsurfSrc);
+            if (psoSrc == NULL)
+                goto Error_1;
+
+            rclTmp.left   = 0;
+            rclTmp.top    = 0;
+            rclTmp.right  = sizl.cx;
+            rclTmp.bottom = sizl.cy;
+
+            // vGetBits takes absolute coordinates for the source point:
+
+            ptlSrc.x += ppdev->xOffset;
+            ptlSrc.y += ppdev->yOffset;
+
+            // NVH whoever called bPuntBlt already set lDeltaSrc and lDeltaDest.
+            vGetBits(ppdev, psoSrc, &rclTmp, &ptlSrc);
+
+            // The source will now come from (0, 0) of our temporary source
+            // surface:
+
+            ptlSrc.x = 0;
+            ptlSrc.y = 0;
+        }
+
+#if (_WIN32_WINNT >= 0x0500)
+        if (psoDst->dhsurf == NULL)
+#else
+        if (psoDst->iType == STYPE_BITMAP)
+#endif
+        {
+            b = EngBitBlt(psoDst, psoSrc, psoMsk, pco, pxlo, &rclDst, &ptlSrc,
+                          pptlMsk, pbo, pptlBrush, rop4);
+        }
+        else
+        {
+            // We need to create a temporary work buffer.  We have to do
+            // some fudging with the offsets so that the upper-left corner
+            // of the (relative coordinates) clip object bounds passed to
+            // GDI will be transformed to the upper-left corner of our
+            // temporary bitmap.
+
+            // The alignment doesn't have to be as tight as this at 16bpp
+            // and 32bpp, but it won't hurt:
+
+            lDelta = CONVERT_TO_BYTES((((rclDst.right + 3) & ~3L) -
+              (rclDst.left & ~3L)),
+              ppdev);
+
+            // We're actually only allocating a bitmap that is 'sizl.cx' x
+            // 'sizl.cy' in size:
+
+            pjBits = EngAllocMem(0, lDelta * sizl.cy, ALLOC_TAG);
+            if (pjBits == NULL)
+                goto Error_2;
+
+            // We now adjust the surface's 'pvScan0' so that when GDI thinks
+            // it's writing to pixel (rclDst.top, rclDst.left), it will
+            // actually be writing to the upper-left pixel of our temporary
+            // bitmap:
+
+            pjScan0 = pjBits - (rclDst.top * lDelta)
+                        - CONVERT_TO_BYTES((rclDst.left & ~3L), ppdev);
+
+            ASSERTDD((((ULONG) pjScan0) & 3) == 0,
+                    "pvScan0 must be dword aligned!");
+
+            // The checked build of GDI sometimes checks on blts that
+            // prclDst->right <= pso->sizl.cx, so we lie to it about
+            // the size of our bitmap:
+
+            sizl.cx = rclDst.right;
+            sizl.cy = rclDst.bottom;
+
+            hsurfDst = (HSURF) EngCreateBitmap(
+                        sizl,                   // Bitmap covers rectangle
+                        lDelta,                 // Use this delta
+                        ppdev->iBitmapFormat,   // Same colour depth
+                        BMF_TOPDOWN,            // Must have a positive delta
+                        pjScan0);               // Where (0, 0) would be
+
+            if ((hsurfDst == 0) ||
+                (!EngAssociateSurface(hsurfDst, ppdev->hdevEng, 0)))
+                goto Error_3;
+
+            psoDst = EngLockSurface(hsurfDst);
+            if (psoDst == NULL)
+                goto Error_4;
+
+            // Make sure that the rectangle we Get/Put from/to the screen
+            // is in absolute coordinates:
+
+            rclScreen.left   = rclDst.left   + ppdev->xOffset;
+            rclScreen.right  = rclDst.right  + ppdev->xOffset;
+            rclScreen.top    = rclDst.top    + ppdev->yOffset;
+            rclScreen.bottom = rclDst.bottom + ppdev->yOffset;
+
+            // It would be nice to get a copy of the destination rectangle
+            // only when the ROP involves the destination (or when the source
+            // is an RLE), but we can't do that.  If the brush is truly NULL,
+            // GDI will immediately return TRUE from EngBitBlt, without
+            // modifying the temporary bitmap -- and we would proceed to
+            // copy the uninitialized temporary bitmap back to the screen.
+
+            // NVH - Whoever called bPuntBlt already set lDeltaDst and lDeltaSrc.
+            vGetBits(ppdev, psoDst, &rclDst, (POINTL*) &rclScreen);
+
+            b = EngBitBlt(psoDst, psoSrc, psoMsk, pco, pxlo, &rclDst, &ptlSrc,
+                          pptlMsk, pbo, pptlBrush, rop4);
+
+            vPutBits(ppdev, psoDst, &rclScreen, (POINTL*) &rclDst);
+
+            EngUnlockSurface(psoDst);
+
+        Error_4:
+
+            EngDeleteSurface(hsurfDst);
+
+        Error_3:
+
+            EngFreeMem(pjBits);
+        }
+
+        Error_2:
+
+        if (bSrcIsScreen)
+        {
+            EngUnlockSurface(psoSrc);
+
+        Error_1:
+
+            EngDeleteSurface(hsurfSrc);
+        }
+
+        Error_0:
+
+        return(b);
+    }
+
+#endif
+
+}
+
+/******************************Public*Routine******************************\
+* BOOL DrvBitBlt
+*
+* Implements the workhorse routine of a display driver.
+*
+\**************************************************************************/
+
+BOOL DrvBitBlt(
+SURFOBJ*    psoDst,
+SURFOBJ*    psoSrc,
+SURFOBJ*    psoMsk,
+CLIPOBJ*    pco,
+XLATEOBJ*   pxlo,
+RECTL*      prclDst,
+POINTL*     pptlSrc,
+POINTL*     pptlMsk,
+BRUSHOBJ*   pbo,
+POINTL*     pptlBrush,
+ROP4        rop4)
+{
+    PDEV*           ppdev;
+    DSURF*          pdsurfDst;
+    DSURF*          pdsurfSrc;
+    POINTL          ptlSrc;
+    BYTE            jClip;
+#if !USE_NT5_DDMEMMGR
+    OH*             poh;
+#endif
+    BOOL            bMore;
+    CLIPENUM        ce;
+    LONG            c;
+    RECTL           rcl;
+    BYTE            rop3;
+    FNFILL*         pfnFill;
+    RBRUSH_COLOR    rbc;        // Realized brush or solid colour
+    FNXFER*         pfnXfer;
+    FNPATXFER*      pfnPatXfer;
+    ULONG           iSrcBitmapFormat;
+    ULONG           iDir;
+    BOOL            bRet;
+    BOOL            bSolidColor;    // For extended rop3s.
+
+    GLIDE_EXCLUSION(glideState[ 0 ]);
+
+#if ENABLE_LOG_FILE
+    if ((psoDst->dhsurf != NULL) && (! (((DSURF *)psoDst->dhsurf)->dt & DT_DIB)))
+    {
+      ppdev = (PDEV*)psoDst->dhpdev;
+      H3PRINTF((ppdev, "DrvBitBlt\r\n"));
+    }
+    else if ((psoSrc->dhsurf != NULL) && (! (((DSURF *)psoSrc->dhsurf)->dt & DT_DIB)))
+    {
+      ppdev = (PDEV*)psoSrc->dhpdev;
+      H3PRINTF((ppdev, "DrvBitBlt\r\n"));
+    }
+#endif
+
+#ifdef SLI_AA
+    ppdev = NULL;
+    if ((psoDst) && (psoDst->dhsurf != NULL) && (! (((DSURF *)psoDst->dhsurf)->dt & DT_DIB)))
+    {
+      ppdev = (PDEV*)psoDst->dhpdev;
+    }
+    else if ((psoSrc) && (psoSrc->dhsurf != NULL) && (! (((DSURF *)psoSrc->dhsurf)->dt & DT_DIB)))
+    {
+      ppdev = (PDEV*)psoSrc->dhpdev;
+    }
+    if ((ppdev) && _FF(ddMultiChipConfig))
+    {
+      START_DIRECT_ACCESS_H3(ppdev, ppdev->pjH3Base);
+      goto EngBitBlt_It;
+    }
+#endif
+
+    bRet = TRUE;                // Assume success
+
+    // GDI will never give us a Rop4 with the bits in the high-word set
+    // (so that we can check if it's actually a Rop3 via the expression
+    // (rop4 >> 8) == (rop4 & 0xff)):
+
+    ASSERTDD((rop4 >> 16) == 0, "Didn't expect a rop4 with high bits set");
+
+    pdsurfDst = (DSURF*) psoDst->dhsurf;    // May be NULL
+
+    jClip = (pco == NULL) ? DC_TRIVIAL : pco->iDComplexity;
+
+#if defined(DBG) || defined(PUNT_OPTION)
+    if (!UseCSIM || gbPuntBitBlt)	// Punt it?
+    {
+#if USE_NT5_DDMEMMGR
+        pdsurfDst = NULL;
+        pdsurfSrc = NULL;
+#endif
+    	if( psoSrc == NULL )
+    		goto Continue_It;
+    	else
+        	goto Setup_Surfaces;
+    }
+#endif
+
+    if (psoSrc == NULL)
+    {
+        ///////////////////////////////////////////////////////////////////
+        // Fills
+        ///////////////////////////////////////////////////////////////////
+
+        // Fills are this function's "raison d'etre", so we handle them
+        // as quickly as possible:
+
+        ASSERTDD(pdsurfDst != NULL,
+                 "Expect only device destinations when no source");
+
+#if USE_NT5_DDMEMMGR
+        pdsurfSrc = NULL;
+
+        if (! (pdsurfDst->dt & DT_DIB))
+#else
+        if (pdsurfDst->dt == DT_SCREEN)
+#endif
+        {
+            ppdev = (PDEV*) psoDst->dhpdev;
+
+#if USE_NT5_DDMEMMGR
+            #if ENABLE_LINEAR_DFBS
+                // Set the source pitch and address.
+                // There is no source, so we might as well set them to the
+                // screen pitch and address.
+                // do we really care what goes in the src vars?
+                ppdev->fpVidMemSrc = ppdev->ulScreenOffset;
+                #if ENABLE_TILED_HEAP
+                if (ppdev->fpVidMemSrc & SSTG_IS_TILED)
+                  ppdev->lDeltaSrc = _FF(ddTileStride);
+                else
+                #endif
+                  ppdev->lDeltaSrc = ppdev->lDelta;
+
+                // Set the destination pitch and address.
+                ppdev->fpVidMemDst = pdsurfDst->fpVidMem;
+                #if ENABLE_TILED_HEAP
+                if (ppdev->fpVidMemDst & SSTG_IS_TILED)
+                  ppdev->lDeltaDst = _FF(ddTileStride);
+                else
+                #endif
+                  ppdev->lDeltaDst = pdsurfDst->lDelta;
+
+                // No need to set offset, since we set fpVidMemDst.
+                ppdev->xOffset = 0;
+                ppdev->yOffset = 0;
+            #else
+                ppdev->xOffset = pdsurfDst->x;
+                ppdev->yOffset = pdsurfDst->y;
+            #endif
+#else
+            poh = pdsurfDst->poh;
+            ppdev->xOffset = poh->x;
+            ppdev->yOffset = poh->y;
+#endif
+
+            // Make sure it doesn't involve a mask (i.e., it's really a
+            // Rop3):
+
+            rop3 = (BYTE) rop4;
+
+            if ((BYTE) (rop4 >> 8) == rop3)
+            {
+                // Since 'psoSrc' is NULL, the rop3 had better not indicate
+                // that we need a source.
+
+                ASSERTDD((((rop4 >> 2) ^ (rop4)) & 0x33) == 0,
+                         "Need source but GDI gave us a NULL 'psoSrc'");
+
+#ifdef SPECIAL_CASE_ROP4_SUPPORT
+            Fill_It:
+#endif
+
+                pfnFill = ppdev->pfnFillSolid;   // Default to solid fill
+
+                if ((((rop3 >> 4) ^ (rop3)) & 0xf) != 0)
+                {
+                    // The rop says that a pattern is truly required
+                    // (blackness, for instance, doesn't need one):
+
+                    rbc.iSolidColor = pbo->iSolidColor;
+                    if (rbc.iSolidColor == -1)
+                    {
+                        // Try and realize the pattern brush; by doing
+                        // this call-back, GDI will eventually call us
+                        // again through DrvRealizeBrush:
+
+                        rbc.prb = pbo->pvRbrush;
+                        if (rbc.prb == NULL)
+                        {
+                            rbc.prb = BRUSHOBJ_pvGetRbrush(pbo);
+                            if (rbc.prb == NULL)
+                            {
+                                // If we couldn't realize the brush, punt
+                                // the call (it may have been a non 8x8
+                                // brush or something, which we can't be
+                                // bothered to handle, so let GDI do the
+                                // drawing):
+
+                                goto Punt_It;
+                            }
+                        }
+                        pfnFill = ppdev->pfnFillPat;
+                    }
+                }
+
+                // Note that these 2 'if's are more efficient than
+                // a switch statement:
+
+                if (jClip == DC_TRIVIAL)
+                {
+                    pfnFill(ppdev, 1, prclDst, rop4, rbc, pptlBrush);
+                    goto All_Done;
+                }
+                else if (jClip == DC_RECT)
+                {
+                    if (bIntersect(prclDst, &pco->rclBounds, &rcl))
+                        pfnFill(ppdev, 1, &rcl, rop4, rbc, pptlBrush);
+                    goto All_Done;
+                }
+                else
+                {
+                    CLIPOBJ_cEnumStart(pco, FALSE, CT_RECTANGLES, CD_ANY, 0);
+
+                    do {
+                        bMore = CLIPOBJ_bEnum(pco, sizeof(ce), (ULONG*) &ce);
+
+                        c = cIntersect(prclDst, ce.arcl, ce.c);
+
+                        if (c != 0)
+                            pfnFill(ppdev, c, ce.arcl, rop4, rbc, pptlBrush);
+
+                    } while (bMore);
+                    goto All_Done;
+                }
+            }
+        }
+#if USE_NT5_DDMEMMGR
+        else
+        {
+            // Thanks to EngModifySurface, the destination is really a
+            // plain old DIB, so we can forget about our DSURF structure
+            // (this will simplify checks later in this routine):
+
+            pdsurfDst = NULL;
+        }
+#endif
+    }
+    else
+
+#if defined(DBG) || defined(PUNT_OPTION)
+Setup_Surfaces:
+#endif
+
+#if !USE_NT5_DDMEMMGR
+    if (/* (psoSrc != NULL) && */ (psoSrc->dhsurf != NULL))
+#endif
+    {
+        // psoSrc != NULL
+#if USE_NT5_DDMEMMGR
+        pdsurfDst = (DSURF*) psoDst->dhsurf;
+        if ((pdsurfDst != NULL) && (pdsurfDst->dt & DT_DIB))
+        {
+            // The destination is really a plain old DIB.
+
+            pdsurfDst = NULL;
+        }
+
+        pdsurfSrc = (DSURF*) psoSrc->dhsurf;
+        if ((pdsurfSrc != NULL) && (pdsurfSrc->dt & DT_DIB))
+#else
+        pdsurfSrc = (DSURF*) psoSrc->dhsurf;
+        if (pdsurfSrc->dt == DT_DIB)
+#endif
+        {
+            // Here we consider putting a DIB DFB back into off-screen
+            // memory.  If there's a translate, it's probably not worth
+            // moving since we won't be able to use the hardware to do
+            // the blt (a similar argument could be made for weird rops
+            // and stuff that we'll only end up having GDI simulate, but
+            // those should happen infrequently enough that I don't care).
+
+#if USE_NT5_DDMEMMGR
+            // This is only worth doing if the destination is in off-
+            // screen memory, though!
+
+            if ((pdsurfDst != NULL) &&
+                ((pxlo == NULL) || (pxlo->flXlate & XO_TRIVIAL)))
+            {
+                ppdev = pdsurfSrc->ppdev;
+#else
+            if ((pxlo == NULL) || (pxlo->flXlate & XO_TRIVIAL))
+            {
+                ppdev = (PDEV*) psoSrc->dhpdev;
+#endif
+
+                // See 'DrvCopyBits' for some more comments on how this
+                // moving-it-back-into-off-screen-memory thing works:
+
+                if (pdsurfSrc->iUniq == ppdev->iHeapUniq)
+                {
+                    if (--pdsurfSrc->cBlt == 0)
+                    {
+                        if (bMoveDibToOffscreenDfbIfRoom(ppdev, pdsurfSrc))
+                            goto Continue_It;
+                    }
+                }
+                else
+                {
+                    // Some space was freed up in off-screen memory,
+                    // so reset the counter for this DFB:
+
+                    pdsurfSrc->iUniq = ppdev->iHeapUniq;
+                    pdsurfSrc->cBlt  = HEAP_COUNT_DOWN;
+                }
+            }
+
+#if USE_NT5_DDMEMMGR
+            // The source is really a plane old DIB.
+
+            pdsurfSrc = NULL;
+#else
+            psoSrc = pdsurfSrc->pso;
+
+            // Handle the case where the source is a DIB DFB and the
+            // destination is a regular bitmap:
+
+            if (psoDst->dhsurf == NULL)
+                goto EngBitBlt_It;
+#endif
+
+        }
+    }
+
+Continue_It:
+
+#if USE_NT5_DDMEMMGR
+    ASSERTDD((pdsurfSrc == NULL) || !(pdsurfSrc->dt & DT_DIB),
+             "pdsurfSrc should be non-NULL only if in off-screen memory");
+    ASSERTDD((pdsurfDst == NULL) || !(pdsurfDst->dt & DT_DIB),
+             "pdsurfDst should be non-NULL only if in off-screen memory");
+#endif
+
+    if (pdsurfDst != NULL)
+    {
+#if USE_NT5_DDMEMMGR
+      // The destination is in video memory.
+
+        if (pdsurfSrc != NULL)
+        {
+            // The source is also in video memory.  This is effectively
+            // a screen-to-screen blt, so adjust the source point:
+            //
+            // Note that if linear DFBs are enabled, we do not
+            // adjust the source point, since we will be giving the chip the
+            // starting address of the source bitmap.  The source point
+            // will be used as an offset from that starting address.
+            #if !ENABLE_LINEAR_DFBS
+            ptlSrc.x = pptlSrc->x - (pdsurfDst->x - pdsurfSrc->x);
+            ptlSrc.y = pptlSrc->y - (pdsurfDst->y - pdsurfSrc->y);
+            pptlSrc  = &ptlSrc;
+            #endif
+
+        }
+
+        ppdev = pdsurfDst->ppdev;
+
+#if !ENABLE_RECONFIG_VIDMEM
+        ppdev->xOffset = pdsurfDst->x;
+        ppdev->yOffset = pdsurfDst->y;
+#endif
+#else
+        if (pdsurfDst->dt == DT_DIB)
+        {
+            psoDst = pdsurfDst->pso;
+
+            // If the destination is a DIB, we can only handle this
+            // call if the source is not a DIB:
+
+            if ((psoSrc == NULL) || (psoSrc->dhsurf == NULL))
+                goto EngBitBlt_It;
+        }
+#endif
+    }
+#if USE_NT5_DDMEMMGR
+    else
+    {
+        // The destination is a DIB.
+
+        if (pdsurfSrc == NULL)
+        {
+            // The source is a DIB, too.  Let GDI handle it.
+
+            goto EngBitBlt_It;
+        }
+
+        ppdev = pdsurfSrc->ppdev;
+
+#if !ENABLE_RECONFIG_VIDMEM
+        ppdev->xOffset = pdsurfSrc->x;
+        ppdev->yOffset = pdsurfSrc->y;
+#endif
+    }
+#else
+
+    // At this point, we know that either the source or the destination is
+    // not a DIB.  Check for a DFB to screen, DFB to DFB, or screen to DFB
+    // case:
+
+    if ((psoSrc != NULL) &&
+        (psoDst->dhsurf != NULL) &&
+        (psoSrc->dhsurf != NULL))
+    {
+        pdsurfSrc = (DSURF*) psoSrc->dhsurf;
+        pdsurfDst = (DSURF*) psoDst->dhsurf;
+
+        ASSERTDD(pdsurfSrc->dt == DT_SCREEN, "Expected screen source");
+        ASSERTDD(pdsurfDst->dt == DT_SCREEN, "Expected screen destination");
+
+        ptlSrc.x = pptlSrc->x - (pdsurfDst->poh->x - pdsurfSrc->poh->x);
+        ptlSrc.y = pptlSrc->y - (pdsurfDst->poh->y - pdsurfSrc->poh->y);
+
+        pptlSrc  = &ptlSrc;
+    }
+
+    if (psoDst->dhsurf != NULL)
+    {
+        pdsurfDst = (DSURF*) psoDst->dhsurf;
+        ppdev     = (PDEV*)  psoDst->dhpdev;
+
+        ppdev->xOffset = pdsurfDst->poh->x;
+        ppdev->yOffset = pdsurfDst->poh->y;
+    }
+    else
+    {
+        pdsurfSrc = (DSURF*) psoSrc->dhsurf;
+        ppdev     = (PDEV*)  psoSrc->dhpdev;
+
+        ppdev->xOffset = pdsurfSrc->poh->x;
+        ppdev->yOffset = pdsurfSrc->poh->y;
+    }
+#endif
+
+#if defined(DBG) || defined(PUNT_OPTION)
+    if (!UseCSIM || gbPuntBitBlt)
+    {
+        goto Punt_It;
+    }
+#endif
+
+    #if ENABLE_LINEAR_DFBS
+        ppdev->fpVidMemSrc = pdsurfSrc ? pdsurfSrc->fpVidMem : ppdev->ulScreenOffset;
+        #if ENABLE_TILED_HEAP
+        if (ppdev->fpVidMemSrc & SSTG_IS_TILED)
+          ppdev->lDeltaSrc = _FF(ddTileStride);
+        else
+        #endif
+          ppdev->lDeltaSrc = pdsurfSrc ? pdsurfSrc->lDelta   : ppdev->lDelta;
+
+        ppdev->fpVidMemDst = pdsurfDst ? pdsurfDst->fpVidMem : ppdev->ulScreenOffset;
+        #if ENABLE_TILED_HEAP
+        if (ppdev->fpVidMemDst & SSTG_IS_TILED)
+          ppdev->lDeltaDst = _FF(ddTileStride);
+        else
+        #endif
+          ppdev->lDeltaDst = pdsurfDst ? pdsurfDst->lDelta   : ppdev->lDelta;
+
+        // No need to use this offset, as source and destinatino points will
+        // be calculated relative to the starting addresses of the source
+        // and destination bitmaps.
+        ppdev->xOffset = 0;
+        ppdev->yOffset = 0;
+    #endif
+
+
+    if (((rop4 >> 8) & 0xff) == (rop4 & 0xff))
+    {
+        // Since we've already handled the cases where the ROP4 is really
+        // a ROP3 and no source is required, we can assert...
+
+        ASSERTDD((psoSrc != NULL) && (pptlSrc != NULL),
+                 "Expected no-source case to already have been handled");
+
+        ///////////////////////////////////////////////////////////////////
+        // Bitmap transfers
+        ///////////////////////////////////////////////////////////////////
+
+        // Since the foreground and background ROPs are the same, we
+        // don't have to worry about no stinking masks (it's a simple
+        // Rop3).
+
+        rop3 = (BYTE) rop4;     // Make it into a Rop3 (we keep the rop4
+                                //  around in case we decide to punt)
+
+#if USE_NT5_DDMEMMGR
+        if (pdsurfDst != NULL)
+#else
+        if (psoDst->dhsurf != NULL)
+#endif
+        {
+            // The destination is the screen:
+
+            if ((rop3 >> 4) == (rop3 & 0xf))
+            {
+                // The ROP3 doesn't require a pattern:
+
+#if USE_NT5_DDMEMMGR
+                if (pdsurfSrc == NULL)
+#else
+                if (psoSrc->dhsurf == NULL)
+#endif
+                {
+                    //////////////////////////////////////////////////
+                    // DIB-to-screen blt
+
+                    iSrcBitmapFormat = psoSrc->iBitmapFormat;
+                    if (iSrcBitmapFormat == BMF_1BPP)
+                    {
+                        pfnXfer = ppdev->pfnXfer1bpp;
+                        goto Xfer_It;
+                    }
+                    else if ((iSrcBitmapFormat == ppdev->iBitmapFormat) &&
+                             ((pxlo == NULL) || (pxlo->flXlate & XO_TRIVIAL)))
+                    {
+#if 0	// We'll always count on H3 to be faster through the hardware.
+                        if ((rop3 & 0xf) != 0xc)
+                        {
+                            pfnXfer = ppdev->pfnXferNative;
+                        }
+                        else
+                        {
+                            // Thanks to USWC write-combining, for SRCCOPY
+                            // blts it will be much stupendously faster to copy
+                            // directly to the frame buffer than to use the
+                            // transfer register.  Note that this is true for
+                            // almost any video adapter (including yours).
+
+                            pfnXfer = vXferNativeSrccopy;
+                        }
+#else
+                        pfnXfer = ppdev->pfnXferNative;
+#endif
+                        goto Xfer_It;
+                    }
+                    else if (iSrcBitmapFormat == BMF_4BPP)
+                    {
+                          pfnXfer = vXfer4bpp;
+                          goto Xfer_It;
+                    }
+                    else if (iSrcBitmapFormat == BMF_8BPP)
+                    {
+                        pfnXfer = vXfer8bpp;
+                        goto Xfer_It;
+                    }
+                    else if ( (iSrcBitmapFormat == BMF_24BPP) && (ppdev->cjPelSize > 1) )
+                    {
+                        pfnXfer = vXfer162432bpp;
+                        goto Xfer_It;
+                    }
+                }
+                else // psoSrc->dhsurf != NULL
+                {
+                    if ((pxlo == NULL) || (pxlo->flXlate & XO_TRIVIAL))
+                    {
+                        //////////////////////////////////////////////////
+                        // Screen-to-screen blt with no translate
+
+                        if (jClip == DC_TRIVIAL)
+                        {
+                            (ppdev->pfnCopyBlt)(ppdev, 1, prclDst, rop4,
+                                                pptlSrc, prclDst);
+                            goto All_Done;
+                        }
+                        else if (jClip == DC_RECT)
+                        {
+                            if (bIntersect(prclDst, &pco->rclBounds, &rcl))
+                            {
+                                (ppdev->pfnCopyBlt)(ppdev, 1, &rcl, rop4,
+                                                    pptlSrc, prclDst);
+                            }
+                            goto All_Done;
+                        }
+                        else
+                        {
+                            // Don't forget that we'll have to draw the
+                            // rectangles in the correct direction:
+
+                            if (pptlSrc->y >= prclDst->top)
+                            {
+                                if (pptlSrc->x >= prclDst->left)
+                                    iDir = CD_RIGHTDOWN;
+                                else
+                                    iDir = CD_LEFTDOWN;
+                            }
+                            else
+                            {
+                                if (pptlSrc->x >= prclDst->left)
+                                    iDir = CD_RIGHTUP;
+                                else
+                                    iDir = CD_LEFTUP;
+                            }
+
+                            CLIPOBJ_cEnumStart(pco, FALSE, CT_RECTANGLES,
+                                               iDir, 0);
+
+                            do {
+                                bMore = CLIPOBJ_bEnum(pco, sizeof(ce),
+                                                      (ULONG*) &ce);
+
+                                c = cIntersect(prclDst, ce.arcl, ce.c);
+
+                                if (c != 0)
+                                {
+                                    (ppdev->pfnCopyBlt)(ppdev, c, ce.arcl,
+                                            rop4, pptlSrc, prclDst);
+                                }
+
+                            } while (bMore);
+                            goto All_Done;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // The ROP3 requires a pattern:
+
+                rbc.iSolidColor = pbo->iSolidColor;
+                if (rbc.iSolidColor == -1)
+                {
+                    // Try and realize the pattern brush; by doing
+                    // this call-back, GDI will eventually call us
+                    // again through DrvRealizeBrush:
+
+                    rbc.prb = pbo->pvRbrush;
+                    if (rbc.prb == NULL)
+                    {
+                        rbc.prb = BRUSHOBJ_pvGetRbrush(pbo);
+                        if (rbc.prb == NULL)
+                        {
+                            // If we couldn't realize the brush, punt
+                            // the call (it may have been a non 8x8
+                            // brush or something, which we can't be
+                            // bothered to handle, so let GDI do the
+                            // drawing):
+
+                            goto Punt_It;
+                        }
+                    }
+//                    vH3LoadPatternRegisters( ppdev, rbc.prb );
+                    bSolidColor = FALSE;
+                }
+                else
+                {
+//                    vH3LoadPatternSolid( ppdev, rbc.iSolidColor );
+                    bSolidColor = TRUE;
+                }
+
+
+#if USE_NT5_DDMEMMGR
+                if (pdsurfSrc == NULL)
+#else
+                if (psoSrc->dhsurf == NULL)
+#endif
+                {
+                    //////////////////////////////////////////////////
+                    // DIB-to-screen blt
+
+                    iSrcBitmapFormat = psoSrc->iBitmapFormat;
+                    if (iSrcBitmapFormat == BMF_1BPP)
+                    {
+                        pfnPatXfer = vPatXfer1bpp;
+                        goto PatXfer_It;
+                    }
+                    else if ((iSrcBitmapFormat == ppdev->iBitmapFormat) &&
+                             ((pxlo == NULL) || (pxlo->flXlate & XO_TRIVIAL)))
+                    {
+                        pfnPatXfer = vPatXferNative;
+                        goto PatXfer_It;
+                    }
+                    else if (iSrcBitmapFormat == BMF_4BPP)
+                    {
+                          pfnPatXfer = vPatXfer4bpp;
+                          goto PatXfer_It;
+                    }
+                    else if (iSrcBitmapFormat == BMF_8BPP)
+                    {
+                        pfnPatXfer = vPatXfer8bpp;
+                        goto PatXfer_It;
+                    }
+                }
+                else // psoSrc->dhsurf != NULL
+                {
+                    if ((pxlo == NULL) || (pxlo->flXlate & XO_TRIVIAL))
+                    {
+                        //////////////////////////////////////////////////
+                        // Screen-to-screen blt with no translate
+
+                        if (jClip == DC_TRIVIAL)
+                        {
+                            vPatCopyBlt(ppdev, 1, prclDst, rop4,
+                                        pptlSrc, prclDst, rbc, pptlBrush, bSolidColor);
+                            goto All_Done;
+                        }
+                        else if (jClip == DC_RECT)
+                        {
+                            if (bIntersect(prclDst, &pco->rclBounds, &rcl))
+                            {
+                                vPatCopyBlt(ppdev, 1, &rcl, rop4,
+                                            pptlSrc, prclDst, rbc, pptlBrush, bSolidColor);
+                            }
+                            goto All_Done;
+                        }
+                        else
+                        {
+                            // Don't forget that we'll have to draw the
+                            // rectangles in the correct direction:
+
+                            if (pptlSrc->y >= prclDst->top)
+                            {
+                                if (pptlSrc->x >= prclDst->left)
+                                    iDir = CD_RIGHTDOWN;
+                                else
+                                    iDir = CD_LEFTDOWN;
+                            }
+                            else
+                            {
+                                if (pptlSrc->x >= prclDst->left)
+                                    iDir = CD_RIGHTUP;
+                                else
+                                    iDir = CD_LEFTUP;
+                            }
+
+                            CLIPOBJ_cEnumStart(pco, FALSE, CT_RECTANGLES,
+                                               iDir, 0);
+
+                            do {
+                                bMore = CLIPOBJ_bEnum(pco, sizeof(ce),
+                                                      (ULONG*) &ce);
+
+                                c = cIntersect(prclDst, ce.arcl, ce.c);
+
+                                if (c != 0)
+                                {
+                                    vPatCopyBlt(ppdev, c, ce.arcl, rop4,
+                                            pptlSrc, prclDst, rbc, pptlBrush, bSolidColor);
+                                }
+
+                            } while (bMore);
+                            goto All_Done;
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            #if defined(_X86_)
+            {
+                // We special case screen to monochrome blts because they
+                // happen fairly often.  We only handle SRCCOPY rops and
+                // monochrome destinations (to handle a true 1bpp DIB
+                // destination, we would have to do near-colour searches
+                // on every colour; as it is, the foreground colour gets
+                // mapped to '1', and everything else gets mapped to '0'):
+
+                if ((psoDst->iBitmapFormat == BMF_1BPP) &&
+                    (rop3 == 0xcc) &&
+                    (pxlo->flXlate & XO_TO_MONO) &&
+                    (ppdev->iBitmapFormat != BMF_24BPP))   // jdw - needed doesn't handle 24BPP
+                {
+                    pfnXfer = vXferScreenTo1bpp;
+                    psoSrc  = psoDst;               // A misnomer, I admit
+                    goto Xfer_It;
+                }
+            }
+            #endif // i386
+        }
+    }
+#ifdef SPECIAL_CASE_ROP4_SUPPORT
+//  H3 doesn't support mono transparent patterns with rops. Only for
+//  transparency.
+//    jdw - We may be able to support a special case here - is it worth it?
+    else if ((!UseCSIM) &&
+             (psoMsk == NULL) &&
+             (rop4 & 0xff00) == (0xaa00) &&
+             ((((rop4 >> 2) ^ (rop4)) & 0x33) == 0) &&
+             (ppdev->iBitmapFormat != BMF_24BPP)
+    )
+    {
+        // Don't do transparent pattern on s3 968 at 24bpp.
+        // The only time GDI will ask us to do a true rop4 using the brush
+        // mask is when the brush is 1bpp, and the background rop is AA
+        // (meaning it's a NOP):
+
+        rop3 = (BYTE) rop4;
+
+        goto Fill_It;
+    }
+#endif
+
+    // Just fall through to Punt_It...
+
+Punt_It:
+
+    bRet = bPuntBlt(psoDst,
+                    psoSrc,
+                    psoMsk,
+                    pco,
+                    pxlo,
+                    prclDst,
+                    pptlSrc,
+                    pptlMsk,
+                    pbo,
+                    pptlBrush,
+                    rop4);
+    goto All_Done;
+
+//////////////////////////////////////////////////////////////////////
+// Common bitmap transfer
+
+Xfer_It:
+    if (jClip == DC_TRIVIAL)
+    {
+        pfnXfer(ppdev, 1, prclDst, rop4, psoSrc, pptlSrc, prclDst, pxlo);
+        goto All_Done;
+    }
+    else if (jClip == DC_RECT)
+    {
+        if (bIntersect(prclDst, &pco->rclBounds, &rcl))
+            pfnXfer(ppdev, 1, &rcl, rop4, psoSrc, pptlSrc, prclDst, pxlo);
+        goto All_Done;
+    }
+    else
+    {
+        CLIPOBJ_cEnumStart(pco, FALSE, CT_RECTANGLES,
+                           CD_ANY, 0);
+
+        do {
+            bMore = CLIPOBJ_bEnum(pco, sizeof(ce),
+                                  (ULONG*) &ce);
+
+            c = cIntersect(prclDst, ce.arcl, ce.c);
+
+            if (c != 0)
+            {
+                pfnXfer(ppdev, c, ce.arcl, rop4, psoSrc,
+                        pptlSrc, prclDst, pxlo);
+            }
+
+        } while (bMore);
+        goto All_Done;
+    }
+
+//////////////////////////////////////////////////////////////////////
+// Common bitmap transfer using pattern
+
+PatXfer_It:
+    if (jClip == DC_TRIVIAL)
+    {
+        pfnPatXfer(ppdev, 1, prclDst, rop4, psoSrc, pptlSrc, prclDst, pxlo,
+                        rbc, pptlBrush, bSolidColor);
+        goto All_Done;
+    }
+    else if (jClip == DC_RECT)
+    {
+        if (bIntersect(prclDst, &pco->rclBounds, &rcl))
+            pfnPatXfer(ppdev, 1, &rcl, rop4, psoSrc, pptlSrc, prclDst, pxlo,
+                            rbc, pptlBrush, bSolidColor);
+        goto All_Done;
+    }
+    else
+    {
+        CLIPOBJ_cEnumStart(pco, FALSE, CT_RECTANGLES,
+                           CD_ANY, 0);
+
+        do {
+            bMore = CLIPOBJ_bEnum(pco, sizeof(ce),
+                                  (ULONG*) &ce);
+
+            c = cIntersect(prclDst, ce.arcl, ce.c);
+
+            if (c != 0)
+            {
+                pfnPatXfer(ppdev, c, ce.arcl, rop4, psoSrc,
+                        pptlSrc, prclDst, pxlo, rbc, pptlBrush, bSolidColor);
+            }
+
+        } while (bMore);
+        goto All_Done;
+    }
+
+////////////////////////////////////////////////////////////////////////
+// Common DIB blt
+
+EngBitBlt_It:
+
+    // Our driver doesn't handle any blt's between two DIBs.  Normally
+    // a driver doesn't have to worry about this, but we do because
+    // we have DFBs that may get moved from off-screen memory to a DIB,
+    // where we have GDI do all the drawing.  GDI does DIB drawing at
+    // a reasonable speed (unless one of the surfaces is a device-
+    // managed surface...)
+    //
+    // If either the source or destination surface in an EngBitBlt
+    // call-back is a device-managed surface (meaning it's not a DIB
+    // that GDI can draw with), GDI will automatically allocate memory
+    // and call the driver's DrvCopyBits routine to create a DIB copy
+    // that it can use.  So this means that this could handle all 'punts',
+    // and we could conceivably get rid of bPuntBlt.  But this would have
+    // a bad performance impact because of the extra memory allocations
+    // and bitmap copies -- you really don't want to do this unless you
+    // have to (or your surface was created such that GDI can draw
+    // directly onto it) -- I've been burned by this because it's not
+    // obvious that the performance impact is so bad.
+    //
+    // That being said, we only call EngBitBlt when all the surfaces
+    // are DIBs:
+
+    bRet = EngBitBlt(psoDst, psoSrc, psoMsk, pco, pxlo, prclDst,
+                     pptlSrc, pptlMsk, pbo, pptlBrush, rop4);
+
+All_Done:
+    return(bRet);
+}
+
+/******************************Public*Routine******************************\
+* BOOL DrvCopyBits
+*
+* Do fast bitmap copies.
+*
+* Note that GDI will (usually) automatically adjust the blt extents to
+* adjust for any rectangular clipping, so we'll rarely see DC_RECT
+* clipping in this routine (and as such, we don't bother special casing
+* it).
+*
+* I'm not sure if the performance benefit from this routine is actually
+* worth the increase in code size, since SRCCOPY BitBlts are hardly the
+* most common drawing operation we'll get.  But what the heck.
+*
+\**************************************************************************/
+
+BOOL DrvCopyBits(
+SURFOBJ*  psoDst,
+SURFOBJ*  psoSrc,
+CLIPOBJ*  pco,
+XLATEOBJ* pxlo,
+RECTL*    prclDst,
+POINTL*   pptlSrc)
+{
+    PDEV*   ppdev;
+    DSURF*  pdsurfSrc;
+    DSURF*  pdsurfDst;
+    RECTL   rcl;
+    POINTL  ptl;
+#if !USE_NT5_DDMEMMGR
+    OH*     pohSrc;
+    OH*     pohDst;
+#endif
+
+#ifdef PERF_COPY_BITS_OPT
+//	OH*		pohDst;
+	SURFOBJ *psoSrcDIB;
+    unsigned char	jClip;
+	BYTE*	pjSrcBits;		// Source bitmap pointer
+	ULONG	ulXferPix;		// No. of words to transfer to dst per scan
+	WORD*	pwDstBits;		// Destination bitmap pointer
+	DWORD*	pdwDstBits;		// Dst bitmap pointer
+	ULONG*	pulXlate;		// Translate table pointer
+
+	BYTE*	pjDstBits;		// Dst bitmap pointer
+	ULONG	ulTemp;			// Temp variable
+#endif	// PERF_COPY_BITS_OPT
+
+    GLIDE_EXCLUSION(glideState[ 0 ]);
+
+#if ENABLE_LOG_FILE
+    ppdev     = (PDEV*)  psoDst->dhpdev;
+    H3PRINTF((ppdev, "DrvCopyBits\r\n"));
+#endif
+
+#ifdef SLI_AA
+    ppdev = NULL;
+    if ((psoDst) && (psoDst->dhsurf != NULL) && (! (((DSURF *)psoDst->dhsurf)->dt & DT_DIB)))
+    {
+      ppdev = (PDEV*)psoDst->dhpdev;
+    }
+    else if ((psoSrc) && (psoSrc->dhsurf != NULL) && (! (((DSURF *)psoSrc->dhsurf)->dt & DT_DIB)))
+    {
+      ppdev = (PDEV*)psoSrc->dhpdev;
+    }
+    if ((ppdev) && _FF(ddMultiChipConfig))
+    {
+      START_DIRECT_ACCESS_H3(ppdev, ppdev->pjH3Base);
+      goto EngCopyBits_It;
+    }
+#endif
+
+#if defined(DBG) || defined(PUNT_OPTION)
+	  if (!UseCSIM || gbPuntCopyBits)
+        goto Punt_To_DrvBitBlt;
+#endif
+
+    // DrvCopyBits is a fast-path for SRCCOPY blts.  But it can still be
+    // pretty complicated: there can be translates, clipping, RLEs,
+    // bitmaps that aren't the same format as the screen, plus
+    // screen-to-screen, DIB-to-screen or screen-to-DIB operations,
+    // not to mention DFBs (device format bitmaps).
+    //
+    // Rather than making this routine almost as big as DrvBitBlt, I'll
+    // handle here only the speed-critical cases, and punt the rest to
+    // our DrvBitBlt routine.
+    //
+    // We'll try to handle anything that doesn't involve clipping:
+#ifdef PERF_COPY_BITS_OPT
+    //
+    //  PERF_COPY_BITS_OPT Optimization Summary :
+    //
+    //  Instead of punting 8 bpp to 32 bpp, 8 bpp to 16 bpp, and 8 bpp to 24 bpp
+    //  trivial, to screen copies to EngCopyBits, they are handled here as this code
+    //  is faster.
+	//
+    ppdev = (PDEV*)  psoDst->dhpdev;
+    jClip = (!pco) ? DC_TRIVIAL : pco->iDComplexity;
+
+	if ((pxlo != NULL)
+			&& (ppdev != NULL)
+    		&& (psoDst->dhsurf != NULL)
+			&& (pxlo->flXlate & XO_TABLE)
+			&& (psoSrc->iBitmapFormat == BMF_8BPP)
+			&& (psoSrc->sizlBitmap.cy == 1)
+			&& (jClip == DC_TRIVIAL)
+    		&& (((DSURF*) psoDst->dhsurf)->dt == DT_SCREEN))
+	{
+//	    pMmBase = ppdev->pjMmBase;
+		pohDst = ((DSURF*) (psoDst->dhsurf))->poh;
+
+		if (ppdev->iBitmapFormat == BMF_32BPP)
+		{
+			// Calc the origin pointer for the transfer
+			pjSrcBits = psoSrc->pvScan0;
+			pjSrcBits += (psoSrc->lDelta * pptlSrc->y) + pptlSrc->x;
+
+			// Calc same dst info
+			pdwDstBits = pohDst->pvScan0;
+//			pdwDstBits += ((pohDst->lDelta >> 2)*prclDst->top)+prclDst->left;
+			pdwDstBits += ((ppdev->lDelta >> 2)*prclDst->top)+prclDst->left;
+
+			// Calculate the transfer parameters
+			ulXferPix = prclDst->right - prclDst->left;
+
+			// Get translate table
+			pulXlate = 	pxlo->pulXlate;
+
+		    // S3DBCIWait(pMmBase);
+//			S3DBCIWait(ppdev);			// STB-GVB: parameter has changed
+			while(H3_GP_BUSY(ppdev, ppdev->pjH3Base))
+				;
+
+			// Translate and save bits
+			while (ulXferPix--)
+			{
+				*pdwDstBits = pulXlate[*pjSrcBits++];
+				pdwDstBits++;
+			}
+	 		return(TRUE);
+		}
+		else if ((ppdev->iBitmapFormat == BMF_16BPP))
+		{
+			if ((prclDst->right - prclDst->left) < 3)
+			{
+				// Calc the origin pointer for the transfer
+				pjSrcBits = psoSrc->pvScan0;
+				pjSrcBits += (psoSrc->lDelta * pptlSrc->y) + pptlSrc->x;
+
+				// Calc same dst info
+				pwDstBits = pohDst->pvScan0;
+//				pwDstBits += ((pohDst->lDelta>>1) * prclDst->top) + prclDst->left;
+				pwDstBits += ((ppdev->lDelta>>1) * prclDst->top) + prclDst->left;
+
+				// Calculate the transfer parameters
+				ulXferPix = prclDst->right - prclDst->left;
+
+				// Get translate table
+				pulXlate = 	pxlo->pulXlate;
+
+			    // S3DBCIWait(pMmBase);
+//				S3DBCIWait(ppdev);		// STB-GVB: parameter has changed
+				while(H3_GP_BUSY(ppdev, ppdev->pjH3Base))
+					;
+
+				// Translate and save bits
+				while (ulXferPix--)
+				{
+					*pwDstBits = (WORD)pulXlate[*pjSrcBits++];
+					pwDstBits++;
+				}
+				
+				return(TRUE);
+			}
+			return(STBXfer8to16Bpp(ppdev, pohDst, prclDst, psoSrc, pptlSrc, pxlo));
+		}
+		else if (ppdev->iBitmapFormat == BMF_24BPP)
+		{
+			if ((prclDst->right - prclDst->left) < 3)
+			{
+				// Calc the origin pointer for the transfer
+				pjSrcBits = psoSrc->pvScan0;
+				pjSrcBits += (psoSrc->lDelta * pptlSrc->y) + pptlSrc->x;
+
+				// Calc same dst info
+				pjDstBits = pohDst->pvScan0;
+				pjDstBits += (ppdev->lDelta*prclDst->top)+(prclDst->left*3);
+
+				// Calculate the transfer parameters
+				ulXferPix = prclDst->right - prclDst->left;
+
+				// Get translate table
+				pulXlate = 	pxlo->pulXlate;
+
+//				if(ulEngineWaitFlag)
+//					DrvSynchronize(ppdev, prclDst);
+
+				// Translate and save bits
+				while (ulXferPix--)
+				{
+					ulTemp = pulXlate[*pjSrcBits++];
+					*((WORD*)pjDstBits) = (WORD)ulTemp;
+					pjDstBits += 2;
+
+					*pjDstBits = (BYTE)(ulTemp >> 16);
+					pjDstBits++;
+				}
+				
+	 			return(TRUE);
+			}
+			return(STBXfer8to24Bpp(ppdev, pohDst, prclDst, psoSrc, pptlSrc, pxlo));
+		}
+	}
+#endif	// PERF_COPY_BITS_OPT
+
+    if (((pco  == NULL) || (pco->iDComplexity == DC_TRIVIAL)) &&
+        ((pxlo == NULL) || (pxlo->flXlate & XO_TRIVIAL)))
+    {
+#if USE_NT5_DDMEMMGR
+        if ((psoDst->dhsurf != NULL) && (! (((DSURF *)psoDst->dhsurf)->dt & DT_DIB)))
+#else
+        if (psoDst->dhsurf != NULL)
+#endif
+        {
+            // We know the destination is either a DFB or the screen:
+
+            ppdev     = (PDEV*)  psoDst->dhpdev;
+            pdsurfDst = (DSURF*) psoDst->dhsurf;
+
+            // See if the source is a plain DIB:
+
+            if (psoSrc->dhsurf != NULL)
+            {
+                pdsurfSrc = (DSURF*) psoSrc->dhsurf;
+
+                // Make sure the destination is really the screen or an
+                // off-screen DFB (i.e., not a DFB that we've converted
+                // to a DIB):
+
+#if USE_NT5_DDMEMMGR
+                if (! (pdsurfDst->dt & DT_DIB))
+#else
+                if (pdsurfDst->dt == DT_SCREEN)
+#endif
+                {
+                    ASSERTDD(psoSrc->dhsurf != NULL, "Can't be a DIB");
+
+#if USE_NT5_DDMEMMGR
+                    if (! (pdsurfSrc->dt & DT_DIB))
+#else
+                    if (pdsurfSrc->dt == DT_SCREEN)
+#endif
+                    {
+
+                    Screen_To_Screen:
+
+                        //////////////////////////////////////////////////////
+                        // Screen-to-screen
+
+#if USE_NT5_DDMEMMGR
+                        ASSERTDD((psoSrc->dhsurf != NULL) &&
+                                 ((pdsurfSrc->dt == DT_SCREEN) || (pdsurfSrc->dt == DT_DIRECTDRAW)) &&
+                                 (psoDst->dhsurf != NULL) &&
+                                 ((pdsurfDst->dt == DT_SCREEN) || (pdsurfDst->dt == DT_DIRECTDRAW)),
+                                 "Should be a screen-to-screen case");
+#else
+                        ASSERTDD((psoSrc->dhsurf != NULL) &&
+                                 (pdsurfSrc->dt == DT_SCREEN)    &&
+                                 (psoDst->dhsurf != NULL) &&
+                                 (pdsurfDst->dt == DT_SCREEN),
+                                 "Should be a screen-to-screen case");
+#endif
+
+                        // pfnCopyBlt takes relative coordinates (relative
+                        // to the destination surface, that is), so we have
+                        // to change the start point to be relative to the
+                        // destination surface too:
+
+#if USE_NT5_DDMEMMGR
+                        #if ENABLE_LINEAR_DFBS
+                            // NVH - Set source and destination pitch here.
+                            ppdev->fpVidMemSrc = pdsurfSrc ? pdsurfSrc->fpVidMem : ppdev->ulScreenOffset;
+                            #if ENABLE_TILED_HEAP
+                            if (ppdev->fpVidMemSrc & SSTG_IS_TILED)
+                              ppdev->lDeltaSrc = _FF(ddTileStride);
+                            else
+                            #endif
+                              ppdev->lDeltaSrc = pdsurfSrc ? pdsurfSrc->lDelta   : ppdev->lDelta;
+
+                            ppdev->fpVidMemDst = pdsurfDst ? pdsurfDst->fpVidMem : ppdev->ulScreenOffset;
+                            #if ENABLE_TILED_HEAP
+                            if (ppdev->fpVidMemDst & SSTG_IS_TILED)
+                              ppdev->lDeltaDst = _FF(ddTileStride);
+                            else
+                            #endif
+                              ppdev->lDeltaDst = pdsurfDst ? pdsurfDst->lDelta   : ppdev->lDelta;
+                            // Don't adjust source points and destination offsets.
+                            // We will use the bitmap starting addresses to do that.
+                            ptl.x = pptlSrc->x;
+                            ptl.y = pptlSrc->y;
+
+                            ppdev->xOffset = 0;
+                            ppdev->yOffset = 0;
+
+                        #else
+                            ptl.x = pptlSrc->x - (pdsurfDst->x - pdsurfSrc->x);
+                            ptl.y = pptlSrc->y - (pdsurfDst->y - pdsurfSrc->y);
+
+                            ppdev->xOffset = pdsurfDst->x;
+                            ppdev->yOffset = pdsurfDst->y;
+                        #endif
+#else
+                        pohSrc = pdsurfSrc->poh;
+                        pohDst = pdsurfDst->poh;
+
+                        ptl.x = pptlSrc->x - (pohDst->x - pohSrc->x);
+                        ptl.y = pptlSrc->y - (pohDst->y - pohSrc->y);
+
+                        ppdev->xOffset = pohDst->x;
+                        ppdev->yOffset = pohDst->y;
+#endif
+
+                        (ppdev->pfnCopyBlt)(ppdev,
+                                            1,
+                                            prclDst,
+                                            0xcccc,
+                                            &ptl,
+                                            prclDst);
+                        return(TRUE);
+                    }
+                    else // (pdsurfSrc->dt != DT_SCREEN)
+                    {
+                        // Ah ha, the source is a DFB that's really a DIB.
+
+                        ASSERTDD(psoDst->dhsurf != NULL,
+                                "Destination can't be a DIB here");
+
+                        /////////////////////////////////////////////////////
+                        // Put It Back Into Off-screen?
+                        //
+                        // We take this opportunity to decide if we want to
+                        // put the DIB back into off-screen memory.  This is
+                        // a pretty good place to do it because we have to
+                        // copy the bits to some portion of the screen,
+                        // anyway.  So we would incur only an extra screen-to-
+                        // screen blt at this time, much of which will be
+                        // over-lapped with the CPU.
+                        //
+                        // The simple approach we have taken is to move a DIB
+                        // back into off-screen memory only if there's already
+                        // room -- we won't throw stuff out to make space
+                        // (because it's tough to know what ones to throw out,
+                        // and it's easy to get into thrashing scenarios).
+                        //
+                        // Because it takes some time to see if there's room
+                        // in off-screen memory, we only check one in
+                        // HEAP_COUNT_DOWN times if there's room.  To bias
+                        // in favour of bitmaps that are often blt, the
+                        // counters are reset every time any space is freed
+                        // up in off-screen memory.  We also don't bother
+                        // checking if no space has been freed since the
+                        // last time we checked for this DIB.
+
+                        if (pdsurfSrc->iUniq == ppdev->iHeapUniq)
+                        {
+                            if (--pdsurfSrc->cBlt == 0)
+                            {
+                                if (bMoveDibToOffscreenDfbIfRoom(ppdev,
+                                                                 pdsurfSrc))
+                                    goto Screen_To_Screen;
+                            }
+                        }
+                        else
+                        {
+                            // Some space was freed up in off-screen memory,
+                            // so reset the counter for this DFB:
+
+                            pdsurfSrc->iUniq = ppdev->iHeapUniq;
+                            pdsurfSrc->cBlt  = HEAP_COUNT_DOWN;
+                        }
+
+                        // Since the destination is definitely the screen,
+                        // we don't have to worry about creating a DIB to
+                        // DIB copy case (for which we would have to call
+                        // EngCopyBits):
+
+#if !USE_NT5_DDMEMMGR
+                        psoSrc = pdsurfSrc->pso;
+#endif
+
+                        goto DIB_To_Screen;
+                    }
+                }
+                else // (pdsurfDst->dt != DT_SCREEN)
+                {
+                    // Because the source is not a DIB, we don't have to
+                    // worry about creating a DIB to DIB case here (although
+                    // we'll have to check later to see if the source is
+                    // really a DIB that's masquerading as a DFB...)
+
+                    ASSERTDD(psoSrc->dhsurf != NULL,
+                             "Source can't be a DIB here");
+
+#if !USE_NT5_DDMEMMGR
+                    psoDst = pdsurfDst->pso;
+#endif
+
+                    goto Screen_To_DIB;
+                }
+            }
+            else if (psoSrc->iBitmapFormat == ppdev->iBitmapFormat)
+            {
+                // Make sure the destination is really the screen:
+
+#if USE_NT5_DDMEMMGR
+                if (! (pdsurfDst->dt & DT_DIB))
+#else
+                if (pdsurfDst->dt == DT_SCREEN)
+#endif
+                {
+
+                DIB_To_Screen:
+
+                    //////////////////////////////////////////////////////
+                    // DIB-to-screen
+
+#if USE_NT5_DDMEMMGR
+                    ASSERTDD((psoDst->dhsurf != NULL) &&
+                             ((pdsurfDst->dt == DT_SCREEN) || (pdsurfDst->dt == DT_DIRECTDRAW))    &&
+                             ((psoSrc->dhsurf == NULL) || (pdsurfSrc->dt != DT_SCREEN)) &&
+                             (psoSrc->iBitmapFormat == ppdev->iBitmapFormat),
+                             "Should be a DIB-to-screen case");
+#else
+                    ASSERTDD((psoDst->dhsurf != NULL) &&
+                             (pdsurfDst->dt == DT_SCREEN)    &&
+                             (psoSrc->dhsurf == NULL) &&
+                             (psoSrc->iBitmapFormat == ppdev->iBitmapFormat),
+                             "Should be a DIB-to-screen case");
+#endif
+
+                    // vPutBits takes absolute screen coordinates, so
+                    // we have to muck with the destination rectangle:
+
+#if USE_NT5_DDMEMMGR
+                    #if ENABLE_LINEAR_DFBS
+                        // NVH - Set source and destination pitch here.
+
+                        // Src is a DIB
+                        ppdev->lDeltaSrc   = psoSrc->lDelta;
+                        ppdev->fpVidMemSrc = 0;
+
+                        ppdev->fpVidMemDst = pdsurfDst ? pdsurfDst->fpVidMem : ppdev->ulScreenOffset;
+                        #if ENABLE_TILED_HEAP
+                        if (ppdev->fpVidMemDst & SSTG_IS_TILED)
+                          ppdev->lDeltaDst = _FF(ddTileStride);
+                        else
+                        #endif
+                          ppdev->lDeltaDst = pdsurfDst ? pdsurfDst->lDelta   : ppdev->lDelta;
+
+                        rcl.left   = prclDst->left;
+                        rcl.right  = prclDst->right;
+                        rcl.top    = prclDst->top;
+                        rcl.bottom = prclDst->bottom;
+
+                        ppdev->xOffset = 0;
+                        ppdev->yOffset = 0;
+
+                    #else
+                        rcl.left   = prclDst->left   + pdsurfDst->x;
+                        rcl.right  = prclDst->right  + pdsurfDst->x;
+                        rcl.top    = prclDst->top    + pdsurfDst->y;
+                        rcl.bottom = prclDst->bottom + pdsurfDst->y;
+                    #endif
+#else
+                    pohDst = pdsurfDst->poh;
+
+                    rcl.left   = prclDst->left   + pohDst->x;
+                    rcl.right  = prclDst->right  + pohDst->x;
+                    rcl.top    = prclDst->top    + pohDst->y;
+                    rcl.bottom = prclDst->bottom + pohDst->y;
+#endif
+
+                    vPutBits(ppdev, psoSrc, &rcl, pptlSrc);
+                    return(TRUE);
+                }
+            }
+        }
+        else // (psoDst->dhsurf == NULL)
+        {
+
+        Screen_To_DIB:
+
+#if (_WIN32_WINNT >= 0x0500)
+            // Or well, almost.
+            // We know that the destination either a DIB, or
+            // its a DFB that has been converted to a DIB.
+            // But we don't know exactly what the source is yet.
+            //
+
+            #if USE_NT5_DDMEMMGR
+            if ((psoSrc->dhsurf == NULL) ||   // There is no DSURF, so it's a DIB.
+               (((DSURF *)psoSrc->dhsurf)->dt & DT_DIB)) // There is a DSURF, but the DSURF claims that it lives on the host, so it's still a DIB.
+            #else
+            if (psoSrc->dhsurf == NULL)
+            #endif
+            {
+                // Oops.  Source is a DIB too.
+                // Or perhaps a DFB that was converted to a DIB.
+                //
+                // TODO: If the source DIB used to be a DFB, perhaps it
+                // should be moved back into offscreen memory?
+
+                //
+                // Kick the DIB to DIB blit back to GDI.
+                //
+                #if !USE_NT5_DDMEMMGR
+                    psoSrc = pdsurfSrc->pso;
+                #endif
+                goto EngCopyBits_It;
+            }
+
+
+            //
+            // Ok,  NOW we know that it is a screen to DIB.
+            //
+#endif
+            pdsurfSrc = (DSURF*) psoSrc->dhsurf;
+            ppdev     = (PDEV*)  psoSrc->dhpdev;
+
+            if (psoDst->iBitmapFormat == ppdev->iBitmapFormat)
+            {
+#if USE_NT5_DDMEMMGR
+                if ((pdsurfSrc != NULL) &&
+                    (! (pdsurfSrc->dt & DT_DIB)))
+#else
+                if (pdsurfSrc->dt == DT_SCREEN)
+#endif
+                {
+                    //////////////////////////////////////////////////////
+                    // Screen-to-DIB
+
+#if USE_NT5_DDMEMMGR
+                    ASSERTDD((psoSrc->dhsurf != NULL) &&
+                             (! (pdsurfSrc->dt & DT_DIB)) &&
+                             ((psoDst->dhsurf == NULL) || (((DSURF *)psoDst->dhsurf)->dt & DT_DIB)) &&
+                             (psoDst->iBitmapFormat == ppdev->iBitmapFormat),
+                             "Should be a screen-to-DIB case");
+#else
+                    ASSERTDD((psoSrc->dhsurf != NULL) &&
+                             (pdsurfSrc->dt == DT_SCREEN)    &&
+                             (psoDst->dhsurf == NULL) &&
+                             (psoDst->iBitmapFormat == ppdev->iBitmapFormat),
+                             "Should be a screen-to-DIB case");
+#endif
+
+                    // vGetBits takes absolute screen coordinates, so we have
+                    // to muck with the source point:
+
+#if USE_NT5_DDMEMMGR
+
+                    #if ENABLE_LINEAR_DFBS
+                        // NVH
+                        // Tell vGetBits what the pitch of the two bitmaps are.
+                        ppdev->fpVidMemSrc = pdsurfSrc ? pdsurfSrc->fpVidMem : ppdev->ulScreenOffset;
+                        #if ENABLE_TILED_HEAP
+                        if (ppdev->fpVidMemSrc & SSTG_IS_TILED)
+                          ppdev->lDeltaSrc = _FF(ddTileStride);
+                        else
+                        #endif
+                          ppdev->lDeltaSrc = pdsurfSrc ? pdsurfSrc->lDelta   : ppdev->lDelta;
+
+                        // Dest is a DIB.
+                        ppdev->lDeltaDst   = psoDst->lDelta;
+                        ppdev->fpVidMemDst = 0;
+
+                        ptl.x = pptlSrc->x;
+                        ptl.y = pptlSrc->y;
+
+                        ppdev->xOffset = 0;
+                        ppdev->yOffset = 0;
+
+                    #else
+                        ptl.x = pptlSrc->x + pdsurfSrc->x;
+                        ptl.y = pptlSrc->y + pdsurfSrc->y;
+                    #endif
+
+#else
+                    pohSrc = pdsurfSrc->poh;
+
+                    ptl.x = pptlSrc->x + pohSrc->x;
+                    ptl.y = pptlSrc->y + pohSrc->y;
+#endif
+
+                    vGetBits(ppdev, psoDst, prclDst, &ptl);
+                    return(TRUE);
+                }
+                else
+                {
+                    // The source is a DFB that's really a DIB.  Since we
+                    // know that the destination is a DIB, we've got a DIB
+                    // to DIB operation, and should call EngCopyBits:
+
+#if !USE_NT5_DDMEMMGR
+                    psoSrc = pdsurfSrc->pso;
+#endif
+                    goto EngCopyBits_It;
+                }
+            }
+        }
+    }
+
+    // We can't call DrvBitBlt if we've accidentally converted both
+    // surfaces to DIBs, because it isn't equipped to handle it:
+
+    ASSERTDD((psoSrc->dhsurf != NULL) ||
+             (psoDst->dhsurf != NULL),
+             "Accidentally converted both surfaces to DIBs");
+
+    /////////////////////////////////////////////////////////////////
+    // A DrvCopyBits is after all just a simplified DrvBitBlt:
+
+#if defined(DBG) || defined(PUNT_OPTION)
+Punt_To_DrvBitBlt:
+#endif
+
+    return(DrvBitBlt(psoDst, psoSrc, NULL, pco, pxlo, prclDst, pptlSrc, NULL,
+                     NULL, NULL, 0x0000CCCC));
+
+EngCopyBits_It:
+
+#if USE_NT5_DDMEMMGR
+#ifndef SLI_AA
+    // SLI punts even if the Src or Dst is not a DIB which causes this assert to fire
+    ASSERTDD(((psoDst->dhsurf == NULL) || (((DSURF*)psoDst->dhsurf)->dt & DT_DIB)) &&
+             ((psoSrc->dhsurf == NULL) || (((DSURF*)psoSrc->dhsurf)->dt & DT_DIB)),
+             "Both surfaces should be DIBs to call EngCopyBits");
+#endif
+#else
+    ASSERTDD((psoDst->dhsurf == NULL) &&
+             (psoSrc->dhsurf == NULL),
+             "Both surfaces should be DIBs to call EngCopyBits");
+#endif
+
+    return (EngCopyBits(psoDst, psoSrc, pco, pxlo, prclDst, pptlSrc));
+}
+
+#ifdef PERF_COPY_BITS_OPT	//STB_DAD
+
+//******************************************************************************
+//*
+//*	STBXfer8to16Bpp
+//*
+//*	This function translates and copies bits from a 8 bpp dib to the 16 bpp
+//*	screen. The prclClipped parameter is the intersection of the original
+//*	destination rectangle and the clipping rectangle. The pohDst parameter
+//*	is the actual destination bitmap, not the original surface object passed in
+//*	by GDI.
+//*
+//*	Returns: TRUE for success; FALSE for failure to copy.
+//*
+//******************************************************************************
+
+BOOL STBXfer8to16Bpp(
+PDEV*		ppdev, 			// Pointer to physical device structure
+OH*			pohDst,			// DFB
+RECTL*		prclDst,		// Original dest rect
+SURFOBJ*	psoSrcDib,		// 8bpp source dib
+POINTL*		pptlSrc,		// Source starting point
+XLATEOBJ*	pxlo)			// Contains translation table
+{
+	BYTE*	pjSrcBits;		// Source bitmap pointer
+	ULONG	ulXferDWords;	// No. of dwords to transfer to dst per scan
+	ULONG	ulStartPix;		// Unaligned start pixels
+	ULONG	ulEndPix;		// Unaligned end pixels
+	DWORD*	pdwDstBits;		// Destination bitmap pointer
+	ULONG*	pulXlate;		// Translate table pointer
+	ULONG	ulTemp;			// Temp variable
+//	BYTE*	pMmBase;		// Temp var
+	ULONG	ulIdx;				// Index var
+
+//    pMmBase = ppdev->pjMmBase;
+
+	// Calc the origin pointer for the transfer
+	pjSrcBits = psoSrcDib->pvScan0;
+	pjSrcBits += (psoSrcDib->lDelta * pptlSrc->y) + pptlSrc->x;
+
+	// Calc same dst info
+	pdwDstBits = pohDst->pvScan0;
+	(DWORD)pdwDstBits += ((ppdev->lDelta) * prclDst->top) + (prclDst->left * 2);
+
+	// Calculate the transfer parameters. We want to transfer the data aligned
+	// on dword boundaries. If necessary, we will transfer the first pixel and
+	// the last as words.
+	ulStartPix = (ULONG)pdwDstBits;
+	ulStartPix = (ulStartPix>>1) & 1;
+	ulTemp = prclDst->right - prclDst->left;
+	ulTemp -= ulStartPix;
+	ulXferDWords = ulTemp >> 1;
+	ulEndPix = ulTemp & 1;
+
+	// Get translate table
+	pulXlate = 	pxlo->pulXlate;
+
+
+    // S3DBCIWait(pMmBase);
+//	S3DBCIWait(ppdev);			// STB-GVB: parameter has changed
+	while(H3_GP_BUSY(ppdev, ppdev->pjH3Base))
+		;
+
+	// Translate and save bits
+	// Transfer the first unaligned pixel if one exists.
+	if (ulStartPix)
+	{
+		*((WORD*)pdwDstBits) = (WORD)pulXlate[*pjSrcBits++];
+		(DWORD)pdwDstBits +=2;
+	}
+
+#ifdef PERF_ASM_XLATE   // 1/8/99 mls
+	__asm
+	{
+		mov		ecx, ulXferDWords
+		mov		esi, pjSrcBits
+		mov		edi, pdwDstBits
+		mov		edx, pulXlate
+
+data_loop:
+		
+		mov		eax, [esi]			 // get a data word
+		mov		ebx, eax			 // copy it
+		add		esi, 2				 // move src pointer
+
+		and		eax, 0xff			 // mask off 1st byte
+		mov		eax, [edx+eax*4]	 // translate it
+		shr		ebx, 8
+		and		ebx, 0xff
+		mov		ebx, [edx+ebx*4]	 // translate 2nd byte
+
+		shl		ebx, 16				
+		or		ebx, eax			 // combine results into dword
+		mov		[edi], ebx			 // save result
+
+		add		edi, 4				 // move dest pointer
+		dec		ecx					 // dec loop counter
+		jnz 	data_loop			 // repeat until done
+
+		mov		pjSrcBits, esi		 // restore local variables
+		mov		pdwDstBits, edi
+	}
+#else											
+	//We should now be dword aligned
+	for (ulIdx = 0 ; ulIdx < ulXferDWords ; ulIdx++)
+	{
+		ulTemp = pulXlate[*pjSrcBits++];
+		*pdwDstBits = ulTemp | (pulXlate[*pjSrcBits++]<<16);
+		pdwDstBits++;
+	}
+#endif
+	
+	// Send out the final pixel if one exists.
+	if (ulEndPix)
+	{
+		*((WORD*)pdwDstBits) = (WORD)pulXlate[*pjSrcBits++];
+//		pdwDstBits++;
+	}
+
+	return (TRUE);	
+}
+
+//******************************************************************************
+//*
+//*	STBXfer8to24Bpp
+//*
+//*	This function translates and copies bits from a 8 bpp dib to the 24 bpp
+//*	screen. The prclClipped parameter is the intersection of the original
+//*	destination rectangle and the clipping rectangle. The pohDst parameter
+//*	is the actual destination bitmap, not the original surface object passed in
+//*	by GDI.
+//*
+//*	Returns: TRUE for success; FALSE for failure to copy.
+//*
+//******************************************************************************
+
+BOOL STBXfer8to24Bpp(
+PDEV*		ppdev, 			// Pointer to physical device structure
+OH*			pohDst,			// DFB
+RECTL*		prclDst,		// Original dest rect
+SURFOBJ*	psoSrcDib,		// 8bpp source dib
+POINTL*		pptlSrc,		// Source starting point
+XLATEOBJ*	pxlo)			// Contains translation table
+{
+	BYTE*	pjSrcBits;		// Source bitmap pointer
+	ULONG	ulXferFullDWords;// No. of full dwords to transfer to dst per scan
+	ULONG	ulXferHeight;	// Height of transfer in lines
+	BYTE*	pjDstBits;		// Destination bitmap pointer
+	ULONG*	pulXlate;		// Translate table pointer
+	ULONG	ulTemp, ulSrcBuf, ulDstBuf; // Temp variable
+	ULONG	ulSrcBytesLeft;	// Bytes of xlated src pixel left to output
+	ULONG	ulDstBytesLeft;	// Bytes of dst left to fill output dword
+	ULONG	ulStartBytes;// No. of unaligned bytes at begining of scanline
+	ULONG	ulEndBytes;		// Save number of bytes in incomplete final dword
+	ULONG	yy, xx;			// Temp loop vars
+	
+
+	// Calc the src delta and origin pointer for the transfer
+	pjSrcBits = psoSrcDib->pvScan0;
+	pjSrcBits += (psoSrcDib->lDelta*pptlSrc->y) + pptlSrc->x;
+
+	// Calc same dst info
+	pjDstBits = pohDst->pvScan0;
+	pjDstBits += (ppdev->lDelta*prclDst->top)+(prclDst->left*3);
+
+	// Calculate the transfer parameters
+	ulTemp = (prclDst->right - prclDst->left)*3; // Total dst bytes
+	ulStartBytes = (ULONG)pjDstBits;
+	ulStartBytes = ((~(ulStartBytes & 3))+1) & 3;
+	ulEndBytes = (ulTemp - ulStartBytes) & 3;
+	ulXferFullDWords = (ulTemp - ulStartBytes) >> 2;	// No. of full dwords to send
+	ulSrcBytesLeft = 0;
+
+	// Get translate table
+	pulXlate = 	pxlo->pulXlate;
+
+
+//	if(ulEngineWaitFlag)
+//		DrvSynchronize(ppdev, prclDst);
+	while(H3_GP_BUSY(ppdev, ppdev->pjH3Base))
+		;
+
+	// Translate and save bits
+		
+	// Use Begin mask and send the first incomplete dword. This will
+	// dword align the dst so we can subsequently output full dwords.
+	if (ulStartBytes)
+	{
+		ulDstBytesLeft = ulStartBytes;
+		// Get first xlated source bytes
+		ulTemp = ulSrcBuf = pulXlate[*pjSrcBits++];
+		ulSrcBytesLeft = 3;
+
+		// Write out word if possible
+		if (ulDstBytesLeft >= 2)
+		{
+			*((WORD*)pjDstBits) = (WORD)ulTemp;
+			ulTemp = ulTemp >> 16;
+			pjDstBits += 2;
+			ulSrcBytesLeft -= 2;
+			ulDstBytesLeft -= 2;
+		}
+
+		// Write out byte if there is one left
+		if (ulDstBytesLeft)
+		{
+			*pjDstBits = (BYTE)ulTemp;
+			pjDstBits++;
+			ulSrcBytesLeft--;
+		}
+	}
+
+	// We start here with the dst pointer aligned on dword boundary
+	for (xx = 0 ; xx < ulXferFullDWords ; xx++)
+	{
+		ulDstBytesLeft = 4; // ulDstBuf is now empty
+
+		// Fill a destinatoin dword with xlated src
+		while (ulDstBytesLeft)
+		{
+			// Get xlated source bytes if we have run out
+			if (!ulSrcBytesLeft)
+			{
+				ulSrcBuf = pulXlate[*pjSrcBits++];
+				ulSrcBytesLeft = 3;
+			}
+			
+			//  shift src bytes into dst dword
+	 		if (ulDstBytesLeft > ulSrcBytesLeft)
+			{
+				ulTemp = ulSrcBuf >> ((ulDstBytesLeft-ulSrcBytesLeft-1) * 8);
+				ulDstBuf &= aulDstMask[ulDstBytesLeft];
+				ulTemp &= aulSrcMask[ulDstBytesLeft];
+				ulDstBuf |= ulTemp;
+				ulDstBytesLeft -= ulSrcBytesLeft;
+				ulSrcBytesLeft = 0;
+			}
+	 		else //(ulDstBytesLeft <= ulSrcBytesLeft)
+			{
+				ulTemp = ulSrcBuf << ((ulSrcBytesLeft-ulDstBytesLeft+1) * 8);
+				ulDstBuf &= aulDstMask[ulDstBytesLeft];
+				ulTemp &= aulSrcMask[ulDstBytesLeft];
+				ulDstBuf |= ulTemp;
+				ulSrcBytesLeft -= ulDstBytesLeft;
+				ulDstBytesLeft = 0;
+			}
+		}
+
+		// Write packed dword out to dst
+		*((DWORD*)pjDstBits) = ulDstBuf;
+		pjDstBits += 4;		// Advance to next dword of dst
+	} //xx loop
+
+		
+	// Handle any remaining end bytes (last incomplete dword if exists).
+	// If there is any data left, it is no more than one pixel (3 bytes).
+	if (ulEndBytes)
+	{
+		// Get xlated source bytes if we have run out
+		if (!ulSrcBytesLeft)
+		{
+			ulSrcBuf = pulXlate[*pjSrcBits++];
+			ulSrcBytesLeft = 3;
+		}
+
+		// Write out word if possible
+		if (ulSrcBytesLeft >= 2)
+		{
+			*((WORD*)pjDstBits) = (WORD)(ulSrcBuf >> ((3-ulSrcBytesLeft)*8));
+			pjDstBits += 2;
+			ulSrcBytesLeft -= 2;
+		}
+
+		// Write out byte if there is one left
+		if (ulSrcBytesLeft)
+		{
+			*pjDstBits = (BYTE)(ulSrcBuf >> 16);
+			pjDstBits++;
+		}
+	}
+	return (TRUE);	
+}
+
+#endif	// PERF_COPY_BITS_OPT  //STB_DAD
+
+#if (_WIN32_WINNT >= 0x0500)
+//-----------------------------Public*Routine----------------------------------
+//
+// BOOL DrvGradientFill
+//
+// DrvGradientFill shades the specified primitives.
+//
+// Parameters
+//  psoDest-----Points to the SURFOBJ that identifies the surface on which to
+//              draw.
+//  pco---------Points to a CLIPOBJ. The CLIPOBJ_Xxx service routines are
+//              provided to enumerate the clip region as a set of rectangles.
+//              This enumeration limits the area of the destination that is
+//              modified. Whenever possible, GDI simplifies the clipping
+//              involved.
+//  pxlo--------Should be ignored by the driver.
+//  pVertex-----Points to an array of TRIVERTEX structures, with each entry
+//              containing position and color information. TRIVERTEX is defined
+//              in the Platform SDK.
+//  nVertex-----Specifies the number of TRIVERTEX structures in the array to
+//              which pVertex points.
+//  pMesh-------Points to an array of structures that define the connectivity
+//              of the TRIVERTEX elements to which pVertex points.
+//              When rectangles are being drawn, pMesh points to an array of
+//              GRADIENT_RECT structures that specify the upper left and lower
+//              right TRIVERTEX elements that define a rectangle. Rectangle
+//              drawing is lower-right exclusive. GRADIENT_RECT is defined in
+//              the Platform SDK.
+//
+//              When triangles are being drawn, pMesh points to an array of
+//              GRADIENT_TRIANGLE structures that specify the three TRIVERTEX
+//              elements that define a triangle. Triangle drawing is
+//              lower-right exclusive. GRADIENT_TRIANGLE is defined in the
+//              Platform SDK.
+//  nMesh-------Specifies the number of elements in the array to which pMesh
+//              points.
+//  prclExtents-Points to a RECTL structure that defines the area in which the
+//              gradient drawing is to occur. The points are specified in the
+//              coordinate system of the destination surface. This parameter is
+//              useful in estimating the size of the drawing operations.
+//  pptlDitherOrg-Points to a POINTL structure that defines the origin on the
+//              surface for dithering. The upper left pixel of the dither
+//              pattern is aligned with this point.
+//  ulMode------Specifies the current drawing mode and how to interpret the
+//              array to which pMesh points. This parameter can be one of the
+//              following values:
+//              Value                   Meaning
+//              GRADIENT_FILL_RECT_H    pMesh points to an array of
+//                                      GRADIENT_RECT structures. Each
+//                                      rectangle is to be shaded from left to
+//                                      right. Specifically, the upper-left and
+//                                      lower-left pixels are the same color,
+//                                      as are the upper-right and lower-right
+//                                      pixels.
+//              GRADIENT_FILL_RECT_V    pMesh points to an array of
+//                                      GRADIENT_RECT structures. Each
+//                                      rectangle is to be shaded from top to
+//                                      bottom. Specifically, the upper-left
+//                                      and upper-right pixels are the same
+//                                      color, as are the lower-left and
+//                                      lower-right pixels.
+//              GRADIENT_FILL_TRIANGLE  pMesh points to an array of
+//                                      GRADIENT_TRIANGLE structures.
+//
+//              The gradient fill calculations for each mode are documented in
+//              the Comments section.
+//
+// Return Value
+//  DrvGradientFill returns TRUE upon success. Otherwise, it returns FALSE. and
+//  reports an error by calling EngSetLastError.
+//
+// Comments
+//  DrvGradientFill can be optionally implemented in graphics drivers.
+//
+//  The driver hooks DrvGradientFill by setting the HOOK_GRADIENTFILL flag when
+//  it calls EngAssociateSurface. If the driver has hooked DrvGradientFill and
+//  is called to perform an operation that it does not support, the driver
+//  should have GDI handle the operation by forwarding the data in a call to
+//  EngGradientFill.
+//
+//  The formulas for computing the color value at each pixel of the primitive
+//  depend on ulMode as follows:
+//
+//  GRADIENT_FILL_TRIANGLE
+//      The triangle's vertices are defined as V1, V2, and V3. Point P is
+//      inside the triangle. Draw lines from P to V1, V2, and V3 to form three
+//      sub-triangles. Let ai denote the area of the triangle opposite Vi for
+//      i=1,2,3. The color at point P is computed as:
+//
+//      RedP   = (RedV1 * a1 + RedV2 * a2 + RedV3 * a3) / (a1+a2+a3 ())
+//      GreenP = (GreenV1 * a1 + GreenV2 * a2 + GreenV3 * a3) / (a1+a2+a3 ())
+//      BlueP ( )  = (BlueV1 * a1 + BlueV2 * a2 + BlueV3 * a3) / (a1+a2+a3)
+//
+//  GRADIENT_FILL_RECT_H
+//      The rectangle's top-left point is V1 and the bottom-right point is V2.
+//      Point P is inside the rectangle. The color at point P is given by:
+//
+//      RedP =   (RedV2 * (Px - V1x) + RedV1 * (V2x - Px)) / (V2x-V1x)
+//      GreenP = (GreenV2 * (Px - V1x) + GreenV1 * (V2x - Px)) / (V2x-V1x)
+//      BlueP =  (BlueV2 * (Px - V1x) + BlueV1 * (V2x - Px)) / (V2x-V1x)
+//
+//  GRADIENT_FILL_RECT_V
+//      The rectangle's top-left point is V1 and the bottom-right point is V2.
+//      Point P is inside the rectangle. The color at point P is given by:
+//
+//      RedP   = (RedV2 * (Py-V1y) + RedV1 * (V2y - Py)) / (V2y-V1y)
+//      GreenP = (GreenV2 * (Py-V1y) + GreenV1 * (V2y - Py)) / (V2y-V1y)
+//      BlueP  = (BlueV2 * (Py-V1y) + BlueV1 * (V2y - Py)) / (V2y-V1y)
+//
+//-----------------------------------------------------------------------------
+BOOL
+DrvGradientFill(SURFOBJ*    psoDst,
+                CLIPOBJ*    pco,
+                XLATEOBJ*   pxlo,
+                TRIVERTEX*  pVertex,
+                ULONG       nVertex,
+                PVOID       pMesh,
+                ULONG       nMesh,
+                RECTL*      prclExtents,
+                POINTL*     pptlDitherOrg,
+                ULONG       ulMode)
+{
+    GFNPB       pb;
+    BOOL        bResult;
+    ULONG       i;
+    PDEV        *ppdev;
+
+
+    GLIDE_EXCLUSION(glideState[ 0 ]);
+
+    ASSERTDD(psoDst != NULL, "DrvGradientFill: psoDst is NULL");
+
+#if defined(DBG) || defined(PUNT_OPTION)
+    if (!UseCSIM || gbPuntGradientFill)
+        goto puntIt;
+#endif
+
+    pb.pdsurfDst = (DSURF *) psoDst->dhsurf;
+    pb.pdsurfSrc = NULL;
+
+    // for now, only handle video memory gradient fills
+
+    if ( (pb.pdsurfDst == NULL) || (pb.pdsurfDst->dt & DT_DIB) )
+        goto puntIt;
+
+    ppdev = (PDEV *)psoDst->dhpdev;
+#ifdef SLI_AA
+    if (_FF(ddMultiChipConfig))
+      goto puntIt;
+#endif
+
+    // setup default dest
+
+    if(ulMode == GRADIENT_FILL_TRIANGLE)
+    {
+        // Not today
+
+        goto puntIt;
+    }
+    else
+    {
+        GRADIENT_RECT   *pgr = (GRADIENT_RECT *) pMesh;
+
+#ifdef DBG
+        for(i = 0; i < nMesh; i++)
+        {
+            ULONG   ulLr = pgr[i].LowerRight;
+
+#ifndef MS_VIEW 
+            ASSERTDD(ulLr >= 0 && ulLr < nVertex,
+                        "DrvGradientFill: bad vertex index");
+#else
+            // ulLr >= 0 is always true (ULONG)
+            ASSERTDD( ulLr < nVertex,
+                        "DrvGradientFill: bad vertex index");		
+#endif //MS_VIEW
+        }
+#endif
+
+        pb.pgfn = vGradientFillRect;
+    }
+
+    pb.ppdev = (PDEV *) psoDst->dhpdev;
+    pb.ulMode = ulMode;
+    pb.pptlDitherOrg = pptlDitherOrg;   // grrr
+    pb.pco = pco;
+
+    pb.ptvrt = pVertex;
+    pb.ulNumTvrt = nVertex;
+    pb.pvMesh = pMesh;
+    pb.ulNumMesh = nMesh;
+    pb.prclDst = prclExtents;
+
+    vClipAndRender(&pb);
+
+    return TRUE;
+
+puntIt:
+
+    START_DIRECT_ACCESS_H3(ppdev, ppdev->pjH3Base);
+
+    bResult = EngGradientFill(
+            psoDst, pco, pxlo, pVertex, nVertex,
+            pMesh, nMesh, prclExtents, pptlDitherOrg, ulMode);
+
+    END_DIRECT_ACCESS_H3(ppdev, ppdev->pjH3Base);
+
+    return bResult;
+
+}// DrvGradientFill()
+#endif // (_WIN32_WINNT >= 0x0500)

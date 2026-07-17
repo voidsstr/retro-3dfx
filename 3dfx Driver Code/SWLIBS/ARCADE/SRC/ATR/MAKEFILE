@@ -1,0 +1,110 @@
+#
+# Copyright (c) 1995, 3Dfx Interactive, Inc.
+# All Rights Reserved.
+#
+# This is UNPUBLISHED PROPRIETARY SOURCE CODE of 3Dfx Interactive, Inc.;
+# the contents of this file may not be disclosed to third parties, copied or
+# duplicated in any form, in whole or in part, without the prior written
+# permission of 3Dfx Interactive, Inc.
+#
+# RESTRICTED RIGHTS LEGEND:
+# Use, duplication or disclosure by the Government is subject to restrictions
+# as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+# and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+# successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished  -
+# rights reserved under the Copyright Laws of the United States.
+#
+
+# ARCADE TOOLBOX COMPILATION FLAGS
+#
+# -DAT_BUILD_LIBRARY - Defined when building the library
+#
+# -DAT_DEBUGGING  - Enable parameter checking and bug catching code.
+# -DAT_PRODUCTION - Disable parameter checking and debugging code.
+#                   Use this with optimized builds
+# -DAT_STATISTICS       - Include statistic tracking code.
+# -DAT_PENTIUM_ASSEMBLY - Use pentium optimized assembly routines
+# -DAT_CHECK_TRIS       - Check every triangle against screen
+#
+
+THISDIR = ATR
+
+# Preprocessor Defines
+!if "$(FX_COMPILER)"=="DJGPP"
+LCDEFS    = -DAT_BUILD_LIBRARY -DAT_STATISTICS
+!else
+LCDEFS    = -DAT_BUILD_LIBRARY -DAT_STATISTICS -DAT_PENTIUM_ASSEMBLY
+!endif
+
+!if "$(DEBUG)"=="1"
+LCDEFS    = -DAT_DEBUGGING $(LCDEFS) 
+!else
+LCDEFS    = -DAT_PRODUCTION $(LCDEFS)
+!endif
+
+!if "$(AT_DRIVER_GLIDE)"=="1"
+LCDEFS    = -DAT_DRIVER_GLIDE $(LCDEFS) 
+!endif
+
+!if "$(AT_DRIVER_D3D)"=="1"
+LCDEFS    = -DAT_DRIVER_D3D $(LCDEFS) 
+!endif
+
+!if "$(AT_DRIVER_RAVE)"=="1"
+LCDEFS    = -DAT_DRIVER_RAVE $(LCDEFS) 
+!endif
+
+!if "$(FX_GLIDE3)" != ""
+LCDEFS    = -DGLIDE3 $(LCDEFS)
+!endif
+
+# Header paths
+LCINCS    = -I$(BUILD_ROOT_ARCADE)\include -I$(BUILD_ROOT)\$(FX_GLIDE_HW)\include
+
+# sources
+HEADERS         = atrender.h
+PRIVATE_HEADERS = fxatr.h
+
+CFILES    = rnulldrv.c  \
+            rcamera.c  \
+            rcanvas.c  \
+            renv.c     \
+            rfont.c    \
+            rimg.c     \
+            rlight.c   \
+            rlfunc.c   \
+            rltable.c   \
+            rtcsrc.c   \
+            rmat.c     \
+            rots.c     \
+            rprim.c    \
+            rrender.c  \
+            rstate.c   \
+            rstats.c   \
+            rtex.c     \
+            rtext.c    \
+            rtri.c     \
+            rvertex.c  \
+            rxform.c   
+
+!if "$(AT_DRIVER_GLIDE)"=="1"
+SUBLIBRARIES = ..\drivers\glide\atglide.lib $(SUBLIBRARIES) 
+!endif
+
+!if "$(AT_DRIVER_RAVE)"=="1"
+SUBLIBRARIES = ..\drivers\rave\atrave.lib $(SUBLIBRARIES) 
+!endif
+
+!if "$(AT_DRIVER_D3D)"=="1"
+SUBLIBRARIES = ..\drivers\d3d\atd3d.lib $(SUBLIBRARIES) 
+!endif
+
+SUBLIBRARIES = $(SUBLIBRARIES) \
+               $(BUILD_ROOT_SWLIBS)\lib\texus.lib \
+               $(BUILD_ROOT_SWLIBS)\lib\fxmisc.lib
+
+# targets
+INSTALL_DESTINATION = $(BUILD_ROOT_ARCADE)
+LIBRARIES = atr.lib
+
+!include $(BUILD_ROOT_SWLIBS)/include/nmake/3dfx.mak

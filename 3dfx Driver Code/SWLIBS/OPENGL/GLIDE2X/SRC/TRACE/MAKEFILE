@@ -1,0 +1,42 @@
+LDIRT= *.exe *.map *.sys *.obj *.lib
+
+LCINCS  = $(LCINCS)  -I$(BUILD_ROOT_SST1)\include
+
+SPECFILE = ../spec/gl.spec
+STUBSCRIPT = db_stub.awk
+STATSCRIPT = db_stat.awk
+EVENTPARSER = eparse.exe
+
+CFILES = eparse.c
+
+PROGRAMS = $(CFILES:.c=.exe)
+
+!include $(BUILD_ROOT_SWLIBS)/include/nmake/3dfx.mak
+
+default:: tables events
+
+tables: db_stub.c db_stat.h db_stat.c
+ 
+# make this if you've added your own events using GL_TRACE()
+events:
+	echo > e.tmp0
+	grep GL_TRACE ../sst/*.c >> e.tmp0
+#	grep GL_TRACE ../glcore/*.c >> e.tmp0
+	sort e.tmp0 | uniq > e.tmp
+	echo 	/* hand-added events */ > db_stat_gen.h
+	$(EVENTPARSER) e.tmp >> db_stat_gen.h
+	echo 	/* hand-added events */ > db_stat_gen.c
+	$(EVENTPARSER) -t e.tmp >> db_stat_gen.c
+#	rm e.tmp
+
+db_stub.c: $(STUBSCRIPT) $(SPECFILE)
+	awk -f $(STUBSCRIPT) $(SPECFILE) > $@
+  
+db_stat.h: $(STATSCRIPT) $(SPECFILE)
+	awk -f $(STATSCRIPT) OUTPUT="header" $(SPECFILE) > $@
+
+db_stat.c: $(STATSCRIPT) $(SPECFILE)
+	awk -f $(STATSCRIPT) OUTPUT="table" $(SPECFILE) > $@
+	awk -f $(STATSCRIPT) OUTPUT="cumtable" $(SPECFILE) >> $@
+
+

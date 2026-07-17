@@ -1,0 +1,1842 @@
+	TITLE	..\d3contxt.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+;	COMDAT _context_alloc
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+;	COMDAT _context_free
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+;	COMDAT _context_free_pid
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+FLAT	GROUP _DATA, CONST, _BSS
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+_DATA	SEGMENT
+_f_255_reverse_lookup DD 0437f0000r		; 255
+	DD	0437e0000r			; 254
+	DD	0437d0000r			; 253
+	DD	0437c0000r			; 252
+	DD	0437b0000r			; 251
+	DD	0437a0000r			; 250
+	DD	043790000r			; 249
+	DD	043780000r			; 248
+	DD	043770000r			; 247
+	DD	043760000r			; 246
+	DD	043750000r			; 245
+	DD	043740000r			; 244
+	DD	043730000r			; 243
+	DD	043720000r			; 242
+	DD	043710000r			; 241
+	DD	043700000r			; 240
+	DD	0436f0000r			; 239
+	DD	0436e0000r			; 238
+	DD	0436d0000r			; 237
+	DD	0436c0000r			; 236
+	DD	0436b0000r			; 235
+	DD	0436a0000r			; 234
+	DD	043690000r			; 233
+	DD	043680000r			; 232
+	DD	043670000r			; 231
+	DD	043660000r			; 230
+	DD	043650000r			; 229
+	DD	043640000r			; 228
+	DD	043630000r			; 227
+	DD	043620000r			; 226
+	DD	043610000r			; 225
+	DD	043600000r			; 224
+	DD	0435f0000r			; 223
+	DD	0435e0000r			; 222
+	DD	0435d0000r			; 221
+	DD	0435c0000r			; 220
+	DD	0435b0000r			; 219
+	DD	0435a0000r			; 218
+	DD	043590000r			; 217
+	DD	043580000r			; 216
+	DD	043570000r			; 215
+	DD	043560000r			; 214
+	DD	043550000r			; 213
+	DD	043540000r			; 212
+	DD	043530000r			; 211
+	DD	043520000r			; 210
+	DD	043510000r			; 209
+	DD	043500000r			; 208
+	DD	0434f0000r			; 207
+	DD	0434e0000r			; 206
+	DD	0434d0000r			; 205
+	DD	0434c0000r			; 204
+	DD	0434b0000r			; 203
+	DD	0434a0000r			; 202
+	DD	043490000r			; 201
+	DD	043480000r			; 200
+	DD	043470000r			; 199
+	DD	043460000r			; 198
+	DD	043450000r			; 197
+	DD	043440000r			; 196
+	DD	043430000r			; 195
+	DD	043420000r			; 194
+	DD	043410000r			; 193
+	DD	043400000r			; 192
+	DD	0433f0000r			; 191
+	DD	0433e0000r			; 190
+	DD	0433d0000r			; 189
+	DD	0433c0000r			; 188
+	DD	0433b0000r			; 187
+	DD	0433a0000r			; 186
+	DD	043390000r			; 185
+	DD	043380000r			; 184
+	DD	043370000r			; 183
+	DD	043360000r			; 182
+	DD	043350000r			; 181
+	DD	043340000r			; 180
+	DD	043330000r			; 179
+	DD	043320000r			; 178
+	DD	043310000r			; 177
+	DD	043300000r			; 176
+	DD	0432f0000r			; 175
+	DD	0432e0000r			; 174
+	DD	0432d0000r			; 173
+	DD	0432c0000r			; 172
+	DD	0432b0000r			; 171
+	DD	0432a0000r			; 170
+	DD	043290000r			; 169
+	DD	043280000r			; 168
+	DD	043270000r			; 167
+	DD	043260000r			; 166
+	DD	043250000r			; 165
+	DD	043240000r			; 164
+	DD	043230000r			; 163
+	DD	043220000r			; 162
+	DD	043210000r			; 161
+	DD	043200000r			; 160
+	DD	0431f0000r			; 159
+	DD	0431e0000r			; 158
+	DD	0431d0000r			; 157
+	DD	0431c0000r			; 156
+	DD	0431b0000r			; 155
+	DD	0431a0000r			; 154
+	DD	043190000r			; 153
+	DD	043180000r			; 152
+	DD	043170000r			; 151
+	DD	043160000r			; 150
+	DD	043150000r			; 149
+	DD	043140000r			; 148
+	DD	043130000r			; 147
+	DD	043120000r			; 146
+	DD	043110000r			; 145
+	DD	043100000r			; 144
+	DD	0430f0000r			; 143
+	DD	0430e0000r			; 142
+	DD	0430d0000r			; 141
+	DD	0430c0000r			; 140
+	DD	0430b0000r			; 139
+	DD	0430a0000r			; 138
+	DD	043090000r			; 137
+	DD	043080000r			; 136
+	DD	043070000r			; 135
+	DD	043060000r			; 134
+	DD	043050000r			; 133
+	DD	043040000r			; 132
+	DD	043030000r			; 131
+	DD	043020000r			; 130
+	DD	043010000r			; 129
+	DD	043000000r			; 128
+	DD	042fe0000r			; 127
+	DD	042fc0000r			; 126
+	DD	042fa0000r			; 125
+	DD	042f80000r			; 124
+	DD	042f60000r			; 123
+	DD	042f40000r			; 122
+	DD	042f20000r			; 121
+	DD	042f00000r			; 120
+	DD	042ee0000r			; 119
+	DD	042ec0000r			; 118
+	DD	042ea0000r			; 117
+	DD	042e80000r			; 116
+	DD	042e60000r			; 115
+	DD	042e40000r			; 114
+	DD	042e20000r			; 113
+	DD	042e00000r			; 112
+	DD	042de0000r			; 111
+	DD	042dc0000r			; 110
+	DD	042da0000r			; 109
+	DD	042d80000r			; 108
+	DD	042d60000r			; 107
+	DD	042d40000r			; 106
+	DD	042d20000r			; 105
+	DD	042d00000r			; 104
+	DD	042ce0000r			; 103
+	DD	042cc0000r			; 102
+	DD	042ca0000r			; 101
+	DD	042c80000r			; 100
+	DD	042c60000r			; 99
+	DD	042c40000r			; 98
+	DD	042c20000r			; 97
+	DD	042c00000r			; 96
+	DD	042be0000r			; 95
+	DD	042bc0000r			; 94
+	DD	042ba0000r			; 93
+	DD	042b80000r			; 92
+	DD	042b60000r			; 91
+	DD	042b40000r			; 90
+	DD	042b20000r			; 89
+	DD	042b00000r			; 88
+	DD	042ae0000r			; 87
+	DD	042ac0000r			; 86
+	DD	042aa0000r			; 85
+	DD	042a80000r			; 84
+	DD	042a60000r			; 83
+	DD	042a40000r			; 82
+	DD	042a20000r			; 81
+	DD	042a00000r			; 80
+	DD	0429e0000r			; 79
+	DD	0429c0000r			; 78
+	DD	0429a0000r			; 77
+	DD	042980000r			; 76
+	DD	042960000r			; 75
+	DD	042940000r			; 74
+	DD	042920000r			; 73
+	DD	042900000r			; 72
+	DD	0428e0000r			; 71
+	DD	0428c0000r			; 70
+	DD	0428a0000r			; 69
+	DD	042880000r			; 68
+	DD	042860000r			; 67
+	DD	042840000r			; 66
+	DD	042820000r			; 65
+	DD	042800000r			; 64
+	DD	0427c0000r			; 63
+	DD	042780000r			; 62
+	DD	042740000r			; 61
+	DD	042700000r			; 60
+	DD	0426c0000r			; 59
+	DD	042680000r			; 58
+	DD	042640000r			; 57
+	DD	042600000r			; 56
+	DD	0425c0000r			; 55
+	DD	042580000r			; 54
+	DD	042540000r			; 53
+	DD	042500000r			; 52
+	DD	0424c0000r			; 51
+	DD	042480000r			; 50
+	DD	042440000r			; 49
+	DD	042400000r			; 48
+	DD	0423c0000r			; 47
+	DD	042380000r			; 46
+	DD	042340000r			; 45
+	DD	042300000r			; 44
+	DD	0422c0000r			; 43
+	DD	042280000r			; 42
+	DD	042240000r			; 41
+	DD	042200000r			; 40
+	DD	0421c0000r			; 39
+	DD	042180000r			; 38
+	DD	042140000r			; 37
+	DD	042100000r			; 36
+	DD	0420c0000r			; 35
+	DD	042080000r			; 34
+	DD	042040000r			; 33
+	DD	042000000r			; 32
+	DD	041f80000r			; 31
+	DD	041f00000r			; 30
+	DD	041e80000r			; 29
+	DD	041e00000r			; 28
+	DD	041d80000r			; 27
+	DD	041d00000r			; 26
+	DD	041c80000r			; 25
+	DD	041c00000r			; 24
+	DD	041b80000r			; 23
+	DD	041b00000r			; 22
+	DD	041a80000r			; 21
+	DD	041a00000r			; 20
+	DD	041980000r			; 19
+	DD	041900000r			; 18
+	DD	041880000r			; 17
+	DD	041800000r			; 16
+	DD	041700000r			; 15
+	DD	041600000r			; 14
+	DD	041500000r			; 13
+	DD	041400000r			; 12
+	DD	041300000r			; 11
+	DD	041200000r			; 10
+	DD	041100000r			; 9
+	DD	041000000r			; 8
+	DD	040e00000r			; 7
+	DD	040c00000r			; 6
+	DD	040a00000r			; 5
+	DD	040800000r			; 4
+	DD	040400000r			; 3
+	DD	040000000r			; 2
+	DD	03f800000r			; 1
+	DD	000000000r			; 0
+_DATA	ENDS
+PUBLIC	_ddiContextCreate@4
+EXTRN	_myAgpEpilog:NEAR
+EXTRN	_D3DPRINT:NEAR
+EXTRN	_dbgEntryStr:BYTE
+EXTRN	__imp__HeapAlloc@12:NEAR
+EXTRN	__imp__HeapFree@12:NEAR
+EXTRN	_GetHndlListPtr:NEAR
+EXTRN	__imp__lstrcpyA@8:NEAR
+EXTRN	_initNewRC@4:NEAR
+EXTRN	_myWrapAgp:NEAR
+_DATA	SEGMENT
+$SG36127 DB	'ddiContextCreate', 00H
+	ORG $+3
+$SG36128 DB	'%s -> Entry', 00H
+$SG36131 DB	'OK', 00H
+	ORG $+1
+$SG36132 DB	'%s <- Return <%s>', 0aH, 00H
+	ORG $+1
+$SG36134 DB	'ddiContextCreate, pccd->lpDDGbl =%08lx, pccd->lpDDS =%08'
+	DB	'lx', 00H
+	ORG $+1
+$SG36135 DB	'                  pccd->dwhContext =%08lx, pccd->lpDDSZ='
+	DB	' %08lx', 00H
+	ORG $+1
+$SG36147 DB	'ddiContextCreate - txtrHndl is NULL for the render targe'
+	DB	't', 00H
+	ORG $+2
+$SG36148 DB	'                   failing context creation', 00H
+$SG36149 DB	'OK', 00H
+	ORG $+1
+$SG36150 DB	'%s <- Return <%s>', 0aH, 00H
+	ORG $+1
+$SG36156 DB	'ddiContextCreate - txtrHndl is NULL for the zbuffer', 00H
+$SG36157 DB	'                   failing context creation', 00H
+$SG36158 DB	'OK', 00H
+	ORG $+1
+$SG36159 DB	'%s <- Return <%s>', 0aH, 00H
+	ORG $+1
+$SG36203 DB	'OK', 00H
+	ORG $+1
+$SG36204 DB	'%s <- Return <%s>', 0aH, 00H
+_DATA	ENDS
+_TEXT	SEGMENT
+_pccd$ = 8
+_newContext$ = -4
+_ppdev$ = -8
+_pHndlList$36140 = -12
+_i$36141 = -16
+_cmdFifo$36173 = -24
+_hwIndex$36177 = -20
+_pRc$36250 = -28
+_pRc$36258 = -32
+_pRcList$36259 = -36
+$T36264 = -40
+_pRc$36267 = -44
+_pRcList$36268 = -48
+$T36273 = -52
+_fenceVar$36277 = -56
+$T36309 = -104
+$T36310 = -108
+_rdPtr$36312 = -80
+_resetIdleCount$36313 = -60
+_i$36314 = -68
+_nNumChips$36315 = -64
+_dwCmdFifoSpace$36316 = -72
+_dwCmdFifoMin$36317 = -76
+_rdPtr$36332 = -96
+_i$36333 = -88
+_nNumChips$36334 = -84
+_rdPtrMin$36335 = -92
+_fenceVar$36351 = -100
+_ddiContextCreate@4 PROC NEAR
+
+; 331  : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	83 ec 74	 sub	 esp, 116		; 00000074H
+  00006	53		 push	 ebx
+  00007	56		 push	 esi
+  00008	57		 push	 edi
+
+; 332  :   RC  *newContext;
+; 333  : 
+; 334  : #if (DIRECT3D_VERSION >= 0x0800) && (DX >= 8)
+; 335  :   DWORD dwDXInterface;
+; 336  : #endif
+; 337  : 
+; 338  : #if (DIRECT3D_VERSION < 0x0700) || (DX < 7)
+; 339  :   LPDDRAWI_DDRAWSURFACE_INT interfaceDDSZ;
+; 340  : #endif
+; 341  :   NT9XDEVICEDATA  *ppdev;
+; 342  : 
+; 343  :   D3D_ENTRY( "ddiContextCreate" );
+
+  00009	68 00 00 00 00	 push	 OFFSET FLAT:$SG36127
+  0000e	68 00 00 00 00	 push	 OFFSET FLAT:_dbgEntryStr
+  00013	ff 15 00 00 00
+	00		 call	 DWORD PTR __imp__lstrcpyA@8
+  00019	68 00 00 00 00	 push	 OFFSET FLAT:_dbgEntryStr
+  0001e	68 00 00 00 00	 push	 OFFSET FLAT:$SG36128
+  00023	6a 01		 push	 1
+  00025	e8 00 00 00 00	 call	 _D3DPRINT
+  0002a	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 350  :   #else
+; 351  :     ppdev = (NT9XDEVICEDATA *)pccd->lpDDGbl->dhpdev;
+; 352  :   #endif
+; 353  : #else
+; 354  :   #if (DIRECT3D_VERSION >= 0x0700) && (DX >= 7)
+; 355  :     ppdev = (GLOBALDATA *)pccd->lpDDLcl->lpGbl->dwReserved3;
+
+  0002d	8b 45 08	 mov	 eax, DWORD PTR _pccd$[ebp]
+  00030	8b 08		 mov	 ecx, DWORD PTR [eax]
+  00032	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  00035	8b 82 30 04 00
+	00		 mov	 eax, DWORD PTR [edx+1072]
+  0003b	89 45 f8	 mov	 DWORD PTR _ppdev$[ebp], eax
+
+; 356  :   #else
+; 357  :     ppdev = (GLOBALDATA *)pccd->lpDDGbl->dwReserved3;
+; 358  :   #endif
+; 359  : #endif
+; 360  : 
+; 361  : #if (DIRECT3D_VERSION >= 0x0800) && (DX >= 8)
+; 362  :   // Save the DX API interface value (0=DX3, 1=DX5, 2=DX6, 3=DX7, 4=DX8)
+; 363  :   dwDXInterface = (DWORD) pccd->dwhContext;
+; 364  : #endif
+; 365  : 
+; 366  :   //--------------------------------------------------------------------------
+; 367  :   // Allocate a new context handle:
+; 368  :   // This callback is invoked when a new surface is to be used as a
+; 369  :   // rendering target. The context handle returned will be used whenever rendering
+; 370  :   // to this surface is to be performed.
+; 371  :   //--------------------------------------------------------------------------
+; 372  :   pccd->dwhContext = CONTEXT_ALLOC(ppdev);
+
+  0003e	68 a8 05 00 00	 push	 1448			; 000005a8H
+  00043	6a 08		 push	 8
+  00045	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00048	8b 91 10 18 00
+	00		 mov	 edx, DWORD PTR [ecx+6160]
+  0004e	52		 push	 edx
+  0004f	ff 15 00 00 00
+	00		 call	 DWORD PTR __imp__HeapAlloc@12
+  00055	89 45 e4	 mov	 DWORD PTR _pRc$36250[ebp], eax
+  00058	83 7d e4 00	 cmp	 DWORD PTR _pRc$36250[ebp], 0
+  0005c	74 55		 je	 SHORT $L36249
+  0005e	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00061	8b 88 1c 18 00
+	00		 mov	 ecx, DWORD PTR [eax+6172]
+  00067	83 b9 fc 00 00
+	00 00		 cmp	 DWORD PTR [ecx+252], 0
+  0006e	74 28		 je	 SHORT $L36252
+  00070	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00073	8b 82 1c 18 00
+	00		 mov	 eax, DWORD PTR [edx+6172]
+  00079	8b 4d e4	 mov	 ecx, DWORD PTR _pRc$36250[ebp]
+  0007c	8b 90 fc 00 00
+	00		 mov	 edx, DWORD PTR [eax+252]
+  00082	89 11		 mov	 DWORD PTR [ecx], edx
+  00084	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00087	8b 88 1c 18 00
+	00		 mov	 ecx, DWORD PTR [eax+6172]
+  0008d	8b 55 e4	 mov	 edx, DWORD PTR _pRc$36250[ebp]
+  00090	89 91 fc 00 00
+	00		 mov	 DWORD PTR [ecx+252], edx
+  00096	eb 1b		 jmp	 SHORT $L36249
+$L36252:
+  00098	8b 45 e4	 mov	 eax, DWORD PTR _pRc$36250[ebp]
+  0009b	c7 00 00 00 00
+	00		 mov	 DWORD PTR [eax], 0
+  000a1	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  000a4	8b 91 1c 18 00
+	00		 mov	 edx, DWORD PTR [ecx+6172]
+  000aa	8b 45 e4	 mov	 eax, DWORD PTR _pRc$36250[ebp]
+  000ad	89 82 fc 00 00
+	00		 mov	 DWORD PTR [edx+252], eax
+$L36249:
+  000b3	8b 4d 08	 mov	 ecx, DWORD PTR _pccd$[ebp]
+  000b6	8b 55 e4	 mov	 edx, DWORD PTR _pRc$36250[ebp]
+  000b9	89 51 10	 mov	 DWORD PTR [ecx+16], edx
+
+; 373  :   if (pccd->dwhContext == CONTEXT_INVALID)
+
+  000bc	8b 45 08	 mov	 eax, DWORD PTR _pccd$[ebp]
+  000bf	83 78 10 00	 cmp	 DWORD PTR [eax+16], 0
+  000c3	75 2d		 jne	 SHORT $L36130
+
+; 375  :     pccd->ddrval = D3DHAL_OUTOFCONTEXTS;
+
+  000c5	8b 4d 08	 mov	 ecx, DWORD PTR _pccd$[ebp]
+  000c8	c7 41 14 01 02
+	00 00		 mov	 DWORD PTR [ecx+20], 513	; 00000201H
+
+; 376  :     INS_EXIT( );
+; 377  :     D3D_EXIT( DDHAL_DRIVER_HANDLED );
+
+  000cf	68 00 00 00 00	 push	 OFFSET FLAT:$SG36131
+  000d4	68 00 00 00 00	 push	 OFFSET FLAT:_dbgEntryStr
+  000d9	68 00 00 00 00	 push	 OFFSET FLAT:$SG36132
+  000de	6a 02		 push	 2
+  000e0	e8 00 00 00 00	 call	 _D3DPRINT
+  000e5	83 c4 10	 add	 esp, 16			; 00000010H
+  000e8	b8 01 00 00 00	 mov	 eax, 1
+  000ed	e9 4d 07 00 00	 jmp	 $L36124
+$L36130:
+
+; 379  :   newContext = CONTEXT_PTR(pccd->dwhContext);
+
+  000f2	8b 55 08	 mov	 edx, DWORD PTR _pccd$[ebp]
+  000f5	8b 42 10	 mov	 eax, DWORD PTR [edx+16]
+  000f8	89 45 fc	 mov	 DWORD PTR _newContext$[ebp], eax
+
+; 380  : 
+; 381  :   D3DPRINT( 255,"ddiContextCreate, pccd->lpDDGbl =%08lx, pccd->lpDDS =%08lx",
+; 382  :                                 pccd->lpDDGbl, pccd->lpDDS );
+
+  000fb	8b 4d 08	 mov	 ecx, DWORD PTR _pccd$[ebp]
+  000fe	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  00101	52		 push	 edx
+  00102	8b 45 08	 mov	 eax, DWORD PTR _pccd$[ebp]
+  00105	8b 08		 mov	 ecx, DWORD PTR [eax]
+  00107	51		 push	 ecx
+  00108	68 00 00 00 00	 push	 OFFSET FLAT:$SG36134
+  0010d	68 ff 00 00 00	 push	 255			; 000000ffH
+  00112	e8 00 00 00 00	 call	 _D3DPRINT
+  00117	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 383  :   D3DPRINT( 255,"                  pccd->dwhContext =%08lx, pccd->lpDDSZ= %08lx",
+; 384  :                                 pccd->dwhContext, pccd->lpDDSZ );
+
+  0011a	8b 55 08	 mov	 edx, DWORD PTR _pccd$[ebp]
+  0011d	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  00120	50		 push	 eax
+  00121	8b 4d 08	 mov	 ecx, DWORD PTR _pccd$[ebp]
+  00124	8b 51 10	 mov	 edx, DWORD PTR [ecx+16]
+  00127	52		 push	 edx
+  00128	68 00 00 00 00	 push	 OFFSET FLAT:$SG36135
+  0012d	68 ff 00 00 00	 push	 255			; 000000ffH
+  00132	e8 00 00 00 00	 call	 _D3DPRINT
+  00137	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 385  : #ifdef WINNT
+; 386  :   D3DPRINT(D3DDBGLVL, "context=%lXh, lpDDS=%lXh, lpDDSZ=%lXh, ppdev=%8lXh",
+; 387  :            pccd->dwhContext, pccd->lpDDS, pccd->lpDDSZ, ppdev);
+; 388  : #endif
+; 389  : 
+; 390  :   //---------------------------------------------------------------------------
+; 391  :   // Init the new Rendering context.
+; 392  :   // lpDDGbl is the global data for DDRAW object.
+; 393  :   // lpDDS is the surface data which contains pointer to surface global data.
+; 394  :   //---------------------------------------------------------------------------
+; 395  : #ifdef WINNT
+; 396  :   newContext->ppdev =               ppdev;
+; 397  : #else
+; 398  :   #if (DIRECT3D_VERSION >= 0x0700) && (DX >= 7)
+; 399  :   newContext->lpDDGbl =             (LPDDRAWI_DIRECTDRAW_GBL)pccd->lpDDLcl->lpGbl;
+
+  0013a	8b 45 08	 mov	 eax, DWORD PTR _pccd$[ebp]
+  0013d	8b 08		 mov	 ecx, DWORD PTR [eax]
+  0013f	8b 55 fc	 mov	 edx, DWORD PTR _newContext$[ebp]
+  00142	8b 41 04	 mov	 eax, DWORD PTR [ecx+4]
+  00145	89 42 04	 mov	 DWORD PTR [edx+4], eax
+
+; 400  :   #else
+; 401  :   newContext->lpDDGbl =             (LPDDRAWI_DIRECTDRAW_GBL)pccd->lpDDGbl;
+; 402  :   #endif
+; 403  :   newContext->ppdev =               (GLOBALDATA *)newContext->lpDDGbl->dwReserved3;
+
+  00148	8b 4d fc	 mov	 ecx, DWORD PTR _newContext$[ebp]
+  0014b	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  0014e	8b 45 fc	 mov	 eax, DWORD PTR _newContext$[ebp]
+  00151	8b 8a 30 04 00
+	00		 mov	 ecx, DWORD PTR [edx+1072]
+  00157	89 48 08	 mov	 DWORD PTR [eax+8], ecx
+
+; 404  : #endif
+; 405  :   initNewRC(newContext);
+
+  0015a	8b 55 fc	 mov	 edx, DWORD PTR _newContext$[ebp]
+  0015d	52		 push	 edx
+  0015e	e8 00 00 00 00	 call	 _initNewRC@4
+
+; 406  :   STATESET_INIT(newContext->overrides);
+
+  00163	b9 08 00 00 00	 mov	 ecx, 8
+  00168	33 c0		 xor	 eax, eax
+  0016a	8b 7d fc	 mov	 edi, DWORD PTR _newContext$[ebp]
+  0016d	81 c7 4c 05 00
+	00		 add	 edi, 1356		; 0000054cH
+  00173	f3 ab		 rep stosd
+
+; 407  :   newContext->dwVertexType =        D3DFVF_TLVERTEX;
+
+  00175	8b 45 fc	 mov	 eax, DWORD PTR _newContext$[ebp]
+  00178	c7 80 a0 05 00
+	00 c4 01 00 00	 mov	 DWORD PTR [eax+1440], 452 ; 000001c4H
+
+; 408  : #ifdef WINNT
+; 409  :   newContext->lpDDS =               pccd->lpDDS;
+; 410  :   newContext->pid   =               pccd->dwPID;
+; 411  :   if (pccd->lpDDSZ)
+; 412  :     newContext->lpDDSZ =            pccd->lpDDSZ;
+; 413  :   else
+; 414  :     newContext->lpDDSZ =            NULL;
+; 415  : #else
+; 416  :   #if (DIRECT3D_VERSION >= 0x0700) && (DX >= 7)
+; 417  :     newContext->pid    =            pccd->dwPID;
+
+  00182	8b 4d fc	 mov	 ecx, DWORD PTR _newContext$[ebp]
+  00185	8b 55 08	 mov	 edx, DWORD PTR _pccd$[ebp]
+  00188	8b 42 0c	 mov	 eax, DWORD PTR [edx+12]
+  0018b	89 81 70 05 00
+	00		 mov	 DWORD PTR [ecx+1392], eax
+
+; 418  :   #else
+; 419  :     newContext->interfaceDDS =      (LPDDRAWI_DDRAWSURFACE_INT) pccd->lpDDS;
+; 420  :     interfaceDDSZ = (LPDDRAWI_DDRAWSURFACE_INT) pccd->lpDDSZ;
+; 421  :     newContext->lpDDS =             newContext->interfaceDDS->lpLcl;
+; 422  :     newContext->pid =               pccd->dwPID;
+; 423  : 
+; 424  :     if (interfaceDDSZ)
+; 425  :       newContext->lpDDSZ =          interfaceDDSZ->lpLcl; // Z surface
+; 426  :     else
+; 427  :       newContext->lpDDSZ =          NULL;
+; 428  :   #endif
+; 429  : 
+; 430  :     // Setup the DX interface version creating this context (DX 8)
+; 431  : #if (DIRECT3D_VERSION >= 0x0800) && (DX >= 8)
+; 432  :     newContext->dwDXInterface = dwDXInterface;
+; 433  : #endif
+; 434  : 
+; 435  : #if defined(LEGACY_APPS)
+; 436  :   _D3( legacyApp ) = IsLegacyApp();
+; 437  : #endif // LEGACY_APPS
+; 438  : 
+; 439  : #endif //WINNT
+; 440  : 
+; 441  : 	// Initialize the clipping values for this surface. It is necessary to
+; 442  : 	// set them at this point until the viewport clipping values are invoked.
+; 443  : 	// This fixes PRS 12728 - H5TOT 2SLI: Hidden & Dangerous, black screen with sound during intro scenes
+; 444  : 	newContext->sst.clipLeftRight = (DWORD) pccd->lpDDSLcl->lpGbl->wWidth;
+
+  00191	33 c9		 xor	 ecx, ecx
+  00193	8b 4d 08	 mov	 ecx, DWORD PTR _pccd$[ebp]
+  00196	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  00199	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  0019c	33 c9		 xor	 ecx, ecx
+  0019e	66 8b 48 1e	 mov	 cx, WORD PTR [eax+30]
+  001a2	8b 55 fc	 mov	 edx, DWORD PTR _newContext$[ebp]
+  001a5	89 8a 1c 05 00
+	00		 mov	 DWORD PTR [edx+1308], ecx
+
+; 445  : 	newContext->sst.clipBottomTop = (DWORD) pccd->lpDDSLcl->lpGbl->wHeight;
+
+  001ab	33 c0		 xor	 eax, eax
+  001ad	8b 45 08	 mov	 eax, DWORD PTR _pccd$[ebp]
+  001b0	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  001b3	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  001b6	33 c0		 xor	 eax, eax
+  001b8	66 8b 42 1c	 mov	 ax, WORD PTR [edx+28]
+  001bc	8b 4d fc	 mov	 ecx, DWORD PTR _newContext$[ebp]
+  001bf	89 81 20 05 00
+	00		 mov	 DWORD PTR [ecx+1312], eax
+
+; 449  :     HNDLLIST  *pHndlList;
+; 450  :     DWORD     i;
+; 451  : 
+; 452  :     pHndlList = GetHndlListPtr(ppdev, pccd->lpDDLcl);
+
+  001c5	8b 55 08	 mov	 edx, DWORD PTR _pccd$[ebp]
+  001c8	8b 02		 mov	 eax, DWORD PTR [edx]
+  001ca	50		 push	 eax
+  001cb	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  001ce	51		 push	 ecx
+  001cf	e8 00 00 00 00	 call	 _GetHndlListPtr
+  001d4	83 c4 08	 add	 esp, 8
+  001d7	89 45 f4	 mov	 DWORD PTR _pHndlList$36140[ebp], eax
+
+; 453  :     // IGX-NVH  8.25.99
+; 454  :     // hit this assert running NT Stress
+; 455  : #ifdef WINNT
+; 456  :     ASSERTDD(NULL != pHndlList, "no HNDLLIST allocated for this pDDLcl!");
+; 457  : #endif
+; 458  : 
+; 459  :     newContext->pHndlList =         pHndlList;
+
+  001da	8b 55 fc	 mov	 edx, DWORD PTR _newContext$[ebp]
+  001dd	8b 45 f4	 mov	 eax, DWORD PTR _pHndlList$36140[ebp]
+  001e0	89 82 38 05 00
+	00		 mov	 DWORD PTR [edx+1336], eax
+
+; 460  :     newContext->pDDLcl =            pccd->lpDDLcl;
+
+  001e6	8b 4d fc	 mov	 ecx, DWORD PTR _newContext$[ebp]
+  001e9	8b 55 08	 mov	 edx, DWORD PTR _pccd$[ebp]
+  001ec	8b 02		 mov	 eax, DWORD PTR [edx]
+  001ee	89 81 3c 05 00
+	00		 mov	 DWORD PTR [ecx+1340], eax
+
+; 461  :     newContext->DDSHndl =           pccd->lpDDSLcl->lpSurfMore->dwSurfaceHandle;
+
+  001f4	8b 4d 08	 mov	 ecx, DWORD PTR _pccd$[ebp]
+  001f7	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  001fa	8b 02		 mov	 eax, DWORD PTR [edx]
+  001fc	8b 4d fc	 mov	 ecx, DWORD PTR _newContext$[ebp]
+  001ff	8b 50 64	 mov	 edx, DWORD PTR [eax+100]
+  00202	89 91 30 05 00
+	00		 mov	 DWORD PTR [ecx+1328], edx
+
+; 462  :     if ((NULL == newContext->pHndlList)                 ||  // IGX-NVH 08.25.99  Got an AV because GetHndlListPtr() returned a NULL
+; 463  :         (NULL == newContext->pHndlList->ppTxtrHndlList) ||
+; 464  :         (NULL == newContext->pHndlList->ppTxtrHndlList[newContext->DDSHndl]))
+
+  00208	8b 45 fc	 mov	 eax, DWORD PTR _newContext$[ebp]
+  0020b	83 b8 38 05 00
+	00 00		 cmp	 DWORD PTR [eax+1336], 0
+  00212	74 2e		 je	 SHORT $L36146
+  00214	8b 4d fc	 mov	 ecx, DWORD PTR _newContext$[ebp]
+  00217	8b 91 38 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1336]
+  0021d	83 7a 08 00	 cmp	 DWORD PTR [edx+8], 0
+  00221	74 1f		 je	 SHORT $L36146
+  00223	8b 45 fc	 mov	 eax, DWORD PTR _newContext$[ebp]
+  00226	8b 88 38 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1336]
+  0022c	8b 55 fc	 mov	 edx, DWORD PTR _newContext$[ebp]
+  0022f	8b 82 30 05 00
+	00		 mov	 eax, DWORD PTR [edx+1328]
+  00235	8b 49 08	 mov	 ecx, DWORD PTR [ecx+8]
+  00238	83 3c 81 00	 cmp	 DWORD PTR [ecx+eax*4], 0
+  0023c	0f 85 bc 00 00
+	00		 jne	 $L36145
+$L36146:
+
+; 466  :       D3DPRINT(0, "ddiContextCreate - txtrHndl is NULL for the render target");
+
+  00242	68 00 00 00 00	 push	 OFFSET FLAT:$SG36147
+  00247	6a 00		 push	 0
+  00249	e8 00 00 00 00	 call	 _D3DPRINT
+  0024e	83 c4 08	 add	 esp, 8
+
+; 467  :       D3DPRINT(0, "                   failing context creation");
+
+  00251	68 00 00 00 00	 push	 OFFSET FLAT:$SG36148
+  00256	6a 00		 push	 0
+  00258	e8 00 00 00 00	 call	 _D3DPRINT
+  0025d	83 c4 08	 add	 esp, 8
+
+; 468  :       // we don't have a TXTRHNDL for the render target
+; 469  :       // bad things are going to happen if we allow this
+; 470  :       // so fail the context creation here!
+; 471  :       CONTEXT_FREE(ppdev, pccd->dwhContext);
+
+  00260	8b 55 08	 mov	 edx, DWORD PTR _pccd$[ebp]
+  00263	8b 42 10	 mov	 eax, DWORD PTR [edx+16]
+  00266	89 45 d8	 mov	 DWORD PTR $T36264[ebp], eax
+  00269	8b 4d d8	 mov	 ecx, DWORD PTR $T36264[ebp]
+  0026c	89 4d e0	 mov	 DWORD PTR _pRc$36258[ebp], ecx
+  0026f	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00272	8b 82 1c 18 00
+	00		 mov	 eax, DWORD PTR [edx+6172]
+  00278	05 fc 00 00 00	 add	 eax, 252		; 000000fcH
+  0027d	89 45 dc	 mov	 DWORD PTR _pRcList$36259[ebp], eax
+$L36260:
+  00280	8b 4d dc	 mov	 ecx, DWORD PTR _pRcList$36259[ebp]
+  00283	83 39 00	 cmp	 DWORD PTR [ecx], 0
+  00286	74 3f		 je	 SHORT $L36261
+  00288	8b 55 dc	 mov	 edx, DWORD PTR _pRcList$36259[ebp]
+  0028b	8b 45 e0	 mov	 eax, DWORD PTR _pRc$36258[ebp]
+  0028e	3b 02		 cmp	 eax, DWORD PTR [edx]
+  00290	75 2b		 jne	 SHORT $L36262
+  00292	8b 4d dc	 mov	 ecx, DWORD PTR _pRcList$36259[ebp]
+  00295	8b 55 e0	 mov	 edx, DWORD PTR _pRc$36258[ebp]
+  00298	8b 02		 mov	 eax, DWORD PTR [edx]
+  0029a	89 01		 mov	 DWORD PTR [ecx], eax
+  0029c	8b 4d e0	 mov	 ecx, DWORD PTR _pRc$36258[ebp]
+  0029f	c7 01 00 00 00
+	00		 mov	 DWORD PTR [ecx], 0
+  002a5	8b 55 e0	 mov	 edx, DWORD PTR _pRc$36258[ebp]
+  002a8	52		 push	 edx
+  002a9	6a 00		 push	 0
+  002ab	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  002ae	8b 88 10 18 00
+	00		 mov	 ecx, DWORD PTR [eax+6160]
+  002b4	51		 push	 ecx
+  002b5	ff 15 00 00 00
+	00		 call	 DWORD PTR __imp__HeapFree@12
+  002bb	eb 0a		 jmp	 SHORT $L36261
+$L36262:
+  002bd	8b 55 dc	 mov	 edx, DWORD PTR _pRcList$36259[ebp]
+  002c0	8b 02		 mov	 eax, DWORD PTR [edx]
+  002c2	89 45 dc	 mov	 DWORD PTR _pRcList$36259[ebp], eax
+  002c5	eb b9		 jmp	 SHORT $L36260
+$L36261:
+
+; 472  :       pccd->dwhContext = 0;
+
+  002c7	8b 4d 08	 mov	 ecx, DWORD PTR _pccd$[ebp]
+  002ca	c7 41 10 00 00
+	00 00		 mov	 DWORD PTR [ecx+16], 0
+
+; 473  :       pccd->ddrval = D3DHAL_CONTEXT_BAD;
+
+  002d1	8b 55 08	 mov	 edx, DWORD PTR _pccd$[ebp]
+  002d4	c7 42 14 00 02
+	00 00		 mov	 DWORD PTR [edx+20], 512	; 00000200H
+
+; 474  :       D3D_EXIT(DDHAL_DRIVER_HANDLED);
+
+  002db	68 00 00 00 00	 push	 OFFSET FLAT:$SG36149
+  002e0	68 00 00 00 00	 push	 OFFSET FLAT:_dbgEntryStr
+  002e5	68 00 00 00 00	 push	 OFFSET FLAT:$SG36150
+  002ea	6a 02		 push	 2
+  002ec	e8 00 00 00 00	 call	 _D3DPRINT
+  002f1	83 c4 10	 add	 esp, 16			; 00000010H
+  002f4	b8 01 00 00 00	 mov	 eax, 1
+  002f9	e9 41 05 00 00	 jmp	 $L36124
+$L36145:
+
+; 476  : #ifdef WINNT
+; 477  :     ASSERTDD((DWORD)newContext->lpDDS == newContext->pHndlList->ppTxtrHndlList[newContext->DDSHndl]->surfLcl, " render targ surfLcl's don't match!");
+; 478  : #endif
+; 479  :     if (pccd->lpDDSZLcl)
+
+  002fe	8b 45 08	 mov	 eax, DWORD PTR _pccd$[ebp]
+  00301	83 78 08 00	 cmp	 DWORD PTR [eax+8], 0
+  00305	0f 84 01 01 00
+	00		 je	 $L36151
+
+; 481  :       newContext->DDSZHndl =        pccd->lpDDSZLcl->lpSurfMore->dwSurfaceHandle;
+
+  0030b	8b 4d 08	 mov	 ecx, DWORD PTR _pccd$[ebp]
+  0030e	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  00311	8b 02		 mov	 eax, DWORD PTR [edx]
+  00313	8b 4d fc	 mov	 ecx, DWORD PTR _newContext$[ebp]
+  00316	8b 50 64	 mov	 edx, DWORD PTR [eax+100]
+  00319	89 91 34 05 00
+	00		 mov	 DWORD PTR [ecx+1332], edx
+
+; 482  :       if ((NULL == newContext->pHndlList->ppTxtrHndlList) ||
+; 483  :           (NULL == newContext->pHndlList->ppTxtrHndlList[newContext->DDSZHndl]))
+
+  0031f	8b 45 fc	 mov	 eax, DWORD PTR _newContext$[ebp]
+  00322	8b 88 38 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1336]
+  00328	83 79 08 00	 cmp	 DWORD PTR [ecx+8], 0
+  0032c	74 1f		 je	 SHORT $L36155
+  0032e	8b 55 fc	 mov	 edx, DWORD PTR _newContext$[ebp]
+  00331	8b 82 38 05 00
+	00		 mov	 eax, DWORD PTR [edx+1336]
+  00337	8b 4d fc	 mov	 ecx, DWORD PTR _newContext$[ebp]
+  0033a	8b 91 34 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1332]
+  00340	8b 40 08	 mov	 eax, DWORD PTR [eax+8]
+  00343	83 3c 90 00	 cmp	 DWORD PTR [eax+edx*4], 0
+  00347	0f 85 bd 00 00
+	00		 jne	 $L36154
+$L36155:
+
+; 485  :         D3DPRINT(0, "ddiContextCreate - txtrHndl is NULL for the zbuffer");
+
+  0034d	68 00 00 00 00	 push	 OFFSET FLAT:$SG36156
+  00352	6a 00		 push	 0
+  00354	e8 00 00 00 00	 call	 _D3DPRINT
+  00359	83 c4 08	 add	 esp, 8
+
+; 486  :         D3DPRINT(0, "                   failing context creation");
+
+  0035c	68 00 00 00 00	 push	 OFFSET FLAT:$SG36157
+  00361	6a 00		 push	 0
+  00363	e8 00 00 00 00	 call	 _D3DPRINT
+  00368	83 c4 08	 add	 esp, 8
+
+; 487  :         // we don't have a TXTRHNDL for the z buffer
+; 488  :         // bad things are going to happen if we allow this
+; 489  :         // so fail the context creation here!
+; 490  :         CONTEXT_FREE(ppdev, pccd->dwhContext);
+
+  0036b	8b 4d 08	 mov	 ecx, DWORD PTR _pccd$[ebp]
+  0036e	8b 51 10	 mov	 edx, DWORD PTR [ecx+16]
+  00371	89 55 cc	 mov	 DWORD PTR $T36273[ebp], edx
+  00374	8b 45 cc	 mov	 eax, DWORD PTR $T36273[ebp]
+  00377	89 45 d4	 mov	 DWORD PTR _pRc$36267[ebp], eax
+  0037a	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0037d	8b 91 1c 18 00
+	00		 mov	 edx, DWORD PTR [ecx+6172]
+  00383	81 c2 fc 00 00
+	00		 add	 edx, 252		; 000000fcH
+  00389	89 55 d0	 mov	 DWORD PTR _pRcList$36268[ebp], edx
+$L36269:
+  0038c	8b 45 d0	 mov	 eax, DWORD PTR _pRcList$36268[ebp]
+  0038f	83 38 00	 cmp	 DWORD PTR [eax], 0
+  00392	74 3f		 je	 SHORT $L36270
+  00394	8b 4d d0	 mov	 ecx, DWORD PTR _pRcList$36268[ebp]
+  00397	8b 55 d4	 mov	 edx, DWORD PTR _pRc$36267[ebp]
+  0039a	3b 11		 cmp	 edx, DWORD PTR [ecx]
+  0039c	75 2b		 jne	 SHORT $L36271
+  0039e	8b 45 d0	 mov	 eax, DWORD PTR _pRcList$36268[ebp]
+  003a1	8b 4d d4	 mov	 ecx, DWORD PTR _pRc$36267[ebp]
+  003a4	8b 11		 mov	 edx, DWORD PTR [ecx]
+  003a6	89 10		 mov	 DWORD PTR [eax], edx
+  003a8	8b 45 d4	 mov	 eax, DWORD PTR _pRc$36267[ebp]
+  003ab	c7 00 00 00 00
+	00		 mov	 DWORD PTR [eax], 0
+  003b1	8b 4d d4	 mov	 ecx, DWORD PTR _pRc$36267[ebp]
+  003b4	51		 push	 ecx
+  003b5	6a 00		 push	 0
+  003b7	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  003ba	8b 82 10 18 00
+	00		 mov	 eax, DWORD PTR [edx+6160]
+  003c0	50		 push	 eax
+  003c1	ff 15 00 00 00
+	00		 call	 DWORD PTR __imp__HeapFree@12
+  003c7	eb 0a		 jmp	 SHORT $L36270
+$L36271:
+  003c9	8b 4d d0	 mov	 ecx, DWORD PTR _pRcList$36268[ebp]
+  003cc	8b 11		 mov	 edx, DWORD PTR [ecx]
+  003ce	89 55 d0	 mov	 DWORD PTR _pRcList$36268[ebp], edx
+  003d1	eb b9		 jmp	 SHORT $L36269
+$L36270:
+
+; 491  :         pccd->dwhContext = 0;
+
+  003d3	8b 45 08	 mov	 eax, DWORD PTR _pccd$[ebp]
+  003d6	c7 40 10 00 00
+	00 00		 mov	 DWORD PTR [eax+16], 0
+
+; 492  :         pccd->ddrval = D3DHAL_CONTEXT_BAD;
+
+  003dd	8b 4d 08	 mov	 ecx, DWORD PTR _pccd$[ebp]
+  003e0	c7 41 14 00 02
+	00 00		 mov	 DWORD PTR [ecx+20], 512	; 00000200H
+
+; 493  :         D3D_EXIT(DDHAL_DRIVER_HANDLED);
+
+  003e7	68 00 00 00 00	 push	 OFFSET FLAT:$SG36158
+  003ec	68 00 00 00 00	 push	 OFFSET FLAT:_dbgEntryStr
+  003f1	68 00 00 00 00	 push	 OFFSET FLAT:$SG36159
+  003f6	6a 02		 push	 2
+  003f8	e8 00 00 00 00	 call	 _D3DPRINT
+  003fd	83 c4 10	 add	 esp, 16			; 00000010H
+  00400	b8 01 00 00 00	 mov	 eax, 1
+  00405	e9 35 04 00 00	 jmp	 $L36124
+$L36154:
+
+; 499  :     else
+
+  0040a	eb 0d		 jmp	 SHORT $L36160
+$L36151:
+
+; 500  :       newContext->DDSZHndl =        0;
+
+  0040c	8b 55 fc	 mov	 edx, DWORD PTR _newContext$[ebp]
+  0040f	c7 82 34 05 00
+	00 00 00 00 00	 mov	 DWORD PTR [edx+1332], 0
+$L36160:
+
+; 501  : 
+; 502  :     // go fill in contextId's of any TXTRHNDL's already created
+; 503  :     // for this context
+; 504  :     if (NULL != pHndlList->ppTxtrHndlList)
+
+  00419	8b 45 f4	 mov	 eax, DWORD PTR _pHndlList$36140[ebp]
+  0041c	83 78 08 00	 cmp	 DWORD PTR [eax+8], 0
+  00420	74 42		 je	 SHORT $L36166
+
+; 506  :       for (i = 1; i < (DWORD)pHndlList->ppTxtrHndlList[0]; i++)
+
+  00422	c7 45 f0 01 00
+	00 00		 mov	 DWORD PTR _i$36141[ebp], 1
+  00429	eb 09		 jmp	 SHORT $L36164
+$L36165:
+  0042b	8b 4d f0	 mov	 ecx, DWORD PTR _i$36141[ebp]
+  0042e	83 c1 01	 add	 ecx, 1
+  00431	89 4d f0	 mov	 DWORD PTR _i$36141[ebp], ecx
+$L36164:
+  00434	8b 55 f4	 mov	 edx, DWORD PTR _pHndlList$36140[ebp]
+  00437	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  0043a	8b 4d f0	 mov	 ecx, DWORD PTR _i$36141[ebp]
+  0043d	3b 08		 cmp	 ecx, DWORD PTR [eax]
+  0043f	73 23		 jae	 SHORT $L36166
+
+; 508  :         if (0 != pHndlList->ppTxtrHndlList[i])
+
+  00441	8b 55 f4	 mov	 edx, DWORD PTR _pHndlList$36140[ebp]
+  00444	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  00447	8b 4d f0	 mov	 ecx, DWORD PTR _i$36141[ebp]
+  0044a	83 3c 88 00	 cmp	 DWORD PTR [eax+ecx*4], 0
+  0044e	74 12		 je	 SHORT $L36167
+
+; 510  : #ifdef WINNT
+; 511  :           D3DPRINT(D3DDBGLVL, "  setting TxtrHndl[%ld] contextId to %8lXh", i, newContext);
+; 512  : #endif
+; 513  :           pHndlList->ppTxtrHndlList[i]->contextId = (DWORD)newContext;
+
+  00450	8b 55 f4	 mov	 edx, DWORD PTR _pHndlList$36140[ebp]
+  00453	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  00456	8b 4d f0	 mov	 ecx, DWORD PTR _i$36141[ebp]
+  00459	8b 14 88	 mov	 edx, DWORD PTR [eax+ecx*4]
+  0045c	8b 45 fc	 mov	 eax, DWORD PTR _newContext$[ebp]
+  0045f	89 42 44	 mov	 DWORD PTR [edx+68], eax
+$L36167:
+
+; 515  :       }
+
+  00462	eb c7		 jmp	 SHORT $L36165
+$L36166:
+
+; 517  : 
+; 518  :     // init state block info
+; 519  :     newContext->bSBRecMode =        FALSE;
+
+  00464	8b 4d fc	 mov	 ecx, DWORD PTR _newContext$[ebp]
+  00467	c7 81 40 05 00
+	00 00 00 00 00	 mov	 DWORD PTR [ecx+1344], 0
+
+; 520  :     newContext->pCurrSB =           NULL;
+
+  00471	8b 55 fc	 mov	 edx, DWORD PTR _newContext$[ebp]
+  00474	c7 82 44 05 00
+	00 00 00 00 00	 mov	 DWORD PTR [edx+1348], 0
+
+; 521  :     newContext->ppSBTable =         NULL;
+
+  0047e	8b 45 fc	 mov	 eax, DWORD PTR _newContext$[ebp]
+  00481	c7 80 48 05 00
+	00 00 00 00 00	 mov	 DWORD PTR [eax+1352], 0
+
+; 546  :     CMDFIFO_PROLOG(cmdFifo);
+
+  0048b	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0048e	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00494	8b 42 0c	 mov	 eax, DWORD PTR [edx+12]
+  00497	89 45 e8	 mov	 DWORD PTR _cmdFifo$36173[ebp], eax
+  0049a	c7 45 ec 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$36177[ebp], 0
+
+; 547  :     CMDFIFO_CHECKROOM( cmdFifo, PH1_SIZE + 1 );
+
+  004a1	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  004a4	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  004aa	8b 42 28	 mov	 eax, DWORD PTR [edx+40]
+  004ad	83 c0 02	 add	 eax, 2
+  004b0	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  004b3	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  004b9	89 42 28	 mov	 DWORD PTR [edx+40], eax
+  004bc	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  004bf	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  004c5	81 79 28 ff ff
+	00 00		 cmp	 DWORD PTR [ecx+40], 65535 ; 0000ffffH
+  004cc	72 30		 jb	 SHORT $L36185
+
+; 344  :   INS_ENTRY( INSC_D3DCONTEXTCREATE );
+; 345  : 
+; 346  : #ifdef WINNT
+; 347  :   #if (DIRECT3D_VERSION >= 0x0700) && (DX >= 7)
+; 348  :     // what da hell?  DX7 stores the ppdev in a new location
+; 349  :     ppdev = (NT9XDEVICEDATA *)pccd->lpDDLcl->lpGbl->dhpdev;
+
+  004ce	66 87 45 c8	 xchg	 ax, WORD PTR _fenceVar$36277[ebp]
+
+; 547  :     CMDFIFO_CHECKROOM( cmdFifo, PH1_SIZE + 1 );
+
+  004d2	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  004d5	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  004db	c7 40 28 02 00
+	00 00		 mov	 DWORD PTR [eax+40], 2
+  004e2	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  004e5	83 b9 f0 17 00
+	00 00		 cmp	 DWORD PTR [ecx+6128], 0
+  004ec	74 10		 je	 SHORT $L36185
+  004ee	8b 55 e8	 mov	 edx, DWORD PTR _cmdFifo$36173[ebp]
+  004f1	52		 push	 edx
+  004f2	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  004f5	50		 push	 eax
+  004f6	e8 00 00 00 00	 call	 _myAgpEpilog
+  004fb	83 c4 08	 add	 esp, 8
+$L36185:
+  004fe	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00501	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00507	8b 42 14	 mov	 eax, DWORD PTR [edx+20]
+  0050a	2b 45 ec	 sub	 eax, DWORD PTR _hwIndex$36177[ebp]
+  0050d	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00510	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00516	89 42 14	 mov	 DWORD PTR [edx+20], eax
+  00519	8b 45 ec	 mov	 eax, DWORD PTR _hwIndex$36177[ebp]
+  0051c	8b 4d e8	 mov	 ecx, DWORD PTR _cmdFifo$36173[ebp]
+  0051f	8d 14 81	 lea	 edx, DWORD PTR [ecx+eax*4]
+  00522	89 55 e8	 mov	 DWORD PTR _cmdFifo$36173[ebp], edx
+  00525	c7 45 ec 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$36177[ebp], 0
+  0052c	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0052f	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00535	83 79 14 02	 cmp	 DWORD PTR [ecx+20], 2
+  00539	0f 83 53 02 00
+	00		 jae	 $L36311
+  0053f	c7 45 c4 00 00
+	00 00		 mov	 DWORD PTR _resetIdleCount$36313[ebp], 0
+  00546	ba 02 00 00 00	 mov	 edx, 2
+  0054b	c1 e2 02	 shl	 edx, 2
+  0054e	8b 45 e8	 mov	 eax, DWORD PTR _cmdFifo$36173[ebp]
+  00551	03 c2		 add	 eax, edx
+  00553	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00556	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  0055c	3b 42 08	 cmp	 eax, DWORD PTR [edx+8]
+  0055f	0f 86 35 01 00
+	00		 jbe	 $L36318
+  00565	8b 45 e8	 mov	 eax, DWORD PTR _cmdFifo$36173[ebp]
+  00568	89 45 98	 mov	 DWORD PTR $T36309[ebp], eax
+  0056b	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0056e	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  00571	81 e2 00 20 00
+	00		 and	 edx, 8192		; 00002000H
+  00577	85 d2		 test	 edx, edx
+  00579	74 0e		 je	 SHORT $L36336
+  0057b	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0057e	8b 88 d0 04 00
+	00		 mov	 ecx, DWORD PTR [eax+1232]
+  00584	89 4d ac	 mov	 DWORD PTR _nNumChips$36334[ebp], ecx
+  00587	eb 07		 jmp	 SHORT $L36337
+$L36336:
+  00589	c7 45 ac 01 00
+	00 00		 mov	 DWORD PTR _nNumChips$36334[ebp], 1
+$L36337:
+  00590	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00593	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00599	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  0059c	89 4d a4	 mov	 DWORD PTR _rdPtrMin$36335[ebp], ecx
+  0059f	c7 45 a8 00 00
+	00 00		 mov	 DWORD PTR _i$36333[ebp], 0
+  005a6	eb 09		 jmp	 SHORT $L36338
+$L36339:
+  005a8	8b 55 a8	 mov	 edx, DWORD PTR _i$36333[ebp]
+  005ab	83 c2 01	 add	 edx, 1
+  005ae	89 55 a8	 mov	 DWORD PTR _i$36333[ebp], edx
+$L36338:
+  005b1	8b 45 a8	 mov	 eax, DWORD PTR _i$36333[ebp]
+  005b4	3b 45 ac	 cmp	 eax, DWORD PTR _nNumChips$36334[ebp]
+  005b7	7d 59		 jge	 SHORT $L36340
+$L36341:
+  005b9	8b 4d a8	 mov	 ecx, DWORD PTR _i$36333[ebp]
+  005bc	c1 e1 02	 shl	 ecx, 2
+  005bf	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  005c2	8b 84 8a 40 17
+	00 00		 mov	 eax, DWORD PTR [edx+ecx*4+5952]
+  005c9	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  005cc	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  005d2	8b 40 2c	 mov	 eax, DWORD PTR [eax+44]
+  005d5	03 42 10	 add	 eax, DWORD PTR [edx+16]
+  005d8	89 45 a0	 mov	 DWORD PTR _rdPtr$36332[ebp], eax
+  005db	8b 4d a0	 mov	 ecx, DWORD PTR _rdPtr$36332[ebp]
+  005de	3b 4d 98	 cmp	 ecx, DWORD PTR $T36309[ebp]
+  005e1	77 d6		 ja	 SHORT $L36341
+  005e3	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  005e6	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  005ec	8b 4d a0	 mov	 ecx, DWORD PTR _rdPtr$36332[ebp]
+  005ef	3b 48 04	 cmp	 ecx, DWORD PTR [eax+4]
+  005f2	74 c5		 je	 SHORT $L36341
+  005f4	8b 55 a4	 mov	 edx, DWORD PTR _rdPtrMin$36335[ebp]
+  005f7	3b 55 a0	 cmp	 edx, DWORD PTR _rdPtr$36332[ebp]
+  005fa	73 08		 jae	 SHORT $L36347
+  005fc	8b 45 a4	 mov	 eax, DWORD PTR _rdPtrMin$36335[ebp]
+  005ff	89 45 90	 mov	 DWORD PTR -112+[ebp], eax
+  00602	eb 06		 jmp	 SHORT $L36348
+$L36347:
+  00604	8b 4d a0	 mov	 ecx, DWORD PTR _rdPtr$36332[ebp]
+  00607	89 4d 90	 mov	 DWORD PTR -112+[ebp], ecx
+$L36348:
+  0060a	8b 55 90	 mov	 edx, DWORD PTR -112+[ebp]
+  0060d	89 55 a4	 mov	 DWORD PTR _rdPtrMin$36335[ebp], edx
+  00610	eb 96		 jmp	 SHORT $L36339
+$L36340:
+  00612	8b 45 a4	 mov	 eax, DWORD PTR _rdPtrMin$36335[ebp]
+  00615	89 45 a0	 mov	 DWORD PTR _rdPtr$36332[ebp], eax
+  00618	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0061b	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00621	8b 45 98	 mov	 eax, DWORD PTR $T36309[ebp]
+  00624	8b 4a 18	 mov	 ecx, DWORD PTR [edx+24]
+  00627	89 08		 mov	 DWORD PTR [eax], ecx
+  00629	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0062c	83 ba f0 17 00
+	00 00		 cmp	 DWORD PTR [edx+6128], 0
+  00633	74 12		 je	 SHORT $L36344
+  00635	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00638	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  0063e	8b 55 98	 mov	 edx, DWORD PTR $T36309[ebp]
+  00641	8b 41 1c	 mov	 eax, DWORD PTR [ecx+28]
+  00644	89 42 04	 mov	 DWORD PTR [edx+4], eax
+$L36344:
+
+; 344  :   INS_ENTRY( INSC_D3DCONTEXTCREATE );
+; 345  : 
+; 346  : #ifdef WINNT
+; 347  :   #if (DIRECT3D_VERSION >= 0x0700) && (DX >= 7)
+; 348  :     // what da hell?  DX7 stores the ppdev in a new location
+; 349  :     ppdev = (NT9XDEVICEDATA *)pccd->lpDDLcl->lpGbl->dhpdev;
+
+  00647	66 87 45 9c	 xchg	 ax, WORD PTR _fenceVar$36351[ebp]
+
+; 547  :     CMDFIFO_CHECKROOM( cmdFifo, PH1_SIZE + 1 );
+
+  0064b	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0064e	83 b9 f0 17 00
+	00 00		 cmp	 DWORD PTR [ecx+6128], 0
+  00655	74 10		 je	 SHORT $L36345
+  00657	8b 55 98	 mov	 edx, DWORD PTR $T36309[ebp]
+  0065a	52		 push	 edx
+  0065b	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0065e	50		 push	 eax
+  0065f	e8 00 00 00 00	 call	 _myWrapAgp
+  00664	83 c4 08	 add	 esp, 8
+$L36345:
+  00667	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0066a	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00670	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  00673	89 45 98	 mov	 DWORD PTR $T36309[ebp], eax
+  00676	8b 4d a0	 mov	 ecx, DWORD PTR _rdPtr$36332[ebp]
+  00679	2b 4d 98	 sub	 ecx, DWORD PTR $T36309[ebp]
+  0067c	c1 f9 02	 sar	 ecx, 2
+  0067f	83 e9 01	 sub	 ecx, 1
+  00682	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00685	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  0068b	89 48 14	 mov	 DWORD PTR [eax+20], ecx
+  0068e	8b 4d 98	 mov	 ecx, DWORD PTR $T36309[ebp]
+  00691	89 4d 94	 mov	 DWORD PTR $T36310[ebp], ecx
+  00694	8b 55 94	 mov	 edx, DWORD PTR $T36310[ebp]
+  00697	89 55 e8	 mov	 DWORD PTR _cmdFifo$36173[ebp], edx
+$L36318:
+  0069a	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0069d	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  006a0	81 e1 00 20 00
+	00		 and	 ecx, 8192		; 00002000H
+  006a6	85 c9		 test	 ecx, ecx
+  006a8	74 0e		 je	 SHORT $L36319
+  006aa	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  006ad	8b 82 d0 04 00
+	00		 mov	 eax, DWORD PTR [edx+1232]
+  006b3	89 45 c0	 mov	 DWORD PTR _nNumChips$36315[ebp], eax
+  006b6	eb 07		 jmp	 SHORT $L36320
+$L36319:
+  006b8	c7 45 c0 01 00
+	00 00		 mov	 DWORD PTR _nNumChips$36315[ebp], 1
+$L36320:
+  006bf	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  006c2	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  006c8	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  006cb	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  006d1	8b 52 08	 mov	 edx, DWORD PTR [edx+8]
+  006d4	2b 51 04	 sub	 edx, DWORD PTR [ecx+4]
+  006d7	83 c2 01	 add	 edx, 1
+  006da	89 55 b4	 mov	 DWORD PTR _dwCmdFifoMin$36317[ebp], edx
+  006dd	c7 45 bc 00 00
+	00 00		 mov	 DWORD PTR _i$36314[ebp], 0
+  006e4	eb 09		 jmp	 SHORT $L36321
+$L36322:
+  006e6	8b 45 bc	 mov	 eax, DWORD PTR _i$36314[ebp]
+  006e9	83 c0 01	 add	 eax, 1
+  006ec	89 45 bc	 mov	 DWORD PTR _i$36314[ebp], eax
+$L36321:
+  006ef	8b 4d bc	 mov	 ecx, DWORD PTR _i$36314[ebp]
+  006f2	3b 4d c0	 cmp	 ecx, DWORD PTR _nNumChips$36315[ebp]
+  006f5	0f 8d 88 00 00
+	00		 jge	 $L36323
+  006fb	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  006fe	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00704	8b 48 14	 mov	 ecx, DWORD PTR [eax+20]
+  00707	89 4d b8	 mov	 DWORD PTR _dwCmdFifoSpace$36316[ebp], ecx
+$L36324:
+  0070a	83 7d b8 02	 cmp	 DWORD PTR _dwCmdFifoSpace$36316[ebp], 2
+  0070e	73 52		 jae	 SHORT $L36325
+  00710	8b 55 bc	 mov	 edx, DWORD PTR _i$36314[ebp]
+  00713	c1 e2 02	 shl	 edx, 2
+  00716	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00719	8b 8c 90 40 17
+	00 00		 mov	 ecx, DWORD PTR [eax+edx*4+5952]
+  00720	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00723	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00729	8b 49 2c	 mov	 ecx, DWORD PTR [ecx+44]
+  0072c	03 48 10	 add	 ecx, DWORD PTR [eax+16]
+  0072f	89 4d b0	 mov	 DWORD PTR _rdPtr$36312[ebp], ecx
+  00732	8b 55 b0	 mov	 edx, DWORD PTR _rdPtr$36312[ebp]
+  00735	3b 55 e8	 cmp	 edx, DWORD PTR _cmdFifo$36173[ebp]
+  00738	77 17		 ja	 SHORT $L36326
+  0073a	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0073d	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00743	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  00746	2b 55 e8	 sub	 edx, DWORD PTR _cmdFifo$36173[ebp]
+  00749	c1 fa 02	 sar	 edx, 2
+  0074c	89 55 b8	 mov	 DWORD PTR _dwCmdFifoSpace$36316[ebp], edx
+  0074f	eb 0f		 jmp	 SHORT $L36327
+$L36326:
+  00751	8b 45 b0	 mov	 eax, DWORD PTR _rdPtr$36312[ebp]
+  00754	2b 45 e8	 sub	 eax, DWORD PTR _cmdFifo$36173[ebp]
+  00757	c1 f8 02	 sar	 eax, 2
+  0075a	83 e8 01	 sub	 eax, 1
+  0075d	89 45 b8	 mov	 DWORD PTR _dwCmdFifoSpace$36316[ebp], eax
+$L36327:
+  00760	eb a8		 jmp	 SHORT $L36324
+$L36325:
+  00762	8b 4d b4	 mov	 ecx, DWORD PTR _dwCmdFifoMin$36317[ebp]
+  00765	3b 4d b8	 cmp	 ecx, DWORD PTR _dwCmdFifoSpace$36316[ebp]
+  00768	73 08		 jae	 SHORT $L36329
+  0076a	8b 55 b4	 mov	 edx, DWORD PTR _dwCmdFifoMin$36317[ebp]
+  0076d	89 55 8c	 mov	 DWORD PTR -116+[ebp], edx
+  00770	eb 06		 jmp	 SHORT $L36330
+$L36329:
+  00772	8b 45 b8	 mov	 eax, DWORD PTR _dwCmdFifoSpace$36316[ebp]
+  00775	89 45 8c	 mov	 DWORD PTR -116+[ebp], eax
+$L36330:
+  00778	8b 4d 8c	 mov	 ecx, DWORD PTR -116+[ebp]
+  0077b	89 4d b4	 mov	 DWORD PTR _dwCmdFifoMin$36317[ebp], ecx
+  0077e	e9 63 ff ff ff	 jmp	 $L36322
+$L36323:
+  00783	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00786	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  0078c	8b 4d b4	 mov	 ecx, DWORD PTR _dwCmdFifoMin$36317[ebp]
+  0078f	89 48 14	 mov	 DWORD PTR [eax+20], ecx
+$L36311:
+
+; 548  :     SETPH( cmdFifo, CMDFIFO_BUILD_PK1( 1, 0, chromaRange, 0xF ) );
+
+  00792	8b 55 ec	 mov	 edx, DWORD PTR _hwIndex$36177[ebp]
+  00795	8b 45 e8	 mov	 eax, DWORD PTR _cmdFifo$36173[ebp]
+  00798	c7 04 90 71 02
+	01 00		 mov	 DWORD PTR [eax+edx*4], 66161 ; 00010271H
+  0079f	8b 4d ec	 mov	 ecx, DWORD PTR _hwIndex$36177[ebp]
+  007a2	83 c1 01	 add	 ecx, 1
+  007a5	89 4d ec	 mov	 DWORD PTR _hwIndex$36177[ebp], ecx
+
+; 549  :     SETPD( cmdFifo, ghw->chromaRange, 0x0 );
+
+  007a8	8b 55 ec	 mov	 edx, DWORD PTR _hwIndex$36177[ebp]
+  007ab	8b 45 e8	 mov	 eax, DWORD PTR _cmdFifo$36173[ebp]
+  007ae	c7 04 90 00 00
+	00 00		 mov	 DWORD PTR [eax+edx*4], 0
+  007b5	8b 4d ec	 mov	 ecx, DWORD PTR _hwIndex$36177[ebp]
+  007b8	83 c1 01	 add	 ecx, 1
+  007bb	89 4d ec	 mov	 DWORD PTR _hwIndex$36177[ebp], ecx
+
+; 550  :     CMDFIFO_EPILOG( cmdFifo );
+
+  007be	8b 55 ec	 mov	 edx, DWORD PTR _hwIndex$36177[ebp]
+  007c1	8b 45 e8	 mov	 eax, DWORD PTR _cmdFifo$36173[ebp]
+  007c4	8d 0c 90	 lea	 ecx, DWORD PTR [eax+edx*4]
+  007c7	89 4d e8	 mov	 DWORD PTR _cmdFifo$36173[ebp], ecx
+  007ca	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  007cd	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  007d3	8b 4d e8	 mov	 ecx, DWORD PTR _cmdFifo$36173[ebp]
+  007d6	89 48 0c	 mov	 DWORD PTR [eax+12], ecx
+  007d9	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  007dc	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  007e2	8b 48 14	 mov	 ecx, DWORD PTR [eax+20]
+  007e5	2b 4d ec	 sub	 ecx, DWORD PTR _hwIndex$36177[ebp]
+  007e8	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  007eb	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  007f1	89 48 14	 mov	 DWORD PTR [eax+20], ecx
+  007f4	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  007f7	83 b9 f0 17 00
+	00 00		 cmp	 DWORD PTR [ecx+6128], 0
+  007fe	74 10		 je	 SHORT $L36201
+  00800	8b 55 e8	 mov	 edx, DWORD PTR _cmdFifo$36173[ebp]
+  00803	52		 push	 edx
+  00804	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00807	50		 push	 eax
+  00808	e8 00 00 00 00	 call	 _myAgpEpilog
+  0080d	83 c4 08	 add	 esp, 8
+$L36201:
+  00810	c7 45 ec 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$36177[ebp], 0
+
+; 552  : 
+; 553  : #if (DX >= 7)
+; 554  : #ifdef TnL_HAL
+; 555  :   // Initialize the T&L related data in the RC  
+; 556  :   TLHAL_InitializeNewRC(newContext);
+; 557  : #endif
+; 558  : #endif
+; 559  : 
+; 560  : #if (DIRECT3D_VERSION >= 0x0800) && (DX >= 8)
+; 561  :     // On DX8 D3DRENDERSTATE_TEXTUREPERSPECTIVE has been retired and is assumed 
+; 562  :     // to be set always to TRUE. We must make sure we are setting the hw up
+; 563  :     // correctly, so in order to do that we make an explicit setup call here 
+; 564  :     _renderFuncs[D3DRENDERSTATE_TEXTUREPERSPECTIVE](newContext, 1);
+; 565  : #endif
+; 566  : 
+; 567  :   pccd->ddrval = DD_OK;
+
+  00817	8b 4d 08	 mov	 ecx, DWORD PTR _pccd$[ebp]
+  0081a	c7 41 14 00 00
+	00 00		 mov	 DWORD PTR [ecx+20], 0
+
+; 568  :   INS_EXIT( );
+; 569  :   D3D_EXIT( DDHAL_DRIVER_HANDLED );
+
+  00821	68 00 00 00 00	 push	 OFFSET FLAT:$SG36203
+  00826	68 00 00 00 00	 push	 OFFSET FLAT:_dbgEntryStr
+  0082b	68 00 00 00 00	 push	 OFFSET FLAT:$SG36204
+  00830	6a 02		 push	 2
+  00832	e8 00 00 00 00	 call	 _D3DPRINT
+  00837	83 c4 10	 add	 esp, 16			; 00000010H
+  0083a	b8 01 00 00 00	 mov	 eax, 1
+$L36124:
+
+; 570  : }
+
+  0083f	5f		 pop	 edi
+  00840	5e		 pop	 esi
+  00841	5b		 pop	 ebx
+  00842	8b e5		 mov	 esp, ebp
+  00844	5d		 pop	 ebp
+  00845	c2 04 00	 ret	 4
+_ddiContextCreate@4 ENDP
+_TEXT	ENDS
+PUBLIC	_ddiContextDestroy@4
+EXTRN	_ReleaseContextStateBlocks:NEAR
+_DATA	SEGMENT
+	ORG $+1
+$SG36210 DB	'ddiContextDestroy', 00H
+	ORG $+2
+$SG36211 DB	'%s -> Entry', 00H
+$SG36212 DB	'ddiContextDestroy, pcdd->dwhContext =%08lx', 00H
+	ORG $+1
+$SG36215 DB	'ddiContextDestroy, bad context =0x08lx', 00H
+	ORG $+1
+$SG36216 DB	'OK', 00H
+	ORG $+1
+$SG36217 DB	'%s <- Return <%s>', 0aH, 00H
+	ORG $+1
+$SG36222 DB	'OK', 00H
+	ORG $+1
+$SG36223 DB	'%s <- Return <%s>', 0aH, 00H
+_DATA	ENDS
+_TEXT	SEGMENT
+_pcdd$ = 8
+_ppdev$ = -4
+_pRc$36355 = -8
+_pRcList$36356 = -12
+$T36361 = -16
+_ddiContextDestroy@4 PROC NEAR
+
+; 582  : {
+
+  00848	55		 push	 ebp
+  00849	8b ec		 mov	 ebp, esp
+  0084b	83 ec 10	 sub	 esp, 16			; 00000010H
+
+; 583  :   SETUP_PPDEV(pcdd->dwhContext)
+
+  0084e	8b 45 08	 mov	 eax, DWORD PTR _pcdd$[ebp]
+  00851	8b 08		 mov	 ecx, DWORD PTR [eax]
+  00853	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  00856	89 55 fc	 mov	 DWORD PTR _ppdev$[ebp], edx
+
+; 584  :   D3D_ENTRY( "ddiContextDestroy" );
+
+  00859	68 00 00 00 00	 push	 OFFSET FLAT:$SG36210
+  0085e	68 00 00 00 00	 push	 OFFSET FLAT:_dbgEntryStr
+  00863	ff 15 00 00 00
+	00		 call	 DWORD PTR __imp__lstrcpyA@8
+  00869	68 00 00 00 00	 push	 OFFSET FLAT:_dbgEntryStr
+  0086e	68 00 00 00 00	 push	 OFFSET FLAT:$SG36211
+  00873	6a 01		 push	 1
+  00875	e8 00 00 00 00	 call	 _D3DPRINT
+  0087a	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 585  :   INS_ENTRY( INSC_D3DCONTEXTDESTROY );
+; 586  : 
+; 587  :   //-------------------------------------------------------------------------
+; 588  :   // Delete the context. This callback is invoked when a context is to be destroyed.
+; 589  :   //-------------------------------------------------------------------------
+; 590  :   D3DPRINT( 255,"ddiContextDestroy, pcdd->dwhContext =%08lx", pcdd->dwhContext );
+
+  0087d	8b 45 08	 mov	 eax, DWORD PTR _pcdd$[ebp]
+  00880	8b 08		 mov	 ecx, DWORD PTR [eax]
+  00882	51		 push	 ecx
+  00883	68 00 00 00 00	 push	 OFFSET FLAT:$SG36212
+  00888	68 ff 00 00 00	 push	 255			; 000000ffH
+  0088d	e8 00 00 00 00	 call	 _D3DPRINT
+  00892	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 591  : 
+; 592  : #ifdef WINNT
+; 593  :   D3DPRINT(D3DDBGLVL, "context=%lXh, ppdev=%8lXh", pcdd->dwhContext, ppdev);
+; 594  :   if (pcdd->dwhContext == _D3(lastContext))
+; 595  :   {
+; 596  :     _D3(last).colBufferAddr = 0;
+; 597  :     _D3(last).auxBufferAddr = 0;
+; 598  :     _D3(lastContext) = 0;
+; 599  :   }
+; 600  : #endif
+; 601  : 
+; 602  : #if defined(TNL_PROFILE) && defined(TnL_HAL)
+; 603  :   TriClipStats(0xFFFFFFFB);
+; 604  :   MatrixStats(0xFFFFFFFB);
+; 605  :   PrintFVFStats(0L);
+; 606  : #endif // TNL_PROFILE
+; 607  :   
+; 608  : #if (DX >= 7)
+; 609  : #ifdef TnL_HAL
+; 610  :   // Delete the T&L related data in the RC  
+; 611  :   TLHAL_DestroyRC((RC *)pcdd->dwhContext);
+; 612  : #endif
+; 613  : #endif
+; 614  : 
+; 615  : #if (DIRECT3D_VERSION >= 0x0700) && (DX >= 7)
+; 616  :   // release state blocks for this context
+; 617  :   ReleaseContextStateBlocks((RC *)pcdd->dwhContext);
+
+  00895	8b 55 08	 mov	 edx, DWORD PTR _pcdd$[ebp]
+  00898	8b 02		 mov	 eax, DWORD PTR [edx]
+  0089a	50		 push	 eax
+  0089b	e8 00 00 00 00	 call	 _ReleaseContextStateBlocks
+  008a0	83 c4 04	 add	 esp, 4
+
+; 618  : #endif
+; 619  : 
+; 620  :   CONTEXT_FREE(ppdev, pcdd->dwhContext);
+
+  008a3	8b 4d 08	 mov	 ecx, DWORD PTR _pcdd$[ebp]
+  008a6	8b 11		 mov	 edx, DWORD PTR [ecx]
+  008a8	89 55 f0	 mov	 DWORD PTR $T36361[ebp], edx
+  008ab	8b 45 f0	 mov	 eax, DWORD PTR $T36361[ebp]
+  008ae	89 45 f8	 mov	 DWORD PTR _pRc$36355[ebp], eax
+  008b1	8b 4d fc	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  008b4	8b 91 1c 18 00
+	00		 mov	 edx, DWORD PTR [ecx+6172]
+  008ba	81 c2 fc 00 00
+	00		 add	 edx, 252		; 000000fcH
+  008c0	89 55 f4	 mov	 DWORD PTR _pRcList$36356[ebp], edx
+$L36357:
+  008c3	8b 45 f4	 mov	 eax, DWORD PTR _pRcList$36356[ebp]
+  008c6	83 38 00	 cmp	 DWORD PTR [eax], 0
+  008c9	74 3f		 je	 SHORT $L36358
+  008cb	8b 4d f4	 mov	 ecx, DWORD PTR _pRcList$36356[ebp]
+  008ce	8b 55 f8	 mov	 edx, DWORD PTR _pRc$36355[ebp]
+  008d1	3b 11		 cmp	 edx, DWORD PTR [ecx]
+  008d3	75 2b		 jne	 SHORT $L36359
+  008d5	8b 45 f4	 mov	 eax, DWORD PTR _pRcList$36356[ebp]
+  008d8	8b 4d f8	 mov	 ecx, DWORD PTR _pRc$36355[ebp]
+  008db	8b 11		 mov	 edx, DWORD PTR [ecx]
+  008dd	89 10		 mov	 DWORD PTR [eax], edx
+  008df	8b 45 f8	 mov	 eax, DWORD PTR _pRc$36355[ebp]
+  008e2	c7 00 00 00 00
+	00		 mov	 DWORD PTR [eax], 0
+  008e8	8b 4d f8	 mov	 ecx, DWORD PTR _pRc$36355[ebp]
+  008eb	51		 push	 ecx
+  008ec	6a 00		 push	 0
+  008ee	8b 55 fc	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  008f1	8b 82 10 18 00
+	00		 mov	 eax, DWORD PTR [edx+6160]
+  008f7	50		 push	 eax
+  008f8	ff 15 00 00 00
+	00		 call	 DWORD PTR __imp__HeapFree@12
+  008fe	eb 0a		 jmp	 SHORT $L36358
+$L36359:
+  00900	8b 4d f4	 mov	 ecx, DWORD PTR _pRcList$36356[ebp]
+  00903	8b 11		 mov	 edx, DWORD PTR [ecx]
+  00905	89 55 f4	 mov	 DWORD PTR _pRcList$36356[ebp], edx
+  00908	eb b9		 jmp	 SHORT $L36357
+$L36358:
+
+; 621  :   if (pcdd->dwhContext == CONTEXT_INVALID)
+
+  0090a	8b 45 08	 mov	 eax, DWORD PTR _pcdd$[ebp]
+  0090d	83 38 00	 cmp	 DWORD PTR [eax], 0
+  00910	75 42		 jne	 SHORT $L36214
+
+; 623  :     D3DPRINT( 255,"ddiContextDestroy, bad context =0x08lx", pcdd->dwhContext );
+
+  00912	8b 4d 08	 mov	 ecx, DWORD PTR _pcdd$[ebp]
+  00915	8b 11		 mov	 edx, DWORD PTR [ecx]
+  00917	52		 push	 edx
+  00918	68 00 00 00 00	 push	 OFFSET FLAT:$SG36215
+  0091d	68 ff 00 00 00	 push	 255			; 000000ffH
+  00922	e8 00 00 00 00	 call	 _D3DPRINT
+  00927	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 624  :     pcdd->ddrval = D3DHAL_CONTEXT_BAD;
+
+  0092a	8b 45 08	 mov	 eax, DWORD PTR _pcdd$[ebp]
+  0092d	c7 40 04 00 02
+	00 00		 mov	 DWORD PTR [eax+4], 512	; 00000200H
+
+; 625  :     INS_EXIT( );
+; 626  :     D3D_EXIT( DDHAL_DRIVER_HANDLED );
+
+  00934	68 00 00 00 00	 push	 OFFSET FLAT:$SG36216
+  00939	68 00 00 00 00	 push	 OFFSET FLAT:_dbgEntryStr
+  0093e	68 00 00 00 00	 push	 OFFSET FLAT:$SG36217
+  00943	6a 02		 push	 2
+  00945	e8 00 00 00 00	 call	 _D3DPRINT
+  0094a	83 c4 10	 add	 esp, 16			; 00000010H
+  0094d	b8 01 00 00 00	 mov	 eax, 1
+  00952	eb 28		 jmp	 SHORT $L36207
+$L36214:
+
+; 628  : 
+; 629  : #if (DIRECT3D_VERSION >= 0x0700) && (DX >= 7)
+; 630  :   // for DX7, we'll free the TXTRHNDL's when the surface is destroyed
+; 631  : #else
+; 632  :   // When a process goes away not only do we clean up the context but
+; 633  :   // we have to free all the textures associated with this process.
+; 634  :   TXTRFREEHANDLESFORCONTEXT(ppdev, pcdd->dwhContext );
+; 635  : #endif
+; 636  : 
+; 637  :   txtrFlavour(0xFFFFFFFB);
+; 638  :   triangleFlavour(0, 0xFFFFFFFF, 0, 0 );
+; 639  :   #if defined( FLAVOR_PROFILE )
+; 640  :     renderTypes = 0;
+; 641  :   #endif
+; 642  : 
+; 643  : #if defined(LEGACY_APPS) && !defined(NT)
+; 644  :   _D3( legacyApp ) = 0;
+; 645  : #endif  // LEGACY_APPS
+; 646  : 
+; 647  :   pcdd->ddrval = DD_OK;
+
+  00954	8b 4d 08	 mov	 ecx, DWORD PTR _pcdd$[ebp]
+  00957	c7 41 04 00 00
+	00 00		 mov	 DWORD PTR [ecx+4], 0
+
+; 648  :   INS_EXIT( );
+; 649  :   D3D_EXIT( DDHAL_DRIVER_HANDLED );
+
+  0095e	68 00 00 00 00	 push	 OFFSET FLAT:$SG36222
+  00963	68 00 00 00 00	 push	 OFFSET FLAT:_dbgEntryStr
+  00968	68 00 00 00 00	 push	 OFFSET FLAT:$SG36223
+  0096d	6a 02		 push	 2
+  0096f	e8 00 00 00 00	 call	 _D3DPRINT
+  00974	83 c4 10	 add	 esp, 16			; 00000010H
+  00977	b8 01 00 00 00	 mov	 eax, 1
+$L36207:
+
+; 650  : }
+
+  0097c	8b e5		 mov	 esp, ebp
+  0097e	5d		 pop	 ebp
+  0097f	c2 04 00	 ret	 4
+_ddiContextDestroy@4 ENDP
+_TEXT	ENDS
+PUBLIC	_ddiContextDestroyAll@4
+EXTRN	_pDevices:BYTE
+_DATA	SEGMENT
+	ORG $+1
+$SG36229 DB	'ddiContextDestroyAll', 00H
+	ORG $+3
+$SG36230 DB	'%s -> Entry', 00H
+$SG36231 DB	'ddiContextDestroyAll, pcdd->dwPID =%08lx', 00H
+	ORG $+3
+$SG36237 DB	'OK', 00H
+	ORG $+1
+$SG36238 DB	'%s <- Return <%s>', 0aH, 00H
+_DATA	ENDS
+_TEXT	SEGMENT
+_pcdd$ = 8
+_ppdev$ = -8
+_i$ = -4
+_pRc$36365 = -12
+_pRcList$36366 = -16
+$T36372 = -20
+_ddiContextDestroyAll@4 PROC NEAR
+
+; 661  : {
+
+  00982	55		 push	 ebp
+  00983	8b ec		 mov	 ebp, esp
+  00985	83 ec 14	 sub	 esp, 20			; 00000014H
+
+; 662  :   NT9XDEVICEDATA * ppdev;
+; 663  :   int i;
+; 664  : 
+; 665  :   D3D_ENTRY( "ddiContextDestroyAll" );
+
+  00988	68 00 00 00 00	 push	 OFFSET FLAT:$SG36229
+  0098d	68 00 00 00 00	 push	 OFFSET FLAT:_dbgEntryStr
+  00992	ff 15 00 00 00
+	00		 call	 DWORD PTR __imp__lstrcpyA@8
+  00998	68 00 00 00 00	 push	 OFFSET FLAT:_dbgEntryStr
+  0099d	68 00 00 00 00	 push	 OFFSET FLAT:$SG36230
+  009a2	6a 01		 push	 1
+  009a4	e8 00 00 00 00	 call	 _D3DPRINT
+  009a9	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 666  :   INS_ENTRY( INSC_D3DCONTEXTDESTROYALL );
+; 667  : 
+; 668  :   //----------------------------------------------------------------
+; 669  :   // This callback is invoked when a process dies.  All the contexts
+; 670  :   // which were created by this context need to be destroyed.
+; 671  :   //----------------------------------------------------------------
+; 672  :   D3DPRINT( 255, "ddiContextDestroyAll, pcdd->dwPID =%08lx", pcdd->dwPID );
+
+  009ac	8b 45 08	 mov	 eax, DWORD PTR _pcdd$[ebp]
+  009af	8b 08		 mov	 ecx, DWORD PTR [eax]
+  009b1	51		 push	 ecx
+  009b2	68 00 00 00 00	 push	 OFFSET FLAT:$SG36231
+  009b7	68 ff 00 00 00	 push	 255			; 000000ffH
+  009bc	e8 00 00 00 00	 call	 _D3DPRINT
+  009c1	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 673  : 
+; 674  :   for (i=0; i<NUM_DEVICES; i++)
+
+  009c4	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  009cb	eb 09		 jmp	 SHORT $L36232
+$L36233:
+  009cd	8b 55 fc	 mov	 edx, DWORD PTR _i$[ebp]
+  009d0	83 c2 01	 add	 edx, 1
+  009d3	89 55 fc	 mov	 DWORD PTR _i$[ebp], edx
+$L36232:
+  009d6	83 7d fc 10	 cmp	 DWORD PTR _i$[ebp], 16	; 00000010H
+  009da	0f 8d 89 00 00
+	00		 jge	 $L36234
+
+; 676  : 
+; 677  :       ppdev = pDevices[i];
+
+  009e0	8b 45 fc	 mov	 eax, DWORD PTR _i$[ebp]
+  009e3	8b 0c 85 00 00
+	00 00		 mov	 ecx, DWORD PTR _pDevices[eax*4]
+  009ea	89 4d f8	 mov	 DWORD PTR _ppdev$[ebp], ecx
+
+; 678  :       if (NULL == ppdev)
+
+  009ed	83 7d f8 00	 cmp	 DWORD PTR _ppdev$[ebp], 0
+  009f1	75 02		 jne	 SHORT $L36236
+
+; 679  :          continue;
+
+  009f3	eb d8		 jmp	 SHORT $L36233
+$L36236:
+
+; 680  : 
+; 681  :       CONTEXT_FREE_PID(ppdev, pcdd->dwPID );
+
+  009f5	8b 55 08	 mov	 edx, DWORD PTR _pcdd$[ebp]
+  009f8	8b 02		 mov	 eax, DWORD PTR [edx]
+  009fa	89 45 ec	 mov	 DWORD PTR $T36372[ebp], eax
+  009fd	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00a00	8b 91 1c 18 00
+	00		 mov	 edx, DWORD PTR [ecx+6172]
+  00a06	81 c2 fc 00 00
+	00		 add	 edx, 252		; 000000fcH
+  00a0c	89 55 f0	 mov	 DWORD PTR _pRcList$36366[ebp], edx
+$L36367:
+  00a0f	8b 45 f0	 mov	 eax, DWORD PTR _pRcList$36366[ebp]
+  00a12	83 38 00	 cmp	 DWORD PTR [eax], 0
+  00a15	74 4d		 je	 SHORT $L36368
+  00a17	8b 4d f0	 mov	 ecx, DWORD PTR _pRcList$36366[ebp]
+  00a1a	8b 11		 mov	 edx, DWORD PTR [ecx]
+  00a1c	8b 45 ec	 mov	 eax, DWORD PTR $T36372[ebp]
+  00a1f	3b 82 70 05 00
+	00		 cmp	 eax, DWORD PTR [edx+1392]
+  00a25	75 33		 jne	 SHORT $L36369
+  00a27	8b 4d f0	 mov	 ecx, DWORD PTR _pRcList$36366[ebp]
+  00a2a	8b 11		 mov	 edx, DWORD PTR [ecx]
+  00a2c	89 55 f4	 mov	 DWORD PTR _pRc$36365[ebp], edx
+  00a2f	8b 45 f0	 mov	 eax, DWORD PTR _pRcList$36366[ebp]
+  00a32	8b 4d f4	 mov	 ecx, DWORD PTR _pRc$36365[ebp]
+  00a35	8b 11		 mov	 edx, DWORD PTR [ecx]
+  00a37	89 10		 mov	 DWORD PTR [eax], edx
+  00a39	8b 45 f4	 mov	 eax, DWORD PTR _pRc$36365[ebp]
+  00a3c	c7 00 00 00 00
+	00		 mov	 DWORD PTR [eax], 0
+  00a42	8b 4d f4	 mov	 ecx, DWORD PTR _pRc$36365[ebp]
+  00a45	51		 push	 ecx
+  00a46	6a 00		 push	 0
+  00a48	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00a4b	8b 82 10 18 00
+	00		 mov	 eax, DWORD PTR [edx+6160]
+  00a51	50		 push	 eax
+  00a52	ff 15 00 00 00
+	00		 call	 DWORD PTR __imp__HeapFree@12
+  00a58	eb 08		 jmp	 SHORT $L36370
+$L36369:
+  00a5a	8b 4d f0	 mov	 ecx, DWORD PTR _pRcList$36366[ebp]
+  00a5d	8b 11		 mov	 edx, DWORD PTR [ecx]
+  00a5f	89 55 f0	 mov	 DWORD PTR _pRcList$36366[ebp], edx
+$L36370:
+  00a62	eb ab		 jmp	 SHORT $L36367
+$L36368:
+
+; 682  : 
+; 683  : #if (DIRECT3D_VERSION >= 0x0700) && (DX >= 7)
+; 684  :   // for DX7, we'll free the TXTRHNDL's when the surface is destroyed
+; 685  : #else
+; 686  :       // When a process goes away not only do we clean up the context but
+; 687  :       // we have to free all the textures that this process allocated.
+; 688  :       TXTRFREEHANDLESFORPROCESS(ppdev, pcdd->dwPID);
+; 689  : #endif
+; 690  :   }
+
+  00a64	e9 64 ff ff ff	 jmp	 $L36233
+$L36234:
+
+; 691  : 
+; 692  : #if defined(LEGACY_APPS) && !defined(NT)
+; 693  :   _D3( legacyApp ) = 0;
+; 694  : #endif  // LEGACY_APPS
+; 695  : 
+; 696  :   pcdd->ddrval = DD_OK;
+
+  00a69	8b 45 08	 mov	 eax, DWORD PTR _pcdd$[ebp]
+  00a6c	c7 40 04 00 00
+	00 00		 mov	 DWORD PTR [eax+4], 0
+
+; 697  :   INS_EXIT( );
+; 698  :   D3D_EXIT( DDHAL_DRIVER_HANDLED );
+
+  00a73	68 00 00 00 00	 push	 OFFSET FLAT:$SG36237
+  00a78	68 00 00 00 00	 push	 OFFSET FLAT:_dbgEntryStr
+  00a7d	68 00 00 00 00	 push	 OFFSET FLAT:$SG36238
+  00a82	6a 02		 push	 2
+  00a84	e8 00 00 00 00	 call	 _D3DPRINT
+  00a89	83 c4 10	 add	 esp, 16			; 00000010H
+  00a8c	b8 01 00 00 00	 mov	 eax, 1
+
+; 699  : }
+
+  00a91	8b e5		 mov	 esp, ebp
+  00a93	5d		 pop	 ebp
+  00a94	c2 04 00	 ret	 4
+_ddiContextDestroyAll@4 ENDP
+_TEXT	ENDS
+END

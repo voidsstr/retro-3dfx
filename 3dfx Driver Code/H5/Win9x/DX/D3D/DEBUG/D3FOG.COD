@@ -1,0 +1,2129 @@
+	TITLE	..\d3fog.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+FLAT	GROUP _DATA, CONST, _BSS
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+PUBLIC	_indexToW
+PUBLIC	_FnZTable
+_DATA	SEGMENT
+_f_255_reverse_lookup DD 0437f0000r		; 255
+	DD	0437e0000r			; 254
+	DD	0437d0000r			; 253
+	DD	0437c0000r			; 252
+	DD	0437b0000r			; 251
+	DD	0437a0000r			; 250
+	DD	043790000r			; 249
+	DD	043780000r			; 248
+	DD	043770000r			; 247
+	DD	043760000r			; 246
+	DD	043750000r			; 245
+	DD	043740000r			; 244
+	DD	043730000r			; 243
+	DD	043720000r			; 242
+	DD	043710000r			; 241
+	DD	043700000r			; 240
+	DD	0436f0000r			; 239
+	DD	0436e0000r			; 238
+	DD	0436d0000r			; 237
+	DD	0436c0000r			; 236
+	DD	0436b0000r			; 235
+	DD	0436a0000r			; 234
+	DD	043690000r			; 233
+	DD	043680000r			; 232
+	DD	043670000r			; 231
+	DD	043660000r			; 230
+	DD	043650000r			; 229
+	DD	043640000r			; 228
+	DD	043630000r			; 227
+	DD	043620000r			; 226
+	DD	043610000r			; 225
+	DD	043600000r			; 224
+	DD	0435f0000r			; 223
+	DD	0435e0000r			; 222
+	DD	0435d0000r			; 221
+	DD	0435c0000r			; 220
+	DD	0435b0000r			; 219
+	DD	0435a0000r			; 218
+	DD	043590000r			; 217
+	DD	043580000r			; 216
+	DD	043570000r			; 215
+	DD	043560000r			; 214
+	DD	043550000r			; 213
+	DD	043540000r			; 212
+	DD	043530000r			; 211
+	DD	043520000r			; 210
+	DD	043510000r			; 209
+	DD	043500000r			; 208
+	DD	0434f0000r			; 207
+	DD	0434e0000r			; 206
+	DD	0434d0000r			; 205
+	DD	0434c0000r			; 204
+	DD	0434b0000r			; 203
+	DD	0434a0000r			; 202
+	DD	043490000r			; 201
+	DD	043480000r			; 200
+	DD	043470000r			; 199
+	DD	043460000r			; 198
+	DD	043450000r			; 197
+	DD	043440000r			; 196
+	DD	043430000r			; 195
+	DD	043420000r			; 194
+	DD	043410000r			; 193
+	DD	043400000r			; 192
+	DD	0433f0000r			; 191
+	DD	0433e0000r			; 190
+	DD	0433d0000r			; 189
+	DD	0433c0000r			; 188
+	DD	0433b0000r			; 187
+	DD	0433a0000r			; 186
+	DD	043390000r			; 185
+	DD	043380000r			; 184
+	DD	043370000r			; 183
+	DD	043360000r			; 182
+	DD	043350000r			; 181
+	DD	043340000r			; 180
+	DD	043330000r			; 179
+	DD	043320000r			; 178
+	DD	043310000r			; 177
+	DD	043300000r			; 176
+	DD	0432f0000r			; 175
+	DD	0432e0000r			; 174
+	DD	0432d0000r			; 173
+	DD	0432c0000r			; 172
+	DD	0432b0000r			; 171
+	DD	0432a0000r			; 170
+	DD	043290000r			; 169
+	DD	043280000r			; 168
+	DD	043270000r			; 167
+	DD	043260000r			; 166
+	DD	043250000r			; 165
+	DD	043240000r			; 164
+	DD	043230000r			; 163
+	DD	043220000r			; 162
+	DD	043210000r			; 161
+	DD	043200000r			; 160
+	DD	0431f0000r			; 159
+	DD	0431e0000r			; 158
+	DD	0431d0000r			; 157
+	DD	0431c0000r			; 156
+	DD	0431b0000r			; 155
+	DD	0431a0000r			; 154
+	DD	043190000r			; 153
+	DD	043180000r			; 152
+	DD	043170000r			; 151
+	DD	043160000r			; 150
+	DD	043150000r			; 149
+	DD	043140000r			; 148
+	DD	043130000r			; 147
+	DD	043120000r			; 146
+	DD	043110000r			; 145
+	DD	043100000r			; 144
+	DD	0430f0000r			; 143
+	DD	0430e0000r			; 142
+	DD	0430d0000r			; 141
+	DD	0430c0000r			; 140
+	DD	0430b0000r			; 139
+	DD	0430a0000r			; 138
+	DD	043090000r			; 137
+	DD	043080000r			; 136
+	DD	043070000r			; 135
+	DD	043060000r			; 134
+	DD	043050000r			; 133
+	DD	043040000r			; 132
+	DD	043030000r			; 131
+	DD	043020000r			; 130
+	DD	043010000r			; 129
+	DD	043000000r			; 128
+	DD	042fe0000r			; 127
+	DD	042fc0000r			; 126
+	DD	042fa0000r			; 125
+	DD	042f80000r			; 124
+	DD	042f60000r			; 123
+	DD	042f40000r			; 122
+	DD	042f20000r			; 121
+	DD	042f00000r			; 120
+	DD	042ee0000r			; 119
+	DD	042ec0000r			; 118
+	DD	042ea0000r			; 117
+	DD	042e80000r			; 116
+	DD	042e60000r			; 115
+	DD	042e40000r			; 114
+	DD	042e20000r			; 113
+	DD	042e00000r			; 112
+	DD	042de0000r			; 111
+	DD	042dc0000r			; 110
+	DD	042da0000r			; 109
+	DD	042d80000r			; 108
+	DD	042d60000r			; 107
+	DD	042d40000r			; 106
+	DD	042d20000r			; 105
+	DD	042d00000r			; 104
+	DD	042ce0000r			; 103
+	DD	042cc0000r			; 102
+	DD	042ca0000r			; 101
+	DD	042c80000r			; 100
+	DD	042c60000r			; 99
+	DD	042c40000r			; 98
+	DD	042c20000r			; 97
+	DD	042c00000r			; 96
+	DD	042be0000r			; 95
+	DD	042bc0000r			; 94
+	DD	042ba0000r			; 93
+	DD	042b80000r			; 92
+	DD	042b60000r			; 91
+	DD	042b40000r			; 90
+	DD	042b20000r			; 89
+	DD	042b00000r			; 88
+	DD	042ae0000r			; 87
+	DD	042ac0000r			; 86
+	DD	042aa0000r			; 85
+	DD	042a80000r			; 84
+	DD	042a60000r			; 83
+	DD	042a40000r			; 82
+	DD	042a20000r			; 81
+	DD	042a00000r			; 80
+	DD	0429e0000r			; 79
+	DD	0429c0000r			; 78
+	DD	0429a0000r			; 77
+	DD	042980000r			; 76
+	DD	042960000r			; 75
+	DD	042940000r			; 74
+	DD	042920000r			; 73
+	DD	042900000r			; 72
+	DD	0428e0000r			; 71
+	DD	0428c0000r			; 70
+	DD	0428a0000r			; 69
+	DD	042880000r			; 68
+	DD	042860000r			; 67
+	DD	042840000r			; 66
+	DD	042820000r			; 65
+	DD	042800000r			; 64
+	DD	0427c0000r			; 63
+	DD	042780000r			; 62
+	DD	042740000r			; 61
+	DD	042700000r			; 60
+	DD	0426c0000r			; 59
+	DD	042680000r			; 58
+	DD	042640000r			; 57
+	DD	042600000r			; 56
+	DD	0425c0000r			; 55
+	DD	042580000r			; 54
+	DD	042540000r			; 53
+	DD	042500000r			; 52
+	DD	0424c0000r			; 51
+	DD	042480000r			; 50
+	DD	042440000r			; 49
+	DD	042400000r			; 48
+	DD	0423c0000r			; 47
+	DD	042380000r			; 46
+	DD	042340000r			; 45
+	DD	042300000r			; 44
+	DD	0422c0000r			; 43
+	DD	042280000r			; 42
+	DD	042240000r			; 41
+	DD	042200000r			; 40
+	DD	0421c0000r			; 39
+	DD	042180000r			; 38
+	DD	042140000r			; 37
+	DD	042100000r			; 36
+	DD	0420c0000r			; 35
+	DD	042080000r			; 34
+	DD	042040000r			; 33
+	DD	042000000r			; 32
+	DD	041f80000r			; 31
+	DD	041f00000r			; 30
+	DD	041e80000r			; 29
+	DD	041e00000r			; 28
+	DD	041d80000r			; 27
+	DD	041d00000r			; 26
+	DD	041c80000r			; 25
+	DD	041c00000r			; 24
+	DD	041b80000r			; 23
+	DD	041b00000r			; 22
+	DD	041a80000r			; 21
+	DD	041a00000r			; 20
+	DD	041980000r			; 19
+	DD	041900000r			; 18
+	DD	041880000r			; 17
+	DD	041800000r			; 16
+	DD	041700000r			; 15
+	DD	041600000r			; 14
+	DD	041500000r			; 13
+	DD	041400000r			; 12
+	DD	041300000r			; 11
+	DD	041200000r			; 10
+	DD	041100000r			; 9
+	DD	041000000r			; 8
+	DD	040e00000r			; 7
+	DD	040c00000r			; 6
+	DD	040a00000r			; 5
+	DD	040800000r			; 4
+	DD	040400000r			; 3
+	DD	040000000r			; 2
+	DD	03f800000r			; 1
+	DD	000000000r			; 0
+_indexToW DD	03f800000H
+	DD	03f924925H
+	DD	03faaaaabH
+	DD	03fcccccdH
+	DD	040000000H
+	DD	040124925H
+	DD	0402aaaabH
+	DD	0404ccccdH
+	DD	040800000H
+	DD	040924925H
+	DD	040aaaaabH
+	DD	040cccccdH
+	DD	041000000H
+	DD	041124925H
+	DD	0412aaaabH
+	DD	0414ccccdH
+	DD	041800000H
+	DD	041924925H
+	DD	041aaaaabH
+	DD	041cccccdH
+	DD	042000000H
+	DD	042124925H
+	DD	0422aaaabH
+	DD	0424ccccdH
+	DD	042800000H
+	DD	042924925H
+	DD	042aaaaabH
+	DD	042cccccdH
+	DD	043000000H
+	DD	043124925H
+	DD	0432aaaabH
+	DD	0434ccccdH
+	DD	043800000H
+	DD	043924925H
+	DD	043aaaaabH
+	DD	043cccccdH
+	DD	044000000H
+	DD	044124925H
+	DD	0442aaaabH
+	DD	0444ccccdH
+	DD	044800000H
+	DD	044924925H
+	DD	044aaaaabH
+	DD	044cccccdH
+	DD	045000000H
+	DD	045124925H
+	DD	0452aaaabH
+	DD	0454ccccdH
+	DD	045800000H
+	DD	045924925H
+	DD	045aaaaabH
+	DD	045cccccdH
+	DD	046000000H
+	DD	046124925H
+	DD	0462aaaabH
+	DD	0464ccccdH
+	DD	046800000H
+	DD	046924925H
+	DD	046aaaaabH
+	DD	046cccccdH
+	DD	047000000H
+	DD	047124925H
+	DD	0472aaaabH
+	DD	0474ccccdH
+_FnZTable DD	00H
+	DD	00H
+	DD	00H
+	DD	010010H
+	DD	04H
+	DD	00H
+	DD	020020H
+	DD	08H
+	DD	00H
+	DD	0820H
+	DD	08H
+	DD	059H
+	DD	010830H
+	DD	0cH
+	DD	059H
+	DD	020830H
+	DD	0cH
+	DD	051H
+	DD	02020H
+	DD	08H
+	DD	041H
+	DD	012030H
+	DD	0cH
+	DD	041H
+	DD	022020H
+	DD	08H
+	DD	041H
+_DATA	ENDS
+PUBLIC	_getFnZOffset
+_TEXT	SEGMENT
+_pRc$ = 8
+_getFnZOffset PROC NEAR
+
+; 252  : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+
+; 253  :   if( pRc->fogEnable )
+
+  00003	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  00006	83 78 6c 00	 cmp	 DWORD PTR [eax+108], 0
+  0000a	74 1f		 je	 SHORT $L36173
+
+; 255  :     if( pRc->fogTableMode == D3DFOG_NONE )
+
+  0000c	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  0000f	83 79 74 00	 cmp	 DWORD PTR [ecx+116], 0
+  00013	75 0b		 jne	 SHORT $L36174
+
+; 256  :       return( 3 + pRc->zEnable );
+
+  00015	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  00018	8b 42 24	 mov	 eax, DWORD PTR [edx+36]
+  0001b	83 c0 03	 add	 eax, 3
+  0001e	eb 11		 jmp	 SHORT $L36176
+$L36174:
+
+; 257  :     else
+; 258  :       return( 6 + pRc->zEnable );
+
+  00020	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  00023	8b 40 24	 mov	 eax, DWORD PTR [eax+36]
+  00026	83 c0 06	 add	 eax, 6
+  00029	eb 06		 jmp	 SHORT $L36176
+$L36173:
+
+; 260  :   else
+; 261  :     return( pRc->zEnable );
+
+  0002b	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  0002e	8b 41 24	 mov	 eax, DWORD PTR [ecx+36]
+$L36176:
+
+; 262  : }
+
+  00031	5d		 pop	 ebp
+  00032	c3		 ret	 0
+_getFnZOffset ENDP
+_TEXT	ENDS
+PUBLIC	_fogGenerateExp
+PUBLIC	__real@4@3fff8000000000000000
+PUBLIC	__real@4@00000000000000000000
+PUBLIC	__real@4@4006ff00000000000000
+EXTRN	__CIexp:NEAR
+EXTRN	__fltused:NEAR
+EXTRN	_float2int:NEAR
+;	COMDAT __real@4@3fff8000000000000000
+; File ..\d3fog.c
+CONST	SEGMENT
+__real@4@3fff8000000000000000 DD 03f800000r	; 1
+CONST	ENDS
+;	COMDAT __real@4@00000000000000000000
+CONST	SEGMENT
+__real@4@00000000000000000000 DD 000000000r	; 0
+CONST	ENDS
+;	COMDAT __real@4@4006ff00000000000000
+CONST	SEGMENT
+__real@4@4006ff00000000000000 DD 0437f0000r	; 255
+CONST	ENDS
+_TEXT	SEGMENT
+_fogtable$ = 8
+_density$ = 12
+_i$ = -16
+_f$ = -12
+_scale$ = -4
+_dp$ = -8
+_fogGenerateExp PROC NEAR
+
+; 294  : {
+
+  00033	55		 push	 ebp
+  00034	8b ec		 mov	 ebp, esp
+  00036	83 ec 18	 sub	 esp, 24			; 00000018H
+
+; 295  :   int   i;
+; 296  :   float f;
+; 297  :   float scale;
+; 298  :   float dp;
+; 299  : 
+; 300  :   dp = density * INDEXTOW( FOG_TABLE_SIZE - 1 );
+
+  00039	d9 45 0c	 fld	 DWORD PTR _density$[ebp]
+  0003c	d8 0d fc 00 00
+	00		 fmul	 DWORD PTR _indexToW+252
+  00042	d9 55 f8	 fst	 DWORD PTR _dp$[ebp]
+
+; 301  :   scale = 1.0F / ( 1.0F - ( float ) exp( -dp ) );
+
+  00045	d9 e0		 fchs
+  00047	e8 00 00 00 00	 call	 __CIexp
+  0004c	d9 55 ec	 fst	 DWORD PTR -20+[ebp]
+  0004f	d8 2d 00 00 00
+	00		 fsubr	 DWORD PTR __real@4@3fff8000000000000000
+  00055	d8 3d 00 00 00
+	00		 fdivr	 DWORD PTR __real@4@3fff8000000000000000
+  0005b	d9 5d fc	 fstp	 DWORD PTR _scale$[ebp]
+
+; 302  : 
+; 303  :   for ( i = 0; i < FOG_TABLE_SIZE; i++ )
+
+  0005e	c7 45 f0 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  00065	eb 09		 jmp	 SHORT $L36189
+$L36190:
+  00067	8b 45 f0	 mov	 eax, DWORD PTR _i$[ebp]
+  0006a	83 c0 01	 add	 eax, 1
+  0006d	89 45 f0	 mov	 DWORD PTR _i$[ebp], eax
+$L36189:
+  00070	83 7d f0 40	 cmp	 DWORD PTR _i$[ebp], 64	; 00000040H
+  00074	7d 78		 jge	 SHORT $L36191
+
+; 305  :      dp = density * INDEXTOW( i );
+
+  00076	8b 4d f0	 mov	 ecx, DWORD PTR _i$[ebp]
+  00079	d9 04 8d 00 00
+	00 00		 fld	 DWORD PTR _indexToW[ecx*4]
+  00080	d8 4d 0c	 fmul	 DWORD PTR _density$[ebp]
+  00083	d9 55 f8	 fst	 DWORD PTR _dp$[ebp]
+
+; 306  :      f = ( 1.0F - ( float ) exp( -dp ) ) * scale;
+
+  00086	d9 e0		 fchs
+  00088	e8 00 00 00 00	 call	 __CIexp
+  0008d	d9 55 e8	 fst	 DWORD PTR -24+[ebp]
+  00090	d8 2d 00 00 00
+	00		 fsubr	 DWORD PTR __real@4@3fff8000000000000000
+  00096	d8 4d fc	 fmul	 DWORD PTR _scale$[ebp]
+  00099	d9 55 f4	 fst	 DWORD PTR _f$[ebp]
+
+; 307  : 
+; 308  :      if ( f > 1.0F )
+
+  0009c	d8 1d 00 00 00
+	00		 fcomp	 DWORD PTR __real@4@3fff8000000000000000
+  000a2	df e0		 fnstsw	 ax
+  000a4	f6 c4 41	 test	 ah, 65			; 00000041H
+  000a7	75 09		 jne	 SHORT $L36194
+
+; 309  :         f = 1.0F;
+
+  000a9	c7 45 f4 00 00
+	80 3f		 mov	 DWORD PTR _f$[ebp], 1065353216 ; 3f800000H
+
+; 310  :      else if ( f < 0.0F )
+
+  000b0	eb 17		 jmp	 SHORT $L36196
+$L36194:
+  000b2	d9 45 f4	 fld	 DWORD PTR _f$[ebp]
+  000b5	d8 1d 00 00 00
+	00		 fcomp	 DWORD PTR __real@4@00000000000000000000
+  000bb	df e0		 fnstsw	 ax
+  000bd	f6 c4 01	 test	 ah, 1
+  000c0	74 07		 je	 SHORT $L36196
+
+; 311  :         f = 0.0F;
+
+  000c2	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _f$[ebp], 0
+$L36196:
+
+; 312  : 
+; 313  :      f *= 255.0F;
+
+  000c9	d9 45 f4	 fld	 DWORD PTR _f$[ebp]
+  000cc	d8 0d 00 00 00
+	00		 fmul	 DWORD PTR __real@4@4006ff00000000000000
+  000d2	d9 5d f4	 fstp	 DWORD PTR _f$[ebp]
+
+; 314  : 
+; 315  :     fogtable[i] = ( unsigned char ) float2int( f );
+
+  000d5	8b 55 f4	 mov	 edx, DWORD PTR _f$[ebp]
+  000d8	52		 push	 edx
+  000d9	e8 00 00 00 00	 call	 _float2int
+  000de	83 c4 04	 add	 esp, 4
+  000e1	8b 4d 08	 mov	 ecx, DWORD PTR _fogtable$[ebp]
+  000e4	03 4d f0	 add	 ecx, DWORD PTR _i$[ebp]
+  000e7	88 01		 mov	 BYTE PTR [ecx], al
+
+; 316  :     //D3DPRINT( 255, "Index [%d] =%d", i, fogtable[i] );
+; 317  :   }
+
+  000e9	e9 79 ff ff ff	 jmp	 $L36190
+$L36191:
+
+; 318  : }
+
+  000ee	8b e5		 mov	 esp, ebp
+  000f0	5d		 pop	 ebp
+  000f1	c3		 ret	 0
+_fogGenerateExp ENDP
+_TEXT	ENDS
+PUBLIC	_fogGenerateExp2
+_TEXT	SEGMENT
+_fogtable$ = 8
+_density$ = 12
+_i$ = -16
+_f$ = -12
+_scale$ = -4
+_dp$ = -8
+_fogGenerateExp2 PROC NEAR
+
+; 329  : {
+
+  000f2	55		 push	 ebp
+  000f3	8b ec		 mov	 ebp, esp
+  000f5	83 ec 18	 sub	 esp, 24			; 00000018H
+
+; 330  :   int   i;
+; 331  :   float f;
+; 332  :   float scale;
+; 333  :   float dp;
+; 334  : 
+; 335  :   dp = density * INDEXTOW( FOG_TABLE_SIZE - 1 );
+
+  000f8	d9 45 0c	 fld	 DWORD PTR _density$[ebp]
+  000fb	d8 0d fc 00 00
+	00		 fmul	 DWORD PTR _indexToW+252
+  00101	d9 55 f8	 fst	 DWORD PTR _dp$[ebp]
+
+; 336  :   scale = 1.0F / ( 1.0F - ( float ) exp( -( dp * dp ) ) );
+
+  00104	d8 4d f8	 fmul	 DWORD PTR _dp$[ebp]
+  00107	d9 e0		 fchs
+  00109	e8 00 00 00 00	 call	 __CIexp
+  0010e	d9 55 ec	 fst	 DWORD PTR -20+[ebp]
+  00111	d8 2d 00 00 00
+	00		 fsubr	 DWORD PTR __real@4@3fff8000000000000000
+  00117	d8 3d 00 00 00
+	00		 fdivr	 DWORD PTR __real@4@3fff8000000000000000
+  0011d	d9 5d fc	 fstp	 DWORD PTR _scale$[ebp]
+
+; 337  : 
+; 338  :   for ( i = 0; i < FOG_TABLE_SIZE; i++ )
+
+  00120	c7 45 f0 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  00127	eb 09		 jmp	 SHORT $L36210
+$L36211:
+  00129	8b 45 f0	 mov	 eax, DWORD PTR _i$[ebp]
+  0012c	83 c0 01	 add	 eax, 1
+  0012f	89 45 f0	 mov	 DWORD PTR _i$[ebp], eax
+$L36210:
+  00132	83 7d f0 40	 cmp	 DWORD PTR _i$[ebp], 64	; 00000040H
+  00136	7d 7b		 jge	 SHORT $L36212
+
+; 340  :      dp = density * INDEXTOW( i );
+
+  00138	8b 4d f0	 mov	 ecx, DWORD PTR _i$[ebp]
+  0013b	d9 04 8d 00 00
+	00 00		 fld	 DWORD PTR _indexToW[ecx*4]
+  00142	d8 4d 0c	 fmul	 DWORD PTR _density$[ebp]
+  00145	d9 55 f8	 fst	 DWORD PTR _dp$[ebp]
+
+; 341  :      f = ( 1.0F - ( float ) exp( -( dp * dp ) ) ) * scale;
+
+  00148	d8 4d f8	 fmul	 DWORD PTR _dp$[ebp]
+  0014b	d9 e0		 fchs
+  0014d	e8 00 00 00 00	 call	 __CIexp
+  00152	d9 55 e8	 fst	 DWORD PTR -24+[ebp]
+  00155	d8 2d 00 00 00
+	00		 fsubr	 DWORD PTR __real@4@3fff8000000000000000
+  0015b	d8 4d fc	 fmul	 DWORD PTR _scale$[ebp]
+  0015e	d9 55 f4	 fst	 DWORD PTR _f$[ebp]
+
+; 342  : 
+; 343  :      if ( f > 1.0F )
+
+  00161	d8 1d 00 00 00
+	00		 fcomp	 DWORD PTR __real@4@3fff8000000000000000
+  00167	df e0		 fnstsw	 ax
+  00169	f6 c4 41	 test	 ah, 65			; 00000041H
+  0016c	75 09		 jne	 SHORT $L36215
+
+; 344  :         f = 1.0F;
+
+  0016e	c7 45 f4 00 00
+	80 3f		 mov	 DWORD PTR _f$[ebp], 1065353216 ; 3f800000H
+
+; 345  :      else if ( f < 0.0F )
+
+  00175	eb 17		 jmp	 SHORT $L36217
+$L36215:
+  00177	d9 45 f4	 fld	 DWORD PTR _f$[ebp]
+  0017a	d8 1d 00 00 00
+	00		 fcomp	 DWORD PTR __real@4@00000000000000000000
+  00180	df e0		 fnstsw	 ax
+  00182	f6 c4 01	 test	 ah, 1
+  00185	74 07		 je	 SHORT $L36217
+
+; 346  :         f = 0.0F;
+
+  00187	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _f$[ebp], 0
+$L36217:
+
+; 347  : 
+; 348  :      f *= 255.0F;
+
+  0018e	d9 45 f4	 fld	 DWORD PTR _f$[ebp]
+  00191	d8 0d 00 00 00
+	00		 fmul	 DWORD PTR __real@4@4006ff00000000000000
+  00197	d9 5d f4	 fstp	 DWORD PTR _f$[ebp]
+
+; 349  : 
+; 350  :     fogtable[i] = ( unsigned char ) float2int( f );
+
+  0019a	8b 55 f4	 mov	 edx, DWORD PTR _f$[ebp]
+  0019d	52		 push	 edx
+  0019e	e8 00 00 00 00	 call	 _float2int
+  001a3	83 c4 04	 add	 esp, 4
+  001a6	8b 4d 08	 mov	 ecx, DWORD PTR _fogtable$[ebp]
+  001a9	03 4d f0	 add	 ecx, DWORD PTR _i$[ebp]
+  001ac	88 01		 mov	 BYTE PTR [ecx], al
+
+; 351  :     //D3DPRINT( 255, "Index [%d] =%d", i, fogtable[i] );
+; 352  :   }
+
+  001ae	e9 76 ff ff ff	 jmp	 $L36211
+$L36212:
+
+; 353  : } /* guFogGenerateExp2 */
+
+  001b3	8b e5		 mov	 esp, ebp
+  001b5	5d		 pop	 ebp
+  001b6	c3		 ret	 0
+_fogGenerateExp2 ENDP
+_TEXT	ENDS
+PUBLIC	_fogGenerateLinear_Orig
+_TEXT	SEGMENT
+_fogtable$ = 8
+_pRc$ = 12
+_i$ = -20
+_world_w$ = -16
+_nearZ$ = -4
+_farZ$ = -12
+_f$ = -8
+_ppdev$ = -24
+_fogGenerateLinear_Orig PROC NEAR
+
+; 368  : {
+
+  001b7	55		 push	 ebp
+  001b8	8b ec		 mov	 ebp, esp
+  001ba	83 ec 18	 sub	 esp, 24			; 00000018H
+
+; 369  :   int i;
+; 370  :   float world_w, nearZ, farZ;
+; 371  :   float f;
+; 372  : 
+; 373  :   SETUP_PPDEV(pRc)
+
+  001bd	8b 45 0c	 mov	 eax, DWORD PTR _pRc$[ebp]
+  001c0	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  001c3	89 4d e8	 mov	 DWORD PTR _ppdev$[ebp], ecx
+
+; 374  : 
+; 375  : #ifdef PXLFOGLIN
+; 376  : // SH - 
+; 377  : // Since the hw doesn't support z-based table fog, we cannot support a table which
+; 378  : // starts and ends with values less than 1.0 (all entries end up being 255 and all objects are
+; 379  : // fogged out). Thus, in this case we set all the table entries to zero. This means that we are
+; 380  : // eliminating fogging for this case which is wrong but until we come up with a better work around,
+; 381  : // this is the easiest and lowest risk solution (??).
+; 382  : // Fixes PRS 13517 - V5: Centipede, no textures - only overlays appear once game starts (D3D only)
+; 383  : 
+; 384  : #pragma message(__FILELINE__ " undefine PXLFOGLIN to disable wk around for z-based hw fog tbl")
+; 385  : 
+; 386  :   nearZ = pRc->fogTableStart;
+
+  001c6	8b 55 0c	 mov	 edx, DWORD PTR _pRc$[ebp]
+  001c9	8b 42 78	 mov	 eax, DWORD PTR [edx+120]
+  001cc	89 45 fc	 mov	 DWORD PTR _nearZ$[ebp], eax
+
+; 387  :   farZ  = pRc->fogTableEnd;
+
+  001cf	8b 4d 0c	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  001d2	8b 51 7c	 mov	 edx, DWORD PTR [ecx+124]
+  001d5	89 55 f4	 mov	 DWORD PTR _farZ$[ebp], edx
+
+; 388  : 
+; 389  :   if ((nearZ < 1.0F) && (farZ <= 1.0F))
+
+  001d8	d9 45 fc	 fld	 DWORD PTR _nearZ$[ebp]
+  001db	d8 1d 00 00 00
+	00		 fcomp	 DWORD PTR __real@4@3fff8000000000000000
+  001e1	df e0		 fnstsw	 ax
+  001e3	f6 c4 01	 test	 ah, 1
+  001e6	74 38		 je	 SHORT $L36231
+  001e8	d9 45 f4	 fld	 DWORD PTR _farZ$[ebp]
+  001eb	d8 1d 00 00 00
+	00		 fcomp	 DWORD PTR __real@4@3fff8000000000000000
+  001f1	df e0		 fnstsw	 ax
+  001f3	f6 c4 41	 test	 ah, 65			; 00000041H
+  001f6	74 28		 je	 SHORT $L36231
+
+; 391  : 	for ( i = 0; i < FOG_TABLE_SIZE; i++ )
+
+  001f8	c7 45 ec 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  001ff	eb 09		 jmp	 SHORT $L36232
+$L36233:
+  00201	8b 45 ec	 mov	 eax, DWORD PTR _i$[ebp]
+  00204	83 c0 01	 add	 eax, 1
+  00207	89 45 ec	 mov	 DWORD PTR _i$[ebp], eax
+$L36232:
+  0020a	83 7d ec 40	 cmp	 DWORD PTR _i$[ebp], 64	; 00000040H
+  0020e	7d 0b		 jge	 SHORT $L36234
+
+; 393  : 	  fogtable[i] = 0;
+
+  00210	8b 4d 08	 mov	 ecx, DWORD PTR _fogtable$[ebp]
+  00213	03 4d ec	 add	 ecx, DWORD PTR _i$[ebp]
+  00216	c6 01 00	 mov	 BYTE PTR [ecx], 0
+
+; 394  : 	}
+
+  00219	eb e6		 jmp	 SHORT $L36233
+$L36234:
+
+; 396  :   else
+
+  0021b	e9 b1 00 00 00	 jmp	 $L36238
+$L36231:
+
+; 399  :     for ( i = 0; i < FOG_TABLE_SIZE; i++ )
+
+  00220	c7 45 ec 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  00227	eb 09		 jmp	 SHORT $L36236
+$L36237:
+  00229	8b 55 ec	 mov	 edx, DWORD PTR _i$[ebp]
+  0022c	83 c2 01	 add	 edx, 1
+  0022f	89 55 ec	 mov	 DWORD PTR _i$[ebp], edx
+$L36236:
+  00232	83 7d ec 40	 cmp	 DWORD PTR _i$[ebp], 64	; 00000040H
+  00236	0f 8d 95 00 00
+	00		 jge	 $L36238
+
+; 401  :       world_w = INDEXTOW( i ); //guFogTableIndexToW( i );
+
+  0023c	8b 45 ec	 mov	 eax, DWORD PTR _i$[ebp]
+  0023f	d9 04 85 00 00
+	00 00		 fld	 DWORD PTR _indexToW[eax*4]
+  00246	d9 5d f0	 fstp	 DWORD PTR _world_w$[ebp]
+
+; 402  :       //D3DPRINT( 255,"fogGenerateLinear index=%d world_w=0x%x",i,*(int *)&world_w );
+; 403  : 
+; 404  :       if( pRc->state & STATE_REQUIRES_WBUFFER )
+
+  00249	8b 4d 0c	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  0024c	8b 91 ac 00 00
+	00		 mov	 edx, DWORD PTR [ecx+172]
+  00252	81 e2 00 00 02
+	00		 and	 edx, 131072		; 00020000H
+  00258	85 d2		 test	 edx, edx
+  0025a	74 18		 je	 SHORT $L36240
+
+; 406  : 	  	world_w = WSCALE(world_w);
+
+  0025c	8b 45 0c	 mov	 eax, DWORD PTR _pRc$[ebp]
+  0025f	d9 45 f0	 fld	 DWORD PTR _world_w$[ebp]
+  00262	d8 88 64 04 00
+	00		 fmul	 DWORD PTR [eax+1124]
+  00268	8b 4d 0c	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  0026b	d8 81 68 04 00
+	00		 fadd	 DWORD PTR [ecx+1128]
+  00271	d9 5d f0	 fstp	 DWORD PTR _world_w$[ebp]
+$L36240:
+
+; 408  :       
+; 409  :       f = 255.f * (( world_w - nearZ ) / ( farZ - nearZ ));
+
+  00274	d9 45 f0	 fld	 DWORD PTR _world_w$[ebp]
+  00277	d8 65 fc	 fsub	 DWORD PTR _nearZ$[ebp]
+  0027a	d9 45 f4	 fld	 DWORD PTR _farZ$[ebp]
+  0027d	d8 65 fc	 fsub	 DWORD PTR _nearZ$[ebp]
+  00280	de f9		 fdivp	 ST(1), ST(0)
+  00282	d8 0d 00 00 00
+	00		 fmul	 DWORD PTR __real@4@4006ff00000000000000
+  00288	d9 55 f8	 fst	 DWORD PTR _f$[ebp]
+
+; 410  :       //D3DPRINT( 255,"fogGenerateLinear fog=0x%x nearZ=0x%x farZ=0x%x",
+; 411  :       //           *(int *)&f, *(int *)&nearZ, *(int *)&farZ );
+; 412  : 
+; 413  :       if ( f > 255.0F )
+
+  0028b	d8 1d 00 00 00
+	00		 fcomp	 DWORD PTR __real@4@4006ff00000000000000
+  00291	df e0		 fnstsw	 ax
+  00293	f6 c4 41	 test	 ah, 65			; 00000041H
+  00296	75 09		 jne	 SHORT $L36241
+
+; 414  :         f = 255.0F;
+
+  00298	c7 45 f8 00 00
+	7f 43		 mov	 DWORD PTR _f$[ebp], 1132396544 ; 437f0000H
+
+; 415  :       else if ( f < 0.0F )
+
+  0029f	eb 17		 jmp	 SHORT $L36243
+$L36241:
+  002a1	d9 45 f8	 fld	 DWORD PTR _f$[ebp]
+  002a4	d8 1d 00 00 00
+	00		 fcomp	 DWORD PTR __real@4@00000000000000000000
+  002aa	df e0		 fnstsw	 ax
+  002ac	f6 c4 01	 test	 ah, 1
+  002af	74 07		 je	 SHORT $L36243
+
+; 416  :         f = 0.0F;
+
+  002b1	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _f$[ebp], 0
+$L36243:
+
+; 417  : 
+; 418  :       //D3DPRINT( 255,"fogGenerateLinear f*255=0x%x ",*(int *)&f );
+; 419  :       fogtable[i] = ( unsigned char ) float2int(f);
+
+  002b8	8b 55 f8	 mov	 edx, DWORD PTR _f$[ebp]
+  002bb	52		 push	 edx
+  002bc	e8 00 00 00 00	 call	 _float2int
+  002c1	83 c4 04	 add	 esp, 4
+  002c4	8b 4d 08	 mov	 ecx, DWORD PTR _fogtable$[ebp]
+  002c7	03 4d ec	 add	 ecx, DWORD PTR _i$[ebp]
+  002ca	88 01		 mov	 BYTE PTR [ecx], al
+
+; 420  :       //D3DPRINT( 255,"FogGenerateLinear  entry[%d] = 0x%x",i,fogtable[i] );
+; 421  :     }
+
+  002cc	e9 58 ff ff ff	 jmp	 $L36237
+$L36238:
+
+; 423  : }
+
+  002d1	8b e5		 mov	 esp, ebp
+  002d3	5d		 pop	 ebp
+  002d4	c3		 ret	 0
+_fogGenerateLinear_Orig ENDP
+_TEXT	ENDS
+PUBLIC	_fogTable@8
+EXTRN	_myAgpEpilog:NEAR
+EXTRN	_D3DPRINT:NEAR
+EXTRN	_myWrapAgp:NEAR
+_DATA	SEGMENT
+$SG36275 DB	'hwFogTable', 00H
+	ORG $+1
+$SG36284 DB	'  %08lX', 00H
+_DATA	ENDS
+_TEXT	SEGMENT
+_ppdev$ = 8
+_fogtable$ = 12
+_i$ = -12
+_locTable$ = -4
+_cmdFifo$ = -16
+_hwIndex$ = -8
+_e0$36279 = -28
+_e1$36280 = -32
+_d0$36281 = -20
+_d1$36282 = -24
+_fenceVar$36387 = -36
+$T36419 = -84
+$T36420 = -88
+_rdPtr$36422 = -60
+_resetIdleCount$36423 = -40
+_i$36424 = -48
+_nNumChips$36425 = -44
+_dwCmdFifoSpace$36426 = -52
+_dwCmdFifoMin$36427 = -56
+_rdPtr$36442 = -76
+_i$36443 = -68
+_nNumChips$36444 = -64
+_rdPtrMin$36445 = -72
+_fenceVar$36461 = -80
+_fogTable@8 PROC NEAR
+
+; 433  : {
+
+  002d5	55		 push	 ebp
+  002d6	8b ec		 mov	 ebp, esp
+  002d8	83 ec 64	 sub	 esp, 100		; 00000064H
+  002db	53		 push	 ebx
+  002dc	56		 push	 esi
+  002dd	57		 push	 edi
+
+; 434  :   int i;
+; 435  :   unsigned char *locTable = &fogtable[0];
+
+  002de	8b 45 0c	 mov	 eax, DWORD PTR _fogtable$[ebp]
+  002e1	89 45 fc	 mov	 DWORD PTR _locTable$[ebp], eax
+
+; 436  :   CMDFIFO_PROLOG(cmdFifo);
+
+  002e4	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  002e7	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  002ed	8b 42 0c	 mov	 eax, DWORD PTR [edx+12]
+  002f0	89 45 f0	 mov	 DWORD PTR _cmdFifo$[ebp], eax
+  002f3	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$[ebp], 0
+
+; 437  : 
+; 438  :   CMDFIFO_CHECKROOM( cmdFifo, PH1_SIZE + (FOG_TABLE_SIZE / 2) );
+
+  002fa	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  002fd	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00303	8b 42 28	 mov	 eax, DWORD PTR [edx+40]
+  00306	83 c0 21	 add	 eax, 33			; 00000021H
+  00309	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0030c	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00312	89 42 28	 mov	 DWORD PTR [edx+40], eax
+  00315	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00318	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  0031e	81 79 28 ff ff
+	00 00		 cmp	 DWORD PTR [ecx+40], 65535 ; 0000ffffH
+  00325	72 30		 jb	 SHORT $L36265
+
+; 451  :     d1 = (d1 - e1) << 2;                  /* delta1 in .2 format */
+
+  00327	66 87 45 dc	 xchg	 ax, WORD PTR _fenceVar$36387[ebp]
+
+; 437  : 
+; 438  :   CMDFIFO_CHECKROOM( cmdFifo, PH1_SIZE + (FOG_TABLE_SIZE / 2) );
+
+  0032b	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0032e	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00334	c7 40 28 21 00
+	00 00		 mov	 DWORD PTR [eax+40], 33	; 00000021H
+  0033b	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0033e	83 b9 f0 17 00
+	00 00		 cmp	 DWORD PTR [ecx+6128], 0
+  00345	74 10		 je	 SHORT $L36265
+  00347	8b 55 f0	 mov	 edx, DWORD PTR _cmdFifo$[ebp]
+  0034a	52		 push	 edx
+  0034b	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0034e	50		 push	 eax
+  0034f	e8 00 00 00 00	 call	 _myAgpEpilog
+  00354	83 c4 08	 add	 esp, 8
+$L36265:
+  00357	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0035a	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00360	8b 42 14	 mov	 eax, DWORD PTR [edx+20]
+  00363	2b 45 f8	 sub	 eax, DWORD PTR _hwIndex$[ebp]
+  00366	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00369	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  0036f	89 42 14	 mov	 DWORD PTR [edx+20], eax
+  00372	8b 45 f8	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  00375	8b 4d f0	 mov	 ecx, DWORD PTR _cmdFifo$[ebp]
+  00378	8d 14 81	 lea	 edx, DWORD PTR [ecx+eax*4]
+  0037b	89 55 f0	 mov	 DWORD PTR _cmdFifo$[ebp], edx
+  0037e	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$[ebp], 0
+  00385	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00388	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  0038e	83 79 14 21	 cmp	 DWORD PTR [ecx+20], 33	; 00000021H
+  00392	0f 83 53 02 00
+	00		 jae	 $L36421
+  00398	c7 45 d8 00 00
+	00 00		 mov	 DWORD PTR _resetIdleCount$36423[ebp], 0
+  0039f	ba 21 00 00 00	 mov	 edx, 33			; 00000021H
+  003a4	c1 e2 02	 shl	 edx, 2
+  003a7	8b 45 f0	 mov	 eax, DWORD PTR _cmdFifo$[ebp]
+  003aa	03 c2		 add	 eax, edx
+  003ac	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  003af	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  003b5	3b 42 08	 cmp	 eax, DWORD PTR [edx+8]
+  003b8	0f 86 35 01 00
+	00		 jbe	 $L36428
+  003be	8b 45 f0	 mov	 eax, DWORD PTR _cmdFifo$[ebp]
+  003c1	89 45 ac	 mov	 DWORD PTR $T36419[ebp], eax
+  003c4	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  003c7	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  003ca	81 e2 00 20 00
+	00		 and	 edx, 8192		; 00002000H
+  003d0	85 d2		 test	 edx, edx
+  003d2	74 0e		 je	 SHORT $L36446
+  003d4	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  003d7	8b 88 d0 04 00
+	00		 mov	 ecx, DWORD PTR [eax+1232]
+  003dd	89 4d c0	 mov	 DWORD PTR _nNumChips$36444[ebp], ecx
+  003e0	eb 07		 jmp	 SHORT $L36447
+$L36446:
+  003e2	c7 45 c0 01 00
+	00 00		 mov	 DWORD PTR _nNumChips$36444[ebp], 1
+$L36447:
+  003e9	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  003ec	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  003f2	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  003f5	89 4d b8	 mov	 DWORD PTR _rdPtrMin$36445[ebp], ecx
+  003f8	c7 45 bc 00 00
+	00 00		 mov	 DWORD PTR _i$36443[ebp], 0
+  003ff	eb 09		 jmp	 SHORT $L36448
+$L36449:
+  00401	8b 55 bc	 mov	 edx, DWORD PTR _i$36443[ebp]
+  00404	83 c2 01	 add	 edx, 1
+  00407	89 55 bc	 mov	 DWORD PTR _i$36443[ebp], edx
+$L36448:
+  0040a	8b 45 bc	 mov	 eax, DWORD PTR _i$36443[ebp]
+  0040d	3b 45 c0	 cmp	 eax, DWORD PTR _nNumChips$36444[ebp]
+  00410	7d 59		 jge	 SHORT $L36450
+$L36451:
+  00412	8b 4d bc	 mov	 ecx, DWORD PTR _i$36443[ebp]
+  00415	c1 e1 02	 shl	 ecx, 2
+  00418	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0041b	8b 84 8a 40 17
+	00 00		 mov	 eax, DWORD PTR [edx+ecx*4+5952]
+  00422	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00425	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  0042b	8b 40 2c	 mov	 eax, DWORD PTR [eax+44]
+  0042e	03 42 10	 add	 eax, DWORD PTR [edx+16]
+  00431	89 45 b4	 mov	 DWORD PTR _rdPtr$36442[ebp], eax
+  00434	8b 4d b4	 mov	 ecx, DWORD PTR _rdPtr$36442[ebp]
+  00437	3b 4d ac	 cmp	 ecx, DWORD PTR $T36419[ebp]
+  0043a	77 d6		 ja	 SHORT $L36451
+  0043c	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0043f	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00445	8b 4d b4	 mov	 ecx, DWORD PTR _rdPtr$36442[ebp]
+  00448	3b 48 04	 cmp	 ecx, DWORD PTR [eax+4]
+  0044b	74 c5		 je	 SHORT $L36451
+  0044d	8b 55 b8	 mov	 edx, DWORD PTR _rdPtrMin$36445[ebp]
+  00450	3b 55 b4	 cmp	 edx, DWORD PTR _rdPtr$36442[ebp]
+  00453	73 08		 jae	 SHORT $L36457
+  00455	8b 45 b8	 mov	 eax, DWORD PTR _rdPtrMin$36445[ebp]
+  00458	89 45 a4	 mov	 DWORD PTR -92+[ebp], eax
+  0045b	eb 06		 jmp	 SHORT $L36458
+$L36457:
+  0045d	8b 4d b4	 mov	 ecx, DWORD PTR _rdPtr$36442[ebp]
+  00460	89 4d a4	 mov	 DWORD PTR -92+[ebp], ecx
+$L36458:
+  00463	8b 55 a4	 mov	 edx, DWORD PTR -92+[ebp]
+  00466	89 55 b8	 mov	 DWORD PTR _rdPtrMin$36445[ebp], edx
+  00469	eb 96		 jmp	 SHORT $L36449
+$L36450:
+  0046b	8b 45 b8	 mov	 eax, DWORD PTR _rdPtrMin$36445[ebp]
+  0046e	89 45 b4	 mov	 DWORD PTR _rdPtr$36442[ebp], eax
+  00471	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00474	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  0047a	8b 45 ac	 mov	 eax, DWORD PTR $T36419[ebp]
+  0047d	8b 4a 18	 mov	 ecx, DWORD PTR [edx+24]
+  00480	89 08		 mov	 DWORD PTR [eax], ecx
+  00482	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00485	83 ba f0 17 00
+	00 00		 cmp	 DWORD PTR [edx+6128], 0
+  0048c	74 12		 je	 SHORT $L36454
+  0048e	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00491	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00497	8b 55 ac	 mov	 edx, DWORD PTR $T36419[ebp]
+  0049a	8b 41 1c	 mov	 eax, DWORD PTR [ecx+28]
+  0049d	89 42 04	 mov	 DWORD PTR [edx+4], eax
+$L36454:
+
+; 451  :     d1 = (d1 - e1) << 2;                  /* delta1 in .2 format */
+
+  004a0	66 87 45 b0	 xchg	 ax, WORD PTR _fenceVar$36461[ebp]
+
+; 437  : 
+; 438  :   CMDFIFO_CHECKROOM( cmdFifo, PH1_SIZE + (FOG_TABLE_SIZE / 2) );
+
+  004a4	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  004a7	83 b9 f0 17 00
+	00 00		 cmp	 DWORD PTR [ecx+6128], 0
+  004ae	74 10		 je	 SHORT $L36455
+  004b0	8b 55 ac	 mov	 edx, DWORD PTR $T36419[ebp]
+  004b3	52		 push	 edx
+  004b4	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  004b7	50		 push	 eax
+  004b8	e8 00 00 00 00	 call	 _myWrapAgp
+  004bd	83 c4 08	 add	 esp, 8
+$L36455:
+  004c0	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  004c3	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  004c9	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  004cc	89 45 ac	 mov	 DWORD PTR $T36419[ebp], eax
+  004cf	8b 4d b4	 mov	 ecx, DWORD PTR _rdPtr$36442[ebp]
+  004d2	2b 4d ac	 sub	 ecx, DWORD PTR $T36419[ebp]
+  004d5	c1 f9 02	 sar	 ecx, 2
+  004d8	83 e9 01	 sub	 ecx, 1
+  004db	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  004de	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  004e4	89 48 14	 mov	 DWORD PTR [eax+20], ecx
+  004e7	8b 4d ac	 mov	 ecx, DWORD PTR $T36419[ebp]
+  004ea	89 4d a8	 mov	 DWORD PTR $T36420[ebp], ecx
+  004ed	8b 55 a8	 mov	 edx, DWORD PTR $T36420[ebp]
+  004f0	89 55 f0	 mov	 DWORD PTR _cmdFifo$[ebp], edx
+$L36428:
+  004f3	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  004f6	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  004f9	81 e1 00 20 00
+	00		 and	 ecx, 8192		; 00002000H
+  004ff	85 c9		 test	 ecx, ecx
+  00501	74 0e		 je	 SHORT $L36429
+  00503	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00506	8b 82 d0 04 00
+	00		 mov	 eax, DWORD PTR [edx+1232]
+  0050c	89 45 d4	 mov	 DWORD PTR _nNumChips$36425[ebp], eax
+  0050f	eb 07		 jmp	 SHORT $L36430
+$L36429:
+  00511	c7 45 d4 01 00
+	00 00		 mov	 DWORD PTR _nNumChips$36425[ebp], 1
+$L36430:
+  00518	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0051b	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00521	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00524	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  0052a	8b 52 08	 mov	 edx, DWORD PTR [edx+8]
+  0052d	2b 51 04	 sub	 edx, DWORD PTR [ecx+4]
+  00530	83 c2 01	 add	 edx, 1
+  00533	89 55 c8	 mov	 DWORD PTR _dwCmdFifoMin$36427[ebp], edx
+  00536	c7 45 d0 00 00
+	00 00		 mov	 DWORD PTR _i$36424[ebp], 0
+  0053d	eb 09		 jmp	 SHORT $L36431
+$L36432:
+  0053f	8b 45 d0	 mov	 eax, DWORD PTR _i$36424[ebp]
+  00542	83 c0 01	 add	 eax, 1
+  00545	89 45 d0	 mov	 DWORD PTR _i$36424[ebp], eax
+$L36431:
+  00548	8b 4d d0	 mov	 ecx, DWORD PTR _i$36424[ebp]
+  0054b	3b 4d d4	 cmp	 ecx, DWORD PTR _nNumChips$36425[ebp]
+  0054e	0f 8d 88 00 00
+	00		 jge	 $L36433
+  00554	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00557	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  0055d	8b 48 14	 mov	 ecx, DWORD PTR [eax+20]
+  00560	89 4d cc	 mov	 DWORD PTR _dwCmdFifoSpace$36426[ebp], ecx
+$L36434:
+  00563	83 7d cc 21	 cmp	 DWORD PTR _dwCmdFifoSpace$36426[ebp], 33 ; 00000021H
+  00567	73 52		 jae	 SHORT $L36435
+  00569	8b 55 d0	 mov	 edx, DWORD PTR _i$36424[ebp]
+  0056c	c1 e2 02	 shl	 edx, 2
+  0056f	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00572	8b 8c 90 40 17
+	00 00		 mov	 ecx, DWORD PTR [eax+edx*4+5952]
+  00579	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0057c	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00582	8b 49 2c	 mov	 ecx, DWORD PTR [ecx+44]
+  00585	03 48 10	 add	 ecx, DWORD PTR [eax+16]
+  00588	89 4d c4	 mov	 DWORD PTR _rdPtr$36422[ebp], ecx
+  0058b	8b 55 c4	 mov	 edx, DWORD PTR _rdPtr$36422[ebp]
+  0058e	3b 55 f0	 cmp	 edx, DWORD PTR _cmdFifo$[ebp]
+  00591	77 17		 ja	 SHORT $L36436
+  00593	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00596	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  0059c	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  0059f	2b 55 f0	 sub	 edx, DWORD PTR _cmdFifo$[ebp]
+  005a2	c1 fa 02	 sar	 edx, 2
+  005a5	89 55 cc	 mov	 DWORD PTR _dwCmdFifoSpace$36426[ebp], edx
+  005a8	eb 0f		 jmp	 SHORT $L36437
+$L36436:
+  005aa	8b 45 c4	 mov	 eax, DWORD PTR _rdPtr$36422[ebp]
+  005ad	2b 45 f0	 sub	 eax, DWORD PTR _cmdFifo$[ebp]
+  005b0	c1 f8 02	 sar	 eax, 2
+  005b3	83 e8 01	 sub	 eax, 1
+  005b6	89 45 cc	 mov	 DWORD PTR _dwCmdFifoSpace$36426[ebp], eax
+$L36437:
+  005b9	eb a8		 jmp	 SHORT $L36434
+$L36435:
+  005bb	8b 4d c8	 mov	 ecx, DWORD PTR _dwCmdFifoMin$36427[ebp]
+  005be	3b 4d cc	 cmp	 ecx, DWORD PTR _dwCmdFifoSpace$36426[ebp]
+  005c1	73 08		 jae	 SHORT $L36439
+  005c3	8b 55 c8	 mov	 edx, DWORD PTR _dwCmdFifoMin$36427[ebp]
+  005c6	89 55 a0	 mov	 DWORD PTR -96+[ebp], edx
+  005c9	eb 06		 jmp	 SHORT $L36440
+$L36439:
+  005cb	8b 45 cc	 mov	 eax, DWORD PTR _dwCmdFifoSpace$36426[ebp]
+  005ce	89 45 a0	 mov	 DWORD PTR -96+[ebp], eax
+$L36440:
+  005d1	8b 4d a0	 mov	 ecx, DWORD PTR -96+[ebp]
+  005d4	89 4d c8	 mov	 DWORD PTR _dwCmdFifoMin$36427[ebp], ecx
+  005d7	e9 63 ff ff ff	 jmp	 $L36432
+$L36433:
+  005dc	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  005df	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  005e5	8b 4d c8	 mov	 ecx, DWORD PTR _dwCmdFifoMin$36427[ebp]
+  005e8	89 48 14	 mov	 DWORD PTR [eax+20], ecx
+$L36421:
+
+; 439  :   SETPH( cmdFifo, CMDFIFO_BUILD_PK1( (FOG_TABLE_SIZE / 2), 1, fogTable, 0xF ) );
+
+  005eb	8b 55 f8	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  005ee	8b 45 f0	 mov	 eax, DWORD PTR _cmdFifo$[ebp]
+  005f1	c7 04 90 c1 82
+	20 00		 mov	 DWORD PTR [eax+edx*4], 2130625 ; 002082c1H
+  005f8	8b 4d f8	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  005fb	83 c1 01	 add	 ecx, 1
+  005fe	89 4d f8	 mov	 DWORD PTR _hwIndex$[ebp], ecx
+
+; 440  : 
+; 441  :   D3DPRINT(D3DDBGLVL+1, "hwFogTable");
+
+  00601	68 00 00 00 00	 push	 OFFSET FLAT:$SG36275
+  00606	6a 09		 push	 9
+  00608	e8 00 00 00 00	 call	 _D3DPRINT
+  0060d	83 c4 08	 add	 esp, 8
+
+; 442  : 
+; 443  :   for ( i = 0; i < (FOG_TABLE_SIZE / 2); i++ )
+
+  00610	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  00617	eb 09		 jmp	 SHORT $L36276
+$L36277:
+  00619	8b 55 f4	 mov	 edx, DWORD PTR _i$[ebp]
+  0061c	83 c2 01	 add	 edx, 1
+  0061f	89 55 f4	 mov	 DWORD PTR _i$[ebp], edx
+$L36276:
+  00622	83 7d f4 20	 cmp	 DWORD PTR _i$[ebp], 32	; 00000020H
+  00626	0f 8d ae 00 00
+	00		 jge	 $L36278
+
+; 445  :     unsigned long e0, e1, d0, d1;
+; 446  : 
+; 447  :     e0 = locTable[0];                     /* lower entry */
+
+  0062c	8b 45 fc	 mov	 eax, DWORD PTR _locTable$[ebp]
+  0062f	33 c9		 xor	 ecx, ecx
+  00631	8a 08		 mov	 cl, BYTE PTR [eax]
+  00633	89 4d e4	 mov	 DWORD PTR _e0$36279[ebp], ecx
+
+; 448  :     e1 = locTable[1];                     /* upper entry */
+
+  00636	8b 55 fc	 mov	 edx, DWORD PTR _locTable$[ebp]
+  00639	33 c0		 xor	 eax, eax
+  0063b	8a 42 01	 mov	 al, BYTE PTR [edx+1]
+  0063e	89 45 e0	 mov	 DWORD PTR _e1$36280[ebp], eax
+
+; 449  :     d0 = (e1 - e0) << 2;                  /* delta0 in .2 format */
+
+  00641	8b 4d e0	 mov	 ecx, DWORD PTR _e1$36280[ebp]
+  00644	2b 4d e4	 sub	 ecx, DWORD PTR _e0$36279[ebp]
+  00647	c1 e1 02	 shl	 ecx, 2
+  0064a	89 4d ec	 mov	 DWORD PTR _d0$36281[ebp], ecx
+
+; 450  :     d1 = (i == 31) ? e1 : locTable[2];    /* don't access beyond end of table */
+
+  0064d	83 7d f4 1f	 cmp	 DWORD PTR _i$[ebp], 31	; 0000001fH
+  00651	75 08		 jne	 SHORT $L36382
+  00653	8b 55 e0	 mov	 edx, DWORD PTR _e1$36280[ebp]
+  00656	89 55 9c	 mov	 DWORD PTR -100+[ebp], edx
+  00659	eb 0b		 jmp	 SHORT $L36383
+$L36382:
+  0065b	8b 45 fc	 mov	 eax, DWORD PTR _locTable$[ebp]
+  0065e	33 c9		 xor	 ecx, ecx
+  00660	8a 48 02	 mov	 cl, BYTE PTR [eax+2]
+  00663	89 4d 9c	 mov	 DWORD PTR -100+[ebp], ecx
+$L36383:
+  00666	8b 55 9c	 mov	 edx, DWORD PTR -100+[ebp]
+  00669	89 55 e8	 mov	 DWORD PTR _d1$36282[ebp], edx
+
+; 451  :     d1 = (d1 - e1) << 2;                  /* delta1 in .2 format */
+
+  0066c	8b 45 e8	 mov	 eax, DWORD PTR _d1$36282[ebp]
+  0066f	2b 45 e0	 sub	 eax, DWORD PTR _e1$36280[ebp]
+  00672	c1 e0 02	 shl	 eax, 2
+  00675	89 45 e8	 mov	 DWORD PTR _d1$36282[ebp], eax
+
+; 452  : 
+; 453  :     #if defined(H3_A0) || defined(H3_A1) || defined(H3_A2)
+; 454  :     SETPD( cmdFifo, ghw->fogTable[i], ~((e1 << 24) | (d1 << 16) | (e0 << 8) | d0 ));
+; 455  :     D3DPRINT(D3DDBGLVL+1, "  %08lX", ~(e1 << 24) | (d1 << 16) | (e0 << 8) | d0);
+; 456  :     #else
+; 457  :     SETPD( cmdFifo, ghw->fogTable[i], (e1 << 24) | (d1 << 16) | (e0 << 8) | d0 );
+
+  00678	8b 4d e0	 mov	 ecx, DWORD PTR _e1$36280[ebp]
+  0067b	c1 e1 18	 shl	 ecx, 24			; 00000018H
+  0067e	8b 55 e8	 mov	 edx, DWORD PTR _d1$36282[ebp]
+  00681	c1 e2 10	 shl	 edx, 16			; 00000010H
+  00684	0b ca		 or	 ecx, edx
+  00686	8b 45 e4	 mov	 eax, DWORD PTR _e0$36279[ebp]
+  00689	c1 e0 08	 shl	 eax, 8
+  0068c	0b c8		 or	 ecx, eax
+  0068e	0b 4d ec	 or	 ecx, DWORD PTR _d0$36281[ebp]
+  00691	8b 55 f8	 mov	 edx, DWORD PTR _hwIndex$[ebp]
+  00694	8b 45 f0	 mov	 eax, DWORD PTR _cmdFifo$[ebp]
+  00697	89 0c 90	 mov	 DWORD PTR [eax+edx*4], ecx
+  0069a	8b 4d f8	 mov	 ecx, DWORD PTR _hwIndex$[ebp]
+  0069d	83 c1 01	 add	 ecx, 1
+  006a0	89 4d f8	 mov	 DWORD PTR _hwIndex$[ebp], ecx
+
+; 458  :     D3DPRINT(D3DDBGLVL+1, "  %08lX", (e1 << 24) | (d1 << 16) | (e0 << 8) | d0);
+
+  006a3	8b 55 e0	 mov	 edx, DWORD PTR _e1$36280[ebp]
+  006a6	c1 e2 18	 shl	 edx, 24			; 00000018H
+  006a9	8b 45 e8	 mov	 eax, DWORD PTR _d1$36282[ebp]
+  006ac	c1 e0 10	 shl	 eax, 16			; 00000010H
+  006af	0b d0		 or	 edx, eax
+  006b1	8b 4d e4	 mov	 ecx, DWORD PTR _e0$36279[ebp]
+  006b4	c1 e1 08	 shl	 ecx, 8
+  006b7	0b d1		 or	 edx, ecx
+  006b9	0b 55 ec	 or	 edx, DWORD PTR _d0$36281[ebp]
+  006bc	52		 push	 edx
+  006bd	68 00 00 00 00	 push	 OFFSET FLAT:$SG36284
+  006c2	6a 09		 push	 9
+  006c4	e8 00 00 00 00	 call	 _D3DPRINT
+  006c9	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 459  :     #endif
+; 460  : 
+; 461  :     locTable += 2;
+
+  006cc	8b 55 fc	 mov	 edx, DWORD PTR _locTable$[ebp]
+  006cf	83 c2 02	 add	 edx, 2
+  006d2	89 55 fc	 mov	 DWORD PTR _locTable$[ebp], edx
+
+; 462  :   }
+
+  006d5	e9 3f ff ff ff	 jmp	 $L36277
+$L36278:
+
+; 463  :   CMDFIFO_EPILOG( cmdFifo );
+
+  006da	8b 45 f8	 mov	 eax, DWORD PTR _hwIndex$[ebp]
+  006dd	8b 4d f0	 mov	 ecx, DWORD PTR _cmdFifo$[ebp]
+  006e0	8d 14 81	 lea	 edx, DWORD PTR [ecx+eax*4]
+  006e3	89 55 f0	 mov	 DWORD PTR _cmdFifo$[ebp], edx
+  006e6	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  006e9	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  006ef	8b 55 f0	 mov	 edx, DWORD PTR _cmdFifo$[ebp]
+  006f2	89 51 0c	 mov	 DWORD PTR [ecx+12], edx
+  006f5	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  006f8	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  006fe	8b 51 14	 mov	 edx, DWORD PTR [ecx+20]
+  00701	2b 55 f8	 sub	 edx, DWORD PTR _hwIndex$[ebp]
+  00704	8b 45 08	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00707	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  0070d	89 51 14	 mov	 DWORD PTR [ecx+20], edx
+  00710	8b 55 08	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00713	83 ba f0 17 00
+	00 00		 cmp	 DWORD PTR [edx+6128], 0
+  0071a	74 10		 je	 SHORT $L36290
+  0071c	8b 45 f0	 mov	 eax, DWORD PTR _cmdFifo$[ebp]
+  0071f	50		 push	 eax
+  00720	8b 4d 08	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00723	51		 push	 ecx
+  00724	e8 00 00 00 00	 call	 _myAgpEpilog
+  00729	83 c4 08	 add	 esp, 8
+$L36290:
+  0072c	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$[ebp], 0
+
+; 464  : }
+
+  00733	5f		 pop	 edi
+  00734	5e		 pop	 esi
+  00735	5b		 pop	 ebx
+  00736	8b e5		 mov	 esp, ebp
+  00738	5d		 pop	 ebp
+  00739	c2 08 00	 ret	 8
+_fogTable@8 ENDP
+_TEXT	ENDS
+PUBLIC	_createTableAndLoad
+EXTRN	_fogGenerateLinear:DWORD
+_DATA	SEGMENT
+$SG36303 DB	'fogGenerateLinear: nearZ=%08lX  farZ = %08lX', 00H
+	ORG $+3
+$SG36305 DB	'fogGenerateExp: density=%08lX', 00H
+	ORG $+2
+$SG36307 DB	'fogGenerateExp2: density=%08lX', 00H
+	ORG $+1
+$SG36309 DB	'WARNING: trying to set invalid fog type', 00H
+_DATA	ENDS
+_TEXT	SEGMENT
+_pRc$ = 8
+_ppdev$ = -68
+_localFogTable$ = -64
+_createTableAndLoad PROC NEAR
+
+; 475  : {
+
+  0073c	55		 push	 ebp
+  0073d	8b ec		 mov	 ebp, esp
+  0073f	83 ec 48	 sub	 esp, 72			; 00000048H
+
+; 476  :   SETUP_PPDEV(pRc)
+
+  00742	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  00745	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  00748	89 4d bc	 mov	 DWORD PTR _ppdev$[ebp], ecx
+
+; 477  :   unsigned char localFogTable[FOG_TABLE_SIZE];
+; 478  : 
+; 479  :   switch(pRc->fogTableMode)
+; 480  :   {
+
+  0074b	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  0074e	8b 42 74	 mov	 eax, DWORD PTR [edx+116]
+  00751	89 45 b8	 mov	 DWORD PTR -72+[ebp], eax
+  00754	83 7d b8 01	 cmp	 DWORD PTR -72+[ebp], 1
+  00758	74 4b		 je	 SHORT $L36304
+  0075a	83 7d b8 02	 cmp	 DWORD PTR -72+[ebp], 2
+  0075e	74 7b		 je	 SHORT $L36306
+  00760	83 7d b8 03	 cmp	 DWORD PTR -72+[ebp], 3
+  00764	74 05		 je	 SHORT $L36302
+  00766	e9 a6 00 00 00	 jmp	 $L36308
+$L36302:
+
+; 481  :     case  D3DFOG_LINEAR :
+; 482  :       D3DPRINT(D3DDBGLVL+1, "fogGenerateLinear: nearZ=%08lX  farZ = %08lX",
+; 483  :                pRc->fogTableStart, pRc->fogTableEnd);
+
+  0076b	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  0076e	d9 41 7c	 fld	 DWORD PTR [ecx+124]
+  00771	83 ec 08	 sub	 esp, 8
+  00774	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00777	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  0077a	d9 42 78	 fld	 DWORD PTR [edx+120]
+  0077d	83 ec 08	 sub	 esp, 8
+  00780	dd 1c 24	 fstp	 QWORD PTR [esp]
+  00783	68 00 00 00 00	 push	 OFFSET FLAT:$SG36303
+  00788	6a 09		 push	 9
+  0078a	e8 00 00 00 00	 call	 _D3DPRINT
+  0078f	83 c4 18	 add	 esp, 24			; 00000018H
+
+; 484  :       fogGenerateLinear(localFogTable, pRc ) ;
+
+  00792	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  00795	50		 push	 eax
+  00796	8d 4d c0	 lea	 ecx, DWORD PTR _localFogTable$[ebp]
+  00799	51		 push	 ecx
+  0079a	ff 15 00 00 00
+	00		 call	 DWORD PTR _fogGenerateLinear
+  007a0	83 c4 08	 add	 esp, 8
+
+; 485  :       break;
+
+  007a3	eb 7e		 jmp	 SHORT $L36299
+$L36304:
+
+; 486  : 
+; 487  :     case  D3DFOG_EXP :
+; 488  :       D3DPRINT(D3DDBGLVL+1, "fogGenerateExp: density=%08lX", pRc->fogDensity);
+
+  007a5	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  007a8	d9 82 80 00 00
+	00		 fld	 DWORD PTR [edx+128]
+  007ae	83 ec 08	 sub	 esp, 8
+  007b1	dd 1c 24	 fstp	 QWORD PTR [esp]
+  007b4	68 00 00 00 00	 push	 OFFSET FLAT:$SG36305
+  007b9	6a 09		 push	 9
+  007bb	e8 00 00 00 00	 call	 _D3DPRINT
+  007c0	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 489  :       fogGenerateExp(localFogTable, pRc->fogDensity) ;
+
+  007c3	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  007c6	8b 88 80 00 00
+	00		 mov	 ecx, DWORD PTR [eax+128]
+  007cc	51		 push	 ecx
+  007cd	8d 55 c0	 lea	 edx, DWORD PTR _localFogTable$[ebp]
+  007d0	52		 push	 edx
+  007d1	e8 00 00 00 00	 call	 _fogGenerateExp
+  007d6	83 c4 08	 add	 esp, 8
+
+; 490  :       break;
+
+  007d9	eb 48		 jmp	 SHORT $L36299
+$L36306:
+
+; 491  : 
+; 492  :     case  D3DFOG_EXP2 :
+; 493  :       D3DPRINT(D3DDBGLVL+1, "fogGenerateExp2: density=%08lX", pRc->fogDensity);
+
+  007db	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  007de	d9 80 80 00 00
+	00		 fld	 DWORD PTR [eax+128]
+  007e4	83 ec 08	 sub	 esp, 8
+  007e7	dd 1c 24	 fstp	 QWORD PTR [esp]
+  007ea	68 00 00 00 00	 push	 OFFSET FLAT:$SG36307
+  007ef	6a 09		 push	 9
+  007f1	e8 00 00 00 00	 call	 _D3DPRINT
+  007f6	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 494  :       fogGenerateExp2(localFogTable, pRc->fogDensity) ;
+
+  007f9	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  007fc	8b 91 80 00 00
+	00		 mov	 edx, DWORD PTR [ecx+128]
+  00802	52		 push	 edx
+  00803	8d 45 c0	 lea	 eax, DWORD PTR _localFogTable$[ebp]
+  00806	50		 push	 eax
+  00807	e8 00 00 00 00	 call	 _fogGenerateExp2
+  0080c	83 c4 08	 add	 esp, 8
+
+; 495  :       break;
+
+  0080f	eb 12		 jmp	 SHORT $L36299
+$L36308:
+
+; 496  : 
+; 497  :     default:
+; 498  :       D3DPRINT( 255, "WARNING: trying to set invalid fog type" ) ;
+
+  00811	68 00 00 00 00	 push	 OFFSET FLAT:$SG36309
+  00816	68 ff 00 00 00	 push	 255			; 000000ffH
+  0081b	e8 00 00 00 00	 call	 _D3DPRINT
+  00820	83 c4 08	 add	 esp, 8
+$L36299:
+
+; 502  : 
+; 503  : #ifdef DBG
+; 504  :   {
+; 505  :     int i;
+; 506  : 
+; 507  :     D3DPRINT(D3DDBGLVL+1, "localFogTable");
+; 508  :     for (i = 0; i < FOG_TABLE_SIZE; i+=8)
+; 509  :     {
+; 510  :       D3DPRINT(D3DDBGLVL+1, "  %02X : %02X %02X %02X %02X %02X %02X %02X %02X",
+; 511  :                i,
+; 512  :                localFogTable[i  ], localFogTable[i+1],
+; 513  :                localFogTable[i+2], localFogTable[i+3],
+; 514  :                localFogTable[i+4], localFogTable[i+5],
+; 515  :                localFogTable[i+6], localFogTable[i+7]);
+; 516  :     }
+; 517  :   }
+; 518  : #endif
+; 519  : 
+; 520  :   fogTable(ppdev, localFogTable);
+
+  00823	8d 4d c0	 lea	 ecx, DWORD PTR _localFogTable$[ebp]
+  00826	51		 push	 ecx
+  00827	8b 55 bc	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0082a	52		 push	 edx
+  0082b	e8 00 00 00 00	 call	 _fogTable@8
+
+; 521  : }
+
+  00830	8b e5		 mov	 esp, ebp
+  00832	5d		 pop	 ebp
+  00833	c3		 ret	 0
+_createTableAndLoad ENDP
+_TEXT	ENDS
+PUBLIC	_setFogMode
+_TEXT	SEGMENT
+_pRc$ = 8
+_offset$ = -4
+_setFogMode PROC NEAR
+
+; 531  : {
+
+  00834	55		 push	 ebp
+  00835	8b ec		 mov	 ebp, esp
+  00837	51		 push	 ecx
+
+; 532  :   DWORD offset = getFnZOffset( pRc );
+
+  00838	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  0083b	50		 push	 eax
+  0083c	e8 00 00 00 00	 call	 _getFnZOffset
+  00841	83 c4 04	 add	 esp, 4
+  00844	89 45 fc	 mov	 DWORD PTR _offset$[ebp], eax
+
+; 533  : 
+; 534  :   pRc->state = (pRc->state & ~FNZ_STATE_MASK) | FnZTable[ offset ][ FNZ_STATE ];
+
+  00847	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  0084a	8b 91 ac 00 00
+	00		 mov	 edx, DWORD PTR [ecx+172]
+  00850	81 e2 cf d7 fc
+	ff		 and	 edx, -206897		; fffcd7cfH
+  00856	8b 45 fc	 mov	 eax, DWORD PTR _offset$[ebp]
+  00859	6b c0 0c	 imul	 eax, 12			; 0000000cH
+  0085c	0b 90 00 00 00
+	00		 or	 edx, DWORD PTR _FnZTable[eax]
+  00862	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  00865	89 91 ac 00 00
+	00		 mov	 DWORD PTR [ecx+172], edx
+
+; 535  :   pRc->sst.sSetupMode = (pRc->sst.sSetupMode & ~FNZ_SETUP_MASK) | FnZTable[ offset ][ FNZ_SETUP ];
+
+  0086b	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  0086e	8b 82 dc 04 00
+	00		 mov	 eax, DWORD PTR [edx+1244]
+  00874	83 e0 f3	 and	 eax, -13		; fffffff3H
+  00877	8b 4d fc	 mov	 ecx, DWORD PTR _offset$[ebp]
+  0087a	6b c9 0c	 imul	 ecx, 12			; 0000000cH
+  0087d	0b 81 04 00 00
+	00		 or	 eax, DWORD PTR _FnZTable[ecx+4]
+  00883	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  00886	89 82 dc 04 00
+	00		 mov	 DWORD PTR [edx+1244], eax
+
+; 536  :   pRc->sst.fogMode = (pRc->sst.fogMode & ~FNZ_FOGMODE_MASK) | FnZTable[ offset ][ FNZ_FOGMODE ];
+
+  0088c	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  0088f	8b 88 8c 04 00
+	00		 mov	 ecx, DWORD PTR [eax+1164]
+  00895	83 e1 a6	 and	 ecx, -90		; ffffffa6H
+  00898	8b 55 fc	 mov	 edx, DWORD PTR _offset$[ebp]
+  0089b	6b d2 0c	 imul	 edx, 12			; 0000000cH
+  0089e	0b 8a 08 00 00
+	00		 or	 ecx, DWORD PTR _FnZTable[edx+8]
+  008a4	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  008a7	89 88 8c 04 00
+	00		 mov	 DWORD PTR [eax+1164], ecx
+
+; 537  : 
+; 538  :   UPDATE_HW_STATE( SC_SOMETHING | SC_TRIANGLE_FLAVOUR );
+
+  008ad	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  008b0	8b 91 d4 00 00
+	00		 mov	 edx, DWORD PTR [ecx+212]
+  008b6	83 ca 03	 or	 edx, 3
+  008b9	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  008bc	89 90 d4 00 00
+	00		 mov	 DWORD PTR [eax+212], edx
+
+; 539  : }
+
+  008c2	8b e5		 mov	 esp, ebp
+  008c4	5d		 pop	 ebp
+  008c5	c3		 ret	 0
+_setFogMode ENDP
+_TEXT	ENDS
+PUBLIC	_fogEnable@8
+_DATA	SEGMENT
+$SG36320 DB	'fogEnable Renderstate %d', 00H
+_DATA	ENDS
+_TEXT	SEGMENT
+_pRc$ = 8
+_state$ = 12
+_fogEnable@8 PROC NEAR
+
+; 549  : {
+
+  008c6	55		 push	 ebp
+  008c7	8b ec		 mov	 ebp, esp
+
+; 550  :   pRc->fogEnable = state;
+
+  008c9	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  008cc	8b 4d 0c	 mov	 ecx, DWORD PTR _state$[ebp]
+  008cf	89 48 6c	 mov	 DWORD PTR [eax+108], ecx
+
+; 551  : 
+; 552  :   D3DPRINT( RSTATE_DBG_LVL, "fogEnable Renderstate %d", state );
+
+  008d2	8b 55 0c	 mov	 edx, DWORD PTR _state$[ebp]
+  008d5	52		 push	 edx
+  008d6	68 00 00 00 00	 push	 OFFSET FLAT:$SG36320
+  008db	6a 18		 push	 24			; 00000018H
+  008dd	e8 00 00 00 00	 call	 _D3DPRINT
+  008e2	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 553  : 
+; 554  :   setFogMode(pRc);
+
+  008e5	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  008e8	50		 push	 eax
+  008e9	e8 00 00 00 00	 call	 _setFogMode
+  008ee	83 c4 04	 add	 esp, 4
+
+; 555  : 
+; 556  :   if( state )
+
+  008f1	83 7d 0c 00	 cmp	 DWORD PTR _state$[ebp], 0
+  008f5	74 0f		 je	 SHORT $L36321
+
+; 557  :     pRc->useFog = FOG_ENABLED;
+
+  008f7	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  008fa	c7 81 e0 00 00
+	00 03 00 00 00	 mov	 DWORD PTR [ecx+224], 3
+
+; 558  :   else
+
+  00904	eb 0d		 jmp	 SHORT $L36322
+$L36321:
+
+; 559  :     pRc->useFog = FOG_DISABLED;
+
+  00906	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  00909	c7 82 e0 00 00
+	00 00 00 00 00	 mov	 DWORD PTR [edx+224], 0
+$L36322:
+
+; 560  :   RENDERFXN_OK;
+
+  00913	33 c0		 xor	 eax, eax
+
+; 561  : }
+
+  00915	5d		 pop	 ebp
+  00916	c2 08 00	 ret	 8
+_fogEnable@8 ENDP
+_TEXT	ENDS
+PUBLIC	_fogColor@8
+_DATA	SEGMENT
+	ORG $+3
+$SG36329 DB	'fogColor Renderstate %08lX', 00H
+_DATA	ENDS
+_TEXT	SEGMENT
+_pRc$ = 8
+_state$ = 12
+_fogColor@8 PROC NEAR
+
+; 571  : {
+
+  00919	55		 push	 ebp
+  0091a	8b ec		 mov	 ebp, esp
+
+; 572  :   D3DPRINT( RSTATE_DBG_LVL, "fogColor Renderstate %08lX", state );
+
+  0091c	8b 45 0c	 mov	 eax, DWORD PTR _state$[ebp]
+  0091f	50		 push	 eax
+  00920	68 00 00 00 00	 push	 OFFSET FLAT:$SG36329
+  00925	6a 18		 push	 24			; 00000018H
+  00927	e8 00 00 00 00	 call	 _D3DPRINT
+  0092c	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 573  : 
+; 574  :   pRc->fogColor     = (D3DCOLOR) state;
+
+  0092f	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  00932	8b 55 0c	 mov	 edx, DWORD PTR _state$[ebp]
+  00935	89 51 70	 mov	 DWORD PTR [ecx+112], edx
+
+; 575  : 
+; 576  :   pRc->sst.fogColor = (ULONG)(   (RGBA_GETRED(pRc->fogColor)   << 16)
+; 577  :                                | (RGBA_GETGREEN(pRc->fogColor) << 8 )
+; 578  :                                | (RGBA_GETBLUE(pRc->fogColor)       ));
+
+  00938	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  0093b	8b 48 70	 mov	 ecx, DWORD PTR [eax+112]
+  0093e	c1 e9 10	 shr	 ecx, 16			; 00000010H
+  00941	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  00947	c1 e1 10	 shl	 ecx, 16			; 00000010H
+  0094a	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  0094d	8b 42 70	 mov	 eax, DWORD PTR [edx+112]
+  00950	c1 e8 08	 shr	 eax, 8
+  00953	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00958	c1 e0 08	 shl	 eax, 8
+  0095b	0b c8		 or	 ecx, eax
+  0095d	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  00960	8b 42 70	 mov	 eax, DWORD PTR [edx+112]
+  00963	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00968	0b c8		 or	 ecx, eax
+  0096a	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  0096d	89 8a 90 04 00
+	00		 mov	 DWORD PTR [edx+1168], ecx
+
+; 579  : 
+; 580  : #ifdef TnL_HAL
+; 581  :   pRc->tl.lighting.fog_color = (D3DCOLOR) state;
+; 582  :   pRc->tl.dwDirtyFlags |= TLPV_DIRTY_FOG;
+; 583  : #endif                              
+; 584  : 
+; 585  :   UPDATE_FOG_STATE( SC_FOGCOLOR );
+
+  00973	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  00976	8b 88 d8 00 00
+	00		 mov	 ecx, DWORD PTR [eax+216]
+  0097c	83 c9 01	 or	 ecx, 1
+  0097f	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  00982	89 8a d8 00 00
+	00		 mov	 DWORD PTR [edx+216], ecx
+
+; 586  :   RENDERFXN_OK;
+
+  00988	33 c0		 xor	 eax, eax
+
+; 587  : }
+
+  0098a	5d		 pop	 ebp
+  0098b	c2 08 00	 ret	 8
+_fogColor@8 ENDP
+_TEXT	ENDS
+PUBLIC	_fogTableMode@8
+_DATA	SEGMENT
+	ORG $+1
+$SG36338 DB	'fogTableMode Renderstate %d', 00H
+_DATA	ENDS
+_TEXT	SEGMENT
+_pRc$ = 8
+_state$ = 12
+_fogTableMode@8 PROC NEAR
+
+; 597  : {
+
+  0098e	55		 push	 ebp
+  0098f	8b ec		 mov	 ebp, esp
+
+; 598  :   D3DPRINT( RSTATE_DBG_LVL, "fogTableMode Renderstate %d", state );
+
+  00991	8b 45 0c	 mov	 eax, DWORD PTR _state$[ebp]
+  00994	50		 push	 eax
+  00995	68 00 00 00 00	 push	 OFFSET FLAT:$SG36338
+  0099a	6a 18		 push	 24			; 00000018H
+  0099c	e8 00 00 00 00	 call	 _D3DPRINT
+  009a1	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 599  : 
+; 600  :   pRc->fogTableMode  = state;
+
+  009a4	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  009a7	8b 55 0c	 mov	 edx, DWORD PTR _state$[ebp]
+  009aa	89 51 74	 mov	 DWORD PTR [ecx+116], edx
+
+; 601  : 
+; 602  :   setFogMode( pRc );
+
+  009ad	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  009b0	50		 push	 eax
+  009b1	e8 00 00 00 00	 call	 _setFogMode
+  009b6	83 c4 04	 add	 esp, 4
+
+; 603  : 
+; 604  :   if( state != D3DFOG_NONE )
+
+  009b9	83 7d 0c 00	 cmp	 DWORD PTR _state$[ebp], 0
+  009bd	74 24		 je	 SHORT $L36339
+
+; 606  :     pRc->useFogTable = FOGTABLE_ENABLED;
+
+  009bf	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  009c2	c7 81 dc 00 00
+	00 02 00 00 00	 mov	 DWORD PTR [ecx+220], 2
+
+; 607  :     UPDATE_FOG_STATE( SC_FOGTABLE );
+
+  009cc	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  009cf	8b 82 d8 00 00
+	00		 mov	 eax, DWORD PTR [edx+216]
+  009d5	83 c8 02	 or	 eax, 2
+  009d8	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  009db	89 81 d8 00 00
+	00		 mov	 DWORD PTR [ecx+216], eax
+
+; 609  :   else
+
+  009e1	eb 0d		 jmp	 SHORT $L36340
+$L36339:
+
+; 610  :     pRc->useFogTable = FOGTABLE_DISABLED;
+
+  009e3	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  009e6	c7 82 dc 00 00
+	00 00 00 00 00	 mov	 DWORD PTR [edx+220], 0
+$L36340:
+
+; 611  :   RENDERFXN_OK;
+
+  009f0	33 c0		 xor	 eax, eax
+
+; 612  : }
+
+  009f2	5d		 pop	 ebp
+  009f3	c2 08 00	 ret	 8
+_fogTableMode@8 ENDP
+_TEXT	ENDS
+PUBLIC	_fogTableStart@8
+_DATA	SEGMENT
+$SG36347 DB	'fogTableStart Renderstate %08lX', 00H
+_DATA	ENDS
+_TEXT	SEGMENT
+_pRc$ = 8
+_state$ = 12
+_fogTableStart@8 PROC NEAR
+
+; 622  : {
+
+  009f6	55		 push	 ebp
+  009f7	8b ec		 mov	 ebp, esp
+
+; 623  :   D3DPRINT( RSTATE_DBG_LVL, "fogTableStart Renderstate %08lX", state );
+
+  009f9	8b 45 0c	 mov	 eax, DWORD PTR _state$[ebp]
+  009fc	50		 push	 eax
+  009fd	68 00 00 00 00	 push	 OFFSET FLAT:$SG36347
+  00a02	6a 18		 push	 24			; 00000018H
+  00a04	e8 00 00 00 00	 call	 _D3DPRINT
+  00a09	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 624  : 
+; 625  :   pRc->fogTableStart = *(float *)&state;
+
+  00a0c	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  00a0f	8b 55 0c	 mov	 edx, DWORD PTR _state$[ebp]
+  00a12	89 51 78	 mov	 DWORD PTR [ecx+120], edx
+
+; 626  : #ifdef TnL_HAL   
+; 627  :   pRc->tl.lighting.fog_start = *(float *)&state;
+; 628  :   pRc->tl.dwDirtyFlags |= TLPV_DIRTY_FOG;
+; 629  : #endif
+; 630  : 
+; 631  : 
+; 632  :   UPDATE_FOG_STATE( SC_FOGTABLE );
+
+  00a15	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  00a18	8b 88 d8 00 00
+	00		 mov	 ecx, DWORD PTR [eax+216]
+  00a1e	83 c9 02	 or	 ecx, 2
+  00a21	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  00a24	89 8a d8 00 00
+	00		 mov	 DWORD PTR [edx+216], ecx
+
+; 633  :   RENDERFXN_OK;
+
+  00a2a	33 c0		 xor	 eax, eax
+
+; 634  : }
+
+  00a2c	5d		 pop	 ebp
+  00a2d	c2 08 00	 ret	 8
+_fogTableStart@8 ENDP
+_TEXT	ENDS
+PUBLIC	_fogTableEnd@8
+_DATA	SEGMENT
+$SG36355 DB	'fogTableEnd Renderstate %08lX', 00H
+_DATA	ENDS
+_TEXT	SEGMENT
+_pRc$ = 8
+_state$ = 12
+_fogTableEnd@8 PROC NEAR
+
+; 644  : {
+
+  00a30	55		 push	 ebp
+  00a31	8b ec		 mov	 ebp, esp
+
+; 645  :   D3DPRINT( RSTATE_DBG_LVL, "fogTableEnd Renderstate %08lX", state );
+
+  00a33	8b 45 0c	 mov	 eax, DWORD PTR _state$[ebp]
+  00a36	50		 push	 eax
+  00a37	68 00 00 00 00	 push	 OFFSET FLAT:$SG36355
+  00a3c	6a 18		 push	 24			; 00000018H
+  00a3e	e8 00 00 00 00	 call	 _D3DPRINT
+  00a43	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 646  : 
+; 647  :   pRc->fogTableEnd   = *(float *)&state;
+
+  00a46	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  00a49	8b 55 0c	 mov	 edx, DWORD PTR _state$[ebp]
+  00a4c	89 51 7c	 mov	 DWORD PTR [ecx+124], edx
+
+; 648  : #ifdef TnL_HAL   
+; 649  :   pRc->tl.lighting.fog_end = *(float *)&state;
+; 650  :   pRc->tl.dwDirtyFlags |= TLPV_DIRTY_FOG;
+; 651  : #endif
+; 652  : 
+; 653  :   UPDATE_FOG_STATE( SC_FOGTABLE );
+
+  00a4f	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  00a52	8b 88 d8 00 00
+	00		 mov	 ecx, DWORD PTR [eax+216]
+  00a58	83 c9 02	 or	 ecx, 2
+  00a5b	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  00a5e	89 8a d8 00 00
+	00		 mov	 DWORD PTR [edx+216], ecx
+
+; 654  :   RENDERFXN_OK;
+
+  00a64	33 c0		 xor	 eax, eax
+
+; 655  : }
+
+  00a66	5d		 pop	 ebp
+  00a67	c2 08 00	 ret	 8
+_fogTableEnd@8 ENDP
+_TEXT	ENDS
+PUBLIC	_fogDensity@8
+_DATA	SEGMENT
+	ORG $+2
+$SG36363 DB	'fogDensity Renderstate %08lX', 00H
+_DATA	ENDS
+_TEXT	SEGMENT
+_pRc$ = 8
+_state$ = 12
+_fogDensity@8 PROC NEAR
+
+; 665  : {
+
+  00a6a	55		 push	 ebp
+  00a6b	8b ec		 mov	 ebp, esp
+
+; 666  :   D3DPRINT( RSTATE_DBG_LVL, "fogDensity Renderstate %08lX", state );
+
+  00a6d	8b 45 0c	 mov	 eax, DWORD PTR _state$[ebp]
+  00a70	50		 push	 eax
+  00a71	68 00 00 00 00	 push	 OFFSET FLAT:$SG36363
+  00a76	6a 18		 push	 24			; 00000018H
+  00a78	e8 00 00 00 00	 call	 _D3DPRINT
+  00a7d	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 667  : 
+; 668  :   pRc->fogDensity    = *(float *)&state;
+
+  00a80	8b 4d 08	 mov	 ecx, DWORD PTR _pRc$[ebp]
+  00a83	8b 55 0c	 mov	 edx, DWORD PTR _state$[ebp]
+  00a86	89 91 80 00 00
+	00		 mov	 DWORD PTR [ecx+128], edx
+
+; 669  : #ifdef TnL_HAL
+; 670  :   pRc->tl.lighting.fog_density = *(float *)&state;
+; 671  :   pRc->tl.dwDirtyFlags |= TLPV_DIRTY_FOG;
+; 672  : #endif
+; 673  : 
+; 674  :   UPDATE_FOG_STATE( SC_FOGTABLE );
+
+  00a8c	8b 45 08	 mov	 eax, DWORD PTR _pRc$[ebp]
+  00a8f	8b 88 d8 00 00
+	00		 mov	 ecx, DWORD PTR [eax+216]
+  00a95	83 c9 02	 or	 ecx, 2
+  00a98	8b 55 08	 mov	 edx, DWORD PTR _pRc$[ebp]
+  00a9b	89 8a d8 00 00
+	00		 mov	 DWORD PTR [edx+216], ecx
+
+; 675  :   RENDERFXN_OK;
+
+  00aa1	33 c0		 xor	 eax, eax
+
+; 676  : }
+
+  00aa3	5d		 pop	 ebp
+  00aa4	c2 08 00	 ret	 8
+_fogDensity@8 ENDP
+_TEXT	ENDS
+END

@@ -1,0 +1,49 @@
+
+If you want to compare image-based runs on different platforms, you need
+to be aware that if you just do:
+
+ > perl runtests.pl -itests 
+
+on both platforms, you won't necessarily get images that can be easily
+compared. The reason for this is the way we currently choose the
+visuals when starting up. 
+
+If you don't specify what resolution, origin, etc - we query all supported
+resolutions and then pick one at random.  Since different platforms may 
+return different lists of supported resolutions, the same slot index 
+(chosen by our local random number generator with the same random seed
+on both platforms) can point to a different display resolution. The
+end result of this is that one platform may run at 640x480 with an
+upper left origin and the other platform may run at 320x240 with
+LL origin. And, if you're using the -xylimit option and the random number
+generator is out of sync with the other platform, you can end up with
+differently clipped conform windows.
+
+So, what you want to do is specify as much information as you can
+when you run the tests. Something like this:
+
+ > perl runtests.pl -itests -ta "-wid 50 -hei 50 -res 640x480 \
+   -cbuf 2 -abuf 1 -orig ul"
+
+If you do this, then both runs will end up with the same visuals, and
+all images will be fully onscreen (because the -xylimit option wasn't
+used). 
+
+Note that you can place these arguments in a file and have the tests
+read them in from there. Like so:
+
+ > echo "-wid 50 -hei 50 -res 640x480 -cbuf 2 -abuf 1 -orig ul" > argfile
+ > perl runtests.pl -itests -ta "-f argfile"
+
+This will pass the "-f argfile" to all tests, telling them to read their
+arguments in from the file 'argfile' and ignore command line args.
+
+In conform/tests, there is a file named '640.args' that you can use
+for just this purpose.
+
+ > perl runtests.pl -file 640.args
+
+
+
+
+

@@ -1,0 +1,1834 @@
+Microsoft (R) Macro Assembler Version 6.14.8444		    11/10/00 19:13:26
+..\polyline.asm						     Page 1 - 1
+
+
+
+				;----------------------------------------------------------------------------
+				;
+				; polyline.asm
+				;
+				; ASM equivalent OS_POLYLINE routine
+				;
+				;----------------------------------------------------------------------------
+
+ = 0001				incDrawMode EQU 1
+
+				        .xlist
+			      C         .list
+			      C 
+			      C ; STB Begin change
+			      C ; STB-SR 12/16/98 Added for STB Performance optimizations
+			      C ifdef INCSTBPERF
+			      C INCLUDE ..\..\BUILD\STBPERF.INC
+			      C ;/*
+			      C ;-----------------------------Module-Header-----------------------------;
+			      C ; Module Name:  STBPERF.INC
+			      C ;
+			      C ; This file contains optimization definitions used by the STB build of the
+			      C ; Voodoo3 source.
+			      C ;
+			      C ; Created: 12/15/97
+			      C ; Author:  Steve Rogers
+			      C ;
+			      C ; History:  Who	What?
+			      C ; 12/15/98  SR  Created
+			      C ; 12/16/98  sr  Added Handle1to1Str
+			      C ; 12/16/98  sr  Added Handle1X1
+			      C ; 12/16/98  sr  Added HandleSTR1X1
+			      C ; 01/11/99  pz  Added STB_MMGR_TWK
+			      C ; 01/13/99  sr  Added STB 16BIT Textout function from bj
+			      C ; 03/08/99  mgm Comment out SKIP_STAGE2 to fix PRS 4898 (mgm=michael@3dfx)
+			      C ;-----------------------------------------------------------------------;
+			      C ;
+			      C 
+			      C ; Define Assembly performance optimizations here
+			      C ; Name                     Description
+			      C ; Example
+			      C ; STBPERF_FASTRECIP    EQU 1  ; SR Uses table lookup for a faster, less acurate reciprocal
+ = 0001			      C STBPERF_HANDLE1X1      EQU 1  ; SR Pokes pixel through framebuffer for 1 pixel bitmap copies
+ = 0001			      C STBPERF_HANDLESTR1X1   EQU 1  ; SR Pokes pixel through framebuffer for 1 pixel bitmap 1 to 1 stretches
+ = 0001			      C STB_FIFO16_ENABLE	   EQU 1  ; BJ Enable/Allow 16 bit FIFO code to be used
+ = 0001			      C STBPERF_CMBITBLT       EQU 1  ; PZ Special case for color to mono blit
+ = 0001			      C STBPERF_DEVBITFIX      EQU 1  ; PZ A replacement scheme to work around a GDI bug in device bmp management
+			      C ifdef STBPERF_DEVBITFIX
+			      C ;  SKIP_STAGE2            EQU 1  ; PZ Do SKIP_STAGE2 only if STBPERF_DEVBITFIX is enabled
+			      C endif
+			      C ifdef STB_FIFO16_ENABLE
+ = 0001			      C 	STB_16BIT_TEXTOUT  EQU 1  ; BJ Use 16 bit FIFO CODE in ExtTextOut
+ = 0001			      C 	STBPERF_POLYLINE16 EQU 1  ; RVB 16-bit code for Output::OS_POLYLINE
+ = 0001			      C     STB_16BIT_BITBLT   EQU 1  ; BJ Use 16 bit FIFO CODE in BitBlt (PatCopy, Whiteness, Blackness)
+ = 0001			      C     STB_FASTER_TR      EQU 1  ; BJ No need to have 2 segment loads to check TR
+ = 0001			      C     PERF_NEW16BITBLT   EQU 1  ; SteveH - optimized 16-bit BitBlt 
+ = 0001			      C     PERF_NEWMM         EQU 1  ; SteveH - optimized 2D memory manager
+			      C endif
+			      C ifdef PERF_NEWMM
+ = 0001			      C     SKIP_STAGE2        EQU 1  ; SteveH - if we're using the new MM, no need to do the hostify code
+			      C endif
+ = 0001			      C STBPERF_K6_ASM_AUTOSTRIP EQU 1    ; turn on auto-stripping in atrik.asm
+			      C 
+			      C comment `
+			      C 
+			      C ;*/
+			      C 
+			      C // Define C performance optimizations here
+			      C //#pragma message("Compiling with Performance optimizations in ../build/STBPERF.INC.")
+			      C // #define Name                  Description
+			      C // Example
+			      C // #define STBPERF_FASTRECIP 1      ; SR Uses table lookup for a faster, less acurate reciprocal
+			      C #define STBPERF_HANDLE1TO1STR 1     ; SR Some StretchBlts are called with 1 to 1 stretches, so copy them.
+			      C #define STB_FIFO16_ENABLE 1         ; BJ Enable/Allow 16 bit FIFO code to be used
+			      C #define STB_16BIT_BITBLT 1          ; BJ Enable/Allow 16 bit PatCopy cases to be done in assembler
+			      C #define STBPERF_CMBITBLT            ; PZ Special case for color to mono blit
+			      C #define STBPERF_SOLIDCLRPATCPY      ; PZ Special case for patcopy with solid color brush 
+			      C //#define STBPERF_RBO_SKIPDIBENGINE 1 ; PZ Skip calling to DIBENGIE when realizing bitmaps
+			      C #define STBPERF_DEVBITFIX 1         ; PZ A replacement scheme to work around a GDI bug in device bmp management
+			      C #ifdef STBPERF_DEVBITFIX
+			      C // #define SKIP_STAGE2 1            ; PZ Do SKIP_STAGE2 only if STBPERF_DEVBITFIX is enabled
+			      C #endif
+			      C #define PERF_NEWDIB 1               ; SteveH - Handle all ROPs and 4bpp sources in DIB functions
+			      C #define PERF_NEW16BITBLT 1
+			      C #define PERF_NEWMM 1                
+			      C #ifdef PERF_NEWMM
+			      C     #define SKIP_STAGE2 1
+			      C #endif    
+			      C 
+			      C //#define STBPERF_2DAGPCMDFIFO        ; SR Allows 2D Cmd Fifo to reside in AGP Memory.
+			      C //                                    ; To get AGP to work, you must set two registry entries
+			      C //									  ; "aFifo" must be set to 1, and "force1xrate" must be set to 1
+			      C //									  ; both are DWORDs under 
+			      C //									  ; HKLM/System/CurrentControlSet/Services/Class/Display/XXXX/DEFAULT
+			      C #define STBPERF_USE_FLIPNOVSYNC       ; enable FLIPNOVSYNC for WB 2000 mls 7/20/99
+			      C #define STBPERF_FAST_TEXTURE_DOWNLOAD ; forces explicit rep movsd loop for non-kni texture download: mls 7/30/99
+			      C #define C_AUTOSTRIP                   ; turn on the auto stripping code in the C files
+			      C #define PERF_USE_255_LOOKUP_TABLE     ; turn on int to float translation by lookup table instead of fpu conversion
+			      C //#define PERF_TXTR_LIST_STATIC_CNTR  ; use a static list index in the texture list instead of starting from 1 each time
+			      C 
+			      C // Changes made by Bob S. just prior to departure - 6/29/2000
+			      C #define TEXTURE_REPEAT_NOT_SCALED     ; Sets dwMaxTextureRepeat to 256 and sets the D3DPTEXTURECAPS_TEXREPEATNOTSCALEDBYSIZE
+			      C //                                    ; bit for lines and triangles. Per Gary Tarolli.
+			      C //                                    ;
+			      C #define COLUMNBANDCONTROL_DEFAULT     ; Change the default for CBC to 8 (register value of zero) to be in synch with Glide/Ogl.
+			      C //                                    ; Prior default was 32 (register value of 2).
+			      C //                                    ;
+			      C #define MAXPENDINGBUFFERS             ; Allow pending buffer max to be controlled via the registry.
+			      C //                                    ;
+			      C #define LODDITHER                     ; Allow Lod Dithering to be controlled via the registry.
+			      C //                                    ;
+			      C #define LODBIASPERCHIP                ; Allow per-chip Lod Bias values, if multitexturing,
+			      C //                                    ; trilinear filtering and > 1 chip. This also requires
+			      C //                                    ; LODDITHER code.
+			      C //									  ;
+			      C #define SLI_ABOVE_1280				  ; Allow SLI operation via the registry at modes 1280 and greater.
+			      C //									  ;	Previously we reverted to single chip mode at these
+			      C //									  ;	high resolutions due to visual artifacts
+			      C 
+			      C ;/*
+			      C ;end comment `
+			      C ;*/
+			      C 
+			      C endif
+			      C ; STB END change
+			      C 
+			      C 
+			      C 
+ = 0001			      C RESET_DST       equ     0001h
+ = 0002			      C RESET_SRC       equ     0002h
+ = 0004			      C RESET_PDEV      equ     0004h
+			      C 
+ = cmdFifo0		      C PRIMARY_CMDFIFO equ     cmdFifo0
+			      C 
+			      C ;
+			      C ; Equates to make things easier
+			      C ;
+			      C 
+ = bp			      C RBP     equ     bp
+			      C 
+			      C ; These locals will be the same in all routines that use the cmdfifo
+			      C 
+ = [RBP-04]		      C CF      equ     [RBP-04]
+ = [RBP-08]		      C IDX     equ     [RBP-08]
+ = [RBP-12]		      C CLIPSEL equ     [RBP-12]
+ = [RBP-16]		      C DSTADDR equ     [RBP-16]
+ = [RBP-20]		      C DSTFMT  equ     [RBP-20]
+ = [RBP-24]		      C SRCADDR equ     [RBP-24]
+ = [RBP-28]		      C SRCFMT  equ     [RBP-28]
+ = [RBP-32]		      C DSTDBM  equ     [RBP-32]
+ = [RBP-36]		      C SRCDBM  equ     [RBP-36]
+ = [RBP-40]		      C P6SWAP  equ     [RBP-40]
+ = [RBP-44]		      C RSTWRDS equ     [RBP-44]
+ = [RBP-48]		      C RSTMASK equ     [RBP-48]
+ = 0034			      C NEXTLOC equ     52      ; should always be last one + 4
+			      C 
+ = _DriverData		      C GLOB    equ     _DriverData
+			      C 
+			      C ;****************************
+			      C ; P6FENCE
+			      C ;
+			      C ; Flush write-combine cache
+			      C ;****************************
+			      C P6FENCE Macro
+			      C    ifdef WRITECOMBINE
+			      C 		;db 00fh		; Tried sfence, was not any faster
+			      C 		;db 0aeh
+			      C 		;db 0ffh
+			      C         xchg    eax, P6SWAP
+			      C    endif        
+			      C Endm
+			      C 
+			      C ;****************************
+			      C ; LOAD_CMDFIFO_RDPTR
+			      C ;****************************
+			      C LOAD_CMDFIFO_RDPTR Macro
+			      C         push    edi
+			      C         mov     edi, GLOB.lpCRegs
+			      C         lea     edi, [edi].SstCRegs.PRIMARY_CMDFIFO.readPtrL ;
+			      C         mov     edx, es:[edi]   ; GET( ((SstCRegs *) p)->PRIMARY_CMDFIFO.readPtrL )
+			      C         pop     edi
+			      C Endm
+			      C 
+			      C CMDFIFO_PROLOG Macro
+			      C Endm
+			      C 
+			      C 
+			      C ;*******************************************************
+			      C ; CMDFIFO_SETUP
+			      C ;
+			      C ; Retrieves the current CMDFIFO pointer from DriverData
+			      C ; Sets up ES with FlatSel
+			      C ;*******************************************************
+			      C CMDFIFO_SETUP Macro
+			      C ifdef STB_FIFO16_ENABLE
+			      C         mov     eax, GLOB.mainFifo.FXptr
+			      C         xor     edx, edx
+			      C         mov     dword ptr IDX, edx      ; initialize HWINDEX to 0
+			      C         mov     dx, _FlatSel
+			      C         mov     dword ptr CF, eax       ; initialize local CMDFIFO pointer
+			      C         mov     es, dx
+			      C endif
+			      C Endm
+			      C 
+			      C ;*******************************************************
+			      C ; CMDFIFO_SETUP_LITE
+			      C ;
+			      C ; Retrieves the current CMDFIFO pointer from DriverData
+			      C ; Assumes ES is already the FlatSel
+			      C ;*******************************************************
+			      C CMDFIFO_SETUP_LITE Macro
+			      C ifdef STB_FIFO16_ENABLE
+			      C         mov     eax, GLOB.mainFifo.FXptr
+			      C         xor     edx, edx
+			      C         mov     dword ptr IDX, edx      ; initialize HWINDEX to 0
+			      C         mov     dword ptr CF, eax       ; initialize local CMDFIFO pointer
+			      C endif
+			      C Endm
+			      C 
+			      C ;**************************************************************
+			      C ; CMDFIFO_EPILOG
+			      C ;
+			      C ; Finishes using the CMDFIFO by saving the current CMDFIFOPTR
+			      C ; in the global data structure and a few other things
+			      C ;**************************************************************
+			      C CMDFIFO_EPILOG Macro
+			      C         Local   CF_10
+			      C         mov     eax, IDX
+			      C         sub     GLOB.mainFifo.space, eax  ; _FF(mainFifo.space) -= hwIndex 
+			      C         xor     edx, edx
+			      C         shl     eax, 2
+			      C         add     CF, eax                 ; hwPtr += (hwIndex << 2)
+			      C         mov     IDX, edx                ; hwIndex = 0
+			      C    ifdef AGP_CMDFIFO
+			      C         cmp     GLOB.doAgpCF, 0         ; if (_FF(doAgpCF))
+			      C         je      short CF_10
+			      C         push    dword ptr CF
+			      C         call    myAgpEpilog             ;    myAgpEpilog((DWORD)hwPtr)
+			      C         add     sp, 1 * 4
+			      C CF_10:        
+			      C    endif        
+			      C         mov     eax, CF
+			      C         mov     GLOB.mainFifo.FXptr, eax    ; _FF(mainFifo.FXptr) = hwPtr
+			      C Endm
+			      C 
+			      C ;***********
+			      C ; SETCF
+			      C ;***********
+			      C SETCF Macro SetData
+			      C         mov     dword ptr es:[ebx], SetData
+			      C         add     ebx, 4
+			      C Endm        
+			      C         
+			      C ;**************************************************
+			      C ; SETI
+			      C ;
+			      C ; Puts a literal value or register into the packet
+			      C ;**************************************************
+			      C SETI Macro FxReg, LitVal
+			      C         SETCF   LitVal
+			      C Endm
+			      C 
+			      C ;*************************************************************
+			      C ; SETPH
+			      C ;
+			      C ; Sets up the packet header
+			      C ; Prepares EBX with the current CMDFIFO value for SETx macros
+			      C ;*************************************************************
+			      C SETPH Macro SetBits
+			      C         mov     ebx, CF         ; setup hwPtr for packet programming
+			      C         SETCF   SetBits
+			      C Endm
+			      C 
+			      C 
+			      C ;*****************************************************************
+			      C ; SETM
+			      C ;
+			      C ; Store the data at the specified memory location into the packet
+			      C ;*****************************************************************
+			      C SETM Macro FxReg, DataAddr
+			      C         mov     eax, dword ptr DataAddr
+			      C         SETCF   eax
+			      C Endm
+			      C 
+			      C ;********************************************
+			      C ; SETCMD
+			      C ;
+			      C ; Store the command starter into the packet
+			      C ;********************************************
+			      C SETCMD Macro FxReg, SetBits
+			      C         Local   SC_10, SC_11
+			      C    ifdef PERFNOP
+			      C         cmp     doPerfNop, 0
+			      C         je      short SC_10
+			      C         SETI    FxReg, 0
+			      C         jmp     short SC_11
+			      C SC_10:
+			      C         SETI    FxReg, SetBits
+			      C SC_11:
+			      C    else
+			      C         SETI    FxReg, SetBits
+			      C    endif        
+			      C Endm        
+			      C 
+			      C ;*************************************************************
+			      C ; GET_CF_OFFSET
+			      C ;
+			      C ; Prepares EBX with the current CMDFIFO value for SETx macros
+			      C ;*************************************************************
+			      C GET_CF_OFFSET Macro SetBits
+			      C         mov     ebx, CF         ; setup hwPtr for packet programming
+			      C Endm
+			      C 
+			      C ;*************************************************************
+			      C ; GET_CF_OFFSET_FAST
+			      C ;
+			      C ; Prepares EBX with the current CMDFIFO value for SETx macros
+			      C ; Special version of GET_CF_OFFSET for use with the optimised
+			      C ; CMDFIFO_CHECKROOM_FAST
+			      C ;*************************************************************
+			      C IFDEF PERF_NEW16BITBLT
+			      C GET_CF_OFFSET_FAST Macro SetBits
+			      C         mov     ebx, GLOB.mainFifo.FXptr
+			      C Endm
+			      C ENDIF
+			      C 
+			      C ;****************************************
+			      C ; BUMP
+			      C ;
+			      C ; Increments our hardware index counter
+			      C ; Decrements our fifo dword count
+			      C ;****************************************
+			      C BUMP Macro HowMany
+			      C         add     dword ptr IDX, HowMany
+			      C         ;sub     GLOB.fifoDwordCount, HowMany
+			      C Endm                                
+			      C 
+			      C ;****************************************
+			      C ; BUMP_FAST
+			      C ;
+			      C ; This is a special case of BUMP for use 
+			      C ; with CMDFIFO_CHECKROOM_FAST 
+			      C ;
+			      C ; Increments our hardware index counter
+			      C ; Decrements our fifo dword count
+			      C ;****************************************
+			      C IFDEF PERF_NEW16BITBLT
+			      C BUMP_FAST Macro HowMany
+			      C       add   ebx, HowMany
+			      C       mov   GLOB.mainFifo.FXptr, ebx   
+			      C Endm                  
+			      C ENDIF              
+			      C                                
+			      C ;*********************
+			      C ; CMDFIFO_CHECKBUMP - check whether fencing needs to occur, to prevent bump overflow
+			      C ;*********************
+			      C CMDFIFO_CHECKBUMP Macro HowMany
+			      C 		Local	Update_bumpval
+			      C 		mov		eax, dword ptr GLOB.mainFifo.bump
+			      C 		add		eax, HowMany
+			      C 		cmp		eax, 0ffffh
+			      C 		jb		Update_bumpval
+			      C 		P6FENCE
+			      C 		mov		eax, HowMany
+			      C Update_bumpval:
+			      C 		mov		dword ptr GLOB.mainFifo.bump, eax
+			      C Endm
+			      C 
+			      C ;*********************
+			      C ; CMDFIFO_CHECKROOM
+			      C ;*********************
+			      C CMDFIFO_CHECKROOM Macro HowMany
+			      C         Local   CR_10
+			      C 		CMDFIFO_CHECKBUMP HowMany
+			      C         mov     eax, IDX
+			      C         sub     GLOB.mainFifo.space, eax
+			      C         xor     edx, edx
+			      C         shl     eax, 2
+			      C         add     CF, eax
+			      C         mov     IDX, edx
+			      C         cmp     dword ptr GLOB.mainFifo.space, HowMany
+			      C         jae     short CR_10
+			      C         mov     ebx, CF
+			      C         mov     ecx, HowMany
+			      C         call    fifo_MakeRoom
+			      C         mov     CF, ebx
+			      C CR_10:
+			      C Endm
+			      C      
+			      C ;************************
+			      C ; CMDFIFO_CHECKROOM_FAST
+			      C ;************************
+			      C IFDEF PERF_NEW16BITBLT
+			      C CMDFIFO_CHECKROOM_FAST Macro HowMany
+			      C         Local   CR_9, CR_10
+			      C 		CMDFIFO_CHECKBUMP HowMany        
+			      C         sub     dword ptr GLOB.mainFifo.space, HowMany
+			      C         jl      short CR_9      ; Fall Through in majority of calls
+			      C         jmp     short CR_10
+			      C CR_9:        
+			      C         mov     ecx, HowMany
+			      C         call    fifo_MakeRoom_Fast
+			      C         sub     GLOB.mainFifo.space, ecx        
+			      C CR_10:
+			      C Endm
+			      C ENDIF
+			      C      
+			      C 
+			      C ;***********************************************************************
+			      C ; FXENTER
+			      C ;
+			      C ; Monster macro for handling common pre-drawing stuff
+			      C ; (softare cursor exclusion, destination type (screen or device bitmap)
+			      C ; checking, etc.
+			      C ;
+			      C ; Use the FXENTER <label to jmp on SW cursor>, SRC_PRESENT form 
+			      C ;  when source is present
+			      C ;
+			      C ;   rbissell@stb,990128: made "OnSoftwareCursor" param optional
+			      C ;                        to cater to situations where we can handle it.
+			      C ;
+			      C ; Register assumes:
+			      C ;
+			      C ;       FS:DI   = pointer to destination device (lpDst)
+			      C ;       GS:SI   = pointer to source if present
+			      C ;***********************************************************************
+			      C 
+			      C ; SRC_PRESENT equ 1
+			      C 
+ = fs:[di]		      C LPDST   equ     fs:[di]
+ = gs:[si]		      C LPSRC   equ     gs:[si]
+			      C ifdef SLI_AA
+ = 6004			      C SKIP_TO_C_FLAGS equ SDATA_GDIFLAGS_SW_CURSOR or SDATA_GDIFLAGS_SLI_AA_MASTER or SDATA_GDIFLAGS_SLI_AA_SLAVE
+ = 4008			      C SKIP_TOTAL_FLAGS equ SDATA_GDIFLAGS_HWC_EXCLUSIVE or SDATA_GDIFLAGS_SLI_AA_SLAVE
+			      C else
+			      C endif
+			      C 
+			      C FXENTER Macro   OnSoftwareCursor, SrcPresent 
+			      C         Local   FX_50, FX_60, FX_61, FX_62, FX_63, FX_16, FX_65
+			      C 
+			      C 		;******************************
+			      C 		; Need to Pre-Load the FlatSel
+			      C 		;******************************
+			      C 		xor		edx, edx
+			      C         mov     dx, _FlatSel
+			      C         mov     es, dx
+			      C 
+			      C 		mov		ebx, dword ptr GLOB.lpDeFlags 
+			      C         test    word ptr es:[ebx], (BUSY + PALETTE_XLAT)  ;     goto Use_DibEng;
+			      C         jnz     Use_DibEngine
+			      C         bts     word ptr es:[ebx], BUSY_BIT      ; pDeFlags = lpDriverData->lpDeFlags;
+			      C         jc      Use_DibEngine                                     ; SET_BUSY(pDeFlags);
+			      C         
+			      C         xor     eax, eax        ; default to dst not a device bitmap
+			      C         test    word ptr LPDST.DIBENGINE.deFlags, OFFSCREEN ; we already know its VRAM :)
+			      C         setnz   al
+			      C         mov     dword ptr DSTDBM, eax
+			      C         xor     eax, eax        ; default to src not a device bitmap
+			      C      IFNB <SrcPresent>
+			      C         movzx   edx, gs:[si].DIBENGINE.deFlags  ; if ((lpSrc->deFlags & VRAM+OFFSCREEN) ==
+			      C         and     edx, (VRAM + OFFSCREEN)         ;       (VRAM+OFFSCREEN))
+			      C         cmp     edx, (VRAM + OFFSCREEN)
+			      C         jne     short FX_15
+			      C         mov     eax, 1                          ; then Yes, we have a src device bitmap
+			      C FX_15:
+			      C      ENDIF
+			      C         mov     dword ptr SRCDBM, eax
+			      C         
+			      C         cmp     GLOB.gdiFlags, 0
+			      C         je      FX_60
+			      C         
+			      C         ;mov        eax, GLOB.gdiFlags 
+			      C         test    word ptr GLOB.gdiFlags, SKIP_TOTAL_FLAGS
+			      C         jz      short FX_16
+			      C 		mov		ebx, dword ptr GLOB.lpDeFlags 
+			      C         and     word ptr es:[ebx], NOT BUSY
+			      C         jmp     All_Done
+			      C FX_16:        
+			      C         test    byte ptr GLOB.gdiFlags, SDATA_GDIFLAGS_2D_DIRTY
+			      C         jz      FX_61
+			      C         
+			      C         ; if direct draw changed some 2d registers, or changed the desktop
+			      C         ; from being linear to tiled or vice-versa,
+			      C         ; we need to reset the invariant 2d regs and the stride of the
+			      C         ; screen's pDevice so that dib engine rendering will be correct
+			      C 
+			      C         xor     ecx, ecx
+			      C         mov     cl, (RESET_DST + RESET_SRC + RESET_PDEV) 
+			      C         call    reset_Invariants
+			      C         and     GLOB.gdiFlags, NOT (SDATA_GDIFLAGS_2D_DIRTY + SDATA_GDIFLAGS_DST_WAS_DEVBIT + SDATA_GDIFLAGS_SRC_WAS_DEVBIT)
+			      C         
+			      C FX_61:        
+			      C         
+			      C         ; if the previous drawing operation was to a device bitmap,
+			      C         ; the invariants were clobbered, so we need to reset them,
+			      C         ; but there's no need to do this if we're not going to clobber
+			      C         ; them again anyway, unless we need to save away the current
+			      C         ; dstBaseAddr and dstFormat (e.g., StretchBltBufferToScreen),
+			      C         ; so we'd need to put them to known states anyway
+			      C 
+			      C         test    byte ptr GLOB.gdiFlags, SDATA_GDIFLAGS_DST_WAS_DEVBIT
+			      C         jz      short FX_62
+			      C         cmp     dword ptr DSTDBM, 0
+			      C         jne     short FX_62
+			      C         xor     ecx, ecx
+			      C         mov     cl, RESET_DST
+			      C         call    reset_Invariants
+			      C         and     GLOB.gdiFlags, NOT SDATA_GDIFLAGS_DST_WAS_DEVBIT
+			      C FX_62:        
+			      C 
+			      C      IFNB  <SrcPresent>
+			      C         ; if the previous drawing operation used a device bitmap as a
+			      C         ; source, and the current operation doesn't use a device bitmap
+			      C         ; as a source, reset the source 2d invariants
+			      C 
+			      C         test    GLOB.gdiFlags, SDATA_GDIFLAGS_SRC_WAS_DEVBIT
+			      C         jz      short FX_63
+			      C         cmp     dword ptr SRCDBM, 0       ; is source a device bitmap?
+			      C         jne     short FX_63
+			      C         mov     ecx, RESET_SRC
+			      C         call    reset_Invariants
+			      C         and     GLOB.gdiFlags, NOT SDATA_GDIFLAGS_SRC_WAS_DEVBIT
+			      C      ENDIF
+			      C FX_63:
+			      C ifdef SLI_AA
+			      C         ; If SW cursor is on or SLI_AA forget this and go back to
+			      C         ; the trusty C code.
+			      C         test    word ptr GLOB.gdiFlags, SKIP_TO_C_FLAGS
+			      C         jz      short FX_65
+			      C 		mov		ebx, dword ptr GLOB.lpDeFlags 
+			      C         and     word ptr es:[ebx], NOT BUSY
+			      C 		jmp		OnSoftwareCursor
+			      C FX_65:
+			      C else
+			      C     IFNB <OnSoftwareCursor>
+			      C         ; If SW cursor is on, for get this and go back to
+			      C         ; the trusty C code.
+			      C         test    word ptr GLOB.gdiFlags, SKIP_TO_C_FLAGS
+			      C         jz      short FX_65
+			      C 		mov		ebx, dword ptr GLOB.lpDeFlags 
+			      C         and     word ptr es:[ebx], NOT BUSY
+			      C 		jmp		OnSoftwareCursor
+			      C FX_65:
+			      C     ENDIF
+			      C endif
+			      C 
+			      C FX_60:        
+			      C         CMDFIFO_SETUP_LITE
+			      C         
+			      C      IFNB  <SrcPresent>
+			      C         cmp     dword ptr SRCDBM, 0       ; is source a device bitmap?
+			      C         je      FX_70           ; if not, outta here!
+			      C         mov     eax, dword ptr LPSRC.DIBENGINE.deBits
+			      C         sub     eax, dword ptr GLOB.lfbBase
+			      C         mov     dword ptr SRCADDR, eax
+			      C         mov     eax, GLOB.screenFormat                                    ;  srcFormat = _FF(screenFormat) & ~(SSTG_DST_LINEAR_STRIDE |
+			      C         and     eax, NOT (SSTG_DST_LINEAR_STRIDE + SSTG_DST_TILE_STRIDE)  ;                    SSTG_DST_TILE_STRIDE);
+			      C         mov     edx, gs:[si].DIBENGINE.deDeltaScan                        ;  srcFormat |= mylpSrc->deDeltaScan & SSTG_DST_LINEAR_STRIDE;
+			      C         and     edx, SSTG_DST_LINEAR_STRIDE                               ;
+			      C         or      eax, edx
+			      C         mov     dword ptr SRCFMT, eax
+			      C         
+			      C         xor     ecx, ecx
+			      C         mov     cl, 3
+			      C         CMDFIFO_CHECKROOM      ecx 
+			      C         SETPH   (SSTCP_PKT2 + srcBaseAddrBit + srcFormatBit)
+			      C         SETM    srcBaseAddr, SRCADDR
+			      C         SETM    srcFormat, SRCFMT
+			      C         BUMP    3
+			      C         or      GLOB.gdiFlags, SDATA_GDIFLAGS_SRC_WAS_DEVBIT        
+			      C         ; DANGER
+			      C         ; missing the C enterleave FXENTER_COMPUTE_DSTBA_FORMAT stuff
+			      C         ; DANGER
+			      C FX_70:        
+			      C      ENDIF
+			      C         cmp     dword ptr DSTDBM, 0       ; is destination a device bitmap
+			      C         je      FX_50     ; if not, outta here!
+			      C         
+			      C         mov     eax, dword ptr LPDST.DIBENGINE.deBits
+			      C         sub     eax, dword ptr GLOB.lfbBase
+			      C         mov     dword ptr DSTADDR, eax
+			      C         
+			      C         mov     eax, dword ptr GLOB.screenFormat
+			      C         and     eax, 70000h                     ; & SSTG_DST_FORMAT
+			      C         mov     edx, dword ptr LPDST.DIBENGINE.deDeltaScan
+			      C         and     edx, 03fffh                         ; & SSTG_SRC_LINEAR_STRIDE
+			      C         or      eax, edx
+			      C         mov     dword ptr DSTFMT, eax
+			      C 
+			      C         xor     ecx, ecx
+			      C         mov     cl, 5
+			      C         CMDFIFO_CHECKROOM     ecx
+			      C         GET_CF_OFFSET
+			      C         xor     eax, eax
+			      C         mov     ax, (SSTCP_PKT2 + clip0minBit + clip0maxBit + dstBaseAddrBit + dstFormatBit)
+			      C         mov     es:[ebx], eax ;PH
+			      C         add     ebx, 4
+			      C         xor     eax, eax
+			      C         mov     es:[ebx], eax ; clip0min
+			      C         add     ebx, 4
+			      C         mov     eax, dword ptr LPDST.DIBENGINE.deWidth 
+			      C         mov     es:[ebx], eax ; clip0max
+			      C         add     ebx, 4
+			      C         mov     eax,dword ptr DSTADDR 
+			      C         mov     es:[ebx], eax ; dstBaseAddr
+			      C         add     ebx, 4
+			      C         mov     eax,dword ptr DSTFMT 
+			      C         mov     es:[ebx], eax ; dstFormat
+			      C 
+			      C         BUMP    5
+			      C         or      GLOB.gdiFlags, SDATA_GDIFLAGS_DST_WAS_DEVBIT
+			      C         ; DANGER
+			      C         ; missing the C enterleave FXENTER_COMPUTE_DSTBA_FORMAT stuff
+			      C         ; DANGER
+			      C FX_50:
+			      C Endm
+			      C 
+			      C ;***********************************************************************
+			      C ; FXENTER_FAST
+			      C ;
+			      C ; Monster macro for handling common pre-drawing stuff
+			      C ; (softare cursor exclusion, destination type (screen or device bitmap)
+			      C ; checking, etc.
+			      C ;
+			      C ; Use the FXENTER_FAST <label to jmp on SW cursor>, SRC_PRESENT form 
+			      C ;  when source is present
+			      C ;
+			      C ;   rbissell@stb,990128: made "OnSoftwareCursor" param optional
+			      C ;                        to cater to situations where we can handle it.
+			      C ;
+			      C ;   shouston@3dfx.com,10-7-99:  Specially optimised version of FXENTER 
+			      C ;                               for bitblt and ExtTextOut
+			      C ; Register assumes:
+			      C ;
+			      C ;       FS:DI   = pointer to destination device (lpDst)
+			      C ;       GS:SI   = pointer to source if present
+			      C ;***********************************************************************
+			      C 
+			      C IFDEF PERF_NEW16BITBLT
+			      C FXENTER_FAST Macro   OnSoftwareCursor, SrcPresent2 
+			      C         Local   FX_16, FX_50, FX_60, FX_65, FX_61, FX_62, FX_63, FX_70, FX_71, Check_Invariants
+			      C 
+			      C         ;******************************
+			      C         ; Need to Pre-Load the FlatSel
+			      C         ;******************************
+			      C 
+			      C         xor     edx, edx
+			      C         mov     dx, _FlatSel
+			      C         mov     es, dx
+			      C 
+			      C         mov     ebx, dword ptr GLOB.lpDeFlags 
+			      C 
+			      C         bts     word ptr es:[ebx], BUSY_BIT      ; pDeFlags = lpDriverData->lpDeFlags;
+			      C         jb      Use_DibEngine                    ; SET_BUSY(pDeFlags);
+			      C 
+			      C         xor     eax, eax        ; default to dst not a device bitmap
+			      C         test    word ptr LPDST.DIBENGINE.deFlags, OFFSCREEN ; we already know its VRAM :)
+			      C         setnz   al
+			      C         mov     dword ptr DSTDBM, eax
+			      C 
+			      C IFNB <SrcPresent2>
+			      C         xor     eax, eax
+			      C         test    word ptr LPSRC.DIBENGINE.deFlags, OFFSCREEN ; just test offscreen, we already know its VRAM
+			      C         setnz   al
+			      C         mov     dword ptr SRCDBM, eax
+			      C 
+			      C         ; TODO: This could be further optimized.... most of the time (in WB99) all Check_Invariants 
+			      C         ; will do is set the src base addr. An faster routine could be written that removes the other
+			      C         ; invariant checks, as is done for the dest invariants check.
+			      C 
+			      C         jmp     Check_Invariants
+			      C ELSE 
+			      C         mov     edx, GLOB.gdiFlags
+			      C ;        and      edx, SDATA_GDIFLAGS_2D_DIRTY + SKIP_TOTAL_FLAGS + SDATA_GDIFLAGS_DST_WAS_DEVBIT + SDATA_GDIFLAGS_SW_CURSOR
+			      C         and     edx, SKIP_TO_C_FLAGS + SDATA_GDIFLAGS_2D_DIRTY + SDATA_GDIFLAGS_DST_WAS_DEVBIT + SKIP_TOTAL_FLAGS
+			      C ENDIF 
+			      C         or      eax, edx
+			      C         cmp     eax, 0 
+			      C         jne     Check_Invariants
+			      C         jmp     FX_50
+			      C       
+			      C Check_Invariants: 
+			      C 
+			      C         test    word ptr GLOB.gdiFlags, SKIP_TOTAL_FLAGS
+			      C         jnz     ExclusiveMode
+			      C       
+			      C FX_16:
+			      C 
+			      C         test    byte ptr GLOB.gdiFlags, SDATA_GDIFLAGS_2D_DIRTY
+			      C         jz      FX_61
+			      C 
+			      C         ; if direct draw changed some 2d registers, or changed the desktop
+			      C         ; from being linear to tiled or vice-versa,
+			      C         ; we need to reset the invariant 2d regs and the stride of the
+			      C         ; screen's pDevice so that dib engine rendering will be correct
+			      C       
+			      C         xor     ecx, ecx
+			      C         mov     cl, (RESET_DST + RESET_SRC + RESET_PDEV) 
+			      C         call    reset_Invariants
+			      C         and     GLOB.gdiFlags, NOT (SDATA_GDIFLAGS_2D_DIRTY + SDATA_GDIFLAGS_DST_WAS_DEVBIT + SDATA_GDIFLAGS_SRC_WAS_DEVBIT)
+			      C         
+			      C FX_61:        
+			      C         
+			      C         ; if the previous drawing operation was to a device bitmap,
+			      C         ; the invariants were clobbered, so we need to reset them,
+			      C         ; but there's no need to do this if we're not going to clobber
+			      C         ; them again anyway, unless we need to save away the current
+			      C         ; dstBaseAddr and dstFormat (e.g., StretchBltBufferToScreen),
+			      C         ; so we'd need to put them to known states anyway
+			      C 
+			      C         test    byte ptr GLOB.gdiFlags, SDATA_GDIFLAGS_DST_WAS_DEVBIT   ; was the last operation to offscreen? 
+			      C         jz      short FX_62         ; No, jmp
+			      C         cmp     dword ptr DSTDBM, 0 ; Current operation to onscreen?
+			      C         jne     short FX_62         ; No, jmp
+			      C         
+			      C         ; we get here if the last operation was to offscreen and the current is to onscreen
+			      C         
+			      C         xor     ecx, ecx
+			      C         mov     cl, RESET_DST
+			      C         call    reset_Invariants
+			      C         and     GLOB.gdiFlags, NOT SDATA_GDIFLAGS_DST_WAS_DEVBIT
+			      C FX_62: 
+			      C      IFNB  <SrcPresent2>
+			      C         ; if the previous drawing operation used an offscreen bitmap as a
+			      C         ; source, and the current operation doesn't use an offscreen bitmap
+			      C         ; as a source, reset the source 2d invariants
+			      C 
+			      C         test    GLOB.gdiFlags, SDATA_GDIFLAGS_SRC_WAS_DEVBIT    ; was the last src offscreen?
+			      C         jz      short FX_63                 ; No, jmp
+			      C         cmp     dword ptr SRCDBM, 0         ; is the src onscreen?
+			      C         jne     short FX_63                 ; No, jmp
+			      C         mov     ecx, RESET_SRC
+			      C         call    reset_Invariants
+			      C         and     GLOB.gdiFlags, NOT SDATA_GDIFLAGS_SRC_WAS_DEVBIT
+			      C      ENDIF
+			      C 
+			      C           
+			      C 
+			      C FX_63:
+			      C      IFNB <OnSoftwareCursor>
+			      C         ; If SW cursor is on, for get this and go back to
+			      C         ; the trusty C code.
+			      C ;        test    byte ptr GLOB.gdiFlags, SDATA_GDIFLAGS_SW_CURSOR
+			      C         test    word ptr GLOB.gdiFlags, SKIP_TO_C_FLAGS
+			      C         jz      short FX_65
+			      C         mov     ebx, dword ptr GLOB.lpDeFlags 
+			      C         and     word ptr es:[ebx], NOT BUSY
+			      C         jmp     OnSoftwareCursor
+			      C FX_65:
+			      C     ENDIF
+			      C 
+			      C FX_60:        
+			      C 
+			      C      IFNB  <SrcPresent2>
+			      C         cmp     dword ptr SRCDBM, 0       ; is source in offscreen memory?
+			      C         je      FX_70                     ; if not, outta here!
+			      C         
+			      C         xor     ecx, ecx
+			      C         mov     cl, 2
+			      C         GET_CF_OFFSET_FAST          
+			      C         CMDFIFO_CHECKROOM_FAST       ecx 
+			      C                  
+			      C         mov     es:[ebx], dword ptr (SSTCP_PKT2 + srcBaseAddrBit)
+			      C         mov     eax, dword ptr LPSRC.DIBENGINE.deBits
+			      C         sub     eax, dword ptr GLOB.lfbBase        
+			      C         mov     es:[ebx+4], eax
+			      C         
+			      C         mov     eax, GLOB.screenFormat                                    ;  srcFormat = _FF(screenFormat) & ~(SSTG_DST_LINEAR_STRIDE |
+			      C         and     eax, NOT SSTG_SRC_LINEAR_STRIDE
+			      C         mov     edx, gs:[si].DIBENGINE.deDeltaScan                        ;  srcFormat |= mylpSrc->deDeltaScan & SSTG_DST_LINEAR_STRIDE;
+			      C         and     edx, SSTG_SRC_LINEAR_STRIDE                               
+			      C         or      eax, edx        
+			      C         mov     [SrcFormat], eax
+			      C 
+			      C         BUMP_FAST   8      
+			      C         or      GLOB.gdiFlags, SDATA_GDIFLAGS_SRC_WAS_DEVBIT        
+			      C         jmp     FX_71
+			      C         ; DANGER
+			      C         ; missing the C enterleave FXENTER_COMPUTE_DSTBA_FORMAT stuff
+			      C         ; DANGER
+			      C FX_70: 
+			      C         ; The src is onscreen memory, set the format correspondingly
+			      C         mov     eax, GLOB.screenFormat
+			      C         mov     [SrcFormat], eax 
+			      C FX_71:       
+			      C      ENDIF
+			      C         
+			      C         cmp     dword ptr DSTDBM, 0       ; is current operation to onscreen?
+			      C         je      FX_50     ; yes, outta here!
+			      C         
+			      C         ; we get here if the current operation is to offscreen
+			      C         
+			      C         mov     eax, dword ptr LPDST.DIBENGINE.deBits
+			      C         sub     eax, dword ptr GLOB.lfbBase
+			      C         mov     dword ptr DSTADDR, eax
+			      C         
+			      C         mov     eax, dword ptr GLOB.screenFormat
+			      C         and     eax, 70000h                     ; & SSTG_DST_FORMAT
+			      C         mov     edx, dword ptr LPDST.DIBENGINE.deDeltaScan
+			      C         and     edx, 03fffh                         ; & SSTG_SRC_LINEAR_STRIDE
+			      C         or      eax, edx
+			      C         mov     dword ptr DSTFMT, eax
+			      C 
+			      C         xor     ecx, ecx
+			      C         mov     cl, 5
+			      C         GET_CF_OFFSET_FAST
+			      C         CMDFIFO_CHECKROOM_FAST     ecx
+			      C 
+			      C         xor     eax, eax
+			      C         mov     ax, (SSTCP_PKT2 + clip0minBit + clip0maxBit + dstBaseAddrBit + dstFormatBit)
+			      C         mov     es:[ebx], eax ;PH
+			      C         xor     eax, eax
+			      C         mov     es:[ebx+4], eax ; clip0min
+			      C         mov     eax, dword ptr LPDST.DIBENGINE.deWidth 
+			      C         mov     es:[ebx+8], eax ; clip0max
+			      C         mov     eax,dword ptr DSTADDR 
+			      C         mov     es:[ebx+12], eax ; dstBaseAddr
+			      C         mov     eax,dword ptr DSTFMT 
+			      C         mov     es:[ebx+16], eax ; dstFormat
+			      C         BUMP_FAST     20
+			      C 
+			      C         or      GLOB.gdiFlags, SDATA_GDIFLAGS_DST_WAS_DEVBIT
+			      C         ; DANGER
+			      C         ; missing the C enterleave FXENTER_COMPUTE_DSTBA_FORMAT stuff
+			      C         ; DANGER
+			      C FX_50:
+			      C 
+			      C Endm FXENTER_FAST 
+			      C ENDIF ; PERF_NEW16BITBLT
+			      C 
+			      C 
+			      C FXLEAVE Macro
+			      C         Local   FXL_10 
+			      C         CMDFIFO_EPILOG
+			      C 		mov		ebx, dword ptr GLOB.lpDeFlags 
+			      C         and     word ptr es:[ebx], NOT BUSY
+			      C         jmp     short All_Done
+			      C Use_DibEngine:
+			      C         test    byte ptr GLOB.gdiFlags, SDATA_GDIFLAGS_2D_DIRTY
+			      C         jz      short FXL_10
+			      C         xor     ecx, ecx
+			      C         mov     cl, RESET_PDEV
+			      C         call    reset_Invariants
+			      C FXL_10:        
+			      C All_Done:        
+			      C Endm
+			      C 
+			      C IFDEF PERF_NEW16BITBLT
+			      C FXLEAVE_FAST Macro
+			      C         Local   FXL_10 
+			      C ExclusiveMode:        
+			      C         mov     ebx, dword ptr GLOB.lpDeFlags 
+			      C         and     word ptr es:[ebx], NOT BUSY
+			      C         jmp     short All_Done
+			      C Use_DibEngine:
+			      C         test    byte ptr GLOB.gdiFlags, SDATA_GDIFLAGS_2D_DIRTY
+			      C         jz      short FXL_10
+			      C         xor     ecx, ecx
+			      C         mov     cl, RESET_PDEV
+			      C         call    reset_Invariants
+			      C FXL_10:        
+			      C All_Done:        
+			      C Endm
+			      C ENDIF
+			      C 
+			      C ;
+			      C ; External data that these macros need
+			      C ;
+			      C 
+ 0000			      C _DATA   SEGMENT WORD PUBLIC 'DATA' USE16 
+			      C 
+			      C EXTERN  _DriverData:GLOBALDATA
+			      C ifdef STB_FIFO16_ENABLE 
+			      C EXTERN  _FlatSel:WORD
+			      C endif
+			      C 
+ 0000			      C _DATA   ENDS
+			      C 
+			      C ASSUME DS:_DATA
+			      C 
+ 0000			      C _TEXT   SEGMENT WORD PUBLIC 'CODE' USE16 
+			      C 
+			      C ifndef FIFO16FILE       ; don't include these externs in FIFO16.ASM
+			      C 
+			      C EXTERN  fifo_MakeRoom:NEAR
+			      C ifdef PERF_NEW16BITBLT
+			      C EXTERN  fifo_MakeRoom_Fast:NEAR
+			      C endif
+			      C EXTERN  fifo_Wrap:NEAR
+			      C EXTERN  reset_Invariants:NEAR
+			      C 
+			      C endif
+			      C 
+			      C ifdef AGP_CMDFIFO
+			      C endif
+			      C 
+			      C ifdef DEBUGFIFO
+			      C endif
+			      C 
+ 0000			      C _TEXT ENDS
+			      C 
+			      C 
+				        .list
+
+				ifdef INCSTBPERF
+				INCLUDE ..\..\BUILD\STBPERF.INC
+			      C ;/*
+			      C ;-----------------------------Module-Header-----------------------------;
+			      C ; Module Name:  STBPERF.INC
+			      C ;
+			      C ; This file contains optimization definitions used by the STB build of the
+			      C ; Voodoo3 source.
+			      C ;
+			      C ; Created: 12/15/97
+			      C ; Author:  Steve Rogers
+			      C ;
+			      C ; History:  Who	What?
+			      C ; 12/15/98  SR  Created
+			      C ; 12/16/98  sr  Added Handle1to1Str
+			      C ; 12/16/98  sr  Added Handle1X1
+			      C ; 12/16/98  sr  Added HandleSTR1X1
+			      C ; 01/11/99  pz  Added STB_MMGR_TWK
+			      C ; 01/13/99  sr  Added STB 16BIT Textout function from bj
+			      C ; 03/08/99  mgm Comment out SKIP_STAGE2 to fix PRS 4898 (mgm=michael@3dfx)
+			      C ;-----------------------------------------------------------------------;
+			      C ;
+			      C 
+			      C ; Define Assembly performance optimizations here
+			      C ; Name                     Description
+			      C ; Example
+			      C ; STBPERF_FASTRECIP    EQU 1  ; SR Uses table lookup for a faster, less acurate reciprocal
+ = 0001			      C STBPERF_HANDLE1X1      EQU 1  ; SR Pokes pixel through framebuffer for 1 pixel bitmap copies
+ = 0001			      C STBPERF_HANDLESTR1X1   EQU 1  ; SR Pokes pixel through framebuffer for 1 pixel bitmap 1 to 1 stretches
+ = 0001			      C STB_FIFO16_ENABLE	   EQU 1  ; BJ Enable/Allow 16 bit FIFO code to be used
+ = 0001			      C STBPERF_CMBITBLT       EQU 1  ; PZ Special case for color to mono blit
+ = 0001			      C STBPERF_DEVBITFIX      EQU 1  ; PZ A replacement scheme to work around a GDI bug in device bmp management
+			      C ifdef STBPERF_DEVBITFIX
+			      C ;  SKIP_STAGE2            EQU 1  ; PZ Do SKIP_STAGE2 only if STBPERF_DEVBITFIX is enabled
+			      C endif
+			      C ifdef STB_FIFO16_ENABLE
+ = 0001			      C 	STB_16BIT_TEXTOUT  EQU 1  ; BJ Use 16 bit FIFO CODE in ExtTextOut
+ = 0001			      C 	STBPERF_POLYLINE16 EQU 1  ; RVB 16-bit code for Output::OS_POLYLINE
+ = 0001			      C     STB_16BIT_BITBLT   EQU 1  ; BJ Use 16 bit FIFO CODE in BitBlt (PatCopy, Whiteness, Blackness)
+ = 0001			      C     STB_FASTER_TR      EQU 1  ; BJ No need to have 2 segment loads to check TR
+ = 0001			      C     PERF_NEW16BITBLT   EQU 1  ; SteveH - optimized 16-bit BitBlt 
+ = 0001			      C     PERF_NEWMM         EQU 1  ; SteveH - optimized 2D memory manager
+			      C endif
+			      C ifdef PERF_NEWMM
+ = 0001			      C     SKIP_STAGE2        EQU 1  ; SteveH - if we're using the new MM, no need to do the hostify code
+			      C endif
+ = 0001			      C STBPERF_K6_ASM_AUTOSTRIP EQU 1    ; turn on auto-stripping in atrik.asm
+			      C 
+			      C comment `
+			      C 
+			      C ;*/
+			      C 
+			      C // Define C performance optimizations here
+			      C //#pragma message("Compiling with Performance optimizations in ../build/STBPERF.INC.")
+			      C // #define Name                  Description
+			      C // Example
+			      C // #define STBPERF_FASTRECIP 1      ; SR Uses table lookup for a faster, less acurate reciprocal
+			      C #define STBPERF_HANDLE1TO1STR 1     ; SR Some StretchBlts are called with 1 to 1 stretches, so copy them.
+			      C #define STB_FIFO16_ENABLE 1         ; BJ Enable/Allow 16 bit FIFO code to be used
+			      C #define STB_16BIT_BITBLT 1          ; BJ Enable/Allow 16 bit PatCopy cases to be done in assembler
+			      C #define STBPERF_CMBITBLT            ; PZ Special case for color to mono blit
+			      C #define STBPERF_SOLIDCLRPATCPY      ; PZ Special case for patcopy with solid color brush 
+			      C //#define STBPERF_RBO_SKIPDIBENGINE 1 ; PZ Skip calling to DIBENGIE when realizing bitmaps
+			      C #define STBPERF_DEVBITFIX 1         ; PZ A replacement scheme to work around a GDI bug in device bmp management
+			      C #ifdef STBPERF_DEVBITFIX
+			      C // #define SKIP_STAGE2 1            ; PZ Do SKIP_STAGE2 only if STBPERF_DEVBITFIX is enabled
+			      C #endif
+			      C #define PERF_NEWDIB 1               ; SteveH - Handle all ROPs and 4bpp sources in DIB functions
+			      C #define PERF_NEW16BITBLT 1
+			      C #define PERF_NEWMM 1                
+			      C #ifdef PERF_NEWMM
+			      C     #define SKIP_STAGE2 1
+			      C #endif    
+			      C 
+			      C //#define STBPERF_2DAGPCMDFIFO        ; SR Allows 2D Cmd Fifo to reside in AGP Memory.
+			      C //                                    ; To get AGP to work, you must set two registry entries
+			      C //									  ; "aFifo" must be set to 1, and "force1xrate" must be set to 1
+			      C //									  ; both are DWORDs under 
+			      C //									  ; HKLM/System/CurrentControlSet/Services/Class/Display/XXXX/DEFAULT
+			      C #define STBPERF_USE_FLIPNOVSYNC       ; enable FLIPNOVSYNC for WB 2000 mls 7/20/99
+			      C #define STBPERF_FAST_TEXTURE_DOWNLOAD ; forces explicit rep movsd loop for non-kni texture download: mls 7/30/99
+			      C #define C_AUTOSTRIP                   ; turn on the auto stripping code in the C files
+			      C #define PERF_USE_255_LOOKUP_TABLE     ; turn on int to float translation by lookup table instead of fpu conversion
+			      C //#define PERF_TXTR_LIST_STATIC_CNTR  ; use a static list index in the texture list instead of starting from 1 each time
+			      C 
+			      C // Changes made by Bob S. just prior to departure - 6/29/2000
+			      C #define TEXTURE_REPEAT_NOT_SCALED     ; Sets dwMaxTextureRepeat to 256 and sets the D3DPTEXTURECAPS_TEXREPEATNOTSCALEDBYSIZE
+			      C //                                    ; bit for lines and triangles. Per Gary Tarolli.
+			      C //                                    ;
+			      C #define COLUMNBANDCONTROL_DEFAULT     ; Change the default for CBC to 8 (register value of zero) to be in synch with Glide/Ogl.
+			      C //                                    ; Prior default was 32 (register value of 2).
+			      C //                                    ;
+			      C #define MAXPENDINGBUFFERS             ; Allow pending buffer max to be controlled via the registry.
+			      C //                                    ;
+			      C #define LODDITHER                     ; Allow Lod Dithering to be controlled via the registry.
+			      C //                                    ;
+			      C #define LODBIASPERCHIP                ; Allow per-chip Lod Bias values, if multitexturing,
+			      C //                                    ; trilinear filtering and > 1 chip. This also requires
+			      C //                                    ; LODDITHER code.
+			      C //									  ;
+			      C #define SLI_ABOVE_1280				  ; Allow SLI operation via the registry at modes 1280 and greater.
+			      C //									  ;	Previously we reverted to single chip mode at these
+			      C //									  ;	high resolutions due to visual artifacts
+			      C 
+			      C ;/*
+			      C ;end comment `
+			      C ;*/
+			      C 
+				endif ;INCSTBPERF
+
+				ifdef STBPERF_POLYLINE16
+
+ 0000				_THK16TEXT   SEGMENT WORD USE16 PUBLIC 'CODE'
+ 0000				_THK16TEXT   ENDS
+
+ = 0005				PS_NULL         equ 5
+ = 0000				LS_SOLID        equ 0
+ = 0006				LS_INSIDEFRAME  equ 6
+
+				;; on bit is foreground.
+ = 000F				DOT         equ 00000000fh  ;on bit is foreground
+ = 00FFFFFF			DASH        equ 000ffffffh  ;dash=24, bkgrnd=8
+ = 00F00FFF			DOTDASH     equ 000f00fffh  ;dash=12, bkgrnd=8, dot=4
+ = 0F0F0FFF			DASHDOTDOT  equ 00f0f0fffh  ;dash=12, dot1=4, dot2=4, bkgrnd=4
+
+ = 0007				DOT_STYLE_SIZE          equ 7
+ = 001F				DASH_STYLE_SIZE         equ 31
+ = 001F				DOTDASH_STYLE_SIZE      equ 31
+ = 001F				DASHDOTDOT_STYLE_SIZE   equ 31
+
+ = 08000000			MATCH_DIB           equ (8 SHL SSTG_LSPOS_INT_SHIFT)
+
+ = 08001F00			DASH_STYLE          equ (DASH_STYLE_SIZE SHL SSTG_LSSIZE_SHIFT) + MATCH_DIB
+ = 0700				DOT_STYLE           equ (DOT_STYLE_SIZE SHL SSTG_LSSIZE_SHIFT)
+ = 08001F00			DOTDASH_STYLE       equ (DOTDASH_STYLE_SIZE SHL SSTG_LSSIZE_SHIFT) + MATCH_DIB
+ = 08001F00			DASHDOTDOT_STYLE    equ (DASHDOTDOT_STYLE_SIZE SHL SSTG_LSSIZE_SHIFT) + MATCH_DIB
+
+ = 1200				CMD_STIPPLE         equ (SSTG_EN_LINESTIPPLE + SSTG_REVERSIBLE)
+
+
+				OutputC32       PROTO   FAR PASCAL
+
+				;*----------------------------------------------------------------------
+				;Function name: PREPARE_STACK
+				;
+				;Description:   Align the stack and make room for pParams
+				;
+				;Information:   This is a MACRO.
+				;
+				;Return:        VOID
+				;----------------------------------------------------------------------*
+				extrn _dwDevNode:DWORD
+				STB_PREPARESTACK Macro
+				        and     sp, NOT 3       ; align stack
+				        push    _dwDevNode      ; leave room on stack for pParams
+				Endm
+
+
+				;*----------------------------------------------------------------------
+				;Function name: FARCALL32
+				;
+				;Description:   The call that "thunks" to the 32-bit side.
+				;
+				;Information:   This is a MACRO.
+				;
+				;Return:        VOID
+				;----------------------------------------------------------------------*
+				extrn _apfnTable32:DWORD
+				extrn wFlatDataSel:WORD
+				;;;extrn _pfnTemp32:FWORD
+				STB_FARCALL32 Macro FnNumber
+				        mov     ax, wFlatDataSel
+				        mov     es, ax
+				        mov     ecx, _apfnTable32
+				        mov     edx, es:[ecx][FnNumber*4]
+				        call    DWORD PTR [edx]
+				;;;        mov     DWORD PTR _pfnTemp32, edx
+				;;;        call    [_pfnTemp32]
+				Endm
+
+
+ 0000				_DATA   SEGMENT WORD USE16 PUBLIC 'DATA'
+
+				;;   **********************************************************************   
+				;;/*  
+				;;/*   
+				;;   << THIS TABLE, rop2ConvertTable, is FOR LINES ONLY >>
+				;;   The rop2ConvertTable converts the Rop2 in Drawmode to rop3.
+				;;   that use src argument instead of pattern arguement.
+				;;   Rop2 operate on dest and pattern.  However the hardware feeds the
+				;;   stipple patterns as source input into the rops.
+				;;*/
+				;;   **********************************************************************   
+ 0000 00000000			rop2ConvertTable    dd  000000000h       ;; filler
+ 0004  00000000			                    dd  000000000h       ;; R2_BLACK
+ 0008  11000000			                    dd  011000000h       ;; notmergepen   DSon
+ 000C  22000000			                    dd  022000000h       ;; masknotpen    DSna   
+ 0010  33000000			                    dd  033000000h       ;; notcopypen    Sn
+ 0014  44000000			                    dd  044000000h       ;; maskpennot    SDna
+ 0018  55000000			                    dd  055000000h       ;; not           Dn
+ 001C  66000000			                    dd  066000000h       ;; xorpen        DSx
+ 0020  77000000			                    dd  077000000h       ;; notmaskpen    DSan
+ 0024  88000000			                    dd  088000000h       ;; maskpen       DSa
+ 0028  99000000			                    dd  099000000h       ;; notxorpen     DSxn
+ 002C  AA000000			                    dd  0AA000000h       ;; nop           D
+ 0030  BB000000			                    dd  0BB000000h       ;; mergenotpen   DSno
+ 0034  CC000000			                    dd  0CC000000h       ;; copy pen      S
+ 0038  DD000000			                    dd  0DD000000h       ;; mergepennot   SDno
+ 003C  EE000000			                    dd  0EE000000h       ;; mergepen      DSo
+ 0040  FF000000			                    dd  0FF000000h       ;; white         1
+
+
+				;// To reduce the amount of code needed to process pen styles, this
+				;// array contains the lineStyle, lineStipple, and cmdData values
+				;// needed for each style. We can then look up the values based on
+				;// the given pen style instead of calculating the values each time.
+				;// Note, we use the GDIDEFS.H MaxLineStyle, but we add one because
+				;// the styles start with 0!
+ 0044 00000000 00000000		PenConvert          dd  000000000h, 000000000h,         000000000h      ;LS_SOLID
+       00000000
+ 0050  00FFFFFF 08001F00	                    dd  DASH,       DASH_STYLE,         CMD_STIPPLE     ;LS_DASHED
+       00001200
+ 005C  0000000F 00000700	                    dd  DOT,        DOT_STYLE,          CMD_STIPPLE     ;LS_DOTTED
+       00001200
+ 0068  00F00FFF 08001F00	                    dd  DOTDASH,    DOTDASH_STYLE,      CMD_STIPPLE     ;LS_DOTDASHED
+       00001200
+ 0074  0F0F0FFF 08001F00	                    dd  DASHDOTDOT, DASHDOTDOT_STYLE,   CMD_STIPPLE     ;LS_DASHDOTDOT
+       00001200
+ 0080  00000000 00000000	                    dd  000000000h, 000000000h,         000000000h      ;LS_NOLINE
+       00000000
+
+
+ 008C 00000000			NumSingleLine       dd 0
+ 0090 00000000			NumSinglePixelLine  dd 0
+				                        
+ 0094				_DATA   ENDS
+
+
+
+				        EXTRN _lpDriverData:FAR PTR
+				        EXTRN _lph3IORegs:DWORD
+				        EXTRN _h3READ:FAR
+
+
+				ifndef SKIP_STAGE2
+				endif ;SKIP_STAGE2
+
+				DIB_Output          PROTO   FAR PASCAL
+
+
+				.586p
+
+ 0000				_TEXT   SEGMENT WORD PUBLIC 'CODE' USE16 
+
+
+
+
+				;
+				; PolyLine16
+				;
+				; Handles Output call for the OS_POLYLINE style
+				;
+
+				; Prepare equates for locals
+ = (dword ptr [RBP-(NEXTLOC	COMMAND     equ     (dword ptr [RBP-(NEXTLOC+00)])
+   +00)])
+ = (dword ptr [RBP-(NEXTLOC	BGCOLOR     equ     (dword ptr [RBP-(NEXTLOC+04)])
+   +04)])
+ = (dword ptr [RBP-(NEXTLOC	FGCOLOR     equ     (dword ptr [RBP-(NEXTLOC+08)])
+   +08)])
+
+ = 0040				LOCALS      equ     NEXTLOC+12
+
+				; Prepare equates for parameters
+ = 0006				PBASE       equ     6     ; (far return CS:IP + BP)
+
+
+				STB_SAVEREGS Macro
+				        pushad          ; 32 bytes: EAX, ECX, EDX, EBX, original ESP, EBP, ESI, EDI; 5 clock-ticks on PII
+				        push    ds      ;  2 bytes
+				        push    es      ;  2 bytes
+				        push    fs      ;  2 bytes
+				ENDM
+
+				STB_RESTOREREGS Macro
+				        pop     fs      ;  2 bytes
+				        pop     es      ;  2 bytes
+				        pop     ds      ;  2 bytes
+				        popad           ; 32 bytes: EDI, ESI, EBP, EDX, ECX, <add 4 to current ESP>, EBX, EDX, ECX, EAX; 5 clock-ticks on PII
+				ENDM
+
+				;THESE ARE FOR USE AFTER THE STACK FRAME IS INITIALIZED ("push bp; sub sp LOCALS").
+ = (dword ptr [RBP+(PBASE+1	lpDestDev       equ (dword ptr [RBP+(PBASE+18h)])
+   8h)])
+ = (word  ptr [RBP+(PBASE+1	wStyle          equ (word  ptr [RBP+(PBASE+16h)])
+   6h)])
+ = (word  ptr [RBP+(PBASE+1	wCount          equ (word  ptr [RBP+(PBASE+14h)])
+   4h)])
+ = (dword ptr [RBP+(PBASE+1	lpPoints        equ (dword ptr [RBP+(PBASE+10h)])
+   0h)])
+ = (dword ptr [RBP+(PBASE+0	lpPPen          equ (dword ptr [RBP+(PBASE+0Ch)])
+   Ch)])
+ = (dword ptr [RBP+(PBASE+0	lpPBrush        equ (dword ptr [RBP+(PBASE+08h)])
+   8h)])
+ = (dword ptr [RBP+(PBASE+0	lpDrawMode      equ (dword ptr [RBP+(PBASE+04h)])
+   4h)])
+ = (dword ptr [RBP+(PBASE+0	lpClipRect      equ (dword ptr [RBP+(PBASE+00h)])
+   0h)])
+
+
+ = 0012				OS_POLYLINE     equ 18
+
+
+				;*----------------------------------------------------------------------
+				;Function name: PolyLine16
+				;
+				;Description:   The 16-bit "Output(OS_POLYLINE)" workhorse
+				;
+				;Information:   
+				;
+				;Return:        VOID
+				;----------------------------------------------------------------------*
+ 0000				PolyLine16      PROC    FAR PASCAL PUBLIC
+
+				        ;******************************
+				        ; Setup passed stack reference 
+				        ;******************************
+ 0000  55			        push    bp
+ 0001  8B EC			        mov     bp, sp                      ;setup EBP for accessing stack params
+ 0003  66| 33 E4		        xor     esp, esp
+ 0006  8B E5			        mov     sp,bp
+ 0008  83 EC 40			        sub     sp, LOCALS                 ; Make room for locals
+ 000B  1E			        push    ds
+ 000C  56			        push    si
+ 000D  57			        push    di
+
+ 000E  C5 76 1E			        lds     si, lpDestDev
+
+
+				;;; RBISSELL,990204: ADDED THESE "SKIP_STAGE2" SECTIONS TO FIX BUG (NEED TO CALL "_HostStage2")
+				ifndef SKIP_STAGE2
+				endif ;SKIP_STAGE2
+
+				;;; APS 990701: Check these flags after we have done DoHostStage2
+				;;; RBISSELL,990310: PRS 4969: some off-screen polylines were being rendered on-screen,
+				;;;                  because the following trivial rejectection was being skipped over.
+				;;;                  solution: moved this to the top.
+
+
+ 0011  8B 54 1C			        mov     dx,					ds:[si].DIBENGINE.deFlags
+ 0014  81 F2 8000		        xor     dx,                 VRAM                        ; flip polarity of the VRAM bit
+ 0018  F7 C2 9010		        test    dx,                 VRAM+BUSY+PALETTE_XLAT		; check this here to avoid loading ds again later!
+ 001C  75 62			        jnz     pl_trivialreject								; if not in the FB, or hardware is BUSY, or XLAT req'd, then punt
+
+ 001E  80 7C 09 08			cmp		ds:[si].DIBENGINE.deBitsPixel, 8
+ 0022  74 3D				jz		short pl_notpolyline	
+
+ 0024  83 7E 1C 12		        cmp     wStyle,             OS_POLYLINE
+ 0028  75 37			        jne     short pl_notpolyline
+
+ 002A  83 7E 1A 02		        cmp     wCount,             2
+ 002E  72 40			        jb      short pl_trivialaccept                          ; nothing to do, so say we did it.
+
+ 0030  0F B4 7E 12		        lfs     di,                 lpPPen
+ 0034  64: 8B 05		        mov     ax,                 fs:[di].DIB_Pen.dpPenStyle
+ 0037  83 F8 05			        cmp     ax,                 PS_NULL
+ 003A  74 34			        je      short pl_trivialaccept
+
+						; Fix for PRS 4957 - begins
+ 003C  83 F8 00			        cmp     ax,                 LS_SOLID
+ 003F  75 20			        jne     short pl_notpolyline
+						; Fix for PRS 4957 - ends
+
+ 0041  66| 83 7E 06 00		        cmp     lpClipRect,         0
+ 0046  74 49			        je      pl_ospolyline
+ 0048  0F B4 7E 06		        lfs     di,                 lpClipRect
+ 004C  64: 8B 45 04		        mov     ax,                 fs:[di+4]                   ;right
+ 0050  64: 3B 05		        cmp     ax,                 fs:[di+0]                   ;left
+ 0053  7E 1B			        jle     short pl_trivialaccept
+ 0055  64: 8B 45 06		        mov     ax,                 fs:[di+6]                   ;bottom
+ 0059  64: 3B 45 02		        cmp     ax,                 fs:[di+2]                   ;top
+ 005D  7E 11			        jle     short pl_trivialaccept
+
+ 005F  EB 30			        jmp     short pl_ospolyline
+				        
+
+ 0061				pl_swcursor:
+ 0061				pl_notpolyline:
+
+ 0061  5F			        pop     di
+ 0062  5E			        pop     si
+ 0063  1F			        pop     ds
+ 0064  66| 33 E4		        xor     esp, esp
+ 0067  8D 66 00			        lea     sp,[bp]
+ 006A  5D			        pop     bp
+
+ 006B  EA ---- 0000 E		        jmp     OutputC32                                       ; let the old code handle it
+
+ 0070				pl_trivialaccept:
+ 0070  B8 0001			        mov     ax,                 1
+ 0073  5F			        pop     di
+ 0074  5E			        pop     si
+ 0075  1F			        pop     ds
+ 0076  66| 33 E4		        xor     esp, esp
+ 0079  8D 66 00			        lea     sp,[bp]
+ 007C  5D			        pop     bp
+
+ 007D  CA 001C			        retf    28
+
+ 0080				pl_trivialreject:
+ 0080  33 C0			        xor     ax,                 ax
+ 0082  5F			        pop     di
+ 0083  5E			        pop     si
+ 0084  1F			        pop     ds
+ 0085  66| 33 E4		        xor     esp, esp
+ 0088  8D 66 00			        lea     sp,[bp]
+ 008B  5D			        pop     bp
+
+ 008C  EA ---- 0000 E		        jmp     DIB_Output
+
+ 0091				pl_ospolyline:
+ 0091  66| 33 C0		        xor     eax,                eax
+ 0094  66| 89 46 CC		        mov     COMMAND,            eax
+
+
+				        ; All trivial rejections have been handled above.
+ 0098  0F B4 7E 1E		        lfs     di,                 lpDestDev
+ 009C  B8 ---- R		        mov     ax,                 _DATA                   ; needed to access rop conversion table
+ 009F  8E D8			        mov     ds,                 ax
+				        CMDFIFO_PROLOG
+				        FXENTER pl_swcursor
+ 00A1  66| 33 D2	     1			xor		edx, edx
+ 00A4  8B 16 0000 E	     1	        mov     dx, _FlatSel
+ 00A8  8E C2		     1	        mov     es, dx
+ 00AA  66| 8B 1E 0004 E	     1			mov		ebx, dword ptr GLOB.lpDeFlags 
+ 00AF  67& 26: F7 03 1010    1	        test    word ptr es:[ebx], (BUSY + PALETTE_XLAT)  ;     goto Use_DibEng;
+ 00B5  0F 85 0527	     1	        jnz     Use_DibEngine
+ 00B9  67& 26: 0F BA 2B	     1	        bts     word ptr es:[ebx], BUSY_BIT      ; pDeFlags = lpDriverData->lpDeFlags;
+       04
+ 00BF  0F 82 051D	     1	        jc      Use_DibEngine                                     ; SET_BUSY(pDeFlags);
+ 00C3  66| 33 C0	     1	        xor     eax, eax        ; default to dst not a device bitmap
+ 00C6  64: F7 45 1C 0008     1	        test    word ptr LPDST.DIBENGINE.deFlags, OFFSCREEN ; we already know its VRAM :)
+ 00CC  0F 95 C0		     1	        setnz   al
+ 00CF  66| 89 46 E0	     1	        mov     dword ptr DSTDBM, eax
+ 00D3  66| 33 C0	     1	        xor     eax, eax        ; default to src not a device bitmap
+ 00D6  66| 89 46 DC	     1	        mov     dword ptr SRCDBM, eax
+ 00DA  66| 83 3E 0008 E	     1	        cmp     GLOB.gdiFlags, 0
+       00
+ 00E0  74 5B		     1	        je      ??0001
+ 00E2  F7 06 0008 E 4008     1	        test    word ptr GLOB.gdiFlags, SKIP_TOTAL_FLAGS
+ 00E8  74 0D		     1	        jz      short ??0005
+ 00EA  66| 8B 1E 0004 E	     1			mov		ebx, dword ptr GLOB.lpDeFlags 
+ 00EF  67& 26: 83 23 EF	     1	        and     word ptr es:[ebx], NOT BUSY
+ 00F4  E9 04F8		     1	        jmp     All_Done
+ 00F7			     1	??0005:        
+ 00F7  F6 06 0008 E 02	     1	        test    byte ptr GLOB.gdiFlags, SDATA_GDIFLAGS_2D_DIRTY
+ 00FC  74 0E		     1	        jz      ??0002
+ 00FE  66| 33 C9	     1	        xor     ecx, ecx
+ 0101  B1 07		     1	        mov     cl, (RESET_DST + RESET_SRC + RESET_PDEV) 
+ 0103  E8 0000 E	     1	        call    reset_Invariants
+ 0106  66| 83 26 0008 E	     1	        and     GLOB.gdiFlags, NOT (SDATA_GDIFLAGS_2D_DIRTY + SDATA_GDIFLAGS_DST_WAS_DEVBIT + SDATA_GDIFLAGS_SRC_WAS_DEVBIT)
+       CD
+ 010C			     1	??0002:        
+ 010C  F6 06 0008 E 10	     1	        test    byte ptr GLOB.gdiFlags, SDATA_GDIFLAGS_DST_WAS_DEVBIT
+ 0111  74 15		     1	        jz      short ??0003
+ 0113  66| 83 7E E0 00	     1	        cmp     dword ptr DSTDBM, 0
+ 0118  75 0E		     1	        jne     short ??0003
+ 011A  66| 33 C9	     1	        xor     ecx, ecx
+ 011D  B1 01		     1	        mov     cl, RESET_DST
+ 011F  E8 0000 E	     1	        call    reset_Invariants
+ 0122  66| 83 26 0008 E	     1	        and     GLOB.gdiFlags, NOT SDATA_GDIFLAGS_DST_WAS_DEVBIT
+       EF
+ 0128			     1	??0003:        
+ 0128			     1	??0004:
+ 0128  F7 06 0008 E 6004     1	        test    word ptr GLOB.gdiFlags, SKIP_TO_C_FLAGS
+ 012E  74 0D		     1	        jz      short ??0006
+ 0130  66| 8B 1E 0004 E	     1			mov		ebx, dword ptr GLOB.lpDeFlags 
+ 0135  67& 26: 83 23 EF	     1	        and     word ptr es:[ebx], NOT BUSY
+ 013A  E9 FF24		     1			jmp		pl_swcursor
+ 013D			     1	??0006:
+ 013D			     1	??0001:        
+ 013D  66| A1 05B8 E	     2	        mov     eax, GLOB.mainFifo.FXptr
+ 0141  66| 33 D2	     2	        xor     edx, edx
+ 0144  66| 89 56 F8	     2	        mov     dword ptr IDX, edx      ; initialize HWINDEX to 0
+ 0148  66| 89 46 FC	     2	        mov     dword ptr CF, eax       ; initialize local CMDFIFO pointer
+ 014C  66| 83 7E E0 00	     1	        cmp     dword ptr DSTDBM, 0       ; is destination a device bitmap
+ 0151  0F 84 00C5	     1	        je      ??0000     ; if not, outta here!
+ 0155  66| 64: 8B 45 16	     1	        mov     eax, dword ptr LPDST.DIBENGINE.deBits
+ 015A  66| 2B 06 177C E	     1	        sub     eax, dword ptr GLOB.lfbBase
+ 015F  66| 89 46 F0	     1	        mov     dword ptr DSTADDR, eax
+ 0163  66| A1 04EC E	     1	        mov     eax, dword ptr GLOB.screenFormat
+ 0167  66| 25 00070000	     1	        and     eax, 70000h                     ; & SSTG_DST_FORMAT
+ 016D  66| 64: 8B 55 0E	     1	        mov     edx, dword ptr LPDST.DIBENGINE.deDeltaScan
+ 0172  66| 81 E2 00003FFF    1	        and     edx, 03fffh                         ; & SSTG_SRC_LINEAR_STRIDE
+ 0179  66| 0B C2	     1	        or      eax, edx
+ 017C  66| 89 46 EC	     1	        mov     dword ptr DSTFMT, eax
+ 0180  66| 33 C9	     1	        xor     ecx, ecx
+ 0183  B1 05		     1	        mov     cl, 5
+ 0185  66| A1 05D4 E	     3			mov		eax, dword ptr GLOB.mainFifo.bump
+ 0189  66| 03 C1	     3			add		eax, ecx
+ 018C  66| 3D 0000FFFF	     3			cmp		eax, 0ffffh
+ 0192  72 07		     3			jb		??0008
+ 0194  66| 87 46 D8	     4	        xchg    eax, P6SWAP
+ 0198  66| 8B C1	     3			mov		eax, ecx
+ 019B			     3	??0008:
+ 019B  66| A3 05D4 E	     3			mov		dword ptr GLOB.mainFifo.bump, eax
+ 019F  66| 8B 46 F8	     2	        mov     eax, IDX
+ 01A3  66| 29 06 05C0 E	     2	        sub     GLOB.mainFifo.space, eax
+ 01A8  66| 33 D2	     2	        xor     edx, edx
+ 01AB  66| C1 E0 02	     2	        shl     eax, 2
+ 01AF  66| 01 46 FC	     2	        add     CF, eax
+ 01B3  66| 89 56 F8	     2	        mov     IDX, edx
+ 01B7  66| 39 0E 05C0 E	     2	        cmp     dword ptr GLOB.mainFifo.space, ecx
+ 01BC  73 0E		     2	        jae     short ??0007
+ 01BE  66| 8B 5E FC	     2	        mov     ebx, CF
+ 01C2  66| 8B C9	     2	        mov     ecx, ecx
+ 01C5  E8 0000 E	     2	        call    fifo_MakeRoom
+ 01C8  66| 89 5E FC	     2	        mov     CF, ebx
+ 01CC			     2	??0007:
+ 01CC  66| 8B 5E FC	     2	        mov     ebx, CF         ; setup hwPtr for packet programming
+ 01D0  66| 33 C0	     1	        xor     eax, eax
+ 01D3  B8 007A		     1	        mov     ax, (SSTCP_PKT2 + clip0minBit + clip0maxBit + dstBaseAddrBit + dstFormatBit)
+ 01D6  67& 66| 26: 89 03     1	        mov     es:[ebx], eax ;PH
+ 01DB  66| 83 C3 04	     1	        add     ebx, 4
+ 01DF  66| 33 C0	     1	        xor     eax, eax
+ 01E2  67& 66| 26: 89 03     1	        mov     es:[ebx], eax ; clip0min
+ 01E7  66| 83 C3 04	     1	        add     ebx, 4
+ 01EB  66| 64: 8B 45 02	     1	        mov     eax, dword ptr LPDST.DIBENGINE.deWidth 
+ 01F0  67& 66| 26: 89 03     1	        mov     es:[ebx], eax ; clip0max
+ 01F5  66| 83 C3 04	     1	        add     ebx, 4
+ 01F9  66| 8B 46 F0	     1	        mov     eax,dword ptr DSTADDR 
+ 01FD  67& 66| 26: 89 03     1	        mov     es:[ebx], eax ; dstBaseAddr
+ 0202  66| 83 C3 04	     1	        add     ebx, 4
+ 0206  66| 8B 46 EC	     1	        mov     eax,dword ptr DSTFMT 
+ 020A  67& 66| 26: 89 03     1	        mov     es:[ebx], eax ; dstFormat
+ 020F  66| 83 46 F8 05	     2	        add     dword ptr IDX, 5
+ 0214  66| 83 0E 0008 E	     1	        or      GLOB.gdiFlags, SDATA_GDIFLAGS_DST_WAS_DEVBIT
+       10
+ 021A			     1	??0000:
+
+
+ 021A				pl_checkcliprect:
+ 021A  66| 83 7E 06 00		        cmp     lpClipRect,         0                       ; do we have a clip rect?
+ 021F  0F 84 0090		        je      pl_nocliprect
+				        
+				        CMDFIFO_CHECKROOM           3
+ 0223  66| A1 05D4 E	     2			mov		eax, dword ptr GLOB.mainFifo.bump
+ 0227  66| 83 C0 03	     2			add		eax, 3
+ 022B  66| 3D 0000FFFF	     2			cmp		eax, 0ffffh
+ 0231  72 0A		     2			jb		??000A
+ 0233  66| 87 46 D8	     3	        xchg    eax, P6SWAP
+ 0237  66| B8 00000003	     2			mov		eax, 3
+ 023D			     2	??000A:
+ 023D  66| A3 05D4 E	     2			mov		dword ptr GLOB.mainFifo.bump, eax
+ 0241  66| 8B 46 F8	     1	        mov     eax, IDX
+ 0245  66| 29 06 05C0 E	     1	        sub     GLOB.mainFifo.space, eax
+ 024A  66| 33 D2	     1	        xor     edx, edx
+ 024D  66| C1 E0 02	     1	        shl     eax, 2
+ 0251  66| 01 46 FC	     1	        add     CF, eax
+ 0255  66| 89 56 F8	     1	        mov     IDX, edx
+ 0259  66| 83 3E 05C0 E	     1	        cmp     dword ptr GLOB.mainFifo.space, 3
+       03
+ 025F  73 11		     1	        jae     short ??0009
+ 0261  66| 8B 5E FC	     1	        mov     ebx, CF
+ 0265  66| B9 00000003	     1	        mov     ecx, 3
+ 026B  E8 0000 E	     1	        call    fifo_MakeRoom
+ 026E  66| 89 5E FC	     1	        mov     CF, ebx
+ 0272			     1	??0009:
+				        GET_CF_OFFSET
+ 0272  66| 8B 5E FC	     1	        mov     ebx, CF         ; setup hwPtr for packet programming
+				        SETPH   (  SSTCP_PKT2       \
+				                 + clip1minBit      \
+				                 + clip1maxBit      \
+				                )
+ 0276  66| 8B 5E FC	     1	        mov     ebx, CF         ; setup hwPtr for packet programming
+ 027A  67& 66| 26: C7 03     2	        mov     dword ptr es:[ebx], (  SSTCP_PKT2       + clip1minBit      + clip1maxBit      )
+       00300002
+ 0283  66| 83 C3 04	     2	        add     ebx, 4
+ 0287  0F B4 7E 06		        lfs     di,                 lpClipRect
+				        SETM    foo,                fs:[di+0]               ; clip1min lpClip->topleft
+ 028B  66| 64: 8B 05	     1	        mov     eax, dword ptr fs:[di+0]
+ 028F  67& 66| 26: 89 03     2	        mov     dword ptr es:[ebx], eax
+ 0294  66| 83 C3 04	     2	        add     ebx, 4
+				        SETM    foo,                fs:[di+4]               ; clip1max lpClip->bottomright
+ 0298  66| 64: 8B 45 04	     1	        mov     eax, dword ptr fs:[di+4]
+ 029D  67& 66| 26: 89 03     2	        mov     dword ptr es:[ebx], eax
+ 02A2  66| 83 C3 04	     2	        add     ebx, 4
+				        BUMP    3
+ 02A6  66| 83 46 F8 03	     1	        add     dword ptr IDX, 3
+ 02AB  66| 81 4E CC		        or      COMMAND,            SSTG_CLIPSELECT
+       00800000
+ 02B3				pl_nocliprect:
+
+
+ 02B3				pl_drawmode:
+ 02B3  F7 46 0C 0001		        test    [lpDrawMode].DRAWMODE.bkMode, BKMODE_TRANSPARENT
+ 02B8  74 08			        jz      pl_isopaque
+ 02BA  66| 81 4E CC		        or      COMMAND,            SSTG_TRANSPARENT        ; transparent background
+       00010000
+ 02C2				pl_isopaque:
+
+ 02C2  0F B4 7E 0A		        lfs     di,                 lpDrawMode
+				        assume  di:NEAR PTR DRAWMODE
+ 02C6  B8 ---- R		        mov     ax,                 _DATA                   ; needed to access rop conversion table
+ 02C9  8E D8			        mov     ds,                 ax
+ 02CB  66| 64: 8B 45 04		        mov     eax,                fs:[di].bkColor         ; gonna need this later,
+ 02D0  66| 89 46 C8		        mov     BGCOLOR,            eax                     ; so might as well save it now.
+ 02D4  64: 8B 1D		        mov     bx,                 fs:[di].Rop2
+						;
+				        ; CSJ - Fix PRS 5246
+						;
+						; GDI sometimes gives us a Rop2 == FFFF
+						;
+						; This causes the offset used in the rop conversion table lookup
+						; to be wrong. In 32bit code, the value is innocuous but in 16bit 
+						; code, the value, when passed to the FIFO, causes the entire screen 
+						; to corrupt and the machine to be locked.
+						;
+						; Detecting when this case happened and punting to the DIB Engine
+						; caused a performace loss in Microstation of about 2.5 points on
+						; a P3.
+						;
+ 02D7  83 E3 1F			        and     bx,                 001Fh
+						; end CSJ - Fix PRS 5246
+						;
+ 02DA  C1 E3 02			        shl     bx,                 2
+ 02DD  66| 8B 87 0000 R		        mov     eax,                ds:[bx+rop2ConvertTable]
+ 02E2  66| 25 FF7FFFFF		        and     eax,                NOT SSTG_CLIPSELECT
+ 02E8  66| 09 46 CC		        or      COMMAND,            eax
+
+
+ 02EC				pl_checkpen:
+ 02EC  0F B4 7E 12		        lfs     di,                 lpPPen
+				        assume  di:NEAR PTR DIB_Pen
+
+ 02F0  66| 64: 8B 45 08		        mov     eax,                fs:[di].dpPenColor      ; gonna need this later,
+ 02F5  66| 89 46 C4		        mov     FGCOLOR,            eax                     ; so might as well save it now.
+
+ 02F9  66| 64: 0F B7 05		        movzx   eax,                fs:[di].dpPenStyle
+ 02FE  A9 0000			        test    ax,                 LS_SOLID                ; only stipple if not solid
+ 0301  0F 84 00A7		        je      pl_nopendata
+ 0305  A9 0006			        test    ax,                 LS_INSIDEFRAME          ; only stipple if not inside_frame
+ 0308  0F 84 00A0		        je      pl_nopendata
+
+
+ 030C				pl_setpendata:
+ 030C  66| 50			        push    eax
+				        CMDFIFO_CHECKROOM           3
+ 030E  66| A1 05D4 E	     2			mov		eax, dword ptr GLOB.mainFifo.bump
+ 0312  66| 83 C0 03	     2			add		eax, 3
+ 0316  66| 3D 0000FFFF	     2			cmp		eax, 0ffffh
+ 031C  72 0A		     2			jb		??000C
+ 031E  66| 87 46 D8	     3	        xchg    eax, P6SWAP
+ 0322  66| B8 00000003	     2			mov		eax, 3
+ 0328			     2	??000C:
+ 0328  66| A3 05D4 E	     2			mov		dword ptr GLOB.mainFifo.bump, eax
+ 032C  66| 8B 46 F8	     1	        mov     eax, IDX
+ 0330  66| 29 06 05C0 E	     1	        sub     GLOB.mainFifo.space, eax
+ 0335  66| 33 D2	     1	        xor     edx, edx
+ 0338  66| C1 E0 02	     1	        shl     eax, 2
+ 033C  66| 01 46 FC	     1	        add     CF, eax
+ 0340  66| 89 56 F8	     1	        mov     IDX, edx
+ 0344  66| 83 3E 05C0 E	     1	        cmp     dword ptr GLOB.mainFifo.space, 3
+       03
+ 034A  73 11		     1	        jae     short ??000B
+ 034C  66| 8B 5E FC	     1	        mov     ebx, CF
+ 0350  66| B9 00000003	     1	        mov     ecx, 3
+ 0356  E8 0000 E	     1	        call    fifo_MakeRoom
+ 0359  66| 89 5E FC	     1	        mov     CF, ebx
+ 035D			     1	??000B:
+				        GET_CF_OFFSET
+ 035D  66| 8B 5E FC	     1	        mov     ebx, CF         ; setup hwPtr for packet programming
+				        SETPH   (  SSTCP_PKT2       \
+				                 + lineStippleBit   \
+				                 + lineStyleBit     \
+				                )
+ 0361  66| 8B 5E FC	     1	        mov     ebx, CF         ; setup hwPtr for packet programming
+ 0365  67& 66| 26: C7 03     2	        mov     dword ptr es:[ebx], (  SSTCP_PKT2       + lineStippleBit   + lineStyleBit     )
+       00030002
+ 036E  66| 83 C3 04	     2	        add     ebx, 4
+ 0372  66| 58			        pop     eax
+ 0374  66| 8B F0		        mov     esi,                eax                     ; esi contains the pen style #
+ 0377  66| C1 E0 08		        shl     eax,                8   
+ 037B  66| C1 E6 04		        shl     esi,                4
+ 037F  66| 03 F0		        add     esi,                eax                     ; esi*8 + esi*4 = esi*12 (12 bytes/record)
+				        SETM    foo,                ds:PenConvert[si+0]     ; lineStippleData
+ 0382  66| 8B 84 0044 R	     1	        mov     eax, dword ptr ds:PenConvert[si+0]
+ 0387  67& 66| 26: 89 03     2	        mov     dword ptr es:[ebx], eax
+ 038C  66| 83 C3 04	     2	        add     ebx, 4
+				        SETM    foo,                ds:PenConvert[si+4]     ; lineStyleData
+ 0390  66| 8B 84 0048 R	     1	        mov     eax, dword ptr ds:PenConvert[si+4]
+ 0395  67& 66| 26: 89 03     2	        mov     dword ptr es:[ebx], eax
+ 039A  66| 83 C3 04	     2	        add     ebx, 4
+				        BUMP    3
+ 039E  66| 83 46 F8 03	     1	        add     dword ptr IDX, 3
+
+ 03A3  66| 8B 84 004C R		        mov     eax,                ds:PenConvert[si+8]     ; cmdData
+ 03A8  66| 09 46 CC		        or      COMMAND,            eax
+ 03AC				pl_nopendata:
+
+
+ 03AC  66| 33 F6		        xor     esi, esi
+ 03AF  0F B4 76 16		        lfs     si,                 lpPoints
+				        assume  si:NOTHING
+ 03B3  66| 0F B7 4E 1A		        movzx   ecx,                wCount
+ 03B8  66| 83 F9 03		        cmp     ecx,                3
+ 03BC  0F 83 00B6		        jnb     pl_uselaunch
+
+ 03C0				pl_singleline:
+ 03C0  66| 81 4E CC		        or      COMMAND,            SSTG_POLYLINE + SSTG_GO
+       00000107
+				        CMDFIFO_CHECKROOM           6
+ 03C8  66| A1 05D4 E	     2			mov		eax, dword ptr GLOB.mainFifo.bump
+ 03CC  66| 83 C0 06	     2			add		eax, 6
+ 03D0  66| 3D 0000FFFF	     2			cmp		eax, 0ffffh
+ 03D6  72 0A		     2			jb		??000E
+ 03D8  66| 87 46 D8	     3	        xchg    eax, P6SWAP
+ 03DC  66| B8 00000006	     2			mov		eax, 6
+ 03E2			     2	??000E:
+ 03E2  66| A3 05D4 E	     2			mov		dword ptr GLOB.mainFifo.bump, eax
+ 03E6  66| 8B 46 F8	     1	        mov     eax, IDX
+ 03EA  66| 29 06 05C0 E	     1	        sub     GLOB.mainFifo.space, eax
+ 03EF  66| 33 D2	     1	        xor     edx, edx
+ 03F2  66| C1 E0 02	     1	        shl     eax, 2
+ 03F6  66| 01 46 FC	     1	        add     CF, eax
+ 03FA  66| 89 56 F8	     1	        mov     IDX, edx
+ 03FE  66| 83 3E 05C0 E	     1	        cmp     dword ptr GLOB.mainFifo.space, 6
+       06
+ 0404  73 11		     1	        jae     short ??000D
+ 0406  66| 8B 5E FC	     1	        mov     ebx, CF
+ 040A  66| B9 00000006	     1	        mov     ecx, 6
+ 0410  E8 0000 E	     1	        call    fifo_MakeRoom
+ 0413  66| 89 5E FC	     1	        mov     CF, ebx
+ 0417			     1	??000D:
+				        GET_CF_OFFSET
+ 0417  66| 8B 5E FC	     1	        mov     ebx, CF         ; setup hwPtr for packet programming
+				        SETPH   (  SSTCP_PKT2       \
+				                 + srcXYBit         \
+				                 + colorBackBit     \
+				                 + colorForeBit     \
+				                 + dstXYBit         \
+				                 + commandBit       \
+				                )
+ 041B  66| 8B 5E FC	     1	        mov     ebx, CF         ; setup hwPtr for packet programming
+ 041F  67& 66| 26: C7 03     2	        mov     dword ptr es:[ebx], (  SSTCP_PKT2       + srcXYBit         + colorBackBit     + colorForeBit     + dstXYBit         + commandBit       )
+       37000002
+ 0428  66| 83 C3 04	     2	        add     ebx, 4
+				        SETM    foo,                fs:[si+0]               ; fortunately, the coords are given in the requisite order!
+ 042C  66| 64: 8B 04	     1	        mov     eax, dword ptr fs:[si+0]
+ 0430  67& 66| 26: 89 03     2	        mov     dword ptr es:[ebx], eax
+ 0435  66| 83 C3 04	     2	        add     ebx, 4
+				        SETM    foo,                BGCOLOR                 ; background color
+ 0439  66| 8B 46 C8	     1	        mov     eax, dword ptr BGCOLOR
+ 043D  67& 66| 26: 89 03     2	        mov     dword ptr es:[ebx], eax
+ 0442  66| 83 C3 04	     2	        add     ebx, 4
+				        SETM    foo,                FGCOLOR                 ; foreground color
+ 0446  66| 8B 46 C4	     1	        mov     eax, dword ptr FGCOLOR
+ 044A  67& 66| 26: 89 03     2	        mov     dword ptr es:[ebx], eax
+ 044F  66| 83 C3 04	     2	        add     ebx, 4
+				        SETM    foo,                fs:[si+4]               ; fortunately, the coords are given in the requisite order!
+ 0453  66| 64: 8B 44 04	     1	        mov     eax, dword ptr fs:[si+4]
+ 0458  67& 66| 26: 89 03     2	        mov     dword ptr es:[ebx], eax
+ 045D  66| 83 C3 04	     2	        add     ebx, 4
+				        SETM    foo,                COMMAND                 ; 2D command
+ 0461  66| 8B 46 CC	     1	        mov     eax, dword ptr COMMAND
+ 0465  67& 66| 26: 89 03     2	        mov     dword ptr es:[ebx], eax
+ 046A  66| 83 C3 04	     2	        add     ebx, 4
+				        BUMP    6
+ 046E  66| 83 46 F8 06	     1	        add     dword ptr IDX, 6
+ 0473  E9 013E			        jmp     pl_allshewrote
+
+
+ 0476				pl_uselaunch:
+ 0476  66| 51			        push    ecx
+ 0478  66| 83 4E CC 07		        or      COMMAND,            SSTG_POLYLINE
+				        CMDFIFO_CHECKROOM           5
+ 047D  66| A1 05D4 E	     2			mov		eax, dword ptr GLOB.mainFifo.bump
+ 0481  66| 83 C0 05	     2			add		eax, 5
+ 0485  66| 3D 0000FFFF	     2			cmp		eax, 0ffffh
+ 048B  72 0A		     2			jb		??0010
+ 048D  66| 87 46 D8	     3	        xchg    eax, P6SWAP
+ 0491  66| B8 00000005	     2			mov		eax, 5
+ 0497			     2	??0010:
+ 0497  66| A3 05D4 E	     2			mov		dword ptr GLOB.mainFifo.bump, eax
+ 049B  66| 8B 46 F8	     1	        mov     eax, IDX
+ 049F  66| 29 06 05C0 E	     1	        sub     GLOB.mainFifo.space, eax
+ 04A4  66| 33 D2	     1	        xor     edx, edx
+ 04A7  66| C1 E0 02	     1	        shl     eax, 2
+ 04AB  66| 01 46 FC	     1	        add     CF, eax
+ 04AF  66| 89 56 F8	     1	        mov     IDX, edx
+ 04B3  66| 83 3E 05C0 E	     1	        cmp     dword ptr GLOB.mainFifo.space, 5
+       05
+ 04B9  73 11		     1	        jae     short ??000F
+ 04BB  66| 8B 5E FC	     1	        mov     ebx, CF
+ 04BF  66| B9 00000005	     1	        mov     ecx, 5
+ 04C5  E8 0000 E	     1	        call    fifo_MakeRoom
+ 04C8  66| 89 5E FC	     1	        mov     CF, ebx
+ 04CC			     1	??000F:
+				        GET_CF_OFFSET
+ 04CC  66| 8B 5E FC	     1	        mov     ebx, CF         ; setup hwPtr for packet programming
+				        SETPH   (  SSTCP_PKT2   \
+				                 + srcXYBit     \
+				                 + colorBackBit \
+				                 + colorForeBit \
+				                 + commandBit   \
+				                )
+ 04D0  66| 8B 5E FC	     1	        mov     ebx, CF         ; setup hwPtr for packet programming
+ 04D4  67& 66| 26: C7 03     2	        mov     dword ptr es:[ebx], (  SSTCP_PKT2   + srcXYBit     + colorBackBit + colorForeBit + commandBit   )
+       27000002
+ 04DD  66| 83 C3 04	     2	        add     ebx, 4
+				        SETM    foo,                fs:[si+0]               ; fortunately, the coords are given in the requisite order!
+ 04E1  66| 64: 8B 04	     1	        mov     eax, dword ptr fs:[si+0]
+ 04E5  67& 66| 26: 89 03     2	        mov     dword ptr es:[ebx], eax
+ 04EA  66| 83 C3 04	     2	        add     ebx, 4
+				        SETM    foo,                BGCOLOR                 ; background color
+ 04EE  66| 8B 46 C8	     1	        mov     eax, dword ptr BGCOLOR
+ 04F2  67& 66| 26: 89 03     2	        mov     dword ptr es:[ebx], eax
+ 04F7  66| 83 C3 04	     2	        add     ebx, 4
+				        SETM    foo,                FGCOLOR                 ; foreground color
+ 04FB  66| 8B 46 C4	     1	        mov     eax, dword ptr FGCOLOR
+ 04FF  67& 66| 26: 89 03     2	        mov     dword ptr es:[ebx], eax
+ 0504  66| 83 C3 04	     2	        add     ebx, 4
+				        SETM    foo,                COMMAND                 ; 2D command
+ 0508  66| 8B 46 CC	     1	        mov     eax, dword ptr COMMAND
+ 050C  67& 66| 26: 89 03     2	        mov     dword ptr es:[ebx], eax
+ 0511  66| 83 C3 04	     2	        add     ebx, 4
+				        BUMP    5
+ 0515  66| 83 46 F8 05	     1	        add     dword ptr IDX, 5
+
+ 051A  66| 59			        pop     ecx
+				        CMDFIFO_CHECKROOM           ecx
+ 051C  66| A1 05D4 E	     2			mov		eax, dword ptr GLOB.mainFifo.bump
+ 0520  66| 03 C1	     2			add		eax, ecx
+ 0523  66| 3D 0000FFFF	     2			cmp		eax, 0ffffh
+ 0529  72 07		     2			jb		??0012
+ 052B  66| 87 46 D8	     3	        xchg    eax, P6SWAP
+ 052F  66| 8B C1	     2			mov		eax, ecx
+ 0532			     2	??0012:
+ 0532  66| A3 05D4 E	     2			mov		dword ptr GLOB.mainFifo.bump, eax
+ 0536  66| 8B 46 F8	     1	        mov     eax, IDX
+ 053A  66| 29 06 05C0 E	     1	        sub     GLOB.mainFifo.space, eax
+ 053F  66| 33 D2	     1	        xor     edx, edx
+ 0542  66| C1 E0 02	     1	        shl     eax, 2
+ 0546  66| 01 46 FC	     1	        add     CF, eax
+ 054A  66| 89 56 F8	     1	        mov     IDX, edx
+ 054E  66| 39 0E 05C0 E	     1	        cmp     dword ptr GLOB.mainFifo.space, ecx
+ 0553  73 0E		     1	        jae     short ??0011
+ 0555  66| 8B 5E FC	     1	        mov     ebx, CF
+ 0559  66| 8B C9	     1	        mov     ecx, ecx
+ 055C  E8 0000 E	     1	        call    fifo_MakeRoom
+ 055F  66| 89 5E FC	     1	        mov     CF, ebx
+ 0563			     1	??0011:
+				        GET_CF_OFFSET
+ 0563  66| 8B 5E FC	     1	        mov     ebx, CF         ; setup hwPtr for packet programming
+ 0567  66| 8B D1		        mov     edx,                ecx                     ; all this for a packet header!
+ 056A  66| 4A			        dec     edx
+ 056C  66| C1 E2 10		        shl     edx,                SSTCP_PKT1_NWORDS_SHIFT
+ 0570  66| B8 00000020		        mov     eax,                LAUNCH_REG_1
+ 0576  66| C1 E0 03		        shl     eax,                SSTCP_REGBASE_SHIFT
+ 057A  66| 0B D0		        or      edx,                eax
+ 057D  66| 81 CA 00004001	        or      edx,                SSTCP_PKT1 + SSTCP_PKT1_2D
+				        SETPH   edx                                         ; all that for a packet header!
+ 0584  66| 8B 5E FC	     1	        mov     ebx, CF         ; setup hwPtr for packet programming
+ 0588  67& 66| 26: 89 13     2	        mov     dword ptr es:[ebx], edx
+ 058D  66| 83 C3 04	     2	        add     ebx, 4
+
+ 0591  66| 51			        push    ecx                                         ; need this later
+ 0593  66| 49			        dec     ecx                                         ; already sent one endpoint
+ 0595  66| 83 C6 04		        add     esi,                4                       ; begin with the second point
+
+ 0599				pl_loop:
+				        SETM    foo,                fs:[esi]
+ 0599  67& 66| 64: 8B 06     1	        mov     eax, dword ptr fs:[esi]
+ 059E  67& 66| 26: 89 03     2	        mov     dword ptr es:[ebx], eax
+ 05A3  66| 83 C3 04	     2	        add     ebx, 4
+ 05A7  66| 83 C6 04		        add     esi,                4                       ; the next coord pair
+ 05AB  67& E2 EB		        loopd   pl_loop
+
+ 05AE  66| 59			        pop     ecx
+				        BUMP    ecx
+ 05B0  66| 01 4E F8	     1	        add     dword ptr IDX, ecx
+
+
+ 05B4				pl_allshewrote:
+				        assume  di:NOTHING
+				        FXLEAVE
+ 05B4  66| 8B 46 F8	     2	        mov     eax, IDX
+ 05B8  66| 29 06 05C0 E	     2	        sub     GLOB.mainFifo.space, eax  ; _FF(mainFifo.space) -= hwIndex 
+ 05BD  66| 33 D2	     2	        xor     edx, edx
+ 05C0  66| C1 E0 02	     2	        shl     eax, 2
+ 05C4  66| 01 46 FC	     2	        add     CF, eax                 ; hwPtr += (hwIndex << 2)
+ 05C8  66| 89 56 F8	     2	        mov     IDX, edx                ; hwIndex = 0
+ 05CC  66| 8B 46 FC	     2	        mov     eax, CF
+ 05D0  66| A3 05B8 E	     2	        mov     GLOB.mainFifo.FXptr, eax    ; _FF(mainFifo.FXptr) = hwPtr
+ 05D4  66| 8B 1E 0004 E	     1			mov		ebx, dword ptr GLOB.lpDeFlags 
+ 05D9  67& 26: 83 23 EF	     1	        and     word ptr es:[ebx], NOT BUSY
+ 05DE  EB 0F		     1	        jmp     short All_Done
+ 05E0			     1	Use_DibEngine:
+ 05E0  F6 06 0008 E 02	     1	        test    byte ptr GLOB.gdiFlags, SDATA_GDIFLAGS_2D_DIRTY
+ 05E5  74 08		     1	        jz      short ??0013
+ 05E7  66| 33 C9	     1	        xor     ecx, ecx
+ 05EA  B1 04		     1	        mov     cl, RESET_PDEV
+ 05EC  E8 0000 E	     1	        call    reset_Invariants
+ 05EF			     1	??0013:        
+ 05EF			     1	All_Done:        
+
+ 05EF  B8 0001			        mov     ax,                 1
+
+ 05F2  5F			        pop     di
+ 05F3  5E			        pop     si
+ 05F4  1F			        pop     ds
+ 05F5  66| 33 E4		        xor     esp, esp
+ 05F8  8D 66 00			        lea     sp,[bp]
+ 05FB  5D			        pop     bp
+
+ 05FC  CA 001C			        retf    28                                          ; 28 bytes of params on the stack
+
+ 05FF				PolyLine16 Endp
+
+ 05FF				_TEXT   ENDS
+
+				endif
+
+				END
+

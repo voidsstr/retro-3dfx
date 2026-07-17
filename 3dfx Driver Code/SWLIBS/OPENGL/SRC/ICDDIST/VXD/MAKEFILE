@@ -1,0 +1,43 @@
+#****************************************************************************
+#                                                                           *
+# THIS CODE AND INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY     *
+# KIND, EITHER EXPRESSED OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE       *
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR     *
+# PURPOSE.                                                                  *
+#                                                                           *
+# Copyright 1993-95  Microsoft Corporation.  All Rights Reserved.           *
+#                                                                           *
+#****************************************************************************
+
+CFLAGS     = -Zi -DWIN32 -DCON -Di386 -D_X86_ -D_NTWIN -W3 -Gs -D_DEBUG -GM -O2
+CVXDFLAGS  = -Zdp -Gs -c -DIS_32 -Zl -DDEBLEVEL=1 -DDEBUG
+LFLAGS     = -machine:i386 -debug:notmapped,full -debugtype:cv -subsystem:console kernel32.lib 
+AFLAGS     = -coff -DBLD_COFF -DIS_32 -W2 -Zd -c -Cx -DMASM6 -DDEBLEVEL=1 -DDEBUG
+
+all: s3ogl.vxd 
+
+s3ogl.obj: s3ogl.c
+        cl $(CVXDFLAGS) -Fo$@ %s
+
+s3oglctrl.obj: s3oglctrl.asm
+        ml $(AFLAGS) -Fo$@ %s
+
+s3ogl.vxd: s3ogl.obj s3oglctrl.obj s3ogl.def
+        echo >NUL @<<s3ogl.crf
+-MACHINE:i386 -DEBUG:NONE -PDB:NONE 
+-DEF:s3ogl.def -OUT:s3ogl.vxd -MAP:s3ogl.map
+-VXD  s3ogl.obj s3oglctrl.obj
+<<
+        link @s3ogl.crf
+        mapsym s3ogl
+
+clean:
+        del *.obj
+        del *.vxd
+        del *.exe
+        del *.map
+        del *.map
+        del *.sym
+        del *.lib
+        del *.pdb
+	del *.exp

@@ -1,0 +1,71 @@
+#ifndef __WGLEXT_H
+#define __WGLEXT_H
+/*
+** Copyright 1992-1997 Silicon Graphics, Inc.
+** All Rights Reserved.
+**
+** This is UNPUBLISHED PROPRIETARY SOURCE CODE of Silicon Graphics, Inc.;
+** the contents of this file may not be disclosed to third parties, copied or
+** duplicated in any form, in whole or in part, without the prior written
+** permission of Silicon Graphics, Inc.
+**
+** RESTRICTED RIGHTS LEGEND:
+** Use, duplication or disclosure by the Government is subject to restrictions
+** as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+** and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+** successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished -
+** rights reserved under the Copyright Laws of the United States.
+*/
+
+/* Functions for locking and unlocking DDraw buffers via OpenGL32 */
+
+void WINAPI wglLockBuffers(HGLRC hGLRC);
+void WINAPI wglUnlockBuffers(HGLRC hGLRC);
+
+
+/*
+** a table of extension functions.
+**
+** Both gl and wgl
+**
+** XXX: This should be a auto-generated file
+*/
+
+typedef struct __WGLEXTPROC {
+    LPCSTR szProc;      	/* extension function name */
+    PROC   Proc;        	/* extension function address */
+} WGLEXTPROC, *PWGLEXTPROC;
+
+#define	__WGL_EXT_TABLE_SIZE (sizeof(__wglExtProcs) / sizeof(__wglExtProcs[0]))
+
+WGLEXTPROC __wglExtProcs[] =
+{
+    { "glArrayElementEXT"     , (PROC) glArrayElementEXT      },
+    { "glDrawArraysEXT"       , (PROC) glDrawArraysEXT        },
+    { "glVertexPointerEXT"    , (PROC) glVertexPointerEXT     },
+    { "glNormalPointerEXT"    , (PROC) glNormalPointerEXT     },
+    { "glColorPointerEXT"     , (PROC) glColorPointerEXT      },
+    { "glIndexPointerEXT"     , (PROC) glIndexPointerEXT      },
+    { "glTexCoordPointerEXT"  , (PROC) glTexCoordPointerEXT   },
+    { "glEdgeFlagPointerEXT"  , (PROC) glEdgeFlagPointerEXT   },
+    { "glGetPointervEXT"      , (PROC) glGetPointervEXT       },
+    { "glColorSubTableEXT"    , (PROC) glColorSubTableEXT     },
+    { "glColorTableEXT"       , (PROC) glColorTableEXT        },
+    { "glCopyColorTableEXT"   , (PROC) glCopyColorTableEXT    },
+    { "glGetColorTableEXT"    , (PROC) glGetColorTableEXT     },
+    { "glGetColorTableParameterfvEXT" , (PROC) glGetColorTableParameterfvEXT },
+    { "glGetColorTableParameterivEXT" , (PROC) glGetColorTableParameterivEXT },
+    { "glLockArraysSGI" , (PROC) glLockArraysSGI },
+    { "glUnlockArraysSGI" , (PROC) glUnlockArraysSGI },
+    { "glCullParameterdvSGI" , (PROC) glCullParameterdvSGI },
+    { "glCullParameterfvSGI" , (PROC) glCullParameterfvSGI },
+    { "glIndexFuncSGI" , (PROC) glIndexFuncSGI },
+    { "glIndexMaterialSGI" , (PROC) glIndexMaterialSGI },
+    { "glAddSwapHintRectWIN" , (PROC) glAddSwapHintRectWIN },
+    { "wglLockBuffers" , (PROC) wglLockBuffers },
+    { "wglUnlockBuffers" , (PROC) wglUnlockBuffers },
+};
+
+
+
+#endif /* __WGLEXT_H */

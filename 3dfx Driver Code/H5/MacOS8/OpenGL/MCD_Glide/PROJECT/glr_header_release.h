@@ -1,0 +1,1 @@
+#pragma once on//#include "OpenGL_Options.release"#define GLR_DEBUG         0#define GLR_DRIVER_ID     0x1200#include "glr.h"

@@ -1,0 +1,2633 @@
+/*
+** Copyright 1991-1997 Silicon Graphics, Inc.
+** All Rights Reserved.
+**
+** This is UNPUBLISHED PROPRIETARY SOURCE CODE of Silicon Graphics, Inc.;
+** the contents of this file may not be disclosed to third parties, copied or
+** duplicated in any form, in whole or in part, without the prior written
+** permission of Silicon Graphics, Inc.
+**
+** RESTRICTED RIGHTS LEGEND:
+** Use, duplication or disclosure by the Government is subject to restrictions
+** as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+** and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+** successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished -
+** rights reserved under the Copyright Laws of the United States.
+**
+** $Revision:$
+** $Date:$
+*/
+
+#ifdef __GL_CODEGEN
+
+#pragma optimize("", off)	/* MSVC 4.2 optmizer bugs...
+				   silently generates bad code */
+
+#include <stdio.h>
+#include <malloc.h>
+#include <assert.h>
+#include <string.h>
+
+#include "context.h"
+#include "render.h"
+#include "global.h"
+#include "og.h"
+
+#include "geom_og.h"
+#include "fr_tri.h"
+
+#include "db_trace.h"
+
+#define EMIT(C, X)	emit_code(C, X)
+
+#define STATIC static
+
+#define FP_ZERO	0x00000000UL	/* IEEE 0.0f as a dword */
+#define FP_ONE	0x3f800000UL	/* IEEE 1.0f as a dword */
+
+#define vx(M)  \
+ value(gc, __glNSWhereIs(&gc->vx_ns, offsetof(M, __GLvertex), ssizeof(M, __GLvertex)))
+
+#define VX_SIZE (dynamic_vertex() ? __glNSSizeof(&gc->vx_ns) : sizeof(__GLvertex))
+
+/* 
+ * By default, the dynamic vertex feature is disabled.
+ */
+
+STATIC GLboolean
+dynamic_vertex()
+{
+    static GLboolean cold = GL_TRUE;
+    static GLboolean r;
+
+    if (cold) {
+	char *e;
+
+	e = getenv("__GL_DISABLE_DYNAMIC_VERTEX");
+	if (e != NULL) {
+	    r = atoi(e) ? GL_FALSE : GL_TRUE;
+	} else {
+	    r = GL_FALSE;
+	}
+	cold = GL_FALSE;
+    }
+    return r;
+}
+
+/************************************************************************/
+
+STATIC unsigned char*
+scaleby(__GLcontext *gc,
+	unsigned char* cb,
+	struct celem* dst,
+	struct celem* src,
+	int N)
+{
+    int shifts;
+    
+    if (N == 1) {
+@      mov	dst,src
+    } else {
+
+       for (shifts = 1; (N & (1 << shifts)) == 0; shifts++)
+	   ;
+
+@      scaleby(dst, src, '(N >> shifts)')
+       if (shifts == 1)
+@          add	dst,dst
+       else
+@          shl	dst,#shifts
+       if (N & 1)
+@          add	dst,src
+    }
+
+    return cb;
+}
+
+static
+unsigned char* BuildDrawVertexes(unsigned char* cb, __GLcontext *gc)
+{
+    struct celem *glDrawVertexes = label(gc);
+    struct celem *for_count = label(gc);
+    struct celem *no_compile = label(gc);
+    struct celem *not_first = label(gc);
+    struct celem *endif1 = label(gc);
+    struct celem *traverse = label(gc);
+    struct celem *not_accept = label(gc);
+    struct celem *next_tri = label(gc);
+    struct celem *done = label(gc);
+    struct celem
+	*first,
+	*count,
+	*elements;
+    struct celem *f_cliptriangle;
+    __GLvertex *vBuf = (__GLvertex *) gc->vertexArray.varrayPtr;
+    struct celem
+	*v0,
+	*v1,
+	*v2,
+	*batchFirst,
+	*batchIndex,
+	*batchCount,
+	*batchOffset,
+	*batchElements,
+	*i,
+	*i_end;
+    GLsizei offset;
+    GLboolean useElements = GL_TRUE;
+    struct celem *tr;
+
+    f_cliptriangle = label(gc);
+    {
+	extern void
+	    __glDoClipTriangle(__GLcontext *gc, __GLvertex *v0, __GLvertex *v1, __GLvertex *v2);
+
+	f_cliptriangle->spec.label.where = (unsigned char*)&__glDoClipTriangle;
+	f_cliptriangle->spec.label.name = "__glDoClipTriangle";
+    }
+
+    offset = 0;
+
+#define SLOCAL(V, T) \
+    (V = mem2(gc, value(gc, offset), esp),  offset += sizeof(T))
+@	push	esi
+@	push	edi
+@	push	ebx
+@	push	ecx
+@	push	ebp
+
+    SLOCAL(tr, __GLtri);
+    SLOCAL(v0, long);
+    SLOCAL(v1, long);
+    SLOCAL(v2, long);
+    SLOCAL(batchFirst, long);
+    SLOCAL(batchIndex, long);
+    SLOCAL(batchCount, long);
+    SLOCAL(batchOffset, long);
+    SLOCAL(batchElements, long);
+    SLOCAL(i, long);
+    SLOCAL(i_end, long);
+    SLOCAL(first, long);
+    SLOCAL(count, long);
+    SLOCAL(elements, long);
+
+@   mov     eax,[esp + 28]
+@   mov     ebx,[esp + 32]
+@   mov     ecx,[esp + 36]
+
+@   mov     [#'(int)&gc->ogState.spsave2'],esp
+@   sub     esp,#offset
+@   and     esp,~7
+
+@   mov     first,eax
+@   mov     count,ebx
+@   mov     elements,ecx
+
+@glDrawVertexes:
+
+/* This costs almost nothing, and ensures that locals are in the cache... */
+@   mov     eax,v0
+@   mov     ebx,batchCount
+@   mov     eax,i_end
+
+@   mov     eax,count
+@   cmp	    eax,3
+@   jl      done
+
+@   mov     batchCount,eax
+
+@   mov     ecx,first
+@   mov     batchIndex,ecx
+@   mov     batchFirst,ecx
+@   mov     batchOffset,0
+@   mov     edx,elements
+@   mov     batchElements,edx
+
+@for_count:
+
+@   mov     eax,[#'(int)&gc->vertexArray.controlWord']
+@   test    eax,#VERTARRAY_CW_NEEDS_COMPILE
+@   je      no_compile
+
+@   mov     eax,batchFirst
+@   mov     ebx,batchIndex
+
+@   cmp     eax,ebx
+@   jne     not_first
+
+    /* first batch */
+@   mov     batchFirst,0
+@   mov     eax,[#'(int)&gc->vertexArray.batchSize']
+@   mov     batchCount,eax
+@   mov     batchElements,0
+    /* if (gc->vertexArray.controlWord & VERTARRAY_CW_VX_CULL) */
+    {
+@       mov     [#'(int)&gc->vertexArray.batchMode'],#GL_TRIANGLE_STRIP
+@       mov     eax,first
+@       mov     [#'(int)&gc->vertexArray.batchFirst'],eax
+@       mov     ebx,elements
+@       mov     [#'(int)&gc->vertexArray.batchElements'],ebx
+    }
+@   jmp     endif1
+
+@not_first:
+    /* subsequent batch */
+@   mov     edi,#'(int)&vBuf[0]'
+
+@   mov     esi,#'(int)vBuf'
+@   mov     eax,batchOffset
+@   add     eax,batchCount
+@   sub     eax,2
+@   imul    eax,#VX_SIZE
+@   add     esi,eax
+
+@   mov     ecx,#'(2 * (VX_SIZE / 4))'
+
+@   rep
+@   movsd
+
+@   mov     eax,#'(int)&vBuf[0].colors[__GL_FRONTFACE]';
+@   mov     [#'(int)&vBuf[0].color'],eax
+@   mov     eax,#'(int)&vBuf[1].colors[__GL_FRONTFACE]';
+@   mov     [#'(int)&vBuf[1].color'],eax
+
+@   mov     batchOffset,2
+
+@endif1:
+
+    {
+	struct celem* ok = near_label(gc);
+
+@   	mov     eax,count
+@   	mov     ebx,batchCount
+@   	cmp     eax,ebx
+@       jg      ok
+@       mov     batchCount,eax
+@ok:
+    }
+
+@   mov     ebp,[#'(int)&gc->vertexArray.continuation']
+@   shl     ebp,1
+
+@   mov     eax,elements
+@   mov     ebx,batchCount
+@   sub     ebx,ebp
+@   mov     ecx,batchIndex
+@   mov     edx,batchOffset
+@   add     edx,ebp
+
+@   push    eax
+@   push    ebx
+@   push    ecx
+@   push    edx
+@   push    #'(int)gc'
+
+@   call    [#'(int)&gc->vertexArray.compileElementsIndexed']
+@   add     esp,#'(5 * sizeof(GLuint))'
+
+@   mov     eax,batchIndex
+@   mov     [#'(int)&gc->vertexArray.batchIndex'],eax
+
+@no_compile:
+
+    {
+	struct celem
+	    *_else = near_label(gc), 
+	    *_endif = near_label(gc);
+
+@   	mov     eax,batchElements
+@   	test    eax,eax
+@   	je      _else
+    
+@   	mov     ebx,[eax]
+@   	mov     ecx,[eax + 4]
+@       jmp     _endif
+
+@_else:
+@       mov     ebx,batchFirst
+@       mov     ecx,ebx
+@       inc     ecx
+
+@_endif:
+@   	imul    ebx,#VX_SIZE
+@   	add     ebx,#'(int)vBuf'
+@   	mov     v0,ebx
+@   	imul    ecx,#VX_SIZE
+@   	add     ecx,#'(int)vBuf'
+@   	mov     v2,ecx
+    }
+
+@   mov     eax,batchFirst
+@   add     eax,2
+
+@   mov     ebx,batchCount
+@   mov     ecx,batchOffset
+@   add     ebx,ecx
+@   mov     i_end,ebx
+
+    if ((gc->state.polygon.frontMode != GL_FILL) ||
+	 (gc->state.polygon.backMode != GL_FILL)) {
+@	mov     edx,v0
+@	mov     [edx + 'vx(boundaryEdge)'],#GL_TRUE
+@	mov     edx,v2
+@	mov     [edx + 'vx(boundaryEdge)'],#GL_TRUE
+    }
+
+@traverse:
+    /* eax is 'i' */
+@   mov     ebx,eax
+@   and     eax,1
+
+@   xor     eax,1
+@   lea     edi,v0
+
+@   mov     edx,v2
+@   mov     ecx,batchElements
+
+@   mov     [edi + eax * 4],edx
+
+    if (useElements) {
+	struct celem
+	    *_else = near_label(gc), 
+	    *_endif = near_label(gc);
+
+@   	test    ecx,ecx
+@   	je      _else
+
+@   	mov     eax,[ecx + ebx * 4]
+@       jmp     _endif
+
+@_else:
+@       mov     eax,ebx
+
+@_endif:
+@   	scaleby(ecx, eax, VX_SIZE)
+@   	add     ecx,#'(int)vBuf'
+@       inc     ebx
+@       mov     i,ebx
+    } else {
+	/* If we're not using elements, it's much easier: just increment
+	 * v2 by one vertex.
+	 */
+@       inc     ebx
+@	mov     ecx,v2
+
+@       add     ecx,#'sizeof(vBuf[0])'
+@       mov     i,ebx
+    }
+@   mov     v2,ecx
+
+    if ((gc->state.polygon.frontMode != GL_FILL) ||
+	 (gc->state.polygon.backMode != GL_FILL)) {
+@	mov     [ecx + 'vx(boundaryEdge)'],#GL_TRUE
+    }
+
+    if (!(gc->polygon.shader.modeFlags & __GL_SHADE_SMOOTH) ||
+	(gc->polygon.shader.modeFlags & __GL_SHADE_CHEAP_FOG) ||
+	!(gc->polygon.shader.modeFlags & __GL_SHADE_SMOOTH_LIGHT) ||
+	(gc->state.polygon.frontMode != GL_FILL ||
+	gc->state.polygon.backMode != GL_FILL)) {
+@	mov     [#'(int)&gc->vertex.provoking'],ecx
+    }
+
+    /* Now we have triangle in v0,v1,v2.
+     * Do the clip check.
+     */
+
+@   mov     eax,v0
+@   mov     ebx,v1
+
+@   mov     edi,[ecx + 'vx(hasAndClipCode)']
+
+@   mov     edx,[eax + 'vx(hasAndClipCode)']
+@   mov     esi,[ebx + 'vx(hasAndClipCode)']
+
+    /* Check for trivial accept */
+@   mov     ebp,edx
+@   or      ebp,esi
+@   or      ebp,edi
+@   test    ebp,#__GL_ALL_CLIP_MASK
+@   jne     not_accept
+
+#if 1
+@   push    ecx
+@   push    ebx
+@   push    eax
+@   push    #'(int)gc'
+@   call    [#'(int)&(gc->procs.renderTriangle)']
+@   add     esp,16
+#else
+@   call    [#'(int)&(gc->procs.simpleRenderTriangle)']
+#endif
+
+@   jmp     next_tri
+
+@not_accept:
+    /* Now check for trivial reject */
+@   mov     ebp,edx
+@   and     ebp,esi
+@   and     ebp,edi
+@   and     ebp,#__GL_ALL_CLIP_MASK
+@   jne     next_tri
+
+    /* Must clip */
+@   push    ecx
+@   push    ebx
+@   push    eax
+@   push    #'(int)gc'
+@   call    f_cliptriangle
+@   add     esp,16
+
+@next_tri:
+
+@   mov     eax,i
+@   mov     ebx,i_end
+@   cmp     eax,ebx
+@   jl      traverse
+
+@   mov     ebx,batchCount
+
+@   mov     eax,count
+@   mov     ecx,batchIndex
+
+@   add     ecx,ebx
+@   sub     eax,ebx
+
+@   mov     count,eax
+@   mov     batchIndex,ecx
+
+@   ja      for_count	; flags set by preceding 'sub'
+
+@done:
+
+@   mov     esp,[#'(int)&gc->ogState.spsave2']
+
+@   pop	ebp
+@   pop	ecx
+@   pop	ebx
+@   pop	edi
+@   pop	esi
+
+@   ret
+
+    return cb;
+}
+
+/************************************************************************/
+
+static unsigned char* clamp(__GLcontext *gc,
+			    unsigned char* cb,
+			    struct celem* r,
+			    struct celem* bound)
+{
+  struct celem *ok = label(gc);
+
+@	cmp	r,bound
+@	jl	ok
+@	mov	r,bound
+@ ok:
+
+  return cb;
+}
+
+/*
+ * src is incoming pointer
+ * dst is pointer to vertex
+ */
+
+static unsigned char* do_load(__GLcontext *gc,
+			      unsigned char *cb,
+			      struct celem *src,
+			      GLuint type,
+			      struct celem *scratch)
+{
+  switch (type) {
+  case GL_SHORT:
+@    movsxw  ebx,src
+@    mov     scratch,ebx
+@    fild    scratch
+     break;
+  case GL_INT:
+@    fild   src
+     break;
+  case GL_FLOAT:
+@    fld   src
+     break;
+  case GL_DOUBLE:
+@    fldq  src
+     break;
+  default:
+     assert(0);
+  }
+
+  return cb;
+}
+
+
+/* FAC(N) is the conversion factor for an N-bit quantity,
+ * as listed in the GL specificiation.
+ * 1 / ((2 ^ N) - 1)
+ */
+/* NB: this works for N = 32 because ((1 << 32) - 1) == ~0 */
+
+#define FAC(N)	((GLfloat)(1.0 / ((double)(unsigned long)((1UL << N) - 1UL))))
+
+static unsigned char* conv_load(__GLcontext* gc,
+				unsigned char* cb,
+				struct celem* src,
+				GLuint type,
+				struct celem* work)
+{
+  switch (type) {
+  case GL_UNSIGNED_BYTE:
+@     mov	bl,src
+@     mov	work,ebx
+@     fild	work
+      break;
+  case GL_BYTE:
+@     movsx	ebx,src
+@     add	ebx,ebx
+@     inc	ebx
+@     mov	work,ebx
+@     fild	work
+      break;
+  case GL_UNSIGNED_SHORT:
+@     movzxw	ebx,src
+@     mov	work,ebx
+@     fild	work
+      break;
+  case GL_SHORT:
+@     movsxw	ebx,src
+@     add	ebx,ebx
+@     inc	ebx
+@     mov	work,ebx
+@     fild	work
+      break;
+  case GL_UNSIGNED_INT:
+@     lea	ecx,work
+@     mov	ebx,src
+@     mov	[ecx],ebx
+@     mov	[ecx + 4],0
+@     fildq	[ecx]
+      break;
+  case GL_INT:
+      /* This one starts off by doubling a 32-bit quantity, so
+       * we need to do 64-bit arithmetic.
+       * Just switch to floating point instead.  Could probably do
+       * better in integer, at the expense of longer code.
+       */
+@     fild    src
+@     fmul    'fpk(gc, 2.0)'
+@     fadd    'fpk(gc, 1.0)'
+      break;
+  case GL_FLOAT:
+@     fld     src
+      break;
+  case GL_DOUBLE:
+@    fldq  src
+     break;
+  default:
+     assert(0);
+  }
+
+  return cb;
+}
+
+static
+unsigned char* do_normal_transform(__GLcontext *gc,
+				   unsigned char* cb,
+				   __GLtransform *tr,
+				   struct celem* nx,
+				   struct celem* ny,
+				   struct celem* nz)
+{
+@   mov ecx, #'(int)(tr->inverseTranspose.matrix)'
+
+#define MAT(R,C)	mem2(gc, value(gc, (R) * 16 + (C) * 4), ecx)
+
+@   fld	[esi]		; [1]
+@   fmul	'MAT(0,0)'	; [2]	m00	
+@   fld	[esi+4]		; [3]
+@   fmul	'MAT(1,0)'	; [4]	m10	m00
+@   fld	[esi+8]		; [5]
+@   fmul	'MAT(2,0)'	; [6]	m20	m10	m00
+@   fxch	st2		;	m00	m10	m20
+@   faddp	st1,st0		; [7]	m00+m10	m20
+    
+@   fld	[esi]		; [8]	
+@   fmul	'MAT(0,1)'	; [9]   m01	m00+m10	m20
+@   fxch	st1		;	m00+m10	m01	m20
+@   faddp	st2,st0		; [10]	m01	x
+@   fld	[esi+4]		; [11]
+@   fmul	'MAT(1,1)'	; [12]	m11	m01	x
+@   fld	[esi+8]		; [13]
+@   fmul	'MAT(2,1)'	; [14]	m21	m11	m01	x
+@   fxch	st2		;	m01	m11	m21	x
+@   faddp	st1,st0		; [15]	m01+m11	m21	x
+@   fxch	st2		;	x	m21	m01+m11
+@   fstp	nx
+@   faddp	st1,st0		;	y
+    
+@   fld	[esi]		; [18]	
+@   fmul	'MAT(0,2)'	; [19]  m02
+@   fld	[esi+4]		; [21]
+@   fmul	'MAT(1,2)'	; [22]	m12	m02	y
+@   fld	[esi+8]		; [23]
+@   fmul	'MAT(2,2)'	; [24]	m21	m12	m02	y
+@   fxch	st2		;	m01	m12	m22	y
+@   faddp	st1,st0		; [25]	m02+m12	m22	y
+@   fxch	st2		;	y	m22	m02+m12
+@   fstp	ny
+    
+@   faddp	st1,st0		; [28]	z
+    
+@   fstp	nz		; [32]
+
+    return cb;
+}
+
+/* Copy a coordinate from [eax] to the floating-point destination t0,1,2,3.
+ * If the size is less than 4, set t3 to 1.0
+ * If the size is less than 3, set t2 to 0.0
+ * If the size is less than 2, set t1 to 0.0
+ *
+ * This routine is used to handle position and texture coordinates.
+ */
+static unsigned char* CopyCoord(__GLcontext* gc,
+				unsigned char* cb,
+				GLuint type,
+				GLuint size,
+				struct celem* t0,
+				struct celem* t1,
+				struct celem* t2,
+				struct celem* t3)
+{
+    GLsizei isize;	/* How big is each input value */
+
+    switch (type) {
+    case GL_SHORT:      isize = 2;	break;
+    case GL_INT:	isize = 4;	break;
+    case GL_FLOAT:      isize = 4;	break;
+    case GL_DOUBLE:     isize = 8;	break;
+    }
+
+    if (type == GL_FLOAT) {
+	/* We can avoid doing any fp work */
+
+	if (size >= 1) {
+@	    mov     ebx,[eax]
+@	    mov     t0,ebx
+	}
+
+	if (size >= 2) {
+@	    mov     ebx,[eax + 4]
+@	    mov     t1,ebx
+	} else {
+@	    mov     t1,#FP_ZERO
+	}
+
+	if (size >= 3) {
+@	    mov     ebx,[eax + 8]
+@	    mov     t2,ebx
+	} else {
+@	    mov     t2,#FP_ZERO
+	}
+
+	if (size >= 4) {
+@	    mov     ebx,[eax + 12]
+@	    mov     t3,ebx
+	} else {
+@	    mov     t3,#FP_ONE
+	}
+    } else {
+    	switch (size) {
+    	case 1:
+@   	    do_load([eax], type, t0)
+@	    mov     ebx,#FP_ZERO
+@	    mov	    t3,#FP_ONE
+@	    mov	    t1,ebx
+@	    mov	    t2,ebx
+@   	    fstp    t0
+    	    break;
+    	case 2:
+@	    do_load([eax], type, t0)
+@	    do_load([eax + #isize], type, t1)
+@	    fxch    st1
+@   	    fstp    t0
+@   	    fstp    t1
+@	    mov     t2,#FP_ZERO
+@	    mov     t3,#FP_ONE
+    	    break;
+    	case 3:
+@	    do_load([eax], type, t0)
+@	    do_load([eax + #isize], type, t1)
+@	    do_load([eax + #'2 * isize'], type, t2)
+@	    fxch    st2
+@   	    fstp    t0
+@   	    fstp    t1
+@   	    fstp    t2
+@	    mov     t3,#FP_ONE
+    	    break;
+    	case 4:
+@	    do_load([eax], type, t0)
+@	    do_load([eax + #isize], type, t1)
+@	    do_load([eax + #'2 * isize'], type, t2)
+@	    do_load([eax + #'3 * isize'], type, t3)	; w z y x
+@	    fxch    st3			; x z y w
+@   	    fstp    t0
+@   	    fstp    t2
+@   	    fstp    t1
+@   	    fstp    t3
+    	    break;
+        }
+    }
+
+    return cb;
+}
+
+static void 
+calc_size_and_scale(GLuint *isize,
+		    GLfloat *scale,
+		    GLenum type)
+{
+    switch (type) {
+    case GL_BYTE:
+	*isize = 1;
+	*scale = FAC(8);
+	break;
+    case GL_UNSIGNED_BYTE:
+	*isize = 1;
+	*scale = FAC(8);
+	break;
+    case GL_SHORT:
+	*isize = 2;	
+	*scale = FAC(16);
+	break;
+    case GL_UNSIGNED_SHORT:     
+	*isize = 2;	
+	*scale = FAC(16);
+	break;
+    case GL_INT:		
+	*isize = 4;	
+	*scale = FAC(32);
+	break;
+    case GL_UNSIGNED_INT:	
+	*isize = 4;	
+	*scale = FAC(32);
+	break;
+    case GL_FLOAT:		
+	*isize = 4;	
+	*scale = 1.0f;
+	break;
+    case GL_DOUBLE:		
+	*isize = 8;	
+	*scale = 1.0f;
+	break;
+    default:
+	assert(GL_FALSE);
+    }
+}
+
+/*
+ * Copy color, and do the same work as __glClampAndScaleColorf.
+ * Also copies index in color index mode.
+ * As ever, we're careful not to read from the destination buffer.
+ */
+static unsigned char* CopyColor(__GLcontext* gc,
+				unsigned char* cb,
+				GLuint type,
+				GLuint size,
+				struct celem* work,
+				struct celem* rr,
+				struct celem* gg,
+				struct celem* bb,
+				struct celem* aa)
+{
+    GLsizei isize;	/* How big is each array element */
+    GLfloat red_s, green_s, blue_s, alpha_s;
+    GLfloat scale;
+    GLboolean must_clamp = ((type != GL_UNSIGNED_BYTE) && 
+			    (type != GL_UNSIGNED_SHORT) &&
+			    (type != GL_UNSIGNED_INT));
+
+    /* If we're not color clamping, we can write results straight into
+     * the vertex.
+     */
+    if (!must_clamp) {
+	rr = mem2(gc, vx(colors[0].r), edi);
+	gg = mem2(gc, vx(colors[0].g), edi);
+	bb = mem2(gc, vx(colors[0].b), edi);
+	aa = mem2(gc, vx(colors[0].a), edi);
+    }
+
+    if (gc->modes.colorIndexMode)
+	size = 1;
+
+    calc_size_and_scale(&isize, &scale, type);
+
+    red_s = gc->frontBuffer.redScale * scale;
+    green_s = gc->frontBuffer.greenScale * scale;
+    blue_s = gc->frontBuffer.blueScale * scale;
+    alpha_s = gc->frontBuffer.alphaScale * scale;
+
+    if (type == GL_UNSIGNED_BYTE) {
+@       xor     ebx,ebx
+    }
+
+    switch (size) {
+    case 1:
+	/* color index case is a straight copy */
+
+@       conv_load([eax], type, work)
+@       fstp	[edi + 'vx(colors[0].r)']
+        break;
+    case 3:
+	/* Load up colors, scale and store in scratch variables */
+
+@       conv_load([eax], type, work)
+@       conv_load([eax + #isize], type, work)
+@       conv_load([eax + #'2 * isize'], type, work)
+@       fld     'fpk(gc, red_s)'	
+@       fmulp   st3,st0
+@       fld     'fpk(gc, green_s)'	
+@       fmulp   st2,st0
+@       fld     'fpk(gc, blue_s)'	
+@       fmulp   st1,st0
+@       fxch	st2
+@       fstp	rr
+@       fstp	gg
+@       fstp	bb
+	break;
+    case 4:
+@       conv_load([eax], type, work)
+@       fmul    'fpk(gc, red_s)'
+@       conv_load([eax + #isize], type, work)
+@       fmul    'fpk(gc, green_s)'
+@       conv_load([eax + #'2 * isize'], type, work)
+@       fmul    'fpk(gc, blue_s)'
+@       conv_load([eax + #'3 * isize'], type, work)	;	a	b	g	r
+@       fmul    'fpk(gc, alpha_s)'
+@       fxch	st3					;	r	b	g	a
+@       fstp	rr		;	
+@       fstp	bb
+@       fstp	gg
+@       fstp	aa
+    }
+
+    /* Now the color scratch-pad values 'rr', 'gg', 'bb' and maybe 'aa'
+     * are scaled, we need to clamp them.
+     * (If type was originally one of the unsigned integer forms,
+     * we can't overflow, so we don't have to clamp.)
+     */
+
+    if ((size >= 3) &&
+	must_clamp) {
+	union {
+	    float f;
+	    int i;
+	} u[4];
+
+	u[0].f = gc->frontBuffer.redScale;
+	u[1].f = gc->frontBuffer.greenScale;
+	u[2].f = gc->frontBuffer.blueScale;
+	u[3].f = gc->frontBuffer.alphaScale;
+	
+@	mov	ebx,rr
+@	clamp(ebx, #'u[0].i');
+@	mov	[edi + 'vx(colors[0].r)'],ebx
+@	mov	ebx,gg
+@	clamp(ebx, #'u[1].i');
+@	mov	[edi + 'vx(colors[0].g)'],ebx
+@	mov	ebx,bb
+@	clamp(ebx, #'u[2].i');
+@	mov 	[edi + 'vx(colors[0].b)'],ebx
+
+        if (gc->polygon.shader.modeFlags & 
+	    (__GL_SHADE_BLEND | __GL_SHADE_ALPHA_TEST)) {
+	    if (size == 4) {
+@	        mov	ebx,aa
+@	        clamp(ebx, #'u[3].i');
+@	        mov 	[edi + 'vx(colors[0].a)'],ebx
+            } else {
+@	        mov     [edi + 'vx(colors[0].a)'],#FP_ONE
+	    }
+	}
+    } else {
+        if ((size == 3) &&
+	    gc->polygon.shader.modeFlags & 
+	    (__GL_SHADE_BLEND | __GL_SHADE_ALPHA_TEST)) {
+@	    mov     [edi + 'vx(colors[0].a)'],#FP_ONE
+	}
+    }
+
+    return cb;
+}
+
+static unsigned char* CopyNormal(__GLcontext* gc,
+				 unsigned char* cb,
+				 GLuint type,
+				 struct celem* work)
+{
+    GLsizei isize;	/* How big is each array element */
+    GLfloat scale;
+
+    calc_size_and_scale(&isize, &scale, type);
+
+    if (type == GL_FLOAT) {
+@	mov     ebx,[eax]
+@	mov     [edi + 'vx(normal.x)'],ebx
+@	mov     ebx,[eax + 4]
+@	mov     [edi + 'vx(normal.y)'],ebx
+@	mov     ebx,[eax + 8]
+@	mov     [edi + 'vx(normal.z)'],ebx
+    } else {
+@	conv_load([eax], type, work)
+@	fmul    'fpk(gc, scale)'
+@	conv_load([eax + #isize], type, work)
+@	fmul    'fpk(gc, scale)'
+@	conv_load([eax + #'2 * isize'], type, work)
+@	fmul    'fpk(gc, scale)'
+@	fxch	st2
+@   	fstp	[edi + 'vx(normal.x)']
+@   	fstp	[edi + 'vx(normal.y)']
+@   	fstp	[edi + 'vx(normal.z)']
+    }
+
+    return cb;
+}
+
+
+/*
+ * do_light
+ *
+ * Do lighting calculations for 1 vertex
+ *
+ * esi	source normal
+ * edi	destination vertex
+ */
+
+static unsigned char* do_light(__GLcontext *gc,
+			       unsigned char* cb,
+			       struct celem* nx,
+			       struct celem* ny,
+			       struct celem* nz,
+			       struct celem* rr,
+			       struct celem* gg,
+			       struct celem* bb,
+			       struct celem* d)
+{
+    struct celem* its_dark = label(gc);
+    __GLtransform *tr = gc->transform.modelView;
+    __GLlightSourceMachine *lsm;
+    __GLmaterialMachine *msm;
+    GLboolean xform_normal = GL_FALSE;	/* Set to GL_FALSE if we're doing model
+					 * space lighting */
+    GLboolean one_light;
+
+    msm = &gc->light.front;
+    lsm = gc->light.sources;
+
+    one_light = (lsm != NULL) && (lsm->next == NULL);
+
+    if (xform_normal) {
+@       do_normal_transform(tr, nx, ny, nz);
+    } else {
+	nx = mem2(gc, NULL, esi);
+	ny = mem2(gc, value(gc, 4), esi);
+	nz = mem2(gc, value(gc, 8), esi);
+    }
+
+    if (gc->modes.colorIndexMode) {
+@       fld	'fpk(gc, 0.0)'
+@       fld	'fpk(gc, 0.0)'
+    } else {
+	/* This color is computed in lightsToModel; it's the clamped sum of
+	 * the sceneColor and all the ambient lights.
+	 */
+@       fld	[#'(int)&gc->light.baseColor.b']	;	b
+@       fld	[#'(int)&gc->light.baseColor.g']	;	g	b	nz
+@       fld	[#'(int)&gc->light.baseColor.r']	;	r	g	b	
+    }
+
+	{
+	  while (lsm) {
+	    struct celem* no_diffuse = label(gc);
+	    struct celem* next_light = label(gc);
+	    __GLlightSourcePerMaterialMachine *lspmm;
+
+	    lspmm = &lsm->front + __GL_FRONTFACE;
+
+	    {
+		__GLcoord *light_dir;
+
+		if (xform_normal)
+		    light_dir = &lsm->unitVPpli;
+		else
+		    light_dir = &lsm->unitVPpliModel;
+
+@	    	fld   [#'(int)&light_dir->x']
+@	    	fmul  nx
+@	    	fld   [#'(int)&light_dir->y']
+@	    	fmul  ny
+@	    	fld   [#'(int)&light_dir->z']
+@	    	fmul  nz
+	    }
+@	    fxch  st2
+@	    faddp st1,st0
+
+@	    faddp st1,st0
+
+	    /* writing 'd' will be a write hit, so do as much as possible
+	     * before this happens. */
+
+	    if (!gc->modes.colorIndexMode) {
+@	    	fld	  [#'(int)&lspmm->diffuse.g']
+@	    	fmul      st1
+@	    	fld	  [#'(int)&lspmm->diffuse.r']
+@	    	fmul      st2
+@	    	fld	  [#'(int)&lspmm->diffuse.b']
+@	    	fmul      st3			;	b	r	g	d
+@               fxch      st3			;	d	r	g	b
+	    } else {
+@		fld	  [#'(int)&lsm->dli']
+@		fmul	  st1
+@               fxch      st1
+	    }
+
+@	    fstp  d
+
+@	    mov	  eax,d
+@	    cmp	  eax,0
+	    if (one_light)
+@	        jle     its_dark
+            else
+@	        jle     no_diffuse
+
+	    if (!gc->modes.colorIndexMode) {
+@	    	faddp st3,st0
+@	    	faddp st3,st0
+@	    	faddp st3,st0
+	    } else {
+@		faddp st1,st0
+	    }
+
+            if (1) {
+	        struct celem* spec_ok = label(gc);
+		__GLcoord *light_dir;
+
+		if (xform_normal)
+		    light_dir = &lsm->hHat;
+		else
+		    light_dir = &lsm->hHatModel;
+
+@	      	fld	  [#'(int)&light_dir->x']	; [1]	
+@	      	fmul      nx				; [2]	nx
+@	      	fld	  [#'(int)&light_dir->y']	; [3]	ny
+@	      	fmul	  ny				; [4]	ny	nx
+@		fxch      st1				;	nx	ny
+@	      	fsub      [#'(int)&msm->threshold']	;	nx-t	ny
+@	      	fld	  [#'(int)&light_dir->z']
+@	      	fmul      nz				; [6]	nz	nx-t	ny
+@	      	fxch      st2				; 	ny	nx-t	nz
+@	      	faddp     st1,st0			; [7]   
+@	      	faddp     st1,st0			;	
+@	      	fstp      d
+@	      	mov	  eax,d
+@	      	cmp	  eax,0
+@	      	jle	  next_light	; Nothing more to do for this light
+
+@	      	fld	  d
+@	      	fmul  [#'(int)&msm->scale']
+@	      	fadd  'fpk(gc, __glHalf)'
+@	      	fistp d
+@	      	mov	  eax,d
+@	      	cmp	  eax,#__GL_SPEC_LOOKUP_TABLE_SIZE
+@	      	jl	  spec_ok
+@	      	mov	  eax,#'(__GL_SPEC_LOOKUP_TABLE_SIZE - 1)'
+@ spec_ok:
+		if (!gc->modes.colorIndexMode) {
+@	      	    fld	  [#'(int)msm->specTable' + eax * 4]
+@	      	    fmul  [#'(int)&lspmm->specular.b']
+@	      	    fld	  [#'(int)msm->specTable' + eax * 4]
+@	      	    fmul  [#'(int)&lspmm->specular.g']
+@	      	    fld	  [#'(int)msm->specTable' + eax * 4]
+@	      	    fmul  [#'(int)&lspmm->specular.r']
+@	      	    faddp st3,st0
+@	      	    faddp st3,st0
+@	      	    faddp st3,st0
+		} else {
+@	      	    fld	  [#'(int)msm->specTable' + eax * 4]
+@	      	    fmul  [#'(int)&lsm->sli']
+@	      	    faddp st2,st0
+		}
+	    }
+            if (!one_light) {
+@               jmp     next_light
+
+		/* The no-diffuse path leaves 3 items on top-of-stack */
+@ no_diffuse:
+@	        fstp    st0
+@	        fstp    st0
+@	        fstp    st0
+
+	    }
+@ next_light:
+
+            lsm = lsm->next;	/* process the next light, if any */
+	  }
+
+	  if (!gc->modes.colorIndexMode) {
+	      union {
+		float f;
+		int i;
+	      } u[3];
+
+	      u[0].f = gc->frontBuffer.redScale;
+	      u[1].f = gc->frontBuffer.greenScale;
+	      u[2].f = gc->frontBuffer.blueScale;
+
+@	      fstp  rr
+@	      fstp  gg
+@	      fstp  bb
+
+@	      mov	eax,rr
+@	      clamp(eax, #'u[0].i');
+@	      mov	[edi + 'vx(colors[0].r)'],eax
+@	      mov	eax,gg
+@	      clamp(eax, #'u[1].i');
+@	      mov	[edi + 'vx(colors[0].g)'],eax
+@	      mov	eax,bb
+@	      clamp(eax, #'u[2].i');
+@	      mov 	[edi + 'vx(colors[0].b)'],eax
+
+	      if (gc->polygon.shader.modeFlags & 
+		  (__GL_SHADE_BLEND | __GL_SHADE_ALPHA_TEST)) {
+@	          mov     eax,[#'(int)&msm->alpha']
+@		  mov     [edi + 'vx(colors[0].a)'],eax
+	      }
+          } else {
+		struct celem* ok = near_label(gc);
+		__GLmaterialState *ms;
+
+		ms = &gc->state.light.front;
+
+@		fld	'fpk(gc, __glOne)'	;	1	d	s
+@		fsub	st2		;	1-s	d	s
+@		fxch	st1		;	d	1-s	s
+@		fmul	[#'(int)&msm->cmapd_minus_cmapa']
+@		fmulp	st1,st0		;	ci	s
+@		fadd	[#'(int)&ms->cmapa']
+@		fxch	st1
+@		fmul	[#'(int)&msm->cmaps_minus_cmapa']
+@		faddp	st1,st0
+@		fstp	rr
+@		mov	eax,rr
+@		mov	ecx,[#'(int)&ms->cmaps']
+@		cmp	eax,ecx
+@		jle	ok
+@		mov	eax,ecx
+@ ok:
+@	        mov	[edi + 'vx(colors[0].r)'],eax
+	  }
+	}
+
+    if (one_light)
+    {
+	struct celem *endif = label(gc);
+	GLuint stack_depth;
+
+@       jmp     endif
+
+	/* There's only one light, and it's not illuminating this vertex.
+	 * Forget the color we were hoping to accumulate, and write out
+	 * the baseColor.
+         */
+@ its_dark:
+
+	if (gc->modes.colorIndexMode) {
+	    __GLmaterialState *ms = &gc->state.light.front;
+@	    mov    eax,[#'(int)&ms->cmapa']
+	    for (stack_depth = 3; stack_depth; stack_depth--)
+@               fstp    st0
+@	    mov	   [edi + 'vx(colors[0].r)'],eax
+	} else {
+@           mov    eax,[#'(int)&gc->light.baseColor.r']
+@	    mov	   [edi + 'vx(colors[0].r)'],eax
+@           mov    eax,[#'(int)&gc->light.baseColor.g']
+@	    mov    [edi + 'vx(colors[0].g)'],eax
+@           mov    eax,[#'(int)&gc->light.baseColor.b']
+
+            /* 2 writes pending, the third will block anyway, so now's
+             * a good time to clear out the stack.
+             */
+            for (stack_depth = 6; stack_depth; stack_depth--)
+@               fstp    st0
+
+@	    mov    [edi + 'vx(colors[0].b)'],eax
+
+            if (gc->polygon.shader.modeFlags & 
+	        (__GL_SHADE_BLEND | __GL_SHADE_ALPHA_TEST)) {
+@	        mov     eax,[#'(int)&msm->alpha']
+@	        mov     [edi + 'vx(colors[0].a)'],eax
+	    }
+	}
+
+@ endif:
+    }
+
+	return cb;
+}
+
+#define IMPORTANT_MODEFLAGS (__GL_SHADE_TWOSIDED | \
+			     __GL_SHADE_BLEND | \
+			     __GL_SHADE_ALPHA_TEST | \
+			     __GL_SHADE_SMOOTH | \
+			     __GL_SHADE_CHEAP_FOG | \
+			     __GL_SHADE_SMOOTH_LIGHT | \
+			     __GL_SHADE_DEPTH_TEST | \
+			     __GL_SHADE_TEXTURE | \
+			     __GL_SHADE_TEXTURE_PERSP)
+
+#if __GL_BUILD_TRACE
+static void print_key(unsigned long *k) {
+    if (!__gl_debug_trace) return;
+    fprintf(__gl_debug_log, "%8x %2x %2d %8x %1d %2d %4x %1d %1d %8x %1d %8x %4x %1d %1d %x %x %1d %1d %1d %1d\n",
+	   k[0],k[1],k[2],k[3],k[4],k[5],k[6],k[7],k[8],k[9],k[10],k[11],
+	   k[12],k[13],k[14],k[15],k[16],k[17],k[18],k[19],k[20]);
+}
+#endif
+
+typedef GLsizei (*key_builder)(unsigned long* k,
+			       __GLcontext *gc,
+			       unsigned long flags,
+			       GLuint vertex_size);
+
+/* Build a variable length key that uniquely identifies
+ * the front-end code we need.
+ */
+static GLsizei make_key(unsigned long* k,
+			__GLcontext *gc,
+			unsigned long flags,
+			GLuint vertex_size)
+{
+    GLsizei i;
+    GLuint needs;
+
+    needs = (gc->vertex.faceNeeds[__GL_FRONTFACE] | gc->vertex.needs);
+
+    i = 0;
+    k[i++] = (unsigned long)flags;
+    k[i++] = (unsigned long)gc->vertexArray.controlWord;
+    k[i++] = (unsigned long)gc->vertexArray.vp_stride;
+    k[i++] = (unsigned long)gc->transform.modelView;
+    k[i++] = (unsigned long)gc->transform.modelView->mvp.matrixType;
+    k[i++] = (unsigned long)vertex_size;
+    k[i++] = (unsigned long)needs;
+    k[i++] = (unsigned long)gc->state.enables.lights;
+    k[i++] = (unsigned long)gc->state.enables.clipPlanes;
+    k[i++] = (unsigned long)gc->vertexArray.varrayPtr;
+
+    /* Things that matter if we are lighting */
+    k[i++] = (unsigned long)gc->modes.colorIndexMode;
+    k[i++] = (unsigned long)gc->polygon.shader.modeFlags;
+    k[i++] = (unsigned long)gc->state.enables.general;
+    k[i++] = (unsigned long)gc->light.sources;
+    k[i++] = (unsigned long)((gc->state.polygon.frontMode != GL_FILL ||
+			      gc->state.polygon.backMode != GL_FILL));
+    {
+	__GLVertArrayMachine *va = &gc->vertexArray;
+
+	/* mask indicates active arrays */
+	/* signature contains size & type info of all arrays */
+	k[i++] = va->mask;
+	k[i++] = va->signature;
+	k[i++] = (unsigned long)va->vp_stride;
+	k[i++] = (unsigned long)va->np_stride;
+	if (gc->modes.colorIndexMode) {
+	    k[i++] = (unsigned long)va->ip_stride;
+	} else {
+	    k[i++] = (unsigned long)va->cp_stride;
+	}
+	k[i++] = (unsigned long)va->tp_stride;
+    }
+
+    assert(i <= GEOM_OG_MAX_KEY_SIZE);
+
+    return sizeof(k[0]) * i;
+}
+
+static __GLgeomCoreKey nullCoreKey;
+static __GLgeomMoreKey nullMoreKey;
+
+static struct task *
+gimme_space(GLboolean *hit,
+	    __GLcontext *gc,
+	    unsigned long flags,
+	    GLuint vertex_size,
+	    key_builder make_key)
+{
+    __GLgeomOGData *god;	/* Geom OG Data */
+    __GLgeomCoreKey ckey;
+    __GLgeomMoreKey mkey;
+    GLuint mflag = 0;
+    GLint i, idx, keysize;
+    unsigned long key[GEOM_OG_MAX_KEY_SIZE];
+
+    ckey.mask = gc->ogKey;
+    if (flags & __GL_GEOM_OG_NOCOPY) {
+      ckey.mask |= __GL_GEOM_OG_KEY_FLAG_NOCOPY;
+    }
+    if (flags & __GL_GEOM_OG_COLOR) {
+      ckey.mask |= __GL_GEOM_OG_KEY_FLAG_COLOR;
+    }
+    if (flags & __GL_GEOM_OG_TEX) {
+      ckey.mask |= __GL_GEOM_OG_KEY_FLAG_TEX;
+    }
+    ckey.mask |= ((vertex_size - 2) << __GL_GEOM_OG_KEY_VXSIZE_SHIFT);
+    ckey.modelView = gc->transform.modelView;
+    ckey.matrixType = gc->transform.modelView->mvp.matrixType;
+    
+    god = &gc->geomOGdata;
+
+#if NEW_OG_KEY
+
+    idx = god->last_hit_idx;
+
+    if (!(gc->ogKey & __GL_GEOM_OG_KEY_SLOW_LOOKUP_MASK)) {
+	if (god->last_hit &&
+	    ckey.mask == god->ckey[idx].mask &&
+	    ckey.modelView == god->ckey[idx].modelView &&
+	    ckey.matrixType == god->ckey[idx].matrixType) {
+	    *hit = GL_TRUE;
+	    return god->last_hit;
+	}
+	for (i = god->num_keys-1; i >= 0; i--) {
+	    if (ckey.mask == god->ckey[i].mask &&
+		ckey.modelView == god->ckey[i].modelView &&
+		ckey.matrixType == god->ckey[i].matrixType) {
+		*hit = GL_TRUE;
+		god->last_hit = &god->slots[i];
+		god->last_hit_idx = i;
+		return &god->slots[i];
+	    }
+	}
+	mkey.lightAndClip = 0;
+	mkey.varrayPtr = NULL;
+	mkey.lightSources = NULL;
+	
+    } else if (!(gc->ogKey & __GL_GEOM_OG_KEY_VERTARRAY_ENABLE)) {
+	mkey.lightAndClip = (gc->state.enables.lights << 6 |
+			     gc->state.enables.clipPlanes);
+	mkey.varrayPtr = gc->vertexArray.varrayPtr;
+	mkey.lightSources = gc->light.sources;
+
+	if (god->last_hit &&
+	    ckey.mask == god->ckey[idx].mask &&
+	    ckey.modelView == god->ckey[idx].modelView &&
+	    ckey.matrixType == god->ckey[idx].matrixType &&
+	    mkey.varrayPtr == god->mkey[idx].varrayPtr &&
+	    mkey.lightAndClip == god->mkey[idx].lightAndClip &&
+	    mkey.lightSources == god->mkey[idx].lightSources) {
+	    *hit = GL_TRUE;
+	    return god->last_hit;
+	}
+	for (i = god->num_keys-1; i >= 0; i--) {
+	    if (ckey.mask == god->ckey[i].mask &&
+		ckey.modelView == god->ckey[i].modelView &&
+		ckey.matrixType == god->ckey[i].matrixType &&
+		mkey.varrayPtr == god->mkey[i].varrayPtr &&
+		mkey.lightAndClip == god->mkey[i].lightAndClip &&
+		mkey.lightSources == god->mkey[i].lightSources) {
+		*hit = GL_TRUE;
+		god->last_hit = &god->slots[i];
+		god->last_hit_idx = i;
+		return &god->slots[i];
+	    }
+	}
+    } else {
+	/* vertex array in used; have to do slow lookup */
+	keysize = (*make_key)(key, gc, flags, vertex_size);
+
+	if (god->last_hit &&
+	    (god->last_hit->keysize == keysize) &&
+	    (memcmp(god->last_hit->key, key, keysize) == 0)) {
+	    *hit = GL_TRUE;
+	    return god->last_hit;
+	}
+
+	for (i = god->num_keys-1; i >= 0; i--) {
+	    if ((god->slots[i].keysize == keysize) &&
+		(memcmp(god->slots[i].key, key, keysize) == 0)) {
+		*hit = GL_TRUE;
+		god->last_hit = &god->slots[i];
+		return &god->slots[i];
+	    }
+	}
+    }
+    
+    *hit = GL_FALSE;
+    if (god->num_keys == GEOM_OG_NUM_SLOTS) {
+	i = god->last_insert = (god->last_insert + 1) % GEOM_OG_NUM_SLOTS;
+    } else {
+	i = god->num_keys++;
+    }
+    if (gc->ogKey & __GL_GEOM_OG_KEY_VERTARRAY_ENABLE) {
+	memcpy(god->slots[i].key, key, keysize);
+	god->slots[i].keysize = keysize;
+	/* this keeps the fast compare from using a slow key */
+	god->ckey[i] = nullCoreKey;
+	god->mkey[i] = nullMoreKey;
+    } else {
+	god->ckey[i] = ckey;
+	god->mkey[i] = mkey;
+	/* this keeps the slow compare from using a fast key */
+	god->slots[i].keysize = 0;
+    }
+    god->last_hit = &god->slots[i];
+    god->last_hit_idx = i;
+
+    return &god->slots[i];
+#else    
+    keysize = (*make_key)(key, gc, flags, vertex_size);
+
+    if (god->last_hit &&
+	(god->last_hit->keysize == keysize) &&
+	(memcmp(god->last_hit->key, key, keysize) == 0)) {
+	*hit = GL_TRUE;
+	return god->last_hit;
+    }
+
+    for (i = 0; i < GEOM_OG_NUM_SLOTS; i++) {
+	if ((god->slots[i].keysize == keysize) &&
+	    (memcmp(god->slots[i].key, key, keysize) == 0)) {
+	    *hit = GL_TRUE;
+	    god->last_hit = &god->slots[i];
+	    return &god->slots[i];
+	}
+    }
+#if __GL_BUILD_TRACE
+    if (__gl_debug_trace) {
+	fprintf(__gl_debug_log, "new key\n");
+	print_key(key);
+	fprintf(__gl_debug_log, "...\n");
+	for (i = 0; i < GEOM_OG_NUM_SLOTS; i++) {
+	    print_key(god->slots[i].key);
+	}
+    }
+#endif
+    *hit = GL_FALSE;
+    i = rand() % GEOM_OG_NUM_SLOTS;
+    god->slots[i].keysize = keysize;
+    memcpy(god->slots[i].key, key, keysize);
+    god->last_hit = &god->slots[i];
+
+    return &god->slots[i];
+#endif    
+}
+
+/*
+ * A little snippet of code we insert in the matrix sequence during
+ * a latency.
+ */
+static unsigned char *set_esi(__GLcontext* gc,
+			      unsigned char* cb,
+			      GLuint needs)
+{
+@    push    esi
+@    mov     esi,#'(gc->vertexArray.validateMask | (needs & (__GL_HAS_FRONT_COLOR | __GL_HAS_NORMAL)))'
+
+    return cb;
+}
+
+/*
+ * Given a matrix, generates code to push vertex at [edx] through it.
+ * Stores [x,y,z] result in given locations, but leaves w stewing
+ * on the floating-point top-of-stack.
+ * vertex_size gives the size of the incoming vertex (i.e.
+ * 2, 3, or 4D).  For the smaller sizes we assume z=0.0 and w=1.0
+ * here.
+ * During immediate-mode operation, __glProcessVertexCache sets
+ * vertex_size to the the maximum size of any of the vertices
+ * in the cache.
+ */
+
+static unsigned char* doMatrix(__GLcontext *gc,
+			       unsigned char* cb, 
+			       struct celem* outx,
+			       struct celem* outy,
+			       struct celem* outz,
+			       GLenum matrixType,
+			       GLfloat *mat,
+			       GLuint vertex_size,
+			       unsigned char* (*frag)(__GLcontext* gc,
+						     unsigned char* cb,
+						     GLuint needs),
+			       GLuint parm1)
+{
+	struct celem
+	    *x = mem2(gc, NULL, edx),
+	    *y = mem2(gc, value(gc, 4), edx),
+	    *z = mem2(gc, value(gc, 8), edx),
+	    *w = mem2(gc, value(gc, 12), edx);
+
+	/* Implied z and w for smaller vertices */
+	switch (vertex_size) {
+	case 2:
+	    z = fpk(gc, 0.0f);
+	case 3:
+	    w = NULL;  /* We explicitly handle w throughout */
+	}
+
+@	mov ecx, #'(int)mat'      ; ECX = matrix
+
+	switch (matrixType) {
+	case __GL_MT_IS2DNR:
+	case __GL_MT_IS2DNRSC:
+	case __GL_MT_IDENTITY:
+	    /* This corresponds to __glXForm{2,3,4}_2DNRW */
+	    if (vertex_size == 2) {
+@	    	fld     x
+@	    	fmul    'MAT(0,0)'		;	m00
+@	    	fld     y
+@	    	fmul    'MAT(1,1)'		;	m11	m00
+@	    	fxch    st1			;	m00	m11
+    	    	
+@	    	fadd    'MAT(3,0)'		;	x	m11
+@	    	fxch    st1			;	m11	x
+@	    	fadd    'MAT(3,1)'		;	y	x
+@	    	fxch    st1			;	x	y
+    	    	
+@	    	fstp    outx
+    	    	
+	    	if (frag)
+@	    	    frag(parm1)
+    	    	
+@	    	fstp    outy
+	    } else if (vertex_size == 3) {
+@	    	fld     x
+@	    	fmul    'MAT(0,0)'		;	m00
+@	    	fld     y
+@	    	fmul    'MAT(1,1)'		;	m11	m00
+@	    	fld     z
+@	    	fmul    'MAT(2,2)'		;	m22	m11	m00
+@	    	fxch    st2			;	m00	m11	m22
+    	    	
+@	    	fadd    'MAT(3,0)'
+@	    	fxch    st1			;	m11	x	m22
+@	    	fadd    'MAT(3,1)'		;	y	x	m22
+@	    	fxch    st2			;	m22	x	y
+@	    	fadd    'MAT(3,2)'		;	z	x	y
+@	    	fxch    st1			;	x	z	y
+    	    	
+@	    	fstp    outx
+    	    	
+	    	if (frag)
+@	    	    frag(parm1)
+    	    	
+@	    	fstp    outz
+@	    	fstp    outy
+	    } else {
+@	    	fld     x
+@	    	fmul    'MAT(0,0)'		;	m00
+@	    	fld     y
+@	    	fmul    'MAT(1,1)'		;	m11	m00
+@	    	fld     z
+@	    	fmul    'MAT(2,2)'		;	m22	m11	m00
+@	    	fxch    st2			;	m00	m11	m22
+    	    	
+@		fld     w
+@		fmul    'MAT(3,0)'		;	m30	m00	m11	m22
+@		faddp   st1,st0			;	x	m11	m22
+@		fld     w
+@		fmul    'MAT(3,1)'		;	m31	x	m11	m22
+@		faddp   st2,st0			;	x	y	m22
+@		fld     w
+@		fmul    'MAT(3,2)'		;	m32	x	y	m22
+@		faddp   st3,st0			;	x	y	z
+    	    	
+@	    	fstp    outx
+    	    	
+	    	if (frag)
+@	    	    frag(parm1)
+    	    	
+@	    	fstp    outy
+@	    	fstp    outz
+	    }
+    	    
+            /* Caller detects case where w is 1.0, and doesn't need it */
+	    if (w)
+@	        fld     w
+	    /* 18 cycles */
+	    break;
+	default:
+@	    fld	x			; [1]	
+@	    fmul	'MAT(0,0)'	; [2]	m00
+@	    fld	y			; [3]	
+@	    fmul	'MAT(1,0)'	; [4]	m10	m00
+@	    fxch	st1		;	m00	m10
+	    if (w == NULL) {
+@	        fadd	'MAT(3,0)'	; [5]	m00+m30	m10
+	    } else {
+@		fld     w
+@		fmul    'MAT(3,0)'
+@	        faddp   st1,st0
+	    }
+@	    fld	z			; [6]	m20	m00+m30	m10
+@	    fmul	'MAT(2,0)'	; [7]	m20	m00+m30	m10
+@	    fxch	st1		;	m00+m30	m20	m10
+@	    faddp	st2,st0		; [8]	m20	m[013]0
+
+@	    fld	x			; [9]
+@	    fmul	'MAT(0,1)'	; [10]	m01	m20	m[013]0
+@	    fxch	st1		;	m20	m01	m[013]0
+@	    faddp	st2,st0		; [11]	m01	x
+@	    fld	y			; [12]	
+@	    fmul	'MAT(1,1)'	; [13]	m11	m01	x
+@	    fxch	st1		;	m01	m11	x
+	    if (w == NULL) {
+@	        fadd	'MAT(3,1)'	; [14]	m01+m31	m11	x
+	    } else {
+@		fld     w
+@		fmul    'MAT(3,1)'
+@	        faddp   st1,st0
+	    }
+@	    fld	z			; [15]	m21	m01+m31	m11	x
+@	    fmul	'MAT(2,1)'	; [16]	m21	m01+m31	m11	x
+@	    fxch	st1		;	m01+m31	m21	m11	x
+@	    faddp	st2,st0		; [17]	m21	m[013]1	x
+@	    fxch	st2		;	x	m[013]1	m21
+@	    fstp	outx		; [18]	m[013]1	m21
+	    if (frag)
+@	        frag(parm1)
+@	    faddp	st1,st0		; [22]	y
+
+@	    fld		x	; [23]
+@	    fmul	'MAT(0,2)'	; [24]	m02	y
+@	    fld		y	; [25]	
+@	    fmul	'MAT(1,2)'	; [26]	m12	m02	y
+@	    fxch	st1		;	m02	m12	y
+	    if (w == NULL) {
+@	        fadd	'MAT(3,2)'	; [27]	m02+m32	m12	y
+	    } else {
+@		fld     w
+@		fmul    'MAT(3,2)'
+@	        faddp   st1,st0
+	    }
+@	    fld		z	; [28]	m22	m02+m32	m12	y
+@	    fmul	'MAT(2,2)'	; [29]	m22	m02+m32	m12	y
+@	    fxch	st1		;	m02+m32	m22	m12	y
+@	    faddp	st2,st0		; [30]	m22	m[013]2	y
+@	    fxch	st2		;	y	m[013]2	m22
+@	    fstp	outy		; [31]	m[013]2	m22
+@	    faddp	st1,st0		; [35]	z
+
+@	    fld	x			; [36]
+@	    fmul	'MAT(0,3)'	; [37]	m02	z
+@	    fld	y			; [38]	
+@	    fmul	'MAT(1,3)'	; [39]	m12	m02	z
+@	    fxch	st1		;	m02	m12	z
+	    if (w == NULL) {
+@	        fadd	'MAT(3,3)'	; [40]	m02+m32	m12	z
+	    } else {
+@		fld     w
+@		fmul    'MAT(3,3)'
+@	        faddp   st1,st0
+	    }
+@	    fld	z			; [41]	m22	m02+m32	m12	z
+@	    fmul	'MAT(2,3)'	; [42]	m22	m02+m32	m12	z
+@	    fxch	st1		;	m02+m32	m22	m12	z
+@	    faddp	st2,st0		; [43]	m22	m[013]2	z
+@	    fxch	st2		;	z	m[013]2	m22
+@	    fstp	outz		; [44]	m[013]2	m22
+@	    faddp	st1,st0		; [46]	w
+	    /* If __GL_MT_IS2D, the caller is not expecting w on the stack
+	     * unless vertex_size == 4
+	     */
+	    if (w == NULL && matrixType == __GL_MT_IS2D) {
+@               fstp    st0
+	    }
+	}
+
+    return cb;
+}
+
+static GLuint what_needs(__GLcontext *gc)
+{
+    GLuint needs = gc->vertex.faceNeeds[__GL_FRONTFACE] | gc->vertex.needs;
+    GLuint modeFlags = gc->polygon.shader.modeFlags;
+
+    /* If we're doing twosided, disable lighting */
+    if (needs & __GL_HAS_FRONT_COLOR) {
+      GLboolean anySlow = GL_FALSE;
+      __GLlightSourceMachine *lsm;
+
+      for (lsm = gc->light.sources; lsm; lsm = lsm->next) {
+	  if (lsm->slowPath) {
+	      anySlow = GL_TRUE;
+	      break;
+	  }
+      }
+
+      if (anySlow ||
+	  (modeFlags & __GL_SHADE_TWOSIDED) ||
+	  !(gc->state.enables.general & __GL_LIGHTING_ENABLE) ||
+	  (gc->state.enables.general & __GL_FOG_ENABLE) ||
+	  (gc->transform.modelView->inverseTranspose.matrixType == __GL_MT_GENERAL) ||
+	  (gc->state.enables.general & __GL_NORMALIZE_ENABLE))
+	  needs = 0;
+    }
+
+    return needs;
+}
+
+void* __glSSTGenerateCompile(__GLcontext *gc, GLuint vertex_size, GLuint flags)
+{
+  __GLtransform *tr;
+  __GLviewport *viewport;
+  GLuint modeFlags;
+  GLboolean interpolate_z;
+  GLboolean nocopy;
+  GLuint needs;
+  GLuint np_stride, vp_stride;
+  __GLVertArrayMachine *va;
+  GLuint vaMask;
+  GLboolean current_color, current_texcoord, current_normal;
+  GLuint alloc;
+  GLboolean w_is_1;
+  GLboolean z_is_c;
+
+  struct celem* off;
+  struct celem* offset;
+  struct celem* first;
+  struct celem* count;  
+
+  float *work;
+  struct celem *fpcw;
+  struct celem *d;
+  struct celem *clipx, *clipy, *clipz, *clipw;
+  struct celem *clip_z_flag;	/* Sometimes Z clip code is constant */
+  struct celem *nx, *ny, *nz;
+  struct celem *rr, *gg, *bb, *aa;
+  struct celem *windoww;
+  struct celem *np;
+  struct celem *cp;
+  struct celem *tp;
+  struct celem *vp;
+  struct celem *six;
+
+  struct celem *lightsToModel;
+
+  struct celem					        
+    *compile,
+    *culled,
+    *culled2,
+    *do_divide,
+    *do_slow_clip_check,
+    *done_clip_check,
+    *skip_rest,
+    *done;
+
+  GLboolean hit;
+  struct task *ptask;
+  unsigned char *cb;
+
+  ptask = gimme_space(&hit, gc, flags, vertex_size, make_key);
+  if (hit) {
+      gc->vertexArray.drawVertexes[GL_TRIANGLE_STRIP] = ptask->drawVertexes;
+      return ptask->space;
+  }
+
+  work = (float*)(((int)gc->triSetupData + 7) & ~7);
+  needs = what_needs(gc);
+  nocopy = (flags & __GL_GEOM_OG_NOCOPY) ? GL_TRUE : GL_FALSE;
+  modeFlags = gc->polygon.shader.modeFlags;
+  tr = gc->transform.modelView;
+  viewport = &gc->state.viewport;
+  va = &gc->vertexArray;
+  vaMask = va->compileMask;
+
+  interpolate_z = (modeFlags & __GL_SHADE_DEPTH_TEST &&
+		   (gc->state.depth.writeEnable ||
+		    gc->state.depth.testFunc != GL_ALWAYS));
+
+  current_normal = !(va->compileMask & va->mask & VERTARRAY_N_MASK);
+  current_color = !(va->compileMask & va->mask & VERTARRAY_C_MASK);
+  current_texcoord = !(va->compileMask & va->mask & VERTARRAY_T_MASK);
+
+  w_is_1 =
+    (tr->mvp.matrixType >= __GL_MT_IS2D) &&
+    (vertex_size < 4);
+  z_is_c =
+    (tr->mvp.matrixType >= __GL_MT_IS2D) &&
+    (vertex_size < 3);
+
+  if (!interpolate_z)
+      flags |= __GL_GEOM_OG_NO_Z;
+#if 0
+  ptask = gimme_space(&hit, gc, flags, vertex_size, make_key);
+  if (hit) {
+      gc->vertexArray.drawVertexes[GL_TRIANGLE_STRIP] = ptask->drawVertexes;
+      return ptask->space;
+  }
+#endif
+
+  cb = ptask->space;
+
+  og_warmup(gc);
+
+  /* Set up our parameters, given that we push 5 things
+   * on to the stack, and that the return address is there
+   * already.
+   */
+  off = value(gc, gc->vertexArray.vp_stride);
+  offset = mem2(gc, value(gc, (6 + 1) * 4), esp);
+  first = mem2(gc, value(gc, (6 + 2) * 4), esp); 
+  count = mem2(gc, value(gc, (6 + 3) * 4), esp); 
+
+  alloc = 0;
+
+  fpcw = mem2(gc, value(gc, (int)&work[alloc++]), NULL);
+  d = mem2(gc, value(gc, (int)&work[alloc++]), NULL);
+  clipx = mem2(gc, value(gc, (int)&work[alloc++]), NULL);
+  clipy = mem2(gc, value(gc, (int)&work[alloc++]), NULL);
+  clipz = mem2(gc, value(gc, (int)&work[alloc++]), NULL);
+  clipw = mem2(gc, value(gc, (int)&work[alloc++]), NULL);
+  clip_z_flag = mem2(gc, value(gc, (int)&work[alloc++]), NULL);
+  nx = mem2(gc, value(gc, (int)&work[alloc++]), NULL);
+  ny = mem2(gc, value(gc, (int)&work[alloc++]), NULL);
+  nz = mem2(gc, value(gc, (int)&work[alloc++]), NULL);
+  rr = mem2(gc, value(gc, (int)&work[alloc++]), NULL);
+  gg = mem2(gc, value(gc, (int)&work[alloc++]), NULL);
+  bb = mem2(gc, value(gc, (int)&work[alloc++]), NULL);
+  aa = mem2(gc, value(gc, (int)&work[alloc++]), NULL);
+  windoww = mem2(gc, value(gc, (int)&work[alloc++]), NULL);
+  vp = mem2(gc, value(gc, (int)&work[alloc++]), NULL);
+  tp = mem2(gc, value(gc, (int)&work[alloc++]), NULL);
+  cp = mem2(gc, value(gc, (int)&work[alloc++]), NULL);
+  np = mem2(gc, value(gc, (int)&work[alloc++]), NULL);
+
+  six = mem2(gc, value(gc, (int)&work[alloc]), NULL);
+
+  compile = label(gc);
+  done = label(gc);
+  culled = label(gc);
+  culled2 = label(gc);
+  do_divide = label(gc);
+  do_slow_clip_check = label(gc);
+  done_clip_check = label(gc);
+  skip_rest = label(gc);
+
+  lightsToModel = label(gc);
+  lightsToModel->spec.label.where = (unsigned char*)&__glLightsToModel;
+  
+
+/*
+ * eax	
+ * ebx
+ * ecx
+ * edx	vptr
+ * ebp
+ * esi  nptr, tptr, cptr
+ * edi  outptr
+ */
+
+@	push	esi
+@	push	edi
+@	push	ebx
+@	push	ecx
+@	push	ebp
+
+	/* Ensure everything we write to is in the cache already */
+@       mov     eax,fpcw
+@       mov     ebx,nx
+@       mov     eax,vp
+@       mov     ebx,np
+  {
+    struct celem* no = label(gc);
+
+@	xor	eax,eax
+@	mov	al,[#'(int)&tr->updateInverse']
+@	test	eax,eax
+@	je	no
+@	push	#'(int)tr'
+@	push	#'(int)gc'
+@	call	[#'(int)&gc->procs.computeInverseTranspose']
+@	pop	eax
+@	pop	ebx
+
+@ no:
+
+	if (gc->state.enables.general & __GL_LIGHTING_ENABLE) {
+@	    push	#'(int)gc'
+@	    call	lightsToModel
+@	    pop 	eax
+	}
+  }
+
+        if (!w_is_1) {
+	    /* Set the floating-point precision to 24-bit so
+	     * we get a 19-cycle divide later.
+	     */
+@	    fstcw	fpcw
+@	    mov	edx,fpcw
+@	    and	dh,~3	; Precision Control = 00: 24 bits
+@	    mov	d,edx
+@	    fldcw	d
+	}
+
+        /* If z_is_c and w_is_1, then clip.z, clip.w and the Z clip codes are
+	 * constant, and we can do them once here.
+	 */
+	if (z_is_c && w_is_1) {
+@           mov     ecx,[#'(int)&(tr->mvp.matrix[3][2])']
+@           mov     clipz,ecx
+@	    mov     eax,#FP_ONE		; clipw is 1.0
+
+	    /* Generate the clip codes.  This code is taken from
+	     * the main body of the loop.  It's explained in more detai
+	     * there.
+	     */
+@	    mov ebx, clipz
+    
+@	    mov ecx, ebx
+@	    and ebx, 0x7fffffff
+    
+@	    sar ecx, 31
+@	    cmp eax, ebx
+    
+@	    sbb ebx, ebx
+@	    xor ecx, #__GL_CLIP_FAR
+    
+@	    and ecx, #'__GL_CLIP_FAR | __GL_CLIP_NEAR'
+    
+@	    and ebx, ecx
+
+@           mov     clip_z_flag,ebx
+	}
+
+        /* Initialise the pointers according to the
+	 * current mode.
+	 *
+	 * edi	destination vertex
+	 * esi  source normal
+	 * edx  source position
+	 *
+	 * vp   vertex pointer
+	 * np	normal pointer
+	 * tp	texcoord pointer
+	 * cp	color pointer
+	 * 
+	 * If the vertex or normal array has type GL_FLOAT, we don't
+	 * use vp or np.  Instead, we have simpler code that uses register
+	 * pointers esi and edx.
+	 */
+        if (nocopy) {
+@	    mov		edi,[#'(int)&gc->vertexArray.varrayPtr']
+@	    mov		eax,offset
+@	    imul	eax,#VX_SIZE
+@	    add 	edi,eax
+
+@	    lea		esi,[edi + __GLvertex.normal]
+@	    lea		edx,[edi + __GLvertex.obj]
+	    off = value(gc, VX_SIZE);
+            vp_stride = VX_SIZE;
+            np_stride = VX_SIZE;
+	} else {
+	    if ((vaMask & VERTARRAY_V_MASK) && !current_normal) {
+@		mov     eax,#'gc->vertexArray.vp_stride'
+@	        imul    eax,first
+@	        add	eax,[#'(int)&gc->vertexArray.vertex_pointer']
+@		mov	vp,eax
+	    }
+
+	    if (vaMask & VERTARRAY_V_MASK) {
+@		mov     eax,#'gc->vertexArray.vp_stride'
+@	        imul    eax,first
+@	        add	eax,[#'(int)&gc->vertexArray.vertex_pointer']
+@		mov	vp,eax
+	    }
+
+	    if ((vaMask & VERTARRAY_N_MASK) && !current_normal) {
+@		mov     eax,#'gc->vertexArray.np_stride'
+@	        imul    eax,first
+@	        add	eax,[#'(int)&gc->vertexArray.normal_pointer']
+@		mov	np,eax
+	    }
+
+	    if ((vaMask & VERTARRAY_T_MASK) && !current_texcoord) {
+@		mov     eax,#'gc->vertexArray.tp_stride'
+@	        imul    eax,first
+@	        add	eax,[#'(int)&gc->vertexArray.tex_coord_pointer']
+@		mov	tp,eax
+	    }
+
+	    if ((vaMask & (VERTARRAY_C_MASK | VERTARRAY_I_MASK)) &&
+		!current_color) {
+@		mov     eax,#'gc->vertexArray.cp_stride'
+@	        imul    eax,first
+@	        add	eax,[#'(int)&gc->vertexArray.color_pointer']
+@		mov	cp,eax
+	    }
+
+@	    mov     esi,#'gc->vertexArray.np_stride'
+@	    imul    esi,first
+@	    add	    esi,[#'(int)&gc->vertexArray.normal_pointer']
+
+@	    mov	    edx,#'gc->vertexArray.vp_stride'
+@	    imul    edx,first
+@	    add	    edx,[#'(int)&gc->vertexArray.vertex_pointer']
+
+@	    mov	    edi,[#'(int)&gc->vertexArray.varrayPtr']
+@	    mov	    eax,offset
+@	    imul    eax,#'VX_SIZE'
+@	    add     edi,eax
+
+            vp_stride = gc->vertexArray.vp_stride;
+            np_stride = gc->vertexArray.np_stride;
+	}
+
+@	mov	ebp,count
+
+@ compile:
+        if (!nocopy) {
+	    if ((vaMask & VERTARRAY_V_MASK) && 
+		(gc->vertexArray.vp_type != GL_FLOAT)) {
+@		mov     eax,vp
+@		CopyCoord('gc->vertexArray.vp_type', 'gc->vertexArray.vp_size', [edi + 'vx(obj.x)'], [edi + 'vx(obj.y)'], [edi + 'vx(obj.z)'], [edi + 'vx(obj.w)'])
+@		add	    eax,#'gc->vertexArray.vp_stride'
+@		mov     vp,eax
+@		lea     edx,[edi + 'vx(obj.x)']
+	    }
+	    if ((vaMask & VERTARRAY_N_MASK) && 
+		(gc->vertexArray.np_type != GL_FLOAT)) {
+		if (current_normal) {
+@		    mov     eax,[#'(int)&gc->state.current.normal.x']
+@		    mov	[edi + 'vx(normal.x)'],eax
+@		    mov     eax,[#'(int)&gc->state.current.normal.y']
+@		    mov	[edi + 'vx(normal.y)'],eax
+@		    mov     eax,[#'(int)&gc->state.current.normal.z']
+@		    mov	[edi + 'vx(normal.z)'],eax
+		} else {
+@		    mov     eax,np
+@		    CopyNormal('gc->vertexArray.np_type', six)
+@		    add	    eax,#'gc->vertexArray.np_stride'
+@		    mov     np,eax
+		}
+@		lea     esi,[edi + 'vx(normal.x)']
+	    }
+	    if (vaMask & VERTARRAY_T_MASK) {
+		if (current_texcoord) {
+@		    mov     eax,[#'(int)&gc->state.current.texture.x']
+@		    mov	[edi + 'vx(texture.x)'],eax
+@		    mov     eax,[#'(int)&gc->state.current.texture.y']
+@		    mov	[edi + 'vx(texture.y)'],eax
+@		    mov     eax,[#'(int)&gc->state.current.texture.z']
+@		    mov	[edi + 'vx(texture.z)'],eax
+@		    mov     eax,[#'(int)&gc->state.current.texture.w']
+@		    mov	[edi + 'vx(texture.w)'],eax
+		} else {
+@		    mov     eax,tp
+@		    CopyCoord('gc->vertexArray.tp_type', 'gc->vertexArray.tp_size', [edi + 'vx(texture.x)'], [edi + 'vx(texture.y)'], [edi + 'vx(texture.z)'], [edi + 'vx(texture.w)'])
+@		    add	    eax,#'gc->vertexArray.tp_stride'
+@		    mov 	    tp,eax
+		}
+	    }
+	    if (vaMask & VERTARRAY_C_MASK) {
+		if (current_color) {
+		    if (gc->modes.colorIndexMode) {
+@		        mov     eax,[#'(int)&gc->state.current.userColorIndex']
+@		        mov	[edi + 'vx(colors[0].r)'],eax
+		    } else {
+@		        mov     eax,[#'(int)&gc->state.current.color.r']
+@		        mov	[edi + 'vx(colors[0].r)'],eax
+@		        mov     eax,[#'(int)&gc->state.current.color.g']
+@		        mov	[edi + 'vx(colors[0].g)'],eax
+@		        mov     eax,[#'(int)&gc->state.current.color.b']
+@		        mov	[edi + 'vx(colors[0].b)'],eax
+        	        if (gc->polygon.shader.modeFlags & 
+			    (__GL_SHADE_BLEND | __GL_SHADE_ALPHA_TEST)) {
+@			    mov     eax,[#'(int)&gc->state.current.color.a']
+@			    mov     [edi + 'vx(colors[0].a)'],eax
+		        }
+		    }
+        	} else {
+@		    mov	eax,cp
+@		    CopyColor('gc->vertexArray.cp_type', 'gc->vertexArray.cp_size', six, rr, gg, bb, aa)
+		}
+		if (!current_color) {
+@		    add     eax,#'gc->vertexArray.cp_stride'
+@		    mov     cp,eax
+		}
+	    }
+	}
+        if (gc->vertexArray.controlWord & VERTARRAY_CW_VX_CULL) {
+	    if (!(gc->vertexArray.controlWord & VERTARRAY_CW_VX_CULL_LOCAL)) {
+@	    	fld	[esi + 0]				; [1]	nx
+@	    	fmul	[#'(int)&(gc->transform.cullEye.x)']	; [2]	x
+@	    	fld	[esi + 4]				; [3]	ny	x
+@	    	fmul	[#'(int)&(gc->transform.cullEye.y)']		; [4]	y	x
+@	    	fld	[esi + 8]				; [5]	nz	y	x
+@	    	fmul	[#'(int)&(gc->transform.cullEye.z)']	; [6]	z	y	x
+@		fxch	st2					; 	x	y	z
+	    } else {
+@	    	fld	[#'(int)&(gc->transform.cullEye.z)']	; [1]	nz
+@	        fsub	[edx + 8]
+@	    	fld	[#'(int)&(gc->transform.cullEye.y)']	; [3]	ny	nz
+@	        fsub	[edx + 4]
+@	    	fld	[#'(int)&(gc->transform.cullEye.x)']	; [5]	nx	ny	nz
+@	        fsub	[edx + 0]
+@		fxch	st2					; [6]	nz	ny	nx
+
+@	    	fmul	[esi + 8]				; [7]	z'	ny	nx
+@		fld	[esi + 4]				; [8]	y	z'	ny	nx
+@		fmulp	st2,st0					; [9]	z'	y'	nx
+@		fld	[esi]					; [10]	x	z'	y'	nx
+@		fmulp	st3,st0					; [11]	z'	y'	x'
+	    }
+
+@	    faddp	st1,st0					; [1]
+
+@	    faddp	st1,st0					; [4]
+
+@	    fstp	d					; [8]
+
+@	    mov		eax,d
+
+@	    dec		eax	; Make zero map to -ve
+
+@	    shr		eax,31	; (d > 0) gives (eax == 0), otherwise (eax == 1)
+
+@	    mov		eax,[#'(int)&gc->vertexArray.cullCode' + eax * 4]
+
+@	    test	eax,eax
+@	    jne 	culled
+	}
+
+	/* Not culled: Transform and clipcheck */
+@	doMatrix(clipx, clipy, clipz, 'tr->mvp.matrixType', '(float*)(tr->mvp.matrix)', vertex_size, set_esi, needs)
+
+/************************************************************************/
+
+	if (!w_is_1) {
+@	    fst     clipw			; [1]	w
+	} else {
+            clipw = value(gc, FP_ONE);
+	}
+
+	/* Now we have clip[x,y,z,w] calculated, start the perspective
+	 * divide and then (if w is positive) do the clip-check in
+	 * branchless integer.
+	 */
+
+@	mov	eax,clipw
+@	mov     ebx,clipx
+
+	if (!w_is_1) {
+@	    fdivr    'fpk(gc, 1.0)'		;
+
+@	    cmp      eax,0
+@	    jle      do_slow_clip_check	; [1]
+	}
+
+	/* The sequence of operations for the clip-check:
+	 *     
+	 */
+
+	if (z_is_c) {
+@           mov     ecx,clipy
+@           or      ecx,ebx
+@	    and     ecx,0x7fffffff
+@           cmp     ecx,#FP_ONE
+@           jl      done_clip_check
+       	}
+
+@	mov ecx, ebx		; 
+@	and ebx, 0x7fffffff	; ebx = abs(x)
+
+@	sar ecx, 31		; if (x < 0) ecx = ~0, else ecx = 0
+@	cmp eax, ebx		;
+
+@	sbb ebx, ebx		; if (abs(x) > w) ebx = ~0, else ebx = 0
+@	xor ecx, #__GL_CLIP_RIGHT
+
+@	and ecx, #'__GL_CLIP_RIGHT | __GL_CLIP_LEFT'
+				/* ecx is __GL_CLIP_RIGHT if x was +ve,
+				 * or __GL_CLIP_LEFT if x was -ve...
+				 */
+@	and ebx, ecx		; ...or 0 if no clipping.
+
+@	or  esi, ebx		;	[7]	Add to clip-code
+
+				/* Similarly for y and z */
+@	mov ebx, clipy
+
+@	mov ecx, ebx
+@	and ebx, 0x7fffffff
+
+@	sar ecx, 31
+@	cmp eax, ebx
+
+@	sbb ebx, ebx
+@	xor ecx, #__GL_CLIP_TOP
+
+@	and ecx, #'__GL_CLIP_TOP | __GL_CLIP_BOTTOM'
+
+@	and ebx, ecx
+
+@	or  esi, ebx		;	[13]
+
+	if (!z_is_c) {
+@	    mov ebx, clipz
+    
+@	    mov ecx, ebx
+@	    and ebx, 0x7fffffff
+    
+@	    sar ecx, 31
+@	    cmp eax, ebx
+    
+@	    sbb ebx, ebx
+@	    xor ecx, #__GL_CLIP_FAR
+    
+@	    and ecx, #'__GL_CLIP_FAR | __GL_CLIP_NEAR'
+    
+@	    and ebx, ecx
+    
+@	    or  esi, ebx		;	[20]
+	} else {
+@	    mov     ebx,clip_z_flag
+@           or      esi,ebx
+	}
+
+@ done_clip_check:
+
+        if (gc->state.enables.clipPlanes) {
+	    GLuint bit, clipPlanesMask;
+	    __GLcoord *plane;
+
+	    /* Transform to eye coords */
+@	    lea	ebx,six
+@	    doMatrix([ebx], [ebx + 4], [ebx + 8], __GL_MT_GENERAL, '(float*)(tr->matrix.matrix)', vertex_size, NULL, needs)
+
+@	    fstp    [ebx + 12]	; ... and w
+
+	    /* The following code is taken from __glClipCheckAll() */
+	    clipPlanesMask = gc->state.enables.clipPlanes;
+
+	    plane = &gc->state.transform.eyeClipPlanes[0];
+	    bit = __GL_CLIP_USER0;
+	    while (clipPlanesMask) {
+		if (clipPlanesMask & 1) {
+		    /*
+		    ** Dot the vertex clip coordinate against the clip plane and see
+		    ** if the sign is negative.  If so, then the point is out.
+		    */
+@		    fld    [ebx]	
+@		    fmul   [#'(int)&plane->x']	; [2]	X
+@		    fld    [ebx + 4]
+@		    fmul   [#'(int)&plane->y']	; [4]	Y	X
+@		    fld    [ebx + 8]
+@		    fmul   [#'(int)&plane->z']	; [6]	Z	Y	X
+@		    fld    [ebx + 12]
+@		    fmul   [#'(int)&plane->w']	; [8]	W	Z	Y	X
+@		    fxch   st3			;	X	Z	Y	W
+@		    faddp  st2,st0		;	Z	X+Y	W
+@		    faddp  st2,st0		;	X+Y	Z+W
+
+@		    faddp  st1,st0
+
+@		    fstp   [ebx + 16]
+@		    mov	   eax,[ebx + 16]
+@		    sar	   eax,31
+@	            and	   eax,#bit
+@		    or	   esi,eax
+		}
+		clipPlanesMask >>= 1;
+		bit <<= 1;
+		plane++;
+	    }
+	}
+
+	if (!w_is_1) {
+	    /* 19 cycles for the divide to run, + 1 cycle for the fp result
+	     * to percolate through.  We're ready to write window.w
+	     */
+            if ((modeFlags & __GL_SHADE_TEXTURE) &&
+		(modeFlags & __GL_SHADE_TEXTURE_PERSP)) {
+@		fst     windoww		;	[20]
+#if __GL_SST_GLIDE_VTX
+@		fld	st0				; winw | winw
+@		fmul	[edi+'vx(texture.x)']		; s*winw | winw
+@		fmul	[#'(int)&(gc->texture.sst.w)']	; s*winw*w | winw	
+@		fstp	[edi+'vx(sst.tmuvtx[0].s)']	; winw
+@		fld	st0				; winw | winw
+@		fmul	[edi+'vx(texture.y)']		; t*winw | winw
+@		fmul	[#'(int)&(gc->texture.sst.h)']	; t*winw*w | winw	
+@		fstp	[edi+'vx(sst.tmuvtx[0].t)']	; winw
+@		fmul	[edi+'vx(texture.w)']		; w*winw
+@		fstp    [edi+'vx(sst.oow)'] ;	[22]
+#else
+@		fstp    [edi+'vx(window.w)'] ;	[22]
+#endif
+	    } else {
+@		fstp    windoww		;	[20]
+	    }
+	} else {
+            if ((modeFlags & __GL_SHADE_TEXTURE) &&
+		(modeFlags & __GL_SHADE_TEXTURE_PERSP)) {
+#if __GL_SST_GLIDE_VTX
+@		fld	[edi+'vx(texture.x)']		; s
+@		fmul	[#'(int)&(gc->texture.sst.w)']	; s*w
+@		fstp	[edi+'vx(sst.tmuvtx[0].s)']	; 
+@		fld	[edi+'vx(texture.y)']		; t
+@		fmul	[#'(int)&(gc->texture.sst.h)']	; t*h
+@		fstp	[edi+'vx(sst.tmuvtx[0].t)']	;
+@		mov    [edi+'vx(sst.oow)'],#FP_ONE
+#else
+@		mov    [edi+'vx(window.w)'],#FP_ONE
+#endif
+	    }
+	}
+
+	if (nocopy)
+@	    or     [edi + 'vx(hasAndClipCode)'],esi
+	else
+@	    mov    [edi + 'vx(hasAndClipCode)'],esi
+@       mov     eax,esi		;	[33]
+
+	if (needs & __GL_HAS_FRONT_COLOR) {
+	    if (flags & __GL_GEOM_OG_NOCOPY) {
+@	    	lea     esi,six
+    
+@	    	mov     ecx,[edi + 'vx(normal.x)']
+@	    	mov     [esi],ecx
+@	    	mov     ecx,[edi + 'vx(normal.y)']
+@	    	mov     [esi+4],ecx
+@	    	mov     ecx,[edi + 'vx(normal.z)']
+@	    	mov     [esi+8],ecx
+
+@		push    eax
+@		do_light(nx, ny, nz, rr, gg, bb, d);
+@		pop     eax
+@		pop     esi
+	    } else {
+@		pop	esi
+@		mov     ebx,eax
+@		do_light(nx, ny, nz, rr, gg, bb, d);
+@		mov     eax,ebx
+	    }
+	} else {
+@	    pop     esi
+
+	    /*
+	     * If we're doing any lighting at all, then we're going to
+	     * need at least the normal later on.  Maybe the position,
+	     * too.  Fogging also needs the position in order to
+	     * calculate eye coords later.
+	     */
+	    if (gc->state.enables.general & __GL_LIGHTING_ENABLE) {
+		if (current_normal && !nocopy) {
+@		    mov	ebx,[#'(int)&gc->state.current.normal.x']
+@		    mov	[edi + 'vx(normal.x)'],ebx
+@		    mov	ebx,[#'(int)&gc->state.current.normal.y']
+@		    mov	[edi + 'vx(normal.y)'],ebx
+@		    mov	ebx,[#'(int)&gc->state.current.normal.z']
+@		    mov	[edi + 'vx(normal.z)'],ebx
+		} else {
+@	    	    mov	ebx,[esi + 0]
+@	    	    mov	[edi + 'vx(normal.x)'],ebx
+@	    	    mov	ebx,[esi + 4]
+@	    	    mov	[edi + 'vx(normal.y)'],ebx
+@	    	    mov	ebx,[esi + 8]
+@	    	    mov	[edi + 'vx(normal.z)'],ebx
+		}
+	    }
+
+	    if ((gc->state.enables.general & __GL_LIGHTING_ENABLE) ||
+		(gc->state.enables.general & __GL_FOG_ENABLE)) {
+@	    	mov	ebx,[edx + 0]
+@	    	mov	[edi + 'vx(obj.x)'],ebx
+@	    	mov	ebx,[edx + 4]
+@	    	mov	[edi + 'vx(obj.y)'],ebx
+                if (vertex_size <= 2) {
+@	    	    mov     [edi + 'vx(obj.z)'],#FP_ZERO
+                } else {
+@	    	    mov     ebx,[edx + 8]
+@	    	    mov     [edi + 'vx(obj.z)'],ebx
+		}
+                if (vertex_size <= 3) {
+@	    	    mov     [edi + 'vx(obj.w)'],#FP_ONE
+                } else {
+@	    	    mov     ebx,[edx + 12]
+@	    	    mov     [edi + 'vx(obj.w)'],ebx
+		}
+	    }
+	}
+
+@       test	eax,#__GL_ALL_CLIP_MASK
+@	jne	culled2		;	[1]
+
+        /* Don't bother calculating window.z if the rasterizer isn't
+	 * Z-buffering.
+	 */
+	if (interpolate_z) {
+@	    fld	clipx
+@	    fmul	[#'(int)&viewport->xScale']   ; x*xs
+@	    fld	clipy		     ; y | x*xs
+@	    fmul	[#'(int)&viewport->yScale']   ; y*ys | x*xs
+@	    fld	clipz		     ; z | y*ys | x*xs
+@	    fmul	[#'(int)&viewport->zScale']   ; z*zs | y*ys | x*xs
+@	    fxch	st2                       ; x*xs | y*ys | z*zs
+
+	    if (!w_is_1) {
+@	        fmul    windoww			      ; x*xs*winw | y*ys | z*zs
+@	        fld     windoww			      ; winw | x*xs*winw | y*ys | z*zs
+@	        fmulp   st2,st0			      ; x*xs*winw | y*ys*winw | z*zs
+@	        fld     windoww			      ; winw | x*xs*winw | y*ys*winw | z*zs
+@	        fmulp   st3,st0			      ; x*xs*winw | y*ys*winw | z*zs*winw
+	    }
+
+@           fadd	[#'(int)&viewport->xCenter']	;	x	y	z
+@	    fxch	st1				;	y	x	z
+@	    fadd	[#'(int)&viewport->yCenter']	;	y	x	z
+@	    fxch	st2                       	;	z	x	y
+@	    fadd	[#'(int)&viewport->zCenter']	;	z	x	y
+@	    fxch	st1                       	;	x	z	y
+#if __GL_SST_GLIDE_VTX
+@	    fstp	[edi+'vx(sst.x)']
+#else
+@	    fstp	[edi+'vx(window.x)']
+#endif
+@	    add	edx,off
+
+#if __GL_SST_GLIDE_VTX
+@	    fstp	[edi+'vx(sst.ooz)'] 
+@	    fstp	[edi+'vx(sst.y)']
+#else
+@	    fstp	[edi+'vx(window.z)'] 
+@	    fstp	[edi+'vx(window.y)']
+#endif
+	} else {
+
+@	    fld		clipx		        ; [1]	x
+@	    fmul	[#'(int)&viewport->xScale']   ; [2]	x
+@	    fld		clipy			; [3]   y	x
+@	    fmul	[#'(int)&viewport->yScale']	; [4]	y	x
+@	    fxch	st1			;	x	y
+
+	    if (!w_is_1) {
+@	        fmul	windoww			; [6]	x	y
+@	        fxch	st1			;	y	x
+
+@	        fmul	windoww			; [8]	y	x
+@	        fxch	st1			;	x	y
+	    }
+
+@           fadd	[#'(int)&viewport->xCenter']	; [9]	
+@	    fxch	st1			;	y	x
+
+@	    fadd	[#'(int)&viewport->yCenter']  ; [11]	
+@	    fxch	st1			;	x	y
+
+@	    add     edx,#vp_stride
+
+#if __GL_SST_GLIDE_VTX
+@	    fstp	[edi+'vx(sst.x)']	; [13]
+@	    fstp	[edi+'vx(sst.y)']	; [15]
+#else
+@	    fstp	[edi+'vx(window.x)']	; [13]
+@	    fstp	[edi+'vx(window.y)']	; [15]
+#endif
+	}
+
+@	add		esi,#np_stride
+@	add		edi,#'VX_SIZE'
+
+@	dec		ebp
+@	jne		compile		; [23]
+
+@	jmp		done
+
+@ culled:
+@	or	eax,#'gc->vertexArray.validateMask'
+	if (nocopy)
+@	    or     [edi + 'vx(hasAndClipCode)'],eax
+	else
+@	    mov    [edi + 'vx(hasAndClipCode)'],eax
+
+@ culled2:	
+@	add	edx,off
+@	add	esi,off
+
+@	add	edi,#'VX_SIZE'
+
+@	dec	ebp
+@	jne	compile
+
+@ done:
+
+     if (!w_is_1) {
+@        fldcw   fpcw
+     }
+
+@    pop	ebp
+@    pop	ecx
+@    pop	ebx
+@    pop	edi
+@    pop	esi
+
+@    ret
+
+     if (!w_is_1) {
+/* 
+ * Slow case clip-code generation
+ *
+ * if ( x < negW ) code |= __GL_CLIP_LEFT;
+ * if (x > w) code |= __GL_CLIP_RIGHT;
+ *
+ * becomes:
+ *
+ * if ( (x - negw) < 0) code |= __GL_CLIP_LEFT;
+ * if ( (w - x) < 0) code |= __GL_CLIP_RIGHT;
+ *
+ * becomes:
+ *
+ * if ( (x + w) < 0) code |= __GL_CLIP_LEFT;
+ * if ( (w - x) < 0) code |= __GL_CLIP_RIGHT;
+ */
+
+@ do_slow_clip_check:
+@   fld	    clipx
+@   fadd    clipw	;	LEFT
+@   fld	    clipw	;	
+@   fsub    clipx	;	RIGHT	LEFT
+
+@   fld	    clipy
+@   fadd    clipw	;	BOTTOM	RIGHT	LEFT
+@   fld	    clipw	;	
+@   fsub    clipy	;	TOP	BOTTOM	RIGHT	LEFT
+
+@   fld	    clipz
+@   fadd    clipw	;	NEAR	TOP	BOTTOM	RIGHT	LEFT
+@   fld	    clipw	;	
+@   fsub    clipz	;	FAR	NEAR	TOP	BOTTOM	RIGHT	LEFT
+@   fxch    st5		;	LEFT	NEAR	TOP	BOTTOM	RIGHT	FAR
+
+@   push    edi
+@   lea	    edi,six
+
+@   fstp    [edi+0]	;	LEFT	
+@   fstp    [edi+4]	;	NEAR	
+@   fstp    [edi+8]	;	TOP	
+@   fstp    [edi+12]	;	BOTTOM	
+@   fstp    [edi+16]	;	RIGHT	
+@   fstp    [edi+20]	;	FAR
+
+@   mov	    eax,[edi+0]
+
+@   sar	    eax,31
+@   mov	    ebx,[edi+4]
+
+@   sar	    ebx,31
+@   and	    eax,#__GL_CLIP_LEFT
+
+@   or	    esi,eax
+@   and	    ebx,#__GL_CLIP_NEAR
+
+@   mov	    eax,[edi+8]
+@   or	    esi,ebx
+
+@   sar	    eax,31
+@   mov	    ebx,[edi+12]
+
+@   sar     ebx,31
+@   and	    eax,#__GL_CLIP_TOP
+
+@   or      esi,eax
+@   and	    ebx,#__GL_CLIP_BOTTOM
+
+@   or	    esi,ebx
+@   mov	    eax,[edi+16]
+
+@   sar	    eax,31
+@   mov	    ebx,[edi+20]
+
+@   sar     ebx,31
+@   and	    eax,#__GL_CLIP_RIGHT
+
+@   or      esi,eax
+@   and	    ebx,#__GL_CLIP_FAR
+
+@   or	    esi,ebx
+
+@   pop	    edi
+@   jmp     done_clip_check
+	}
+
+    gc->vertexArray.drawVertexes[GL_TRIANGLE_STRIP] = (void*) cb;
+    ptask->drawVertexes = cb;
+    cb = BuildDrawVertexes(cb, gc);
+
+    return ptask->space;
+}
+
+#endif

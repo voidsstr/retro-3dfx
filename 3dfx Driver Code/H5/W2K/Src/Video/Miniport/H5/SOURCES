@@ -1,0 +1,111 @@
+MAJORCOMP=ntos
+MINORCOMP=video
+
+# allow external enviroment variable to control file name; to support velocity, voodoo3, etc.
+!IF "$(MININAME)"==""
+# if H4VEL is specified use "velocity" name else use "voodoo3" name.
+!if "$(H4VEL)"==""
+TARGETNAME=3dfxvsm
+!ELSE
+TARGETNAME=3dfxvsm
+!ENDIF
+
+TARGETPATH=obj
+
+!ELSE
+TARGETNAME=$(MININAME)
+TARGETPATH=$(_OBJ_DIR)
+!ENDIF
+TARGETTYPE=MINIPORT
+
+# hal.lib included for SLI_AA stuff
+TARGETLIBS=$(DDK_LIB_PATH)\videoprt.lib $(DDK_LIB_PATH)\ntoskrnl.lib $(DDK_LIB_PATH)\hal.lib
+
+INCLUDES=..\..\inc
+
+!IF "$(NTDEBUG)"=="retail" || "$(NTDEBUG)"==""
+MSC_OPTIMIZATION= /Ox /GB /O2 /Ot /Ox
+!ELSE
+MSC_OPTIMIZATION=/Od /Oi /GB
+!ENDIF
+
+C_DEFINES = -DGRAPHICS_CLOCK=166 -DINCSTBCUST
+
+!IFNDEF MSC_WARNING_LEVEL
+MSC_WARNING_LEVEL=/W3
+!ENDIF
+MSC_WARNING_LEVEL=$(MSC_WARNING_LEVEL) /WX
+
+# if H4VEL is specified build with "velocity" names
+!if "$(H4VEL)"!=""
+C_DEFINES = $(C_DEFINES) -DH4VEL=1
+!ENDIF
+
+!IFNDEF COD_FILES
+COD_FILES=0
+!ENDIF
+
+!IF $(COD_FILES) != 0
+USER_C_FLAGS = /FAsc /Fa$O\$(@B).cod
+LINKER_FLAGS = $(LINKER_FLAGS) -map:$O\$(@B).map
+!ENDIF
+
+!IFNDEF LF
+LF=0
+!ENDIF
+
+!IF $(LF) != 0
+C_DEFINES = $(C_DEFINES) -DENABLE_LOG_FILE=$(LF)
+!ENDIF
+
+!IFDEF BUILDER
+C_DEFINES = $(C_DEFINES) -DBUILDER="$(BUILDER)" -DMS_BUILD
+!ENDIF
+
+!IFNDEF AFIFO
+AFIFO=0
+!ENDIF
+
+!IF $(AFIFO) != 0
+C_DEFINES = $(C_DEFINES) -DAGP_FIFO_CODE
+!ENDIF
+
+!IFNDEF SA
+SA=1
+!ENDIF
+!IF $(SA) != 0
+C_DEFINES = $(C_DEFINES) -DSLI_AA
+!ENDIF
+
+SOURCES=        \
+  bt868.c       \
+  ddc.c         \
+  debug.c       \
+  dfp.c         \
+  di_i2c.c      \
+  ds_i2c.c      \
+  h3.c          \
+  h3data.c      \
+  h3modes.c     \
+  h3modeset.c   \
+  h3modetab.c   \
+  h3registry.c  \
+  mapmem.c       \
+  nvram.c       \
+  pci.c         \
+  power.c       \
+  kmvt.c        \
+  sliaa.c       \
+  vmipld.c        \
+  voodoo3.rc
+
+# This test has been moved into the POSTBLD.MAK file.
+#!IFNDEF STRIP_SYMBOLS
+#STRIP_SYMBOLS=1
+#!ENDIF
+#
+#!IF $(STRIP_SYMBOLS) != 0
+#POST_BUILD_CMD = rebase -B 0x10000 -X $(O) $(O)\$(TARGETNAME).sys
+#!ENDIF
+
+POST_BUILD_CMD = nmake /f postbld.mak all

@@ -1,0 +1,900 @@
+/*
+** Copyright (c) 1996, 3Dfx Interactive, Inc.
+** All Rights Reserved.
+**
+** This is UNPUBLISHED PROPRIETARY SOURCE CODE of 3Dfx Interactive, Inc.;
+** the contents of this file may not be disclosed to third parties, copied or
+** duplicated in any form, in whole or in part, without the prior written
+** permission of 3Dfx Interactive, Inc.
+**
+** RESTRICTED RIGHTS LEGEND:
+** Use, duplication or disclosure by the Government is subject to restrictions
+** as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+** and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+** successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished  -
+** rights reserved under the Copyright Laws of the United States.
+**
+**
+** $Revision: 4$ 
+** $Date: 10/11/00 7:34:18 PM$ 
+**
+*/
+
+#include "atrender.h"
+#include "fxatr.h"
+
+static float s_scale[2], t_scale[2];
+
+/* Denis. adding more control for texture detail */
+static float tc_sx[2] = {1.0f,1.0f}, tc_sy[2] = {1.0f,1.0f};
+
+void atrSetTCScaleX( FxU32 tmu, float sx )
+{
+	if (tmu == 0 || tmu == 1)
+		tc_sx[tmu] = sx;
+}
+
+void atrSetTCScaleY( FxU32 tmu, float sy )
+{
+	if (tmu == 0 || tmu == 1)
+		tc_sy[tmu] = sy;
+}
+
+float atrGetTCScaleX( FxU32 tmu )
+{
+	if (tmu == 0 || tmu == 1)
+		return tc_sx[tmu];
+	else
+		return 1.0f;
+}
+
+float atrGetTCScaleY( FxU32 tmu )
+{
+	if (tmu == 0 || tmu == 1)
+		return tc_sy[tmu];
+	else
+		return 1.0f;
+}
+
+
+/*-------------------------------------------------------------------
+  Function: _atrTexSetScale
+  Date: 7/2
+  Implementor(s): jdt
+  Library: AT Render
+  Description:
+  
+  Arguments:
+  Return:
+  -------------------------------------------------------------------*/
+void _atrTexSetScale( FxU32 tmu, float s, float t ) {
+    s_scale[tmu] = s;
+    t_scale[tmu] = t;
+    return;
+}
+
+/*-------------------------------------------------------------------
+  Function: _atrTexGetScale
+  Date: 10/15
+  Implementor(s): mlwp
+  Library: AT Render
+  Description:
+  Get texture scaling factors
+  Arguments:
+  tmu - which TMU
+  s   - s scaling factor
+  t   - t scaling factor
+  Return:
+  -------------------------------------------------------------------*/
+void _atrTexGetScale( FxU32 tmu, float *s, float *t ) {
+    *s = s_scale[tmu];
+    *t = t_scale[tmu];
+    return;
+}
+
+
+/*-------------------------------------------------------------------
+  Function: _atrTCSRC0_2DTC0
+  Date: 4/2/96
+  Implementor(s): jdt
+  Library: AT Render
+  Description:
+    Implementation of texture coordinate source function callback
+  Arguments:
+    dest - destination vertex
+    src  - source vertex
+  Return:
+    none
+  -------------------------------------------------------------------*/
+void _atrTCSRC0_2DTC0(AtrDstVertex *dest,           
+                      AtrVertex *src,
+                      AtrVertex *end ) {
+    while( src < end ) {                        
+        dest->s0   = src->s0 * s_scale[0] * dest->oow;
+        dest->t0   = src->t0 * t_scale[0] * dest->oow;
+        dest->oow0 = dest->oow;
+        dest++;
+        src++;
+    }
+    return;
+}
+
+
+/*-------------------------------------------------------------------
+  Function: _atrTCSRC0_TC0
+  Date: 4/2/96
+  Implementor(s): jdt
+  Library: AT Render
+  Description:
+    Implementation of texture coordinate source function callback
+  Arguments:
+    dest - destination vertex
+    src  - source vertex
+  Return:
+    none
+  -------------------------------------------------------------------*/
+void _atrTCSRC0_TC0( AtrDstVertex *dest,           
+                     AtrVertex *src,
+                     AtrVertex *end ) {
+    while( src < end ) {                        
+        if ( dest->flags ) {
+            dest->s0   = src->s0 * s_scale[0];
+            dest->t0   = src->t0 * t_scale[0];
+            dest->oow0 = 1.0f;
+        } else {
+            dest->s0   = src->s0 * s_scale[0] * dest->oow;
+            dest->t0   = src->t0 * t_scale[0] * dest->oow;
+            dest->oow0 = dest->oow;
+        }
+        dest++;
+        src++;
+    }
+    return;
+}
+
+/*-------------------------------------------------------------------
+  Function: _atrTCSRC0_TC0_SCALE
+  Date: 4/2/96
+  Implementor(s): denis
+  Library: AT Render
+  Description:
+    Implementation of texture coordinate source function callback
+  Arguments:
+    dest - destination vertex
+    src  - source vertex
+  Return:
+    none
+  -------------------------------------------------------------------*/
+void _atrTCSRC0_TC0_SCALE( AtrDstVertex *dest,           
+                     AtrVertex *src,
+                     AtrVertex *end ) {
+	float	sx = atrGetTCScaleX(0),
+			sy = atrGetTCScaleY(0);
+    while( src < end ) {                        
+        if ( dest->flags ) {
+            dest->s0   = src->s0 * s_scale[0] * sx;
+            dest->t0   = src->t0 * t_scale[0] * sy;
+            dest->oow0 = 1.0f;
+        } else {
+            dest->s0   = src->s0 * s_scale[0] * dest->oow * sx;
+            dest->t0   = src->t0 * t_scale[0] * dest->oow * sy;
+            dest->oow0 = dest->oow;
+        }
+        dest++;
+        src++;
+    }
+    return;
+}
+
+/*-------------------------------------------------------------------
+  Function: _atrTCSRC1_TC1_SCALE
+  Date: 4/2/96
+  Implementor(s): denis
+  Library: AT Render
+  Description:
+    Implementation of texture coordinate source function callback
+  Arguments:
+    dest - destination vertex
+    src  - source vertex
+  Return:
+    none
+  -------------------------------------------------------------------*/
+void _atrTCSRC1_TC1_SCALE( AtrDstVertex *dest,           
+                     AtrVertex *src,
+                     AtrVertex *end ) {
+	float	sx = atrGetTCScaleX(1),
+			sy = atrGetTCScaleY(1);
+    while( src < end ) {                        
+        if ( dest->flags ) {
+            dest->s1   = src->s1 * s_scale[1] * sx;
+            dest->t1   = src->t1 * t_scale[1] * sy;
+            dest->oow1 = 1.0f;
+        } else {
+            dest->s1   = src->s1 * s_scale[1] * dest->oow * sx;
+            dest->t1   = src->t1 * t_scale[1] * dest->oow * sy;
+            dest->oow0 = dest->oow;
+        }
+        dest++;
+        src++;
+    }
+    return;
+}
+
+/*-------------------------------------------------------------------
+  Function: _atrTCSRC0_TC0_SRC1_SCALE_TC0
+  Date: 4/2/96
+  Implementor(s): denis
+  Library: AT Render
+  Description:
+    Implementation of texture coordinate source function callback
+  Arguments:
+    dest - destination vertex
+    src  - source vertex
+  Return:
+    none
+  -------------------------------------------------------------------*/
+#define SCALE_TC 10.0f
+
+void _atrTCSRC0_TC0_SRC1_SCALE_TC0( AtrDstVertex *dest,           
+                     AtrVertex *src,
+                     AtrVertex *end ) {
+	float	sx = atrGetTCScaleX(1),
+			sy = atrGetTCScaleY(1);
+    while( src < end ) {                        
+        if ( dest->flags ) {
+#if 0
+            dest->s0   = src->s0 * s_scale[0];
+            dest->t0   = src->t0 * t_scale[0];
+            dest->oow0 = 1.0f;
+
+			dest->s1   = src->s0 * s_scale[1] * SCALE_TC;
+			dest->t1   = src->t0 * t_scale[1] * SCALE_TC;
+            dest->oow1 = 1.0f;
+#else
+			dest->s1   = dest->s0 * sx;
+			dest->t1   = dest->t0 * sy;
+            dest->oow1 = 1.0f;
+#endif
+        } else {
+#if 0
+            dest->s0   = src->s0 * s_scale[0] * dest->oow;
+            dest->t0   = src->t0 * t_scale[0] * dest->oow;
+            dest->oow0 = dest->oow;
+
+            dest->s1   = src->s0 * s_scale[1] * SCALE_TC;
+            dest->t1   = src->t0 * t_scale[1] * SCALE_TC;
+            dest->oow1 = dest->oow;
+#else
+            dest->s1   = dest->s0 * sx;
+            dest->t1   = dest->t0 * sy;
+            dest->oow1 = dest->oow;
+#endif
+        }
+        dest++;
+        src++;
+    }
+    return;
+}
+
+
+/*-------------------------------------------------------------------
+  Function: _atrTCSRC1_TC0
+  Date: 4/2/96
+  Implementor(s): jdt
+  Library: AT Render
+  Description:
+    Implementation of texture coordinate source function callback
+  Arguments:
+    dest - destination vertex
+    src  - source vertex
+  Return:
+    none
+  -------------------------------------------------------------------*/
+void _atrTCSRC1_TC0( AtrDstVertex *dest,           
+                    AtrVertex *src,
+                    AtrVertex *end ) {
+    while( src < end ) {                        
+        if ( dest->flags ) {
+            dest->s1   = src->s0 * s_scale[1];
+            dest->t1   = src->t0 * t_scale[1];
+            dest->oow1 = 1.0f;
+        } else {
+            dest->s1 = src->s0 * s_scale[1] * dest->oow;
+            dest->t1 = src->t0 * t_scale[1] * dest->oow;
+            dest->oow0 = dest->oow;
+        }
+        dest++;
+        src++;
+    }
+    return;
+}
+
+/*-------------------------------------------------------------------
+  Function: _atrTCSRC0_TC1
+  Date: 4/2/96
+  Implementor(s): jdt
+  Library: AT Render
+  Description:
+    Implementation of texture coordinate source function callback
+  Arguments:
+    dest - destination vertex
+    src  - source vertex
+  Return:
+    none
+  -------------------------------------------------------------------*/
+void _atrTCSRC0_TC1( AtrDstVertex *dest, 
+                    AtrVertex *src,
+                    AtrVertex *end ) {
+    while( src < end ) {
+        if ( dest->flags ) {
+            dest->s0   = src->s1 * s_scale[0];
+            dest->t0   = src->t1 * t_scale[0];
+            dest->oow0 = 1.0f;
+        } else {
+            dest->s0   = src->s1 * s_scale[0] * dest->oow;
+            dest->t0   = src->t1 * t_scale[0] * dest->oow;
+            dest->oow0 = dest->oow;
+        }   
+        src++;
+        dest++;
+    }
+    return;
+}
+
+/*-------------------------------------------------------------------
+  Function: _atrTCSRC1_TC1
+  Date: 4/2/96
+  Implementor(s): jdt
+  Library: AT Render
+  Description:
+    Implementation of texture coordinate source function callback
+  Arguments:
+    dest - destination vertex
+    src  - source vertex
+  Return:
+    none
+  -------------------------------------------------------------------*/
+void _atrTCSRC1_TC1( AtrDstVertex *dest, 
+                    AtrVertex *src,
+                    AtrVertex *end ) {
+    while( src < end ) {
+        if ( dest->flags ) {
+            dest->s1   = src->s1 * s_scale[1];
+            dest->t1   = src->t1 * t_scale[1];
+            dest->oow1 = 1.0f;
+        } else {
+            dest->s1   = src->s1 * s_scale[1] * dest->oow;
+            dest->t1   = src->t1 * t_scale[1] * dest->oow;
+            dest->oow1 = dest->oow;
+        }   
+        src++;
+        dest++;
+    }
+    return;
+}
+
+/*-------------------------------------------------------------------
+  Function: _atrTCSRC0_TC2
+  Date: 4/2/96
+  Implementor(s): jdt
+  Library: AT Render
+  Description:
+    Implementation of texture coordinate source function callback
+  Arguments:
+    dest - destination vertex
+    src  - source vertex
+  Return:
+    none
+  -------------------------------------------------------------------*/
+void _atrTCSRC0_TC2( AtrDstVertex *dest, 
+                    AtrVertex *src,
+                    AtrVertex *end ) {
+    while( src < end ) {
+        if ( dest->flags ) {
+            dest->s0   = src->s2 * s_scale[0];
+            dest->t0   = src->t2 * t_scale[0];
+            dest->oow0 = 1.0f;
+        } else {
+            dest->s0   = src->s2 * s_scale[0] * dest->oow;
+            dest->t0   = src->t2 * t_scale[0] * dest->oow;
+            dest->oow0 = dest->oow;
+        }
+        src++;
+        dest++;
+    }
+    return;
+}
+
+/*-------------------------------------------------------------------
+  Function: _atrTCSRC1_TC2
+  Date: 4/2/96
+  Implementor(s): jdt
+  Library: AT Render
+  Description:
+    Implementation of texture coordinate source function callback
+  Arguments:
+    dest - destination vertex
+    src  - source vertex
+  Return:
+    none
+  -------------------------------------------------------------------*/
+void _atrTCSRC1_TC2( AtrDstVertex *dest, 
+                    AtrVertex *src,
+                    AtrVertex *end ) {
+    while( src < end ) {
+        if ( dest->flags ) {
+            dest->s1   = src->s2 * s_scale[1];
+            dest->t1   = src->t2 * t_scale[1];
+            dest->oow1 = 1.0f;
+        } else {
+            dest->s1   = src->s2 * s_scale[1] * dest->oow;
+            dest->t1   = src->t2 * t_scale[1] * dest->oow;
+            dest->oow1 = dest->oow;
+        }
+        src++;
+        dest++;
+    }
+    return;
+}
+
+
+/*-------------------------------------------------------------------
+  Function: _atrTCSRC0_EMAP
+  Date: 3/26/97
+  Implementor(s): jdt
+  Library: AT Render
+  Description:
+    Do the environment mapping calculation for one vertex.
+  Arguments:
+    src - src vertex
+    dest - destination vertex
+  Return:
+    none
+  -------------------------------------------------------------------*/
+void _atrTCSRC0_EMAP( AtrDstVertex *dest, 
+                      AtrVertex *src,
+                      AtrVertex *end ) {
+    AtmVector3 normal, u, r, tmp;
+    AtrXform lcsToVCS, wcsToVCS;
+    float dot, oom, multiplier;
+	float half, sScale, tScale;
+
+    atrXformInvert( &wcsToVCS, &_atrCurrentCamera->lcsToWCS );
+    atrXformCat( &lcsToVCS, _atrCurrentXform, &wcsToVCS );
+
+	/* get scaling factor for texture coordinates
+	 N.B. we assume square textures for environment mapping */
+
+	_atrTexGetScale( 0, &sScale, &tScale );
+	half = sScale * 0.5f;
+
+    while( src < end ) {
+        tmp[0] = src->x * lcsToVCS.data[0] +
+                 src->y * lcsToVCS.data[4] +
+                 src->z * lcsToVCS.data[8] +
+                          lcsToVCS.data[12];
+        tmp[1] = src->x * lcsToVCS.data[1] +
+                 src->y * lcsToVCS.data[5] +
+                 src->z * lcsToVCS.data[9] +
+                          lcsToVCS.data[13];
+        tmp[2] = src->x * lcsToVCS.data[2] +
+                 src->y * lcsToVCS.data[6] +
+                 src->z * lcsToVCS.data[10] +
+                          lcsToVCS.data[14];
+    
+        if ( dest->flags == 0 ) {
+            multiplier = dest->oow;
+            dest->oow0 = dest->oow;
+        } else {
+            multiplier = 1.0f;
+            dest->oow0 = 1.0f;
+        }
+    
+        normal[0] = src->i * lcsToVCS.data[0] +
+                    src->j * lcsToVCS.data[4] +
+                    src->k * lcsToVCS.data[8];
+        normal[1] = src->i * lcsToVCS.data[1] +
+                    src->j * lcsToVCS.data[5] +
+                    src->k * lcsToVCS.data[9];
+        normal[2] = src->i * lcsToVCS.data[2] +
+                    src->j * lcsToVCS.data[6] +
+                    src->k * lcsToVCS.data[10];
+    
+        atmVector3Normalize( u, tmp );
+
+        dot = normal[0] * u[0] + normal[1] * u[1] + normal[2] * u[2];
+        dot *= 2.0f;
+        r[0] = u[0] - dot * normal[0];
+        r[1] = u[1] - dot * normal[1];
+        r[2] = u[2] - dot * normal[2];
+
+        r[2] += 1.0f;
+
+        oom = half / atmOOSqrt( r[0] * r[0] + 
+                                  r[1] * r[1] +
+                                  r[2] * r[2] );
+        dest->s0 = (r[0] *  oom + half)*multiplier;
+        dest->t0 = (r[1] * -oom + half)*multiplier;
+        dest++;
+        src++;
+    }
+    return;
+}
+
+
+/*-------------------------------------------------------------------
+  Function: _atrTCSRC1_EMAP
+  Date: 3/26/97
+  Implementor(s): jdt
+  Library: AT Render
+  Description:
+    Do the environment mapping calculation for one vertex.
+  Arguments:
+    src - src vertex
+    dest - destination vertex
+  Return:
+    none
+  -------------------------------------------------------------------*/
+void _atrTCSRC1_EMAP( AtrDstVertex *dest, 
+                      AtrVertex *src,
+                      AtrVertex *end ) {
+    AtmVector3 normal, u, r, tmp;
+    AtrXform lcsToVCS, wcsToVCS;
+    float dot, oom, multiplier;
+	float half, sScale, tScale;
+
+    atrXformInvert( &wcsToVCS, &_atrCurrentCamera->lcsToWCS );
+    atrXformCat( &lcsToVCS, _atrCurrentXform, &wcsToVCS );
+
+	/* get scaling factor for texture coordinates
+	 N.B. we assume square textures for environment mapping */
+
+	_atrTexGetScale( 1, &sScale, &tScale );
+	half = sScale * 0.5f;
+
+    while( src < end ) {
+        tmp[0] = src->x * lcsToVCS.data[0] +
+                 src->y * lcsToVCS.data[4] +
+                 src->z * lcsToVCS.data[8] +
+                          lcsToVCS.data[12];
+        tmp[1] = src->x * lcsToVCS.data[1] +
+                 src->y * lcsToVCS.data[5] +
+                 src->z * lcsToVCS.data[9] +
+                          lcsToVCS.data[13];
+        tmp[2] = src->x * lcsToVCS.data[2] +
+                 src->y * lcsToVCS.data[6] +
+                 src->z * lcsToVCS.data[10] +
+                          lcsToVCS.data[14];
+    
+        if ( dest->flags == 0 ) {
+            multiplier = dest->oow;
+            dest->oow1 = dest->oow;
+        } else {
+            multiplier = 1.0f;
+            dest->oow1 = 1.0f;
+        }
+    
+        normal[0] = src->i * lcsToVCS.data[0] +
+                    src->j * lcsToVCS.data[4] +
+                    src->k * lcsToVCS.data[8];
+        normal[1] = src->i * lcsToVCS.data[1] +
+                    src->j * lcsToVCS.data[5] +
+                    src->k * lcsToVCS.data[9];
+        normal[2] = src->i * lcsToVCS.data[2] +
+                    src->j * lcsToVCS.data[6] +
+                    src->k * lcsToVCS.data[10];
+    
+        atmVector3Normalize( u, tmp );
+
+        dot = normal[0] * u[0] + normal[1] * u[1] + normal[2] * u[2];
+        dot *= 2.0f;
+        r[0] = u[0] - dot * normal[0];
+        r[1] = u[1] - dot * normal[1];
+        r[2] = u[2] - dot * normal[2];
+
+        r[2] += 1.0f;
+
+        oom = half / atmOOSqrt( r[0] * r[0] + 
+                                  r[1] * r[1] +
+                                  r[2] * r[2] );
+        dest->s1 = (r[0] *  oom + half)*multiplier;
+        dest->t1 = (r[1] * -oom + half)*multiplier;
+        dest++;
+        src++;
+    }
+    return;
+}
+
+
+/*-------------------------------------------------------------------
+  Function: _atrTCSRC0_PROJECTED
+  Date: 7/4/96
+  Implementor(s): jdt
+  Library: AT Render
+  Description:
+    Do the projected texture calculation
+  Arguments:
+    src - src vertex
+    dest - destination vertex
+  Return:
+    none
+  -------------------------------------------------------------------*/
+void _atrTCSRC0_PROJECTED(AtrDstVertex *dest, 
+                          AtrVertex    *src,
+                          AtrVertex    *end ) {
+    _AtrLightNode *n = _atrLightHead;
+    FxU32 tag        = _atrRenderMaterial->projectedTag;
+    float        vpS = 128.0f;
+    float        vpT = 128.0f;
+
+    /*--------------------------------------------
+      Find the projector associated with the current
+      material
+      --------------------------------------------*/
+    while( n ) {
+        if (n->light.flags == ATR_LIGHT_PROJECTOR &&
+            n->light.project.tag == tag ) break; 
+            n = n->next;
+    }
+
+#ifdef AT_DEBUGGING
+    if ( !n )
+      atuError( FXTRUE, 
+                "atrRender*(): Error, no light matches tag %d.\n",
+                tag );
+#else
+    if ( !n ) return;
+#endif
+
+    /*--------------------------------------------
+      For each vertex, transform into light pov and
+      scale to projected texture dimensions.
+      --------------------------------------------*/
+    while( src < end ) {
+        float ooq;
+
+        /* project s, t, w */
+        dest->s0 = 
+        ( src->x * n->modelToProjector.data[0] +
+          src->y * n->modelToProjector.data[4] +
+          src->z * n->modelToProjector.data[8] +
+          n->modelToProjector.data[12] ) *
+            128.0f;
+        dest->t0 = 
+        ( src->x * n->modelToProjector.data[1] +
+          src->y * n->modelToProjector.data[5] +
+          src->z * n->modelToProjector.data[9] +
+          n->modelToProjector.data[13] ) *
+            -128.0f;
+        dest->oow0 = 
+        src->x * n->modelToProjector.data[2] +
+        src->y * n->modelToProjector.data[6] +
+        src->z * n->modelToProjector.data[10] +
+        n->modelToProjector.data[14];
+
+        /* Do something to avoid dbz ( right thing? ) */
+        if ( dest->oow0 == 0.0f ) {
+            dest->oow0 = 0.001f;
+        } 
+        ooq = 1.0f / dest->oow0;
+
+        /* project onto plane */
+        dest->s0 = dest->s0 * ooq + vpS;
+        dest->t0 = dest->t0 * ooq + vpT;
+
+        /* prepare for tmapping */
+        if ( dest->flags == 0 ) {
+            dest->oow0 *= dest->oow;
+        } 
+
+        dest->s0   *= dest->oow0;
+        dest->t0   *= dest->oow0;
+
+        dest++;
+        src++;
+    }
+    return;
+}
+
+/*-------------------------------------------------------------------
+  Function: _atrTCSRC1_PROJECTED
+  Date: 7/4/96
+  Implementor(s): jdt
+  Library: AT Render
+  Description:
+    Do the projected texture calculation
+  Arguments:
+    src - src vertex
+    dest - destination vertex
+  Return:
+    none
+  -------------------------------------------------------------------*/
+void _atrTCSRC1_PROJECTED(AtrDstVertex *dest, 
+                          AtrVertex    *src,
+                          AtrVertex    *end ) {
+    _AtrLightNode *n = _atrLightHead;
+    FxU32 tag        = _atrRenderMaterial->projectedTag;
+    float        vpS = 128.0f;
+    float        vpT = 128.0f;
+
+    /*--------------------------------------------
+      Find the projector associated with the current
+      material
+      --------------------------------------------*/
+    while( n ) {
+        if (n->light.flags == ATR_LIGHT_PROJECTOR &&
+            n->light.project.tag == tag ) break; 
+            n = n->next;
+    }
+
+#ifdef AT_DEBUGGING
+    if ( !n )
+      atuError( FXTRUE, 
+                "atrRender*(): Error, no light matches tag %d.\n",
+                tag );
+#else
+    if ( !n ) return;
+#endif
+
+    /*--------------------------------------------
+      For each vertex, transform into light pov and
+      scale to projected texture dimensions.
+      --------------------------------------------*/
+    while( src < end ) {
+        float ooq;
+
+        /* project s, t, w */
+        dest->s1 = 
+        ( src->x * n->modelToProjector.data[0] +
+          src->y * n->modelToProjector.data[4] +
+          src->z * n->modelToProjector.data[8] +
+          n->modelToProjector.data[12] ) *
+            128.0f;
+        dest->t1 = 
+        ( src->x * n->modelToProjector.data[1] +
+          src->y * n->modelToProjector.data[5] +
+          src->z * n->modelToProjector.data[9] +
+          n->modelToProjector.data[13] ) *
+            -128.0f;
+        dest->oow1 = 
+        src->x * n->modelToProjector.data[2] +
+        src->y * n->modelToProjector.data[6] +
+        src->z * n->modelToProjector.data[10] +
+        n->modelToProjector.data[14];
+
+        /* Do something to avoid dbz ( right thing? ) */
+        if ( dest->oow1 == 0.0f ) {
+            dest->oow1 = 0.001f;
+        } 
+        ooq = 1.0f / dest->oow1;
+
+        /* project onto plane */
+        dest->s1 = dest->s1 * ooq + vpS;
+        dest->t1 = dest->t1 * ooq + vpT;
+
+        /* prepare for tmapping */
+        if ( dest->flags == 0 ) {
+            dest->oow1 *= dest->oow;
+        } 
+
+        dest->s1   *= dest->oow1;
+        dest->t1   *= dest->oow1;
+
+        dest++;
+        src++;
+    }
+    return;
+}
+
+
+/*-------------------------------------------------------------------
+  Function: _atrTCSRC0_PLANAR
+  Date: 7/22/96
+  Implementor(s): jdt, da
+  Library: AT Render
+  Description:
+    Do the PLANAR texture calculation
+  Arguments:
+    src - src vertex
+    dest - destination vertex
+  Return:
+    none
+  -------------------------------------------------------------------*/
+void _atrTCSRC0_PLANAR(AtrDstVertex *dest, 
+                       AtrVertex    *src,
+                       AtrVertex    *end ) {
+	float sScale, tScale;
+    AtrXform *mTW = _atrCurrentXform;
+    extern float _atrTexOffsetS, _atrTexOffsetT;
+    float s, t;
+
+	_atrTexGetScale( 0, &sScale, &tScale );
+    sScale *= _atrRenderMaterial->planarScale;
+    tScale *= _atrRenderMaterial->planarScale;
+
+    while( src < end ) {
+        s =     src->x * mTW->data[0] +
+                src->y * mTW->data[4] +
+                src->z * mTW->data[8] +
+                mTW->data[12];
+
+        t =     src->x * mTW->data[2] +
+                src->y * mTW->data[6] +
+                src->z * mTW->data[10] +
+                mTW->data[14];
+
+        /* TBD: this is a temporary hack for flipper */
+
+        s += _atrTexOffsetS;
+        t += _atrTexOffsetT;
+
+        if ( dest->flags )
+          dest->oow0 = 1.0f;
+        else
+          dest->oow0 = dest->oow;
+
+        dest->s0 = s * dest->oow0 * sScale;
+        dest->t0 = t * dest->oow0 * tScale;
+
+        dest++;
+        src++;
+    }
+    return;
+}
+
+
+/*-------------------------------------------------------------------
+  Function: _atrTCSRC1_PLANAR
+  Date: 7/22/96
+  Implementor(s): jdt, da
+  Library: AT Render
+  Description:
+    Do the PLANAR texture calculation
+  Arguments:
+    src - src vertex
+    dest - destination vertex
+  Return:
+    none
+  -------------------------------------------------------------------*/
+void _atrTCSRC1_PLANAR(AtrDstVertex *dest, 
+                       AtrVertex    *src,
+                       AtrVertex    *end ) {
+    AtrXform *mTW = _atrCurrentXform;
+    extern float _atrTexOffsetS, _atrTexOffsetT;
+    float s, t;
+	float sScale, tScale;
+
+	_atrTexGetScale( 1, &sScale, &tScale );
+    sScale *= _atrRenderMaterial->planarScale;
+    tScale *= _atrRenderMaterial->planarScale;
+
+    while( src < end ) {
+        s =     src->x * mTW->data[0] +
+                src->y * mTW->data[4] +
+                src->z * mTW->data[8] +
+                mTW->data[12];
+
+        t =     src->x * mTW->data[2] +
+                src->y * mTW->data[6] +
+                src->z * mTW->data[10] +
+                mTW->data[14];
+
+        /* TBD: this is a temporary hack for flipper */
+
+        s += _atrTexOffsetS;
+        t += _atrTexOffsetT;
+
+        if ( dest->flags )
+          dest->oow1 = 1.0f;
+        else
+          dest->oow1 = dest->oow;
+
+        dest->s1 = s * dest->oow1 * sScale;
+        dest->t1 = t * dest->oow1 * tScale;
+
+        dest++;
+        src++;
+    }
+    return;
+}
+

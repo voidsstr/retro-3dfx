@@ -1,0 +1,675 @@
+	TITLE	..\afifo.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+FLAT	GROUP _DATA, CONST, _BSS
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+_DATA	SEGMENT
+_f_255_reverse_lookup DD 0437f0000r		; 255
+	DD	0437e0000r			; 254
+	DD	0437d0000r			; 253
+	DD	0437c0000r			; 252
+	DD	0437b0000r			; 251
+	DD	0437a0000r			; 250
+	DD	043790000r			; 249
+	DD	043780000r			; 248
+	DD	043770000r			; 247
+	DD	043760000r			; 246
+	DD	043750000r			; 245
+	DD	043740000r			; 244
+	DD	043730000r			; 243
+	DD	043720000r			; 242
+	DD	043710000r			; 241
+	DD	043700000r			; 240
+	DD	0436f0000r			; 239
+	DD	0436e0000r			; 238
+	DD	0436d0000r			; 237
+	DD	0436c0000r			; 236
+	DD	0436b0000r			; 235
+	DD	0436a0000r			; 234
+	DD	043690000r			; 233
+	DD	043680000r			; 232
+	DD	043670000r			; 231
+	DD	043660000r			; 230
+	DD	043650000r			; 229
+	DD	043640000r			; 228
+	DD	043630000r			; 227
+	DD	043620000r			; 226
+	DD	043610000r			; 225
+	DD	043600000r			; 224
+	DD	0435f0000r			; 223
+	DD	0435e0000r			; 222
+	DD	0435d0000r			; 221
+	DD	0435c0000r			; 220
+	DD	0435b0000r			; 219
+	DD	0435a0000r			; 218
+	DD	043590000r			; 217
+	DD	043580000r			; 216
+	DD	043570000r			; 215
+	DD	043560000r			; 214
+	DD	043550000r			; 213
+	DD	043540000r			; 212
+	DD	043530000r			; 211
+	DD	043520000r			; 210
+	DD	043510000r			; 209
+	DD	043500000r			; 208
+	DD	0434f0000r			; 207
+	DD	0434e0000r			; 206
+	DD	0434d0000r			; 205
+	DD	0434c0000r			; 204
+	DD	0434b0000r			; 203
+	DD	0434a0000r			; 202
+	DD	043490000r			; 201
+	DD	043480000r			; 200
+	DD	043470000r			; 199
+	DD	043460000r			; 198
+	DD	043450000r			; 197
+	DD	043440000r			; 196
+	DD	043430000r			; 195
+	DD	043420000r			; 194
+	DD	043410000r			; 193
+	DD	043400000r			; 192
+	DD	0433f0000r			; 191
+	DD	0433e0000r			; 190
+	DD	0433d0000r			; 189
+	DD	0433c0000r			; 188
+	DD	0433b0000r			; 187
+	DD	0433a0000r			; 186
+	DD	043390000r			; 185
+	DD	043380000r			; 184
+	DD	043370000r			; 183
+	DD	043360000r			; 182
+	DD	043350000r			; 181
+	DD	043340000r			; 180
+	DD	043330000r			; 179
+	DD	043320000r			; 178
+	DD	043310000r			; 177
+	DD	043300000r			; 176
+	DD	0432f0000r			; 175
+	DD	0432e0000r			; 174
+	DD	0432d0000r			; 173
+	DD	0432c0000r			; 172
+	DD	0432b0000r			; 171
+	DD	0432a0000r			; 170
+	DD	043290000r			; 169
+	DD	043280000r			; 168
+	DD	043270000r			; 167
+	DD	043260000r			; 166
+	DD	043250000r			; 165
+	DD	043240000r			; 164
+	DD	043230000r			; 163
+	DD	043220000r			; 162
+	DD	043210000r			; 161
+	DD	043200000r			; 160
+	DD	0431f0000r			; 159
+	DD	0431e0000r			; 158
+	DD	0431d0000r			; 157
+	DD	0431c0000r			; 156
+	DD	0431b0000r			; 155
+	DD	0431a0000r			; 154
+	DD	043190000r			; 153
+	DD	043180000r			; 152
+	DD	043170000r			; 151
+	DD	043160000r			; 150
+	DD	043150000r			; 149
+	DD	043140000r			; 148
+	DD	043130000r			; 147
+	DD	043120000r			; 146
+	DD	043110000r			; 145
+	DD	043100000r			; 144
+	DD	0430f0000r			; 143
+	DD	0430e0000r			; 142
+	DD	0430d0000r			; 141
+	DD	0430c0000r			; 140
+	DD	0430b0000r			; 139
+	DD	0430a0000r			; 138
+	DD	043090000r			; 137
+	DD	043080000r			; 136
+	DD	043070000r			; 135
+	DD	043060000r			; 134
+	DD	043050000r			; 133
+	DD	043040000r			; 132
+	DD	043030000r			; 131
+	DD	043020000r			; 130
+	DD	043010000r			; 129
+	DD	043000000r			; 128
+	DD	042fe0000r			; 127
+	DD	042fc0000r			; 126
+	DD	042fa0000r			; 125
+	DD	042f80000r			; 124
+	DD	042f60000r			; 123
+	DD	042f40000r			; 122
+	DD	042f20000r			; 121
+	DD	042f00000r			; 120
+	DD	042ee0000r			; 119
+	DD	042ec0000r			; 118
+	DD	042ea0000r			; 117
+	DD	042e80000r			; 116
+	DD	042e60000r			; 115
+	DD	042e40000r			; 114
+	DD	042e20000r			; 113
+	DD	042e00000r			; 112
+	DD	042de0000r			; 111
+	DD	042dc0000r			; 110
+	DD	042da0000r			; 109
+	DD	042d80000r			; 108
+	DD	042d60000r			; 107
+	DD	042d40000r			; 106
+	DD	042d20000r			; 105
+	DD	042d00000r			; 104
+	DD	042ce0000r			; 103
+	DD	042cc0000r			; 102
+	DD	042ca0000r			; 101
+	DD	042c80000r			; 100
+	DD	042c60000r			; 99
+	DD	042c40000r			; 98
+	DD	042c20000r			; 97
+	DD	042c00000r			; 96
+	DD	042be0000r			; 95
+	DD	042bc0000r			; 94
+	DD	042ba0000r			; 93
+	DD	042b80000r			; 92
+	DD	042b60000r			; 91
+	DD	042b40000r			; 90
+	DD	042b20000r			; 89
+	DD	042b00000r			; 88
+	DD	042ae0000r			; 87
+	DD	042ac0000r			; 86
+	DD	042aa0000r			; 85
+	DD	042a80000r			; 84
+	DD	042a60000r			; 83
+	DD	042a40000r			; 82
+	DD	042a20000r			; 81
+	DD	042a00000r			; 80
+	DD	0429e0000r			; 79
+	DD	0429c0000r			; 78
+	DD	0429a0000r			; 77
+	DD	042980000r			; 76
+	DD	042960000r			; 75
+	DD	042940000r			; 74
+	DD	042920000r			; 73
+	DD	042900000r			; 72
+	DD	0428e0000r			; 71
+	DD	0428c0000r			; 70
+	DD	0428a0000r			; 69
+	DD	042880000r			; 68
+	DD	042860000r			; 67
+	DD	042840000r			; 66
+	DD	042820000r			; 65
+	DD	042800000r			; 64
+	DD	0427c0000r			; 63
+	DD	042780000r			; 62
+	DD	042740000r			; 61
+	DD	042700000r			; 60
+	DD	0426c0000r			; 59
+	DD	042680000r			; 58
+	DD	042640000r			; 57
+	DD	042600000r			; 56
+	DD	0425c0000r			; 55
+	DD	042580000r			; 54
+	DD	042540000r			; 53
+	DD	042500000r			; 52
+	DD	0424c0000r			; 51
+	DD	042480000r			; 50
+	DD	042440000r			; 49
+	DD	042400000r			; 48
+	DD	0423c0000r			; 47
+	DD	042380000r			; 46
+	DD	042340000r			; 45
+	DD	042300000r			; 44
+	DD	0422c0000r			; 43
+	DD	042280000r			; 42
+	DD	042240000r			; 41
+	DD	042200000r			; 40
+	DD	0421c0000r			; 39
+	DD	042180000r			; 38
+	DD	042140000r			; 37
+	DD	042100000r			; 36
+	DD	0420c0000r			; 35
+	DD	042080000r			; 34
+	DD	042040000r			; 33
+	DD	042000000r			; 32
+	DD	041f80000r			; 31
+	DD	041f00000r			; 30
+	DD	041e80000r			; 29
+	DD	041e00000r			; 28
+	DD	041d80000r			; 27
+	DD	041d00000r			; 26
+	DD	041c80000r			; 25
+	DD	041c00000r			; 24
+	DD	041b80000r			; 23
+	DD	041b00000r			; 22
+	DD	041a80000r			; 21
+	DD	041a00000r			; 20
+	DD	041980000r			; 19
+	DD	041900000r			; 18
+	DD	041880000r			; 17
+	DD	041800000r			; 16
+	DD	041700000r			; 15
+	DD	041600000r			; 14
+	DD	041500000r			; 13
+	DD	041400000r			; 12
+	DD	041300000r			; 11
+	DD	041200000r			; 10
+	DD	041100000r			; 9
+	DD	041000000r			; 8
+	DD	040e00000r			; 7
+	DD	040c00000r			; 6
+	DD	040a00000r			; 5
+	DD	040800000r			; 4
+	DD	040400000r			; 3
+	DD	040000000r			; 2
+	DD	03f800000r			; 1
+	DD	000000000r			; 0
+_DATA	ENDS
+PUBLIC	_fifo_make_room_asm
+EXTRN	_myAgpEpilog:NEAR
+EXTRN	__asm_data:BYTE
+EXTRN	_myWrapAgp:NEAR
+_TEXT	SEGMENT
+_size$ = 8
+_ppdev$ = -8
+_pRc$ = -4
+_cmdFifo$37077 = -16
+_hwIndex$37081 = -12
+$T37130 = -64
+$T37131 = -68
+_rdPtr$37133 = -40
+_resetIdleCount$37134 = -20
+_i$37135 = -28
+_nNumChips$37136 = -24
+_dwCmdFifoSpace$37137 = -32
+_dwCmdFifoMin$37138 = -36
+_rdPtr$37153 = -56
+_i$37154 = -48
+_nNumChips$37155 = -44
+_rdPtrMin$37156 = -52
+_fenceVar$37172 = -60
+_fifo_make_room_asm PROC NEAR
+
+; 95   : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	83 ec 4c	 sub	 esp, 76			; 0000004cH
+  00006	53		 push	 ebx
+  00007	56		 push	 esi
+  00008	57		 push	 edi
+
+; 96   :    SETUP_PPDEV(_asm_data.pRc)
+
+  00009	a1 3c 00 00 00	 mov	 eax, DWORD PTR __asm_data+60
+  0000e	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  00011	89 4d f8	 mov	 DWORD PTR _ppdev$[ebp], ecx
+
+; 97   :    RC * pRc = _asm_data.pRc;
+
+  00014	8b 15 3c 00 00
+	00		 mov	 edx, DWORD PTR __asm_data+60
+  0001a	89 55 fc	 mov	 DWORD PTR _pRc$[ebp], edx
+
+; 98   : 
+; 99   :    ASM_SYNC();
+
+  0001d	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00020	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00026	8b 15 00 00 00
+	00		 mov	 edx, DWORD PTR __asm_data
+  0002c	89 51 0c	 mov	 DWORD PTR [ecx+12], edx
+  0002f	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00032	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00038	8b 15 04 00 00
+	00		 mov	 edx, DWORD PTR __asm_data+4
+  0003e	89 51 14	 mov	 DWORD PTR [ecx+20], edx
+  00041	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00044	83 b8 f0 17 00
+	00 00		 cmp	 DWORD PTR [eax+6128], 0
+  0004b	74 19		 je	 SHORT $L37071
+  0004d	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00050	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00056	8b 42 0c	 mov	 eax, DWORD PTR [edx+12]
+  00059	50		 push	 eax
+  0005a	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0005d	51		 push	 ecx
+  0005e	e8 00 00 00 00	 call	 _myAgpEpilog
+  00063	83 c4 08	 add	 esp, 8
+$L37071:
+
+; 100  :    CMDFIFOSPACE=0;
+
+  00066	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00069	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  0006f	c7 40 14 00 00
+	00 00		 mov	 DWORD PTR [eax+20], 0
+
+; 103  :       CMDFIFO_PROLOG(cmdFifo);
+
+  00076	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00079	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  0007f	8b 42 0c	 mov	 eax, DWORD PTR [edx+12]
+  00082	89 45 f0	 mov	 DWORD PTR _cmdFifo$37077[ebp], eax
+  00085	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$37081[ebp], 0
+
+; 104  :       fifo_MakeRoom(ppdev, &cmdFifo,size);
+
+  0008c	c7 45 ec 00 00
+	00 00		 mov	 DWORD PTR _resetIdleCount$37134[ebp], 0
+  00093	8b 4d 08	 mov	 ecx, DWORD PTR _size$[ebp]
+  00096	8b 55 f0	 mov	 edx, DWORD PTR _cmdFifo$37077[ebp]
+  00099	8d 04 8a	 lea	 eax, DWORD PTR [edx+ecx*4]
+  0009c	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0009f	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  000a5	3b 42 08	 cmp	 eax, DWORD PTR [edx+8]
+  000a8	0f 86 35 01 00
+	00		 jbe	 $L37139
+  000ae	8b 45 f0	 mov	 eax, DWORD PTR _cmdFifo$37077[ebp]
+  000b1	89 45 c0	 mov	 DWORD PTR $T37130[ebp], eax
+  000b4	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  000b7	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  000ba	81 e2 00 20 00
+	00		 and	 edx, 8192		; 00002000H
+  000c0	85 d2		 test	 edx, edx
+  000c2	74 0e		 je	 SHORT $L37157
+  000c4	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  000c7	8b 88 d0 04 00
+	00		 mov	 ecx, DWORD PTR [eax+1232]
+  000cd	89 4d d4	 mov	 DWORD PTR _nNumChips$37155[ebp], ecx
+  000d0	eb 07		 jmp	 SHORT $L37158
+$L37157:
+  000d2	c7 45 d4 01 00
+	00 00		 mov	 DWORD PTR _nNumChips$37155[ebp], 1
+$L37158:
+  000d9	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  000dc	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  000e2	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  000e5	89 4d cc	 mov	 DWORD PTR _rdPtrMin$37156[ebp], ecx
+  000e8	c7 45 d0 00 00
+	00 00		 mov	 DWORD PTR _i$37154[ebp], 0
+  000ef	eb 09		 jmp	 SHORT $L37159
+$L37160:
+  000f1	8b 55 d0	 mov	 edx, DWORD PTR _i$37154[ebp]
+  000f4	83 c2 01	 add	 edx, 1
+  000f7	89 55 d0	 mov	 DWORD PTR _i$37154[ebp], edx
+$L37159:
+  000fa	8b 45 d0	 mov	 eax, DWORD PTR _i$37154[ebp]
+  000fd	3b 45 d4	 cmp	 eax, DWORD PTR _nNumChips$37155[ebp]
+  00100	7d 59		 jge	 SHORT $L37161
+$L37162:
+  00102	8b 4d d0	 mov	 ecx, DWORD PTR _i$37154[ebp]
+  00105	c1 e1 02	 shl	 ecx, 2
+  00108	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0010b	8b 84 8a 40 17
+	00 00		 mov	 eax, DWORD PTR [edx+ecx*4+5952]
+  00112	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00115	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  0011b	8b 40 2c	 mov	 eax, DWORD PTR [eax+44]
+  0011e	03 42 10	 add	 eax, DWORD PTR [edx+16]
+  00121	89 45 c8	 mov	 DWORD PTR _rdPtr$37153[ebp], eax
+  00124	8b 4d c8	 mov	 ecx, DWORD PTR _rdPtr$37153[ebp]
+  00127	3b 4d c0	 cmp	 ecx, DWORD PTR $T37130[ebp]
+  0012a	77 d6		 ja	 SHORT $L37162
+  0012c	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0012f	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00135	8b 4d c8	 mov	 ecx, DWORD PTR _rdPtr$37153[ebp]
+  00138	3b 48 04	 cmp	 ecx, DWORD PTR [eax+4]
+  0013b	74 c5		 je	 SHORT $L37162
+  0013d	8b 55 cc	 mov	 edx, DWORD PTR _rdPtrMin$37156[ebp]
+  00140	3b 55 c8	 cmp	 edx, DWORD PTR _rdPtr$37153[ebp]
+  00143	73 08		 jae	 SHORT $L37168
+  00145	8b 45 cc	 mov	 eax, DWORD PTR _rdPtrMin$37156[ebp]
+  00148	89 45 b8	 mov	 DWORD PTR -72+[ebp], eax
+  0014b	eb 06		 jmp	 SHORT $L37169
+$L37168:
+  0014d	8b 4d c8	 mov	 ecx, DWORD PTR _rdPtr$37153[ebp]
+  00150	89 4d b8	 mov	 DWORD PTR -72+[ebp], ecx
+$L37169:
+  00153	8b 55 b8	 mov	 edx, DWORD PTR -72+[ebp]
+  00156	89 55 cc	 mov	 DWORD PTR _rdPtrMin$37156[ebp], edx
+  00159	eb 96		 jmp	 SHORT $L37160
+$L37161:
+  0015b	8b 45 cc	 mov	 eax, DWORD PTR _rdPtrMin$37156[ebp]
+  0015e	89 45 c8	 mov	 DWORD PTR _rdPtr$37153[ebp], eax
+  00161	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00164	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  0016a	8b 45 c0	 mov	 eax, DWORD PTR $T37130[ebp]
+  0016d	8b 4a 18	 mov	 ecx, DWORD PTR [edx+24]
+  00170	89 08		 mov	 DWORD PTR [eax], ecx
+  00172	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00175	83 ba f0 17 00
+	00 00		 cmp	 DWORD PTR [edx+6128], 0
+  0017c	74 12		 je	 SHORT $L37165
+  0017e	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00181	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00187	8b 55 c0	 mov	 edx, DWORD PTR $T37130[ebp]
+  0018a	8b 41 1c	 mov	 eax, DWORD PTR [ecx+28]
+  0018d	89 42 04	 mov	 DWORD PTR [edx+4], eax
+$L37165:
+; File ..\..\inc\fifomgr.h
+
+; 620  :     FxU32 resetIdleCount = 0;
+
+  00190	66 87 45 c4	 xchg	 ax, WORD PTR _fenceVar$37172[ebp]
+; File ..\afifo.c
+
+; 104  :       fifo_MakeRoom(ppdev, &cmdFifo,size);
+
+  00194	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00197	83 b9 f0 17 00
+	00 00		 cmp	 DWORD PTR [ecx+6128], 0
+  0019e	74 10		 je	 SHORT $L37166
+  001a0	8b 55 c0	 mov	 edx, DWORD PTR $T37130[ebp]
+  001a3	52		 push	 edx
+  001a4	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  001a7	50		 push	 eax
+  001a8	e8 00 00 00 00	 call	 _myWrapAgp
+  001ad	83 c4 08	 add	 esp, 8
+$L37166:
+  001b0	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  001b3	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  001b9	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  001bc	89 45 c0	 mov	 DWORD PTR $T37130[ebp], eax
+  001bf	8b 4d c8	 mov	 ecx, DWORD PTR _rdPtr$37153[ebp]
+  001c2	2b 4d c0	 sub	 ecx, DWORD PTR $T37130[ebp]
+  001c5	c1 f9 02	 sar	 ecx, 2
+  001c8	83 e9 01	 sub	 ecx, 1
+  001cb	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  001ce	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  001d4	89 48 14	 mov	 DWORD PTR [eax+20], ecx
+  001d7	8b 4d c0	 mov	 ecx, DWORD PTR $T37130[ebp]
+  001da	89 4d bc	 mov	 DWORD PTR $T37131[ebp], ecx
+  001dd	8b 55 bc	 mov	 edx, DWORD PTR $T37131[ebp]
+  001e0	89 55 f0	 mov	 DWORD PTR _cmdFifo$37077[ebp], edx
+$L37139:
+  001e3	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  001e6	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  001e9	81 e1 00 20 00
+	00		 and	 ecx, 8192		; 00002000H
+  001ef	85 c9		 test	 ecx, ecx
+  001f1	74 0e		 je	 SHORT $L37140
+  001f3	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  001f6	8b 82 d0 04 00
+	00		 mov	 eax, DWORD PTR [edx+1232]
+  001fc	89 45 e8	 mov	 DWORD PTR _nNumChips$37136[ebp], eax
+  001ff	eb 07		 jmp	 SHORT $L37141
+$L37140:
+  00201	c7 45 e8 01 00
+	00 00		 mov	 DWORD PTR _nNumChips$37136[ebp], 1
+$L37141:
+  00208	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0020b	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  00211	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00214	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  0021a	8b 52 08	 mov	 edx, DWORD PTR [edx+8]
+  0021d	2b 51 04	 sub	 edx, DWORD PTR [ecx+4]
+  00220	83 c2 01	 add	 edx, 1
+  00223	89 55 dc	 mov	 DWORD PTR _dwCmdFifoMin$37138[ebp], edx
+  00226	c7 45 e4 00 00
+	00 00		 mov	 DWORD PTR _i$37135[ebp], 0
+  0022d	eb 09		 jmp	 SHORT $L37142
+$L37143:
+  0022f	8b 45 e4	 mov	 eax, DWORD PTR _i$37135[ebp]
+  00232	83 c0 01	 add	 eax, 1
+  00235	89 45 e4	 mov	 DWORD PTR _i$37135[ebp], eax
+$L37142:
+  00238	8b 4d e4	 mov	 ecx, DWORD PTR _i$37135[ebp]
+  0023b	3b 4d e8	 cmp	 ecx, DWORD PTR _nNumChips$37136[ebp]
+  0023e	0f 8d 8a 00 00
+	00		 jge	 $L37144
+  00244	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00247	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  0024d	8b 48 14	 mov	 ecx, DWORD PTR [eax+20]
+  00250	89 4d e0	 mov	 DWORD PTR _dwCmdFifoSpace$37137[ebp], ecx
+$L37145:
+  00253	8b 55 e0	 mov	 edx, DWORD PTR _dwCmdFifoSpace$37137[ebp]
+  00256	3b 55 08	 cmp	 edx, DWORD PTR _size$[ebp]
+  00259	73 52		 jae	 SHORT $L37146
+  0025b	8b 45 e4	 mov	 eax, DWORD PTR _i$37135[ebp]
+  0025e	c1 e0 02	 shl	 eax, 2
+  00261	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00264	8b 94 81 40 17
+	00 00		 mov	 edx, DWORD PTR [ecx+eax*4+5952]
+  0026b	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0026e	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00274	8b 52 2c	 mov	 edx, DWORD PTR [edx+44]
+  00277	03 51 10	 add	 edx, DWORD PTR [ecx+16]
+  0027a	89 55 d8	 mov	 DWORD PTR _rdPtr$37133[ebp], edx
+  0027d	8b 45 d8	 mov	 eax, DWORD PTR _rdPtr$37133[ebp]
+  00280	3b 45 f0	 cmp	 eax, DWORD PTR _cmdFifo$37077[ebp]
+  00283	77 17		 ja	 SHORT $L37147
+  00285	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00288	8b 91 a0 05 00
+	00		 mov	 edx, DWORD PTR [ecx+1440]
+  0028e	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  00291	2b 45 f0	 sub	 eax, DWORD PTR _cmdFifo$37077[ebp]
+  00294	c1 f8 02	 sar	 eax, 2
+  00297	89 45 e0	 mov	 DWORD PTR _dwCmdFifoSpace$37137[ebp], eax
+  0029a	eb 0f		 jmp	 SHORT $L37148
+$L37147:
+  0029c	8b 4d d8	 mov	 ecx, DWORD PTR _rdPtr$37133[ebp]
+  0029f	2b 4d f0	 sub	 ecx, DWORD PTR _cmdFifo$37077[ebp]
+  002a2	c1 f9 02	 sar	 ecx, 2
+  002a5	83 e9 01	 sub	 ecx, 1
+  002a8	89 4d e0	 mov	 DWORD PTR _dwCmdFifoSpace$37137[ebp], ecx
+$L37148:
+  002ab	eb a6		 jmp	 SHORT $L37145
+$L37146:
+  002ad	8b 55 dc	 mov	 edx, DWORD PTR _dwCmdFifoMin$37138[ebp]
+  002b0	3b 55 e0	 cmp	 edx, DWORD PTR _dwCmdFifoSpace$37137[ebp]
+  002b3	73 08		 jae	 SHORT $L37150
+  002b5	8b 45 dc	 mov	 eax, DWORD PTR _dwCmdFifoMin$37138[ebp]
+  002b8	89 45 b4	 mov	 DWORD PTR -76+[ebp], eax
+  002bb	eb 06		 jmp	 SHORT $L37151
+$L37150:
+  002bd	8b 4d e0	 mov	 ecx, DWORD PTR _dwCmdFifoSpace$37137[ebp]
+  002c0	89 4d b4	 mov	 DWORD PTR -76+[ebp], ecx
+$L37151:
+  002c3	8b 55 b4	 mov	 edx, DWORD PTR -76+[ebp]
+  002c6	89 55 dc	 mov	 DWORD PTR _dwCmdFifoMin$37138[ebp], edx
+  002c9	e9 61 ff ff ff	 jmp	 $L37143
+$L37144:
+  002ce	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  002d1	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  002d7	8b 55 dc	 mov	 edx, DWORD PTR _dwCmdFifoMin$37138[ebp]
+  002da	89 51 14	 mov	 DWORD PTR [ecx+20], edx
+
+; 105  :       CMDFIFO_EPILOG(cmdFifo);
+
+  002dd	8b 45 f4	 mov	 eax, DWORD PTR _hwIndex$37081[ebp]
+  002e0	8b 4d f0	 mov	 ecx, DWORD PTR _cmdFifo$37077[ebp]
+  002e3	8d 14 81	 lea	 edx, DWORD PTR [ecx+eax*4]
+  002e6	89 55 f0	 mov	 DWORD PTR _cmdFifo$37077[ebp], edx
+  002e9	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  002ec	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  002f2	8b 55 f0	 mov	 edx, DWORD PTR _cmdFifo$37077[ebp]
+  002f5	89 51 0c	 mov	 DWORD PTR [ecx+12], edx
+  002f8	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  002fb	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00301	8b 51 14	 mov	 edx, DWORD PTR [ecx+20]
+  00304	2b 55 f4	 sub	 edx, DWORD PTR _hwIndex$37081[ebp]
+  00307	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  0030a	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  00310	89 51 14	 mov	 DWORD PTR [ecx+20], edx
+  00313	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00316	83 ba f0 17 00
+	00 00		 cmp	 DWORD PTR [edx+6128], 0
+  0031d	74 10		 je	 SHORT $L37087
+  0031f	8b 45 f0	 mov	 eax, DWORD PTR _cmdFifo$37077[ebp]
+  00322	50		 push	 eax
+  00323	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00326	51		 push	 ecx
+  00327	e8 00 00 00 00	 call	 _myAgpEpilog
+  0032c	83 c4 08	 add	 esp, 8
+$L37087:
+  0032f	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _hwIndex$37081[ebp], 0
+
+; 107  : #endif // #ifdef CMDFIFO
+; 108  : 
+; 109  :    ASM_SET();
+
+  00336	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00339	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  0033f	8b 48 0c	 mov	 ecx, DWORD PTR [eax+12]
+  00342	89 0d 00 00 00
+	00		 mov	 DWORD PTR __asm_data, ecx
+  00348	8b 55 fc	 mov	 edx, DWORD PTR _pRc$[ebp]
+  0034b	89 15 3c 00 00
+	00		 mov	 DWORD PTR __asm_data+60, edx
+  00351	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00354	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  0035a	8b 51 14	 mov	 edx, DWORD PTR [ecx+20]
+  0035d	89 15 04 00 00
+	00		 mov	 DWORD PTR __asm_data+4, edx
+
+; 110  : }
+
+  00363	5f		 pop	 edi
+  00364	5e		 pop	 esi
+  00365	5b		 pop	 ebx
+  00366	8b e5		 mov	 esp, ebp
+  00368	5d		 pop	 ebp
+  00369	c3		 ret	 0
+_fifo_make_room_asm ENDP
+_TEXT	ENDS
+END

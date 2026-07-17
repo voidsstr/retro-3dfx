@@ -1,0 +1,855 @@
+	TITLE	..\nvram.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+_PTEXT	SEGMENT PARA USE32 PUBLIC 'PCODE'
+_PTEXT	ENDS
+_LTEXT	SEGMENT PARA USE32 PUBLIC 'LCODE'
+_LTEXT	ENDS
+_PDATA	SEGMENT DWORD USE32 PUBLIC 'PDATA'
+_PDATA	ENDS
+_LDATA	SEGMENT DWORD USE32 PUBLIC 'LCODE'
+_LDATA	ENDS
+FLAT	GROUP _DATA, CONST, _BSS, _PDATA, _LDATA
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+PUBLIC	_nvramWriteByte
+EXTRN	_i2c_stop:NEAR
+EXTRN	_i2c_start:NEAR
+EXTRN	_i2c_sendbyte:NEAR
+_PTEXT	SEGMENT
+_pContext$ = 8
+_key$ = 12
+_addr$ = 16
+_value$ = 20
+_retries$ = -4
+_nvramWriteByte PROC NEAR
+
+; 90   : {
+
+  00000	51		 push	 ecx
+  00001	53		 push	 ebx
+
+; 91   :   int retries = 10;
+; 92   :   int status = 0;
+
+  00002	8b 5c 24 0c	 mov	 ebx, DWORD PTR _pContext$[esp+4]
+  00006	55		 push	 ebp
+  00007	8b 6c 24 18	 mov	 ebp, DWORD PTR _addr$[esp+8]
+  0000b	56		 push	 esi
+  0000c	57		 push	 edi
+  0000d	8b 7c 24 1c	 mov	 edi, DWORD PTR _key$[esp+16]
+  00011	c7 44 24 10 0a
+	00 00 00	 mov	 DWORD PTR _retries$[esp+20], 10 ; 0000000aH
+  00019	33 f6		 xor	 esi, esi
+$L11050:
+
+; 93   : 	
+; 94   :   while ((status != 1) && --retries)
+
+  0001b	8b 44 24 10	 mov	 eax, DWORD PTR _retries$[esp+20]
+  0001f	48		 dec	 eax
+  00020	89 44 24 10	 mov	 DWORD PTR _retries$[esp+20], eax
+  00024	74 43		 je	 SHORT $L11051
+
+; 95   :   {
+; 96   :     status = 1;
+; 97   :     status &= i2c_start(pContext, key);
+
+  00026	57		 push	 edi
+  00027	53		 push	 ebx
+  00028	e8 00 00 00 00	 call	 _i2c_start
+
+; 98   :     status &= i2c_sendbyte(pContext, key, NV_WRITEADDRESS);
+
+  0002d	68 a0 00 00 00	 push	 160			; 000000a0H
+  00032	8b f0		 mov	 esi, eax
+  00034	57		 push	 edi
+  00035	53		 push	 ebx
+  00036	83 e6 01	 and	 esi, 1
+  00039	e8 00 00 00 00	 call	 _i2c_sendbyte
+
+; 99   :     status &= i2c_sendbyte(pContext, key, addr);
+
+  0003e	55		 push	 ebp
+  0003f	57		 push	 edi
+  00040	53		 push	 ebx
+  00041	23 f0		 and	 esi, eax
+  00043	e8 00 00 00 00	 call	 _i2c_sendbyte
+  00048	23 f0		 and	 esi, eax
+
+; 100  :  
+; 101  :     status &= i2c_sendbyte(pContext, key, value);
+
+  0004a	8b 44 24 44	 mov	 eax, DWORD PTR _value$[esp+48]
+  0004e	50		 push	 eax
+  0004f	57		 push	 edi
+  00050	53		 push	 ebx
+  00051	e8 00 00 00 00	 call	 _i2c_sendbyte
+
+; 102  :     status &= i2c_stop(pContext, key);
+
+  00056	57		 push	 edi
+  00057	53		 push	 ebx
+  00058	23 f0		 and	 esi, eax
+  0005a	e8 00 00 00 00	 call	 _i2c_stop
+  0005f	23 f0		 and	 esi, eax
+  00061	83 c4 34	 add	 esp, 52			; 00000034H
+  00064	83 fe 01	 cmp	 esi, 1
+  00067	75 b2		 jne	 SHORT $L11050
+$L11051:
+
+; 103  :   }
+; 104  : 
+; 105  :   return (retries <= 0 ? 0 : status);
+
+  00069	8b 7c 24 10	 mov	 edi, DWORD PTR _retries$[esp+20]
+  0006d	33 c0		 xor	 eax, eax
+  0006f	85 ff		 test	 edi, edi
+  00071	0f 9e c0	 setle	 al
+  00074	48		 dec	 eax
+  00075	5f		 pop	 edi
+  00076	23 c6		 and	 eax, esi
+  00078	5e		 pop	 esi
+  00079	5d		 pop	 ebp
+  0007a	5b		 pop	 ebx
+
+; 106  : }
+
+  0007b	59		 pop	 ecx
+  0007c	c3		 ret	 0
+_nvramWriteByte ENDP
+_PTEXT	ENDS
+PUBLIC	_internalNvramWrite
+_PTEXT	SEGMENT
+_pContext$ = 8
+_key$ = 12
+_offset$ = 16
+_numBytes$ = 20
+_values$ = 24
+_forceWrite$ = 28
+_internalNvramWrite PROC NEAR
+
+; 205  :   int i, status=1;
+; 206  :   FxBool nvramChanged = FALSE;
+; 207  : 
+; 208  :   if (0 == numBytes)
+
+  00080	8b 4c 24 10	 mov	 ecx, DWORD PTR _numBytes$[esp-4]
+  00084	33 c0		 xor	 eax, eax
+  00086	55		 push	 ebp
+  00087	bd 01 00 00 00	 mov	 ebp, 1
+  0008c	85 c9		 test	 ecx, ecx
+  0008e	75 04		 jne	 SHORT $L11107
+
+; 209  :     return (1);
+
+  00090	8b c5		 mov	 eax, ebp
+  00092	5d		 pop	 ebp
+
+; 225  : }
+
+  00093	c3		 ret	 0
+$L11107:
+  00094	53		 push	 ebx
+
+; 210  : 
+; 211  :   for (i=0; i<(int)numBytes; i++)
+
+  00095	33 db		 xor	 ebx, ebx
+  00097	85 c9		 test	 ecx, ecx
+  00099	56		 push	 esi
+  0009a	7e 7f		 jle	 SHORT $L11117
+  0009c	8b 74 24 10	 mov	 esi, DWORD PTR _pContext$[esp+8]
+  000a0	57		 push	 edi
+  000a1	8b 7c 24 24	 mov	 edi, DWORD PTR _values$[esp+12]
+$L11109:
+
+; 212  :   {
+; 213  :     if (forceWrite || NVRAM_DEVINFOPTR(pContext)->nvramCache[i+offset] != values[i])
+
+  000a5	8b 54 24 28	 mov	 edx, DWORD PTR _forceWrite$[esp+12]
+  000a9	85 d2		 test	 edx, edx
+  000ab	75 18		 jne	 SHORT $L11114
+  000ad	8b 54 24 1c	 mov	 edx, DWORD PTR _offset$[esp+12]
+  000b1	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  000b7	03 d3		 add	 edx, ebx
+  000b9	8a 94 32 98 03
+	00 00		 mov	 dl, BYTE PTR [edx+esi+920]
+  000c0	3a 14 3b	 cmp	 dl, BYTE PTR [ebx+edi]
+  000c3	74 3c		 je	 SHORT $L11110
+$L11114:
+
+; 214  :     {
+; 215  :       status &= nvramWriteByte(pContext, key, (FxU8)(i+offset), values[i]);
+
+  000c5	8a 04 3b	 mov	 al, BYTE PTR [ebx+edi]
+  000c8	8a 54 24 1c	 mov	 dl, BYTE PTR _offset$[esp+12]
+  000cc	8b 4c 24 18	 mov	 ecx, DWORD PTR _key$[esp+12]
+  000d0	50		 push	 eax
+  000d1	8a c3		 mov	 al, bl
+  000d3	02 c2		 add	 al, dl
+  000d5	50		 push	 eax
+  000d6	51		 push	 ecx
+  000d7	56		 push	 esi
+  000d8	e8 00 00 00 00	 call	 _nvramWriteByte
+
+; 216  :       NVRAM_DEVINFOPTR(pContext)->nvramCache[i+offset] = values[i];
+
+  000dd	8b 54 24 2c	 mov	 edx, DWORD PTR _offset$[esp+28]
+
+; 217  :       nvramChanged = TRUE;
+
+  000e1	8b 4c 24 30	 mov	 ecx, DWORD PTR _numBytes$[esp+28]
+  000e5	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  000eb	83 c4 10	 add	 esp, 16			; 00000010H
+  000ee	23 e8		 and	 ebp, eax
+  000f0	8a 04 3b	 mov	 al, BYTE PTR [ebx+edi]
+  000f3	03 d3		 add	 edx, ebx
+  000f5	88 84 32 98 03
+	00 00		 mov	 BYTE PTR [edx+esi+920], al
+  000fc	b8 01 00 00 00	 mov	 eax, 1
+$L11110:
+  00101	43		 inc	 ebx
+  00102	3b d9		 cmp	 ebx, ecx
+  00104	7c 9f		 jl	 SHORT $L11109
+
+; 218  :     }
+; 219  :   }
+; 220  : 
+; 221  :   if (nvramChanged)
+
+  00106	85 c0		 test	 eax, eax
+  00108	5f		 pop	 edi
+  00109	74 10		 je	 SHORT $L11117
+
+; 222  :       status &= nvramUpdateChecksum(pContext, key);
+
+  0010b	8b 44 24 14	 mov	 eax, DWORD PTR _key$[esp+8]
+  0010f	50		 push	 eax
+  00110	56		 push	 esi
+  00111	e8 00 00 00 00	 call	 _nvramUpdateChecksum
+  00116	83 c4 08	 add	 esp, 8
+  00119	23 e8		 and	 ebp, eax
+$L11117:
+  0011b	5e		 pop	 esi
+
+; 223  : 
+; 224  :   return status;
+
+  0011c	8b c5		 mov	 eax, ebp
+  0011e	5b		 pop	 ebx
+  0011f	5d		 pop	 ebp
+
+; 225  : }
+
+  00120	c3		 ret	 0
+_internalNvramWrite ENDP
+_pContext$ = 8
+_key$ = 12
+_nvramUpdateChecksum PROC NEAR
+
+; 175  : {
+
+  00130	56		 push	 esi
+
+; 176  :   int i, sum, status;
+; 177  : 
+; 178  :   for (i=0,sum=0; i<127; i++)
+
+  00131	8b 74 24 08	 mov	 esi, DWORD PTR _pContext$[esp]
+  00135	33 c0		 xor	 eax, eax
+  00137	33 c9		 xor	 ecx, ecx
+$L11083:
+
+; 179  :     sum -= NVRAM_DEVINFOPTR(pContext)->nvramCache[i];
+
+  00139	33 d2		 xor	 edx, edx
+  0013b	8a 94 06 98 03
+	00 00		 mov	 dl, BYTE PTR [esi+eax+920]
+  00142	2b ca		 sub	 ecx, edx
+  00144	40		 inc	 eax
+  00145	83 f8 7f	 cmp	 eax, 127		; 0000007fH
+  00148	7c ef		 jl	 SHORT $L11083
+
+; 180  : 
+; 181  :   NVRAM_DEVINFOPTR(pContext)->nvramCache[127] = (FxU8)(sum & 0x000000FF);
+; 182  : 
+; 183  :   status = nvramWriteByte(pContext, key, 127, NVRAM_DEVINFOPTR(pContext)->nvramCache[127]);
+
+  0014a	8b 44 24 0c	 mov	 eax, DWORD PTR _key$[esp]
+  0014e	51		 push	 ecx
+  0014f	6a 7f		 push	 127			; 0000007fH
+  00151	50		 push	 eax
+  00152	56		 push	 esi
+  00153	88 8e 17 04 00
+	00		 mov	 BYTE PTR [esi+1047], cl
+  00159	e8 00 00 00 00	 call	 _nvramWriteByte
+  0015e	83 c4 10	 add	 esp, 16			; 00000010H
+  00161	5e		 pop	 esi
+
+; 184  : 
+; 185  :   return status;
+; 186  : }
+
+  00162	c3		 ret	 0
+_nvramUpdateChecksum ENDP
+_PTEXT	ENDS
+PUBLIC	_nvramRead
+_PTEXT	SEGMENT
+_pContext$ = 8
+_offset$ = 12
+_nvramRead PROC NEAR
+
+; 303  : {
+
+  00170	56		 push	 esi
+
+; 304  :   if (0 == NVRAM_DEVINFOPTR(pContext)->nvramCacheInit)
+
+  00171	8b 74 24 08	 mov	 esi, DWORD PTR _pContext$[esp]
+  00175	8b 86 94 03 00
+	00		 mov	 eax, DWORD PTR [esi+916]
+  0017b	85 c0		 test	 eax, eax
+  0017d	75 0b		 jne	 SHORT $L11159
+
+; 305  :     nvramInitCache(pContext, I2C_NOTAKEY);
+
+  0017f	6a 00		 push	 0
+  00181	56		 push	 esi
+  00182	e8 00 00 00 00	 call	 _nvramInitCache
+  00187	83 c4 08	 add	 esp, 8
+$L11159:
+
+; 306  : 
+; 307  :   return (FxU8)NVRAM_DEVINFOPTR(pContext)->nvramCache[offset];
+
+  0018a	8b 44 24 0c	 mov	 eax, DWORD PTR _offset$[esp]
+  0018e	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00193	8a 84 30 98 03
+	00 00		 mov	 al, BYTE PTR [eax+esi+920]
+  0019a	5e		 pop	 esi
+
+; 308  : }
+
+  0019b	c3		 ret	 0
+_nvramRead ENDP
+_PTEXT	ENDS
+EXTRN	_i2c_getaccess:NEAR
+EXTRN	_i2c_endaccess:NEAR
+_PTEXT	SEGMENT
+_pContext$ = 8
+_i2ckey$ = 12
+_status$ = 12
+_nvramInitCache PROC NEAR
+
+; 242  : {
+
+  001a0	56		 push	 esi
+
+; 243  :   int sum;
+; 244  :   I2CKEY key;
+; 245  :   int i, status;
+; 246  : 
+; 247  :   if (NVRAM_DEVINFOPTR(pContext)->nvramCacheInit)
+
+  001a1	8b 74 24 08	 mov	 esi, DWORD PTR _pContext$[esp]
+  001a5	8b 86 94 03 00
+	00		 mov	 eax, DWORD PTR [esi+916]
+  001ab	85 c0		 test	 eax, eax
+  001ad	74 07		 je	 SHORT $L11129
+
+; 248  :     return 1;
+
+  001af	b8 01 00 00 00	 mov	 eax, 1
+  001b4	5e		 pop	 esi
+
+; 284  : }
+
+  001b5	c3		 ret	 0
+$L11129:
+  001b6	55		 push	 ebp
+
+; 249  : 
+; 250  :   if (i2ckey == I2C_NOTAKEY)
+
+  001b7	8b 6c 24 10	 mov	 ebp, DWORD PTR _i2ckey$[esp+4]
+  001bb	85 ed		 test	 ebp, ebp
+  001bd	75 0f		 jne	 SHORT $L11131
+
+; 251  :     key = i2c_getaccess(pContext, I2C_SERIALEEPROM, NV_ACCESSRATE);
+
+  001bf	6a 0a		 push	 10			; 0000000aH
+  001c1	6a 05		 push	 5
+  001c3	56		 push	 esi
+  001c4	e8 00 00 00 00	 call	 _i2c_getaccess
+  001c9	83 c4 0c	 add	 esp, 12			; 0000000cH
+  001cc	8b e8		 mov	 ebp, eax
+$L11131:
+
+; 252  :   else
+; 253  :     key = i2ckey;
+; 254  : 
+; 255  :   //If we still don't have a key, something is wrong.  But bailing out
+; 256  :   //isn't a nice option, so pretend the checksum failed.
+; 257  :   sum = (key == I2C_NOTAKEY) ? 1 : nvramRead128(pContext, key, NVRAM_DEVINFOPTR(pContext)->nvramCache);
+
+  001ce	85 ed		 test	 ebp, ebp
+  001d0	57		 push	 edi
+  001d1	74 15		 je	 SHORT $L11200
+  001d3	8d 86 98 03 00
+	00		 lea	 eax, DWORD PTR [esi+920]
+  001d9	50		 push	 eax
+  001da	55		 push	 ebp
+  001db	56		 push	 esi
+  001dc	e8 00 00 00 00	 call	 _nvramRead128
+  001e1	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 258  : 
+; 259  :   if (sum)  //oops-- nvram contents are hosed (or we couldn't get a key)
+
+  001e4	85 c0		 test	 eax, eax
+  001e6	74 5a		 je	 SHORT $L11201
+$L11200:
+
+; 260  :   {
+; 261  :     for (i=0; i<127; i++)   //everything but the last byte
+
+  001e8	33 c9		 xor	 ecx, ecx
+  001ea	b2 ff		 mov	 dl, 255			; 000000ffH
+$L11134:
+
+; 262  :     {
+; 263  :       switch (i)  //init to defaults
+; 264  :       {
+
+  001ec	8b c1		 mov	 eax, ecx
+  001ee	83 e8 00	 sub	 eax, 0
+  001f1	74 23		 je	 SHORT $L11141
+  001f3	48		 dec	 eax
+  001f4	74 17		 je	 SHORT $L11143
+  001f6	83 e8 7d	 sub	 eax, 125		; 0000007dH
+  001f9	74 09		 je	 SHORT $L11145
+
+; 268  :         default:    NVRAM_DEVINFOPTR(pContext)->nvramCache[i] = 0xFF;                   break;
+
+  001fb	88 94 31 98 03
+	00 00		 mov	 BYTE PTR [ecx+esi+920], dl
+  00202	eb 19		 jmp	 SHORT $L11135
+$L11145:
+
+; 267  :         case 0x7E:  NVRAM_DEVINFOPTR(pContext)->nvramCache[i] = BIOS_NVx7E_VERSIONCODE; break;
+
+  00204	c6 86 16 04 00
+	00 05		 mov	 BYTE PTR [esi+1046], 5
+  0020b	eb 10		 jmp	 SHORT $L11135
+$L11143:
+
+; 266  :         case 0x01:  NVRAM_DEVINFOPTR(pContext)->nvramCache[i] = BIOS_NVx01_AUTODETECT;  break;
+
+  0020d	c6 86 99 03 00
+	00 00		 mov	 BYTE PTR [esi+921], 0
+  00214	eb 07		 jmp	 SHORT $L11135
+$L11141:
+
+; 265  :         case 0x00:  NVRAM_DEVINFOPTR(pContext)->nvramCache[i] = BIOS_NVx00_NTSC;        break;
+
+  00216	c6 86 98 03 00
+	00 01		 mov	 BYTE PTR [esi+920], 1
+$L11135:
+
+; 260  :   {
+; 261  :     for (i=0; i<127; i++)   //everything but the last byte
+
+  0021d	41		 inc	 ecx
+  0021e	83 f9 7f	 cmp	 ecx, 127		; 0000007fH
+  00221	7c c9		 jl	 SHORT $L11134
+
+; 269  :       }
+; 270  :     }
+; 271  :     
+; 272  :     if (key != I2C_NOTAKEY)
+
+  00223	85 ed		 test	 ebp, ebp
+  00225	74 1b		 je	 SHORT $L11201
+
+; 273  :     {
+; 274  :       //since the nvram data seems to be bad, re-initialize it
+; 275  :       status = internalNvramWrite(pContext, key, 0, 127, &(NVRAM_DEVINFOPTR(pContext)->nvramCache[0]), TRUE);
+
+  00227	8d 8e 98 03 00
+	00		 lea	 ecx, DWORD PTR [esi+920]
+  0022d	6a 01		 push	 1
+  0022f	51		 push	 ecx
+  00230	6a 7f		 push	 127			; 0000007fH
+  00232	6a 00		 push	 0
+  00234	55		 push	 ebp
+  00235	56		 push	 esi
+  00236	e8 00 00 00 00	 call	 _internalNvramWrite
+  0023b	83 c4 18	 add	 esp, 24			; 00000018H
+  0023e	8b f8		 mov	 edi, eax
+  00240	eb 04		 jmp	 SHORT $L11149
+$L11201:
+  00242	8b 7c 24 14	 mov	 edi, DWORD PTR _status$[esp+8]
+$L11149:
+
+; 276  :     }
+; 277  :   }
+; 278  : 
+; 279  :   if (i2ckey == I2C_NOTAKEY)    //if we locked the bus here, unlock it here.
+
+  00246	8b 44 24 14	 mov	 eax, DWORD PTR _i2ckey$[esp+8]
+  0024a	85 c0		 test	 eax, eax
+  0024c	75 0a		 jne	 SHORT $L11151
+
+; 280  :     i2c_endaccess(pContext, key);
+
+  0024e	55		 push	 ebp
+  0024f	56		 push	 esi
+  00250	e8 00 00 00 00	 call	 _i2c_endaccess
+  00255	83 c4 08	 add	 esp, 8
+$L11151:
+
+; 281  : 
+; 282  :   NVRAM_DEVINFOPTR(pContext)->nvramCacheInit = 1;
+
+  00258	b8 01 00 00 00	 mov	 eax, 1
+
+; 283  :   return (status && key);
+
+  0025d	85 ff		 test	 edi, edi
+  0025f	89 86 94 03 00
+	00		 mov	 DWORD PTR [esi+916], eax
+  00265	5f		 pop	 edi
+  00266	74 04		 je	 SHORT $L11196
+  00268	85 ed		 test	 ebp, ebp
+  0026a	75 02		 jne	 SHORT $L11197
+$L11196:
+  0026c	33 c0		 xor	 eax, eax
+$L11197:
+  0026e	5d		 pop	 ebp
+  0026f	5e		 pop	 esi
+
+; 284  : }
+
+  00270	c3		 ret	 0
+_nvramInitCache ENDP
+_PTEXT	ENDS
+EXTRN	_i2c_readbyte:NEAR
+_PTEXT	SEGMENT
+_pContext$ = 8
+_i2ckey$ = 12
+_buffer128$ = 16
+_sum$ = -4
+_nvramRead128 PROC NEAR
+
+; 123  : {
+
+  00280	51		 push	 ecx
+  00281	53		 push	 ebx
+
+; 124  :   FxU32 sum;
+; 125  :   I2CKEY key;
+; 126  :   FxU32 i, status;
+; 127  : 
+; 128  :   if (i2ckey == I2C_NOTAKEY)
+
+  00282	8b 5c 24 10	 mov	 ebx, DWORD PTR _i2ckey$[esp+4]
+  00286	55		 push	 ebp
+  00287	57		 push	 edi
+  00288	33 ff		 xor	 edi, edi
+  0028a	3b df		 cmp	 ebx, edi
+  0028c	75 15		 jne	 SHORT $L11065
+
+; 129  :     key = i2c_getaccess(pContext, I2C_SERIALEEPROM, NV_ACCESSRATE);
+
+  0028e	8b 6c 24 14	 mov	 ebp, DWORD PTR _pContext$[esp+12]
+  00292	6a 0a		 push	 10			; 0000000aH
+  00294	6a 05		 push	 5
+  00296	55		 push	 ebp
+  00297	e8 00 00 00 00	 call	 _i2c_getaccess
+  0029c	83 c4 0c	 add	 esp, 12			; 0000000cH
+  0029f	8b d8		 mov	 ebx, eax
+
+; 130  :   else
+
+  002a1	eb 04		 jmp	 SHORT $L11066
+$L11065:
+
+; 131  :     key = i2ckey;
+
+  002a3	8b 6c 24 14	 mov	 ebp, DWORD PTR _pContext$[esp+12]
+$L11066:
+
+; 132  : 
+; 133  :   if (key == I2C_NOTAKEY)
+
+  002a7	3b df		 cmp	 ebx, edi
+  002a9	75 08		 jne	 SHORT $L11067
+  002ab	5f		 pop	 edi
+  002ac	5d		 pop	 ebp
+
+; 134  :     return (-1);
+
+  002ad	83 c8 ff	 or	 eax, -1
+  002b0	5b		 pop	 ebx
+
+; 157  : }
+
+  002b1	59		 pop	 ecx
+  002b2	c3		 ret	 0
+$L11067:
+  002b3	56		 push	 esi
+
+; 135  : 
+; 136  : 
+; 137  :   status = 1;
+; 138  :   status &= i2c_start(pContext, key);
+
+  002b4	53		 push	 ebx
+  002b5	55		 push	 ebp
+  002b6	e8 00 00 00 00	 call	 _i2c_start
+
+; 139  :   status &= i2c_sendbyte(pContext, key, NV_WRITEADDRESS);
+
+  002bb	68 a0 00 00 00	 push	 160			; 000000a0H
+  002c0	8b f0		 mov	 esi, eax
+  002c2	53		 push	 ebx
+  002c3	55		 push	 ebp
+  002c4	83 e6 01	 and	 esi, 1
+  002c7	e8 00 00 00 00	 call	 _i2c_sendbyte
+
+; 140  :   status &= i2c_sendbyte(pContext, key, 0x00);
+
+  002cc	57		 push	 edi
+  002cd	53		 push	 ebx
+  002ce	55		 push	 ebp
+  002cf	23 f0		 and	 esi, eax
+  002d1	e8 00 00 00 00	 call	 _i2c_sendbyte
+
+; 141  : 
+; 142  :   status &= i2c_start(pContext, key);
+
+  002d6	53		 push	 ebx
+  002d7	55		 push	 ebp
+  002d8	23 f0		 and	 esi, eax
+  002da	e8 00 00 00 00	 call	 _i2c_start
+
+; 143  :   status &= i2c_sendbyte(pContext, key, NV_READADDRESS);
+
+  002df	68 a1 00 00 00	 push	 161			; 000000a1H
+  002e4	53		 push	 ebx
+  002e5	55		 push	 ebp
+  002e6	23 f0		 and	 esi, eax
+  002e8	e8 00 00 00 00	 call	 _i2c_sendbyte
+  002ed	83 c4 34	 add	 esp, 52			; 00000034H
+  002f0	23 f0		 and	 esi, eax
+
+; 144  : 
+; 145  :   for (sum=0,i=0; status && i<128; i++)
+
+  002f2	89 7c 24 10	 mov	 DWORD PTR _sum$[esp+20], edi
+  002f6	74 41		 je	 SHORT $L11072
+$L11070:
+  002f8	81 ff 80 00 00
+	00		 cmp	 edi, 128		; 00000080H
+  002fe	73 39		 jae	 SHORT $L11072
+
+; 146  :   {
+; 147  :     status &= i2c_readbyte(pContext, key, &buffer128[i], (i != 127));
+
+  00300	8b 44 24 20	 mov	 eax, DWORD PTR _buffer128$[esp+16]
+  00304	8b 54 24 18	 mov	 edx, DWORD PTR _pContext$[esp+16]
+  00308	33 c9		 xor	 ecx, ecx
+  0030a	83 ff 7f	 cmp	 edi, 127		; 0000007fH
+  0030d	0f 95 c1	 setne	 cl
+  00310	8d 2c 07	 lea	 ebp, DWORD PTR [edi+eax]
+  00313	51		 push	 ecx
+  00314	55		 push	 ebp
+  00315	53		 push	 ebx
+  00316	52		 push	 edx
+  00317	e8 00 00 00 00	 call	 _i2c_readbyte
+
+; 148  :     sum += buffer128[i];
+
+  0031c	8b 54 24 20	 mov	 edx, DWORD PTR _sum$[esp+36]
+  00320	23 f0		 and	 esi, eax
+  00322	33 c0		 xor	 eax, eax
+  00324	83 c4 10	 add	 esp, 16			; 00000010H
+  00327	8a 45 00	 mov	 al, BYTE PTR [ebp]
+  0032a	8b 6c 24 18	 mov	 ebp, DWORD PTR _pContext$[esp+16]
+  0032e	03 d0		 add	 edx, eax
+  00330	47		 inc	 edi
+  00331	85 f6		 test	 esi, esi
+  00333	89 54 24 10	 mov	 DWORD PTR _sum$[esp+20], edx
+  00337	75 bf		 jne	 SHORT $L11070
+$L11072:
+
+; 149  :   }
+; 150  :   status &= i2c_stop(pContext, key);
+
+  00339	53		 push	 ebx
+  0033a	55		 push	 ebp
+  0033b	e8 00 00 00 00	 call	 _i2c_stop
+  00340	23 f0		 and	 esi, eax
+
+; 151  : 
+; 152  : 
+; 153  :   if (i2ckey == I2C_NOTAKEY)
+
+  00342	8b 44 24 24	 mov	 eax, DWORD PTR _i2ckey$[esp+24]
+  00346	83 c4 08	 add	 esp, 8
+  00349	85 c0		 test	 eax, eax
+  0034b	75 0a		 jne	 SHORT $L11073
+
+; 154  :     i2c_endaccess(pContext, key);
+
+  0034d	53		 push	 ebx
+  0034e	55		 push	 ebp
+  0034f	e8 00 00 00 00	 call	 _i2c_endaccess
+  00354	83 c4 08	 add	 esp, 8
+$L11073:
+
+; 155  : 
+; 156  :   return status ? (sum & 0xFF) : (-1);
+
+  00357	85 f6		 test	 esi, esi
+  00359	5e		 pop	 esi
+  0035a	74 0e		 je	 SHORT $L11203
+  0035c	8b 44 24 0c	 mov	 eax, DWORD PTR _sum$[esp+16]
+  00360	5f		 pop	 edi
+  00361	5d		 pop	 ebp
+  00362	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00367	5b		 pop	 ebx
+
+; 157  : }
+
+  00368	59		 pop	 ecx
+  00369	c3		 ret	 0
+$L11203:
+  0036a	5f		 pop	 edi
+  0036b	5d		 pop	 ebp
+
+; 155  : 
+; 156  :   return status ? (sum & 0xFF) : (-1);
+
+  0036c	83 c8 ff	 or	 eax, -1
+  0036f	5b		 pop	 ebx
+
+; 157  : }
+
+  00370	59		 pop	 ecx
+  00371	c3		 ret	 0
+_nvramRead128 ENDP
+_PTEXT	ENDS
+PUBLIC	_nvramWrite
+_PTEXT	SEGMENT
+_pContext$ = 8
+_offset$ = 12
+_numBytes$ = 16
+_values$ = 20
+_nvramWrite PROC NEAR
+
+; 325  : {
+
+  00380	56		 push	 esi
+
+; 326  :   I2CKEY key;
+; 327  :   int status;
+; 328  : 
+; 329  :   key = i2c_getaccess(pContext, I2C_SERIALEEPROM, NV_ACCESSRATE);
+
+  00381	8b 74 24 08	 mov	 esi, DWORD PTR _pContext$[esp]
+  00385	57		 push	 edi
+  00386	6a 0a		 push	 10			; 0000000aH
+  00388	6a 05		 push	 5
+  0038a	56		 push	 esi
+  0038b	e8 00 00 00 00	 call	 _i2c_getaccess
+  00390	8b f8		 mov	 edi, eax
+  00392	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 330  :   if (key == I2C_NOTAKEY)
+
+  00395	85 ff		 test	 edi, edi
+  00397	75 03		 jne	 SHORT $L11173
+  00399	5f		 pop	 edi
+  0039a	5e		 pop	 esi
+
+; 341  : }
+
+  0039b	c3		 ret	 0
+$L11173:
+
+; 331  :     return (0);
+; 332  : 
+; 333  :   if (0 == NVRAM_DEVINFOPTR(pContext)->nvramCacheInit)
+
+  0039c	8b 86 94 03 00
+	00		 mov	 eax, DWORD PTR [esi+916]
+  003a2	85 c0		 test	 eax, eax
+  003a4	75 0a		 jne	 SHORT $L11175
+
+; 334  :     nvramInitCache(pContext, key);
+
+  003a6	57		 push	 edi
+  003a7	56		 push	 esi
+  003a8	e8 00 00 00 00	 call	 _nvramInitCache
+  003ad	83 c4 08	 add	 esp, 8
+$L11175:
+
+; 335  : 
+; 336  :   status = internalNvramWrite(pContext, key, offset, numBytes, values, FALSE);
+
+  003b0	8b 44 24 18	 mov	 eax, DWORD PTR _values$[esp+4]
+  003b4	8b 4c 24 14	 mov	 ecx, DWORD PTR _numBytes$[esp+4]
+  003b8	8b 54 24 10	 mov	 edx, DWORD PTR _offset$[esp+4]
+  003bc	53		 push	 ebx
+  003bd	6a 00		 push	 0
+  003bf	50		 push	 eax
+  003c0	51		 push	 ecx
+  003c1	52		 push	 edx
+  003c2	57		 push	 edi
+  003c3	56		 push	 esi
+  003c4	e8 00 00 00 00	 call	 _internalNvramWrite
+
+; 337  : 
+; 338  :   i2c_endaccess(pContext, key);
+
+  003c9	57		 push	 edi
+  003ca	56		 push	 esi
+  003cb	8b d8		 mov	 ebx, eax
+  003cd	e8 00 00 00 00	 call	 _i2c_endaccess
+  003d2	83 c4 20	 add	 esp, 32			; 00000020H
+
+; 339  : 
+; 340  :   return status;
+
+  003d5	8b c3		 mov	 eax, ebx
+  003d7	5b		 pop	 ebx
+  003d8	5f		 pop	 edi
+  003d9	5e		 pop	 esi
+
+; 341  : }
+
+  003da	c3		 ret	 0
+_nvramWrite ENDP
+_PTEXT	ENDS
+END

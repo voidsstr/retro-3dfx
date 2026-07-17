@@ -1,0 +1,6017 @@
+	TITLE	..\devtable.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+_ITEXT	SEGMENT PARA USE32 PUBLIC 'ICODE'
+_ITEXT	ENDS
+_PTEXT	SEGMENT PARA USE32 PUBLIC 'PCODE'
+_PTEXT	ENDS
+_LTEXT	SEGMENT PARA USE32 PUBLIC 'LCODE'
+_LTEXT	ENDS
+_PDATA	SEGMENT DWORD USE32 PUBLIC 'PDATA'
+_PDATA	ENDS
+_LDATA	SEGMENT DWORD USE32 PUBLIC 'LCODE'
+_LDATA	ENDS
+FLAT	GROUP _DATA, CONST, _BSS, _PDATA, _LDATA
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+PUBLIC	_dwDecodeSize
+PUBLIC	_dwLater
+PUBLIC	_SparseMemBase0Map
+PUBLIC	_SparseMemBase0Size
+_DATA	SEGMENT
+COMM	_DevTable:BYTE:064c0H
+COMM	_pVGADevTable:DWORD
+COMM	_dwNumDevices:DWORD
+COMM	_cpuFeatures:BYTE:074H
+_DATA	ENDS
+_LDATA	SEGMENT
+_SparseMemBase0Map DD 00H
+	DD	080000H
+	DD	0100000H
+	DD	0200000H
+_SparseMemBase0Size DD 0108H
+	DD	0134H
+	DD	0200H
+	DD	0384H
+_dwDecodeSize DD 00H
+	DD	00H
+_dwLater DD	00H
+_LDATA	ENDS
+PUBLIC	_InitDevNode
+PUBLIC	_InitSecondaryDispatchTable
+PUBLIC	_PNP_NewDevNode
+_LTEXT	SEGMENT
+_dwDevNode$ = 12
+_PNP_NewDevNode PROC NEAR
+
+; 440  : {
+
+  00000	56		 push	 esi
+
+; 441  :    PDEVTABLE pDev;
+; 442  :    Debug_Printf("Command %x DevNode %x loadtype %x\n", dwCommand, dwDevNode, dwLoadtype);
+; 443  :    
+; 444  : #ifdef SLI_AA
+; 445  :    pDev = InitDevNode(dwDevNode, 0x0);
+
+  00001	8b 74 24 0c	 mov	 esi, DWORD PTR _dwDevNode$[esp]
+  00005	6a 00		 push	 0
+  00007	56		 push	 esi
+  00008	e8 00 00 00 00	 call	 _InitDevNode
+
+; 446  : #else
+; 447  :    pDev = InitDevNode(dwDevNode);
+; 448  : #endif
+; 449  : 
+; 450  :    Debug_Printf("Init Secondary Dispatch Table\n");
+; 451  : 
+; 452  :    InitSecondaryDispatchTable(dwDevNode);
+
+  0000d	56		 push	 esi
+  0000e	e8 00 00 00 00	 call	 _InitSecondaryDispatchTable
+  00013	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 453  : 
+; 454  :    return (CR_SUCCESS);   
+
+  00016	66 33 c0	 xor	 ax, ax
+  00019	5e		 pop	 esi
+
+; 455  : }
+
+  0001a	c3		 ret	 0
+_PNP_NewDevNode ENDP
+_LTEXT	ENDS
+PUBLIC	_GetDecodeSize
+_LTEXT	SEGMENT
+_dwSize$ = 8
+_GetDecodeSize PROC NEAR
+
+; 498  :    DWORD dwReturn;
+; 499  : 
+; 500  :    switch (dwSize >> 20)
+; 501  :       {
+
+  00020	8b 44 24 04	 mov	 eax, DWORD PTR _dwSize$[esp-4]
+  00024	c1 e8 14	 shr	 eax, 20			; 00000014H
+  00027	83 f8 40	 cmp	 eax, 64			; 00000040H
+  0002a	77 37		 ja	 SHORT $L11819
+  0002c	74 2f		 je	 SHORT $L11263
+  0002e	83 c0 fc	 add	 eax, -4			; fffffffcH
+  00031	83 f8 1c	 cmp	 eax, 28			; 0000001cH
+  00034	77 57		 ja	 SHORT $L11264
+  00036	33 c9		 xor	 ecx, ecx
+  00038	8a 88 00 00 00
+	00		 mov	 cl, BYTE PTR $L11821[eax]
+  0003e	ff 24 8d 00 00
+	00 00		 jmp	 DWORD PTR $L11822[ecx*4]
+$L11259:
+
+; 502  :       case 4:
+; 503  :          dwReturn = CFG_MEMBASE0_4MB_DECODE;
+
+  00045	b8 08 00 00 00	 mov	 eax, 8
+
+; 540  :          break;   
+; 541  :       }
+; 542  : 
+; 543  :    return dwReturn;
+; 544  : }
+
+  0004a	c3		 ret	 0
+$L11260:
+
+; 504  :          break;
+; 505  : 
+; 506  :       case 8:
+; 507  :          dwReturn = CFG_MEMBASE0_8MB_DECODE;
+
+  0004b	b8 07 00 00 00	 mov	 eax, 7
+
+; 540  :          break;   
+; 541  :       }
+; 542  : 
+; 543  :    return dwReturn;
+; 544  : }
+
+  00050	c3		 ret	 0
+$L11261:
+
+; 508  :          break;
+; 509  : 
+; 510  :       case 16:
+; 511  :          dwReturn = CFG_MEMBASE0_16MB_DECODE;
+
+  00051	b8 06 00 00 00	 mov	 eax, 6
+
+; 540  :          break;   
+; 541  :       }
+; 542  : 
+; 543  :    return dwReturn;
+; 544  : }
+
+  00056	c3		 ret	 0
+$L11262:
+
+; 512  :          break;
+; 513  : 
+; 514  :       case 32:
+; 515  :          dwReturn = CFG_MEMBASE0_32MB_DECODE;
+
+  00057	b8 05 00 00 00	 mov	 eax, 5
+
+; 540  :          break;   
+; 541  :       }
+; 542  : 
+; 543  :    return dwReturn;
+; 544  : }
+
+  0005c	c3		 ret	 0
+$L11263:
+
+; 516  :          break;
+; 517  : 
+; 518  :       case 64:
+; 519  :          dwReturn = CFG_MEMBASE0_64MB_DECODE;
+
+  0005d	b8 04 00 00 00	 mov	 eax, 4
+
+; 540  :          break;   
+; 541  :       }
+; 542  : 
+; 543  :    return dwReturn;
+; 544  : }
+
+  00062	c3		 ret	 0
+$L11819:
+
+; 498  :    DWORD dwReturn;
+; 499  : 
+; 500  :    switch (dwSize >> 20)
+; 501  :       {
+
+  00063	3d 00 02 00 00	 cmp	 eax, 512		; 00000200H
+  00068	77 1c		 ja	 SHORT $L11820
+  0006a	74 14		 je	 SHORT $L11266
+  0006c	3d 80 00 00 00	 cmp	 eax, 128		; 00000080H
+  00071	74 1a		 je	 SHORT $L11264
+  00073	3d 00 01 00 00	 cmp	 eax, 256		; 00000100H
+  00078	75 13		 jne	 SHORT $L11264
+
+; 520  :          break;
+; 521  : 
+; 522  :       case 128:
+; 523  :          dwReturn = CFG_MEMBASE0_128MB_DECODE;
+; 524  :          break;
+; 525  : 
+; 526  :       case 256:
+; 527  :          dwReturn = CFG_MEMBASE0_256MB_DECODE;
+
+  0007a	b8 01 00 00 00	 mov	 eax, 1
+
+; 540  :          break;   
+; 541  :       }
+; 542  : 
+; 543  :    return dwReturn;
+; 544  : }
+
+  0007f	c3		 ret	 0
+$L11266:
+
+; 528  :          break;
+; 529  : 
+; 530  :       case 512:
+; 531  :          dwReturn = CFG_MEMBASE0_512MB_DECODE;
+
+  00080	b8 02 00 00 00	 mov	 eax, 2
+
+; 540  :          break;   
+; 541  :       }
+; 542  : 
+; 543  :    return dwReturn;
+; 544  : }
+
+  00085	c3		 ret	 0
+$L11820:
+
+; 498  :    DWORD dwReturn;
+; 499  : 
+; 500  :    switch (dwSize >> 20)
+; 501  :       {
+
+  00086	3d 00 04 00 00	 cmp	 eax, 1024		; 00000400H
+  0008b	74 03		 je	 SHORT $L11267
+$L11264:
+
+; 536  :          break;
+; 537  : 
+; 538  :       default:
+; 539  :          dwReturn = CFG_MEMBASE0_128MB_DECODE;
+
+  0008d	33 c0		 xor	 eax, eax
+
+; 540  :          break;   
+; 541  :       }
+; 542  : 
+; 543  :    return dwReturn;
+; 544  : }
+
+  0008f	c3		 ret	 0
+$L11267:
+
+; 532  :          break;
+; 533  : 
+; 534  :       case 1024:
+; 535  :          dwReturn = CFG_MEMBASE0_1024MB_DECODE;
+
+  00090	b8 03 00 00 00	 mov	 eax, 3
+
+; 540  :          break;   
+; 541  :       }
+; 542  : 
+; 543  :    return dwReturn;
+; 544  : }
+
+  00095	c3		 ret	 0
+  00096	8b ff		 npad	 2
+$L11822:
+  00098	00 00 00 00	 DD	 $L11259
+  0009c	00 00 00 00	 DD	 $L11260
+  000a0	00 00 00 00	 DD	 $L11261
+  000a4	00 00 00 00	 DD	 $L11262
+  000a8	00 00 00 00	 DD	 $L11264
+$L11821:
+  000ac	00		 DB	 0
+  000ad	04		 DB	 4
+  000ae	04		 DB	 4
+  000af	04		 DB	 4
+  000b0	01		 DB	 1
+  000b1	04		 DB	 4
+  000b2	04		 DB	 4
+  000b3	04		 DB	 4
+  000b4	04		 DB	 4
+  000b5	04		 DB	 4
+  000b6	04		 DB	 4
+  000b7	04		 DB	 4
+  000b8	02		 DB	 2
+  000b9	04		 DB	 4
+  000ba	04		 DB	 4
+  000bb	04		 DB	 4
+  000bc	04		 DB	 4
+  000bd	04		 DB	 4
+  000be	04		 DB	 4
+  000bf	04		 DB	 4
+  000c0	04		 DB	 4
+  000c1	04		 DB	 4
+  000c2	04		 DB	 4
+  000c3	04		 DB	 4
+  000c4	04		 DB	 4
+  000c5	04		 DB	 4
+  000c6	04		 DB	 4
+  000c7	04		 DB	 4
+  000c8	03		 DB	 3
+_GetDecodeSize ENDP
+_LTEXT	ENDS
+PUBLIC	_GetMemSize
+_LTEXT	SEGMENT
+_dwSize$ = 8
+_GetMemSize PROC NEAR
+
+; 557  :    DWORD dwReturn;
+; 558  : 
+; 559  :    switch (dwSize)
+; 560  :       {
+
+  000d0	8b 44 24 04	 mov	 eax, DWORD PTR _dwSize$[esp-4]
+  000d4	83 f8 08	 cmp	 eax, 8
+  000d7	77 4f		 ja	 SHORT $L11283
+  000d9	ff 24 85 00 00
+	00 00		 jmp	 DWORD PTR $L11825[eax*4]
+$L11278:
+
+; 561  :       case CFG_MEMBASE0_4MB_DECODE:
+; 562  :          dwReturn = 4;
+
+  000e0	b8 04 00 00 00	 mov	 eax, 4
+
+; 599  :          break;   
+; 600  :       }
+; 601  : 
+; 602  :    return (dwReturn << 20);
+
+  000e5	c1 e0 14	 shl	 eax, 20			; 00000014H
+
+; 603  : }
+
+  000e8	c3		 ret	 0
+$L11279:
+
+; 563  :          break;
+; 564  : 
+; 565  :       case CFG_MEMBASE0_8MB_DECODE:
+; 566  :          dwReturn = 8;
+
+  000e9	b8 08 00 00 00	 mov	 eax, 8
+
+; 599  :          break;   
+; 600  :       }
+; 601  : 
+; 602  :    return (dwReturn << 20);
+
+  000ee	c1 e0 14	 shl	 eax, 20			; 00000014H
+
+; 603  : }
+
+  000f1	c3		 ret	 0
+$L11280:
+
+; 567  :          break;
+; 568  : 
+; 569  :       case CFG_MEMBASE0_16MB_DECODE:
+; 570  :          dwReturn = 16;
+
+  000f2	b8 10 00 00 00	 mov	 eax, 16			; 00000010H
+
+; 599  :          break;   
+; 600  :       }
+; 601  : 
+; 602  :    return (dwReturn << 20);
+
+  000f7	c1 e0 14	 shl	 eax, 20			; 00000014H
+
+; 603  : }
+
+  000fa	c3		 ret	 0
+$L11281:
+
+; 571  :          break;
+; 572  : 
+; 573  :       case CFG_MEMBASE0_32MB_DECODE:
+; 574  :          dwReturn = 32;
+
+  000fb	b8 20 00 00 00	 mov	 eax, 32			; 00000020H
+
+; 599  :          break;   
+; 600  :       }
+; 601  : 
+; 602  :    return (dwReturn << 20);
+
+  00100	c1 e0 14	 shl	 eax, 20			; 00000014H
+
+; 603  : }
+
+  00103	c3		 ret	 0
+$L11282:
+
+; 575  :          break;
+; 576  : 
+; 577  :       case CFG_MEMBASE0_64MB_DECODE:
+; 578  :          dwReturn = 64;
+
+  00104	b8 40 00 00 00	 mov	 eax, 64			; 00000040H
+
+; 599  :          break;   
+; 600  :       }
+; 601  : 
+; 602  :    return (dwReturn << 20);
+
+  00109	c1 e0 14	 shl	 eax, 20			; 00000014H
+
+; 603  : }
+
+  0010c	c3		 ret	 0
+$L11284:
+
+; 579  :          break;
+; 580  : 
+; 581  :       case CFG_MEMBASE0_128MB_DECODE:
+; 582  :          dwReturn = 128;
+; 583  :          break;
+; 584  : 
+; 585  :       case CFG_MEMBASE0_256MB_DECODE:
+; 586  :          dwReturn = 256;
+
+  0010d	b8 00 01 00 00	 mov	 eax, 256		; 00000100H
+
+; 599  :          break;   
+; 600  :       }
+; 601  : 
+; 602  :    return (dwReturn << 20);
+
+  00112	c1 e0 14	 shl	 eax, 20			; 00000014H
+
+; 603  : }
+
+  00115	c3		 ret	 0
+$L11285:
+
+; 587  :          break;
+; 588  : 
+; 589  :       case CFG_MEMBASE0_512MB_DECODE:
+; 590  :          dwReturn = 512;
+
+  00116	b8 00 02 00 00	 mov	 eax, 512		; 00000200H
+
+; 599  :          break;   
+; 600  :       }
+; 601  : 
+; 602  :    return (dwReturn << 20);
+
+  0011b	c1 e0 14	 shl	 eax, 20			; 00000014H
+
+; 603  : }
+
+  0011e	c3		 ret	 0
+$L11286:
+
+; 591  :          break;
+; 592  : 
+; 593  :       case CFG_MEMBASE0_1024MB_DECODE:
+; 594  :          dwReturn = 1024;
+
+  0011f	b8 00 04 00 00	 mov	 eax, 1024		; 00000400H
+
+; 599  :          break;   
+; 600  :       }
+; 601  : 
+; 602  :    return (dwReturn << 20);
+
+  00124	c1 e0 14	 shl	 eax, 20			; 00000014H
+
+; 603  : }
+
+  00127	c3		 ret	 0
+$L11283:
+
+; 595  :          break;
+; 596  : 
+; 597  :       default:
+; 598  :          dwReturn = 128;
+
+  00128	b8 80 00 00 00	 mov	 eax, 128		; 00000080H
+
+; 599  :          break;   
+; 600  :       }
+; 601  : 
+; 602  :    return (dwReturn << 20);
+
+  0012d	c1 e0 14	 shl	 eax, 20			; 00000014H
+
+; 603  : }
+
+  00130	c3		 ret	 0
+  00131	8d 49 00	 npad	 3
+$L11825:
+  00134	00 00 00 00	 DD	 $L11283
+  00138	00 00 00 00	 DD	 $L11284
+  0013c	00 00 00 00	 DD	 $L11285
+  00140	00 00 00 00	 DD	 $L11286
+  00144	00 00 00 00	 DD	 $L11282
+  00148	00 00 00 00	 DD	 $L11281
+  0014c	00 00 00 00	 DD	 $L11280
+  00150	00 00 00 00	 DD	 $L11279
+  00154	00 00 00 00	 DD	 $L11278
+_GetMemSize ENDP
+_LTEXT	ENDS
+PUBLIC	_DoBusType
+EXTRN	_CCODE__CONFIGMG_Call_Enumerator_Function:NEAR
+_LTEXT	SEGMENT
+_dwDevNode$ = 8
+_PCIConfSpace$ = -256
+_DoBusType PROC NEAR
+
+; 618  :    BYTE PCIConfSpace[256];
+; 619  :    DWORD dwReturn = TRUE;
+; 620  :    int nCapIndex;
+; 621  :    
+; 622  :    CM_Call_Enumerator_Function(dwDevNode, PCI_ENUM_FUNC_GET_DEVICE_INFO, SST_PCI_DEVICE_ID, &PCIConfSpace, sizeof(PCIConfSpace), 0);
+
+  00160	8b 4c 24 04	 mov	 ecx, DWORD PTR _dwDevNode$[esp-4]
+  00164	81 ec 00 01 00
+	00		 sub	 esp, 256		; 00000100H
+  0016a	8d 44 24 00	 lea	 eax, DWORD PTR _PCIConfSpace$[esp+256]
+  0016e	56		 push	 esi
+  0016f	6a 00		 push	 0
+  00171	68 00 01 00 00	 push	 256			; 00000100H
+  00176	50		 push	 eax
+  00177	6a 00		 push	 0
+  00179	6a 00		 push	 0
+  0017b	51		 push	 ecx
+  0017c	be 01 00 00 00	 mov	 esi, 1
+  00181	e8 00 00 00 00	 call	 _CCODE__CONFIGMG_Call_Enumerator_Function
+
+; 623  : 
+; 624  :    for (nCapIndex = PCIConfSpace[SST_1ST_CAP]; 0x0 != nCapIndex; nCapIndex=PCIConfSpace[nCapIndex+1])
+
+  00186	8b 44 24 50	 mov	 eax, DWORD PTR _PCIConfSpace$[esp+336]
+  0018a	83 c4 18	 add	 esp, 24			; 00000018H
+  0018d	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00192	74 14		 je	 SHORT $L11830
+  00194	b1 02		 mov	 cl, 2
+$L11294:
+
+; 625  :       {
+; 626  :       if (SST_AGP_CAP == PCIConfSpace[nCapIndex])
+
+  00196	38 4c 04 04	 cmp	 BYTE PTR _PCIConfSpace$[esp+eax+260], cl
+  0019a	74 16		 je	 SHORT $L11828
+  0019c	33 d2		 xor	 edx, edx
+  0019e	8a 54 04 05	 mov	 dl, BYTE PTR _PCIConfSpace$[esp+eax+261]
+  001a2	8b c2		 mov	 eax, edx
+  001a4	85 c0		 test	 eax, eax
+  001a6	75 ee		 jne	 SHORT $L11294
+$L11830:
+
+; 629  :          break;
+; 630  :   	      } 
+; 631  :       }
+; 632  :          
+; 633  :  
+; 634  :    return dwReturn;
+
+  001a8	8b c6		 mov	 eax, esi
+  001aa	5e		 pop	 esi
+
+; 635  : }
+
+  001ab	81 c4 00 01 00
+	00		 add	 esp, 256		; 00000100H
+  001b1	c3		 ret	 0
+$L11828:
+
+; 627  :          {
+; 628  :          dwReturn = FALSE;
+
+  001b2	33 c0		 xor	 eax, eax
+  001b4	5e		 pop	 esi
+
+; 635  : }
+
+  001b5	81 c4 00 01 00
+	00		 add	 esp, 256		; 00000100H
+  001bb	c3		 ret	 0
+_DoBusType ENDP
+_LTEXT	ENDS
+PUBLIC	_pciSetAmdK6MTRR
+PUBLIC	_DevNodetoIORegs
+PUBLIC	_MapDeviceRegisters
+PUBLIC	_MapDeviceFB
+EXTRN	_PCI_Read_Config:NEAR
+EXTRN	_PCI_Write_Config:NEAR
+EXTRN	_PCIGetBusDevFunc:NEAR
+EXTRN	_i2c_initialize:NEAR
+EXTRN	_PowerRegOffset:BYTE
+EXTRN	_InitializeInterrupts:NEAR
+EXTRN	_GetCpuFeatures:NEAR
+EXTRN	_GetMTRR:NEAR
+EXTRN	_SetMTRR:NEAR
+EXTRN	_h3InitSgram:NEAR
+EXTRN	_h3InitVga:NEAR
+EXTRN	_CCODE__CONFIGMG_Get_Alloc_Log_Conf:NEAR
+EXTRN	_our_outp:NEAR
+_LTEXT	SEGMENT
+_dwDevNode$ = 8
+_dwUnitNum$ = 12
+_pDev$ = -8
+_lpIOregs$ = 12
+_memBase$ = -52
+_mapSize$ = -4
+_IoBase$ = -48
+_PhysMemBase$ = -60
+_mtrr1Lo$ = -24
+_mtrr1Hi$ = -28
+_mtrr2Lo$ = -12
+_mtrr2Hi$ = -16
+_pDispatch$ = -32
+_i$ = -40
+_j$ = -40
+_nFound$ = -44
+_pMasterRegs$ = -52
+_cfgInitEnable$ = -40
+_McfgPCIDecode$ = -20
+_ScfgPCIDecode$ = -52
+_nChips$ = -44
+_dwR$11834 = -56
+$T11836 = -52
+$T11837 = -48
+_w$11841 = 14
+_ulResult$11846 = -56
+$T11847 = 12
+$T11848 = 8
+_ulResult$11852 = -56
+$T11853 = 12
+$T11854 = 8
+_dwR$11858 = 8
+$T11859 = 12
+_w$11863 = 14
+_ulResult$11868 = -56
+$T11869 = 12
+$T11870 = 8
+_ulResult$11874 = -56
+$T11875 = 12
+$T11876 = 8
+_InitDevNode PROC NEAR
+
+; 657  : {
+
+  001c0	55		 push	 ebp
+  001c1	8b ec		 mov	 ebp, esp
+  001c3	83 ec 3c	 sub	 esp, 60			; 0000003cH
+  001c6	53		 push	 ebx
+
+; 658  :    PDEVTABLE pDev = NULL;
+
+  001c7	33 db		 xor	 ebx, ebx
+
+; 670  :    DWORD dwNFunc;
+; 671  :    int i;
+; 672  :    int j;
+; 673  :    int nFound;
+; 674  : #ifdef SLI_AA
+; 675  :    SstIORegs * pMasterIORegs;   
+; 676  :    SstIORegs * pSlaveIORegs;   
+; 677  :    BYTE * pMasterRegs;
+; 678  :    BYTE * pSlaveRegs;
+; 679  :    DWORD dwVgaInit0;
+; 680  :    PDEVTABLE pBackDev;
+; 681  :    PDEVTABLE pNextSlave;
+; 682  :    PDEVTABLE pSaveSlave;
+; 683  :    int k;
+; 684  :    DWORD cfgInitEnable;
+; 685  :    DWORD McfgPCIDecode;
+; 686  :    DWORD ScfgPCIDecode;
+; 687  :    DWORD nChips;
+; 688  : #endif
+; 689  :    FxU32 pciInit0;
+; 690  :    DWORD dwMemoryType;
+; 691  : 
+; 692  :    nFound = FALSE;
+; 693  :    for (i=0; i< MAX_BANSHEE_DEVICES; i++)
+
+  001c9	33 c0		 xor	 eax, eax
+  001cb	56		 push	 esi
+  001cc	57		 push	 edi
+  001cd	89 5d f8	 mov	 DWORD PTR _pDev$[ebp], ebx
+  001d0	89 5d e8	 mov	 DWORD PTR _mtrr1Lo$[ebp], ebx
+  001d3	89 5d e4	 mov	 DWORD PTR _mtrr1Hi$[ebp], ebx
+  001d6	89 5d f4	 mov	 DWORD PTR _mtrr2Lo$[ebp], ebx
+  001d9	89 5d f0	 mov	 DWORD PTR _mtrr2Hi$[ebp], ebx
+  001dc	89 5d d4	 mov	 DWORD PTR _nFound$[ebp], ebx
+  001df	89 45 d8	 mov	 DWORD PTR _i$[ebp], eax
+  001e2	b9 00 00 00 00	 mov	 ecx, OFFSET FLAT:_DevTable
+$L11341:
+
+; 694  :       {
+; 695  : #ifdef SLI_AA
+; 696  :       if ((dwDevNode == DevTable[i].dwDevNode) && (dwUnitNum == DevTable[i].dwUnitNum))
+
+  001e7	8b 11		 mov	 edx, DWORD PTR [ecx]
+  001e9	8b 75 08	 mov	 esi, DWORD PTR _dwDevNode$[ebp]
+  001ec	3b f2		 cmp	 esi, edx
+  001ee	75 08		 jne	 SHORT $L11344
+  001f0	8b 7d 0c	 mov	 edi, DWORD PTR _dwUnitNum$[ebp]
+  001f3	3b 79 10	 cmp	 edi, DWORD PTR [ecx+16]
+  001f6	74 18		 je	 SHORT $L11888
+$L11344:
+
+; 703  :          }  
+; 704  : 	   if (0x0 == DevTable[i].dwDevNode)
+
+  001f8	3b d3		 cmp	 edx, ebx
+  001fa	74 20		 je	 SHORT $L11889
+  001fc	81 c1 4c 06 00
+	00		 add	 ecx, 1612		; 0000064cH
+  00202	40		 inc	 eax
+  00203	81 f9 c0 64 00
+	00		 cmp	 ecx, OFFSET FLAT:_DevTable+25792
+  00209	7c dc		 jl	 SHORT $L11341
+
+; 670  :    DWORD dwNFunc;
+; 671  :    int i;
+; 672  :    int j;
+; 673  :    int nFound;
+; 674  : #ifdef SLI_AA
+; 675  :    SstIORegs * pMasterIORegs;   
+; 676  :    SstIORegs * pSlaveIORegs;   
+; 677  :    BYTE * pMasterRegs;
+; 678  :    BYTE * pSlaveRegs;
+; 679  :    DWORD dwVgaInit0;
+; 680  :    PDEVTABLE pBackDev;
+; 681  :    PDEVTABLE pNextSlave;
+; 682  :    PDEVTABLE pSaveSlave;
+; 683  :    int k;
+; 684  :    DWORD cfgInitEnable;
+; 685  :    DWORD McfgPCIDecode;
+; 686  :    DWORD ScfgPCIDecode;
+; 687  :    DWORD nChips;
+; 688  : #endif
+; 689  :    FxU32 pciInit0;
+; 690  :    DWORD dwMemoryType;
+; 691  : 
+; 692  :    nFound = FALSE;
+; 693  :    for (i=0; i< MAX_BANSHEE_DEVICES; i++)
+
+  0020b	89 45 d8	 mov	 DWORD PTR _i$[ebp], eax
+
+; 1420 : 	               {
+; 1421 : 			         foundMTRR = 1;
+; 1422 : 			         break;
+; 1423 : 	               }
+; 1424 : 
+; 1425 : 		         if ((mtrr1Lo == ((DevTable[i].PhysMemBase[1] & 0xFF000000) | 1)) &&
+; 1426 : 			          (mtrr1Hi == 0) &&
+; 1427 : 			          (mtrr2Lo == mapSize) &&
+; 1428 : 			          (mtrr2Hi == 0xf))
+
+  0020e	eb 1c		 jmp	 SHORT $L11343
+$L11888:
+
+; 670  :    DWORD dwNFunc;
+; 671  :    int i;
+; 672  :    int j;
+; 673  :    int nFound;
+; 674  : #ifdef SLI_AA
+; 675  :    SstIORegs * pMasterIORegs;   
+; 676  :    SstIORegs * pSlaveIORegs;   
+; 677  :    BYTE * pMasterRegs;
+; 678  :    BYTE * pSlaveRegs;
+; 679  :    DWORD dwVgaInit0;
+; 680  :    PDEVTABLE pBackDev;
+; 681  :    PDEVTABLE pNextSlave;
+; 682  :    PDEVTABLE pSaveSlave;
+; 683  :    int k;
+; 684  :    DWORD cfgInitEnable;
+; 685  :    DWORD McfgPCIDecode;
+; 686  :    DWORD ScfgPCIDecode;
+; 687  :    DWORD nChips;
+; 688  : #endif
+; 689  :    FxU32 pciInit0;
+; 690  :    DWORD dwMemoryType;
+; 691  : 
+; 692  :    nFound = FALSE;
+; 693  :    for (i=0; i< MAX_BANSHEE_DEVICES; i++)
+
+  00210	89 45 d8	 mov	 DWORD PTR _i$[ebp], eax
+
+; 697  : #else
+; 698  : 	   if (dwDevNode == DevTable[i].dwDevNode)
+; 699  : #endif
+; 700  :          {
+; 701  :          nFound = TRUE;
+
+  00213	c7 45 d4 01 00
+	00 00		 mov	 DWORD PTR _nFound$[ebp], 1
+
+; 702  : 	      break;
+
+  0021a	eb 10		 jmp	 SHORT $L11343
+$L11889:
+
+; 705  : 	      {
+; 706  : 	      dwNumDevices++;
+
+  0021c	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _dwNumDevices
+  00222	89 45 d8	 mov	 DWORD PTR _i$[ebp], eax
+  00225	41		 inc	 ecx
+  00226	89 0d 00 00 00
+	00		 mov	 DWORD PTR _dwNumDevices, ecx
+$L11343:
+
+; 707  : 	      break; 
+; 708  : 	      }
+; 709  :       }
+; 710  : 
+; 711  :    if (MAX_BANSHEE_DEVICES != i)
+
+  0022c	83 f8 10	 cmp	 eax, 16			; 00000010H
+  0022f	0f 84 5e 0c 00
+	00		 je	 $L11346
+
+; 712  :       {
+; 713  : 	   pDev = &DevTable[i];
+
+  00235	8d 0c 80	 lea	 ecx, DWORD PTR [eax+eax*4]
+
+; 714  : 	   DevTable[i].dwDevNode = dwDevNode;
+; 715  : #ifdef SLI_AA
+; 716  : 	   DevTable[i].dwUnitNum = dwUnitNum;
+; 717  : #endif
+; 718  : 	   DevTable[i].lpDriverData = NULL;
+; 719  : 	   DevTable[i].bDPMSState = 0x0;
+; 720  : 	   DevTable[i].bPowerState = CM_POWERSTATE_D0;
+; 721  : 	   DevTable[i].bMonitorState = CM_POWERSTATE_D0;
+; 722  : 	   // get display data from VDD
+; 723  : 	   //
+; 724  : 	   VDD_Get_DISPLAYINFO(&DevTable[i].DispInfo, sizeof(DevTable[i].DispInfo) );
+
+  00238	c7 45 d0 4c 00
+	00 00		 mov	 DWORD PTR $T11837[ebp], 76 ; 0000004cH
+  0023f	8d 0c 89	 lea	 ecx, DWORD PTR [ecx+ecx*4]
+  00242	8d 14 c8	 lea	 edx, DWORD PTR [eax+ecx*8]
+  00245	8d 04 50	 lea	 eax, DWORD PTR [eax+edx*2]
+  00248	c1 e0 02	 shl	 eax, 2
+  0024b	89 45 dc	 mov	 DWORD PTR -36+[ebp], eax
+  0024e	8d 88 00 00 00
+	00		 lea	 ecx, DWORD PTR _DevTable[eax]
+  00254	8d 90 c4 01 00
+	00		 lea	 edx, DWORD PTR _DevTable[eax+452]
+  0025a	89 4d f8	 mov	 DWORD PTR _pDev$[ebp], ecx
+  0025d	89 55 cc	 mov	 DWORD PTR $T11836[ebp], edx
+  00260	89 31		 mov	 DWORD PTR [ecx], esi
+  00262	8b 4d 0c	 mov	 ecx, DWORD PTR _dwUnitNum$[ebp]
+  00265	89 88 10 00 00
+	00		 mov	 DWORD PTR _DevTable[eax+16], ecx
+  0026b	89 98 14 02 00
+	00		 mov	 DWORD PTR _DevTable[eax+532], ebx
+  00271	b1 01		 mov	 cl, 1
+  00273	88 98 18 03 00
+	00		 mov	 BYTE PTR _DevTable[eax+792], bl
+  00279	88 88 19 03 00
+	00		 mov	 BYTE PTR _DevTable[eax+793], cl
+  0027f	88 88 1a 03 00
+	00		 mov	 BYTE PTR _DevTable[eax+794], cl
+
+; 659  :    SstIORegs *lpIOregs;
+; 660  :    DWORD memBase;
+
+  00285	60		 pushad
+
+; 661  :    DWORD mapSize;
+
+  00286	8b 45 cc	 mov	 eax, DWORD PTR $T11836[ebp]
+
+; 662  :    DWORD IoBase;			// base of PCI relocatable IO space
+
+  00289	8b 4d d0	 mov	 ecx, DWORD PTR $T11837[ebp]
+
+; 663  :    DWORD PhysMemBase[2];	// physical register address space
+
+  0028c	cd		 DB	 -51			; ffffffcdH
+  0028d	20		 DB	 32			; 00000020H
+  0028e	14		 DB	 20			; 00000014H
+  0028f	00		 DB	 0
+  00290	0a		 DB	 10			; 0000000aH
+  00291	00		 DB	 0
+
+; 664  :    FxU32 grxSpeedInMHz;
+
+  00292	89 45 c8	 mov	 DWORD PTR _dwR$11834[ebp], eax
+
+; 665  :    FxU32 memSpeedInMHz;
+
+  00295	61		 popad
+
+; 725  : 
+; 726  :    	Debug_Printf("Are they the same DevNode %x DevNode %x %x\n", dwDevNode, DevTable[i].DispInfo.diDevNodeHandle, DevTable[i].DispInfo.diInfoFlags);
+; 727  : #ifdef SLI_AA
+; 728  :       if (0x00 != dwUnitNum)
+
+  00296	8b 45 0c	 mov	 eax, DWORD PTR _dwUnitNum$[ebp]
+  00299	85 c0		 test	 eax, eax
+  0029b	74 13		 je	 SHORT $L11908
+
+; 729  :          {
+; 730  :          pDev->DispInfo.diDevNodeHandle = dwDevNode;
+
+  0029d	8b 45 f8	 mov	 eax, DWORD PTR _pDev$[ebp]
+  002a0	8b 4d 08	 mov	 ecx, DWORD PTR _dwDevNode$[ebp]
+  002a3	89 88 c8 01 00
+	00		 mov	 DWORD PTR [eax+456], ecx
+
+; 731  :          pDev->DispInfo.diInfoFlags |= DEVICE_IS_NOT_VGA;
+
+  002a9	80 88 c7 01 00
+	00 08		 or	 BYTE PTR [eax+455], 8
+$L11908:
+
+; 732  :          }
+; 733  : #endif
+; 734  :    	// now we have the devnode, ask for the resources from
+; 735  : 	   // Config manager
+; 736  : 	   //
+; 737  : 	   CM_Get_Alloc_Log_Conf( &DevTable[i].ConfigData, dwDevNode, 0 );
+
+  002b0	8b 5d dc	 mov	 ebx, DWORD PTR -36+[ebp]
+  002b3	8b 7d 08	 mov	 edi, DWORD PTR _dwDevNode$[ebp]
+  002b6	6a 00		 push	 0
+  002b8	57		 push	 edi
+  002b9	8d 83 ec 00 00
+	00		 lea	 eax, DWORD PTR _DevTable[ebx+236]
+  002bf	50		 push	 eax
+  002c0	e8 00 00 00 00	 call	 _CCODE__CONFIGMG_Get_Alloc_Log_Conf
+
+; 738  : 
+; 739  : #ifdef SLI_AA
+; 740  : 	   DevTable[i].SliaaLfbBase = NULL;
+; 741  : #endif
+; 742  : 
+; 743  : 	   // and ask the PCI manager for the device ID
+; 744  : 	   //
+; 745  : 
+; 746  : 	   CM_Call_Enumerator_Function (dwDevNode, PCI_ENUM_FUNC_GET_DEVICE_INFO, SST_PCI_DEVICE_ID, &DevTable[i].dwVendorDeviceID, sizeof(DWORD), 0); 
+
+  002c5	8d b3 04 00 00
+	00		 lea	 esi, DWORD PTR _DevTable[ebx+4]
+  002cb	6a 00		 push	 0
+  002cd	6a 04		 push	 4
+  002cf	56		 push	 esi
+  002d0	6a 00		 push	 0
+  002d2	6a 00		 push	 0
+  002d4	57		 push	 edi
+  002d5	c7 83 1c 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _DevTable[ebx+28], 0
+  002df	e8 00 00 00 00	 call	 _CCODE__CONFIGMG_Call_Enumerator_Function
+
+; 747  :    	CM_Call_Enumerator_Function (dwDevNode, PCI_ENUM_FUNC_GET_DEVICE_INFO, SST_PCI_SSID, &DevTable[i].dwSubSystemID, sizeof(DWORD), 0); 
+
+  002e4	6a 00		 push	 0
+  002e6	8d 93 8c 03 00
+	00		 lea	 edx, DWORD PTR _DevTable[ebx+908]
+  002ec	6a 04		 push	 4
+  002ee	52		 push	 edx
+  002ef	6a 2c		 push	 44			; 0000002cH
+  002f1	6a 00		 push	 0
+  002f3	57		 push	 edi
+  002f4	e8 00 00 00 00	 call	 _CCODE__CONFIGMG_Call_Enumerator_Function
+
+; 748  : 
+; 749  :       if ((!IS_VOODOO3(DevTable[i].dwVendorDeviceID)) && (!IS_NAPALM(DevTable[i].dwVendorDeviceID)))
+
+  002f9	8b 06		 mov	 eax, DWORD PTR [esi]
+  002fb	83 c4 3c	 add	 esp, 60			; 0000003cH
+  002fe	3d 1a 12 05 00	 cmp	 eax, 332314		; 0005121aH
+  00303	74 58		 je	 SHORT $L11350
+  00305	3d 1a 12 06 00	 cmp	 eax, 397850		; 0006121aH
+  0030a	74 51		 je	 SHORT $L11350
+  0030c	3d 1a 12 07 00	 cmp	 eax, 463386		; 0007121aH
+  00311	74 4a		 je	 SHORT $L11350
+  00313	3d 1a 12 08 00	 cmp	 eax, 528922		; 0008121aH
+  00318	74 43		 je	 SHORT $L11350
+  0031a	3d 1a 12 09 00	 cmp	 eax, 594458		; 0009121aH
+  0031f	74 3c		 je	 SHORT $L11350
+  00321	3d 1a 12 0a 00	 cmp	 eax, 659994		; 000a121aH
+  00326	74 35		 je	 SHORT $L11350
+  00328	3d 1a 12 0b 00	 cmp	 eax, 725530		; 000b121aH
+  0032d	74 2e		 je	 SHORT $L11350
+  0032f	3d 1a 12 0c 00	 cmp	 eax, 791066		; 000c121aH
+  00334	74 27		 je	 SHORT $L11350
+  00336	3d 1a 12 0d 00	 cmp	 eax, 856602		; 000d121aH
+  0033b	74 20		 je	 SHORT $L11350
+  0033d	3d 1a 12 0e 00	 cmp	 eax, 922138		; 000e121aH
+  00342	74 19		 je	 SHORT $L11350
+  00344	3d 1a 12 0f 00	 cmp	 eax, 987674		; 000f121aH
+  00349	74 12		 je	 SHORT $L11350
+
+; 750  : 	      {
+; 751  : 	      Debug_Printf( VNAME "Invalid Device ID 0x%x, expecting 0x%x or 0x%x-0x%x\n", DevTable[i].dwVendorDeviceID, SST_VENDOR_DEVICE_ID_H4, SST_VENDOR_DEVICE_ID_H5_6, SST_VENDOR_DEVICE_ID_H5_F );
+; 752  :          DevTable[i].dwDevNode = 0x0;
+
+  0034b	8b 45 f8	 mov	 eax, DWORD PTR _pDev$[ebp]
+  0034e	c7 00 00 00 00
+	00		 mov	 DWORD PTR [eax], 0
+
+; 753  : 	      return(NULL);
+
+  00354	33 c0		 xor	 eax, eax
+
+; 1480 : }
+
+  00356	5f		 pop	 edi
+  00357	5e		 pop	 esi
+  00358	5b		 pop	 ebx
+  00359	8b e5		 mov	 esp, ebp
+  0035b	5d		 pop	 ebp
+  0035c	c3		 ret	 0
+$L11350:
+
+; 754  : 	      }   
+; 755  : 
+; 756  :    	//
+; 757  : 	   // find the PCI relocatable memory address space bases
+; 758  : 	   //
+; 759  : 	   j = 0;
+
+  0035d	33 f6		 xor	 esi, esi
+
+; 760  : 	   memBase = 0;
+; 761  : #ifdef SLI_AA
+; 762  :       // Determine Size and Park Position
+; 763  :       CM_Call_Enumerator_Function (dwDevNode, PCI_ENUM_FUNC_GET_DEVICE_INFO, CFG_PCI_DECODE, &McfgPCIDecode, sizeof(DWORD), 0); 
+
+  0035f	8d 4d ec	 lea	 ecx, DWORD PTR _McfgPCIDecode$[ebp]
+  00362	56		 push	 esi
+  00363	6a 04		 push	 4
+  00365	51		 push	 ecx
+  00366	6a 48		 push	 72			; 00000048H
+  00368	56		 push	 esi
+  00369	57		 push	 edi
+  0036a	89 75 cc	 mov	 DWORD PTR _memBase$[ebp], esi
+  0036d	e8 00 00 00 00	 call	 _CCODE__CONFIGMG_Call_Enumerator_Function
+
+; 764  :       dwDecodeSize[0] = GetMemSize((McfgPCIDecode & CFG_MEMBASE0_DECODE) >> CFG_MEMBASE0_DECODE_SHIFT); 
+
+  00372	8b 55 ec	 mov	 edx, DWORD PTR _McfgPCIDecode$[ebp]
+  00375	83 e2 0f	 and	 edx, 15			; 0000000fH
+  00378	52		 push	 edx
+  00379	e8 00 00 00 00	 call	 _GetMemSize
+  0037e	a3 00 00 00 00	 mov	 DWORD PTR _dwDecodeSize, eax
+
+; 765  :       dwDecodeSize[1] = GetMemSize((McfgPCIDecode & CFG_MEMBASE1_DECODE) >> CFG_MEMBASE1_DECODE_SHIFT); 
+
+  00383	8b 45 ec	 mov	 eax, DWORD PTR _McfgPCIDecode$[ebp]
+  00386	c1 e8 04	 shr	 eax, 4
+  00389	83 e0 0f	 and	 eax, 15			; 0000000fH
+  0038c	50		 push	 eax
+  0038d	e8 00 00 00 00	 call	 _GetMemSize
+  00392	a3 04 00 00 00	 mov	 DWORD PTR _dwDecodeSize+4, eax
+
+; 766  : #endif
+; 767  : 	   while (j < DevTable[i].ConfigData.wNumMemWindows)
+
+  00397	33 c0		 xor	 eax, eax
+  00399	66 8b 83 ec 00
+	00 00		 mov	 ax, WORD PTR _DevTable[ebx+236]
+  003a0	83 c4 20	 add	 esp, 32			; 00000020H
+  003a3	85 c0		 test	 eax, eax
+  003a5	89 45 d0	 mov	 DWORD PTR -48+[ebp], eax
+  003a8	7e 64		 jle	 SHORT $L11903
+  003aa	8b 45 c4	 mov	 eax, DWORD PTR _PhysMemBase$[ebp]
+  003ad	8d 93 ee 00 00
+	00		 lea	 edx, DWORD PTR _DevTable[ebx+238]
+  003b3	8b fe		 mov	 edi, esi
+$L11353:
+
+; 768  : 	      {
+; 769  : 	      if (DevTable[i].ConfigData.dMemBase[j] < (1024 * 1024))
+
+  003b5	8b 0a		 mov	 ecx, DWORD PTR [edx]
+  003b7	81 f9 00 00 10
+	00		 cmp	 ecx, 1048576		; 00100000H
+  003bd	73 06		 jae	 SHORT $L11355
+
+; 770  :             {
+; 771  : 		      j += 1;
+
+  003bf	46		 inc	 esi
+  003c0	83 c2 04	 add	 edx, 4
+
+; 772  : 		      continue;
+
+  003c3	eb 3f		 jmp	 SHORT $L11360
+$L11355:
+
+; 773  :             }
+; 774  : 
+; 775  : #ifdef SLI_AA
+; 776  :          // MemBase 0 need to be unique
+; 777  :          // MemBase 1 don't need to be unique for the slaves
+; 778  :          if (0 == memBase)
+
+  003c5	85 ff		 test	 edi, edi
+  003c7	75 14		 jne	 SHORT $L11356
+
+; 779  :             PhysMemBase[memBase] = DevTable[i].ConfigData.dMemBase[j++] + dwUnitNum * dwDecodeSize[memBase];
+
+  003c9	a1 00 00 00 00	 mov	 eax, DWORD PTR _dwDecodeSize
+  003ce	0f af 45 0c	 imul	 eax, DWORD PTR _dwUnitNum$[ebp]
+  003d2	03 c1		 add	 eax, ecx
+  003d4	46		 inc	 esi
+  003d5	89 45 c4	 mov	 DWORD PTR _PhysMemBase$[ebp], eax
+  003d8	83 c2 04	 add	 edx, 4
+
+; 780  :          else
+
+  003db	eb 21		 jmp	 SHORT $L11359
+$L11356:
+
+; 781  :             {
+; 782  :             if (0 == dwUnitNum)
+
+  003dd	8b 45 0c	 mov	 eax, DWORD PTR _dwUnitNum$[ebp]
+  003e0	85 c0		 test	 eax, eax
+  003e2	75 06		 jne	 SHORT $L11358
+
+; 783  :                PhysMemBase[memBase] = DevTable[i].ConfigData.dMemBase[j++];
+
+  003e4	89 4c bd c4	 mov	 DWORD PTR _PhysMemBase$[ebp+edi*4], ecx
+
+; 784  :             else   
+
+  003e8	eb 0d		 jmp	 SHORT $L11917
+$L11358:
+
+; 785  :                PhysMemBase[memBase] = DevTable[i].ConfigData.dMemBase[j++] + dwDecodeSize[memBase];
+
+  003ea	8b 04 bd 00 00
+	00 00		 mov	 eax, DWORD PTR _dwDecodeSize[edi*4]
+  003f1	03 c1		 add	 eax, ecx
+  003f3	89 44 bd c4	 mov	 DWORD PTR _PhysMemBase$[ebp+edi*4], eax
+$L11917:
+  003f7	8b 45 c4	 mov	 eax, DWORD PTR _PhysMemBase$[ebp]
+  003fa	46		 inc	 esi
+  003fb	83 c2 04	 add	 edx, 4
+$L11359:
+
+; 786  :             }
+; 787  : 
+; 788  :          memBase++;
+
+  003fe	47		 inc	 edi
+
+; 789  : #else      
+; 790  : 	      PhysMemBase[memBase++] = DevTable[i].ConfigData.dMemBase[j++];
+; 791  : #endif
+; 792  : 
+; 793  : 	      if (memBase == H3_NUM_MEM_BASES)
+
+  003ff	83 ff 02	 cmp	 edi, 2
+  00402	74 1c		 je	 SHORT $L11361
+$L11360:
+
+; 766  : #endif
+; 767  : 	   while (j < DevTable[i].ConfigData.wNumMemWindows)
+
+  00404	3b 75 d0	 cmp	 esi, DWORD PTR -48+[ebp]
+  00407	7c ac		 jl	 SHORT $L11353
+
+; 794  : 		      break;		// found all the memory bases!
+; 795  : 	      }
+; 796  : 
+; 797  : 	   if (memBase != H3_NUM_MEM_BASES)
+
+  00409	83 ff 02	 cmp	 edi, 2
+  0040c	74 12		 je	 SHORT $L11361
+$L11903:
+
+; 798  : 	      {
+; 799  : 	      Debug_Printf( VNAME "Too few membases > 1MB, found %d, expecting %d\n", memBase, H3_NUM_MEM_BASES);
+; 800  :    	   DevTable[i].dwDevNode = 0x0;
+
+  0040e	8b 4d f8	 mov	 ecx, DWORD PTR _pDev$[ebp]
+
+; 801  : 	      return(NULL);
+
+  00411	33 c0		 xor	 eax, eax
+  00413	c7 01 00 00 00
+	00		 mov	 DWORD PTR [ecx], 0
+
+; 1480 : }
+
+  00419	5f		 pop	 edi
+  0041a	5e		 pop	 esi
+  0041b	5b		 pop	 ebx
+  0041c	8b e5		 mov	 esp, ebp
+  0041e	5d		 pop	 ebp
+  0041f	c3		 ret	 0
+$L11361:
+
+; 808  :       IoBase = 0;
+; 809  : 	   while (j < DevTable[i].ConfigData.wNumIOPorts)
+
+  00420	33 d2		 xor	 edx, edx
+  00422	33 c9		 xor	 ecx, ecx
+  00424	66 8b 93 48 01
+	00 00		 mov	 dx, WORD PTR _DevTable[ebx+328]
+  0042b	85 d2		 test	 edx, edx
+  0042d	7e 4a		 jle	 SHORT $L11904
+
+; 802  : 	      }
+; 803  :  
+; 804  : 	   //
+; 805  : 	   // find the PCI relocatable IO base
+; 806  : 	   // 
+; 807  : 	   j = 0;
+
+  0042f	8d b3 4a 01 00
+	00		 lea	 esi, DWORD PTR _DevTable[ebx+330]
+$L11363:
+
+; 810  : 	      {
+; 811  : 	      if (DevTable[i].ConfigData.wIOPortBase[j] < 0x400)
+
+  00435	66 81 3e 00 04	 cmp	 WORD PTR [esi], 1024	; 00000400H
+  0043a	73 1a		 jae	 SHORT $L11365
+
+; 812  :             {
+; 813  : 		      j += 1;
+
+  0043c	41		 inc	 ecx
+  0043d	83 c6 02	 add	 esi, 2
+  00440	3b ca		 cmp	 ecx, edx
+  00442	7c f1		 jl	 SHORT $L11363
+
+; 821  : 	      {
+; 822  : 	      Debug_Printf( VNAME "Found no relocatable IO base\n");
+; 823  : 	      DevTable[i].dwDevNode = 0x0;
+
+  00444	8b 45 f8	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00447	c7 00 00 00 00
+	00		 mov	 DWORD PTR [eax], 0
+
+; 824  : 	      return(NULL);
+
+  0044d	33 c0		 xor	 eax, eax
+
+; 1480 : }
+
+  0044f	5f		 pop	 edi
+  00450	5e		 pop	 esi
+  00451	5b		 pop	 ebx
+  00452	8b e5		 mov	 esp, ebp
+  00454	5d		 pop	 ebp
+  00455	c3		 ret	 0
+$L11365:
+
+; 814  : 		      continue;
+; 815  :             }
+; 816  :          IoBase = DevTable[i].ConfigData.wIOPortBase[j];
+
+  00456	8b 55 d8	 mov	 edx, DWORD PTR _i$[ebp]
+  00459	8d 34 92	 lea	 esi, DWORD PTR [edx+edx*4]
+  0045c	8d 34 b6	 lea	 esi, DWORD PTR [esi+esi*4]
+  0045f	8d 34 f2	 lea	 esi, DWORD PTR [edx+esi*8]
+  00462	8d 14 72	 lea	 edx, DWORD PTR [edx+esi*2]
+  00465	8d 14 51	 lea	 edx, DWORD PTR [ecx+edx*2]
+  00468	33 c9		 xor	 ecx, ecx
+  0046a	66 8b 0c 55 4a
+	01 00 00	 mov	 cx, WORD PTR _DevTable[edx*2+330]
+
+; 817  : 	      break;
+; 818  : 	      }
+; 819  : 
+; 820  : 	   if (IoBase == 0)
+
+  00472	85 c9		 test	 ecx, ecx
+  00474	89 4d d0	 mov	 DWORD PTR _IoBase$[ebp], ecx
+  00477	75 12		 jne	 SHORT $L11366
+$L11904:
+
+; 821  : 	      {
+; 822  : 	      Debug_Printf( VNAME "Found no relocatable IO base\n");
+; 823  : 	      DevTable[i].dwDevNode = 0x0;
+
+  00479	8b 45 f8	 mov	 eax, DWORD PTR _pDev$[ebp]
+  0047c	c7 00 00 00 00
+	00		 mov	 DWORD PTR [eax], 0
+
+; 824  : 	      return(NULL);
+
+  00482	33 c0		 xor	 eax, eax
+
+; 1480 : }
+
+  00484	5f		 pop	 edi
+  00485	5e		 pop	 esi
+  00486	5b		 pop	 ebx
+  00487	8b e5		 mov	 esp, ebp
+  00489	5d		 pop	 ebp
+  0048a	c3		 ret	 0
+$L11366:
+
+; 825  : 	      }
+; 826  : 
+; 827  :       // Ok, we already mapped in the resources for this node once
+; 828  :       // has it changed?
+; 829  :       if (TRUE == nFound)
+
+  0048b	8b 55 d4	 mov	 edx, DWORD PTR _nFound$[ebp]
+  0048e	83 fa 01	 cmp	 edx, 1
+  00491	8b 55 c8	 mov	 edx, DWORD PTR _PhysMemBase$[ebp+4]
+  00494	75 3b		 jne	 SHORT $L11370
+
+; 830  :          {
+; 831  :          if ((DevTable[i].PhysMemBase[0] == PhysMemBase[0]) &&
+; 832  :              (DevTable[i].PhysMemBase[1] == PhysMemBase[1]) &&
+; 833  :              (DevTable[i].IoBase == IoBase))
+
+  00496	39 83 88 00 00
+	00		 cmp	 DWORD PTR _DevTable[ebx+136], eax
+  0049c	75 33		 jne	 SHORT $L11370
+  0049e	39 93 8c 00 00
+	00		 cmp	 DWORD PTR _DevTable[ebx+140], edx
+  004a4	75 2b		 jne	 SHORT $L11370
+  004a6	39 8b 84 00 00
+	00		 cmp	 DWORD PTR _DevTable[ebx+132], ecx
+  004ac	75 23		 jne	 SHORT $L11370
+
+; 834  :             {
+; 835  :             // If interrupts are disabled then return
+; 836  :             if (0 == DevTable[i].InterruptsEnabled)
+
+  004ae	8b b3 e0 00 00
+	00		 mov	 esi, DWORD PTR _DevTable[ebx+224]
+  004b4	85 f6		 test	 esi, esi
+
+; 837  :                return pDev;
+
+  004b6	0f 84 d7 09 00
+	00		 je	 $L11346
+
+; 838  : 
+; 839  :             // Fix me to we need to remove old interrupt?
+; 840  :             // If interrupt is the same then return
+; 841  :             if (DevTable[i].IRQDesc.VID_IRQ_Number == DevTable[i].ConfigData.bIRQRegisters[0])
+
+  004bc	66 0f b6 b3 9c
+	01 00 00	 movzx	 si, BYTE PTR _DevTable[ebx+412]
+  004c4	66 39 b3 5c 00
+	00 00		 cmp	 WORD PTR _DevTable[ebx+92], si
+
+; 842  :                return pDev;
+
+  004cb	0f 84 c2 09 00
+	00		 je	 $L11346
+$L11370:
+
+; 843  :             }
+; 844  :          }
+; 845  : 
+; 846  :       for (memBase=0; memBase<H3_NUM_MEM_BASES; memBase++)
+; 847  :          DevTable[i].PhysMemBase[memBase] =  PhysMemBase[memBase];
+
+  004d1	89 83 88 00 00
+	00		 mov	 DWORD PTR _DevTable[ebx+136], eax
+  004d7	89 93 8c 00 00
+	00		 mov	 DWORD PTR _DevTable[ebx+140], edx
+
+; 848  :       DevTable[i].IoBase = IoBase;      
+; 849  : 
+; 850  : #ifdef SLI_AA
+; 851  :       PCIGetBusDevFunc(dwDevNode, &DevTable[i].dwBus, &DevTable[i].dwDevFunc);
+
+  004dd	8d b3 0c 00 00
+	00		 lea	 esi, DWORD PTR _DevTable[ebx+12]
+  004e3	89 8b 84 00 00
+	00		 mov	 DWORD PTR _DevTable[ebx+132], ecx
+  004e9	8b 4d 08	 mov	 ecx, DWORD PTR _dwDevNode$[ebp]
+  004ec	8d bb 08 00 00
+	00		 lea	 edi, DWORD PTR _DevTable[ebx+8]
+  004f2	56		 push	 esi
+  004f3	57		 push	 edi
+  004f4	51		 push	 ecx
+  004f5	e8 00 00 00 00	 call	 _PCIGetBusDevFunc
+
+; 852  : 
+; 853  :       DevTable[i].dwType = SLI_AA_REGULAR_DEVICE;
+
+  004fa	c7 83 14 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _DevTable[ebx+20], 0
+
+; 854  : 
+; 855  :       // Multi-Function Device Case
+; 856  :       // If we have a function number then we are a slave
+; 857  :       nChips = 1;
+; 858  :       if (DevTable[i].dwDevFunc & 0x07)
+
+  00504	8a 06		 mov	 al, BYTE PTR [esi]
+  00506	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00509	c7 45 d4 01 00
+	00 00		 mov	 DWORD PTR _nChips$[ebp], 1
+  00510	a8 07		 test	 al, 7
+  00512	74 0f		 je	 SHORT $L11374
+
+; 859  :          DevTable[i].dwType = SLI_AA_SLAVE_DEVICE;
+
+  00514	c7 83 14 00 00
+	00 02 00 00 00	 mov	 DWORD PTR _DevTable[ebx+20], 2
+
+; 860  :       else
+
+  0051e	e9 86 00 00 00	 jmp	 $L11378
+$L11374:
+
+; 861  :          {
+; 862  : #ifndef WIN_CSIM
+; 863  :          for (j=1; j<8; j++)
+
+  00523	c7 45 d8 01 00
+	00 00		 mov	 DWORD PTR _j$[ebp], 1
+$L11376:
+
+; 864  :             {
+; 865  :             DWORD deviceID;
+; 866  :          
+; 867  :             // If we don't have slave how can we be a master?
+; 868  :             deviceID = PCI_Read_Config(DevTable[i].dwBus, DevTable[i].dwDevFunc | j, 0x0);
+
+  0052a	8b 16		 mov	 edx, DWORD PTR [esi]
+  0052c	8b 4d d8	 mov	 ecx, DWORD PTR _j$[ebp]
+  0052f	8b 07		 mov	 eax, DWORD PTR [edi]
+  00531	0b d1		 or	 edx, ecx
+  00533	6a 00		 push	 0
+  00535	52		 push	 edx
+  00536	50		 push	 eax
+  00537	e8 00 00 00 00	 call	 _PCI_Read_Config
+  0053c	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 869  : 		      if (IS_VOODOO3(deviceID) || IS_NAPALM(deviceID))
+
+  0053f	3d 1a 12 05 00	 cmp	 eax, 332314		; 0005121aH
+  00544	74 46		 je	 SHORT $L11382
+  00546	3d 1a 12 06 00	 cmp	 eax, 397850		; 0006121aH
+  0054b	74 3f		 je	 SHORT $L11382
+  0054d	3d 1a 12 07 00	 cmp	 eax, 463386		; 0007121aH
+  00552	74 38		 je	 SHORT $L11382
+  00554	3d 1a 12 08 00	 cmp	 eax, 528922		; 0008121aH
+  00559	74 31		 je	 SHORT $L11382
+  0055b	3d 1a 12 09 00	 cmp	 eax, 594458		; 0009121aH
+  00560	74 2a		 je	 SHORT $L11382
+  00562	3d 1a 12 0a 00	 cmp	 eax, 659994		; 000a121aH
+  00567	74 23		 je	 SHORT $L11382
+  00569	3d 1a 12 0b 00	 cmp	 eax, 725530		; 000b121aH
+  0056e	74 1c		 je	 SHORT $L11382
+  00570	3d 1a 12 0c 00	 cmp	 eax, 791066		; 000c121aH
+  00575	74 15		 je	 SHORT $L11382
+  00577	3d 1a 12 0d 00	 cmp	 eax, 856602		; 000d121aH
+  0057c	74 0e		 je	 SHORT $L11382
+  0057e	3d 1a 12 0e 00	 cmp	 eax, 922138		; 000e121aH
+  00583	74 07		 je	 SHORT $L11382
+  00585	3d 1a 12 0f 00	 cmp	 eax, 987674		; 000f121aH
+  0058a	75 11		 jne	 SHORT $L11377
+$L11382:
+
+; 870  : 		         {
+; 871  :                DevTable[i].dwType = SLI_AA_MASTER_DEVICE;
+; 872  :                nChips++;
+
+  0058c	8b 45 d4	 mov	 eax, DWORD PTR _nChips$[ebp]
+  0058f	c7 83 14 00 00
+	00 01 00 00 00	 mov	 DWORD PTR _DevTable[ebx+20], 1
+  00599	40		 inc	 eax
+  0059a	89 45 d4	 mov	 DWORD PTR _nChips$[ebp], eax
+$L11377:
+  0059d	8b 45 d8	 mov	 eax, DWORD PTR _j$[ebp]
+  005a0	40		 inc	 eax
+  005a1	83 f8 08	 cmp	 eax, 8
+  005a4	89 45 d8	 mov	 DWORD PTR _j$[ebp], eax
+  005a7	7c 81		 jl	 SHORT $L11376
+$L11378:
+
+; 873  :                }
+; 874  :             }
+; 875  : #endif
+; 876  :          }
+; 877  : 
+; 878  :       // If we have a unit number then we are a slave
+; 879  :       // FIX_ME This is a good place to add PCI_Decode for Both Master/Slave if this is Napalm
+; 880  :       if (0x0 != dwUnitNum)
+
+  005a9	8b 45 0c	 mov	 eax, DWORD PTR _dwUnitNum$[ebp]
+  005ac	85 c0		 test	 eax, eax
+  005ae	0f 84 08 01 00
+	00		 je	 $L11383
+
+; 881  :          {
+; 882  :          DevTable[i].dwDevFunc |= dwUnitNum;
+
+  005b4	8b 16		 mov	 edx, DWORD PTR [esi]
+  005b6	8b c8		 mov	 ecx, eax
+  005b8	0b d1		 or	 edx, ecx
+
+; 883  : 
+; 884  :          // if we have a unit number then we are a slave      
+; 885  :          DevTable[i].dwType = SLI_AA_SLAVE_DEVICE;
+; 886  : 
+; 887  : #ifndef WIN_CSIM
+; 888  :          // Enable Writes regardless of Strapping Option Sizes!!!!!
+; 889  :          cfgInitEnable = PCI_Read_Config(DevTable[i].dwBus, DevTable[i].dwDevFunc, CFG_INIT_ENABLE);
+
+  005ba	6a 40		 push	 64			; 00000040H
+  005bc	89 16		 mov	 DWORD PTR [esi], edx
+  005be	c7 83 14 00 00
+	00 02 00 00 00	 mov	 DWORD PTR _DevTable[ebx+20], 2
+  005c8	8b 16		 mov	 edx, DWORD PTR [esi]
+  005ca	8b 07		 mov	 eax, DWORD PTR [edi]
+  005cc	52		 push	 edx
+  005cd	50		 push	 eax
+  005ce	e8 00 00 00 00	 call	 _PCI_Read_Config
+
+; 890  :          PCI_Write_Config(DevTable[i].dwBus, DevTable[i].dwDevFunc, CFG_INIT_ENABLE, cfgInitEnable | CFG_UPDATE_MEMBASE_LSBS);
+
+  005d3	8b 0e		 mov	 ecx, DWORD PTR [esi]
+  005d5	8b 17		 mov	 edx, DWORD PTR [edi]
+  005d7	89 45 d8	 mov	 DWORD PTR _cfgInitEnable$[ebp], eax
+  005da	80 cc 04	 or	 ah, 4
+  005dd	50		 push	 eax
+  005de	6a 40		 push	 64			; 00000040H
+  005e0	51		 push	 ecx
+  005e1	52		 push	 edx
+  005e2	e8 00 00 00 00	 call	 _PCI_Write_Config
+
+; 891  : 
+; 892  :          // Read Master PCI Decode
+; 893  :          McfgPCIDecode = PCI_Read_Config(DevTable[i].dwBus, DevTable[i].dwDevFunc & ~0x07, CFG_PCI_DECODE);
+
+  005e7	8b 06		 mov	 eax, DWORD PTR [esi]
+  005e9	8b 0f		 mov	 ecx, DWORD PTR [edi]
+  005eb	24 f8		 and	 al, -8			; fffffff8H
+  005ed	6a 48		 push	 72			; 00000048H
+  005ef	50		 push	 eax
+  005f0	51		 push	 ecx
+  005f1	e8 00 00 00 00	 call	 _PCI_Read_Config
+
+; 894  :          McfgPCIDecode = (McfgPCIDecode & (CFG_MEMBASE0_DECODE | CFG_MEMBASE1_DECODE)) << CFG_SNOOP_MEMBASE0_DECODE_SHIFT;
+; 895  :          
+; 896  :          ScfgPCIDecode = PCI_Read_Config(DevTable[i].dwBus, DevTable[i].dwDevFunc, CFG_PCI_DECODE);
+
+  005f6	8b 16		 mov	 edx, DWORD PTR [esi]
+  005f8	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  005fd	c1 e0 0a	 shl	 eax, 10			; 0000000aH
+  00600	89 45 ec	 mov	 DWORD PTR _McfgPCIDecode$[ebp], eax
+  00603	8b 07		 mov	 eax, DWORD PTR [edi]
+  00605	6a 48		 push	 72			; 00000048H
+  00607	52		 push	 edx
+  00608	50		 push	 eax
+  00609	e8 00 00 00 00	 call	 _PCI_Read_Config
+
+; 897  :          ScfgPCIDecode &= ~(CFG_MEMBASE0_DECODE | CFG_MEMBASE1_DECODE | CFG_IOBASE_DECODE | CFG_SNOOP_MEMBASE0_DECODE | CFG_SNOOP_MEMBASE1_DECODE);
+; 898  :          ScfgPCIDecode = ScfgPCIDecode | McfgPCIDecode | (GetDecodeSize(32<<20) << CFG_MEMBASE0_DECODE_SHIFT) | (GetDecodeSize(dwDecodeSize[1]) << CFG_MEMBASE1_DECODE_SHIFT);
+
+  0060e	8b 0d 04 00 00
+	00		 mov	 ecx, DWORD PTR _dwDecodeSize+4
+  00614	25 00 00 fc ff	 and	 eax, -262144		; fffc0000H
+  00619	51		 push	 ecx
+  0061a	89 45 cc	 mov	 DWORD PTR _ScfgPCIDecode$[ebp], eax
+  0061d	e8 00 00 00 00	 call	 _GetDecodeSize
+  00622	8b d8		 mov	 ebx, eax
+  00624	68 00 00 00 02	 push	 33554432		; 02000000H
+  00629	c1 e3 04	 shl	 ebx, 4
+  0062c	e8 00 00 00 00	 call	 _GetDecodeSize
+  00631	0b d8		 or	 ebx, eax
+  00633	8b 45 ec	 mov	 eax, DWORD PTR _McfgPCIDecode$[ebp]
+
+; 899  :          PCI_Write_Config(DevTable[i].dwBus, DevTable[i].dwDevFunc, CFG_PCI_DECODE, ScfgPCIDecode);
+
+  00636	8b 16		 mov	 edx, DWORD PTR [esi]
+  00638	0b d8		 or	 ebx, eax
+  0063a	8b 45 cc	 mov	 eax, DWORD PTR _ScfgPCIDecode$[ebp]
+  0063d	0b c3		 or	 eax, ebx
+  0063f	50		 push	 eax
+  00640	8b 07		 mov	 eax, DWORD PTR [edi]
+  00642	6a 48		 push	 72			; 00000048H
+  00644	52		 push	 edx
+  00645	50		 push	 eax
+  00646	e8 00 00 00 00	 call	 _PCI_Write_Config
+
+; 900  : 
+; 901  :          // At this Time we need to do a little Initialization
+; 902  :          // Setup Membase0, MemBase1, IoBase
+; 903  :          PCI_Write_Config(DevTable[i].dwBus, DevTable[i].dwDevFunc, SST_PCI_MMIO_ID, PhysMemBase[0]);      
+
+  0064b	8b 4d c4	 mov	 ecx, DWORD PTR _PhysMemBase$[ebp]
+  0064e	8b 16		 mov	 edx, DWORD PTR [esi]
+  00650	8b 07		 mov	 eax, DWORD PTR [edi]
+  00652	83 c4 4c	 add	 esp, 76			; 0000004cH
+  00655	51		 push	 ecx
+  00656	6a 10		 push	 16			; 00000010H
+  00658	52		 push	 edx
+  00659	50		 push	 eax
+  0065a	e8 00 00 00 00	 call	 _PCI_Write_Config
+
+; 904  : 
+; 905  :          // Park it in Membase1 Space
+; 906  :          PCI_Write_Config(DevTable[i].dwBus, DevTable[i].dwDevFunc, SST_PCI_FB_ID, PhysMemBase[1]);      
+
+  0065f	8b 4d c8	 mov	 ecx, DWORD PTR _PhysMemBase$[ebp+4]
+  00662	8b 16		 mov	 edx, DWORD PTR [esi]
+  00664	8b 07		 mov	 eax, DWORD PTR [edi]
+  00666	51		 push	 ecx
+  00667	6a 14		 push	 20			; 00000014H
+  00669	52		 push	 edx
+  0066a	50		 push	 eax
+  0066b	e8 00 00 00 00	 call	 _PCI_Write_Config
+
+; 907  : 
+; 908  :          PCI_Write_Config(DevTable[i].dwBus, DevTable[i].dwDevFunc, SST_PCI_IOBASE_ID, IoBase);      
+
+  00670	8b 4d d0	 mov	 ecx, DWORD PTR _IoBase$[ebp]
+  00673	8b 16		 mov	 edx, DWORD PTR [esi]
+  00675	8b 07		 mov	 eax, DWORD PTR [edi]
+  00677	51		 push	 ecx
+  00678	6a 18		 push	 24			; 00000018H
+  0067a	52		 push	 edx
+  0067b	50		 push	 eax
+  0067c	e8 00 00 00 00	 call	 _PCI_Write_Config
+
+; 909  :          PCI_Write_Config(DevTable[i].dwBus, DevTable[i].dwDevFunc, CFG_INIT_ENABLE, cfgInitEnable);
+
+  00681	8b 4d d8	 mov	 ecx, DWORD PTR _cfgInitEnable$[ebp]
+  00684	8b 16		 mov	 edx, DWORD PTR [esi]
+  00686	8b 07		 mov	 eax, DWORD PTR [edi]
+  00688	51		 push	 ecx
+  00689	6a 40		 push	 64			; 00000040H
+  0068b	52		 push	 edx
+  0068c	50		 push	 eax
+  0068d	e8 00 00 00 00	 call	 _PCI_Write_Config
+
+; 910  :    
+; 911  :          // Disable Master
+; 912  :          PCI_Write_Config(DevTable[i].dwBus, DevTable[i].dwDevFunc & ~0x07, SST_PCI_COMMAND_ID, 0x02);      
+
+  00692	8b 0e		 mov	 ecx, DWORD PTR [esi]
+  00694	8b 17		 mov	 edx, DWORD PTR [edi]
+  00696	83 c4 40	 add	 esp, 64			; 00000040H
+  00699	83 e1 f8	 and	 ecx, -8			; fffffff8H
+  0069c	6a 02		 push	 2
+  0069e	6a 04		 push	 4
+  006a0	51		 push	 ecx
+  006a1	52		 push	 edx
+  006a2	e8 00 00 00 00	 call	 _PCI_Write_Config
+
+; 913  : 
+; 914  :          // Enable Us
+; 915  :          PCI_Write_Config(DevTable[i].dwBus, DevTable[i].dwDevFunc, SST_PCI_COMMAND_ID, 0x03);      
+
+  006a7	8b 06		 mov	 eax, DWORD PTR [esi]
+  006a9	8b 0f		 mov	 ecx, DWORD PTR [edi]
+  006ab	6a 03		 push	 3
+  006ad	6a 04		 push	 4
+  006af	50		 push	 eax
+  006b0	51		 push	 ecx
+  006b1	e8 00 00 00 00	 call	 _PCI_Write_Config
+  006b6	8b 5d dc	 mov	 ebx, DWORD PTR -36+[ebp]
+  006b9	83 c4 20	 add	 esp, 32			; 00000020H
+$L11383:
+
+; 916  : #endif      
+; 917  : 
+; 918  :          }
+; 919  : #endif
+; 920  : 
+; 921  :       /* Map register space (memBase0). */
+; 922  : #ifdef CMDFIFO
+; 923  : 	   mapSize = 0x2000000;  // register space is 32Mb fixed
+; 924  : #else
+; 925  :       mapSize = 0x8000000;  // register space is 128MB in Direct Write
+; 926  : #endif
+; 927  : 
+; 928  : #ifndef WIN_CSIM
+; 929  :       MapDeviceRegisters(pDev, mapSize);
+
+  006bc	8b 55 f8	 mov	 edx, DWORD PTR _pDev$[ebp]
+  006bf	68 00 00 00 02	 push	 33554432		; 02000000H
+  006c4	52		 push	 edx
+  006c5	c7 45 fc 00 00
+	00 02		 mov	 DWORD PTR _mapSize$[ebp], 33554432 ; 02000000H
+  006cc	e8 00 00 00 00	 call	 _MapDeviceRegisters
+
+; 930  : 	   if (DevTable[i].RegBase[0] == NULL)
+
+  006d1	8b 83 90 00 00
+	00		 mov	 eax, DWORD PTR _DevTable[ebx+144]
+  006d7	83 c4 08	 add	 esp, 8
+  006da	85 c0		 test	 eax, eax
+  006dc	75 12		 jne	 SHORT $L11384
+
+; 931  : 	      {
+; 932  : 	      Debug_Printf( VNAME "Unable to map memory base 0\n");
+; 933  : 	      DevTable[i].dwDevNode = 0x0;
+
+  006de	8b 45 f8	 mov	 eax, DWORD PTR _pDev$[ebp]
+  006e1	c7 00 00 00 00
+	00		 mov	 DWORD PTR [eax], 0
+
+; 934  : 	      return(NULL);
+
+  006e7	33 c0		 xor	 eax, eax
+
+; 1480 : }
+
+  006e9	5f		 pop	 edi
+  006ea	5e		 pop	 esi
+  006eb	5b		 pop	 ebx
+  006ec	8b e5		 mov	 esp, ebp
+  006ee	5d		 pop	 ebp
+  006ef	c3		 ret	 0
+$L11384:
+
+; 935  : 	      }
+; 936  : #else
+; 937  : #ifdef SLI_AA
+; 938  :       if (0x0 == dwUnitNum)
+; 939  :          {
+; 940  :          MapDeviceRegisters(pDev, mapSize);
+; 941  : 	      if (DevTable[i].RegBase[0] == NULL)
+; 942  : 	         {
+; 943  : 	         Debug_Printf( VNAME "Unable to map memory base 0\n");
+; 944  : 	         DevTable[i].dwDevNode = 0x0;
+; 945  : 	         return(NULL);
+; 946  : 	         }
+; 947  :          DevTable[i].RealRegBase = DevTable[i].RegBase[0];
+; 948  :          }
+; 949  :       else
+; 950  :          GetWINSIMIface(pDev, dwUnitNum);
+; 951  : #else
+; 952  :       MapDeviceRegisters(pDev, mapSize);
+; 953  : 	   if (DevTable[i].RegBase[0] == NULL)
+; 954  : 	      {
+; 955  : 	      Debug_Printf( VNAME "Unable to map memory base 0\n");
+; 956  : 	      DevTable[i].dwDevNode = 0x0;
+; 957  : 	      return(NULL);
+; 958  : 	      }
+; 959  :       DevTable[i].RealRegBase = DevTable[i].RegBase[0];
+; 960  : #endif
+; 961  : #endif
+; 962  : 
+; 963  :       i2c_initialize((I2CCONTEXT)&DevTable[i]);
+
+  006f0	8b 4d f8	 mov	 ecx, DWORD PTR _pDev$[ebp]
+  006f3	51		 push	 ecx
+  006f4	e8 00 00 00 00	 call	 _i2c_initialize
+
+; 964  : 
+; 965  :       // Determine Memory Bus Type <either DDR or SGRAM/SDRAM>
+; 966  :       if (IS_DAYTONA(DevTable[i].dwVendorDeviceID))
+
+  006f9	8b 83 04 00 00
+	00		 mov	 eax, DWORD PTR _DevTable[ebx+4]
+  006ff	83 c4 04	 add	 esp, 4
+  00702	3d 1a 12 0a 00	 cmp	 eax, 659994		; 000a121aH
+  00707	74 23		 je	 SHORT $L11387
+  00709	3d 1a 12 0b 00	 cmp	 eax, 725530		; 000b121aH
+  0070e	74 1c		 je	 SHORT $L11387
+  00710	3d 1a 12 0c 00	 cmp	 eax, 791066		; 000c121aH
+  00715	74 15		 je	 SHORT $L11387
+  00717	3d 1a 12 0d 00	 cmp	 eax, 856602		; 000d121aH
+  0071c	74 0e		 je	 SHORT $L11387
+  0071e	3d 1a 12 0e 00	 cmp	 eax, 922138		; 000e121aH
+  00723	74 07		 je	 SHORT $L11387
+  00725	3d 1a 12 0f 00	 cmp	 eax, 987674		; 000f121aH
+  0072a	75 25		 jne	 SHORT $L11388
+$L11387:
+
+; 967  :          {
+; 968  :          pMasterIORegs = DevNodetoIORegs(dwDevNode);
+
+  0072c	8b 55 08	 mov	 edx, DWORD PTR _dwDevNode$[ebp]
+  0072f	52		 push	 edx
+  00730	e8 00 00 00 00	 call	 _DevNodetoIORegs
+  00735	83 c4 04	 add	 esp, 4
+
+; 969  :          dwMemoryType = pMasterIORegs->tmuGbeInit & SST_MCTL_MEMORY_CONFIG;
+
+  00738	8b 40 24	 mov	 eax, DWORD PTR [eax+36]
+  0073b	25 00 00 00 0e	 and	 eax, 234881024		; 0e000000H
+
+; 970  :          if ((dwMemoryType >= SST_MCTL_DDR_64x256) && (dwMemoryType <= SST_MCTL_DDR_32x1024))
+
+  00740	3d 00 00 00 0a	 cmp	 eax, 167772160		; 0a000000H
+  00745	77 0a		 ja	 SHORT $L11388
+
+; 971  :             DevTable[i].dwMemoryBus = MEMTYPE_DDR;
+
+  00747	c7 83 4c 00 00
+	00 01 00 00 00	 mov	 DWORD PTR _DevTable[ebx+76], 1
+$L11388:
+
+; 972  :          }
+; 973  : 
+; 974  : #ifdef SLI_AA
+; 975  :       // Now that we have a Memory Mapped Register's Init the Device if it 
+; 976  :       // has not been
+; 977  :       if (0x0 != dwUnitNum)
+
+  00751	8b 45 0c	 mov	 eax, DWORD PTR _dwUnitNum$[ebp]
+  00754	85 c0		 test	 eax, eax
+  00756	0f 84 d9 00 00
+	00		 je	 $L11389
+
+; 978  :          {
+; 979  :          pMasterIORegs = DevNodetoIORegs(dwDevNode);
+
+  0075c	8b 45 08	 mov	 eax, DWORD PTR _dwDevNode$[ebp]
+  0075f	50		 push	 eax
+  00760	e8 00 00 00 00	 call	 _DevNodetoIORegs
+
+; 980  :          pMasterRegs = (BYTE *)pMasterIORegs;
+; 981  :          pSlaveIORegs = (SstIORegs *)DevTable[i].RegBase[HWINFO_SST_IOREGS_INDEX];
+
+  00765	8b 8b 90 00 00
+	00		 mov	 ecx, DWORD PTR _DevTable[ebx+144]
+  0076b	83 c4 04	 add	 esp, 4
+  0076e	8b d0		 mov	 edx, eax
+
+; 982  :          pSlaveRegs = (BYTE *)pSlaveIORegs;
+; 983  :          for (j=0; j<POWERREGSIZE; j++)
+
+  00770	33 c0		 xor	 eax, eax
+  00772	89 55 cc	 mov	 DWORD PTR _pMasterRegs$[ebp], edx
+  00775	89 45 d8	 mov	 DWORD PTR _j$[ebp], eax
+  00778	eb 03		 jmp	 SHORT $L11393
+$L11916:
+  0077a	8b 55 cc	 mov	 edx, DWORD PTR _pMasterRegs$[ebp]
+$L11393:
+
+; 984  :             {
+; 985  :             if (SGRAMMODE_INDEX == j)
+
+  0077d	83 f8 03	 cmp	 eax, 3
+  00780	75 55		 jne	 SHORT $L11396
+
+; 986  :                {
+; 987  :                if (MEMTYPE_DDR == pDev->dwMemoryBus)
+
+  00782	8b 55 f8	 mov	 edx, DWORD PTR _pDev$[ebp]
+  00785	83 7a 4c 01	 cmp	 DWORD PTR [edx+76], 1
+  00789	75 25		 jne	 SHORT $L11397
+
+; 988  :                   {
+; 989  :                   // Band Select and set DLL
+; 990  :                   pSlaveIORegs->dramData = DEFAULT_EXTENDED_MODE;
+
+  0078b	c7 41 34 01 20
+	00 00		 mov	 DWORD PTR [ecx+52], 8193 ; 00002001H
+
+; 991  :                   pSlaveIORegs->dramCommand = H3_DRAMMODE_REG;
+
+  00792	ba 0d 01 00 00	 mov	 edx, 269		; 0000010dH
+  00797	89 51 30	 mov	 DWORD PTR [ecx+48], edx
+
+; 992  :                   pSlaveIORegs->dramData = DEFAULT_RESET_DDRMODE;
+
+  0079a	c7 41 34 31 01
+	00 00		 mov	 DWORD PTR [ecx+52], 305	; 00000131H
+
+; 993  :                   pSlaveIORegs->dramCommand = H3_DRAMMODE_REG;
+
+  007a1	89 51 30	 mov	 DWORD PTR [ecx+48], edx
+
+; 994  :                   pSlaveIORegs->dramData = DEFAULT_DDRMODE;
+
+  007a4	c7 41 34 31 00
+	00 00		 mov	 DWORD PTR [ecx+52], 49	; 00000031H
+
+; 995  :                   pSlaveIORegs->dramCommand = H3_DRAMMODE_REG;
+
+  007ab	89 51 30	 mov	 DWORD PTR [ecx+48], edx
+
+; 996  :                   }
+; 997  :                else
+
+  007ae	eb 4e		 jmp	 SHORT $L11394
+$L11397:
+
+; 998  :                   {
+; 999  :                   pSlaveIORegs->dramData = DEFAULT_SGRAMMODE;
+
+  007b0	c7 41 34 37 00
+	00 00		 mov	 DWORD PTR [ecx+52], 55	; 00000037H
+
+; 1000 :                   pSlaveIORegs->dramCommand = H3_DRAMMODE_REG;
+
+  007b7	c7 41 30 0d 01
+	00 00		 mov	 DWORD PTR [ecx+48], 269	; 0000010dH
+
+; 1001 :                   // In the BIOS we set this bit if it is SGRAM
+; 1002 :                   if (!(pSlaveIORegs->dramInit1 & SST_MCTL_TYPE_SDRAM))
+
+  007be	f7 41 1c 00 00
+	00 40		 test	 DWORD PTR [ecx+28], 1073741824 ; 40000000H
+  007c5	75 37		 jne	 SHORT $L11394
+
+; 1003 :                      {
+; 1004 :                      pSlaveIORegs->dramData = DEFAULT_SGRAMMASK;
+
+  007c7	c7 41 34 ff ff
+	ff ff		 mov	 DWORD PTR [ecx+52], -1
+
+; 1005 :                      pSlaveIORegs->dramCommand = H3_DRAMMASK_REG;
+
+  007ce	c7 41 30 0e 01
+	00 00		 mov	 DWORD PTR [ecx+48], 270	; 0000010eH
+
+; 1006 :                      }
+; 1007 :                   }            
+; 1008 :                }
+; 1009 :             else if (VGAINIT0_INDEX == j)
+
+  007d5	eb 27		 jmp	 SHORT $L11394
+$L11396:
+  007d7	83 f8 0a	 cmp	 eax, 10			; 0000000aH
+  007da	75 0d		 jne	 SHORT $L11401
+
+; 1010 :                {
+; 1011 :                dwVgaInit0 = *(DWORD *)(pMasterRegs + PowerRegOffset[j]);
+; 1012 :                dwVgaInit0 |= SST_VGA0_DISABLE_DECODE << SST_VGA0_LEGACY_DECODE_SHIFT;
+
+  007dc	a1 28 00 00 00	 mov	 eax, DWORD PTR _PowerRegOffset+40
+  007e1	8b 14 10	 mov	 edx, DWORD PTR [eax+edx]
+  007e4	80 ce 02	 or	 dh, 2
+
+; 1013 :                *(DWORD *)(pSlaveRegs + PowerRegOffset[j]) = dwVgaInit0;
+; 1014 :                }
+; 1015 :             else if (VGAINIT1_INDEX == j)
+
+  007e7	eb 0f		 jmp	 SHORT $L11918
+$L11401:
+  007e9	83 f8 0b	 cmp	 eax, 11			; 0000000bH
+  007ec	74 10		 je	 SHORT $L11394
+
+; 1016 :                continue;
+; 1017 :             else            
+; 1018 :                *(DWORD *)(pSlaveRegs + PowerRegOffset[j]) = *(DWORD *)(pMasterRegs + PowerRegOffset[j]);
+
+  007ee	8b 04 85 00 00
+	00 00		 mov	 eax, DWORD PTR _PowerRegOffset[eax*4]
+  007f5	8b 14 10	 mov	 edx, DWORD PTR [eax+edx]
+$L11918:
+  007f8	89 14 08	 mov	 DWORD PTR [eax+ecx], edx
+  007fb	8b 45 d8	 mov	 eax, DWORD PTR _j$[ebp]
+$L11394:
+  007fe	40		 inc	 eax
+  007ff	83 f8 0c	 cmp	 eax, 12			; 0000000cH
+  00802	89 45 d8	 mov	 DWORD PTR _j$[ebp], eax
+  00805	0f 8c 6f ff ff
+	ff		 jl	 $L11916
+
+; 1019 :             }
+; 1020 :          // Enable Us in VGA Space
+; 1021 :          our_outp(DevTable[i].IoBase + 0xc3, 0x01);
+
+  0080b	8b 83 84 00 00
+	00		 mov	 eax, DWORD PTR _DevTable[ebx+132]
+  00811	6a 01		 push	 1
+  00813	05 c3 00 00 00	 add	 eax, 195		; 000000c3H
+  00818	50		 push	 eax
+  00819	e8 00 00 00 00	 call	 _our_outp
+
+; 1022 :          our_outp(DevTable[i].IoBase + 0xc2, 0x01);
+
+  0081e	8b 8b 84 00 00
+	00		 mov	 ecx, DWORD PTR _DevTable[ebx+132]
+  00824	6a 01		 push	 1
+  00826	81 c1 c2 00 00
+	00		 add	 ecx, 194		; 000000c2H
+  0082c	51		 push	 ecx
+  0082d	e8 00 00 00 00	 call	 _our_outp
+  00832	83 c4 10	 add	 esp, 16			; 00000010H
+$L11389:
+
+; 1023 :          }
+; 1024 : #endif
+; 1025 : 
+; 1026 : 	   // Here is where we need to do a little bit of fixing up
+; 1027 : 	   // The problem is that the Banshee BIOS keeps track of the
+; 1028 : 	   // IOBase in IOBase+D4[1C].  Windows in its infinite wisdom
+; 1029 : 	   // may change the value from what the system BIOS assigned at
+; 1030 : 	   // boot.  To fix this problem we need to update the value here.
+; 1031 : 
+; 1032 : 	   our_outp(DevTable[i].IoBase + 0xD4, 0x1C);
+
+  00835	8b 93 84 00 00
+	00		 mov	 edx, DWORD PTR _DevTable[ebx+132]
+  0083b	6a 1c		 push	 28			; 0000001cH
+  0083d	81 c2 d4 00 00
+	00		 add	 edx, 212		; 000000d4H
+  00843	52		 push	 edx
+  00844	e8 00 00 00 00	 call	 _our_outp
+
+; 1033 : 	   our_outp(DevTable[i].IoBase + 0xD5, DevTable[i].IoBase >> 8);
+
+  00849	8b 83 84 00 00
+	00		 mov	 eax, DWORD PTR _DevTable[ebx+132]
+  0084f	8b c8		 mov	 ecx, eax
+  00851	05 d5 00 00 00	 add	 eax, 213		; 000000d5H
+  00856	c1 e9 08	 shr	 ecx, 8
+  00859	51		 push	 ecx
+  0085a	50		 push	 eax
+  0085b	e8 00 00 00 00	 call	 _our_outp
+
+; 1034 : 
+; 1035 :       //??? should we turn on the hotplug interrupt before initializing DFP???
+; 1036 :       //Enable hotplug interrupt
+; 1037 :       if(IS_NAPALM(pDev->dwVendorDeviceID))
+
+  00860	8b 55 f8	 mov	 edx, DWORD PTR _pDev$[ebp]
+  00863	83 c4 10	 add	 esp, 16			; 00000010H
+  00866	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+  00869	3d 1a 12 06 00	 cmp	 eax, 397850		; 0006121aH
+  0086e	74 3f		 je	 SHORT $L11410
+  00870	3d 1a 12 07 00	 cmp	 eax, 463386		; 0007121aH
+  00875	74 38		 je	 SHORT $L11410
+  00877	3d 1a 12 08 00	 cmp	 eax, 528922		; 0008121aH
+  0087c	74 31		 je	 SHORT $L11410
+  0087e	3d 1a 12 09 00	 cmp	 eax, 594458		; 0009121aH
+  00883	74 2a		 je	 SHORT $L11410
+  00885	3d 1a 12 0a 00	 cmp	 eax, 659994		; 000a121aH
+  0088a	74 23		 je	 SHORT $L11410
+  0088c	3d 1a 12 0b 00	 cmp	 eax, 725530		; 000b121aH
+  00891	74 1c		 je	 SHORT $L11410
+  00893	3d 1a 12 0c 00	 cmp	 eax, 791066		; 000c121aH
+  00898	74 15		 je	 SHORT $L11410
+  0089a	3d 1a 12 0d 00	 cmp	 eax, 856602		; 000d121aH
+  0089f	74 0e		 je	 SHORT $L11410
+  008a1	3d 1a 12 0e 00	 cmp	 eax, 922138		; 000e121aH
+  008a6	74 07		 je	 SHORT $L11410
+  008a8	3d 1a 12 0f 00	 cmp	 eax, 987674		; 000f121aH
+  008ad	75 0a		 jne	 SHORT $L11409
+$L11410:
+
+; 1038 :          pDev->dwIMask |= 0x04000000;
+
+  008af	8b 45 f8	 mov	 eax, DWORD PTR _pDev$[ebp]
+  008b2	81 48 54 00 00
+	00 04		 or	 DWORD PTR [eax+84], 67108864 ; 04000000H
+$L11409:
+
+; 1039 : 
+; 1040 : 	   if (DevTable[i].InterruptsEnabled &&
+; 1041 : 	      (DevTable[i].ConfigData.bIRQRegisters[0] != 0))
+
+  008b9	8b 83 e0 00 00
+	00		 mov	 eax, DWORD PTR _DevTable[ebx+224]
+  008bf	85 c0		 test	 eax, eax
+  008c1	74 24		 je	 SHORT $L11411
+  008c3	8a 83 9c 01 00
+	00		 mov	 al, BYTE PTR _DevTable[ebx+412]
+  008c9	84 c0		 test	 al, al
+  008cb	74 1a		 je	 SHORT $L11411
+
+; 1042 : 	      {
+; 1043 : 	      Debug_Printf(VNAME "Using IRQ %d\n", DevTable[i].ConfigData.bIRQRegisters[0]);
+; 1044 :    	   DevTable[i].InterruptsEnabled = InitializeInterrupts(DevTable[i].ConfigData.bIRQRegisters[0], &DevTable[i]);
+
+  008cd	8b 4d f8	 mov	 ecx, DWORD PTR _pDev$[ebp]
+  008d0	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  008d5	51		 push	 ecx
+  008d6	50		 push	 eax
+  008d7	e8 00 00 00 00	 call	 _InitializeInterrupts
+  008dc	83 c4 08	 add	 esp, 8
+  008df	89 83 e0 00 00
+	00		 mov	 DWORD PTR _DevTable[ebx+224], eax
+
+; 1045 : 	      }
+; 1046 : 	   else
+
+  008e5	eb 0a		 jmp	 SHORT $L11412
+$L11411:
+
+; 1047 : 	      {
+; 1048 : 	      Debug_Printf(VNAME "No IRQ assigned\n");
+; 1049 : 	      DevTable[i].InterruptsEnabled = 0;
+
+  008e7	c7 83 e0 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _DevTable[ebx+224], 0
+$L11412:
+
+; 1050 : 	      }
+; 1051 :  
+; 1052 : 	   //
+; 1053 :    	// initialize h3 hardware
+; 1054 : 	   //
+; 1055 : 
+; 1056 : 	   grxSpeedInMHz = H3_GRXCLOCK_IN_MHZ;
+; 1057 : 
+; 1058 : 	   // quick sanity check on the clock frequency
+; 1059 : 	   //
+; 1060 : 	   if ((grxSpeedInMHz < 50) || (grxSpeedInMHz > 150))
+; 1061 : 	      grxSpeedInMHz = 100;
+; 1062 : 
+; 1063 : 	   memSpeedInMHz = H3_MEMCLOCK_IN_MHZ;
+; 1064 : 
+; 1065 : 	   // quick sanity check on the clock frequency
+; 1066 : 	   //
+; 1067 : 	   if ((memSpeedInMHz < 50) || (memSpeedInMHz > 150))
+; 1068 : 	      memSpeedInMHz = 100;
+; 1069 : 
+; 1070 : 	   //
+; 1071 : 	   // Policy change: now the windows drivers don't touch the mem/grx
+; 1072 : 	   // PLLs at boot, whatever values are there, set by the BIOS at
+; 1073 : 	   // POST, remain there.  The registry overrides for both
+; 1074 : 	   // mem and grx are still enabled for those who wish to over/under
+; 1075 : 	   // clock.    Since this may change again, I'm keeping all the above
+; 1076 : 	   // clock code but commenting out the h3InitPlls call below
+; 1077 : 
+; 1078 : 	   // h3InitPlls(DevTable[i].IoBase, grxSpeedInMHz, memSpeedInMHz);
+; 1079 : 
+; 1080 : 
+; 1081 : 	   // h3InitSgram won't mess with the SGRAM registers at all when we
+; 1082 : 	   // sending in these magic numbers for sgramMode and sgramMask
+; 1083 : 
+; 1084 : 	   sgramMode = 0xDEADBEEF; // magic value (obviously!)
+; 1085 : 	   sgramMask = 0xF00DCAFE; // magic value (obviously!)
+; 1086 : 	   sgramColor = 0;
+; 1087 : 
+; 1088 : #ifndef  WIN_CSIM
+; 1089 : 	   DevTable[i].MemSizeInMB = h3InitSgram(DevTable[i].IoBase, sgramMode, sgramMask, sgramColor, DevTable[i].dwVendorDeviceID, NULL);  // default SGRAM vendor
+
+  008f1	8b 93 04 00 00
+	00		 mov	 edx, DWORD PTR _DevTable[ebx+4]
+  008f7	8b 83 84 00 00
+	00		 mov	 eax, DWORD PTR _DevTable[ebx+132]
+  008fd	6a 00		 push	 0
+  008ff	52		 push	 edx
+  00900	6a 00		 push	 0
+  00902	68 fe ca 0d f0	 push	 -267531522		; f00dcafeH
+  00907	68 ef be ad de	 push	 -559038737		; deadbeefH
+  0090c	50		 push	 eax
+  0090d	e8 00 00 00 00	 call	 _h3InitSgram
+  00912	89 83 d4 00 00
+	00		 mov	 DWORD PTR _DevTable[ebx+212], eax
+
+; 1090 : #else
+; 1091 : #ifdef SLI_AA
+; 1092 :       if (0x0 == dwUnitNum)
+; 1093 :    	   DevTable[i].MemSizeInMB = h3InitSgram(DevTable[i].IoBase, sgramMode, sgramMask, sgramColor, DevTable[i].dwVendorDeviceID, NULL);  // default SGRAM vendor
+; 1094 : #else
+; 1095 :    	DevTable[i].MemSizeInMB = h3InitSgram(DevTable[i].IoBase, sgramMode, sgramMask, sgramColor, DevTable[i].dwVendorDeviceID, NULL);  // default SGRAM vendor
+; 1096 : #endif
+; 1097 : #endif
+; 1098 : 
+; 1099 :       /* Map register space (memBase1). */
+; 1100 : 
+; 1101 :       switch (DevTable[i].MemSizeInMB)
+; 1102 : 	      {
+
+  00918	83 c0 fc	 add	 eax, -4			; fffffffcH
+  0091b	83 c4 18	 add	 esp, 24			; 00000018H
+  0091e	83 f8 3c	 cmp	 eax, 60			; 0000003cH
+  00921	0f 87 0d 01 00
+	00		 ja	 $L11426
+  00927	33 c9		 xor	 ecx, ecx
+  00929	8a 88 00 00 00
+	00		 mov	 cl, BYTE PTR $L11919[eax]
+  0092f	ff 24 8d 00 00
+	00 00		 jmp	 DWORD PTR $L11920[ecx*4]
+$L11421:
+
+; 1103 :          case 4:  
+; 1104 :             mapSize = 0x0800000; 
+
+  00936	c7 45 fc 00 00
+	80 00		 mov	 DWORD PTR _mapSize$[ebp], 8388608 ; 00800000H
+
+; 1105 :             break; // map 8Mb   for 4Mb memory size
+
+  0093d	eb 22		 jmp	 SHORT $L11418
+$L11422:
+
+; 1106 : 
+; 1107 :          case 8:  
+; 1108 :             mapSize = 0x1000000; 
+
+  0093f	c7 45 fc 00 00
+	00 01		 mov	 DWORD PTR _mapSize$[ebp], 16777216 ; 01000000H
+
+; 1109 :             break; // map 16Mb  for 8Mb memory size
+
+  00946	eb 19		 jmp	 SHORT $L11418
+$L11423:
+
+; 1110 : 
+; 1111 :          case 16: 
+; 1112 :             mapSize = 0x2000000; 
+
+  00948	c7 45 fc 00 00
+	00 02		 mov	 DWORD PTR _mapSize$[ebp], 33554432 ; 02000000H
+
+; 1113 :             break; // map 32Mb  for 16Mb memory size
+
+  0094f	eb 10		 jmp	 SHORT $L11418
+$L11424:
+
+; 1114 : 
+; 1115 :          case 32:
+; 1116 :             mapSize = 0x4000000; 
+
+  00951	c7 45 fc 00 00
+	00 04		 mov	 DWORD PTR _mapSize$[ebp], 67108864 ; 04000000H
+
+; 1117 :             break; // map 64Mb  for 32Mb memory size
+
+  00958	eb 07		 jmp	 SHORT $L11418
+$L11425:
+
+; 1118 :       
+; 1119 :          case 64: 
+; 1120 :             mapSize = 0x8000000; 
+
+  0095a	c7 45 fc 00 00
+	00 08		 mov	 DWORD PTR _mapSize$[ebp], 134217728 ; 08000000H
+$L11418:
+
+; 1121 :             break; // map 128Mb for 64Mb memory size
+; 1122 : 
+; 1123 :          default:   
+; 1124 :             Debug_Printf( VNAME "Unrecognized memory configuration\n");
+; 1125 :             return(NULL);
+; 1126 : 	      }
+; 1127 : 
+; 1128 : #ifdef SLI_AA
+; 1129 :    if (SLI_AA_SLAVE_DEVICE == pDev->dwType)
+
+  00961	8b 45 f8	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00964	83 78 14 02	 cmp	 DWORD PTR [eax+20], 2
+  00968	75 0e		 jne	 SHORT $L11427
+
+; 1130 :       mapSize = dwDecodeSize[1];
+
+  0096a	8b 15 04 00 00
+	00		 mov	 edx, DWORD PTR _dwDecodeSize+4
+  00970	89 55 fc	 mov	 DWORD PTR _mapSize$[ebp], edx
+
+; 1131 :    else
+
+  00973	e9 92 00 00 00	 jmp	 $L11435
+$L11427:
+
+; 1132 :       {
+; 1133 :       if (IS_NAPALM(pDev->dwVendorDeviceID))
+
+  00978	8b 40 04	 mov	 eax, DWORD PTR [eax+4]
+  0097b	3d 1a 12 06 00	 cmp	 eax, 397850		; 0006121aH
+  00980	74 3f		 je	 SHORT $L11430
+  00982	3d 1a 12 07 00	 cmp	 eax, 463386		; 0007121aH
+  00987	74 38		 je	 SHORT $L11430
+  00989	3d 1a 12 08 00	 cmp	 eax, 528922		; 0008121aH
+  0098e	74 31		 je	 SHORT $L11430
+  00990	3d 1a 12 09 00	 cmp	 eax, 594458		; 0009121aH
+  00995	74 2a		 je	 SHORT $L11430
+  00997	3d 1a 12 0a 00	 cmp	 eax, 659994		; 000a121aH
+  0099c	74 23		 je	 SHORT $L11430
+  0099e	3d 1a 12 0b 00	 cmp	 eax, 725530		; 000b121aH
+  009a3	74 1c		 je	 SHORT $L11430
+  009a5	3d 1a 12 0c 00	 cmp	 eax, 791066		; 000c121aH
+  009aa	74 15		 je	 SHORT $L11430
+  009ac	3d 1a 12 0d 00	 cmp	 eax, 856602		; 000d121aH
+  009b1	74 0e		 je	 SHORT $L11430
+  009b3	3d 1a 12 0e 00	 cmp	 eax, 922138		; 000e121aH
+  009b8	74 07		 je	 SHORT $L11430
+  009ba	3d 1a 12 0f 00	 cmp	 eax, 987674		; 000f121aH
+  009bf	75 49		 jne	 SHORT $L11435
+$L11430:
+
+; 1134 :          {
+; 1135 :          DWORD Savestrap;
+; 1136 :          DWORD strapInfo;
+; 1137 :          DWORD newSize;
+; 1138 :          pMasterIORegs = DevNodetoIORegs(dwDevNode);
+
+  009c1	8b 45 08	 mov	 eax, DWORD PTR _dwDevNode$[ebp]
+  009c4	50		 push	 eax
+  009c5	e8 00 00 00 00	 call	 _DevNodetoIORegs
+
+; 1139 :          
+; 1140 :          strapInfo = pMasterIORegs->strapInfo;
+
+  009ca	8b 48 38	 mov	 ecx, DWORD PTR [eax+56]
+
+; 1141 :          Savestrap = strapInfo;
+
+  009cd	8b d1		 mov	 edx, ecx
+
+; 1142 :          strapInfo |= SST_STRAPINFO_REG_SELECT;
+
+  009cf	83 c9 01	 or	 ecx, 1
+
+; 1143 :          pMasterIORegs->strapInfo = strapInfo;
+
+  009d2	89 48 38	 mov	 DWORD PTR [eax+56], ecx
+
+; 1144 :          strapInfo = pMasterIORegs->strapInfo;
+
+  009d5	8b 48 38	 mov	 ecx, DWORD PTR [eax+56]
+
+; 1145 :          
+; 1146 :          pMasterIORegs->strapInfo = (Savestrap & ~SST_STRAPINFO_REG_SELECT);
+
+  009d8	83 e2 fe	 and	 edx, -2			; fffffffeH
+  009db	89 50 38	 mov	 DWORD PTR [eax+56], edx
+
+; 1147 : 
+; 1148 :          // Check for bad decode size
+; 1149 :          newSize = GetMemSize((strapInfo & SST_STRAPINFO_MEMBASE1_DECODE) >> SST_STRAPINFO_MEMBASE1_DECODE_SHIFT);
+
+  009de	c1 e9 04	 shr	 ecx, 4
+  009e1	83 e1 0f	 and	 ecx, 15			; 0000000fH
+  009e4	51		 push	 ecx
+  009e5	e8 00 00 00 00	 call	 _GetMemSize
+
+; 1150 :          mapSize = dwDecodeSize[1];
+
+  009ea	8b 0d 04 00 00
+	00		 mov	 ecx, DWORD PTR _dwDecodeSize+4
+  009f0	83 c4 08	 add	 esp, 8
+
+; 1151 :          if (newSize != mapSize) 
+
+  009f3	3b c1		 cmp	 eax, ecx
+  009f5	89 4d fc	 mov	 DWORD PTR _mapSize$[ebp], ecx
+  009f8	74 05		 je	 SHORT $L11434
+
+; 1152 :             mapSize = newSize;
+
+  009fa	8b c8		 mov	 ecx, eax
+  009fc	89 4d fc	 mov	 DWORD PTR _mapSize$[ebp], ecx
+$L11434:
+
+; 1153 : 
+; 1154 :          // If MultiUnit we ask for twice as much!!!!
+; 1155 :          if (nChips > 1)
+
+  009ff	83 7d d4 01	 cmp	 DWORD PTR _nChips$[ebp], 1
+  00a03	76 05		 jbe	 SHORT $L11435
+
+; 1156 :             mapSize >>= 1;
+
+  00a05	d1 e9		 shr	 ecx, 1
+  00a07	89 4d fc	 mov	 DWORD PTR _mapSize$[ebp], ecx
+$L11435:
+
+; 1157 :          }
+; 1158 :       }
+; 1159 : #endif
+; 1160 : 
+; 1161 : #ifndef WIN_CSIM
+; 1162 : 	   MapDeviceFB(pDev, &mapSize);
+
+  00a0a	8b 55 f8	 mov	 edx, DWORD PTR _pDev$[ebp]
+  00a0d	8d 4d fc	 lea	 ecx, DWORD PTR _mapSize$[ebp]
+  00a10	51		 push	 ecx
+  00a11	52		 push	 edx
+  00a12	e8 00 00 00 00	 call	 _MapDeviceFB
+
+; 1163 : 	   if ((DevTable[i].LfbBase == 0xFFFFFFFF) && (dwUnitNum < 1))
+
+  00a17	8b 83 d0 00 00
+	00		 mov	 eax, DWORD PTR _DevTable[ebx+208]
+  00a1d	83 c4 08	 add	 esp, 8
+  00a20	83 f8 ff	 cmp	 eax, -1
+  00a23	75 18		 jne	 SHORT $L11436
+  00a25	83 7d 0c 01	 cmp	 DWORD PTR _dwUnitNum$[ebp], 1
+  00a29	73 12		 jae	 SHORT $L11436
+
+; 1164 : 	      {
+; 1165 : 	      Debug_Printf( VNAME "Unable to map memory base 1\n");
+; 1166 : 	      DevTable[i].dwDevNode = 0x0;
+
+  00a2b	8b 45 f8	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00a2e	c7 00 00 00 00
+	00		 mov	 DWORD PTR [eax], 0
+$L11426:
+
+; 1167 : 	      return(NULL);
+
+  00a34	33 c0		 xor	 eax, eax
+
+; 1480 : }
+
+  00a36	5f		 pop	 edi
+  00a37	5e		 pop	 esi
+  00a38	5b		 pop	 ebx
+  00a39	8b e5		 mov	 esp, ebp
+  00a3b	5d		 pop	 ebp
+  00a3c	c3		 ret	 0
+$L11436:
+
+; 1168 : 	      }
+; 1169 : #else
+; 1170 : #ifdef SLI_AA
+; 1171 :       if (0x0 == dwUnitNum)
+; 1172 :          {
+; 1173 :    	   MapDeviceFB(pDev, &mapSize);
+; 1174 : 	      if (DevTable[i].LfbBase == 0xFFFFFFFF)
+; 1175 : 	         {
+; 1176 : 	         Debug_Printf( VNAME "Unable to map memory base 1\n");
+; 1177 : 	         DevTable[i].dwDevNode = 0x0;
+; 1178 : 	         return(NULL);
+; 1179 : 	         }
+; 1180 :          DevTable[i].RealLfbBase = DevTable[i].LfbBase;
+; 1181 :          }
+; 1182 : #else
+; 1183 :       MapDeviceFB(pDev, &mapSize);
+; 1184 : 	   if (DevTable[i].LfbBase == 0xFFFFFFFF)
+; 1185 :          {
+; 1186 : 	      Debug_Printf( VNAME "Unable to map memory base 1\n");
+; 1187 : 	      DevTable[i].dwDevNode = 0x0;
+; 1188 : 	      return(NULL);
+; 1189 : 	      }
+; 1190 :       DevTable[i].RealLfbBase = DevTable[i].LfbBase;
+; 1191 : #endif
+; 1192 : #endif
+; 1193 : 
+; 1194 : 	   // This may need to be fixed
+; 1195 : 
+; 1196 : 	   if (!(DevTable[i].DispInfo.diInfoFlags & DEVICE_IS_NOT_VGA))
+
+  00a3d	f6 83 c7 01 00
+	00 08		 test	 BYTE PTR _DevTable[ebx+455], 8
+  00a44	75 26		 jne	 SHORT $L11437
+
+; 1197 : 	      {
+; 1198 : 	      pVGADevTable = &DevTable[i];
+; 1199 : 	      h3InitVga(DevTable[i].IoBase, 1);	 // enable VGA decode
+
+  00a46	8b 93 84 00 00
+	00		 mov	 edx, DWORD PTR _DevTable[ebx+132]
+  00a4c	8b 4d f8	 mov	 ecx, DWORD PTR _pDev$[ebp]
+  00a4f	6a 01		 push	 1
+  00a51	52		 push	 edx
+  00a52	89 0d 00 00 00
+	00		 mov	 DWORD PTR _pVGADevTable, ecx
+  00a58	e8 00 00 00 00	 call	 _h3InitVga
+  00a5d	83 c4 08	 add	 esp, 8
+
+; 1200 : 	      DevTable[i].bIsVGA = TRUE;
+
+  00a60	c7 83 e4 00 00
+	00 01 00 00 00	 mov	 DWORD PTR _DevTable[ebx+228], 1
+
+; 1201 : 	      }
+; 1202 : 	   else
+
+  00a6a	eb 0a		 jmp	 SHORT $L11438
+$L11437:
+
+; 1203 : 	      {
+; 1204 : 	      DevTable[i].bIsVGA = FALSE;
+
+  00a6c	c7 83 e4 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _DevTable[ebx+228], 0
+$L11438:
+
+; 1205 : 	      }
+; 1206 : 
+; 1207 : 	   lpIOregs = (SstIORegs * )DevTable[i].RegBase[HWINFO_SST_IOREGS_INDEX];
+
+  00a76	8b 83 90 00 00
+	00		 mov	 eax, DWORD PTR _DevTable[ebx+144]
+  00a7c	89 45 0c	 mov	 DWORD PTR _lpIOregs$[ebp], eax
+
+; 1208 :       // Enable this when the C-Simulator is ready
+; 1209 : #if 0
+; 1210 :       if (IS_NAPALM(DevTable[i].dwVendorDeviceID))
+; 1211 :          {
+; 1212 :          DWORD lfbBit29;
+; 1213 : 	      lfbBit29 = lpIOregs->lfbMemoryConfig;
+; 1214 :          SETDW(lpIOregs->lfbMemoryConfig, SST_RAW_LFB_UPDATE_READ_BIT);
+; 1215 : 	      DevTable[i].lfbMemoryConfig[0] = lpIOregs->lfbMemoryConfig;
+; 1216 :          SETDW(lpIOregs->lfbMemoryConfig, SST_RAW_LFB_UPDATE_READ_BIT | SST_RAW_LFB_READ_TILE_COMPARE);
+; 1217 : 	      DevTable[i].lfbMemoryConfig[1] = lpIOregs->lfbMemoryConfig;
+; 1218 :          SETDW(lpIOregs->lfbMemoryConfig, SST_RAW_LFB_UPDATE_READ_BIT | (lfbBit29 & SST_RAW_LFB_READ_TILE_COMPARE));
+; 1219 :          }
+; 1220 :       else
+; 1221 : #endif
+; 1222 : 	      DevTable[i].lfbMemoryConfig[0]  = lpIOregs->lfbMemoryConfig;
+
+  00a7f	8b 40 0c	 mov	 eax, DWORD PTR [eax+12]
+
+; 1223 : 
+; 1224 :       // At this point increase pciInit0
+; 1225 :       // Skip this stuff on 
+; 1226 :       pDev->dwPCI = DoBusType(dwDevNode);
+
+  00a82	8b 4d 08	 mov	 ecx, DWORD PTR _dwDevNode$[ebp]
+  00a85	51		 push	 ecx
+  00a86	89 83 d8 00 00
+	00		 mov	 DWORD PTR _DevTable[ebx+216], eax
+  00a8c	e8 00 00 00 00	 call	 _DoBusType
+  00a91	8b 4d f8	 mov	 ecx, DWORD PTR _pDev$[ebp]
+
+; 1227 : #ifdef PCI_LATENCY_WHQL
+; 1228 :       if (pDev->dwPCI)
+; 1229 :          {
+; 1230 :          pciInit0 = lpIOregs->pciInit0;
+; 1231 : 
+; 1232 : #ifdef SLI_AA
+; 1233 :          // If single Unit then use 8 else use 10
+; 1234 :          if (SLI_AA_REGULAR_DEVICE == pDev->dwType)
+; 1235 :             pciInit0 = (pciInit0 & ~SST_PCI_LOWTHRESH) | (8 << SST_PCI_LOWTHRESH_SHIFT);
+; 1236 :          else
+; 1237 :             pciInit0 = (pciInit0 & ~SST_PCI_LOWTHRESH) | (10 << SST_PCI_LOWTHRESH_SHIFT) | SST_PCI_FORCE_FB_HIGH;
+; 1238 : 
+; 1239 : #else
+; 1240 :          pciInit0 = (pciInit0 & ~SST_PCI_LOWTHRESH) | (8 << SST_PCI_LOWTHRESH_SHIFT);
+; 1241 : #endif
+; 1242 :          pciInit0 &=~(SST_PCI_DISABLE_IO|SST_PCI_DISABLE_MEM|SST_PCI_RETRY_INTERVAL);
+; 1243 : 
+; 1244 :          lpIOregs->pciInit0 = pciInit0;
+; 1245 :          }
+; 1246 :       else
+; 1247 : #endif
+; 1248 :          {
+; 1249 :          pciInit0 = lpIOregs->pciInit0;
+
+  00a94	8b 55 0c	 mov	 edx, DWORD PTR _lpIOregs$[ebp]
+  00a97	83 c4 04	 add	 esp, 4
+  00a9a	89 41 50	 mov	 DWORD PTR [ecx+80], eax
+  00a9d	8b 42 04	 mov	 eax, DWORD PTR [edx+4]
+
+; 1250 : #ifdef SLI_AA
+; 1251 :          // If single Unit then use 8 else use 10
+; 1252 :          if (SLI_AA_REGULAR_DEVICE == pDev->dwType)
+
+  00aa0	8b 51 14	 mov	 edx, DWORD PTR [ecx+20]
+  00aa3	85 d2		 test	 edx, edx
+  00aa5	75 06		 jne	 SHORT $L11440
+
+; 1253 :             pciInit0 = (pciInit0 & ~SST_PCI_LOWTHRESH) | (8 << SST_PCI_LOWTHRESH_SHIFT);
+
+  00aa7	24 e3		 and	 al, -29			; ffffffe3H
+  00aa9	0c 20		 or	 al, 32			; 00000020H
+
+; 1254 :          else
+
+  00aab	eb 04		 jmp	 SHORT $L11441
+$L11440:
+
+; 1255 :             pciInit0 = (pciInit0 & ~SST_PCI_LOWTHRESH) | (10 << SST_PCI_LOWTHRESH_SHIFT);
+
+  00aad	24 eb		 and	 al, -21			; ffffffebH
+  00aaf	0c 28		 or	 al, 40			; 00000028H
+$L11441:
+
+; 1256 : #endif
+; 1257 :          pciInit0 |=(SST_PCI_DISABLE_IO|SST_PCI_DISABLE_MEM);
+; 1258 :          pciInit0 &= ~(SST_PCI_FORCE_FB_HIGH);
+; 1259 :          lpIOregs->pciInit0 = pciInit0;
+
+  00ab1	8b 4d 0c	 mov	 ecx, DWORD PTR _lpIOregs$[ebp]
+
+; 1473 : 	         }
+; 1474 : 	      }
+; 1475 :       }
+; 1476 :    else
+; 1477 : 	   Debug_Printf("Max Device exceeded\n");
+; 1478 : 
+; 1479 :     return pDev;     
+
+  00ab4	25 ff ff ff fb	 and	 eax, -67108865		; fbffffffH
+  00ab9	80 cc 18	 or	 ah, 24			; 00000018H
+  00abc	89 41 04	 mov	 DWORD PTR [ecx+4], eax
+  00abf	8b 83 14 00 00
+	00		 mov	 eax, DWORD PTR _DevTable[ebx+20]
+  00ac5	83 f8 02	 cmp	 eax, 2
+  00ac8	0f 85 f2 00 00
+	00		 jne	 $L11460
+  00ace	8b 16		 mov	 edx, DWORD PTR [esi]
+  00ad0	8b 07		 mov	 eax, DWORD PTR [edi]
+  00ad2	6a 02		 push	 2
+  00ad4	6a 04		 push	 4
+  00ad6	52		 push	 edx
+  00ad7	50		 push	 eax
+  00ad8	e8 00 00 00 00	 call	 _PCI_Write_Config
+  00add	8b 0e		 mov	 ecx, DWORD PTR [esi]
+  00adf	8b 17		 mov	 edx, DWORD PTR [edi]
+  00ae1	6a 03		 push	 3
+  00ae3	83 e1 f8	 and	 ecx, -8			; fffffff8H
+  00ae6	6a 04		 push	 4
+  00ae8	51		 push	 ecx
+  00ae9	52		 push	 edx
+  00aea	e8 00 00 00 00	 call	 _PCI_Write_Config
+  00aef	8b 3f		 mov	 edi, DWORD PTR [edi]
+  00af1	83 c4 20	 add	 esp, 32			; 00000020H
+  00af4	33 c0		 xor	 eax, eax
+  00af6	b9 0c 00 00 00	 mov	 ecx, OFFSET FLAT:_DevTable+12
+$L11443:
+  00afb	3b 79 fc	 cmp	 edi, DWORD PTR [ecx-4]
+  00afe	75 09		 jne	 SHORT $L11444
+  00b00	8b 16		 mov	 edx, DWORD PTR [esi]
+  00b02	83 e2 f8	 and	 edx, -8			; fffffff8H
+  00b05	3b 11		 cmp	 edx, DWORD PTR [ecx]
+  00b07	74 14		 je	 SHORT $L11891
+$L11444:
+
+; 1260 :          }
+; 1261 : 
+; 1262 : 
+; 1263 : #ifdef SLI_AA
+; 1264 :       if (SLI_AA_SLAVE_DEVICE == DevTable[i].dwType)
+; 1265 :          {
+; 1266 :          // Good Time to 
+; 1267 :          // Disable Us
+; 1268 :          PCI_Write_Config(DevTable[i].dwBus, DevTable[i].dwDevFunc, SST_PCI_COMMAND_ID, 0x02);      
+; 1269 : 
+; 1270 :          // Enable Master
+; 1271 :          PCI_Write_Config(DevTable[i].dwBus, DevTable[i].dwDevFunc & ~0x07, SST_PCI_COMMAND_ID, 0x03);      
+; 1272 :          // Find Master and link into chain
+; 1273 :          for (j=0; j<MAX_BANSHEE_DEVICES; j++)
+
+  00b09	81 c1 4c 06 00
+	00		 add	 ecx, 1612		; 0000064cH
+  00b0f	40		 inc	 eax
+  00b10	81 f9 cc 64 00
+	00		 cmp	 ecx, OFFSET FLAT:_DevTable+25804
+  00b16	7c e3		 jl	 SHORT $L11443
+
+; 1420 : 	               {
+; 1421 : 			         foundMTRR = 1;
+; 1422 : 			         break;
+; 1423 : 	               }
+; 1424 : 
+; 1425 : 		         if ((mtrr1Lo == ((DevTable[i].PhysMemBase[1] & 0xFF000000) | 1)) &&
+; 1426 : 			          (mtrr1Hi == 0) &&
+; 1427 : 			          (mtrr2Lo == mapSize) &&
+; 1428 : 			          (mtrr2Hi == 0xf))
+
+  00b18	e9 a3 00 00 00	 jmp	 $L11460
+$L11891:
+
+; 1274 :             {
+; 1275 :             if ((DevTable[i].dwBus == DevTable[j].dwBus) && 
+; 1276 :                ((DevTable[i].dwDevFunc & ~0x07) == DevTable[j].dwDevFunc))
+; 1277 :                {
+; 1278 :                pBackDev = &DevTable[j];
+
+  00b1d	8d 0c 80	 lea	 ecx, DWORD PTR [eax+eax*4]
+
+; 1279 :                pNextSlave = DevTable[j].pSlave;
+; 1280 :                pSaveSlave = NULL;
+
+  00b20	33 ff		 xor	 edi, edi
+  00b22	8d 0c 89	 lea	 ecx, DWORD PTR [ecx+ecx*4]
+  00b25	8d 14 c8	 lea	 edx, DWORD PTR [eax+ecx*8]
+  00b28	8d 14 50	 lea	 edx, DWORD PTR [eax+edx*2]
+  00b2b	c1 e2 02	 shl	 edx, 2
+  00b2e	8b 8a 18 00 00
+	00		 mov	 ecx, DWORD PTR _DevTable[edx+24]
+  00b34	8d b2 00 00 00
+	00		 lea	 esi, DWORD PTR _DevTable[edx]
+
+; 1281 :                for (;pNextSlave != NULL;)
+
+  00b3a	85 c9		 test	 ecx, ecx
+  00b3c	74 11		 je	 SHORT $L11449
+$L11448:
+
+; 1282 :                   {
+; 1283 :                   pBackDev = pNextSlave;
+
+  00b3e	8b f1		 mov	 esi, ecx
+
+; 1284 :                   pNextSlave = pNextSlave->pSlave;
+
+  00b40	8b 49 18	 mov	 ecx, DWORD PTR [ecx+24]
+
+; 1285 :                   if (1 == pBackDev->dwUnitNum)
+
+  00b43	83 7e 10 01	 cmp	 DWORD PTR [esi+16], 1
+  00b47	75 02		 jne	 SHORT $L11450
+
+; 1286 :                      pSaveSlave = pBackDev;
+
+  00b49	8b fe		 mov	 edi, esi
+$L11450:
+
+; 1281 :                for (;pNextSlave != NULL;)
+
+  00b4b	85 c9		 test	 ecx, ecx
+  00b4d	75 ef		 jne	 SHORT $L11448
+$L11449:
+
+; 1287 :                   }
+; 1288 :    
+; 1289 :                // If we get reenumerated then this will be true 
+; 1290 :                // and this will cause a infinite loop
+; 1291 :                if (pBackDev != &DevTable[i])
+
+  00b4f	8b 4d f8	 mov	 ecx, DWORD PTR _pDev$[ebp]
+  00b52	3b f1		 cmp	 esi, ecx
+  00b54	74 03		 je	 SHORT $L11451
+
+; 1292 :                   pBackDev->pSlave = &DevTable[i];
+
+  00b56	89 4e 18	 mov	 DWORD PTR [esi+24], ecx
+$L11451:
+
+; 1293 : 
+; 1294 :                // Is new Device Unit Number 1?
+; 1295 :                if (NULL == pSaveSlave)
+
+  00b59	85 ff		 test	 edi, edi
+  00b5b	75 0b		 jne	 SHORT $L11453
+
+; 1296 :                   if (1 == DevTable[i].dwUnitNum)
+
+  00b5d	83 bb 10 00 00
+	00 01		 cmp	 DWORD PTR _DevTable[ebx+16], 1
+  00b64	75 02		 jne	 SHORT $L11453
+
+; 1297 :                      pSaveSlave = &DevTable[i];
+
+  00b66	8b f9		 mov	 edi, ecx
+$L11453:
+
+; 1298 : 
+; 1299 :                // Duplicate Lfb Address .. start at First Slave
+; 1300 :                pNextSlave = DevTable[j].pSlave;
+
+  00b68	8b 8a 18 00 00
+	00		 mov	 ecx, DWORD PTR _DevTable[edx+24]
+
+; 1301 :                // If we have a valid Unit # 1 then duplicate it...
+; 1302 :                if (NULL != pSaveSlave)
+
+  00b6e	85 ff		 test	 edi, edi
+  00b70	74 1d		 je	 SHORT $L11457
+
+; 1303 :                   {
+; 1304 :                   for (;pNextSlave != NULL; pNextSlave = pNextSlave->pSlave)
+
+  00b72	85 c9		 test	 ecx, ecx
+  00b74	74 19		 je	 SHORT $L11457
+$L11455:
+
+; 1305 :                      {
+; 1306 :                      pNextSlave->LfbBase = pSaveSlave->LfbBase;
+
+  00b76	8b 97 d0 00 00
+	00		 mov	 edx, DWORD PTR [edi+208]
+  00b7c	89 91 d0 00 00
+	00		 mov	 DWORD PTR [ecx+208], edx
+
+; 1307 :                      pNextSlave->nPages = pSaveSlave->nPages;
+
+  00b82	8b 57 20	 mov	 edx, DWORD PTR [edi+32]
+  00b85	89 51 20	 mov	 DWORD PTR [ecx+32], edx
+  00b88	8b 49 18	 mov	 ecx, DWORD PTR [ecx+24]
+  00b8b	85 c9		 test	 ecx, ecx
+  00b8d	75 e7		 jne	 SHORT $L11455
+$L11457:
+
+; 1308 :                      }
+; 1309 :                    }
+; 1310 : 
+; 1311 :                for (k=0; k<HWINFO_SST_MAX_CHIP_INDEX; k++)
+; 1312 :                   DevTable[j].RegBase[DevTable[i].dwUnitNum * HWINFO_SST_MAX_CHIP_INDEX + k] = DevTable[i].RegBase[k];
+
+  00b8f	8d 14 80	 lea	 edx, DWORD PTR [eax+eax*4]
+  00b92	33 c9		 xor	 ecx, ecx
+  00b94	8d 14 92	 lea	 edx, DWORD PTR [edx+edx*4]
+  00b97	8d 14 d0	 lea	 edx, DWORD PTR [eax+edx*8]
+  00b9a	8d 14 50	 lea	 edx, DWORD PTR [eax+edx*2]
+  00b9d	8d 83 90 00 00
+	00		 lea	 eax, DWORD PTR _DevTable[ebx+144]
+$L11458:
+  00ba3	8b b3 10 00 00
+	00		 mov	 esi, DWORD PTR _DevTable[ebx+16]
+  00ba9	8b 38		 mov	 edi, DWORD PTR [eax]
+  00bab	83 c0 04	 add	 eax, 4
+  00bae	8d 34 b2	 lea	 esi, DWORD PTR [edx+esi*4]
+  00bb1	03 f1		 add	 esi, ecx
+  00bb3	41		 inc	 ecx
+  00bb4	83 f9 04	 cmp	 ecx, 4
+  00bb7	89 3c b5 90 00
+	00 00		 mov	 DWORD PTR _DevTable[esi*4+144], edi
+  00bbe	7c e3		 jl	 SHORT $L11458
+$L11460:
+
+; 1313 :                break;
+; 1314 :                }
+; 1315 :             }      
+; 1316 :          }
+; 1317 : #endif
+; 1318 : 
+; 1319 : 
+; 1320 : #ifdef WIN_CSIM
+; 1321 : #ifdef SLI_AA
+; 1322 :       if (0x0 != dwUnitNum)
+; 1323 :          return pDev;
+; 1324 : #endif
+; 1325 : #endif
+; 1326 : 
+; 1327 : 	   //
+; 1328 : 	   // are we on a P6 or a PII, or another processor that supports MTRR's?
+; 1329 : 	   //
+; 1330 : #ifdef WINNT	// OLD CPUID CODE
+; 1331 : 	   CheckForP6();
+; 1332 : #else
+; 1333 :        GetCpuFeatures(&cpuFeatures);
+
+  00bc0	68 00 00 00 00	 push	 OFFSET FLAT:_cpuFeatures
+  00bc5	e8 00 00 00 00	 call	 _GetCpuFeatures
+
+; 1334 : #endif
+; 1335 : 
+; 1336 : #ifdef SLI_AA
+; 1337 :       // If we are a Slave then skip MTRR mapping unless of course we are doing Multi-Mon
+; 1338 : #ifdef WINNT	// OLD CPUID CODE
+; 1339 : 	   if ((!isP6) || (SLI_AA_SLAVE_DEVICE == pDev->dwType))
+; 1340 : #else
+; 1341 : 	   if ((! (cpuFeatures.dwCpuFlags & CPU_FEATURE_P6_MTRR)) || (SLI_AA_SLAVE_DEVICE == pDev->dwType))
+
+  00bca	8b 0d 00 00 00
+	00		 mov	 ecx, DWORD PTR _cpuFeatures
+  00bd0	8b 45 f8	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00bd3	83 c4 04	 add	 esp, 4
+  00bd6	f6 c5 08	 test	 ch, 8
+  00bd9	0f 84 b7 02 00
+	00		 je	 $L11304
+  00bdf	83 78 14 02	 cmp	 DWORD PTR [eax+20], 2
+  00be3	0f 84 ad 02 00
+	00		 je	 $L11304
+
+; 1342 : #endif //WINNT
+; 1343 : #else
+; 1344 : #ifdef WINNT	// OLD CPUID CODE
+; 1345 : 	   if (!isP6)
+; 1346 : #else
+; 1347 : 	   if (! (cpuFeatures.dwCpuFlags & CPU_FEATURE_P6_MTRR))
+; 1348 : #endif //WINNT
+; 1349 : #endif //SLI_AA
+; 1350 : 	      return(pDev);		// no, just return now
+; 1351 : 
+; 1352 : #ifdef WINNT	// OLD CPUID CODE
+; 1353 : 	   if ( isP6 == P6_AMDK6_MTRRS )
+; 1354 : #else
+; 1355 : 	   if (cpuFeatures.dwCpuFlags & CPU_FEATURE_K6_MTRR)
+
+  00be9	f6 c5 10	 test	 ch, 16			; 00000010H
+  00bec	0f 84 af 00 00
+	00		 je	 $L11463
+
+; 659  :    SstIORegs *lpIOregs;
+; 660  :    DWORD memBase;
+
+  00bf2	cd		 DB	 -51			; ffffffcdH
+  00bf3	20		 DB	 32			; 00000020H
+  00bf4	00		 DB	 0
+  00bf5	00		 DB	 0
+  00bf6	4a		 DB	 74			; 0000004aH
+  00bf7	00		 DB	 0
+
+; 661  :    DWORD mapSize;
+
+  00bf8	66 89 45 0e	 mov	 WORD PTR _w$11841[ebp], ax
+
+; 1356 : #endif
+; 1357 : 	      {
+; 1358 : 		   //
+; 1359 : 		   // AMD MTRR code for K6
+; 1360 : 		   //
+; 1361 : 		   //   If the os supports the MTRR calls for this CPU use them.
+; 1362 : 		   //
+; 1363 : 
+; 1364 : 		   if (MTRRGetVersion()) 
+
+  00bfc	66 83 7d 0e 00	 cmp	 WORD PTR _w$11841[ebp], 0
+  00c01	74 77		 je	 SHORT $L11464
+
+; 1365 : 		      {
+; 1366 : 			   if (0x0 != pDev->Mtrr)
+
+  00c03	8b 80 10 02 00
+	00		 mov	 eax, DWORD PTR [eax+528]
+  00c09	85 c0		 test	 eax, eax
+  00c0b	74 23		 je	 SHORT $L11845
+
+; 1367 : 			      {
+; 1368 : 				   // Uncache the old physical address
+; 1369 : 				   MTRRSetPhysical((PVOID)pDev->Mtrr, mapSize, MmNonCached);
+
+  00c0d	c7 45 08 00 00
+	00 00		 mov	 DWORD PTR $T11848[ebp], 0
+  00c14	89 45 0c	 mov	 DWORD PTR $T11847[ebp], eax
+
+; 661  :    DWORD mapSize;
+
+  00c17	60		 pushad
+
+; 662  :    DWORD IoBase;			// base of PCI relocatable IO space
+
+  00c18	ff 75 08	 push	 DWORD PTR $T11848[ebp]
+
+; 663  :    DWORD PhysMemBase[2];	// physical register address space
+
+  00c1b	ff 75 fc	 push	 DWORD PTR _mapSize$[ebp]
+
+; 664  :    FxU32 grxSpeedInMHz;
+
+  00c1e	6a 00		 push	 0
+
+; 665  :    FxU32 memSpeedInMHz;
+
+  00c20	ff 75 0c	 push	 DWORD PTR $T11847[ebp]
+
+; 666  :    FxU32 sgramMode, sgramMask, sgramColor;
+
+  00c23	cd		 DB	 -51			; ffffffcdH
+  00c24	20		 DB	 32			; 00000020H
+  00c25	01		 DB	 1
+  00c26	00		 DB	 0
+  00c27	4a		 DB	 74			; 0000004aH
+  00c28	00		 DB	 0
+
+; 667  :    FxU32 mtrr1Lo = 0, mtrr1Hi = 0, mtrr2Lo = 0, mtrr2Hi = 0;
+
+  00c29	89 45 c8	 mov	 DWORD PTR _ulResult$11846[ebp], eax
+
+; 668  :    FxU32 foundMTRR;
+; 669  :    PDWORD pDispatch;
+
+  00c2c	61		 popad
+
+; 1367 : 			      {
+; 1368 : 				   // Uncache the old physical address
+; 1369 : 				   MTRRSetPhysical((PVOID)pDev->Mtrr, mapSize, MmNonCached);
+
+  00c2d	8b 5d dc	 mov	 ebx, DWORD PTR -36+[ebp]
+$L11845:
+
+; 1370 : 			      }
+; 1371 : 
+; 1372 : 			   MTRRSetPhysical((PVOID)(DevTable[i].PhysMemBase[1] & 0xFF000000), mapSize, MmFrameBufferCached);
+
+  00c30	8b 83 8c 00 00
+	00		 mov	 eax, DWORD PTR _DevTable[ebx+140]
+  00c36	c7 45 08 02 00
+	00 00		 mov	 DWORD PTR $T11854[ebp], 2
+  00c3d	25 00 00 00 ff	 and	 eax, -16777216		; ff000000H
+  00c42	89 45 0c	 mov	 DWORD PTR $T11853[ebp], eax
+
+; 661  :    DWORD mapSize;
+
+  00c45	60		 pushad
+
+; 662  :    DWORD IoBase;			// base of PCI relocatable IO space
+
+  00c46	ff 75 08	 push	 DWORD PTR $T11854[ebp]
+
+; 663  :    DWORD PhysMemBase[2];	// physical register address space
+
+  00c49	ff 75 fc	 push	 DWORD PTR _mapSize$[ebp]
+
+; 664  :    FxU32 grxSpeedInMHz;
+
+  00c4c	6a 00		 push	 0
+
+; 665  :    FxU32 memSpeedInMHz;
+
+  00c4e	ff 75 0c	 push	 DWORD PTR $T11853[ebp]
+
+; 666  :    FxU32 sgramMode, sgramMask, sgramColor;
+
+  00c51	cd		 DB	 -51			; ffffffcdH
+  00c52	20		 DB	 32			; 00000020H
+  00c53	01		 DB	 1
+  00c54	00		 DB	 0
+  00c55	4a		 DB	 74			; 0000004aH
+  00c56	00		 DB	 0
+
+; 667  :    FxU32 mtrr1Lo = 0, mtrr1Hi = 0, mtrr2Lo = 0, mtrr2Hi = 0;
+
+  00c57	89 45 c8	 mov	 DWORD PTR _ulResult$11852[ebp], eax
+
+; 668  :    FxU32 foundMTRR;
+; 669  :    PDWORD pDispatch;
+
+  00c5a	61		 popad
+
+; 1373 : 			   pDev->Mtrr = DevTable[i].PhysMemBase[1] & 0xFF000000;
+
+  00c5b	8b 4d dc	 mov	 ecx, DWORD PTR -36+[ebp]
+  00c5e	8b 45 f8	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00c61	8b 91 8c 00 00
+	00		 mov	 edx, DWORD PTR _DevTable[ecx+140]
+  00c67	81 e2 00 00 00
+	ff		 and	 edx, -16777216		; ff000000H
+  00c6d	89 90 10 02 00
+	00		 mov	 DWORD PTR [eax+528], edx
+
+; 1480 : }
+
+  00c73	5f		 pop	 edi
+  00c74	5e		 pop	 esi
+  00c75	5b		 pop	 ebx
+  00c76	8b e5		 mov	 esp, ebp
+  00c78	5d		 pop	 ebp
+  00c79	c3		 ret	 0
+$L11464:
+
+; 1374 : 		      }
+; 1375 : 		   else 
+; 1376 : 		      {
+; 1377 : 			   // No OS MTRR support
+; 1378 : 
+; 1379 : 			   pciSetAmdK6MTRR( 0, (PVOID)(DevTable[i].PhysMemBase[1] & 0xFF000000), mapSize, PciMemTypeWriteCombining );
+
+  00c7a	8b 93 8c 00 00
+	00		 mov	 edx, DWORD PTR _DevTable[ebx+140]
+  00c80	8b 4d fc	 mov	 ecx, DWORD PTR _mapSize$[ebp]
+  00c83	6a 01		 push	 1
+  00c85	81 e2 00 00 00
+	ff		 and	 edx, -16777216		; ff000000H
+  00c8b	51		 push	 ecx
+  00c8c	52		 push	 edx
+  00c8d	6a 00		 push	 0
+  00c8f	e8 00 00 00 00	 call	 _pciSetAmdK6MTRR
+
+; 1473 : 	         }
+; 1474 : 	      }
+; 1475 :       }
+; 1476 :    else
+; 1477 : 	   Debug_Printf("Max Device exceeded\n");
+; 1478 : 
+; 1479 :     return pDev;     
+
+  00c94	8b 45 f8	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00c97	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 1480 : }
+
+  00c9a	5f		 pop	 edi
+  00c9b	5e		 pop	 esi
+  00c9c	5b		 pop	 ebx
+  00c9d	8b e5		 mov	 esp, ebp
+  00c9f	5d		 pop	 ebp
+  00ca0	c3		 ret	 0
+$L11463:
+
+; 1380 : 		      }
+; 1381 : 	      }
+; 1382 : #ifdef WINNT	// OLD CPUID CODE
+; 1383 :    else if ( !(isP6 & (P6_NONINTEL_WITH_INTEL_MTRRS | P6_INTELCPU_WITH_MTRRS)) )	// Do we support Intel style MTRR's
+; 1384 : #else
+; 1385 :    else if (! (cpuFeatures.dwCpuFlags & CPU_FEATURE_P6_MTRR))	// Do we support Intel style MTRR's
+; 1386 : #endif
+; 1387 : 	      {
+; 1388 : 	      return(pDev);		    // no, just return now
+; 1389 : 	      }
+; 1390 : 	   else
+; 1391 : 	      {
+; 1392 : 
+; 1393 : 	      // Windows 95 or doesn't support setting MTRR's for this processor?
+; 1394 : 	      dwNFunc = VDD_Get_Mini_Dispatch_Table(&pDispatch);
+
+  00ca1	8d 45 e0	 lea	 eax, DWORD PTR _pDispatch$[ebp]
+  00ca4	89 45 0c	 mov	 DWORD PTR $T11859[ebp], eax
+
+; 659  :    SstIORegs *lpIOregs;
+; 660  :    DWORD memBase;
+
+  00ca7	60		 pushad
+
+; 661  :    DWORD mapSize;
+
+  00ca8	cd		 DB	 -51			; ffffffcdH
+  00ca9	20		 DB	 32			; 00000020H
+  00caa	0e		 DB	 14			; 0000000eH
+  00cab	00		 DB	 0
+  00cac	0a		 DB	 10			; 0000000aH
+  00cad	00		 DB	 0
+
+; 662  :    DWORD IoBase;			// base of PCI relocatable IO space
+
+  00cae	89 4d 08	 mov	 DWORD PTR _dwR$11858[ebp], ecx
+
+; 663  :    DWORD PhysMemBase[2];	// physical register address space
+
+  00cb1	8b 45 0c	 mov	 eax, DWORD PTR $T11859[ebp]
+
+; 664  :    FxU32 grxSpeedInMHz;
+
+  00cb4	89 38		 mov	 DWORD PTR [eax], edi
+
+; 665  :    FxU32 memSpeedInMHz;
+
+  00cb6	61		 popad
+
+; 659  :    SstIORegs *lpIOregs;
+; 660  :    DWORD memBase;
+
+  00cb7	cd		 DB	 -51			; ffffffcdH
+  00cb8	20		 DB	 32			; 00000020H
+  00cb9	00		 DB	 0
+  00cba	00		 DB	 0
+  00cbb	4a		 DB	 74			; 0000004aH
+  00cbc	00		 DB	 0
+
+; 661  :    DWORD mapSize;
+
+  00cbd	66 89 45 0e	 mov	 WORD PTR _w$11863[ebp], ax
+
+; 1395 : 	      if ( (dwNFunc < NBR_MINI_VDD_FUNCTIONS_41) | (MTRRGetVersion()==FALSE) )
+
+  00cc1	83 7d 08 3e	 cmp	 DWORD PTR _dwR$11858[ebp], 62 ; 0000003eH
+  00cc5	1b c9		 sbb	 ecx, ecx
+  00cc7	33 ff		 xor	 edi, edi
+  00cc9	f7 d9		 neg	 ecx
+  00ccb	33 d2		 xor	 edx, edx
+  00ccd	66 39 7d 0e	 cmp	 WORD PTR _w$11863[ebp], di
+  00cd1	0f 94 c2	 sete	 dl
+  00cd4	0b ca		 or	 ecx, edx
+  00cd6	0f 84 47 01 00
+	00		 je	 $L11473
+
+; 1396 : 	         {
+; 1397 : 		      mapSize = MAP_MTRR(mapSize);
+
+  00cdc	8b 45 fc	 mov	 eax, DWORD PTR _mapSize$[ebp]
+
+; 1398 : 		      //
+; 1399 : 		      // Yes we are, so mark the raw lfb space USWC (write combine).
+; 1400 : 		      // First, find a free mtrr set.   By convention, we should only use
+; 1401 : 		      // one of the the first 5 pairs
+; 1402 : 		      //
+; 1403 : 
+; 1404 : 		      foundMTRR = 0;
+; 1405 : 		      if (0x0 != pDev->Mtrr)
+
+  00cdf	8b 75 f8	 mov	 esi, DWORD PTR _pDev$[ebp]
+  00ce2	48		 dec	 eax
+  00ce3	f7 d0		 not	 eax
+  00ce5	80 cc 08	 or	 ah, 8
+  00ce8	89 45 fc	 mov	 DWORD PTR _mapSize$[ebp], eax
+  00ceb	8b 86 10 02 00
+	00		 mov	 eax, DWORD PTR [esi+528]
+  00cf1	3b c7		 cmp	 eax, edi
+  00cf3	74 1a		 je	 SHORT $L11474
+
+; 1406 : 		         {
+; 1407 : 		         // We have been here before so we can reuse the same Mtrr
+; 1408 : 		         // First set it to zero so that we can find it again
+; 1409 : 		         SetMTRR(pDev->Mtrr + 1, 0, 0);
+
+  00cf5	57		 push	 edi
+  00cf6	40		 inc	 eax
+  00cf7	57		 push	 edi
+  00cf8	50		 push	 eax
+  00cf9	e8 00 00 00 00	 call	 _SetMTRR
+
+; 1410 : 		         SetMTRR(pDev->Mtrr, 0, 0);
+
+  00cfe	8b 8e 10 02 00
+	00		 mov	 ecx, DWORD PTR [esi+528]
+  00d04	57		 push	 edi
+  00d05	57		 push	 edi
+  00d06	51		 push	 ecx
+  00d07	e8 00 00 00 00	 call	 _SetMTRR
+  00d0c	83 c4 18	 add	 esp, 24			; 00000018H
+$L11474:
+
+; 1411 : 		         }
+; 1412 : 
+; 1413 : 		      for (pDev->Mtrr = 0x200; pDev->Mtrr <= 0x20e; pDev->Mtrr += 2)
+
+  00d0f	c7 86 10 02 00
+	00 00 02 00 00	 mov	 DWORD PTR [esi+528], 512 ; 00000200H
+$L11475:
+
+; 1414 : 		         {
+; 1415 : 		         GetMTRR(pDev->Mtrr, &mtrr1Lo, &mtrr1Hi);
+
+  00d19	8b 8e 10 02 00
+	00		 mov	 ecx, DWORD PTR [esi+528]
+  00d1f	8d 55 e4	 lea	 edx, DWORD PTR _mtrr1Hi$[ebp]
+  00d22	8d 45 e8	 lea	 eax, DWORD PTR _mtrr1Lo$[ebp]
+  00d25	52		 push	 edx
+  00d26	50		 push	 eax
+  00d27	51		 push	 ecx
+  00d28	e8 00 00 00 00	 call	 _GetMTRR
+
+; 1416 : 		         GetMTRR(pDev->Mtrr + 1, &mtrr2Lo, &mtrr2Hi);
+
+  00d2d	8b 8e 10 02 00
+	00		 mov	 ecx, DWORD PTR [esi+528]
+  00d33	8d 55 f0	 lea	 edx, DWORD PTR _mtrr2Hi$[ebp]
+  00d36	8d 45 f4	 lea	 eax, DWORD PTR _mtrr2Lo$[ebp]
+  00d39	52		 push	 edx
+  00d3a	41		 inc	 ecx
+  00d3b	50		 push	 eax
+  00d3c	51		 push	 ecx
+  00d3d	e8 00 00 00 00	 call	 _GetMTRR
+
+; 1417 : 
+; 1418 : 		         if ((mtrr1Lo == 0) && (mtrr1Hi == 0) &&
+; 1419 : 			          (mtrr2Lo == 0) && (mtrr2Hi == 0))
+
+  00d42	8b 45 e8	 mov	 eax, DWORD PTR _mtrr1Lo$[ebp]
+  00d45	8b 4d e4	 mov	 ecx, DWORD PTR _mtrr1Hi$[ebp]
+  00d48	8b 55 f0	 mov	 edx, DWORD PTR _mtrr2Hi$[ebp]
+  00d4b	83 c4 18	 add	 esp, 24			; 00000018H
+  00d4e	3b c7		 cmp	 eax, edi
+  00d50	75 0d		 jne	 SHORT $L11478
+  00d52	3b cf		 cmp	 ecx, edi
+  00d54	75 09		 jne	 SHORT $L11478
+  00d56	39 7d f4	 cmp	 DWORD PTR _mtrr2Lo$[ebp], edi
+  00d59	75 04		 jne	 SHORT $L11478
+  00d5b	3b d7		 cmp	 edx, edi
+  00d5d	74 54		 je	 SHORT $L11481
+$L11478:
+
+; 1420 : 	               {
+; 1421 : 			         foundMTRR = 1;
+; 1422 : 			         break;
+; 1423 : 	               }
+; 1424 : 
+; 1425 : 		         if ((mtrr1Lo == ((DevTable[i].PhysMemBase[1] & 0xFF000000) | 1)) &&
+; 1426 : 			          (mtrr1Hi == 0) &&
+; 1427 : 			          (mtrr2Lo == mapSize) &&
+; 1428 : 			          (mtrr2Hi == 0xf))
+
+  00d5f	8b 5d dc	 mov	 ebx, DWORD PTR -36+[ebp]
+  00d62	8b 9b 8c 00 00
+	00		 mov	 ebx, DWORD PTR _DevTable[ebx+140]
+  00d68	81 e3 01 00 00
+	ff		 and	 ebx, -16777215		; ff000001H
+  00d6e	83 cb 01	 or	 ebx, 1
+  00d71	3b c3		 cmp	 eax, ebx
+  00d73	75 13		 jne	 SHORT $L11476
+  00d75	3b cf		 cmp	 ecx, edi
+  00d77	75 0f		 jne	 SHORT $L11476
+  00d79	8b 45 f4	 mov	 eax, DWORD PTR _mtrr2Lo$[ebp]
+  00d7c	8b 4d fc	 mov	 ecx, DWORD PTR _mapSize$[ebp]
+  00d7f	3b c1		 cmp	 eax, ecx
+  00d81	75 05		 jne	 SHORT $L11476
+  00d83	83 fa 0f	 cmp	 edx, 15			; 0000000fH
+  00d86	74 22		 je	 SHORT $L11906
+$L11476:
+
+; 1411 : 		         }
+; 1412 : 
+; 1413 : 		      for (pDev->Mtrr = 0x200; pDev->Mtrr <= 0x20e; pDev->Mtrr += 2)
+
+  00d88	8b 8e 10 02 00
+	00		 mov	 ecx, DWORD PTR [esi+528]
+  00d8e	83 c1 02	 add	 ecx, 2
+  00d91	8b c1		 mov	 eax, ecx
+  00d93	89 8e 10 02 00
+	00		 mov	 DWORD PTR [esi+528], ecx
+  00d99	3d 0e 02 00 00	 cmp	 eax, 526		; 0000020eH
+  00d9e	0f 86 75 ff ff
+	ff		 jbe	 $L11475
+
+; 1429 : 	               {
+; 1430 : 			         foundMTRR = 2;
+; 1431 : 			         break;
+; 1432 : 	               }
+; 1433 : 		         }
+; 1434 : 
+; 1435 : 		      if (foundMTRR == 0)
+; 1436 : 		         {
+; 1437 : 	            pDev->Mtrr = 0;
+
+  00da4	89 be 10 02 00
+	00		 mov	 DWORD PTR [esi+528], edi
+$L11906:
+
+; 1438 : 		         Debug_Printf(VNAME "ACK!  No free MTRRs!\n");
+; 1439 : 		         return(pDev);
+
+  00daa	8b c6		 mov	 eax, esi
+
+; 1480 : }
+
+  00dac	5f		 pop	 edi
+  00dad	5e		 pop	 esi
+  00dae	5b		 pop	 ebx
+  00daf	8b e5		 mov	 esp, ebp
+  00db1	5d		 pop	 ebp
+  00db2	c3		 ret	 0
+$L11481:
+
+; 1440 : 		         }
+; 1441 : 
+; 1442 : 		      if (foundMTRR == 2)
+; 1443 : 	            {
+; 1444 : 		         return(pDev);		// our MTRR is already there
+; 1445 : 	            }
+; 1446 : 
+; 1447 : 		      // first, clear both MTRRs
+; 1448 : 		      //
+; 1449 : 		      SetMTRR(pDev->Mtrr, 0, 0);
+
+  00db3	8b 8e 10 02 00
+	00		 mov	 ecx, DWORD PTR [esi+528]
+  00db9	57		 push	 edi
+  00dba	57		 push	 edi
+  00dbb	51		 push	 ecx
+  00dbc	e8 00 00 00 00	 call	 _SetMTRR
+
+; 1450 : 		      SetMTRR(pDev->Mtrr + 1, 0, 0);
+
+  00dc1	8b 96 10 02 00
+	00		 mov	 edx, DWORD PTR [esi+528]
+  00dc7	57		 push	 edi
+  00dc8	42		 inc	 edx
+  00dc9	57		 push	 edi
+  00dca	52		 push	 edx
+  00dcb	e8 00 00 00 00	 call	 _SetMTRR
+
+; 1451 : 
+; 1452 : 		      mtrr1Lo = (DevTable[i].PhysMemBase[1] & 0xFF000000) | 1;
+
+  00dd0	8b 45 dc	 mov	 eax, DWORD PTR -36+[ebp]
+
+; 1453 : 		      mtrr1Hi = 0;
+; 1454 : 		      mtrr2Lo = mapSize;
+; 1455 : 		      mtrr2Hi = 0xf;
+; 1456 : 
+; 1457 : 		      // then, set them to the required values
+; 1458 : 		      //
+; 1459 : 		      SetMTRR(pDev->Mtrr, mtrr1Lo, mtrr1Hi);
+
+  00dd3	8b 96 10 02 00
+	00		 mov	 edx, DWORD PTR [esi+528]
+  00dd9	8b 4d fc	 mov	 ecx, DWORD PTR _mapSize$[ebp]
+  00ddc	57		 push	 edi
+  00ddd	8b 80 8c 00 00
+	00		 mov	 eax, DWORD PTR _DevTable[eax+140]
+  00de3	89 7d e4	 mov	 DWORD PTR _mtrr1Hi$[ebp], edi
+  00de6	25 01 00 00 ff	 and	 eax, -16777215		; ff000001H
+  00deb	89 4d f4	 mov	 DWORD PTR _mtrr2Lo$[ebp], ecx
+  00dee	0c 01		 or	 al, 1
+  00df0	c7 45 f0 0f 00
+	00 00		 mov	 DWORD PTR _mtrr2Hi$[ebp], 15 ; 0000000fH
+  00df7	50		 push	 eax
+  00df8	52		 push	 edx
+  00df9	89 45 e8	 mov	 DWORD PTR _mtrr1Lo$[ebp], eax
+  00dfc	e8 00 00 00 00	 call	 _SetMTRR
+
+; 1460 : 		      SetMTRR(pDev->Mtrr + 1, mtrr2Lo, mtrr2Hi);
+
+  00e01	8b 45 f0	 mov	 eax, DWORD PTR _mtrr2Hi$[ebp]
+  00e04	8b 96 10 02 00
+	00		 mov	 edx, DWORD PTR [esi+528]
+  00e0a	8b 4d f4	 mov	 ecx, DWORD PTR _mtrr2Lo$[ebp]
+  00e0d	50		 push	 eax
+  00e0e	42		 inc	 edx
+  00e0f	51		 push	 ecx
+  00e10	52		 push	 edx
+  00e11	e8 00 00 00 00	 call	 _SetMTRR
+
+; 1473 : 	         }
+; 1474 : 	      }
+; 1475 :       }
+; 1476 :    else
+; 1477 : 	   Debug_Printf("Max Device exceeded\n");
+; 1478 : 
+; 1479 :     return pDev;     
+
+  00e16	8b 45 f8	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00e19	83 c4 30	 add	 esp, 48			; 00000030H
+
+; 1480 : }
+
+  00e1c	5f		 pop	 edi
+  00e1d	5e		 pop	 esi
+  00e1e	5b		 pop	 ebx
+  00e1f	8b e5		 mov	 esp, ebp
+  00e21	5d		 pop	 ebp
+  00e22	c3		 ret	 0
+$L11473:
+
+; 1461 : 	         }
+; 1462 : 	      // Windows '98
+; 1463 : 		   else
+; 1464 : 	         { 
+; 1465 : 	         if (0x0 != pDev->Mtrr)
+
+  00e23	8b 45 f8	 mov	 eax, DWORD PTR _pDev$[ebp]
+  00e26	8b 80 10 02 00
+	00		 mov	 eax, DWORD PTR [eax+528]
+  00e2c	3b c7		 cmp	 eax, edi
+  00e2e	74 1c		 je	 SHORT $L11867
+
+; 1466 : 	         	{
+; 1467 : 		         // Uncache the old physical address
+; 1468 : 	            MTRRSetPhysical((PVOID)pDev->Mtrr, mapSize, MmNonCached);
+
+  00e30	89 7d 08	 mov	 DWORD PTR $T11870[ebp], edi
+  00e33	89 45 0c	 mov	 DWORD PTR $T11869[ebp], eax
+
+; 661  :    DWORD mapSize;
+
+  00e36	60		 pushad
+
+; 662  :    DWORD IoBase;			// base of PCI relocatable IO space
+
+  00e37	ff 75 08	 push	 DWORD PTR $T11870[ebp]
+
+; 663  :    DWORD PhysMemBase[2];	// physical register address space
+
+  00e3a	ff 75 fc	 push	 DWORD PTR _mapSize$[ebp]
+
+; 664  :    FxU32 grxSpeedInMHz;
+
+  00e3d	6a 00		 push	 0
+
+; 665  :    FxU32 memSpeedInMHz;
+
+  00e3f	ff 75 0c	 push	 DWORD PTR $T11869[ebp]
+
+; 666  :    FxU32 sgramMode, sgramMask, sgramColor;
+
+  00e42	cd		 DB	 -51			; ffffffcdH
+  00e43	20		 DB	 32			; 00000020H
+  00e44	01		 DB	 1
+  00e45	00		 DB	 0
+  00e46	4a		 DB	 74			; 0000004aH
+  00e47	00		 DB	 0
+
+; 667  :    FxU32 mtrr1Lo = 0, mtrr1Hi = 0, mtrr2Lo = 0, mtrr2Hi = 0;
+
+  00e48	89 45 c8	 mov	 DWORD PTR _ulResult$11868[ebp], eax
+
+; 668  :    FxU32 foundMTRR;
+; 669  :    PDWORD pDispatch;
+
+  00e4b	61		 popad
+
+; 1466 : 	         	{
+; 1467 : 		         // Uncache the old physical address
+; 1468 : 	            MTRRSetPhysical((PVOID)pDev->Mtrr, mapSize, MmNonCached);
+
+$L11867:
+
+; 1469 : 	      	   }
+; 1470 :       
+; 1471 : 	         MTRRSetPhysical((PVOID)(DevTable[i].PhysMemBase[1] & 0xFF000000), mapSize, MmFrameBufferCached);
+
+  00e4c	8b 4d dc	 mov	 ecx, DWORD PTR -36+[ebp]
+  00e4f	c7 45 08 02 00
+	00 00		 mov	 DWORD PTR $T11876[ebp], 2
+  00e56	8b 91 8c 00 00
+	00		 mov	 edx, DWORD PTR _DevTable[ecx+140]
+  00e5c	81 e2 00 00 00
+	ff		 and	 edx, -16777216		; ff000000H
+  00e62	89 55 0c	 mov	 DWORD PTR $T11875[ebp], edx
+
+; 661  :    DWORD mapSize;
+
+  00e65	60		 pushad
+
+; 662  :    DWORD IoBase;			// base of PCI relocatable IO space
+
+  00e66	ff 75 08	 push	 DWORD PTR $T11876[ebp]
+
+; 663  :    DWORD PhysMemBase[2];	// physical register address space
+
+  00e69	ff 75 fc	 push	 DWORD PTR _mapSize$[ebp]
+
+; 664  :    FxU32 grxSpeedInMHz;
+
+  00e6c	6a 00		 push	 0
+
+; 665  :    FxU32 memSpeedInMHz;
+
+  00e6e	ff 75 0c	 push	 DWORD PTR $T11875[ebp]
+
+; 666  :    FxU32 sgramMode, sgramMask, sgramColor;
+
+  00e71	cd		 DB	 -51			; ffffffcdH
+  00e72	20		 DB	 32			; 00000020H
+  00e73	01		 DB	 1
+  00e74	00		 DB	 0
+  00e75	4a		 DB	 74			; 0000004aH
+  00e76	00		 DB	 0
+
+; 667  :    FxU32 mtrr1Lo = 0, mtrr1Hi = 0, mtrr2Lo = 0, mtrr2Hi = 0;
+
+  00e77	89 45 c8	 mov	 DWORD PTR _ulResult$11874[ebp], eax
+
+; 668  :    FxU32 foundMTRR;
+; 669  :    PDWORD pDispatch;
+
+  00e7a	61		 popad
+
+; 1472 : 	         pDev->Mtrr = DevTable[i].PhysMemBase[1] & 0xFF000000;
+
+  00e7b	8b 45 dc	 mov	 eax, DWORD PTR -36+[ebp]
+  00e7e	8b 55 f8	 mov	 edx, DWORD PTR _pDev$[ebp]
+  00e81	8b 88 8c 00 00
+	00		 mov	 ecx, DWORD PTR _DevTable[eax+140]
+  00e87	81 e1 00 00 00
+	ff		 and	 ecx, -16777216		; ff000000H
+  00e8d	89 8a 10 02 00
+	00		 mov	 DWORD PTR [edx+528], ecx
+$L11346:
+
+; 1473 : 	         }
+; 1474 : 	      }
+; 1475 :       }
+; 1476 :    else
+; 1477 : 	   Debug_Printf("Max Device exceeded\n");
+; 1478 : 
+; 1479 :     return pDev;     
+
+  00e93	8b 45 f8	 mov	 eax, DWORD PTR _pDev$[ebp]
+$L11304:
+
+; 1480 : }
+
+  00e96	5f		 pop	 edi
+  00e97	5e		 pop	 esi
+  00e98	5b		 pop	 ebx
+  00e99	8b e5		 mov	 esp, ebp
+  00e9b	5d		 pop	 ebp
+  00e9c	c3		 ret	 0
+  00e9d	8d 49 00	 npad	 3
+$L11920:
+  00ea0	00 00 00 00	 DD	 $L11421
+  00ea4	00 00 00 00	 DD	 $L11422
+  00ea8	00 00 00 00	 DD	 $L11423
+  00eac	00 00 00 00	 DD	 $L11424
+  00eb0	00 00 00 00	 DD	 $L11425
+  00eb4	00 00 00 00	 DD	 $L11426
+$L11919:
+  00eb8	00		 DB	 0
+  00eb9	05		 DB	 5
+  00eba	05		 DB	 5
+  00ebb	05		 DB	 5
+  00ebc	01		 DB	 1
+  00ebd	05		 DB	 5
+  00ebe	05		 DB	 5
+  00ebf	05		 DB	 5
+  00ec0	05		 DB	 5
+  00ec1	05		 DB	 5
+  00ec2	05		 DB	 5
+  00ec3	05		 DB	 5
+  00ec4	02		 DB	 2
+  00ec5	05		 DB	 5
+  00ec6	05		 DB	 5
+  00ec7	05		 DB	 5
+  00ec8	05		 DB	 5
+  00ec9	05		 DB	 5
+  00eca	05		 DB	 5
+  00ecb	05		 DB	 5
+  00ecc	05		 DB	 5
+  00ecd	05		 DB	 5
+  00ece	05		 DB	 5
+  00ecf	05		 DB	 5
+  00ed0	05		 DB	 5
+  00ed1	05		 DB	 5
+  00ed2	05		 DB	 5
+  00ed3	05		 DB	 5
+  00ed4	03		 DB	 3
+  00ed5	05		 DB	 5
+  00ed6	05		 DB	 5
+  00ed7	05		 DB	 5
+  00ed8	05		 DB	 5
+  00ed9	05		 DB	 5
+  00eda	05		 DB	 5
+  00edb	05		 DB	 5
+  00edc	05		 DB	 5
+  00edd	05		 DB	 5
+  00ede	05		 DB	 5
+  00edf	05		 DB	 5
+  00ee0	05		 DB	 5
+  00ee1	05		 DB	 5
+  00ee2	05		 DB	 5
+  00ee3	05		 DB	 5
+  00ee4	05		 DB	 5
+  00ee5	05		 DB	 5
+  00ee6	05		 DB	 5
+  00ee7	05		 DB	 5
+  00ee8	05		 DB	 5
+  00ee9	05		 DB	 5
+  00eea	05		 DB	 5
+  00eeb	05		 DB	 5
+  00eec	05		 DB	 5
+  00eed	05		 DB	 5
+  00eee	05		 DB	 5
+  00eef	05		 DB	 5
+  00ef0	05		 DB	 5
+  00ef1	05		 DB	 5
+  00ef2	05		 DB	 5
+  00ef3	05		 DB	 5
+  00ef4	04		 DB	 4
+_InitDevNode ENDP
+_LTEXT	ENDS
+PUBLIC	_FindPDEVFromDevNode
+_LTEXT	SEGMENT
+_dwDevNode$ = 8
+_FindPDEVFromDevNode PROC NEAR
+
+; 1495 : {
+
+  00f00	56		 push	 esi
+  00f01	57		 push	 edi
+
+; 1496 :    PDEVTABLE pReturn = NULL;
+
+  00f02	8b 7c 24 0c	 mov	 edi, DWORD PTR _dwDevNode$[esp+4]
+  00f06	33 c0		 xor	 eax, eax
+
+; 1497 :    int i;
+; 1498 :    
+; 1499 :    for (i=0; i<MAX_BANSHEE_DEVICES; i++)
+
+  00f08	33 d2		 xor	 edx, edx
+  00f0a	b9 00 00 00 00	 mov	 ecx, OFFSET FLAT:_DevTable
+$L11492:
+
+; 1500 :       {
+; 1501 :       // Is this the one
+; 1502 :       if (dwDevNode == DevTable[i].dwDevNode)
+
+  00f0f	8b 31		 mov	 esi, DWORD PTR [ecx]
+  00f11	3b fe		 cmp	 edi, esi
+  00f13	74 16		 je	 SHORT $L11923
+
+; 1505 :          break;
+; 1506 :          }
+; 1507 : 
+; 1508 :       // No More to check ??
+; 1509 :       if (0x0 == DevTable[i].dwDevNode)
+
+  00f15	85 f6		 test	 esi, esi
+  00f17	74 25		 je	 SHORT $L11924
+  00f19	81 c1 4c 06 00
+	00		 add	 ecx, 1612		; 0000064cH
+  00f1f	42		 inc	 edx
+  00f20	81 f9 c0 64 00
+	00		 cmp	 ecx, OFFSET FLAT:_DevTable+25792
+  00f26	7c e7		 jl	 SHORT $L11492
+  00f28	5f		 pop	 edi
+  00f29	5e		 pop	 esi
+
+; 1510 :          break;
+; 1511 :       }
+; 1512 : 
+; 1513 :    return pReturn;      
+; 1514 : }
+
+  00f2a	c3		 ret	 0
+$L11923:
+
+; 1503 :          {
+; 1504 :          pReturn = &DevTable[i];
+
+  00f2b	8d 04 92	 lea	 eax, DWORD PTR [edx+edx*4]
+  00f2e	8d 04 80	 lea	 eax, DWORD PTR [eax+eax*4]
+  00f31	8d 0c c2	 lea	 ecx, DWORD PTR [edx+eax*8]
+  00f34	8d 14 4a	 lea	 edx, DWORD PTR [edx+ecx*2]
+  00f37	8d 04 95 00 00
+	00 00		 lea	 eax, DWORD PTR _DevTable[edx*4]
+$L11924:
+  00f3e	5f		 pop	 edi
+  00f3f	5e		 pop	 esi
+
+; 1510 :          break;
+; 1511 :       }
+; 1512 : 
+; 1513 :    return pReturn;      
+; 1514 : }
+
+  00f40	c3		 ret	 0
+_FindPDEVFromDevNode ENDP
+_LTEXT	ENDS
+PUBLIC	_FindPDEVFromDevNodeandUnitNum
+PUBLIC	_DevNodeandUnitNumtoIORegs
+_LTEXT	SEGMENT
+_devnode$ = 8
+_dwUnitNum$ = 12
+_DevNodeandUnitNumtoIORegs PROC NEAR
+
+; 1528 :    PDEVTABLE pDev;
+; 1529 : 
+; 1530 :    pDev = FindPDEVFromDevNodeandUnitNum(devnode, dwUnitNum);
+
+  00f50	8b 44 24 08	 mov	 eax, DWORD PTR _dwUnitNum$[esp-4]
+  00f54	8b 4c 24 04	 mov	 ecx, DWORD PTR _devnode$[esp-4]
+  00f58	50		 push	 eax
+  00f59	51		 push	 ecx
+  00f5a	e8 00 00 00 00	 call	 _FindPDEVFromDevNodeandUnitNum
+
+; 1531 :    return (SstIORegs *)pDev->RegBase[HWINFO_SST_IOREGS_INDEX];
+
+  00f5f	8b 80 90 00 00
+	00		 mov	 eax, DWORD PTR [eax+144]
+  00f65	83 c4 08	 add	 esp, 8
+
+; 1532 : }
+
+  00f68	c3		 ret	 0
+_DevNodeandUnitNumtoIORegs ENDP
+_dwDevNode$ = 8
+_dwUnitNum$ = 12
+_FindPDEVFromDevNodeandUnitNum PROC NEAR
+
+; 1546 : {
+
+  00f70	53		 push	 ebx
+
+; 1547 :    PDEVTABLE pReturn = NULL;
+
+  00f71	8b 5c 24 0c	 mov	 ebx, DWORD PTR _dwUnitNum$[esp]
+  00f75	56		 push	 esi
+  00f76	57		 push	 edi
+  00f77	8b 7c 24 10	 mov	 edi, DWORD PTR _dwDevNode$[esp+8]
+  00f7b	33 c0		 xor	 eax, eax
+
+; 1548 :    int i;
+; 1549 :    
+; 1550 :    for (i=0; i<MAX_BANSHEE_DEVICES; i++)
+
+  00f7d	33 d2		 xor	 edx, edx
+  00f7f	b9 00 00 00 00	 mov	 ecx, OFFSET FLAT:_DevTable
+$L11511:
+
+; 1551 :       {
+; 1552 :       // Is this the one
+; 1553 :       if ((dwDevNode == DevTable[i].dwDevNode) && (dwUnitNum == DevTable[i].dwUnitNum))
+
+  00f84	8b 31		 mov	 esi, DWORD PTR [ecx]
+  00f86	3b fe		 cmp	 edi, esi
+  00f88	75 05		 jne	 SHORT $L11514
+  00f8a	3b 59 10	 cmp	 ebx, DWORD PTR [ecx+16]
+  00f8d	74 17		 je	 SHORT $L11930
+$L11514:
+
+; 1556 :          break;
+; 1557 :          }
+; 1558 : 
+; 1559 :       // No More to check ??
+; 1560 :       if (0x0 == DevTable[i].dwDevNode)
+
+  00f8f	85 f6		 test	 esi, esi
+  00f91	74 26		 je	 SHORT $L11931
+  00f93	81 c1 4c 06 00
+	00		 add	 ecx, 1612		; 0000064cH
+  00f99	42		 inc	 edx
+  00f9a	81 f9 c0 64 00
+	00		 cmp	 ecx, OFFSET FLAT:_DevTable+25792
+  00fa0	7c e2		 jl	 SHORT $L11511
+  00fa2	5f		 pop	 edi
+  00fa3	5e		 pop	 esi
+  00fa4	5b		 pop	 ebx
+
+; 1561 :          break;
+; 1562 :       }
+; 1563 : 
+; 1564 :    return pReturn;      
+; 1565 : }
+
+  00fa5	c3		 ret	 0
+$L11930:
+
+; 1554 :          {
+; 1555 :          pReturn = &DevTable[i];
+
+  00fa6	8d 04 92	 lea	 eax, DWORD PTR [edx+edx*4]
+  00fa9	8d 04 80	 lea	 eax, DWORD PTR [eax+eax*4]
+  00fac	8d 0c c2	 lea	 ecx, DWORD PTR [edx+eax*8]
+  00faf	8d 14 4a	 lea	 edx, DWORD PTR [edx+ecx*2]
+  00fb2	8d 04 95 00 00
+	00 00		 lea	 eax, DWORD PTR _DevTable[edx*4]
+$L11931:
+  00fb9	5f		 pop	 edi
+  00fba	5e		 pop	 esi
+  00fbb	5b		 pop	 ebx
+
+; 1561 :          break;
+; 1562 :       }
+; 1563 : 
+; 1564 :    return pReturn;      
+; 1565 : }
+
+  00fbc	c3		 ret	 0
+_FindPDEVFromDevNodeandUnitNum ENDP
+_LTEXT	ENDS
+PUBLIC	_FindPDEVFromUnitNumber
+_LTEXT	SEGMENT
+_dwUnitNumber$ = 8
+_FindPDEVFromUnitNumber PROC NEAR
+
+; 1581 :    PDEVTABLE pReturn = NULL;
+; 1582 :    pReturn = &DevTable[dwUnitNumber];
+
+  00fc0	8b 44 24 04	 mov	 eax, DWORD PTR _dwUnitNumber$[esp-4]
+  00fc4	8d 0c 80	 lea	 ecx, DWORD PTR [eax+eax*4]
+  00fc7	8d 0c 89	 lea	 ecx, DWORD PTR [ecx+ecx*4]
+  00fca	8d 14 c8	 lea	 edx, DWORD PTR [eax+ecx*8]
+  00fcd	8d 04 50	 lea	 eax, DWORD PTR [eax+edx*2]
+  00fd0	8d 04 85 00 00
+	00 00		 lea	 eax, DWORD PTR _DevTable[eax*4]
+
+; 1583 :    return pReturn;      
+; 1584 : }
+
+  00fd7	c3		 ret	 0
+_FindPDEVFromUnitNumber ENDP
+_LTEXT	ENDS
+EXTRN	_GetNumUnits:NEAR
+EXTRN	_dwWin98:DWORD
+EXTRN	_InitPower:NEAR
+EXTRN	_RegisterDisplayDriver:NEAR
+_LTEXT	SEGMENT
+_dwDevNode$ = 8
+_pDispatch$ = -4
+_dwR$11939 = -12
+$T11940 = -8
+_InitSecondaryDispatchTable PROC NEAR
+
+; 1597 : {
+
+  00fe0	55		 push	 ebp
+  00fe1	8b ec		 mov	 ebp, esp
+  00fe3	83 ec 0c	 sub	 esp, 12			; 0000000cH
+  00fe6	53		 push	 ebx
+
+; 1605 :    dwNFunc = VDD_Get_Mini_Dispatch_Table(&pDispatch);
+
+  00fe7	8d 45 fc	 lea	 eax, DWORD PTR _pDispatch$[ebp]
+  00fea	56		 push	 esi
+  00feb	57		 push	 edi
+  00fec	89 45 f8	 mov	 DWORD PTR $T11940[ebp], eax
+
+; 1598 :    PDWORD pDispatch;
+; 1599 :    DWORD dwNFunc;
+; 1600 : #ifdef SLI_AA
+
+  00fef	60		 pushad
+
+; 1601 :    DWORD i;
+
+  00ff0	cd		 DB	 -51			; ffffffcdH
+  00ff1	20		 DB	 32			; 00000020H
+  00ff2	0e		 DB	 14			; 0000000eH
+  00ff3	00		 DB	 0
+  00ff4	0a		 DB	 10			; 0000000aH
+  00ff5	00		 DB	 0
+
+; 1602 :    DWORD dwNum;
+
+  00ff6	89 4d f4	 mov	 DWORD PTR _dwR$11939[ebp], ecx
+
+; 1603 : #endif
+
+  00ff9	8b 45 f8	 mov	 eax, DWORD PTR $T11940[ebp]
+
+; 1604 : 
+
+  00ffc	89 38		 mov	 DWORD PTR [eax], edi
+
+; 1605 :    dwNFunc = VDD_Get_Mini_Dispatch_Table(&pDispatch);
+
+  00ffe	61		 popad
+
+; 1606 : #ifdef SLI_AA
+; 1607 :    if (dwNFunc >= NBR_MINI_VDD_FUNCTIONS_41)
+
+  00fff	8b 7d f4	 mov	 edi, DWORD PTR _dwR$11939[ebp]
+
+; 1608 :       dwWin98 = TRUE;
+; 1609 :    else
+; 1610 :       dwWin98 = FALSE;
+; 1611 : #endif  
+; 1612 : 
+; 1613 :    pDispatch[REGISTER_DISPLAY_DRIVER]= (DWORD)RegisterDisplayDriver;
+
+  01002	8b 55 fc	 mov	 edx, DWORD PTR _pDispatch$[ebp]
+
+; 1614 : 
+; 1615 : #ifdef SLI_AA
+; 1616 :    // Initialize the additional Units
+; 1617 :    dwNum = GetNumUnits(dwDevNode);
+
+  01005	8b 5d 08	 mov	 ebx, DWORD PTR _dwDevNode$[ebp]
+  01008	83 ff 3e	 cmp	 edi, 62			; 0000003eH
+  0100b	1b c9		 sbb	 ecx, ecx
+  0100d	53		 push	 ebx
+  0100e	41		 inc	 ecx
+  0100f	c7 02 00 00 00
+	00		 mov	 DWORD PTR [edx], OFFSET FLAT:_RegisterDisplayDriver
+  01015	89 0d 00 00 00
+	00		 mov	 DWORD PTR _dwWin98, ecx
+  0101b	e8 00 00 00 00	 call	 _GetNumUnits
+  01020	8b f8		 mov	 edi, eax
+
+; 1618 :    for (i=1; i<(int)dwNum; i++)
+
+  01022	be 01 00 00 00	 mov	 esi, 1
+  01027	83 c4 04	 add	 esp, 4
+  0102a	3b fe		 cmp	 edi, esi
+  0102c	76 0f		 jbe	 SHORT $L11533
+$L11531:
+
+; 1619 :       InitDevNode(dwDevNode, i);   
+
+  0102e	56		 push	 esi
+  0102f	53		 push	 ebx
+  01030	e8 00 00 00 00	 call	 _InitDevNode
+  01035	83 c4 08	 add	 esp, 8
+  01038	46		 inc	 esi
+  01039	3b f7		 cmp	 esi, edi
+  0103b	72 f1		 jb	 SHORT $L11531
+$L11533:
+
+; 1620 : #else
+; 1621 :    dwDevNode = dwDevNode;
+; 1622 : #endif
+; 1623 :       
+; 1624 :    InitPower();
+
+  0103d	e8 00 00 00 00	 call	 _InitPower
+
+; 1625 : }
+
+  01042	5f		 pop	 edi
+  01043	5e		 pop	 esi
+  01044	5b		 pop	 ebx
+  01045	8b e5		 mov	 esp, ebp
+  01047	5d		 pop	 ebp
+  01048	c3		 ret	 0
+_InitSecondaryDispatchTable ENDP
+_LTEXT	ENDS
+PUBLIC	_GetBIOSInfo
+_LTEXT	SEGMENT
+_pDevTable$ = 8
+_vm$ = 12
+_GetBIOSInfo PROC NEAR
+
+; 1643 :    DWORD * pStrLoc;
+; 1644 :    BYTE * pByteLoc;
+; 1645 :    DWORD j;
+; 1646 :    DWORD k;
+; 1647 :    DWORD dwBIOSSize;
+; 1648 :    PVMMCB hVM = (PVMMCB)vm;
+; 1649 :    PWORD pFixSpot;
+; 1650 :    PWORD pROMConfig;
+; 1651 :    POEMTABLE pOEMConfig;
+; 1652 :    char * pChar;
+; 1653 :    
+; 1654 : 
+; 1655 :    pDevTable->bBIOSVersion[0]='\0';
+; 1656 :    pDevTable->bBIOSVersion[MAX_BIOS_VERSION_STRING-1]='\0';
+; 1657 :    // Get Address of Currently mapped in ROM @ C000:0000
+; 1658 : 	pStrLoc = (DWORD *)(0xC0000 + hVM->CB_High_Linear);
+
+  01050	8b 44 24 08	 mov	 eax, DWORD PTR _vm$[esp-4]
+  01054	53		 push	 ebx
+  01055	56		 push	 esi
+  01056	8b 74 24 0c	 mov	 esi, DWORD PTR _pDevTable$[esp+4]
+  0105a	8b 58 04	 mov	 ebx, DWORD PTR [eax+4]
+  0105d	57		 push	 edi
+  0105e	c6 86 2c 03 00
+	00 00		 mov	 BYTE PTR [esi+812], 0
+  01065	c6 86 4b 03 00
+	00 00		 mov	 BYTE PTR [esi+843], 0
+  0106c	8d 8b 00 00 0c
+	00		 lea	 ecx, DWORD PTR [ebx+786432]
+  01072	89 5c 24 10	 mov	 DWORD PTR 8+[esp+8], ebx
+
+; 1659 :    pByteLoc = (BYTE *)pStrLoc;
+; 1660 : 
+; 1661 :    if (NULL == pByteLoc)
+
+  01076	85 c9		 test	 ecx, ecx
+  01078	8b f9		 mov	 edi, ecx
+  0107a	0f 84 13 02 00
+	00		 je	 $L11587
+
+; 1662 :       return;
+; 1663 : 
+; 1664 :    // Get the size byte in the ROM header.  This is right after
+; 1665 :    // 0x55 0xAA
+; 1666 :    dwBIOSSize = pByteLoc[2]<<7;   
+
+  01080	33 d2		 xor	 edx, edx
+
+; 1667 : 
+; 1668 :    for (j=0; j<dwBIOSSize; j++)
+
+  01082	b8 00 00 00 00	 mov	 eax, 0
+  01087	8a 51 02	 mov	 dl, BYTE PTR [ecx+2]
+  0108a	c1 e2 07	 shl	 edx, 7
+  0108d	74 7f		 je	 SHORT $L11561
+$L11554:
+
+; 1669 :    {
+; 1670 :       if ((BIOS_STRING_1 == pStrLoc[0]) && (BIOS_STRING_2 == pStrLoc[1]))
+
+  0108f	81 39 56 65 72
+	73		 cmp	 DWORD PTR [ecx], 1936876886 ; 73726556H
+  01095	75 09		 jne	 SHORT $L11557
+  01097	81 79 04 69 6f
+	6e 20		 cmp	 DWORD PTR [ecx+4], 544108393 ; 206e6f69H
+  0109e	74 0a		 je	 SHORT $L11949
+$L11557:
+
+; 1667 : 
+; 1668 :    for (j=0; j<dwBIOSSize; j++)
+
+  010a0	8d 0c 38	 lea	 ecx, DWORD PTR [eax+edi]
+  010a3	40		 inc	 eax
+  010a4	3b c2		 cmp	 eax, edx
+  010a6	72 e7		 jb	 SHORT $L11554
+
+; 1676 :             {
+; 1677 :                 if(j)
+; 1678 :                 {
+; 1679 :                     //stop if it will be next word
+; 1680 :                     //or it is not a digit nor a char.
+; 1681 :                     if((pByteLoc[k]==' ') || !pByteLoc[k] ||
+; 1682 :                         ( ((pByteLoc[k] <'0') || (pByteLoc[k] >'9'))
+; 1683 :                           &&((pByteLoc[k] <'A') || (pByteLoc[k] >'Z'))
+; 1684 :                           &&((pByteLoc[k] <'a') || (pByteLoc[k] >'z'))
+; 1685 :                           &&(pByteLoc[k]!='.')) )
+
+  010a8	eb 64		 jmp	 SHORT $L11561
+$L11949:
+
+; 1671 :       {
+; 1672 :             j = 0;
+
+  010aa	33 ff		 xor	 edi, edi
+
+; 1673 : 
+; 1674 :             pByteLoc = (BYTE *)&pStrLoc[2];
+; 1675 :             for (k=0; k<MAX_BIOS_VERSION_STRING - 1; k++)
+
+  010ac	33 d2		 xor	 edx, edx
+$L11559:
+
+; 1676 :             {
+; 1677 :                 if(j)
+; 1678 :                 {
+; 1679 :                     //stop if it will be next word
+; 1680 :                     //or it is not a digit nor a char.
+; 1681 :                     if((pByteLoc[k]==' ') || !pByteLoc[k] ||
+; 1682 :                         ( ((pByteLoc[k] <'0') || (pByteLoc[k] >'9'))
+; 1683 :                           &&((pByteLoc[k] <'A') || (pByteLoc[k] >'Z'))
+; 1684 :                           &&((pByteLoc[k] <'a') || (pByteLoc[k] >'z'))
+; 1685 :                           &&(pByteLoc[k]!='.')) )
+
+  010ae	8a 44 0a 08	 mov	 al, BYTE PTR [edx+ecx+8]
+  010b2	85 ff		 test	 edi, edi
+  010b4	74 2e		 je	 SHORT $L11562
+  010b6	3c 20		 cmp	 al, 32			; 00000020H
+  010b8	74 4c		 je	 SHORT $L11950
+  010ba	84 c0		 test	 al, al
+  010bc	74 48		 je	 SHORT $L11950
+  010be	3c 30		 cmp	 al, 48			; 00000030H
+  010c0	72 04		 jb	 SHORT $L11565
+  010c2	3c 39		 cmp	 al, 57			; 00000039H
+  010c4	76 14		 jbe	 SHORT $L11563
+$L11565:
+  010c6	3c 41		 cmp	 al, 65			; 00000041H
+  010c8	72 04		 jb	 SHORT $L11566
+  010ca	3c 5a		 cmp	 al, 90			; 0000005aH
+  010cc	76 0c		 jbe	 SHORT $L11563
+$L11566:
+  010ce	3c 61		 cmp	 al, 97			; 00000061H
+  010d0	72 04		 jb	 SHORT $L11567
+  010d2	3c 7a		 cmp	 al, 122			; 0000007aH
+  010d4	76 04		 jbe	 SHORT $L11563
+$L11567:
+  010d6	3c 2e		 cmp	 al, 46			; 0000002eH
+  010d8	75 2c		 jne	 SHORT $L11950
+$L11563:
+
+; 1689 :                        break;
+; 1690 :                     }
+; 1691 :                     else
+; 1692 :                      pDevTable->bBIOSVersion[j++] = pByteLoc[k];
+
+  010da	88 84 3e 2c 03
+	00 00		 mov	 BYTE PTR [esi+edi+812], al
+  010e1	47		 inc	 edi
+
+; 1693 : 
+; 1694 :                 }
+; 1695 :                 else
+
+  010e2	eb 1a		 jmp	 SHORT $L11560
+$L11562:
+
+; 1696 :                 {
+; 1697 :                    //only start with digit
+; 1698 :                    if((pByteLoc[k] <= '9') &&
+; 1699 :                     (pByteLoc[k] >= '0' ))
+
+  010e4	3c 39		 cmp	 al, 57			; 00000039H
+  010e6	77 16		 ja	 SHORT $L11560
+  010e8	3c 30		 cmp	 al, 48			; 00000030H
+  010ea	72 12		 jb	 SHORT $L11560
+
+; 1700 :                   {
+; 1701 :                       //must start at a word boundary
+; 1702 :                       if( pByteLoc[k-1] == ' ') 
+
+  010ec	80 7c 0a 07 20	 cmp	 BYTE PTR [edx+ecx+7], 32 ; 00000020H
+  010f1	75 0b		 jne	 SHORT $L11560
+
+; 1703 :                        pDevTable->bBIOSVersion[j++] = pByteLoc[k];
+
+  010f3	88 86 2c 03 00
+	00		 mov	 BYTE PTR [esi+812], al
+  010f9	bf 01 00 00 00	 mov	 edi, 1
+$L11560:
+  010fe	42		 inc	 edx
+  010ff	83 fa 1f	 cmp	 edx, 31			; 0000001fH
+  01102	72 aa		 jb	 SHORT $L11559
+
+; 1676 :             {
+; 1677 :                 if(j)
+; 1678 :                 {
+; 1679 :                     //stop if it will be next word
+; 1680 :                     //or it is not a digit nor a char.
+; 1681 :                     if((pByteLoc[k]==' ') || !pByteLoc[k] ||
+; 1682 :                         ( ((pByteLoc[k] <'0') || (pByteLoc[k] >'9'))
+; 1683 :                           &&((pByteLoc[k] <'A') || (pByteLoc[k] >'Z'))
+; 1684 :                           &&((pByteLoc[k] <'a') || (pByteLoc[k] >'z'))
+; 1685 :                           &&(pByteLoc[k]!='.')) )
+
+  01104	eb 08		 jmp	 SHORT $L11561
+$L11950:
+
+; 1686 :                        
+; 1687 :                     {
+; 1688 :                        pDevTable->bBIOSVersion[j] ='\0';
+
+  01106	c6 84 37 2c 03
+	00 00 00	 mov	 BYTE PTR [edi+esi+812], 0
+$L11561:
+
+; 1704 :                   }
+; 1705 :                 }
+; 1706 :             }
+; 1707 :             break;
+; 1708 :      }
+; 1709 :  
+; 1710 :      pStrLoc = (DWORD *) ( pByteLoc + j);   //check it byte by byte
+; 1711 :    }
+; 1712 :    // While we are at it let's get the SGRAMMODE which is in the BIOS OEMTable
+; 1713 :    // We may need it if we go into low power mode.
+; 1714 :    pFixSpot = (PWORD)(0xC0000 + hVM->CB_High_Linear + ROM_CONFIG);
+; 1715 :    pROMConfig = (PWORD)(0xC0000 + hVM->CB_High_Linear + *pFixSpot);
+; 1716 :    pOEMConfig = (POEMTABLE)(0xC0000 + hVM->CB_High_Linear + *pROMConfig);      
+
+  0110e	33 c9		 xor	 ecx, ecx
+  01110	33 d2		 xor	 edx, edx
+  01112	66 8b 8b 50 00
+	0c 00		 mov	 cx, WORD PTR [ebx+786512]
+  01119	66 8b 94 19 00
+	00 0c 00	 mov	 dx, WORD PTR [ecx+ebx+786432]
+
+; 1717 :    pDevTable->dwPowerReg[SGRAMMODE_INDEX] = pOEMConfig->sgramMode;
+
+  01121	8b 84 1a 20 00
+	0c 00		 mov	 eax, DWORD PTR [edx+ebx+786464]
+  01128	8d bc 1a 00 00
+	0c 00		 lea	 edi, DWORD PTR [edx+ebx+786432]
+  0112f	89 86 24 02 00
+	00		 mov	 DWORD PTR [esi+548], eax
+
+; 1718 : 
+; 1719 : 
+; 1720 : //Read the BIOS version using the string pointer in the BIOS OemConfigTable
+; 1721 :    if (IS_NAPALM(pDevTable->dwVendorDeviceID))
+
+  01135	8b 46 04	 mov	 eax, DWORD PTR [esi+4]
+  01138	3d 1a 12 06 00	 cmp	 eax, 397850		; 0006121aH
+  0113d	74 3f		 je	 SHORT $L11577
+  0113f	3d 1a 12 07 00	 cmp	 eax, 463386		; 0007121aH
+  01144	74 38		 je	 SHORT $L11577
+  01146	3d 1a 12 08 00	 cmp	 eax, 528922		; 0008121aH
+  0114b	74 31		 je	 SHORT $L11577
+  0114d	3d 1a 12 09 00	 cmp	 eax, 594458		; 0009121aH
+  01152	74 2a		 je	 SHORT $L11577
+  01154	3d 1a 12 0a 00	 cmp	 eax, 659994		; 000a121aH
+  01159	74 23		 je	 SHORT $L11577
+  0115b	3d 1a 12 0b 00	 cmp	 eax, 725530		; 000b121aH
+  01160	74 1c		 je	 SHORT $L11577
+  01162	3d 1a 12 0c 00	 cmp	 eax, 791066		; 000c121aH
+  01167	74 15		 je	 SHORT $L11577
+  01169	3d 1a 12 0d 00	 cmp	 eax, 856602		; 000d121aH
+  0116e	74 0e		 je	 SHORT $L11577
+  01170	3d 1a 12 0e 00	 cmp	 eax, 922138		; 000e121aH
+  01175	74 07		 je	 SHORT $L11577
+  01177	3d 1a 12 0f 00	 cmp	 eax, 987674		; 000f121aH
+  0117c	75 32		 jne	 SHORT $L11579
+$L11577:
+
+; 1722 :    	if (*(((FxU16*)(pOEMConfig)-1)) >= FIRSTOEMSTRUCTCOMPATVERSION)
+
+  0117e	66 83 7f fe 03	 cmp	 WORD PTR [edi-2], 3
+  01183	72 2b		 jb	 SHORT $L11579
+
+; 1723 :    	{
+; 1724 :        // pick up Version Number pointed to by OEMConfig table in BIOS
+; 1725 :       	pChar = (char*) (0xC0000 + hVM->CB_High_Linear + pOEMConfig->OEMBiosVersion);
+
+  01185	33 c9		 xor	 ecx, ecx
+
+; 1726 : 
+; 1727 :        	for (k = 0; (k < MAX_BIOS_VERSION_LENGTH - 1) && (pChar[k]); k++)
+
+  01187	33 c0		 xor	 eax, eax
+  01189	66 8b 4f 3a	 mov	 cx, WORD PTR [edi+58]
+  0118d	8d 94 19 00 00
+	0c 00		 lea	 edx, DWORD PTR [ecx+ebx+786432]
+$L11581:
+  01194	8a 0c 02	 mov	 cl, BYTE PTR [edx+eax]
+  01197	84 c9		 test	 cl, cl
+  01199	74 0d		 je	 SHORT $L11583
+
+; 1728 :        	{
+; 1729 :          	pDevTable->bBIOSVersion[k] = pChar[k];
+
+  0119b	88 8c 06 2c 03
+	00 00		 mov	 BYTE PTR [esi+eax+812], cl
+  011a2	40		 inc	 eax
+  011a3	83 f8 1f	 cmp	 eax, 31			; 0000001fH
+  011a6	72 ec		 jb	 SHORT $L11581
+$L11583:
+
+; 1730 :        	}
+; 1731 :        	pDevTable->bBIOSVersion[k] = '\0';
+
+  011a8	c6 84 30 2c 03
+	00 00 00	 mov	 BYTE PTR [eax+esi+812], 0
+$L11579:
+
+; 1732 :    	}
+; 1733 : 
+; 1734 :     pDevTable->biosBoardConfigInfo = 0;
+; 1735 :         // Test if the OEMConfig table version supports the OEM product name and OEM chip name feature.
+; 1736 :         // The OEMConfig table version is the word in front of the structure so convert the pointer to the
+; 1737 :         // structure to a word pointer and back up one word.
+; 1738 :    if (IS_NAPALM(pDevTable->dwVendorDeviceID))
+
+  011b0	8b 46 04	 mov	 eax, DWORD PTR [esi+4]
+  011b3	c7 86 44 05 00
+	00 00 00 00 00	 mov	 DWORD PTR [esi+1348], 0
+  011bd	3d 1a 12 06 00	 cmp	 eax, 397850		; 0006121aH
+  011c2	74 4a		 je	 SHORT $L11585
+  011c4	3d 1a 12 07 00	 cmp	 eax, 463386		; 0007121aH
+  011c9	74 43		 je	 SHORT $L11585
+  011cb	3d 1a 12 08 00	 cmp	 eax, 528922		; 0008121aH
+  011d0	74 3c		 je	 SHORT $L11585
+  011d2	3d 1a 12 09 00	 cmp	 eax, 594458		; 0009121aH
+  011d7	74 35		 je	 SHORT $L11585
+  011d9	3d 1a 12 0a 00	 cmp	 eax, 659994		; 000a121aH
+  011de	74 2e		 je	 SHORT $L11585
+  011e0	3d 1a 12 0b 00	 cmp	 eax, 725530		; 000b121aH
+  011e5	74 27		 je	 SHORT $L11585
+  011e7	3d 1a 12 0c 00	 cmp	 eax, 791066		; 000c121aH
+  011ec	74 20		 je	 SHORT $L11585
+  011ee	3d 1a 12 0d 00	 cmp	 eax, 856602		; 000d121aH
+  011f3	74 19		 je	 SHORT $L11585
+  011f5	3d 1a 12 0e 00	 cmp	 eax, 922138		; 000e121aH
+  011fa	74 12		 je	 SHORT $L11585
+  011fc	3d 1a 12 0f 00	 cmp	 eax, 987674		; 000f121aH
+  01201	74 0b		 je	 SHORT $L11585
+
+; 1764 :         }
+; 1765 : 		}
+; 1766 : 	else
+; 1767 : 		{
+; 1768 : //Since there isn't a board string in the BIOS, return board string as NULL.
+; 1769 :             pDevTable->bChipName[0] = 0;
+
+  01203	c6 86 6c 03 00
+	00 00		 mov	 BYTE PTR [esi+876], 0
+  0120a	5f		 pop	 edi
+  0120b	5e		 pop	 esi
+  0120c	5b		 pop	 ebx
+
+; 1770 : 		}
+; 1771 : #ifdef notPortedFromWinNT4
+; 1772 :         else
+; 1773 :         {
+; 1774 :             // OEMConfig table version is 2 or less, it doesn't support this feature.
+; 1775 :             pwszChip = (PWSTR) UNKNOWN_STRING;
+; 1776 :             cbChip   = sizeof(UNKNOWN_STRING);
+; 1777 :             pwszAdapterString = (PWSTR) UNKNOWN_STRING L" Board";
+; 1778 :             cbAdapterString   = sizeof(UNKNOWN_STRING L" Board");
+; 1779 :             pwszAdapterType   = (PWSTR) UNKNOWN_STRING L" Board";
+; 1780 :             cbAdapterType     = sizeof(UNKNOWN_STRING L" Board");
+; 1781 :         }
+; 1782 : #endif //def notPortedFromWinNT4
+; 1783 : 
+; 1784 : }
+
+  0120d	c3		 ret	 0
+$L11585:
+
+; 1739 : 		{
+; 1740 :         if (*(((FxU16*)(pOEMConfig)-1)) >= FIRSTOEMSTRUCTCOMPATVERSION)
+
+  0120e	66 83 7f fe 03	 cmp	 WORD PTR [edi-2], 3
+  01213	72 7e		 jb	 SHORT $L11587
+
+; 1741 :         {
+; 1742 : 
+; 1743 :             // pick up Product Name pointed to by OEMConfig table in BIOS
+; 1744 : 
+; 1745 :             pChar = (char*) (0xC0000 + hVM->CB_High_Linear + pOEMConfig->OEMBoardName);
+
+  01215	33 d2		 xor	 edx, edx
+
+; 1746 : 
+; 1747 :             for (k = 0; (k < MAX_BIOS_VERSION_LENGTH - 1) && (pChar[k])  &&
+; 1748 : 					!((pChar[k] == 'w') && (pChar[k+1] == 'i') && (pChar[k+2] == 't') && (pChar[k+3] == 'h')); k++)
+
+  01217	33 c0		 xor	 eax, eax
+  01219	66 8b 57 36	 mov	 dx, WORD PTR [edi+54]
+  0121d	8d 8c 1a 00 00
+	0c 00		 lea	 ecx, DWORD PTR [edx+ebx+786432]
+  01224	b3 68		 mov	 bl, 104			; 00000068H
+$L11589:
+  01226	8a 14 01	 mov	 dl, BYTE PTR [ecx+eax]
+  01229	84 d2		 test	 dl, dl
+  0122b	74 26		 je	 SHORT $L11591
+  0122d	80 fa 77	 cmp	 dl, 119			; 00000077H
+  01230	75 14		 jne	 SHORT $L11592
+  01232	80 7c 01 01 69	 cmp	 BYTE PTR [ecx+eax+1], 105 ; 00000069H
+  01237	75 0d		 jne	 SHORT $L11592
+  01239	80 7c 01 02 74	 cmp	 BYTE PTR [ecx+eax+2], 116 ; 00000074H
+  0123e	75 06		 jne	 SHORT $L11592
+  01240	38 5c 01 03	 cmp	 BYTE PTR [ecx+eax+3], bl
+  01244	74 0d		 je	 SHORT $L11591
+$L11592:
+
+; 1749 :             {
+; 1750 :                 pDevTable->bOEMBoardName[k] = pChar[k];
+
+  01246	88 94 30 4c 03
+	00 00		 mov	 BYTE PTR [eax+esi+844], dl
+  0124d	40		 inc	 eax
+  0124e	83 f8 1f	 cmp	 eax, 31			; 0000001fH
+  01251	72 d3		 jb	 SHORT $L11589
+$L11591:
+
+; 1751 :             }
+; 1752 :             pDevTable->bOEMBoardName[k] = '\0';
+; 1753 : 
+; 1754 :             // pick up Chip Name pointed to by OEMConfig table in BIOS
+; 1755 :             pChar = (char*) (0xC0000 + hVM->CB_High_Linear + pOEMConfig->OEMChipName);
+
+  01253	8b 4c 24 10	 mov	 ecx, DWORD PTR 8+[esp+8]
+  01257	c6 84 30 4c 03
+	00 00 00	 mov	 BYTE PTR [eax+esi+844], 0
+  0125f	33 c0		 xor	 eax, eax
+  01261	66 8b 47 38	 mov	 ax, WORD PTR [edi+56]
+  01265	8d 94 08 00 00
+	0c 00		 lea	 edx, DWORD PTR [eax+ecx+786432]
+
+; 1756 :             for (k = 0; (k < MAX_BIOS_VERSION_LENGTH - 1) && (pChar[k]); k++)
+
+  0126c	33 c0		 xor	 eax, eax
+$L11594:
+  0126e	8a 0c 02	 mov	 cl, BYTE PTR [edx+eax]
+  01271	84 c9		 test	 cl, cl
+  01273	74 0d		 je	 SHORT $L11596
+
+; 1757 :             {
+; 1758 :                 pDevTable->bChipName[k] = pChar[k];
+
+  01275	88 8c 30 6c 03
+	00 00		 mov	 BYTE PTR [eax+esi+876], cl
+  0127c	40		 inc	 eax
+  0127d	83 f8 1f	 cmp	 eax, 31			; 0000001fH
+  01280	72 ec		 jb	 SHORT $L11594
+$L11596:
+
+; 1759 :             }
+; 1760 :             pDevTable->bChipName[k] = '\0';
+; 1761 : 
+; 1762 : //Return board configuration DWORD
+; 1763 :             pDevTable->biosBoardConfigInfo = pOEMConfig->BoardConfig;
+
+  01282	8b 57 2e	 mov	 edx, DWORD PTR [edi+46]
+  01285	c6 84 30 6c 03
+	00 00 00	 mov	 BYTE PTR [eax+esi+876], 0
+  0128d	89 96 44 05 00
+	00		 mov	 DWORD PTR [esi+1348], edx
+$L11587:
+  01293	5f		 pop	 edi
+  01294	5e		 pop	 esi
+  01295	5b		 pop	 ebx
+
+; 1770 : 		}
+; 1771 : #ifdef notPortedFromWinNT4
+; 1772 :         else
+; 1773 :         {
+; 1774 :             // OEMConfig table version is 2 or less, it doesn't support this feature.
+; 1775 :             pwszChip = (PWSTR) UNKNOWN_STRING;
+; 1776 :             cbChip   = sizeof(UNKNOWN_STRING);
+; 1777 :             pwszAdapterString = (PWSTR) UNKNOWN_STRING L" Board";
+; 1778 :             cbAdapterString   = sizeof(UNKNOWN_STRING L" Board");
+; 1779 :             pwszAdapterType   = (PWSTR) UNKNOWN_STRING L" Board";
+; 1780 :             cbAdapterType     = sizeof(UNKNOWN_STRING L" Board");
+; 1781 :         }
+; 1782 : #endif //def notPortedFromWinNT4
+; 1783 : 
+; 1784 : }
+
+  01296	c3		 ret	 0
+_GetBIOSInfo ENDP
+_LTEXT	ENDS
+PUBLIC	_FindLPFromDevNode
+_LTEXT	SEGMENT
+_dwDevNode$ = 8
+_FindLPFromDevNode PROC NEAR
+
+; 1862 : {
+
+  012a0	55		 push	 ebp
+  012a1	8b ec		 mov	 ebp, esp
+  012a3	56		 push	 esi
+  012a4	57		 push	 edi
+
+; 1863 :    DWORD dwReturn;
+; 1864 :    int i;
+; 1865 : #ifdef SLI_AA
+; 1866 : #if 0
+; 1867 :    DWORD dwSave;
+; 1868 : #endif
+; 1869 : #endif
+; 1870 :    
+; 1871 :    DEBUG_FIX;
+
+  012a5	0f b7 ed	 movzx	 ebp, bp
+  012a8	8b 45 00	 mov	 eax, DWORD PTR [ebp]
+  012ab	0f b7 c0	 movzx	 eax, ax
+  012ae	89 45 00	 mov	 DWORD PTR [ebp], eax
+
+; 1872 :    
+; 1873 :    dwReturn = 0x0;
+; 1874 :    for (i=0; i<MAX_BANSHEE_DEVICES; i++)
+; 1875 :       {
+; 1876 :       // Is this the one
+; 1877 :       if (dwDevNode == DevTable[i].dwDevNode)
+
+  012b1	8b 7d 08	 mov	 edi, DWORD PTR _dwDevNode$[ebp]
+  012b4	33 c0		 xor	 eax, eax
+  012b6	33 d2		 xor	 edx, edx
+  012b8	b9 00 00 00 00	 mov	 ecx, OFFSET FLAT:_DevTable
+$L11604:
+  012bd	8b 31		 mov	 esi, DWORD PTR [ecx]
+  012bf	3b fe		 cmp	 edi, esi
+  012c1	74 15		 je	 SHORT $L11967
+
+; 1880 :          break;
+; 1881 :          }
+; 1882 : 
+; 1883 :       // No More to check ??
+; 1884 :       if (0x0 == DevTable[i].dwDevNode)
+
+  012c3	85 f6		 test	 esi, esi
+  012c5	74 28		 je	 SHORT $L11970
+  012c7	81 c1 4c 06 00
+	00		 add	 ecx, 1612		; 0000064cH
+  012cd	42		 inc	 edx
+  012ce	81 f9 c0 64 00
+	00		 cmp	 ecx, OFFSET FLAT:_DevTable+25792
+  012d4	7c e7		 jl	 SHORT $L11604
+  012d6	eb 17		 jmp	 SHORT $L11970
+$L11967:
+
+; 1878 :          {
+; 1879 :          dwReturn = DevTable[i].lpDriverData;
+
+  012d8	8d 04 92	 lea	 eax, DWORD PTR [edx+edx*4]
+  012db	8d 04 80	 lea	 eax, DWORD PTR [eax+eax*4]
+  012de	8d 0c c2	 lea	 ecx, DWORD PTR [edx+eax*8]
+  012e1	8d 14 4a	 lea	 edx, DWORD PTR [edx+ecx*2]
+  012e4	8b 04 95 14 02
+	00 00		 mov	 eax, DWORD PTR _DevTable[edx*4+532]
+
+; 1885 :          break;
+; 1886 :       }
+; 1887 : 
+; 1888 : #ifdef SLI_AA
+; 1889 :       if ((0x0 == dwReturn) && (dwDevNode < MAX_BANSHEE_DEVICES))
+
+  012eb	85 c0		 test	 eax, eax
+  012ed	75 18		 jne	 SHORT $L11609
+$L11970:
+  012ef	83 ff 10	 cmp	 edi, 16			; 00000010H
+  012f2	73 13		 jae	 SHORT $L11609
+
+; 1890 :          {
+; 1891 :          dwReturn = DevTable[dwDevNode].lpDriverData;
+
+  012f4	8d 04 bf	 lea	 eax, DWORD PTR [edi+edi*4]
+  012f7	8d 04 80	 lea	 eax, DWORD PTR [eax+eax*4]
+  012fa	8d 0c c7	 lea	 ecx, DWORD PTR [edi+eax*8]
+  012fd	8d 14 4f	 lea	 edx, DWORD PTR [edi+ecx*2]
+
+; 1892 :          }
+; 1893 : #endif
+; 1894 : 
+; 1895 :    return dwReturn;      
+
+  01300	8b 04 95 14 02
+	00 00		 mov	 eax, DWORD PTR _DevTable[edx*4+532]
+$L11609:
+  01307	5f		 pop	 edi
+  01308	5e		 pop	 esi
+
+; 1896 : }
+
+  01309	5d		 pop	 ebp
+  0130a	c3		 ret	 0
+_FindLPFromDevNode ENDP
+_LTEXT	ENDS
+PUBLIC	_SetLPFromDevNode
+_LTEXT	SEGMENT
+_dwDevNode$ = 8
+_lpDriverData$ = 12
+_SetLPFromDevNode PROC NEAR
+
+; 1910 : {
+
+  01310	55		 push	 ebp
+  01311	8b ec		 mov	 ebp, esp
+  01313	56		 push	 esi
+
+; 1911 :    int i;
+; 1912 :    int nFound;   
+; 1913 :    DEBUG_FIX;
+
+  01314	0f b7 ed	 movzx	 ebp, bp
+  01317	8b 45 00	 mov	 eax, DWORD PTR [ebp]
+  0131a	0f b7 c0	 movzx	 eax, ax
+  0131d	89 45 00	 mov	 DWORD PTR [ebp], eax
+
+; 1914 : 
+; 1915 :    nFound = 0;
+; 1916 :    for (i=0; i<MAX_BANSHEE_DEVICES; i++)
+; 1917 :       {
+; 1918 :       // Is this the one
+; 1919 :       if (dwDevNode == DevTable[i].dwDevNode)
+
+  01320	8b 75 08	 mov	 esi, DWORD PTR _dwDevNode$[ebp]
+  01323	33 d2		 xor	 edx, edx
+  01325	b8 00 00 00 00	 mov	 eax, OFFSET FLAT:_DevTable
+$L11618:
+  0132a	8b 08		 mov	 ecx, DWORD PTR [eax]
+  0132c	3b f1		 cmp	 esi, ecx
+  0132e	74 2f		 je	 SHORT $L11975
+
+; 1922 :          nFound = 1;
+; 1923 :          break;
+; 1924 :          }
+; 1925 : 
+; 1926 :       // No More to check ??
+; 1927 :       if (0x0 == DevTable[i].dwDevNode)
+
+  01330	85 c9		 test	 ecx, ecx
+  01332	74 0d		 je	 SHORT $L11978
+  01334	05 4c 06 00 00	 add	 eax, 1612		; 0000064cH
+  01339	42		 inc	 edx
+  0133a	3d c0 64 00 00	 cmp	 eax, OFFSET FLAT:_DevTable+25792
+  0133f	7c e9		 jl	 SHORT $L11618
+$L11978:
+
+; 1928 :          break;
+; 1929 :       }
+; 1930 : #ifdef SLI_AA
+; 1931 :    if ((0x0 == nFound) && (dwDevNode < MAX_BANSHEE_DEVICES))
+
+  01341	83 fe 10	 cmp	 esi, 16			; 00000010H
+  01344	73 16		 jae	 SHORT $L11623
+
+; 1932 :       {
+; 1933 :       DevTable[dwDevNode].lpDriverData = lpDriverData;
+
+  01346	8d 04 b6	 lea	 eax, DWORD PTR [esi+esi*4]
+  01349	8d 0c 80	 lea	 ecx, DWORD PTR [eax+eax*4]
+  0134c	8d 14 ce	 lea	 edx, DWORD PTR [esi+ecx*8]
+  0134f	8b 4d 0c	 mov	 ecx, DWORD PTR _lpDriverData$[ebp]
+  01352	8d 04 56	 lea	 eax, DWORD PTR [esi+edx*2]
+  01355	89 0c 85 14 02
+	00 00		 mov	 DWORD PTR _DevTable[eax*4+532], ecx
+$L11623:
+  0135c	5e		 pop	 esi
+
+; 1934 :       }
+; 1935 : #endif
+; 1936 : 
+; 1937 : }
+
+  0135d	5d		 pop	 ebp
+  0135e	c3		 ret	 0
+$L11975:
+
+; 1920 :          {
+; 1921 :          DevTable[i].lpDriverData = lpDriverData;
+
+  0135f	8d 04 92	 lea	 eax, DWORD PTR [edx+edx*4]
+  01362	5e		 pop	 esi
+  01363	8d 04 80	 lea	 eax, DWORD PTR [eax+eax*4]
+  01366	8d 0c c2	 lea	 ecx, DWORD PTR [edx+eax*8]
+  01369	8b 45 0c	 mov	 eax, DWORD PTR _lpDriverData$[ebp]
+  0136c	8d 14 4a	 lea	 edx, DWORD PTR [edx+ecx*2]
+  0136f	89 04 95 14 02
+	00 00		 mov	 DWORD PTR _DevTable[edx*4+532], eax
+
+; 1934 :       }
+; 1935 : #endif
+; 1936 : 
+; 1937 : }
+
+  01376	5d		 pop	 ebp
+  01377	c3		 ret	 0
+_SetLPFromDevNode ENDP
+_LTEXT	ENDS
+PUBLIC	_ClearAllSlaveBits
+EXTRN	_HardwareClearBit:NEAR
+_LTEXT	SEGMENT
+_pDev$ = 8
+_ClearAllSlaveBits PROC NEAR
+
+; 1951 : {
+
+  01380	56		 push	 esi
+
+; 1952 :    PDEVTABLE pSlave;
+; 1953 : 
+; 1954 :    for (pSlave = pDev; pSlave != NULL; pSlave = pSlave->pSlave)
+
+  01381	8b 74 24 08	 mov	 esi, DWORD PTR _pDev$[esp]
+  01385	85 f6		 test	 esi, esi
+  01387	74 16		 je	 SHORT $L11632
+$L11630:
+
+; 1955 :       HardwareClearBit(pSlave->lpDriverData);
+
+  01389	8b 86 14 02 00
+	00		 mov	 eax, DWORD PTR [esi+532]
+  0138f	50		 push	 eax
+  01390	e8 00 00 00 00	 call	 _HardwareClearBit
+  01395	8b 76 18	 mov	 esi, DWORD PTR [esi+24]
+  01398	83 c4 04	 add	 esp, 4
+  0139b	85 f6		 test	 esi, esi
+  0139d	75 ea		 jne	 SHORT $L11630
+$L11632:
+  0139f	5e		 pop	 esi
+
+; 1956 : }
+
+  013a0	c3		 ret	 0
+_ClearAllSlaveBits ENDP
+_LTEXT	ENDS
+PUBLIC	_SetAllSlaveBits
+EXTRN	_HardwareSetBit:NEAR
+_LTEXT	SEGMENT
+_pDev$ = 8
+_SetAllSlaveBits PROC NEAR
+
+; 1969 : {
+
+  013b0	56		 push	 esi
+
+; 1970 :    PDEVTABLE pSlave;
+; 1971 : 
+; 1972 :    for (pSlave = pDev; pSlave != NULL; pSlave = pSlave->pSlave)
+
+  013b1	8b 74 24 08	 mov	 esi, DWORD PTR _pDev$[esp]
+  013b5	85 f6		 test	 esi, esi
+  013b7	74 16		 je	 SHORT $L11641
+$L11639:
+
+; 1973 :       HardwareSetBit(pSlave->lpDriverData);
+
+  013b9	8b 86 14 02 00
+	00		 mov	 eax, DWORD PTR [esi+532]
+  013bf	50		 push	 eax
+  013c0	e8 00 00 00 00	 call	 _HardwareSetBit
+  013c5	8b 76 18	 mov	 esi, DWORD PTR [esi+24]
+  013c8	83 c4 04	 add	 esp, 4
+  013cb	85 f6		 test	 esi, esi
+  013cd	75 ea		 jne	 SHORT $L11639
+$L11641:
+  013cf	5e		 pop	 esi
+
+; 1974 : }
+
+  013d0	c3		 ret	 0
+_SetAllSlaveBits ENDP
+_LTEXT	ENDS
+PUBLIC	_FindActiveBanshee
+_LTEXT	SEGMENT
+_wCmd$ = -2
+_FindActiveBanshee PROC NEAR
+
+; 1988 : {
+
+  013e0	51		 push	 ecx
+  013e1	53		 push	 ebx
+  013e2	56		 push	 esi
+  013e3	57		 push	 edi
+
+; 1989 :    PDEVTABLE pReturn = NULL;
+
+  013e4	33 db		 xor	 ebx, ebx
+
+; 1990 :    WORD wCmd;
+; 1991 :    int i;
+; 1992 : 
+; 1993 :    for (i=0; i<MAX_BANSHEE_DEVICES; i++)
+
+  013e6	33 ff		 xor	 edi, edi
+  013e8	be 00 00 00 00	 mov	 esi, OFFSET FLAT:_DevTable
+$L11647:
+
+; 1994 :       {
+; 1995 :       // No more Banshee's ?
+; 1996 :       if (0x0 == DevTable[i].dwDevNode)
+
+  013ed	8b 06		 mov	 eax, DWORD PTR [esi]
+  013ef	85 c0		 test	 eax, eax
+  013f1	74 31		 je	 SHORT $L11990
+
+; 1997 :          break;
+; 1998 : 
+; 1999 :       CM_Call_Enumerator_Function( DevTable[i].dwDevNode,
+; 2000 :                                    PCI_ENUM_FUNC_GET_DEVICE_INFO,
+; 2001 :                                    0x4, &wCmd, 
+; 2002 :                                    sizeof(WORD), 0 );
+
+  013f3	6a 00		 push	 0
+  013f5	8d 4c 24 12	 lea	 ecx, DWORD PTR _wCmd$[esp+20]
+  013f9	6a 02		 push	 2
+  013fb	51		 push	 ecx
+  013fc	6a 04		 push	 4
+  013fe	6a 00		 push	 0
+  01400	50		 push	 eax
+  01401	e8 00 00 00 00	 call	 _CCODE__CONFIGMG_Call_Enumerator_Function
+
+; 2003 : 
+; 2004 :       // This is the one!!!
+; 2005 :       if (0x3 == (wCmd & 0x03))
+
+  01406	8a 54 24 26	 mov	 dl, BYTE PTR _wCmd$[esp+40]
+  0140a	83 c4 18	 add	 esp, 24			; 00000018H
+  0140d	80 e2 03	 and	 dl, 3
+  01410	80 fa 03	 cmp	 dl, 3
+  01413	74 16		 je	 SHORT $L11988
+  01415	81 c6 4c 06 00
+	00		 add	 esi, 1612		; 0000064cH
+  0141b	47		 inc	 edi
+  0141c	81 fe c0 64 00
+	00		 cmp	 esi, OFFSET FLAT:_DevTable+25792
+  01422	7c c9		 jl	 SHORT $L11647
+$L11990:
+  01424	5f		 pop	 edi
+
+; 2008 :          break;
+; 2009 :          }
+; 2010 :       }
+; 2011 : 
+; 2012 :    return pReturn;
+
+  01425	8b c3		 mov	 eax, ebx
+  01427	5e		 pop	 esi
+  01428	5b		 pop	 ebx
+
+; 2013 : }
+
+  01429	59		 pop	 ecx
+  0142a	c3		 ret	 0
+$L11988:
+
+; 2006 :          { 
+; 2007 :          pReturn = &DevTable[i];
+
+  0142b	8d 04 bf	 lea	 eax, DWORD PTR [edi+edi*4]
+  0142e	8d 04 80	 lea	 eax, DWORD PTR [eax+eax*4]
+  01431	8d 0c c7	 lea	 ecx, DWORD PTR [edi+eax*8]
+  01434	8d 14 4f	 lea	 edx, DWORD PTR [edi+ecx*2]
+  01437	5f		 pop	 edi
+  01438	5e		 pop	 esi
+  01439	5b		 pop	 ebx
+  0143a	8d 04 95 00 00
+	00 00		 lea	 eax, DWORD PTR _DevTable[edx*4]
+
+; 2013 : }
+
+  01441	59		 pop	 ecx
+  01442	c3		 ret	 0
+_FindActiveBanshee ENDP
+_LTEXT	ENDS
+PUBLIC	_FindActiveBansheewithCount
+_LTEXT	SEGMENT
+_nRequest$ = 8
+_FindActiveBansheewithCount PROC NEAR
+
+; 2033 :    PDEVTABLE pDev;
+; 2034 :    PDEVTABLE pMDev;
+; 2035 : 
+; 2036 :    pMDev = pDev = FindActiveBanshee();
+
+  01450	e8 00 00 00 00	 call	 _FindActiveBanshee
+
+; 2037 :    if ((NULL != pDev) && (nRequest < sizeof(pDev->dwDDCCount)))
+
+  01455	85 c0		 test	 eax, eax
+  01457	8b d0		 mov	 edx, eax
+  01459	74 31		 je	 SHORT $L11659
+  0145b	8b 4c 24 04	 mov	 ecx, DWORD PTR _nRequest$[esp-4]
+  0145f	83 f9 10	 cmp	 ecx, 16			; 00000010H
+  01462	73 28		 jae	 SHORT $L11659
+  01464	56		 push	 esi
+
+; 2038 :       {
+; 2039 :       // FIX_ME: dwLater is only needed for our simulation environment.
+; 2040 :       // We init the device at Enable Time whereas the DDC request
+; 2041 :       // comes in before that. In our simulation we are using a PCI
+; 2042 :       // as the master and a AGP as the slave and as such the Bridge
+; 2043 :       // has not been setup yet at GetNumUnits time but should
+; 2044 :       // be in the real thing.  At this point we also have to move
+; 2045 :       // InitDevNode of the slave early.
+; 2046 :       if (dwLater)
+
+  01465	8b 35 00 00 00
+	00		 mov	 esi, DWORD PTR _dwLater
+  0146b	85 f6		 test	 esi, esi
+  0146d	74 10		 je	 SHORT $L11661
+
+; 2047 :          {
+; 2048 :          if ((pDev->dwDDCCount[nRequest] & 1) && (SLI_AA_MASTER_DEVICE == pDev->dwType))
+
+  0146f	f6 44 88 24 01	 test	 BYTE PTR [eax+ecx*4+36], 1
+  01474	74 09		 je	 SHORT $L11661
+  01476	83 78 14 01	 cmp	 DWORD PTR [eax+20], 1
+  0147a	75 03		 jne	 SHORT $L11661
+
+; 2049 :             {
+; 2050 :             pDev = pDev->pSlave;
+
+  0147c	8b 40 18	 mov	 eax, DWORD PTR [eax+24]
+$L11661:
+
+; 2051 :             }
+; 2052 :          }
+; 2053 :       pMDev->dwDDCCount[nRequest] = (pMDev->dwDDCCount[nRequest] + 1) & 0x01;
+
+  0147f	8b 74 8a 24	 mov	 esi, DWORD PTR [edx+ecx*4+36]
+  01483	4e		 dec	 esi
+  01484	83 e6 01	 and	 esi, 1
+  01487	89 74 8a 24	 mov	 DWORD PTR [edx+ecx*4+36], esi
+  0148b	5e		 pop	 esi
+$L11659:
+
+; 2054 :       }
+; 2055 : 
+; 2056 :    return pDev;
+; 2057 : }
+
+  0148c	c3		 ret	 0
+_FindActiveBansheewithCount ENDP
+_mtrrNum$ = 8
+_physBaseAddr$ = 12
+_physSize$ = 16
+_type$ = 20
+_MTRRval$ = 8
+_inS$ = -12
+_pciSetAmdK6MTRR PROC NEAR
+
+; 2173 : {
+
+  01490	83 ec 0c	 sub	 esp, 12			; 0000000cH
+  01493	56		 push	 esi
+
+; 2174 :   FxBool
+; 2175 :     res, 
+; 2176 :     rVal = FXFALSE;
+; 2177 : 
+; 2178 :   FxU32
+; 2179 :     MTRRval;
+; 2180 : 
+; 2181 :   MSRInfo
+; 2182 :     inS;
+; 2183 : 
+; 2184 :   if (mtrrNum > MTRR_LAST_AMDK6)
+
+  01494	8b 74 24 14	 mov	 esi, DWORD PTR _mtrrNum$[esp+12]
+  01498	83 fe 01	 cmp	 esi, 1
+  0149b	76 07		 jbe	 SHORT $L11705
+
+; 2185 :     return rVal;
+
+  0149d	33 c0		 xor	 eax, eax
+  0149f	5e		 pop	 esi
+
+; 2226 : } // pciSetAmdK6MTRR
+
+  014a0	83 c4 0c	 add	 esp, 12			; 0000000cH
+  014a3	c3		 ret	 0
+$L11705:
+
+; 2186 : 
+; 2187 :   inS.msrNum = MTRR_MSR_AMDK6;   /* One MSR for both MTRRs */
+; 2188 : 
+; 2189 :   if (physSize == 0) {  /* size of 0 implies clear MTRR */
+
+  014a4	8b 44 24 1c	 mov	 eax, DWORD PTR _physSize$[esp+12]
+  014a8	c7 44 24 04 85
+	00 00 c0	 mov	 DWORD PTR _inS$[esp+16], -1073741691 ; c0000085H
+  014b0	85 c0		 test	 eax, eax
+  014b2	75 2f		 jne	 SHORT $L11706
+
+; 2190 : 
+; 2191 :      GetMTRR( MTRR_MSR_AMDK6, &inS.msrLo, &inS.msrHi);
+
+  014b4	8d 44 24 0c	 lea	 eax, DWORD PTR _inS$[esp+24]
+  014b8	8d 4c 24 08	 lea	 ecx, DWORD PTR _inS$[esp+20]
+  014bc	50		 push	 eax
+  014bd	51		 push	 ecx
+  014be	68 85 00 00 c0	 push	 -1073741691		; c0000085H
+  014c3	e8 00 00 00 00	 call	 _GetMTRR
+  014c8	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 2192 : 
+; 2193 :      if (mtrrNum) {
+
+  014cb	85 f6		 test	 esi, esi
+  014cd	74 0a		 je	 SHORT $L11707
+
+; 2194 :         inS.msrHi = 0x0;   /* clear MTRR 1 */
+
+  014cf	c7 44 24 0c 00
+	00 00 00	 mov	 DWORD PTR _inS$[esp+24], 0
+
+; 2195 :      }
+; 2196 :      else {
+
+  014d7	eb 58		 jmp	 SHORT $L11708
+$L11707:
+
+; 2197 :         inS.msrLo = 0x0;   /* clear MTRR 0 */
+
+  014d9	c7 44 24 08 00
+	00 00 00	 mov	 DWORD PTR _inS$[esp+20], 0
+
+; 2198 :      }
+; 2199 : 
+; 2200 :      SetMTRR(MTRR_MSR_AMDK6, inS.msrLo, inS.msrHi);
+; 2201 :   }
+; 2202 :   else {
+
+  014e1	eb 4e		 jmp	 SHORT $L11708
+$L11706:
+
+; 2203 : 
+; 2204 :      // Generate masks and set the MTRR
+; 2205 : 
+; 2206 :      res = genMTRRvalAmdK6(physBaseAddr, physSize, type, &MTRRval);
+
+  014e3	8b 54 24 20	 mov	 edx, DWORD PTR _type$[esp+12]
+  014e7	8d 4c 24 14	 lea	 ecx, DWORD PTR _MTRRval$[esp+12]
+  014eb	51		 push	 ecx
+  014ec	52		 push	 edx
+  014ed	50		 push	 eax
+  014ee	8b 44 24 24	 mov	 eax, DWORD PTR _physBaseAddr$[esp+24]
+  014f2	50		 push	 eax
+  014f3	e8 00 00 00 00	 call	 _genMTRRvalAmdK6
+  014f8	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 2207 : 
+; 2208 :      if (res == FXFALSE)
+
+  014fb	85 c0		 test	 eax, eax
+  014fd	75 05		 jne	 SHORT $L11710
+  014ff	5e		 pop	 esi
+
+; 2226 : } // pciSetAmdK6MTRR
+
+  01500	83 c4 0c	 add	 esp, 12			; 0000000cH
+  01503	c3		 ret	 0
+$L11710:
+
+; 2209 :        return rVal;
+; 2210 : 
+; 2211 :      GetMTRR( MTRR_MSR_AMDK6, &inS.msrLo, &inS.msrHi);
+
+  01504	8d 4c 24 0c	 lea	 ecx, DWORD PTR _inS$[esp+24]
+  01508	8d 54 24 08	 lea	 edx, DWORD PTR _inS$[esp+20]
+  0150c	51		 push	 ecx
+  0150d	52		 push	 edx
+  0150e	68 85 00 00 c0	 push	 -1073741691		; c0000085H
+  01513	e8 00 00 00 00	 call	 _GetMTRR
+  01518	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 2212 : 
+; 2213 :      if (mtrrNum) {
+
+  0151b	85 f6		 test	 esi, esi
+  0151d	74 0a		 je	 SHORT $L11711
+
+; 2214 :         inS.msrHi = MTRRval;   /* program MTRR 1 */
+
+  0151f	8b 44 24 14	 mov	 eax, DWORD PTR _MTRRval$[esp+12]
+  01523	89 44 24 0c	 mov	 DWORD PTR _inS$[esp+24], eax
+
+; 2215 :      }
+; 2216 :      else {
+
+  01527	eb 08		 jmp	 SHORT $L11708
+$L11711:
+
+; 2217 :         inS.msrLo = MTRRval;   /* program MTRR 0 */
+
+  01529	8b 4c 24 14	 mov	 ecx, DWORD PTR _MTRRval$[esp+12]
+  0152d	89 4c 24 08	 mov	 DWORD PTR _inS$[esp+20], ecx
+$L11708:
+
+; 2218 :      }
+; 2219 : 
+; 2220 :      SetMTRR(MTRR_MSR_AMDK6, inS.msrLo, inS.msrHi);
+
+  01531	8b 54 24 0c	 mov	 edx, DWORD PTR _inS$[esp+24]
+  01535	8b 44 24 08	 mov	 eax, DWORD PTR _inS$[esp+20]
+  01539	52		 push	 edx
+  0153a	50		 push	 eax
+  0153b	68 85 00 00 c0	 push	 -1073741691		; c0000085H
+  01540	e8 00 00 00 00	 call	 _SetMTRR
+  01545	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 2221 :   }
+; 2222 : 
+; 2223 :   rVal = FXTRUE;
+; 2224 : 
+; 2225 :   return rVal;
+
+  01548	b8 01 00 00 00	 mov	 eax, 1
+  0154d	5e		 pop	 esi
+
+; 2226 : } // pciSetAmdK6MTRR
+
+  0154e	83 c4 0c	 add	 esp, 12			; 0000000cH
+  01551	c3		 ret	 0
+_pciSetAmdK6MTRR ENDP
+_physBaseAddress$ = 8
+_physSize$ = 12
+_type$ = 16
+_MTRRval$ = 20
+_genMTRRvalAmdK6 PROC NEAR
+
+; 2097 :    FxBool retVal = FXFALSE;
+; 2098 :    FxU32 memTypeBits = 0;
+; 2099 :    FxU32 physAddrMask;
+; 2100 : 
+; 2101 :    /* Validate memory type */
+; 2102 : 
+; 2103 :    if (type == PciMemTypeUncacheable) {
+
+  01560	8b 44 24 0c	 mov	 eax, DWORD PTR _type$[esp-4]
+  01564	56		 push	 esi
+  01565	85 c0		 test	 eax, eax
+  01567	57		 push	 edi
+  01568	75 07		 jne	 SHORT $L11680
+
+; 2104 :       memTypeBits = 0x1;
+
+  0156a	bf 01 00 00 00	 mov	 edi, 1
+
+; 2105 :    }
+; 2106 :    else if (type == PciMemTypeWriteCombining) {
+
+  0156f	eb 0a		 jmp	 SHORT $L11683
+$L11680:
+  01571	83 f8 01	 cmp	 eax, 1
+  01574	75 56		 jne	 SHORT $L11682
+
+; 2107 :       memTypeBits = 0x2;
+
+  01576	bf 02 00 00 00	 mov	 edi, 2
+$L11683:
+
+; 2111 :    }
+; 2112 : 
+; 2113 :    /* Validate memory range size */
+; 2114 : 
+; 2115 :    if (physSize < 128*1024) {         /* make sure size >= 128 K */ 
+
+  0157b	8b 74 24 10	 mov	 esi, DWORD PTR _physSize$[esp+4]
+  0157f	81 fe 00 00 02
+	00		 cmp	 esi, 131072		; 00020000H
+
+; 2116 :       return retVal;
+
+  01585	72 45		 jb	 SHORT $L11682
+
+; 2117 :    }
+; 2118 : 
+; 2119 :    if (physSize & (physSize - 1)) {   /* make sure size is power of two */
+
+  01587	8d 46 ff	 lea	 eax, DWORD PTR [esi-1]
+  0158a	85 c6		 test	 eax, esi
+
+; 2120 :       return retVal;
+
+  0158c	75 3e		 jne	 SHORT $L11682
+
+; 2121 :    }
+; 2122 : 
+; 2123 :    /* Validate base address */
+; 2124 : 
+; 2125 :    if ((FxU32)physBaseAddress % physSize) {  /* make sure base is multiple of size */
+
+  0158e	8b 4c 24 0c	 mov	 ecx, DWORD PTR _physBaseAddress$[esp+4]
+  01592	33 d2		 xor	 edx, edx
+  01594	8b c1		 mov	 eax, ecx
+  01596	f7 f6		 div	 esi
+  01598	85 d2		 test	 edx, edx
+
+; 2126 :       return retVal;
+
+  0159a	75 30		 jne	 SHORT $L11682
+
+; 2127 :    }
+; 2128 : 
+; 2129 :    /* Convert the range size into a mask */
+; 2130 : 
+; 2131 :    physAddrMask = 0x7FFF;
+; 2132 :    physSize >>=18;            /* 128K --> 0, 256K --> 1, etc */
+
+  0159c	c1 ee 12	 shr	 esi, 18			; 00000012H
+  0159f	b8 ff 7f 00 00	 mov	 eax, 32767		; 00007fffH
+
+; 2133 :    while (physSize) {
+
+  015a4	74 06		 je	 SHORT $L11690
+$L11689:
+
+; 2134 :       physAddrMask <<= 1;
+
+  015a6	d1 e0		 shl	 eax, 1
+
+; 2135 :       physSize     >>= 1;
+
+  015a8	d1 ee		 shr	 esi, 1
+  015aa	75 fa		 jne	 SHORT $L11689
+$L11690:
+
+; 2136 :    }
+; 2137 : 
+; 2138 :    /* Now mask: 128K => 7FFF, 256K => 7FFE, 512K => 7FFC, ... , 4G => 0000 */
+; 2139 : 
+; 2140 :    *MTRRval = ((((FxU32) physBaseAddress >> 17) & 0x7FFF) << 17) |
+; 2141 :               (physAddrMask & 0x7FFF) << 2        |
+; 2142 :               memTypeBits;
+
+  015ac	25 ff 7f 00 00	 and	 eax, 32767		; 00007fffH
+  015b1	81 e1 00 00 fe
+	ff		 and	 ecx, -131072		; fffe0000H
+  015b7	c1 e0 02	 shl	 eax, 2
+  015ba	0b c1		 or	 eax, ecx
+  015bc	8b 4c 24 18	 mov	 ecx, DWORD PTR _MTRRval$[esp+4]
+  015c0	0b c7		 or	 eax, edi
+  015c2	5f		 pop	 edi
+  015c3	89 01		 mov	 DWORD PTR [ecx], eax
+
+; 2143 : 
+; 2144 :    retVal = FXTRUE;
+; 2145 : 
+; 2146 :    return retVal;
+
+  015c5	b8 01 00 00 00	 mov	 eax, 1
+  015ca	5e		 pop	 esi
+
+; 2147 : }
+
+  015cb	c3		 ret	 0
+$L11682:
+  015cc	5f		 pop	 edi
+
+; 2108 :    }
+; 2109 :    else {
+; 2110 :       return retVal;
+
+  015cd	33 c0		 xor	 eax, eax
+  015cf	5e		 pop	 esi
+
+; 2147 : }
+
+  015d0	c3		 ret	 0
+_genMTRRvalAmdK6 ENDP
+_LTEXT	ENDS
+PUBLIC	_our_inpd
+_LTEXT	SEGMENT
+_Addr$ = 8
+_dwReturn$ = -4
+_our_inpd PROC NEAR
+
+; 2240 : {
+
+  015e0	55		 push	 ebp
+  015e1	8b ec		 mov	 ebp, esp
+  015e3	51		 push	 ecx
+
+; 2241 :    DWORD dwReturn;
+; 2242 : 
+; 2243 :    _asm {mov   edx, Addr}
+
+  015e4	8b 55 08	 mov	 edx, DWORD PTR _Addr$[ebp]
+
+; 2244 :    _asm {xor   eax, eax}
+
+  015e7	33 c0		 xor	 eax, eax
+
+; 2245 :    _asm {in    eax, dx}
+
+  015e9	ed		 in	 eax, dx
+
+; 2246 :    _asm {mov   dwReturn, eax}
+
+  015ea	89 45 fc	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 2247 : 
+; 2248 :    return dwReturn;
+
+  015ed	8b 45 fc	 mov	 eax, DWORD PTR _dwReturn$[ebp]
+
+; 2249 : }
+
+  015f0	8b e5		 mov	 esp, ebp
+  015f2	5d		 pop	 ebp
+  015f3	c3		 ret	 0
+_our_inpd ENDP
+_LTEXT	ENDS
+PUBLIC	_our_outpw
+_LTEXT	SEGMENT
+_addr$ = 8
+_dwData$ = 12
+_our_outpw PROC NEAR
+
+; 2262 : {
+
+  01600	55		 push	 ebp
+  01601	8b ec		 mov	 ebp, esp
+
+; 2263 :    _asm {mov   edx, addr}
+
+  01603	8b 55 08	 mov	 edx, DWORD PTR _addr$[ebp]
+
+; 2264 :    _asm {mov   eax, dwData}
+
+  01606	8b 45 0c	 mov	 eax, DWORD PTR _dwData$[ebp]
+
+; 2265 :    _asm {out   dx, ax}
+
+  01609	66 ef		 out	 dx, ax
+
+; 2266 : }
+
+  0160b	5d		 pop	 ebp
+  0160c	c3		 ret	 0
+_our_outpw ENDP
+_LTEXT	ENDS
+PUBLIC	_our_outpd
+_LTEXT	SEGMENT
+_addr$ = 8
+_dwData$ = 12
+_our_outpd PROC NEAR
+
+; 2279 : {
+
+  01610	55		 push	 ebp
+  01611	8b ec		 mov	 ebp, esp
+
+; 2280 :    _asm {mov   edx, addr}
+
+  01613	8b 55 08	 mov	 edx, DWORD PTR _addr$[ebp]
+
+; 2281 :    _asm {mov   eax, dwData}
+
+  01616	8b 45 0c	 mov	 eax, DWORD PTR _dwData$[ebp]
+
+; 2282 :    _asm {out   dx, eax}
+
+  01619	ef		 out	 dx, eax
+
+; 2283 : }
+
+  0161a	5d		 pop	 ebp
+  0161b	c3		 ret	 0
+_our_outpd ENDP
+_LTEXT	ENDS
+PUBLIC	_our_inpw
+_LTEXT	SEGMENT
+_Addr$ = 8
+_dwReturn$ = -4
+_our_inpw PROC NEAR
+
+; 2296 : {
+
+  01620	55		 push	 ebp
+  01621	8b ec		 mov	 ebp, esp
+  01623	51		 push	 ecx
+
+; 2297 :    DWORD dwReturn;
+; 2298 : 
+; 2299 :    _asm {mov   edx, Addr}
+
+  01624	8b 55 08	 mov	 edx, DWORD PTR _Addr$[ebp]
+
+; 2300 :    _asm {xor   eax, eax}
+
+  01627	33 c0		 xor	 eax, eax
+
+; 2301 :    _asm {in    ax, dx}
+
+  01629	66 ed		 in	 ax, dx
+
+; 2302 :    _asm {mov   dwReturn, eax}
+
+  0162b	89 45 fc	 mov	 DWORD PTR _dwReturn$[ebp], eax
+
+; 2303 : 
+; 2304 :    return dwReturn;
+
+  0162e	8b 45 fc	 mov	 eax, DWORD PTR _dwReturn$[ebp]
+
+; 2305 : }
+
+  01631	8b e5		 mov	 esp, ebp
+  01633	5d		 pop	 ebp
+  01634	c3		 ret	 0
+_our_inpw ENDP
+_devnode$ = 8
+_DevNodetoIORegs PROC NEAR
+
+; 2318 :    PDEVTABLE pDev;
+; 2319 : 
+; 2320 :    pDev = FindPDEVFromDevNode(devnode);
+
+  01640	8b 44 24 04	 mov	 eax, DWORD PTR _devnode$[esp-4]
+  01644	50		 push	 eax
+  01645	e8 00 00 00 00	 call	 _FindPDEVFromDevNode
+
+; 2321 :    return (SstIORegs *)pDev->RegBase[HWINFO_SST_IOREGS_INDEX];
+
+  0164a	8b 80 90 00 00
+	00		 mov	 eax, DWORD PTR [eax+144]
+  01650	83 c4 04	 add	 esp, 4
+
+; 2322 : }
+
+  01653	c3		 ret	 0
+_DevNodetoIORegs ENDP
+_LTEXT	ENDS
+EXTRN	_CCODE__MapPhysToLinear:NEAR
+_LTEXT	SEGMENT
+_pDev$ = 8
+_dwSize$ = 12
+_MapDeviceRegisters PROC NEAR
+
+; 2335 : {
+
+  01660	53		 push	 ebx
+  01661	55		 push	 ebp
+  01662	56		 push	 esi
+
+; 2336 :    int i;
+; 2337 : #ifdef SLI_AA
+; 2338 :    DWORD PCIDecode;
+; 2339 : 
+; 2340 :    // if we are a slave then don't fat map
+; 2341 :    if (SLI_AA_SLAVE_DEVICE == pDev->dwType)
+
+  01663	8b 6c 24 14	 mov	 ebp, DWORD PTR _dwSize$[esp+8]
+  01667	57		 push	 edi
+  01668	8b 7c 24 14	 mov	 edi, DWORD PTR _pDev$[esp+12]
+  0166c	83 7f 14 02	 cmp	 DWORD PTR [edi+20], 2
+  01670	75 35		 jne	 SHORT $L11747
+
+; 2342 :       {
+; 2343 :       for (i=0; i<sizeof(SparseMemBase0Map)/sizeof(DWORD); i++)
+
+  01672	8d 9f 90 00 00
+	00		 lea	 ebx, DWORD PTR [edi+144]
+  01678	33 f6		 xor	 esi, esi
+$L11749:
+
+; 2344 :          pDev->RegBase[i] = (DWORD)_MapPhysToLinear(pDev->PhysMemBase[0] + SparseMemBase0Map[i], SparseMemBase0Size[i], 0x0);
+
+  0167a	8b 86 00 00 00
+	00		 mov	 eax, DWORD PTR _SparseMemBase0Size[esi]
+  01680	8b 8e 00 00 00
+	00		 mov	 ecx, DWORD PTR _SparseMemBase0Map[esi]
+  01686	6a 00		 push	 0
+  01688	50		 push	 eax
+  01689	03 8f 88 00 00
+	00		 add	 ecx, DWORD PTR [edi+136]
+  0168f	51		 push	 ecx
+  01690	e8 00 00 00 00	 call	 _CCODE__MapPhysToLinear
+  01695	89 03		 mov	 DWORD PTR [ebx], eax
+  01697	83 c6 04	 add	 esi, 4
+  0169a	83 c4 0c	 add	 esp, 12			; 0000000cH
+  0169d	83 c3 04	 add	 ebx, 4
+  016a0	83 fe 10	 cmp	 esi, 16			; 00000010H
+  016a3	72 d5		 jb	 SHORT $L11749
+
+; 2345 :       }      
+; 2346 :    else
+
+  016a5	eb 36		 jmp	 SHORT $L11758
+$L11747:
+
+; 2347 : #endif
+; 2348 :       {
+; 2349 :       pDev->RegBase[0] = (DWORD) _MapPhysToLinear(pDev->PhysMemBase[0], dwSize, 0);
+
+  016a7	8b 97 88 00 00
+	00		 mov	 edx, DWORD PTR [edi+136]
+  016ad	6a 00		 push	 0
+  016af	55		 push	 ebp
+  016b0	52		 push	 edx
+  016b1	8d b7 90 00 00
+	00		 lea	 esi, DWORD PTR [edi+144]
+  016b7	e8 00 00 00 00	 call	 _CCODE__MapPhysToLinear
+  016bc	89 06		 mov	 DWORD PTR [esi], eax
+  016be	83 c4 0c	 add	 esp, 12			; 0000000cH
+  016c1	b8 00 00 00 00	 mov	 eax, OFFSET FLAT:_SparseMemBase0Map
+  016c6	8b ce		 mov	 ecx, esi
+$L11756:
+
+; 2350 :       for (i=0; i<sizeof(SparseMemBase0Map)/sizeof(DWORD); i++)
+; 2351 :          pDev->RegBase[i] = pDev->RegBase[0] + SparseMemBase0Map[i];
+
+  016c8	8b 10		 mov	 edx, DWORD PTR [eax]
+  016ca	8b 1e		 mov	 ebx, DWORD PTR [esi]
+  016cc	03 d3		 add	 edx, ebx
+  016ce	83 c0 04	 add	 eax, 4
+  016d1	89 11		 mov	 DWORD PTR [ecx], edx
+  016d3	83 c1 04	 add	 ecx, 4
+  016d6	3d 10 00 00 00	 cmp	 eax, OFFSET FLAT:_SparseMemBase0Map+16
+  016db	72 eb		 jb	 SHORT $L11756
+$L11758:
+
+; 2352 :       }
+; 2353 : 
+; 2354 : #ifdef SLI_AA   
+; 2355 :    if (IS_NAPALM(pDev->dwVendorDeviceID))
+
+  016dd	8b 47 04	 mov	 eax, DWORD PTR [edi+4]
+  016e0	3d 1a 12 06 00	 cmp	 eax, 397850		; 0006121aH
+  016e5	74 3f		 je	 SHORT $L11760
+  016e7	3d 1a 12 07 00	 cmp	 eax, 463386		; 0007121aH
+  016ec	74 38		 je	 SHORT $L11760
+  016ee	3d 1a 12 08 00	 cmp	 eax, 528922		; 0008121aH
+  016f3	74 31		 je	 SHORT $L11760
+  016f5	3d 1a 12 09 00	 cmp	 eax, 594458		; 0009121aH
+  016fa	74 2a		 je	 SHORT $L11760
+  016fc	3d 1a 12 0a 00	 cmp	 eax, 659994		; 000a121aH
+  01701	74 23		 je	 SHORT $L11760
+  01703	3d 1a 12 0b 00	 cmp	 eax, 725530		; 000b121aH
+  01708	74 1c		 je	 SHORT $L11760
+  0170a	3d 1a 12 0c 00	 cmp	 eax, 791066		; 000c121aH
+  0170f	74 15		 je	 SHORT $L11760
+  01711	3d 1a 12 0d 00	 cmp	 eax, 856602		; 000d121aH
+  01716	74 0e		 je	 SHORT $L11760
+  01718	3d 1a 12 0e 00	 cmp	 eax, 922138		; 000e121aH
+  0171d	74 07		 je	 SHORT $L11760
+  0171f	3d 1a 12 0f 00	 cmp	 eax, 987674		; 000f121aH
+  01724	75 2c		 jne	 SHORT $L11759
+$L11760:
+
+; 2356 :       {
+; 2357 :       // Set IO Decode and MemBase0 Decode to 0x100 and 32 MB
+; 2358 :       PCIDecode = PCI_Read_Config(pDev->dwBus, pDev->dwDevFunc, CFG_PCI_DECODE);
+
+  01726	8b 5f 0c	 mov	 ebx, DWORD PTR [edi+12]
+  01729	8b 7f 08	 mov	 edi, DWORD PTR [edi+8]
+  0172c	6a 48		 push	 72			; 00000048H
+  0172e	53		 push	 ebx
+  0172f	57		 push	 edi
+  01730	e8 00 00 00 00	 call	 _PCI_Read_Config
+  01735	8b f0		 mov	 esi, eax
+
+; 2359 :       PCIDecode = PCIDecode & ~(CFG_MEMBASE0_DECODE | CFG_IOBASE_DECODE);
+; 2360 :       PCIDecode = PCIDecode | (GetDecodeSize(dwSize) << CFG_MEMBASE0_DECODE_SHIFT);      
+
+  01737	55		 push	 ebp
+  01738	81 e6 f0 fc ff
+	ff		 and	 esi, -784		; fffffcf0H
+  0173e	e8 00 00 00 00	 call	 _GetDecodeSize
+  01743	0b f0		 or	 esi, eax
+
+; 2361 :       PCI_Write_Config(pDev->dwBus, pDev->dwDevFunc, CFG_PCI_DECODE, PCIDecode);
+
+  01745	56		 push	 esi
+  01746	6a 48		 push	 72			; 00000048H
+  01748	53		 push	 ebx
+  01749	57		 push	 edi
+  0174a	e8 00 00 00 00	 call	 _PCI_Write_Config
+  0174f	83 c4 20	 add	 esp, 32			; 00000020H
+$L11759:
+  01752	5f		 pop	 edi
+  01753	5e		 pop	 esi
+  01754	5d		 pop	 ebp
+  01755	5b		 pop	 ebx
+
+; 2362 :       }
+; 2363 : #endif
+; 2364 : }
+
+  01756	c3		 ret	 0
+_MapDeviceRegisters ENDP
+_LTEXT	ENDS
+EXTRN	_CCODE__LinPageLock:NEAR
+_LTEXT	SEGMENT
+_pDev$ = 8
+_pSize$ = 12
+_dwReturn$12012 = -16
+$T12014 = -4
+$T12015 = -8
+$T12016 = -12
+_dwReturn$12020 = -20
+$T12022 = -16
+$T12023 = -12
+$T12024 = -8
+$T12025 = -4
+_MapDeviceFB PROC NEAR
+
+; 2456 : {
+
+  01760	55		 push	 ebp
+  01761	8b ec		 mov	 ebp, esp
+  01763	83 ec 14	 sub	 esp, 20			; 00000014H
+  01766	53		 push	 ebx
+  01767	56		 push	 esi
+
+; 2460 :    if (SLI_AA_SLAVE_DEVICE == pDev->dwType)
+
+  01768	8b 75 08	 mov	 esi, DWORD PTR _pDev$[ebp]
+  0176b	57		 push	 edi
+  0176c	83 7e 14 02	 cmp	 DWORD PTR [esi+20], 2
+  01770	0f 85 37 01 00
+	00		 jne	 $L11796
+
+; 2465 :       if (1 == pDev->dwUnitNum)
+
+  01776	8b 4e 10	 mov	 ecx, DWORD PTR [esi+16]
+  01779	b8 00 10 00 00	 mov	 eax, 4096		; 00001000H
+  0177e	83 f9 01	 cmp	 ecx, 1
+  01781	89 46 20	 mov	 DWORD PTR [esi+32], eax
+  01784	0f 85 14 01 00
+	00		 jne	 $L11797
+
+; 2469 :          pDev->LfbBase = __PageReserve(PR_SYSTEM, pDev->nPages, PR_FIXED);
+
+  0178a	c7 45 f4 08 00
+	00 00		 mov	 DWORD PTR $T12016[ebp], 8
+  01791	89 45 f8	 mov	 DWORD PTR $T12015[ebp], eax
+  01794	c7 45 fc 00 00
+	08 80		 mov	 DWORD PTR $T12014[ebp], -2146959360 ; 80080000H
+
+; 2457 : #ifdef SLI_AA
+; 2458 :    DWORD PCIDecode;
+; 2459 : 
+
+  0179b	60		 pushad
+
+; 2461 :       {
+
+  0179c	ff 75 f4	 push	 DWORD PTR $T12016[ebp]
+
+; 2462 :       //pDev->nPages = (*pSize + 4095) >> 12;
+
+  0179f	ff 75 f8	 push	 DWORD PTR $T12015[ebp]
+
+; 2463 :       // Just Map in 16 MB for the First Slave and all the rest can share
+
+  017a2	ff 75 fc	 push	 DWORD PTR $T12014[ebp]
+
+; 2464 :       pDev->nPages = (0x1000000 + 4095) >> 12;
+
+  017a5	cd		 DB	 -51			; ffffffcdH
+  017a6	20		 DB	 32			; 00000020H
+  017a7	1d		 DB	 29			; 0000001dH
+  017a8	01		 DB	 1
+  017a9	01		 DB	 1
+  017aa	00		 DB	 0
+
+; 2465 :       if (1 == pDev->dwUnitNum)
+
+  017ab	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 2466 :          {
+
+  017ae	89 45 f0	 mov	 DWORD PTR _dwReturn$12012[ebp], eax
+
+; 2467 :          // For Multi-Monitor we don't want to change the size
+
+  017b1	61		 popad
+
+; 2469 :          pDev->LfbBase = __PageReserve(PR_SYSTEM, pDev->nPages, PR_FIXED);
+
+  017b2	8b 45 f0	 mov	 eax, DWORD PTR _dwReturn$12012[ebp]
+  017b5	8b 4d 08	 mov	 ecx, DWORD PTR _pDev$[ebp]
+
+; 2470 :          if (0xFFFFFFFF != pDev->LfbBase)
+
+  017b8	83 f8 ff	 cmp	 eax, -1
+  017bb	89 81 d0 00 00
+	00		 mov	 DWORD PTR [ecx+208], eax
+  017c1	74 54		 je	 SHORT $L12026
+
+; 2471 :             {
+; 2472 :             __PageCommitPhys(pDev->LfbBase >>12, pDev->nPages, pDev->PhysMemBase[1] >> 12, PC_INCR | PC_WRITEABLE | PC_USER);
+
+  017c3	8b 91 8c 00 00
+	00		 mov	 edx, DWORD PTR [ecx+140]
+  017c9	8b 49 20	 mov	 ecx, DWORD PTR [ecx+32]
+  017cc	c1 ea 0c	 shr	 edx, 12			; 0000000cH
+  017cf	c1 e8 0c	 shr	 eax, 12			; 0000000cH
+  017d2	c7 45 fc 00 00
+	06 40		 mov	 DWORD PTR $T12025[ebp], 1074135040 ; 40060000H
+  017d9	89 55 f8	 mov	 DWORD PTR $T12024[ebp], edx
+  017dc	89 4d f4	 mov	 DWORD PTR $T12023[ebp], ecx
+  017df	89 45 f0	 mov	 DWORD PTR $T12022[ebp], eax
+
+; 2457 : #ifdef SLI_AA
+; 2458 :    DWORD PCIDecode;
+; 2459 : 
+
+  017e2	60		 pushad
+
+; 2461 :       {
+
+  017e3	ff 75 fc	 push	 DWORD PTR $T12025[ebp]
+
+; 2462 :       //pDev->nPages = (*pSize + 4095) >> 12;
+
+  017e6	ff 75 f8	 push	 DWORD PTR $T12024[ebp]
+
+; 2463 :       // Just Map in 16 MB for the First Slave and all the rest can share
+
+  017e9	ff 75 f4	 push	 DWORD PTR $T12023[ebp]
+
+; 2464 :       pDev->nPages = (0x1000000 + 4095) >> 12;
+
+  017ec	ff 75 f0	 push	 DWORD PTR $T12022[ebp]
+
+; 2465 :       if (1 == pDev->dwUnitNum)
+
+  017ef	cd		 DB	 -51			; ffffffcdH
+  017f0	20		 DB	 32			; 00000020H
+  017f1	28		 DB	 40			; 00000028H
+  017f2	01		 DB	 1
+  017f3	01		 DB	 1
+  017f4	00		 DB	 0
+
+; 2466 :          {
+
+  017f5	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 2467 :          // For Multi-Monitor we don't want to change the size
+
+  017f8	89 45 ec	 mov	 DWORD PTR _dwReturn$12020[ebp], eax
+
+; 2468 :          
+
+  017fb	61		 popad
+
+; 2473 :             _LinPageLock(pDev->LfbBase >> 12, pDev->nPages, 0x0);
+
+  017fc	8b 45 08	 mov	 eax, DWORD PTR _pDev$[ebp]
+  017ff	6a 00		 push	 0
+  01801	8b 50 20	 mov	 edx, DWORD PTR [eax+32]
+  01804	8b 80 d0 00 00
+	00		 mov	 eax, DWORD PTR [eax+208]
+  0180a	c1 e8 0c	 shr	 eax, 12			; 0000000cH
+  0180d	52		 push	 edx
+  0180e	50		 push	 eax
+  0180f	e8 00 00 00 00	 call	 _CCODE__LinPageLock
+  01814	83 c4 0c	 add	 esp, 12			; 0000000cH
+$L12026:
+
+; 2480 :          }
+; 2481 :       }      
+; 2482 :    else
+
+  01817	8b 75 08	 mov	 esi, DWORD PTR _pDev$[ebp]
+$L11800:
+
+; 2485 :       }
+; 2486 : 
+; 2487 :    if (IS_NAPALM(pDev->dwVendorDeviceID))
+
+  0181a	8b 46 04	 mov	 eax, DWORD PTR [esi+4]
+  0181d	3d 1a 12 06 00	 cmp	 eax, 397850		; 0006121aH
+  01822	74 3f		 je	 SHORT $L11803
+  01824	3d 1a 12 07 00	 cmp	 eax, 463386		; 0007121aH
+  01829	74 38		 je	 SHORT $L11803
+  0182b	3d 1a 12 08 00	 cmp	 eax, 528922		; 0008121aH
+  01830	74 31		 je	 SHORT $L11803
+  01832	3d 1a 12 09 00	 cmp	 eax, 594458		; 0009121aH
+  01837	74 2a		 je	 SHORT $L11803
+  01839	3d 1a 12 0a 00	 cmp	 eax, 659994		; 000a121aH
+  0183e	74 23		 je	 SHORT $L11803
+  01840	3d 1a 12 0b 00	 cmp	 eax, 725530		; 000b121aH
+  01845	74 1c		 je	 SHORT $L11803
+  01847	3d 1a 12 0c 00	 cmp	 eax, 791066		; 000c121aH
+  0184c	74 15		 je	 SHORT $L11803
+  0184e	3d 1a 12 0d 00	 cmp	 eax, 856602		; 000d121aH
+  01853	74 0e		 je	 SHORT $L11803
+  01855	3d 1a 12 0e 00	 cmp	 eax, 922138		; 000e121aH
+  0185a	74 07		 je	 SHORT $L11803
+  0185c	3d 1a 12 0f 00	 cmp	 eax, 987674		; 000f121aH
+  01861	75 34		 jne	 SHORT $L11802
+$L11803:
+
+; 2488 :       {
+; 2489 :       // Set MemBase1 Size to *pSize
+; 2490 :       PCIDecode = PCI_Read_Config(pDev->dwBus, pDev->dwDevFunc, CFG_PCI_DECODE);
+
+  01863	8b 7e 0c	 mov	 edi, DWORD PTR [esi+12]
+  01866	8b 5e 08	 mov	 ebx, DWORD PTR [esi+8]
+  01869	6a 48		 push	 72			; 00000048H
+  0186b	57		 push	 edi
+  0186c	53		 push	 ebx
+  0186d	e8 00 00 00 00	 call	 _PCI_Read_Config
+
+; 2491 :       PCIDecode = PCIDecode & ~(CFG_MEMBASE1_DECODE);
+; 2492 :       PCIDecode = PCIDecode | (GetDecodeSize(*pSize) << CFG_MEMBASE1_DECODE_SHIFT);
+
+  01872	8b 4d 0c	 mov	 ecx, DWORD PTR _pSize$[ebp]
+  01875	8b f0		 mov	 esi, eax
+  01877	81 e6 0f ff ff
+	ff		 and	 esi, -241		; ffffff0fH
+  0187d	8b 11		 mov	 edx, DWORD PTR [ecx]
+  0187f	52		 push	 edx
+  01880	e8 00 00 00 00	 call	 _GetDecodeSize
+  01885	c1 e0 04	 shl	 eax, 4
+  01888	0b f0		 or	 esi, eax
+
+; 2493 :       PCI_Write_Config(pDev->dwBus, pDev->dwDevFunc, CFG_PCI_DECODE, PCIDecode);
+
+  0188a	56		 push	 esi
+  0188b	6a 48		 push	 72			; 00000048H
+  0188d	57		 push	 edi
+  0188e	53		 push	 ebx
+  0188f	e8 00 00 00 00	 call	 _PCI_Write_Config
+  01894	83 c4 20	 add	 esp, 32			; 00000020H
+$L11802:
+
+; 2494 :       }
+; 2495 : #else
+; 2496 :    pDev->LfbBase = (DWORD) _MapPhysToLinear(pDev->PhysMemBase[1], *pSize, 0);
+; 2497 : #endif
+; 2498 : }
+
+  01897	5f		 pop	 edi
+  01898	5e		 pop	 esi
+  01899	5b		 pop	 ebx
+  0189a	8b e5		 mov	 esp, ebp
+  0189c	5d		 pop	 ebp
+  0189d	c3		 ret	 0
+$L11797:
+
+; 2474 :             }
+; 2475 :          }
+; 2476 :       else
+; 2477 :          {
+; 2478 :          // Need a way to get First Slave LfbBase Address
+; 2479 :          pDev->LfbBase = 0x0;
+
+  0189e	c7 86 d0 00 00
+	00 00 00 00 00	 mov	 DWORD PTR [esi+208], 0
+
+; 2480 :          }
+; 2481 :       }      
+; 2482 :    else
+
+  018a8	e9 6d ff ff ff	 jmp	 $L11800
+$L11796:
+
+; 2483 :       {
+; 2484 :       pDev->LfbBase = (DWORD) _MapPhysToLinear(pDev->PhysMemBase[1], *pSize, 0);
+
+  018ad	8b 4d 0c	 mov	 ecx, DWORD PTR _pSize$[ebp]
+  018b0	8b 86 8c 00 00
+	00		 mov	 eax, DWORD PTR [esi+140]
+  018b6	6a 00		 push	 0
+  018b8	8b 11		 mov	 edx, DWORD PTR [ecx]
+  018ba	52		 push	 edx
+  018bb	50		 push	 eax
+  018bc	e8 00 00 00 00	 call	 _CCODE__MapPhysToLinear
+  018c1	83 c4 0c	 add	 esp, 12			; 0000000cH
+  018c4	89 86 d0 00 00
+	00		 mov	 DWORD PTR [esi+208], eax
+  018ca	e9 4b ff ff ff	 jmp	 $L11800
+_MapDeviceFB ENDP
+_LTEXT	ENDS
+PUBLIC	_SwapPhysFB
+_LTEXT	SEGMENT
+_pDev$ = 8
+_dwOffset$ = 12
+_dwOldSize$ = 16
+_dwNewSize$ = 20
+_dwAddr$ = -16
+_dwReturn$12030 = -12
+$T12032 = -4
+$T12033 = -8
+_dwReturn$12036 = -16
+$T12038 = 16
+$T12039 = -8
+$T12040 = -4
+_SwapPhysFB PROC NEAR
+
+; 2512 : {
+
+  018d0	55		 push	 ebp
+  018d1	8b ec		 mov	 ebp, esp
+  018d3	83 ec 10	 sub	 esp, 16			; 00000010H
+
+; 2513 :    DWORD dwAddr;
+; 2514 : 
+; 2515 :    dwAddr = (pDev->PhysMemBase[1] + dwOffset) & ~(4095);
+
+  018d6	8b 55 08	 mov	 edx, DWORD PTR _pDev$[ebp]
+  018d9	8b 4d 0c	 mov	 ecx, DWORD PTR _dwOffset$[ebp]
+  018dc	53		 push	 ebx
+  018dd	56		 push	 esi
+  018de	8b 82 8c 00 00
+	00		 mov	 eax, DWORD PTR [edx+140]
+  018e4	57		 push	 edi
+  018e5	03 c1		 add	 eax, ecx
+
+; 2516 :    dwOffset &= 4095;
+
+  018e7	81 e1 ff 0f 00
+	00		 and	 ecx, 4095		; 00000fffH
+  018ed	25 00 f0 ff ff	 and	 eax, -4096		; fffff000H
+  018f2	89 4d 0c	 mov	 DWORD PTR _dwOffset$[ebp], ecx
+  018f5	89 45 f0	 mov	 DWORD PTR _dwAddr$[ebp], eax
+
+; 2518 :    dwNewSize = PAGE_SIZE(dwNewSize + dwOffset);
+
+  018f8	8b 45 14	 mov	 eax, DWORD PTR _dwNewSize$[ebp]
+
+; 2522 :    __PageDecommit(pDev->LfbBase >>12, dwOldSize, 0x0);
+
+  018fb	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR $T12033[ebp], 0
+  01902	8d 8c 01 ff 0f
+	00 00		 lea	 ecx, DWORD PTR [ecx+eax+4095]
+  01909	8b 45 10	 mov	 eax, DWORD PTR _dwOldSize$[ebp]
+  0190c	c1 e9 0c	 shr	 ecx, 12			; 0000000cH
+  0190f	89 4d 14	 mov	 DWORD PTR _dwNewSize$[ebp], ecx
+  01912	8b 8a d0 00 00
+	00		 mov	 ecx, DWORD PTR [edx+208]
+  01918	05 ff 0f 00 00	 add	 eax, 4095		; 00000fffH
+  0191d	c1 e8 0c	 shr	 eax, 12			; 0000000cH
+  01920	c1 e9 0c	 shr	 ecx, 12			; 0000000cH
+  01923	89 45 10	 mov	 DWORD PTR _dwOldSize$[ebp], eax
+  01926	89 4d fc	 mov	 DWORD PTR $T12032[ebp], ecx
+
+; 2513 :    DWORD dwAddr;
+; 2514 : 
+; 2515 :    dwAddr = (pDev->PhysMemBase[1] + dwOffset) & ~(4095);
+
+  01929	60		 pushad
+
+; 2517 :    // if dwOffset > 0 then we will get 1 more page 
+
+  0192a	ff 75 f8	 push	 DWORD PTR $T12033[ebp]
+
+; 2518 :    dwNewSize = PAGE_SIZE(dwNewSize + dwOffset);
+
+  0192d	ff 75 10	 push	 DWORD PTR _dwOldSize$[ebp]
+
+; 2519 :    dwOldSize = PAGE_SIZE(dwOldSize);
+
+  01930	ff 75 fc	 push	 DWORD PTR $T12032[ebp]
+
+; 2520 : 
+
+  01933	cd		 DB	 -51			; ffffffcdH
+  01934	20		 DB	 32			; 00000020H
+  01935	1f		 DB	 31			; 0000001fH
+  01936	01		 DB	 1
+  01937	01		 DB	 1
+  01938	00		 DB	 0
+
+; 2521 :    // Unknow if this is all I have to do to swap Physical Pages
+
+  01939	83 c4 0c	 add	 esp, 12			; 0000000cH
+
+; 2522 :    __PageDecommit(pDev->LfbBase >>12, dwOldSize, 0x0);
+
+  0193c	89 45 f4	 mov	 DWORD PTR _dwReturn$12030[ebp], eax
+
+; 2523 :    __PageCommitPhys(pDev->LfbBase >>12, dwNewSize, dwAddr >> 12, PC_INCR | PC_WRITEABLE | PC_USER);
+
+  0193f	61		 popad
+  01940	8b 45 f0	 mov	 eax, DWORD PTR _dwAddr$[ebp]
+  01943	8b 55 08	 mov	 edx, DWORD PTR _pDev$[ebp]
+  01946	c1 e8 0c	 shr	 eax, 12			; 0000000cH
+  01949	89 45 f8	 mov	 DWORD PTR $T12039[ebp], eax
+  0194c	8b 82 d0 00 00
+	00		 mov	 eax, DWORD PTR [edx+208]
+  01952	c1 e8 0c	 shr	 eax, 12			; 0000000cH
+  01955	c7 45 fc 00 00
+	06 40		 mov	 DWORD PTR $T12040[ebp], 1074135040 ; 40060000H
+  0195c	89 45 10	 mov	 DWORD PTR $T12038[ebp], eax
+
+; 2513 :    DWORD dwAddr;
+; 2514 : 
+; 2515 :    dwAddr = (pDev->PhysMemBase[1] + dwOffset) & ~(4095);
+
+  0195f	60		 pushad
+
+; 2517 :    // if dwOffset > 0 then we will get 1 more page 
+
+  01960	ff 75 fc	 push	 DWORD PTR $T12040[ebp]
+
+; 2518 :    dwNewSize = PAGE_SIZE(dwNewSize + dwOffset);
+
+  01963	ff 75 f8	 push	 DWORD PTR $T12039[ebp]
+
+; 2519 :    dwOldSize = PAGE_SIZE(dwOldSize);
+
+  01966	ff 75 14	 push	 DWORD PTR _dwNewSize$[ebp]
+
+; 2520 : 
+
+  01969	ff 75 10	 push	 DWORD PTR $T12038[ebp]
+
+; 2521 :    // Unknow if this is all I have to do to swap Physical Pages
+
+  0196c	cd		 DB	 -51			; ffffffcdH
+  0196d	20		 DB	 32			; 00000020H
+  0196e	28		 DB	 40			; 00000028H
+  0196f	01		 DB	 1
+  01970	01		 DB	 1
+  01971	00		 DB	 0
+
+; 2522 :    __PageDecommit(pDev->LfbBase >>12, dwOldSize, 0x0);
+
+  01972	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 2523 :    __PageCommitPhys(pDev->LfbBase >>12, dwNewSize, dwAddr >> 12, PC_INCR | PC_WRITEABLE | PC_USER);
+
+  01975	89 45 f0	 mov	 DWORD PTR _dwReturn$12036[ebp], eax
+
+; 2524 : 
+
+  01978	61		 popad
+
+; 2525 :    return (BYTE *)(pDev->LfbBase + dwOffset);
+
+  01979	8b 4d 08	 mov	 ecx, DWORD PTR _pDev$[ebp]
+
+; 2526 : }
+
+  0197c	5f		 pop	 edi
+  0197d	5e		 pop	 esi
+  0197e	5b		 pop	 ebx
+  0197f	8b 81 d0 00 00
+	00		 mov	 eax, DWORD PTR [ecx+208]
+  01985	8b 4d 0c	 mov	 ecx, DWORD PTR _dwOffset$[ebp]
+  01988	03 c1		 add	 eax, ecx
+  0198a	8b e5		 mov	 esp, ebp
+  0198c	5d		 pop	 ebp
+  0198d	c3		 ret	 0
+_SwapPhysFB ENDP
+_LTEXT	ENDS
+END

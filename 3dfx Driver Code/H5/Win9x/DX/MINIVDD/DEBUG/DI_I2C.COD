@@ -1,0 +1,2575 @@
+	TITLE	..\i2c\di_i2c.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+_PTEXT	SEGMENT PARA USE32 PUBLIC 'PCODE'
+_PTEXT	ENDS
+_LTEXT	SEGMENT PARA USE32 PUBLIC 'LCODE'
+_LTEXT	ENDS
+_PDATA	SEGMENT DWORD USE32 PUBLIC 'PDATA'
+_PDATA	ENDS
+_LDATA	SEGMENT DWORD USE32 PUBLIC 'LCODE'
+_LDATA	ENDS
+FLAT	GROUP _DATA, CONST, _BSS, _PDATA, _LDATA
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+PUBLIC	_InstantiateBusI2C
+_PTEXT	SEGMENT
+_pContext$ = 8
+_pfGetSDA$ = 12
+_pfGetSCL$ = 16
+_pfSetSDA$ = 20
+_pfSetSCL$ = 24
+_i$ = -12
+_busid$ = -4
+_pbusinfo$ = -8
+_pinfo$ = -16
+_InstantiateBusI2C PROC NEAR
+
+; 62   : {
+
+  00000	55		 push	 ebp
+  00001	8b ec		 mov	 ebp, esp
+  00003	83 ec 10	 sub	 esp, 16			; 00000010H
+
+; 63   :   int i;
+; 64   :   I2CBUS busid;
+; 65   :   PI2C_BUSINFO pbusinfo;
+; 66   :   PI2C_DEVINFO pinfo = I2C_DEVINFOPTR(pContext);
+
+  00006	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00009	05 24 04 00 00	 add	 eax, 1060		; 00000424H
+  0000e	89 45 f0	 mov	 DWORD PTR _pinfo$[ebp], eax
+
+; 67   : 
+; 68   :   if (!pinfo)
+
+  00011	83 7d f0 00	 cmp	 DWORD PTR _pinfo$[ebp], 0
+  00015	75 07		 jne	 SHORT $L10403
+
+; 69   :     return I2C_NOTABUS;
+
+  00017	33 c0		 xor	 eax, eax
+  00019	e9 dd 00 00 00	 jmp	 $L10396
+$L10403:
+
+; 70   : 
+; 71   :   if (!(pfGetSDA && pfGetSCL && pfSetSDA && pfSetSCL))
+
+  0001e	83 7d 0c 00	 cmp	 DWORD PTR _pfGetSDA$[ebp], 0
+  00022	74 12		 je	 SHORT $L10405
+  00024	83 7d 10 00	 cmp	 DWORD PTR _pfGetSCL$[ebp], 0
+  00028	74 0c		 je	 SHORT $L10405
+  0002a	83 7d 14 00	 cmp	 DWORD PTR _pfSetSDA$[ebp], 0
+  0002e	74 06		 je	 SHORT $L10405
+  00030	83 7d 18 00	 cmp	 DWORD PTR _pfSetSCL$[ebp], 0
+  00034	75 07		 jne	 SHORT $L10404
+$L10405:
+
+; 72   :     return I2C_NOTABUS;
+
+  00036	33 c0		 xor	 eax, eax
+  00038	e9 be 00 00 00	 jmp	 $L10396
+$L10404:
+
+; 73   : 
+; 74   :   busid = pinfo->numbuses +1;
+
+  0003d	8b 4d f0	 mov	 ecx, DWORD PTR _pinfo$[ebp]
+  00040	8b 11		 mov	 edx, DWORD PTR [ecx]
+  00042	83 c2 01	 add	 edx, 1
+  00045	89 55 fc	 mov	 DWORD PTR _busid$[ebp], edx
+
+; 75   : 
+; 76   :   if (busid > I2C_MAXBUSES)
+
+  00048	83 7d fc 03	 cmp	 DWORD PTR _busid$[ebp], 3
+  0004c	76 07		 jbe	 SHORT $L10406
+
+; 77   :     return I2C_NOTABUS;
+
+  0004e	33 c0		 xor	 eax, eax
+  00050	e9 a6 00 00 00	 jmp	 $L10396
+$L10406:
+
+; 78   : 
+; 79   :   pbusinfo = I2C_GETBUSINFO(pContext, busid);
+
+  00055	8b 45 fc	 mov	 eax, DWORD PTR _busid$[ebp]
+  00058	83 e8 01	 sub	 eax, 1
+  0005b	c1 e0 06	 shl	 eax, 6
+  0005e	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00061	8d 94 01 2c 04
+	00 00		 lea	 edx, DWORD PTR [ecx+eax+1068]
+  00068	89 55 f8	 mov	 DWORD PTR _pbusinfo$[ebp], edx
+
+; 80   :   if (!pbusinfo)
+
+  0006b	83 7d f8 00	 cmp	 DWORD PTR _pbusinfo$[ebp], 0
+  0006f	75 07		 jne	 SHORT $L10408
+
+; 81   :     return I2C_NOTABUS;
+
+  00071	33 c0		 xor	 eax, eax
+  00073	e9 83 00 00 00	 jmp	 $L10396
+$L10408:
+
+; 82   : 
+; 83   :   pbusinfo->key = I2C_NOTAKEY;
+
+  00078	8b 45 f8	 mov	 eax, DWORD PTR _pbusinfo$[ebp]
+  0007b	c7 00 00 00 00
+	00		 mov	 DWORD PTR [eax], 0
+
+; 84   :   pbusinfo->locked = FXFALSE;
+
+  00081	8b 4d f8	 mov	 ecx, DWORD PTR _pbusinfo$[ebp]
+  00084	c7 41 08 00 00
+	00 00		 mov	 DWORD PTR [ecx+8], 0
+
+; 85   :   pbusinfo->muxid = I2C_NOTAMUX;
+
+  0008b	8b 55 f8	 mov	 edx, DWORD PTR _pbusinfo$[ebp]
+  0008e	c7 42 28 00 00
+	00 00		 mov	 DWORD PTR [edx+40], 0
+
+; 86   :   pbusinfo->muxtoken = I2C_NOTATOKEN;
+
+  00095	8b 45 f8	 mov	 eax, DWORD PTR _pbusinfo$[ebp]
+  00098	c7 40 2c 00 00
+	00 00		 mov	 DWORD PTR [eax+44], 0
+
+; 87   : 
+; 88   :   for (i=0; i < I2C_MAXPURPOSES; i++)
+
+  0009f	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  000a6	eb 09		 jmp	 SHORT $L10409
+$L10410:
+  000a8	8b 4d f4	 mov	 ecx, DWORD PTR _i$[ebp]
+  000ab	83 c1 01	 add	 ecx, 1
+  000ae	89 4d f4	 mov	 DWORD PTR _i$[ebp], ecx
+$L10409:
+  000b1	83 7d f4 07	 cmp	 DWORD PTR _i$[ebp], 7
+  000b5	7d 10		 jge	 SHORT $L10411
+
+; 89   :     pbusinfo->Purposes[i] = I2C_NOTAPURPOSE;
+
+  000b7	8b 55 f4	 mov	 edx, DWORD PTR _i$[ebp]
+  000ba	8b 45 f8	 mov	 eax, DWORD PTR _pbusinfo$[ebp]
+  000bd	c7 44 90 0c 00
+	00 00 00	 mov	 DWORD PTR [eax+edx*4+12], 0
+  000c5	eb e1		 jmp	 SHORT $L10410
+$L10411:
+
+; 90   : 
+; 91   :   pbusinfo->funcGetSDA = pfGetSDA;
+
+  000c7	8b 4d f8	 mov	 ecx, DWORD PTR _pbusinfo$[ebp]
+  000ca	8b 55 0c	 mov	 edx, DWORD PTR _pfGetSDA$[ebp]
+  000cd	89 51 30	 mov	 DWORD PTR [ecx+48], edx
+
+; 92   :   pbusinfo->funcGetSCL = pfGetSCL;
+
+  000d0	8b 45 f8	 mov	 eax, DWORD PTR _pbusinfo$[ebp]
+  000d3	8b 4d 10	 mov	 ecx, DWORD PTR _pfGetSCL$[ebp]
+  000d6	89 48 34	 mov	 DWORD PTR [eax+52], ecx
+
+; 93   :   pbusinfo->funcSetSDA = pfSetSDA;
+
+  000d9	8b 55 f8	 mov	 edx, DWORD PTR _pbusinfo$[ebp]
+  000dc	8b 45 14	 mov	 eax, DWORD PTR _pfSetSDA$[ebp]
+  000df	89 42 38	 mov	 DWORD PTR [edx+56], eax
+
+; 94   :   pbusinfo->funcSetSCL = pfSetSCL;
+
+  000e2	8b 4d f8	 mov	 ecx, DWORD PTR _pbusinfo$[ebp]
+  000e5	8b 55 18	 mov	 edx, DWORD PTR _pfSetSCL$[ebp]
+  000e8	89 51 3c	 mov	 DWORD PTR [ecx+60], edx
+
+; 95   : 
+; 96   :   pinfo->numbuses += 1;
+
+  000eb	8b 45 f0	 mov	 eax, DWORD PTR _pinfo$[ebp]
+  000ee	8b 08		 mov	 ecx, DWORD PTR [eax]
+  000f0	83 c1 01	 add	 ecx, 1
+  000f3	8b 55 f0	 mov	 edx, DWORD PTR _pinfo$[ebp]
+  000f6	89 0a		 mov	 DWORD PTR [edx], ecx
+
+; 97   :   return busid;
+
+  000f8	8b 45 fc	 mov	 eax, DWORD PTR _busid$[ebp]
+$L10396:
+
+; 98   : }
+
+  000fb	8b e5		 mov	 esp, ebp
+  000fd	5d		 pop	 ebp
+  000fe	c3		 ret	 0
+_InstantiateBusI2C ENDP
+_PTEXT	ENDS
+PUBLIC	_InstantiateMuxI2C
+_PTEXT	SEGMENT
+_pContext$ = 8
+_pfMux$ = 12
+_muxid$ = -4
+_pinfo$ = -8
+_InstantiateMuxI2C PROC NEAR
+
+; 115  : {
+
+  000ff	55		 push	 ebp
+  00100	8b ec		 mov	 ebp, esp
+  00102	83 ec 08	 sub	 esp, 8
+
+; 116  :   I2CMUX muxid;
+; 117  :   PI2C_DEVINFO pinfo = I2C_DEVINFOPTR(pContext);
+
+  00105	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00108	05 24 04 00 00	 add	 eax, 1060		; 00000424H
+  0010d	89 45 f8	 mov	 DWORD PTR _pinfo$[ebp], eax
+
+; 118  : 
+; 119  :   if (!(pinfo && pfMux))
+
+  00110	83 7d f8 00	 cmp	 DWORD PTR _pinfo$[ebp], 0
+  00114	74 06		 je	 SHORT $L10422
+  00116	83 7d 0c 00	 cmp	 DWORD PTR _pfMux$[ebp], 0
+  0011a	75 04		 jne	 SHORT $L10421
+$L10422:
+
+; 120  :     return I2C_NOTABUS;
+
+  0011c	33 c0		 xor	 eax, eax
+  0011e	eb 49		 jmp	 SHORT $L10416
+$L10421:
+
+; 121  : 
+; 122  :   muxid = pinfo->nummuxen +1;
+
+  00120	8b 4d f8	 mov	 ecx, DWORD PTR _pinfo$[ebp]
+  00123	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  00126	83 c2 01	 add	 edx, 1
+  00129	89 55 fc	 mov	 DWORD PTR _muxid$[ebp], edx
+
+; 123  : 
+; 124  :   if (muxid > I2C_MAXMUXEN)
+
+  0012c	83 7d fc 01	 cmp	 DWORD PTR _muxid$[ebp], 1
+  00130	76 04		 jbe	 SHORT $L10423
+
+; 125  :     return I2C_NOTAMUX;
+
+  00132	33 c0		 xor	 eax, eax
+  00134	eb 33		 jmp	 SHORT $L10416
+$L10423:
+
+; 126  : 
+; 127  :   pinfo->MuxFunction[pinfo->nummuxen] = pfMux;
+
+  00136	8b 45 f8	 mov	 eax, DWORD PTR _pinfo$[ebp]
+  00139	8b 48 04	 mov	 ecx, DWORD PTR [eax+4]
+  0013c	8b 55 f8	 mov	 edx, DWORD PTR _pinfo$[ebp]
+  0013f	8b 45 0c	 mov	 eax, DWORD PTR _pfMux$[ebp]
+  00142	89 84 8a cc 00
+	00 00		 mov	 DWORD PTR [edx+ecx*4+204], eax
+
+; 128  :   pinfo->MuxList[pinfo->nummuxen] = MUX_NOTINUSE;
+
+  00149	8b 4d f8	 mov	 ecx, DWORD PTR _pinfo$[ebp]
+  0014c	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  0014f	8b 45 f8	 mov	 eax, DWORD PTR _pinfo$[ebp]
+  00152	c7 84 90 c8 00
+	00 00 00 00 00
+	00		 mov	 DWORD PTR [eax+edx*4+200], 0
+
+; 129  : 
+; 130  :   pinfo->nummuxen = muxid;
+
+  0015d	8b 4d f8	 mov	 ecx, DWORD PTR _pinfo$[ebp]
+  00160	8b 55 fc	 mov	 edx, DWORD PTR _muxid$[ebp]
+  00163	89 51 04	 mov	 DWORD PTR [ecx+4], edx
+
+; 131  :   return muxid;
+
+  00166	8b 45 fc	 mov	 eax, DWORD PTR _muxid$[ebp]
+$L10416:
+
+; 132  : }
+
+  00169	8b e5		 mov	 esp, ebp
+  0016b	5d		 pop	 ebp
+  0016c	c3		 ret	 0
+_InstantiateMuxI2C ENDP
+_PTEXT	ENDS
+PUBLIC	_SetUsageI2C
+_PTEXT	SEGMENT
+_pContext$ = 8
+_busid$ = 12
+_usage$ = 16
+_i$ = -8
+_pbusinfo$ = -4
+_pinfo$ = -12
+_SetUsageI2C PROC NEAR
+
+; 153  : {
+
+  0016d	55		 push	 ebp
+  0016e	8b ec		 mov	 ebp, esp
+  00170	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 154  :   int i;
+; 155  :   PI2C_BUSINFO pbusinfo;
+; 156  :   PI2C_DEVINFO pinfo = I2C_DEVINFOPTR(pContext);
+
+  00173	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00176	05 24 04 00 00	 add	 eax, 1060		; 00000424H
+  0017b	89 45 f4	 mov	 DWORD PTR _pinfo$[ebp], eax
+
+; 157  : 
+; 158  :   if (!pinfo)
+
+  0017e	83 7d f4 00	 cmp	 DWORD PTR _pinfo$[ebp], 0
+  00182	75 04		 jne	 SHORT $L10436
+
+; 159  :     return I2C_FAILURE;
+
+  00184	33 c0		 xor	 eax, eax
+  00186	eb 6a		 jmp	 SHORT $L10430
+$L10436:
+
+; 160  : 
+; 161  :   if (!busid || (busid > pinfo->numbuses))
+
+  00188	83 7d 0c 00	 cmp	 DWORD PTR _busid$[ebp], 0
+  0018c	74 0a		 je	 SHORT $L10438
+  0018e	8b 4d f4	 mov	 ecx, DWORD PTR _pinfo$[ebp]
+  00191	8b 55 0c	 mov	 edx, DWORD PTR _busid$[ebp]
+  00194	3b 11		 cmp	 edx, DWORD PTR [ecx]
+  00196	76 04		 jbe	 SHORT $L10437
+$L10438:
+
+; 162  :     return I2C_FAILURE;
+
+  00198	33 c0		 xor	 eax, eax
+  0019a	eb 56		 jmp	 SHORT $L10430
+$L10437:
+
+; 163  : 
+; 164  :   pbusinfo = &pinfo->BusList[busid-1];
+
+  0019c	8b 45 0c	 mov	 eax, DWORD PTR _busid$[ebp]
+  0019f	83 e8 01	 sub	 eax, 1
+  001a2	c1 e0 06	 shl	 eax, 6
+  001a5	8b 4d f4	 mov	 ecx, DWORD PTR _pinfo$[ebp]
+  001a8	8d 54 01 08	 lea	 edx, DWORD PTR [ecx+eax+8]
+  001ac	89 55 fc	 mov	 DWORD PTR _pbusinfo$[ebp], edx
+
+; 165  : 
+; 166  :   // find the first index that contains zero (I2C_NOTAPURPOSE), and replace it
+; 167  :   for (i=0; (pbusinfo->Purposes[i] && (i < I2C_MAXPURPOSES)); i++)
+
+  001af	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  001b6	eb 09		 jmp	 SHORT $L10439
+$L10440:
+  001b8	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  001bb	83 c0 01	 add	 eax, 1
+  001be	89 45 f8	 mov	 DWORD PTR _i$[ebp], eax
+$L10439:
+  001c1	8b 4d f8	 mov	 ecx, DWORD PTR _i$[ebp]
+  001c4	8b 55 fc	 mov	 edx, DWORD PTR _pbusinfo$[ebp]
+  001c7	83 7c 8a 0c 00	 cmp	 DWORD PTR [edx+ecx*4+12], 0
+  001cc	74 08		 je	 SHORT $L10441
+  001ce	83 7d f8 07	 cmp	 DWORD PTR _i$[ebp], 7
+  001d2	7d 02		 jge	 SHORT $L10441
+
+; 168  :     NULL;
+
+  001d4	eb e2		 jmp	 SHORT $L10440
+$L10441:
+
+; 169  : 
+; 170  :   if (i >= I2C_MAXPURPOSES)
+
+  001d6	83 7d f8 07	 cmp	 DWORD PTR _i$[ebp], 7
+  001da	7c 04		 jl	 SHORT $L10442
+
+; 171  :     return I2C_FAILURE;
+
+  001dc	33 c0		 xor	 eax, eax
+  001de	eb 12		 jmp	 SHORT $L10430
+$L10442:
+
+; 172  : 
+; 173  :   pbusinfo->Purposes[i] = usage;
+
+  001e0	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  001e3	8b 4d fc	 mov	 ecx, DWORD PTR _pbusinfo$[ebp]
+  001e6	8b 55 10	 mov	 edx, DWORD PTR _usage$[ebp]
+  001e9	89 54 81 0c	 mov	 DWORD PTR [ecx+eax*4+12], edx
+
+; 174  :   return I2C_SUCCESS;
+
+  001ed	b8 01 00 00 00	 mov	 eax, 1
+$L10430:
+
+; 175  : }
+
+  001f2	8b e5		 mov	 esp, ebp
+  001f4	5d		 pop	 ebp
+  001f5	c3		 ret	 0
+_SetUsageI2C ENDP
+_PTEXT	ENDS
+PUBLIC	_AssociateBusToMuxI2C
+_PTEXT	SEGMENT
+_pContext$ = 8
+_busid$ = 12
+_muxid$ = 16
+_muxtoken$ = 20
+_pbusinfo$ = -4
+_AssociateBusToMuxI2C PROC NEAR
+
+; 193  : {
+
+  001f6	55		 push	 ebp
+  001f7	8b ec		 mov	 ebp, esp
+  001f9	51		 push	 ecx
+
+; 194  :   PI2C_BUSINFO pbusinfo;
+; 195  : 
+; 196  :   if (!busid || (busid > I2C_DEVINFOPTR(pContext)->numbuses))
+
+  001fa	83 7d 0c 00	 cmp	 DWORD PTR _busid$[ebp], 0
+  001fe	74 0e		 je	 SHORT $L10456
+  00200	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00203	8b 4d 0c	 mov	 ecx, DWORD PTR _busid$[ebp]
+  00206	3b 88 24 04 00
+	00		 cmp	 ecx, DWORD PTR [eax+1060]
+  0020c	76 04		 jbe	 SHORT $L10455
+$L10456:
+
+; 197  :     return I2C_FAILURE;
+
+  0020e	33 c0		 xor	 eax, eax
+  00210	eb 2d		 jmp	 SHORT $L10451
+$L10455:
+
+; 198  : 
+; 199  :   pbusinfo = &I2C_DEVINFOPTR(pContext)->BusList[busid-1];
+
+  00212	8b 55 0c	 mov	 edx, DWORD PTR _busid$[ebp]
+  00215	83 ea 01	 sub	 edx, 1
+  00218	c1 e2 06	 shl	 edx, 6
+  0021b	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  0021e	8d 8c 10 2c 04
+	00 00		 lea	 ecx, DWORD PTR [eax+edx+1068]
+  00225	89 4d fc	 mov	 DWORD PTR _pbusinfo$[ebp], ecx
+
+; 200  : 
+; 201  :   pbusinfo->muxid = muxid;         // this is the function to call
+
+  00228	8b 55 fc	 mov	 edx, DWORD PTR _pbusinfo$[ebp]
+  0022b	8b 45 10	 mov	 eax, DWORD PTR _muxid$[ebp]
+  0022e	89 42 28	 mov	 DWORD PTR [edx+40], eax
+
+; 202  :   pbusinfo->muxtoken = muxtoken;   // this is the value to give that function when using this bus
+
+  00231	8b 4d fc	 mov	 ecx, DWORD PTR _pbusinfo$[ebp]
+  00234	8b 55 14	 mov	 edx, DWORD PTR _muxtoken$[ebp]
+  00237	89 51 2c	 mov	 DWORD PTR [ecx+44], edx
+
+; 203  :   return I2C_SUCCESS;
+
+  0023a	b8 01 00 00 00	 mov	 eax, 1
+$L10451:
+
+; 204  : }
+
+  0023f	8b e5		 mov	 esp, ebp
+  00241	5d		 pop	 ebp
+  00242	c3		 ret	 0
+_AssociateBusToMuxI2C ENDP
+_PTEXT	ENDS
+PUBLIC	_i2c_initialize
+EXTRN	_ConfigureI2C:NEAR
+_PTEXT	SEGMENT
+_pContext$ = 8
+_i$ = -4
+_pinfo$ = -8
+_i2c_initialize PROC NEAR
+
+; 339  : {
+
+  00243	55		 push	 ebp
+  00244	8b ec		 mov	 ebp, esp
+  00246	83 ec 08	 sub	 esp, 8
+
+; 340  :   int i;
+; 341  :   PI2C_DEVINFO pinfo = I2C_DEVINFOPTR(pContext);
+
+  00249	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  0024c	05 24 04 00 00	 add	 eax, 1060		; 00000424H
+  00251	89 45 f8	 mov	 DWORD PTR _pinfo$[ebp], eax
+
+; 342  :   
+; 343  :   if (!pinfo)
+
+  00254	83 7d f8 00	 cmp	 DWORD PTR _pinfo$[ebp], 0
+  00258	75 04		 jne	 SHORT $L10524
+
+; 344  :     return I2C_FAILURE;
+
+  0025a	33 c0		 xor	 eax, eax
+  0025c	eb 4a		 jmp	 SHORT $L10519
+$L10524:
+
+; 345  : 
+; 346  :   pinfo->numbuses = 0;
+
+  0025e	8b 4d f8	 mov	 ecx, DWORD PTR _pinfo$[ebp]
+  00261	c7 01 00 00 00
+	00		 mov	 DWORD PTR [ecx], 0
+
+; 347  :   pinfo->nummuxen = 0;
+
+  00267	8b 55 f8	 mov	 edx, DWORD PTR _pinfo$[ebp]
+  0026a	c7 42 04 00 00
+	00 00		 mov	 DWORD PTR [edx+4], 0
+
+; 348  : 
+; 349  :   for (i=0; i < I2C_MAXMUXEN; i++)
+
+  00271	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  00278	eb 09		 jmp	 SHORT $L10525
+$L10526:
+  0027a	8b 45 fc	 mov	 eax, DWORD PTR _i$[ebp]
+  0027d	83 c0 01	 add	 eax, 1
+  00280	89 45 fc	 mov	 DWORD PTR _i$[ebp], eax
+$L10525:
+  00283	83 7d fc 01	 cmp	 DWORD PTR _i$[ebp], 1
+  00287	7d 13		 jge	 SHORT $L10527
+
+; 350  :     pinfo->MuxList[i] = MUX_NOTINUSE;
+
+  00289	8b 4d fc	 mov	 ecx, DWORD PTR _i$[ebp]
+  0028c	8b 55 f8	 mov	 edx, DWORD PTR _pinfo$[ebp]
+  0028f	c7 84 8a c8 00
+	00 00 00 00 00
+	00		 mov	 DWORD PTR [edx+ecx*4+200], 0
+  0029a	eb de		 jmp	 SHORT $L10526
+$L10527:
+
+; 351  : 
+; 352  :   return ConfigureI2C(pContext);
+
+  0029c	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  0029f	50		 push	 eax
+  002a0	e8 00 00 00 00	 call	 _ConfigureI2C
+  002a5	83 c4 04	 add	 esp, 4
+$L10519:
+
+; 353  : }
+
+  002a8	8b e5		 mov	 esp, ebp
+  002aa	5d		 pop	 ebp
+  002ab	c3		 ret	 0
+_i2c_initialize ENDP
+_PTEXT	ENDS
+PUBLIC	_i2c_getaccess
+_PTEXT	SEGMENT
+_pContext$ = 8
+_usage$ = 12
+_speed$ = 16
+_i$ = -8
+_j$ = -12
+_pinfo$ = -16
+_busid$ = -4
+_i2c_getaccess PROC NEAR
+
+; 370  : {
+
+  002ac	55		 push	 ebp
+  002ad	8b ec		 mov	 ebp, esp
+  002af	83 ec 1c	 sub	 esp, 28			; 0000001cH
+
+; 371  :   int i, j;
+; 372  :   PI2C_BUSINFO pinfo;
+; 373  :   I2CBUS busid = I2C_NOTABUS; //0
+
+  002b2	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _busid$[ebp], 0
+
+; 374  : 
+; 375  :   // search for a bus that advertises the desired usage.
+; 376  :   for (i=I2C_DEVINFOPTR(pContext)->numbuses; i && !busid; i--)
+
+  002b9	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  002bc	8b 88 24 04 00
+	00		 mov	 ecx, DWORD PTR [eax+1060]
+  002c2	89 4d f8	 mov	 DWORD PTR _i$[ebp], ecx
+  002c5	eb 09		 jmp	 SHORT $L10541
+$L10542:
+  002c7	8b 55 f8	 mov	 edx, DWORD PTR _i$[ebp]
+  002ca	83 ea 01	 sub	 edx, 1
+  002cd	89 55 f8	 mov	 DWORD PTR _i$[ebp], edx
+$L10541:
+  002d0	83 7d f8 00	 cmp	 DWORD PTR _i$[ebp], 0
+  002d4	74 4d		 je	 SHORT $L10543
+  002d6	83 7d fc 00	 cmp	 DWORD PTR _busid$[ebp], 0
+  002da	75 47		 jne	 SHORT $L10543
+
+; 377  :     for (j=I2C_MAXPURPOSES; j && !busid; j--)
+
+  002dc	c7 45 f4 07 00
+	00 00		 mov	 DWORD PTR _j$[ebp], 7
+  002e3	eb 09		 jmp	 SHORT $L10544
+$L10545:
+  002e5	8b 45 f4	 mov	 eax, DWORD PTR _j$[ebp]
+  002e8	83 e8 01	 sub	 eax, 1
+  002eb	89 45 f4	 mov	 DWORD PTR _j$[ebp], eax
+$L10544:
+  002ee	83 7d f4 00	 cmp	 DWORD PTR _j$[ebp], 0
+  002f2	74 2d		 je	 SHORT $L10546
+  002f4	83 7d fc 00	 cmp	 DWORD PTR _busid$[ebp], 0
+  002f8	75 27		 jne	 SHORT $L10546
+
+; 378  :       if (I2C_BUSLIST(pContext)[i-1].Purposes[j-1] == usage)
+
+  002fa	8b 4d f8	 mov	 ecx, DWORD PTR _i$[ebp]
+  002fd	83 e9 01	 sub	 ecx, 1
+  00300	c1 e1 06	 shl	 ecx, 6
+  00303	8b 55 08	 mov	 edx, DWORD PTR _pContext$[ebp]
+  00306	8d 84 0a 2c 04
+	00 00		 lea	 eax, DWORD PTR [edx+ecx+1068]
+  0030d	8b 4d f4	 mov	 ecx, DWORD PTR _j$[ebp]
+  00310	8b 54 88 08	 mov	 edx, DWORD PTR [eax+ecx*4+8]
+  00314	3b 55 0c	 cmp	 edx, DWORD PTR _usage$[ebp]
+  00317	75 06		 jne	 SHORT $L10549
+
+; 379  :         busid = i;
+
+  00319	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  0031c	89 45 fc	 mov	 DWORD PTR _busid$[ebp], eax
+$L10549:
+
+; 380  : 
+; 381  :   if (!busid)
+
+  0031f	eb c4		 jmp	 SHORT $L10545
+$L10546:
+  00321	eb a4		 jmp	 SHORT $L10542
+$L10543:
+  00323	83 7d fc 00	 cmp	 DWORD PTR _busid$[ebp], 0
+  00327	75 07		 jne	 SHORT $L10550
+
+; 382  :     return I2C_NOTAKEY; // no bus supports this usage
+
+  00329	33 c0		 xor	 eax, eax
+  0032b	e9 02 01 00 00	 jmp	 $L10534
+$L10550:
+
+; 383  : 
+; 384  :   pinfo = &I2C_BUSLIST(pContext)[busid-1];
+
+  00330	8b 4d fc	 mov	 ecx, DWORD PTR _busid$[ebp]
+  00333	83 e9 01	 sub	 ecx, 1
+  00336	c1 e1 06	 shl	 ecx, 6
+  00339	8b 55 08	 mov	 edx, DWORD PTR _pContext$[ebp]
+  0033c	8d 84 0a 2c 04
+	00 00		 lea	 eax, DWORD PTR [edx+ecx+1068]
+  00343	89 45 f0	 mov	 DWORD PTR _pinfo$[ebp], eax
+
+; 385  : 
+; 386  :   if (I2C_ISBUSLOCKED(pContext, *pinfo))
+
+  00346	8b 4d f0	 mov	 ecx, DWORD PTR _pinfo$[ebp]
+  00349	83 79 28 00	 cmp	 DWORD PTR [ecx+40], 0
+  0034d	74 15		 je	 SHORT $L10738
+  0034f	8b 55 f0	 mov	 edx, DWORD PTR _pinfo$[ebp]
+  00352	8b 42 28	 mov	 eax, DWORD PTR [edx+40]
+  00355	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00358	8b 94 81 e8 04
+	00 00		 mov	 edx, DWORD PTR [ecx+eax*4+1256]
+  0035f	89 55 ec	 mov	 DWORD PTR -20+[ebp], edx
+  00362	eb 09		 jmp	 SHORT $L10739
+$L10738:
+  00364	8b 45 f0	 mov	 eax, DWORD PTR _pinfo$[ebp]
+  00367	8b 48 08	 mov	 ecx, DWORD PTR [eax+8]
+  0036a	89 4d ec	 mov	 DWORD PTR -20+[ebp], ecx
+$L10739:
+  0036d	83 7d ec 00	 cmp	 DWORD PTR -20+[ebp], 0
+  00371	74 07		 je	 SHORT $L10555
+
+; 387  :     return I2C_NOTAKEY; // bus (or mux) is already in use
+
+  00373	33 c0		 xor	 eax, eax
+  00375	e9 b8 00 00 00	 jmp	 $L10534
+$L10555:
+
+; 388  : 
+; 389  :   pinfo->speed = (speed ? speed : 1);
+
+  0037a	8b 55 10	 mov	 edx, DWORD PTR _speed$[ebp]
+  0037d	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00383	85 d2		 test	 edx, edx
+  00385	74 0d		 je	 SHORT $L10740
+  00387	8b 45 10	 mov	 eax, DWORD PTR _speed$[ebp]
+  0038a	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  0038f	89 45 e8	 mov	 DWORD PTR -24+[ebp], eax
+  00392	eb 07		 jmp	 SHORT $L10741
+$L10740:
+  00394	c7 45 e8 01 00
+	00 00		 mov	 DWORD PTR -24+[ebp], 1
+$L10741:
+  0039b	8b 4d f0	 mov	 ecx, DWORD PTR _pinfo$[ebp]
+  0039e	8a 55 e8	 mov	 dl, BYTE PTR -24+[ebp]
+  003a1	88 51 04	 mov	 BYTE PTR [ecx+4], dl
+
+; 390  : 
+; 391  :   // if the bus relies on a mux, then claim that mux.
+; 392  :   if (pinfo->muxid)
+
+  003a4	8b 45 f0	 mov	 eax, DWORD PTR _pinfo$[ebp]
+  003a7	83 78 28 00	 cmp	 DWORD PTR [eax+40], 0
+  003ab	74 34		 je	 SHORT $L10556
+
+; 394  :     I2C_MUXLIST(pContext)[pinfo->muxid-1] = pinfo->muxtoken;
+
+  003ad	8b 4d f0	 mov	 ecx, DWORD PTR _pinfo$[ebp]
+  003b0	8b 51 28	 mov	 edx, DWORD PTR [ecx+40]
+  003b3	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  003b6	8b 4d f0	 mov	 ecx, DWORD PTR _pinfo$[ebp]
+  003b9	8b 49 2c	 mov	 ecx, DWORD PTR [ecx+44]
+  003bc	89 8c 90 e8 04
+	00 00		 mov	 DWORD PTR [eax+edx*4+1256], ecx
+
+; 395  :     I2C_MUXFUNCTION(pContext)[pinfo->muxid-1](pContext, pinfo->muxtoken);
+
+  003c3	8b 55 f0	 mov	 edx, DWORD PTR _pinfo$[ebp]
+  003c6	8b 42 2c	 mov	 eax, DWORD PTR [edx+44]
+  003c9	50		 push	 eax
+  003ca	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  003cd	51		 push	 ecx
+  003ce	8b 55 f0	 mov	 edx, DWORD PTR _pinfo$[ebp]
+  003d1	8b 42 28	 mov	 eax, DWORD PTR [edx+40]
+  003d4	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  003d7	ff 94 81 ec 04
+	00 00		 call	 DWORD PTR [ecx+eax*4+1260]
+  003de	83 c4 08	 add	 esp, 8
+$L10556:
+
+; 397  :    
+; 398  :   pinfo->locked = FXTRUE;
+
+  003e1	8b 55 f0	 mov	 edx, DWORD PTR _pinfo$[ebp]
+  003e4	c7 42 08 01 00
+	00 00		 mov	 DWORD PTR [edx+8], 1
+
+; 399  :   pinfo->key = I2C_CREATEKEY(busid, ((pinfo->key & 0x00FFFFFF)+1 ? pinfo->key+1 : 1));
+
+  003eb	8b 45 f0	 mov	 eax, DWORD PTR _pinfo$[ebp]
+  003ee	8b 08		 mov	 ecx, DWORD PTR [eax]
+  003f0	81 e1 ff ff ff
+	00		 and	 ecx, 16777215		; 00ffffffH
+  003f6	83 c1 01	 add	 ecx, 1
+  003f9	85 c9		 test	 ecx, ecx
+  003fb	74 0d		 je	 SHORT $L10742
+  003fd	8b 55 f0	 mov	 edx, DWORD PTR _pinfo$[ebp]
+  00400	8b 02		 mov	 eax, DWORD PTR [edx]
+  00402	83 c0 01	 add	 eax, 1
+  00405	89 45 e4	 mov	 DWORD PTR -28+[ebp], eax
+  00408	eb 07		 jmp	 SHORT $L10743
+$L10742:
+  0040a	c7 45 e4 01 00
+	00 00		 mov	 DWORD PTR -28+[ebp], 1
+$L10743:
+  00411	8b 4d fc	 mov	 ecx, DWORD PTR _busid$[ebp]
+  00414	c1 e1 18	 shl	 ecx, 24			; 00000018H
+  00417	8b 55 e4	 mov	 edx, DWORD PTR -28+[ebp]
+  0041a	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00420	81 e2 ff ff ff
+	00		 and	 edx, 16777215		; 00ffffffH
+  00426	0b ca		 or	 ecx, edx
+  00428	8b 45 f0	 mov	 eax, DWORD PTR _pinfo$[ebp]
+  0042b	89 08		 mov	 DWORD PTR [eax], ecx
+
+; 400  :   return pinfo->key;
+
+  0042d	8b 4d f0	 mov	 ecx, DWORD PTR _pinfo$[ebp]
+  00430	8b 01		 mov	 eax, DWORD PTR [ecx]
+$L10534:
+
+; 401  : }
+
+  00432	8b e5		 mov	 esp, ebp
+  00434	5d		 pop	 ebp
+  00435	c3		 ret	 0
+_i2c_getaccess ENDP
+_PTEXT	ENDS
+PUBLIC	_i2c_endaccess
+_PTEXT	SEGMENT
+_pContext$ = 8
+_key$ = 12
+_pinfo$ = -4
+_i2c_endaccess PROC NEAR
+
+; 418  : {
+
+  00436	55		 push	 ebp
+  00437	8b ec		 mov	 ebp, esp
+  00439	51		 push	 ecx
+
+; 419  :   I2C_BUSINFO* pinfo;
+; 420  : 
+; 421  :   if (!IsKeyValid(pContext, key))
+
+  0043a	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  0043d	50		 push	 eax
+  0043e	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00441	51		 push	 ecx
+  00442	e8 00 00 00 00	 call	 _IsKeyValid
+  00447	83 c4 08	 add	 esp, 8
+  0044a	85 c0		 test	 eax, eax
+  0044c	75 02		 jne	 SHORT $L10569
+
+; 422  :     return;
+
+  0044e	eb 46		 jmp	 SHORT $L10567
+$L10569:
+
+; 423  : 
+; 424  :   pinfo = I2C_GETBUSINFO(pContext, I2C_BUSFROMKEY(key));
+
+  00450	8b 55 0c	 mov	 edx, DWORD PTR _key$[ebp]
+  00453	c1 ea 18	 shr	 edx, 24			; 00000018H
+  00456	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  0045c	83 ea 01	 sub	 edx, 1
+  0045f	c1 e2 06	 shl	 edx, 6
+  00462	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00465	8d 8c 10 2c 04
+	00 00		 lea	 ecx, DWORD PTR [eax+edx+1068]
+  0046c	89 4d fc	 mov	 DWORD PTR _pinfo$[ebp], ecx
+
+; 425  : 
+; 426  :   // if there's a mux, free it.
+; 427  :   if (pinfo->muxid)
+
+  0046f	8b 55 fc	 mov	 edx, DWORD PTR _pinfo$[ebp]
+  00472	83 7a 28 00	 cmp	 DWORD PTR [edx+40], 0
+  00476	74 14		 je	 SHORT $L10572
+
+; 428  :     I2C_MUXLIST(pContext)[pinfo->muxid-1] = MUX_NOTINUSE;
+
+  00478	8b 45 fc	 mov	 eax, DWORD PTR _pinfo$[ebp]
+  0047b	8b 48 28	 mov	 ecx, DWORD PTR [eax+40]
+  0047e	8b 55 08	 mov	 edx, DWORD PTR _pContext$[ebp]
+  00481	c7 84 8a e8 04
+	00 00 00 00 00
+	00		 mov	 DWORD PTR [edx+ecx*4+1256], 0
+$L10572:
+
+; 429  : 
+; 430  :   pinfo->locked = FXFALSE;
+
+  0048c	8b 45 fc	 mov	 eax, DWORD PTR _pinfo$[ebp]
+  0048f	c7 40 08 00 00
+	00 00		 mov	 DWORD PTR [eax+8], 0
+$L10567:
+
+; 431  : }
+
+  00496	8b e5		 mov	 esp, ebp
+  00498	5d		 pop	 ebp
+  00499	c3		 ret	 0
+_i2c_endaccess ENDP
+_pContext$ = 8
+_key$ = 12
+_info$ = -64
+_IsKeyValid PROC NEAR
+
+; 222  : {
+
+  0049a	55		 push	 ebp
+  0049b	8b ec		 mov	 ebp, esp
+  0049d	83 ec 4c	 sub	 esp, 76			; 0000004cH
+  004a0	56		 push	 esi
+  004a1	57		 push	 edi
+
+; 223  :   I2C_BUSINFO info;
+; 224  : 
+; 225  :   if (!I2C_ISKEYSANE(pContext, key))
+
+  004a2	83 7d 0c 00	 cmp	 DWORD PTR _key$[ebp], 0
+  004a6	74 26		 je	 SHORT $L10471
+  004a8	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  004ab	c1 e8 18	 shr	 eax, 24			; 00000018H
+  004ae	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  004b3	85 c0		 test	 eax, eax
+  004b5	74 17		 je	 SHORT $L10471
+  004b7	8b 4d 0c	 mov	 ecx, DWORD PTR _key$[ebp]
+  004ba	c1 e9 18	 shr	 ecx, 24			; 00000018H
+  004bd	81 e1 ff 00 00
+	00		 and	 ecx, 255		; 000000ffH
+  004c3	8b 55 08	 mov	 edx, DWORD PTR _pContext$[ebp]
+  004c6	3b 8a 24 04 00
+	00		 cmp	 ecx, DWORD PTR [edx+1060]
+  004cc	76 07		 jbe	 SHORT $L10470
+$L10471:
+
+; 226  :     return I2C_FAILURE;
+
+  004ce	33 c0		 xor	 eax, eax
+  004d0	e9 91 00 00 00	 jmp	 $L10464
+$L10470:
+
+; 227  : 
+; 228  :   info = *I2C_GETBUSINFO(pContext, I2C_BUSFROMKEY(key));
+
+  004d5	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  004d8	c1 e8 18	 shr	 eax, 24			; 00000018H
+  004db	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  004e0	83 e8 01	 sub	 eax, 1
+  004e3	c1 e0 06	 shl	 eax, 6
+  004e6	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  004e9	8d b4 01 2c 04
+	00 00		 lea	 esi, DWORD PTR [ecx+eax+1068]
+  004f0	b9 10 00 00 00	 mov	 ecx, 16			; 00000010H
+  004f5	8d 7d c0	 lea	 edi, DWORD PTR _info$[ebp]
+  004f8	f3 a5		 rep movsd
+
+; 229  : 
+; 230  :   return (I2C_ISBUSLOCKED(pContext,info) && I2C_ISKEYVALID(pContext,info,key));
+
+  004fa	83 7d e8 00	 cmp	 DWORD PTR _info$[ebp+40], 0
+  004fe	74 12		 je	 SHORT $L10746
+  00500	8b 55 e8	 mov	 edx, DWORD PTR _info$[ebp+40]
+  00503	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00506	8b 8c 90 e8 04
+	00 00		 mov	 ecx, DWORD PTR [eax+edx*4+1256]
+  0050d	89 4d bc	 mov	 DWORD PTR -68+[ebp], ecx
+  00510	eb 06		 jmp	 SHORT $L10747
+$L10746:
+  00512	8b 55 c8	 mov	 edx, DWORD PTR _info$[ebp+8]
+  00515	89 55 bc	 mov	 DWORD PTR -68+[ebp], edx
+$L10747:
+  00518	83 7d bc 00	 cmp	 DWORD PTR -68+[ebp], 0
+  0051c	74 3e		 je	 SHORT $L10750
+  0051e	8b 45 c0	 mov	 eax, DWORD PTR _info$[ebp]
+  00521	3b 45 0c	 cmp	 eax, DWORD PTR _key$[ebp]
+  00524	75 36		 jne	 SHORT $L10750
+  00526	83 7d e8 00	 cmp	 DWORD PTR _info$[ebp+40], 0
+  0052a	74 1a		 je	 SHORT $L10748
+  0052c	8b 4d e8	 mov	 ecx, DWORD PTR _info$[ebp+40]
+  0052f	8b 55 08	 mov	 edx, DWORD PTR _pContext$[ebp]
+  00532	8b 84 8a e8 04
+	00 00		 mov	 eax, DWORD PTR [edx+ecx*4+1256]
+  00539	33 c9		 xor	 ecx, ecx
+  0053b	3b 45 ec	 cmp	 eax, DWORD PTR _info$[ebp+44]
+  0053e	0f 94 c1	 sete	 cl
+  00541	89 4d b8	 mov	 DWORD PTR -72+[ebp], ecx
+  00544	eb 07		 jmp	 SHORT $L10749
+$L10748:
+  00546	c7 45 b8 01 00
+	00 00		 mov	 DWORD PTR -72+[ebp], 1
+$L10749:
+  0054d	83 7d b8 00	 cmp	 DWORD PTR -72+[ebp], 0
+  00551	74 09		 je	 SHORT $L10750
+  00553	c7 45 b4 01 00
+	00 00		 mov	 DWORD PTR -76+[ebp], 1
+  0055a	eb 07		 jmp	 SHORT $L10751
+$L10750:
+  0055c	c7 45 b4 00 00
+	00 00		 mov	 DWORD PTR -76+[ebp], 0
+$L10751:
+  00563	8b 45 b4	 mov	 eax, DWORD PTR -76+[ebp]
+$L10464:
+
+; 231  : }
+
+  00566	5f		 pop	 edi
+  00567	5e		 pop	 esi
+  00568	8b e5		 mov	 esp, ebp
+  0056a	5d		 pop	 ebp
+  0056b	c3		 ret	 0
+_IsKeyValid ENDP
+_PTEXT	ENDS
+PUBLIC	_i2c_setspeed
+_PTEXT	SEGMENT
+_pContext$ = 8
+_key$ = 12
+_speed$ = 16
+_pinfo$ = -4
+_i2c_setspeed PROC NEAR
+
+; 447  : {
+
+  0056c	55		 push	 ebp
+  0056d	8b ec		 mov	 ebp, esp
+  0056f	83 ec 08	 sub	 esp, 8
+
+; 448  :   I2C_BUSINFO* pinfo;
+; 449  : 
+; 450  :   if (!IsKeyValid(pContext, key))
+
+  00572	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  00575	50		 push	 eax
+  00576	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00579	51		 push	 ecx
+  0057a	e8 00 00 00 00	 call	 _IsKeyValid
+  0057f	83 c4 08	 add	 esp, 8
+  00582	85 c0		 test	 eax, eax
+  00584	75 02		 jne	 SHORT $L10583
+
+; 451  :     return;
+
+  00586	eb 49		 jmp	 SHORT $L10581
+$L10583:
+
+; 452  : 
+; 453  :   pinfo = I2C_GETBUSINFO(pContext, I2C_BUSFROMKEY(key));
+
+  00588	8b 55 0c	 mov	 edx, DWORD PTR _key$[ebp]
+  0058b	c1 ea 18	 shr	 edx, 24			; 00000018H
+  0058e	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00594	83 ea 01	 sub	 edx, 1
+  00597	c1 e2 06	 shl	 edx, 6
+  0059a	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  0059d	8d 8c 10 2c 04
+	00 00		 lea	 ecx, DWORD PTR [eax+edx+1068]
+  005a4	89 4d fc	 mov	 DWORD PTR _pinfo$[ebp], ecx
+
+; 454  :   pinfo->speed = (speed ? speed : 1);
+
+  005a7	8b 55 10	 mov	 edx, DWORD PTR _speed$[ebp]
+  005aa	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  005b0	85 d2		 test	 edx, edx
+  005b2	74 0d		 je	 SHORT $L10753
+  005b4	8b 45 10	 mov	 eax, DWORD PTR _speed$[ebp]
+  005b7	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  005bc	89 45 f8	 mov	 DWORD PTR -8+[ebp], eax
+  005bf	eb 07		 jmp	 SHORT $L10754
+$L10753:
+  005c1	c7 45 f8 01 00
+	00 00		 mov	 DWORD PTR -8+[ebp], 1
+$L10754:
+  005c8	8b 4d fc	 mov	 ecx, DWORD PTR _pinfo$[ebp]
+  005cb	8a 55 f8	 mov	 dl, BYTE PTR -8+[ebp]
+  005ce	88 51 04	 mov	 BYTE PTR [ecx+4], dl
+$L10581:
+
+; 455  : }
+
+  005d1	8b e5		 mov	 esp, ebp
+  005d3	5d		 pop	 ebp
+  005d4	c3		 ret	 0
+_i2c_setspeed ENDP
+_PTEXT	ENDS
+PUBLIC	_i2c_stop
+_PTEXT	SEGMENT
+_pContext$ = 8
+_key$ = 12
+_result$ = -4
+_pBus$ = -8
+_i2c_stop PROC NEAR
+
+; 472  : {
+
+  005d5	55		 push	 ebp
+  005d6	8b ec		 mov	 ebp, esp
+  005d8	83 ec 08	 sub	 esp, 8
+
+; 473  :   int result=1;
+
+  005db	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _result$[ebp], 1
+
+; 474  :   I2C_BUSINFO* pBus;
+; 475  : 
+; 476  :   if (!IsKeyValid(pContext, key))
+
+  005e2	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  005e5	50		 push	 eax
+  005e6	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  005e9	51		 push	 ecx
+  005ea	e8 00 00 00 00	 call	 _IsKeyValid
+  005ef	83 c4 08	 add	 esp, 8
+  005f2	85 c0		 test	 eax, eax
+  005f4	75 07		 jne	 SHORT $L10593
+
+; 477  :     return I2C_FAILURE;
+
+  005f6	33 c0		 xor	 eax, eax
+  005f8	e9 98 00 00 00	 jmp	 $L10590
+$L10593:
+
+; 478  : 
+; 479  :   pBus = I2C_GETBUSINFO(pContext, I2C_BUSFROMKEY(key));
+
+  005fd	8b 55 0c	 mov	 edx, DWORD PTR _key$[ebp]
+  00600	c1 ea 18	 shr	 edx, 24			; 00000018H
+  00603	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00609	83 ea 01	 sub	 edx, 1
+  0060c	c1 e2 06	 shl	 edx, 6
+  0060f	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00612	8d 8c 10 2c 04
+	00 00		 lea	 ecx, DWORD PTR [eax+edx+1068]
+  00619	89 4d f8	 mov	 DWORD PTR _pBus$[ebp], ecx
+
+; 480  : 
+; 481  :   // stop is defined as SCL going HIGH while SDA is LOW, followed by SDA going HIGH.
+; 482  :   // some setup is necessary to ensure that SDA and SCL are LOW before doing this.
+; 483  :   //
+; 484  :   // SDA                       ____________ minimum timing requirements:
+; 485  :   //                          / [----3----]    [1] slave might stretch this
+; 486  :   //                         /                 [2] = 4.0 uSec (tSU-STO)   
+; 487  :   //     ___________________/                  [3] = 4.7 uSec (tBUF)
+; 488  :   //                 [--2--]                   
+; 489  :   // SCL             ______________________    
+; 490  :   //                /                          
+; 491  :   //     [---1---] /                           
+; 492  :   //     _________/                         
+; 493  : 
+; 494  : 
+; 495  :   result &= setSCL(pContext, pBus, 0, tNODELAY);
+
+  0061c	6a 01		 push	 1
+  0061e	6a 00		 push	 0
+  00620	8b 55 f8	 mov	 edx, DWORD PTR _pBus$[ebp]
+  00623	52		 push	 edx
+  00624	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00627	50		 push	 eax
+  00628	e8 00 00 00 00	 call	 _setSCL
+  0062d	83 c4 10	 add	 esp, 16			; 00000010H
+  00630	8b 4d fc	 mov	 ecx, DWORD PTR _result$[ebp]
+  00633	23 c8		 and	 ecx, eax
+  00635	89 4d fc	 mov	 DWORD PTR _result$[ebp], ecx
+
+; 496  :   result &= setSDA(pContext, pBus, 0, tNODELAY);
+
+  00638	6a 01		 push	 1
+  0063a	6a 00		 push	 0
+  0063c	8b 55 f8	 mov	 edx, DWORD PTR _pBus$[ebp]
+  0063f	52		 push	 edx
+  00640	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00643	50		 push	 eax
+  00644	e8 00 00 00 00	 call	 _setSDA
+  00649	83 c4 10	 add	 esp, 16			; 00000010H
+  0064c	8b 4d fc	 mov	 ecx, DWORD PTR _result$[ebp]
+  0064f	23 c8		 and	 ecx, eax
+  00651	89 4d fc	 mov	 DWORD PTR _result$[ebp], ecx
+
+; 497  :   result &= setSCL(pContext, pBus, 1, tSUSTO);    // [1] and [2]
+
+  00654	6a 04		 push	 4
+  00656	6a 01		 push	 1
+  00658	8b 55 f8	 mov	 edx, DWORD PTR _pBus$[ebp]
+  0065b	52		 push	 edx
+  0065c	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  0065f	50		 push	 eax
+  00660	e8 00 00 00 00	 call	 _setSCL
+  00665	83 c4 10	 add	 esp, 16			; 00000010H
+  00668	8b 4d fc	 mov	 ecx, DWORD PTR _result$[ebp]
+  0066b	23 c8		 and	 ecx, eax
+  0066d	89 4d fc	 mov	 DWORD PTR _result$[ebp], ecx
+
+; 498  :   result &= setSDA(pContext, pBus, 1, tBUF);      // [3]
+
+  00670	6a 05		 push	 5
+  00672	6a 01		 push	 1
+  00674	8b 55 f8	 mov	 edx, DWORD PTR _pBus$[ebp]
+  00677	52		 push	 edx
+  00678	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  0067b	50		 push	 eax
+  0067c	e8 00 00 00 00	 call	 _setSDA
+  00681	83 c4 10	 add	 esp, 16			; 00000010H
+  00684	8b 4d fc	 mov	 ecx, DWORD PTR _result$[ebp]
+  00687	23 c8		 and	 ecx, eax
+  00689	89 4d fc	 mov	 DWORD PTR _result$[ebp], ecx
+
+; 499  : 
+; 500  :   return (result ? I2C_SUCCESS : I2C_FAILURE);
+
+  0068c	33 c0		 xor	 eax, eax
+  0068e	83 7d fc 00	 cmp	 DWORD PTR _result$[ebp], 0
+  00692	0f 95 c0	 setne	 al
+$L10590:
+
+; 501  : }
+
+  00695	8b e5		 mov	 esp, ebp
+  00697	5d		 pop	 ebp
+  00698	c3		 ret	 0
+_i2c_stop ENDP
+_PTEXT	ENDS
+EXTRN	_CCODE__CONFIGMG_Yield:NEAR
+_PTEXT	SEGMENT
+_pContext$ = 8
+_pinfo$ = 12
+_state$ = 16
+_delay$ = 20
+_setSDA	PROC NEAR
+
+; 248  : {
+
+  00699	55		 push	 ebp
+  0069a	8b ec		 mov	 ebp, esp
+
+; 249  :   pinfo->funcSetSDA(pContext, !!state);
+
+  0069c	33 c0		 xor	 eax, eax
+  0069e	83 7d 10 00	 cmp	 DWORD PTR _state$[ebp], 0
+  006a2	0f 95 c0	 setne	 al
+  006a5	50		 push	 eax
+  006a6	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  006a9	51		 push	 ecx
+  006aa	8b 55 0c	 mov	 edx, DWORD PTR _pinfo$[ebp]
+  006ad	ff 52 38	 call	 DWORD PTR [edx+56]
+  006b0	83 c4 08	 add	 esp, 8
+
+; 250  :   I2C_DELAYTIME(delay*pinfo->speed);
+
+  006b3	6a 01		 push	 1
+  006b5	8b 45 14	 mov	 eax, DWORD PTR _delay$[ebp]
+  006b8	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  006bd	8b 4d 0c	 mov	 ecx, DWORD PTR _pinfo$[ebp]
+  006c0	33 d2		 xor	 edx, edx
+  006c2	8a 51 04	 mov	 dl, BYTE PTR [ecx+4]
+  006c5	0f af c2	 imul	 eax, edx
+  006c8	50		 push	 eax
+  006c9	e8 00 00 00 00	 call	 _CCODE__CONFIGMG_Yield
+  006ce	83 c4 08	 add	 esp, 8
+
+; 251  : 
+; 252  :   return ((pinfo->funcGetSDA(pContext) == !!state) ? I2C_SUCCESS : I2C_FAILURE);
+
+  006d1	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  006d4	50		 push	 eax
+  006d5	8b 4d 0c	 mov	 ecx, DWORD PTR _pinfo$[ebp]
+  006d8	ff 51 30	 call	 DWORD PTR [ecx+48]
+  006db	83 c4 04	 add	 esp, 4
+  006de	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  006e3	33 d2		 xor	 edx, edx
+  006e5	83 7d 10 00	 cmp	 DWORD PTR _state$[ebp], 0
+  006e9	0f 95 c2	 setne	 dl
+  006ec	33 c9		 xor	 ecx, ecx
+  006ee	3b c2		 cmp	 eax, edx
+  006f0	0f 94 c1	 sete	 cl
+  006f3	8b c1		 mov	 eax, ecx
+
+; 253  : }
+
+  006f5	5d		 pop	 ebp
+  006f6	c3		 ret	 0
+_setSDA	ENDP
+_PTEXT	ENDS
+EXTRN	_CCODE__Debug_Printf_Service:NEAR
+_PDATA	SEGMENT
+$SG10504 DB	'I2C: setSCL("Slave stretched clock for too long.")', 0aH
+	DB	00H
+_PDATA	ENDS
+_PTEXT	SEGMENT
+_pContext$ = 8
+_pinfo$ = 12
+_state$ = 16
+_delay$ = 20
+_i$ = -4
+_setSCL	PROC NEAR
+
+; 272  : {
+
+  006f7	55		 push	 ebp
+  006f8	8b ec		 mov	 ebp, esp
+  006fa	51		 push	 ecx
+
+; 273  :   int i;
+; 274  :   pinfo->funcSetSCL(pContext, !!state);
+
+  006fb	33 c0		 xor	 eax, eax
+  006fd	83 7d 10 00	 cmp	 DWORD PTR _state$[ebp], 0
+  00701	0f 95 c0	 setne	 al
+  00704	50		 push	 eax
+  00705	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00708	51		 push	 ecx
+  00709	8b 55 0c	 mov	 edx, DWORD PTR _pinfo$[ebp]
+  0070c	ff 52 3c	 call	 DWORD PTR [edx+60]
+  0070f	83 c4 08	 add	 esp, 8
+
+; 275  : 
+; 276  :   if (state)
+
+  00712	83 7d 10 00	 cmp	 DWORD PTR _state$[ebp], 0
+  00716	74 71		 je	 SHORT $L10503
+
+; 278  :     for (i=I2C_STRETCH; !pinfo->funcGetSCL(pContext) && i; i--)
+
+  00718	c7 45 fc 32 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 50	; 00000032H
+  0071f	eb 09		 jmp	 SHORT $L10500
+$L10501:
+  00721	8b 45 fc	 mov	 eax, DWORD PTR _i$[ebp]
+  00724	83 e8 01	 sub	 eax, 1
+  00727	89 45 fc	 mov	 DWORD PTR _i$[ebp], eax
+$L10500:
+  0072a	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  0072d	51		 push	 ecx
+  0072e	8b 55 0c	 mov	 edx, DWORD PTR _pinfo$[ebp]
+  00731	ff 52 34	 call	 DWORD PTR [edx+52]
+  00734	83 c4 04	 add	 esp, 4
+  00737	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  0073c	85 c0		 test	 eax, eax
+  0073e	75 26		 jne	 SHORT $L10502
+  00740	83 7d fc 00	 cmp	 DWORD PTR _i$[ebp], 0
+  00744	74 20		 je	 SHORT $L10502
+
+; 279  :       I2C_DELAYTIME(delay*pinfo->speed);
+
+  00746	6a 01		 push	 1
+  00748	8b 45 14	 mov	 eax, DWORD PTR _delay$[ebp]
+  0074b	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00750	8b 4d 0c	 mov	 ecx, DWORD PTR _pinfo$[ebp]
+  00753	33 d2		 xor	 edx, edx
+  00755	8a 51 04	 mov	 dl, BYTE PTR [ecx+4]
+  00758	0f af c2	 imul	 eax, edx
+  0075b	50		 push	 eax
+  0075c	e8 00 00 00 00	 call	 _CCODE__CONFIGMG_Yield
+  00761	83 c4 08	 add	 esp, 8
+  00764	eb bb		 jmp	 SHORT $L10501
+$L10502:
+
+; 280  : 
+; 281  :     DEBUGI2C(!pinfo->funcGetSCL(pContext), ("I2C: setSCL(\"Slave stretched clock for too long.\")\n"));
+
+  00766	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00769	50		 push	 eax
+  0076a	8b 4d 0c	 mov	 ecx, DWORD PTR _pinfo$[ebp]
+  0076d	ff 51 34	 call	 DWORD PTR [ecx+52]
+  00770	83 c4 04	 add	 esp, 4
+  00773	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00778	85 c0		 test	 eax, eax
+  0077a	75 0d		 jne	 SHORT $L10503
+  0077c	68 00 00 00 00	 push	 OFFSET FLAT:$SG10504
+  00781	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00786	83 c4 04	 add	 esp, 4
+$L10503:
+
+; 283  : 
+; 284  :   I2C_DELAYTIME(delay*pinfo->speed);
+
+  00789	6a 01		 push	 1
+  0078b	8b 55 14	 mov	 edx, DWORD PTR _delay$[ebp]
+  0078e	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00794	8b 45 0c	 mov	 eax, DWORD PTR _pinfo$[ebp]
+  00797	33 c9		 xor	 ecx, ecx
+  00799	8a 48 04	 mov	 cl, BYTE PTR [eax+4]
+  0079c	0f af d1	 imul	 edx, ecx
+  0079f	52		 push	 edx
+  007a0	e8 00 00 00 00	 call	 _CCODE__CONFIGMG_Yield
+  007a5	83 c4 08	 add	 esp, 8
+
+; 285  : 
+; 286  :   return ((pinfo->funcGetSCL(pContext) == !!state) ? I2C_SUCCESS : I2C_FAILURE);
+
+  007a8	8b 55 08	 mov	 edx, DWORD PTR _pContext$[ebp]
+  007ab	52		 push	 edx
+  007ac	8b 45 0c	 mov	 eax, DWORD PTR _pinfo$[ebp]
+  007af	ff 50 34	 call	 DWORD PTR [eax+52]
+  007b2	83 c4 04	 add	 esp, 4
+  007b5	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  007ba	33 c9		 xor	 ecx, ecx
+  007bc	83 7d 10 00	 cmp	 DWORD PTR _state$[ebp], 0
+  007c0	0f 95 c1	 setne	 cl
+  007c3	33 d2		 xor	 edx, edx
+  007c5	3b c1		 cmp	 eax, ecx
+  007c7	0f 94 c2	 sete	 dl
+  007ca	8b c2		 mov	 eax, edx
+
+; 287  : }
+
+  007cc	8b e5		 mov	 esp, ebp
+  007ce	5d		 pop	 ebp
+  007cf	c3		 ret	 0
+_setSCL	ENDP
+_PTEXT	ENDS
+PUBLIC	_i2c_start
+_PTEXT	SEGMENT
+_pContext$ = 8
+_key$ = 12
+_result$ = -4
+_pBus$ = -8
+_i2c_start PROC NEAR
+
+; 518  : {
+
+  007d0	55		 push	 ebp
+  007d1	8b ec		 mov	 ebp, esp
+  007d3	83 ec 08	 sub	 esp, 8
+
+; 519  :   int result=1;
+
+  007d6	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _result$[ebp], 1
+
+; 520  :   I2C_BUSINFO* pBus;
+; 521  : 
+; 522  :   if (!IsKeyValid(pContext, key))
+
+  007dd	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  007e0	50		 push	 eax
+  007e1	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  007e4	51		 push	 ecx
+  007e5	e8 00 00 00 00	 call	 _IsKeyValid
+  007ea	83 c4 08	 add	 esp, 8
+  007ed	85 c0		 test	 eax, eax
+  007ef	75 07		 jne	 SHORT $L10603
+
+; 523  :     return I2C_FAILURE;
+
+  007f1	33 c0		 xor	 eax, eax
+  007f3	e9 98 00 00 00	 jmp	 $L10600
+$L10603:
+
+; 524  : 
+; 525  :   pBus = I2C_GETBUSINFO(pContext, I2C_BUSFROMKEY(key));
+
+  007f8	8b 55 0c	 mov	 edx, DWORD PTR _key$[ebp]
+  007fb	c1 ea 18	 shr	 edx, 24			; 00000018H
+  007fe	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00804	83 ea 01	 sub	 edx, 1
+  00807	c1 e2 06	 shl	 edx, 6
+  0080a	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  0080d	8d 8c 10 2c 04
+	00 00		 lea	 ecx, DWORD PTR [eax+edx+1068]
+  00814	89 4d f8	 mov	 DWORD PTR _pBus$[ebp], ecx
+
+; 526  : 
+; 527  :   // start is defined as SDA going LOW while SCL is HIGH, followed by SCL going LOW
+; 528  :   // some setup is necessary to ensure that SDA and SCL are HIGH before doing this.
+; 529  :   //
+; 530  :   // SDA _________                          minimum timing requirements:   
+; 531  :   //     [---1---]\                            [1] = 4.7 uSec (tSU-STA)
+; 532  :   //               \                           [2] = 4.0 uSec (tHD-STA)
+; 533  :   //                \______________________    [3] = 4.7 uSec (tLOW)
+; 534  :   //                 [--2--] 
+; 535  :   // SCL ___________________
+; 536  :   //                        \
+; 537  :   //                         \  
+; 538  :   //                          \____________
+; 539  :   //                            [----3----]
+; 540  : 
+; 541  :   result &= setSDA(pContext, pBus, 1, tNODELAY);
+
+  00817	6a 01		 push	 1
+  00819	6a 01		 push	 1
+  0081b	8b 55 f8	 mov	 edx, DWORD PTR _pBus$[ebp]
+  0081e	52		 push	 edx
+  0081f	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00822	50		 push	 eax
+  00823	e8 00 00 00 00	 call	 _setSDA
+  00828	83 c4 10	 add	 esp, 16			; 00000010H
+  0082b	8b 4d fc	 mov	 ecx, DWORD PTR _result$[ebp]
+  0082e	23 c8		 and	 ecx, eax
+  00830	89 4d fc	 mov	 DWORD PTR _result$[ebp], ecx
+
+; 542  :   result &= setSCL(pContext, pBus, 1, tSUSTA);   // [1]
+
+  00833	6a 05		 push	 5
+  00835	6a 01		 push	 1
+  00837	8b 55 f8	 mov	 edx, DWORD PTR _pBus$[ebp]
+  0083a	52		 push	 edx
+  0083b	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  0083e	50		 push	 eax
+  0083f	e8 00 00 00 00	 call	 _setSCL
+  00844	83 c4 10	 add	 esp, 16			; 00000010H
+  00847	8b 4d fc	 mov	 ecx, DWORD PTR _result$[ebp]
+  0084a	23 c8		 and	 ecx, eax
+  0084c	89 4d fc	 mov	 DWORD PTR _result$[ebp], ecx
+
+; 543  :   result &= setSDA(pContext, pBus, 0, tHDSTA);   // [2]
+
+  0084f	6a 04		 push	 4
+  00851	6a 00		 push	 0
+  00853	8b 55 f8	 mov	 edx, DWORD PTR _pBus$[ebp]
+  00856	52		 push	 edx
+  00857	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  0085a	50		 push	 eax
+  0085b	e8 00 00 00 00	 call	 _setSDA
+  00860	83 c4 10	 add	 esp, 16			; 00000010H
+  00863	8b 4d fc	 mov	 ecx, DWORD PTR _result$[ebp]
+  00866	23 c8		 and	 ecx, eax
+  00868	89 4d fc	 mov	 DWORD PTR _result$[ebp], ecx
+
+; 544  :   result &= setSCL(pContext, pBus, 0, tLOW);     // [3]
+
+  0086b	6a 05		 push	 5
+  0086d	6a 00		 push	 0
+  0086f	8b 55 f8	 mov	 edx, DWORD PTR _pBus$[ebp]
+  00872	52		 push	 edx
+  00873	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00876	50		 push	 eax
+  00877	e8 00 00 00 00	 call	 _setSCL
+  0087c	83 c4 10	 add	 esp, 16			; 00000010H
+  0087f	8b 4d fc	 mov	 ecx, DWORD PTR _result$[ebp]
+  00882	23 c8		 and	 ecx, eax
+  00884	89 4d fc	 mov	 DWORD PTR _result$[ebp], ecx
+
+; 545  : 
+; 546  :   return (result ? I2C_SUCCESS : I2C_FAILURE);
+
+  00887	33 c0		 xor	 eax, eax
+  00889	83 7d fc 00	 cmp	 DWORD PTR _result$[ebp], 0
+  0088d	0f 95 c0	 setne	 al
+$L10600:
+
+; 547  : }
+
+  00890	8b e5		 mov	 esp, ebp
+  00892	5d		 pop	 ebp
+  00893	c3		 ret	 0
+_i2c_start ENDP
+_PTEXT	ENDS
+PUBLIC	_i2c_sendbyte
+_PDATA	SEGMENT
+$SG10625 DB	'I2C: sendbyte("Looks like we lost the bus arbitration-- '
+	DB	'backing off.")', 0aH, 00H
+$SG10631 DB	'I2C: sendbyte("Slave took to long to acknowledge.")', 0aH
+	DB	00H
+	ORG $+3
+$SG10633 DB	'I2C: sendbyte("Bus errors occurred.")', 0aH, 00H
+_PDATA	ENDS
+_PTEXT	SEGMENT
+_pContext$ = 8
+_key$ = 12
+_byte$ = 16
+_i$ = -16
+_ack$ = -20
+_result$ = -8
+_master$ = -4
+_pBus$ = -12
+_i2c_sendbyte PROC NEAR
+
+; 564  : {
+
+  00894	55		 push	 ebp
+  00895	8b ec		 mov	 ebp, esp
+  00897	83 ec 18	 sub	 esp, 24			; 00000018H
+
+; 565  :   int i;
+; 566  :   int ack;
+; 567  :   int result=1;
+
+  0089a	c7 45 f8 01 00
+	00 00		 mov	 DWORD PTR _result$[ebp], 1
+
+; 568  :   int master=1;
+
+  008a1	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _master$[ebp], 1
+
+; 569  :   I2C_BUSINFO* pBus;
+; 570  : 
+; 571  :   if (!IsKeyValid(pContext, key))
+
+  008a8	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  008ab	50		 push	 eax
+  008ac	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  008af	51		 push	 ecx
+  008b0	e8 00 00 00 00	 call	 _IsKeyValid
+  008b5	83 c4 08	 add	 esp, 8
+  008b8	85 c0		 test	 eax, eax
+  008ba	75 07		 jne	 SHORT $L10618
+
+; 572  :     return I2C_FAILURE;
+
+  008bc	33 c0		 xor	 eax, eax
+  008be	e9 c5 01 00 00	 jmp	 $L10612
+$L10618:
+
+; 573  : 
+; 574  :   pBus = I2C_GETBUSINFO(pContext, I2C_BUSFROMKEY(key));
+
+  008c3	8b 55 0c	 mov	 edx, DWORD PTR _key$[ebp]
+  008c6	c1 ea 18	 shr	 edx, 24			; 00000018H
+  008c9	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  008cf	83 ea 01	 sub	 edx, 1
+  008d2	c1 e2 06	 shl	 edx, 6
+  008d5	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  008d8	8d 8c 10 2c 04
+	00 00		 lea	 ecx, DWORD PTR [eax+edx+1068]
+  008df	89 4d f4	 mov	 DWORD PTR _pBus$[ebp], ecx
+
+; 575  : 
+; 576  :   // send the byte
+; 577  :   for (i=8; i && master; i--)
+
+  008e2	c7 45 f0 08 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 8
+  008e9	eb 09		 jmp	 SHORT $L10621
+$L10622:
+  008eb	8b 55 f0	 mov	 edx, DWORD PTR _i$[ebp]
+  008ee	83 ea 01	 sub	 edx, 1
+  008f1	89 55 f0	 mov	 DWORD PTR _i$[ebp], edx
+$L10621:
+  008f4	83 7d f0 00	 cmp	 DWORD PTR _i$[ebp], 0
+  008f8	0f 84 8c 00 00
+	00		 je	 $L10623
+  008fe	83 7d fc 00	 cmp	 DWORD PTR _master$[ebp], 0
+  00902	0f 84 82 00 00
+	00		 je	 $L10623
+
+; 579  :     master = setSDA(pContext, pBus, (byte >> (i-1)) & 0x01, tSUDAT);
+
+  00908	6a 01		 push	 1
+  0090a	8b 45 10	 mov	 eax, DWORD PTR _byte$[ebp]
+  0090d	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00912	8b 4d f0	 mov	 ecx, DWORD PTR _i$[ebp]
+  00915	83 e9 01	 sub	 ecx, 1
+  00918	d3 f8		 sar	 eax, cl
+  0091a	83 e0 01	 and	 eax, 1
+  0091d	50		 push	 eax
+  0091e	8b 4d f4	 mov	 ecx, DWORD PTR _pBus$[ebp]
+  00921	51		 push	 ecx
+  00922	8b 55 08	 mov	 edx, DWORD PTR _pContext$[ebp]
+  00925	52		 push	 edx
+  00926	e8 00 00 00 00	 call	 _setSDA
+  0092b	83 c4 10	 add	 esp, 16			; 00000010H
+  0092e	89 45 fc	 mov	 DWORD PTR _master$[ebp], eax
+
+; 580  : 
+; 581  : #if I2C_PEDANTIC
+; 582  :     DEBUGI2C(!master, ("I2C: sendbyte(\"Looks like we lost the bus arbitration-- backing off.\")\n"));
+
+  00931	83 7d fc 00	 cmp	 DWORD PTR _master$[ebp], 0
+  00935	75 0d		 jne	 SHORT $L10624
+  00937	68 00 00 00 00	 push	 OFFSET FLAT:$SG10625
+  0093c	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00941	83 c4 04	 add	 esp, 4
+$L10624:
+
+; 583  :     result &= master;
+
+  00944	8b 45 f8	 mov	 eax, DWORD PTR _result$[ebp]
+  00947	23 45 fc	 and	 eax, DWORD PTR _master$[ebp]
+  0094a	89 45 f8	 mov	 DWORD PTR _result$[ebp], eax
+
+; 584  : #endif
+; 585  : 
+; 586  :     result &= setSCL(pContext, pBus, 1,                     tHIGH);
+
+  0094d	6a 04		 push	 4
+  0094f	6a 01		 push	 1
+  00951	8b 4d f4	 mov	 ecx, DWORD PTR _pBus$[ebp]
+  00954	51		 push	 ecx
+  00955	8b 55 08	 mov	 edx, DWORD PTR _pContext$[ebp]
+  00958	52		 push	 edx
+  00959	e8 00 00 00 00	 call	 _setSCL
+  0095e	83 c4 10	 add	 esp, 16			; 00000010H
+  00961	8b 4d f8	 mov	 ecx, DWORD PTR _result$[ebp]
+  00964	23 c8		 and	 ecx, eax
+  00966	89 4d f8	 mov	 DWORD PTR _result$[ebp], ecx
+
+; 587  :     result &= setSCL(pContext, pBus, 0,                     tLOW);
+
+  00969	6a 05		 push	 5
+  0096b	6a 00		 push	 0
+  0096d	8b 55 f4	 mov	 edx, DWORD PTR _pBus$[ebp]
+  00970	52		 push	 edx
+  00971	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00974	50		 push	 eax
+  00975	e8 00 00 00 00	 call	 _setSCL
+  0097a	83 c4 10	 add	 esp, 16			; 00000010H
+  0097d	8b 4d f8	 mov	 ecx, DWORD PTR _result$[ebp]
+  00980	23 c8		 and	 ecx, eax
+  00982	89 4d f8	 mov	 DWORD PTR _result$[ebp], ecx
+
+; 588  :   }
+
+  00985	e9 61 ff ff ff	 jmp	 $L10622
+$L10623:
+
+; 589  : 
+; 590  :   if (master)
+
+  0098a	83 7d fc 00	 cmp	 DWORD PTR _master$[ebp], 0
+  0098e	0f 84 af 00 00
+	00		 je	 $L10626
+
+; 592  :     // wait for ack
+; 593  :     setSDA(pContext, pBus, 1, tSUDAT);  // don't check result of this; we expect it to be "wrong" (ack)
+
+  00994	6a 01		 push	 1
+  00996	6a 01		 push	 1
+  00998	8b 55 f4	 mov	 edx, DWORD PTR _pBus$[ebp]
+  0099b	52		 push	 edx
+  0099c	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  0099f	50		 push	 eax
+  009a0	e8 00 00 00 00	 call	 _setSDA
+  009a5	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 594  :     for (i=I2C_STRETCH; getSDA(pContext, pBus) && i; i--)
+
+  009a8	c7 45 f0 32 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 50	; 00000032H
+  009af	eb 09		 jmp	 SHORT $L10627
+$L10628:
+  009b1	8b 4d f0	 mov	 ecx, DWORD PTR _i$[ebp]
+  009b4	83 e9 01	 sub	 ecx, 1
+  009b7	89 4d f0	 mov	 DWORD PTR _i$[ebp], ecx
+$L10627:
+  009ba	8b 55 f4	 mov	 edx, DWORD PTR _pBus$[ebp]
+  009bd	52		 push	 edx
+  009be	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  009c1	50		 push	 eax
+  009c2	e8 00 00 00 00	 call	 _getSDA
+  009c7	83 c4 08	 add	 esp, 8
+  009ca	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  009cf	85 c0		 test	 eax, eax
+  009d1	74 1b		 je	 SHORT $L10629
+  009d3	83 7d f0 00	 cmp	 DWORD PTR _i$[ebp], 0
+  009d7	74 15		 je	 SHORT $L10629
+
+; 595  :       I2C_DELAYTIME(tSUDAT*pBus->speed);
+
+  009d9	6a 01		 push	 1
+  009db	8b 4d f4	 mov	 ecx, DWORD PTR _pBus$[ebp]
+  009de	33 d2		 xor	 edx, edx
+  009e0	8a 51 04	 mov	 dl, BYTE PTR [ecx+4]
+  009e3	52		 push	 edx
+  009e4	e8 00 00 00 00	 call	 _CCODE__CONFIGMG_Yield
+  009e9	83 c4 08	 add	 esp, 8
+  009ec	eb c3		 jmp	 SHORT $L10628
+$L10629:
+
+; 596  : 
+; 597  :     ack = getSDA(pContext, pBus) ? I2C_FAILURE : I2C_SUCCESS;
+
+  009ee	8b 45 f4	 mov	 eax, DWORD PTR _pBus$[ebp]
+  009f1	50		 push	 eax
+  009f2	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  009f5	51		 push	 ecx
+  009f6	e8 00 00 00 00	 call	 _getSDA
+  009fb	83 c4 08	 add	 esp, 8
+  009fe	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00a03	f7 d8		 neg	 eax
+  00a05	1b c0		 sbb	 eax, eax
+  00a07	40		 inc	 eax
+  00a08	89 45 ec	 mov	 DWORD PTR _ack$[ebp], eax
+
+; 598  : 
+; 599  :     // clock in the ack bit
+; 600  :     result &= setSCL(pContext, pBus, 1,                     tHIGH);
+
+  00a0b	6a 04		 push	 4
+  00a0d	6a 01		 push	 1
+  00a0f	8b 55 f4	 mov	 edx, DWORD PTR _pBus$[ebp]
+  00a12	52		 push	 edx
+  00a13	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00a16	50		 push	 eax
+  00a17	e8 00 00 00 00	 call	 _setSCL
+  00a1c	83 c4 10	 add	 esp, 16			; 00000010H
+  00a1f	8b 4d f8	 mov	 ecx, DWORD PTR _result$[ebp]
+  00a22	23 c8		 and	 ecx, eax
+  00a24	89 4d f8	 mov	 DWORD PTR _result$[ebp], ecx
+
+; 601  :     result &= setSCL(pContext, pBus, 0,                     tLOW);
+
+  00a27	6a 05		 push	 5
+  00a29	6a 00		 push	 0
+  00a2b	8b 55 f4	 mov	 edx, DWORD PTR _pBus$[ebp]
+  00a2e	52		 push	 edx
+  00a2f	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00a32	50		 push	 eax
+  00a33	e8 00 00 00 00	 call	 _setSCL
+  00a38	83 c4 10	 add	 esp, 16			; 00000010H
+  00a3b	8b 4d f8	 mov	 ecx, DWORD PTR _result$[ebp]
+  00a3e	23 c8		 and	 ecx, eax
+  00a40	89 4d f8	 mov	 DWORD PTR _result$[ebp], ecx
+$L10626:
+
+; 603  : 
+; 604  :   DEBUGI2C(!ack,    ("I2C: sendbyte(\"Slave took to long to acknowledge.\")\n"));
+
+  00a43	83 7d ec 00	 cmp	 DWORD PTR _ack$[ebp], 0
+  00a47	75 0d		 jne	 SHORT $L10630
+  00a49	68 00 00 00 00	 push	 OFFSET FLAT:$SG10631
+  00a4e	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00a53	83 c4 04	 add	 esp, 4
+$L10630:
+
+; 605  :   DEBUGI2C(!result, ("I2C: sendbyte(\"Bus errors occurred.\")\n"));
+
+  00a56	83 7d f8 00	 cmp	 DWORD PTR _result$[ebp], 0
+  00a5a	75 0d		 jne	 SHORT $L10632
+  00a5c	68 00 00 00 00	 push	 OFFSET FLAT:$SG10633
+  00a61	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00a66	83 c4 04	 add	 esp, 4
+$L10632:
+
+; 606  :   return I2C_PEDANTIC ? (ack && result) : ack;
+
+  00a69	83 7d ec 00	 cmp	 DWORD PTR _ack$[ebp], 0
+  00a6d	74 0f		 je	 SHORT $L10760
+  00a6f	83 7d f8 00	 cmp	 DWORD PTR _result$[ebp], 0
+  00a73	74 09		 je	 SHORT $L10760
+  00a75	c7 45 e8 01 00
+	00 00		 mov	 DWORD PTR -24+[ebp], 1
+  00a7c	eb 07		 jmp	 SHORT $L10761
+$L10760:
+  00a7e	c7 45 e8 00 00
+	00 00		 mov	 DWORD PTR -24+[ebp], 0
+$L10761:
+  00a85	8b 45 e8	 mov	 eax, DWORD PTR -24+[ebp]
+$L10612:
+
+; 607  : }
+
+  00a88	8b e5		 mov	 esp, ebp
+  00a8a	5d		 pop	 ebp
+  00a8b	c3		 ret	 0
+_i2c_sendbyte ENDP
+_pContext$ = 8
+_pinfo$ = 12
+_getSDA	PROC NEAR
+
+; 303  : {
+
+  00a8c	55		 push	 ebp
+  00a8d	8b ec		 mov	 ebp, esp
+
+; 304  :   return pinfo->funcGetSDA(pContext);
+
+  00a8f	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00a92	50		 push	 eax
+  00a93	8b 4d 0c	 mov	 ecx, DWORD PTR _pinfo$[ebp]
+  00a96	ff 51 30	 call	 DWORD PTR [ecx+48]
+  00a99	83 c4 04	 add	 esp, 4
+
+; 305  : }
+
+  00a9c	5d		 pop	 ebp
+  00a9d	c3		 ret	 0
+_getSDA	ENDP
+_PTEXT	ENDS
+PUBLIC	_i2c_readbyte
+_PDATA	SEGMENT
+	ORG $+1
+$SG10653 DB	'I2C: readbyte("Bus errors occurred.")', 0aH, 00H
+_PDATA	ENDS
+_PTEXT	SEGMENT
+_pContext$ = 8
+_key$ = 12
+_pbyte$ = 16
+_ack$ = 20
+_i$ = -12
+_pBus$ = -8
+_result$ = -4
+_i2c_readbyte PROC NEAR
+
+; 624  : {
+
+  00a9e	55		 push	 ebp
+  00a9f	8b ec		 mov	 ebp, esp
+  00aa1	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 625  :   int i;
+; 626  :   I2C_BUSINFO* pBus;
+; 627  :   int result=I2C_SUCCESS;
+
+  00aa4	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _result$[ebp], 1
+
+; 628  : 
+; 629  :   if (!IsKeyValid(pContext, key))
+
+  00aab	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  00aae	50		 push	 eax
+  00aaf	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00ab2	51		 push	 ecx
+  00ab3	e8 00 00 00 00	 call	 _IsKeyValid
+  00ab8	83 c4 08	 add	 esp, 8
+  00abb	85 c0		 test	 eax, eax
+  00abd	75 07		 jne	 SHORT $L10646
+
+; 630  :     return I2C_FAILURE;
+
+  00abf	33 c0		 xor	 eax, eax
+  00ac1	e9 25 01 00 00	 jmp	 $L10642
+$L10646:
+
+; 631  : 
+; 632  :   pBus = I2C_GETBUSINFO(pContext, I2C_BUSFROMKEY(key));
+
+  00ac6	8b 55 0c	 mov	 edx, DWORD PTR _key$[ebp]
+  00ac9	c1 ea 18	 shr	 edx, 24			; 00000018H
+  00acc	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00ad2	83 ea 01	 sub	 edx, 1
+  00ad5	c1 e2 06	 shl	 edx, 6
+  00ad8	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00adb	8d 8c 10 2c 04
+	00 00		 lea	 ecx, DWORD PTR [eax+edx+1068]
+  00ae2	89 4d f8	 mov	 DWORD PTR _pBus$[ebp], ecx
+
+; 633  : 
+; 634  :   *pbyte = 0;
+
+  00ae5	8b 55 10	 mov	 edx, DWORD PTR _pbyte$[ebp]
+  00ae8	c6 02 00	 mov	 BYTE PTR [edx], 0
+
+; 635  :   for (i=8; i; i--)   //read the byte
+
+  00aeb	c7 45 f4 08 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 8
+  00af2	eb 09		 jmp	 SHORT $L10649
+$L10650:
+  00af4	8b 45 f4	 mov	 eax, DWORD PTR _i$[ebp]
+  00af7	83 e8 01	 sub	 eax, 1
+  00afa	89 45 f4	 mov	 DWORD PTR _i$[ebp], eax
+$L10649:
+  00afd	83 7d f4 00	 cmp	 DWORD PTR _i$[ebp], 0
+  00b01	74 62		 je	 SHORT $L10651
+
+; 637  :     result &=  setSCL(pContext, pBus, 1, tHIGH);
+
+  00b03	6a 04		 push	 4
+  00b05	6a 01		 push	 1
+  00b07	8b 4d f8	 mov	 ecx, DWORD PTR _pBus$[ebp]
+  00b0a	51		 push	 ecx
+  00b0b	8b 55 08	 mov	 edx, DWORD PTR _pContext$[ebp]
+  00b0e	52		 push	 edx
+  00b0f	e8 00 00 00 00	 call	 _setSCL
+  00b14	83 c4 10	 add	 esp, 16			; 00000010H
+  00b17	8b 4d fc	 mov	 ecx, DWORD PTR _result$[ebp]
+  00b1a	23 c8		 and	 ecx, eax
+  00b1c	89 4d fc	 mov	 DWORD PTR _result$[ebp], ecx
+
+; 638  :     *pbyte <<= 1;
+
+  00b1f	8b 55 10	 mov	 edx, DWORD PTR _pbyte$[ebp]
+  00b22	8a 02		 mov	 al, BYTE PTR [edx]
+  00b24	d0 e0		 shl	 al, 1
+  00b26	8b 4d 10	 mov	 ecx, DWORD PTR _pbyte$[ebp]
+  00b29	88 01		 mov	 BYTE PTR [ecx], al
+
+; 639  :     *pbyte |=  getSDA(pContext, pBus);
+
+  00b2b	8b 55 f8	 mov	 edx, DWORD PTR _pBus$[ebp]
+  00b2e	52		 push	 edx
+  00b2f	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00b32	50		 push	 eax
+  00b33	e8 00 00 00 00	 call	 _getSDA
+  00b38	83 c4 08	 add	 esp, 8
+  00b3b	8b 4d 10	 mov	 ecx, DWORD PTR _pbyte$[ebp]
+  00b3e	8a 11		 mov	 dl, BYTE PTR [ecx]
+  00b40	0a d0		 or	 dl, al
+  00b42	8b 45 10	 mov	 eax, DWORD PTR _pbyte$[ebp]
+  00b45	88 10		 mov	 BYTE PTR [eax], dl
+
+; 640  :     result &=  setSCL(pContext, pBus, 0, tLOW);
+
+  00b47	6a 05		 push	 5
+  00b49	6a 00		 push	 0
+  00b4b	8b 4d f8	 mov	 ecx, DWORD PTR _pBus$[ebp]
+  00b4e	51		 push	 ecx
+  00b4f	8b 55 08	 mov	 edx, DWORD PTR _pContext$[ebp]
+  00b52	52		 push	 edx
+  00b53	e8 00 00 00 00	 call	 _setSCL
+  00b58	83 c4 10	 add	 esp, 16			; 00000010H
+  00b5b	8b 4d fc	 mov	 ecx, DWORD PTR _result$[ebp]
+  00b5e	23 c8		 and	 ecx, eax
+  00b60	89 4d fc	 mov	 DWORD PTR _result$[ebp], ecx
+
+; 641  :   }
+
+  00b63	eb 8f		 jmp	 SHORT $L10650
+$L10651:
+
+; 642  : 
+; 643  :   // send the ack/nack bit
+; 644  :   result &= setSDA(pContext, pBus, !ack, tSUDAT);
+
+  00b65	6a 01		 push	 1
+  00b67	33 d2		 xor	 edx, edx
+  00b69	83 7d 14 00	 cmp	 DWORD PTR _ack$[ebp], 0
+  00b6d	0f 94 c2	 sete	 dl
+  00b70	52		 push	 edx
+  00b71	8b 45 f8	 mov	 eax, DWORD PTR _pBus$[ebp]
+  00b74	50		 push	 eax
+  00b75	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00b78	51		 push	 ecx
+  00b79	e8 00 00 00 00	 call	 _setSDA
+  00b7e	83 c4 10	 add	 esp, 16			; 00000010H
+  00b81	8b 55 fc	 mov	 edx, DWORD PTR _result$[ebp]
+  00b84	23 d0		 and	 edx, eax
+  00b86	89 55 fc	 mov	 DWORD PTR _result$[ebp], edx
+
+; 645  :   result &= setSCL(pContext, pBus, 1,    tHIGH);
+
+  00b89	6a 04		 push	 4
+  00b8b	6a 01		 push	 1
+  00b8d	8b 45 f8	 mov	 eax, DWORD PTR _pBus$[ebp]
+  00b90	50		 push	 eax
+  00b91	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00b94	51		 push	 ecx
+  00b95	e8 00 00 00 00	 call	 _setSCL
+  00b9a	83 c4 10	 add	 esp, 16			; 00000010H
+  00b9d	8b 55 fc	 mov	 edx, DWORD PTR _result$[ebp]
+  00ba0	23 d0		 and	 edx, eax
+  00ba2	89 55 fc	 mov	 DWORD PTR _result$[ebp], edx
+
+; 646  :   result &= setSCL(pContext, pBus, 0,    tLOW);
+
+  00ba5	6a 05		 push	 5
+  00ba7	6a 00		 push	 0
+  00ba9	8b 45 f8	 mov	 eax, DWORD PTR _pBus$[ebp]
+  00bac	50		 push	 eax
+  00bad	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00bb0	51		 push	 ecx
+  00bb1	e8 00 00 00 00	 call	 _setSCL
+  00bb6	83 c4 10	 add	 esp, 16			; 00000010H
+  00bb9	8b 55 fc	 mov	 edx, DWORD PTR _result$[ebp]
+  00bbc	23 d0		 and	 edx, eax
+  00bbe	89 55 fc	 mov	 DWORD PTR _result$[ebp], edx
+
+; 647  : 
+; 648  :   // don't check result here, because slave may be holding this low.
+; 649  :   setSDA(pContext, pBus, 1,    tSUDAT);
+
+  00bc1	6a 01		 push	 1
+  00bc3	6a 01		 push	 1
+  00bc5	8b 45 f8	 mov	 eax, DWORD PTR _pBus$[ebp]
+  00bc8	50		 push	 eax
+  00bc9	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00bcc	51		 push	 ecx
+  00bcd	e8 00 00 00 00	 call	 _setSDA
+  00bd2	83 c4 10	 add	 esp, 16			; 00000010H
+
+; 650  : 
+; 651  :   DEBUGI2C(!result, ("I2C: readbyte(\"Bus errors occurred.\")\n"));
+
+  00bd5	83 7d fc 00	 cmp	 DWORD PTR _result$[ebp], 0
+  00bd9	75 0d		 jne	 SHORT $L10652
+  00bdb	68 00 00 00 00	 push	 OFFSET FLAT:$SG10653
+  00be0	e8 00 00 00 00	 call	 _CCODE__Debug_Printf_Service
+  00be5	83 c4 04	 add	 esp, 4
+$L10652:
+
+; 652  :   return (I2C_PEDANTIC ? result : I2C_SUCCESS);
+
+  00be8	8b 45 fc	 mov	 eax, DWORD PTR _result$[ebp]
+$L10642:
+
+; 653  : }
+
+  00beb	8b e5		 mov	 esp, ebp
+  00bed	5d		 pop	 ebp
+  00bee	c3		 ret	 0
+_i2c_readbyte ENDP
+_PTEXT	ENDS
+PUBLIC	_i2c_sendbytes
+_PTEXT	SEGMENT
+_pContext$ = 8
+_key$ = 12
+_numbytes$ = 16
+_pbytes$ = 20
+_i$ = -8
+_result$ = -4
+_i2c_sendbytes PROC NEAR
+
+; 670  : {
+
+  00bef	55		 push	 ebp
+  00bf0	8b ec		 mov	 ebp, esp
+  00bf2	83 ec 08	 sub	 esp, 8
+
+; 671  :   FxU32 i;
+; 672  :   int result=I2C_SUCCESS;
+
+  00bf5	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _result$[ebp], 1
+
+; 673  : 
+; 674  :   if (!IsKeyValid(pContext, key))
+
+  00bfc	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  00bff	50		 push	 eax
+  00c00	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00c03	51		 push	 ecx
+  00c04	e8 00 00 00 00	 call	 _IsKeyValid
+  00c09	83 c4 08	 add	 esp, 8
+  00c0c	85 c0		 test	 eax, eax
+  00c0e	75 04		 jne	 SHORT $L10665
+
+; 675  :     return I2C_FAILURE;
+
+  00c10	33 c0		 xor	 eax, eax
+  00c12	eb 45		 jmp	 SHORT $L10662
+$L10665:
+
+; 676  : 
+; 677  :   for (i=0; i < numbytes; i++)
+
+  00c14	c7 45 f8 00 00
+	00 00		 mov	 DWORD PTR _i$[ebp], 0
+  00c1b	eb 09		 jmp	 SHORT $L10666
+$L10667:
+  00c1d	8b 55 f8	 mov	 edx, DWORD PTR _i$[ebp]
+  00c20	83 c2 01	 add	 edx, 1
+  00c23	89 55 f8	 mov	 DWORD PTR _i$[ebp], edx
+$L10666:
+  00c26	8b 45 10	 mov	 eax, DWORD PTR _numbytes$[ebp]
+  00c29	25 ff ff 00 00	 and	 eax, 65535		; 0000ffffH
+  00c2e	39 45 f8	 cmp	 DWORD PTR _i$[ebp], eax
+  00c31	73 23		 jae	 SHORT $L10668
+
+; 678  :     result &= i2c_sendbyte(pContext, key, pbytes[i]);
+
+  00c33	8b 4d 14	 mov	 ecx, DWORD PTR _pbytes$[ebp]
+  00c36	03 4d f8	 add	 ecx, DWORD PTR _i$[ebp]
+  00c39	8a 11		 mov	 dl, BYTE PTR [ecx]
+  00c3b	52		 push	 edx
+  00c3c	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  00c3f	50		 push	 eax
+  00c40	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00c43	51		 push	 ecx
+  00c44	e8 00 00 00 00	 call	 _i2c_sendbyte
+  00c49	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00c4c	8b 55 fc	 mov	 edx, DWORD PTR _result$[ebp]
+  00c4f	23 d0		 and	 edx, eax
+  00c51	89 55 fc	 mov	 DWORD PTR _result$[ebp], edx
+  00c54	eb c7		 jmp	 SHORT $L10667
+$L10668:
+
+; 679  : 
+; 680  :   return result;
+
+  00c56	8b 45 fc	 mov	 eax, DWORD PTR _result$[ebp]
+$L10662:
+
+; 681  : }
+
+  00c59	8b e5		 mov	 esp, ebp
+  00c5b	5d		 pop	 ebp
+  00c5c	c3		 ret	 0
+_i2c_sendbytes ENDP
+_PTEXT	ENDS
+PUBLIC	_i2c_readbytes
+_PTEXT	SEGMENT
+_pContext$ = 8
+_key$ = 12
+_numbytes$ = 16
+_pbytes$ = 20
+_acklastbyte$ = 24
+_i$ = -8
+_result$ = -4
+_i2c_readbytes PROC NEAR
+
+; 699  : {
+
+  00c5d	55		 push	 ebp
+  00c5e	8b ec		 mov	 ebp, esp
+  00c60	83 ec 0c	 sub	 esp, 12			; 0000000cH
+
+; 700  :   FxU32 i;
+; 701  :   int result=I2C_SUCCESS;
+
+  00c63	c7 45 fc 01 00
+	00 00		 mov	 DWORD PTR _result$[ebp], 1
+
+; 702  : 
+; 703  :   if (!IsKeyValid(pContext, key))
+
+  00c6a	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  00c6d	50		 push	 eax
+  00c6e	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00c71	51		 push	 ecx
+  00c72	e8 00 00 00 00	 call	 _IsKeyValid
+  00c77	83 c4 08	 add	 esp, 8
+  00c7a	85 c0		 test	 eax, eax
+  00c7c	75 04		 jne	 SHORT $L10682
+
+; 704  :     return I2C_FAILURE;
+
+  00c7e	33 c0		 xor	 eax, eax
+  00c80	eb 6c		 jmp	 SHORT $L10679
+$L10682:
+
+; 705  : 
+; 706  :   for (i=numbytes; i; i--)
+
+  00c82	8b 55 10	 mov	 edx, DWORD PTR _numbytes$[ebp]
+  00c85	81 e2 ff ff 00
+	00		 and	 edx, 65535		; 0000ffffH
+  00c8b	89 55 f8	 mov	 DWORD PTR _i$[ebp], edx
+  00c8e	eb 09		 jmp	 SHORT $L10683
+$L10684:
+  00c90	8b 45 f8	 mov	 eax, DWORD PTR _i$[ebp]
+  00c93	83 e8 01	 sub	 eax, 1
+  00c96	89 45 f8	 mov	 DWORD PTR _i$[ebp], eax
+$L10683:
+  00c99	83 7d f8 00	 cmp	 DWORD PTR _i$[ebp], 0
+  00c9d	74 4c		 je	 SHORT $L10685
+
+; 707  :     result &= i2c_readbyte(pContext, key, &pbytes[numbytes-i], (acklastbyte && (i==1)));
+
+  00c9f	83 7d 18 00	 cmp	 DWORD PTR _acklastbyte$[ebp], 0
+  00ca3	74 0f		 je	 SHORT $L10766
+  00ca5	83 7d f8 01	 cmp	 DWORD PTR _i$[ebp], 1
+  00ca9	75 09		 jne	 SHORT $L10766
+  00cab	c7 45 f4 01 00
+	00 00		 mov	 DWORD PTR -12+[ebp], 1
+  00cb2	eb 07		 jmp	 SHORT $L10767
+$L10766:
+  00cb4	c7 45 f4 00 00
+	00 00		 mov	 DWORD PTR -12+[ebp], 0
+$L10767:
+  00cbb	8b 4d f4	 mov	 ecx, DWORD PTR -12+[ebp]
+  00cbe	51		 push	 ecx
+  00cbf	8b 55 10	 mov	 edx, DWORD PTR _numbytes$[ebp]
+  00cc2	81 e2 ff ff 00
+	00		 and	 edx, 65535		; 0000ffffH
+  00cc8	2b 55 f8	 sub	 edx, DWORD PTR _i$[ebp]
+  00ccb	8b 45 14	 mov	 eax, DWORD PTR _pbytes$[ebp]
+  00cce	03 c2		 add	 eax, edx
+  00cd0	50		 push	 eax
+  00cd1	8b 4d 0c	 mov	 ecx, DWORD PTR _key$[ebp]
+  00cd4	51		 push	 ecx
+  00cd5	8b 55 08	 mov	 edx, DWORD PTR _pContext$[ebp]
+  00cd8	52		 push	 edx
+  00cd9	e8 00 00 00 00	 call	 _i2c_readbyte
+  00cde	83 c4 10	 add	 esp, 16			; 00000010H
+  00ce1	8b 4d fc	 mov	 ecx, DWORD PTR _result$[ebp]
+  00ce4	23 c8		 and	 ecx, eax
+  00ce6	89 4d fc	 mov	 DWORD PTR _result$[ebp], ecx
+  00ce9	eb a5		 jmp	 SHORT $L10684
+$L10685:
+
+; 708  : 
+; 709  :   return result;
+
+  00ceb	8b 45 fc	 mov	 eax, DWORD PTR _result$[ebp]
+$L10679:
+
+; 710  : }
+
+  00cee	8b e5		 mov	 esp, ebp
+  00cf0	5d		 pop	 ebp
+  00cf1	c3		 ret	 0
+_i2c_readbytes ENDP
+_PTEXT	ENDS
+PUBLIC	_i2c_getsda
+_PTEXT	SEGMENT
+_pContext$ = 8
+_key$ = 12
+_pBus$ = -4
+_i2c_getsda PROC NEAR
+
+; 730  : {
+
+  00cf2	55		 push	 ebp
+  00cf3	8b ec		 mov	 ebp, esp
+  00cf5	51		 push	 ecx
+
+; 731  :   I2C_BUSINFO* pBus;
+; 732  : 
+; 733  :   if (!IsKeyValid(pContext, key))
+
+  00cf6	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  00cf9	50		 push	 eax
+  00cfa	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00cfd	51		 push	 ecx
+  00cfe	e8 00 00 00 00	 call	 _IsKeyValid
+  00d03	83 c4 08	 add	 esp, 8
+  00d06	85 c0		 test	 eax, eax
+  00d08	75 07		 jne	 SHORT $L10692
+
+; 734  :     return HIGH;
+
+  00d0a	b8 01 00 00 00	 mov	 eax, 1
+  00d0f	eb 34		 jmp	 SHORT $L10690
+$L10692:
+
+; 735  : 
+; 736  :   pBus = I2C_GETBUSINFO(pContext, I2C_BUSFROMKEY(key));
+
+  00d11	8b 55 0c	 mov	 edx, DWORD PTR _key$[ebp]
+  00d14	c1 ea 18	 shr	 edx, 24			; 00000018H
+  00d17	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00d1d	83 ea 01	 sub	 edx, 1
+  00d20	c1 e2 06	 shl	 edx, 6
+  00d23	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00d26	8d 8c 10 2c 04
+	00 00		 lea	 ecx, DWORD PTR [eax+edx+1068]
+  00d2d	89 4d fc	 mov	 DWORD PTR _pBus$[ebp], ecx
+
+; 737  : 
+; 738  :   return getSDA(pContext, pBus);
+
+  00d30	8b 55 fc	 mov	 edx, DWORD PTR _pBus$[ebp]
+  00d33	52		 push	 edx
+  00d34	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00d37	50		 push	 eax
+  00d38	e8 00 00 00 00	 call	 _getSDA
+  00d3d	83 c4 08	 add	 esp, 8
+  00d40	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+$L10690:
+
+; 739  : }
+
+  00d45	8b e5		 mov	 esp, ebp
+  00d47	5d		 pop	 ebp
+  00d48	c3		 ret	 0
+_i2c_getsda ENDP
+_PTEXT	ENDS
+PUBLIC	_i2c_getscl
+_PTEXT	SEGMENT
+_pContext$ = 8
+_key$ = 12
+_pBus$ = -4
+_i2c_getscl PROC NEAR
+
+; 759  : {
+
+  00d49	55		 push	 ebp
+  00d4a	8b ec		 mov	 ebp, esp
+  00d4c	51		 push	 ecx
+
+; 760  :   I2C_BUSINFO* pBus;
+; 761  : 
+; 762  :   if (!IsKeyValid(pContext, key))
+
+  00d4d	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  00d50	50		 push	 eax
+  00d51	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00d54	51		 push	 ecx
+  00d55	e8 00 00 00 00	 call	 _IsKeyValid
+  00d5a	83 c4 08	 add	 esp, 8
+  00d5d	85 c0		 test	 eax, eax
+  00d5f	75 07		 jne	 SHORT $L10701
+
+; 763  :     return HIGH;
+
+  00d61	b8 01 00 00 00	 mov	 eax, 1
+  00d66	eb 34		 jmp	 SHORT $L10699
+$L10701:
+
+; 764  : 
+; 765  :   pBus = I2C_GETBUSINFO(pContext, I2C_BUSFROMKEY(key));
+
+  00d68	8b 55 0c	 mov	 edx, DWORD PTR _key$[ebp]
+  00d6b	c1 ea 18	 shr	 edx, 24			; 00000018H
+  00d6e	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00d74	83 ea 01	 sub	 edx, 1
+  00d77	c1 e2 06	 shl	 edx, 6
+  00d7a	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00d7d	8d 8c 10 2c 04
+	00 00		 lea	 ecx, DWORD PTR [eax+edx+1068]
+  00d84	89 4d fc	 mov	 DWORD PTR _pBus$[ebp], ecx
+
+; 766  :   return getSCL(pContext, pBus);
+
+  00d87	8b 55 fc	 mov	 edx, DWORD PTR _pBus$[ebp]
+  00d8a	52		 push	 edx
+  00d8b	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00d8e	50		 push	 eax
+  00d8f	e8 00 00 00 00	 call	 _getSCL
+  00d94	83 c4 08	 add	 esp, 8
+  00d97	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+$L10699:
+
+; 767  : }
+
+  00d9c	8b e5		 mov	 esp, ebp
+  00d9e	5d		 pop	 ebp
+  00d9f	c3		 ret	 0
+_i2c_getscl ENDP
+_pContext$ = 8
+_pinfo$ = 12
+_getSCL	PROC NEAR
+
+; 321  : {
+
+  00da0	55		 push	 ebp
+  00da1	8b ec		 mov	 ebp, esp
+
+; 322  :   return pinfo->funcGetSCL(pContext);
+
+  00da3	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00da6	50		 push	 eax
+  00da7	8b 4d 0c	 mov	 ecx, DWORD PTR _pinfo$[ebp]
+  00daa	ff 51 34	 call	 DWORD PTR [ecx+52]
+  00dad	83 c4 04	 add	 esp, 4
+
+; 323  : }
+
+  00db0	5d		 pop	 ebp
+  00db1	c3		 ret	 0
+_getSCL	ENDP
+_PTEXT	ENDS
+PUBLIC	_i2c_setsda
+_PTEXT	SEGMENT
+_pContext$ = 8
+_key$ = 12
+_state$ = 16
+_delay$ = 20
+_pBus$ = -4
+_i2c_setsda PROC NEAR
+
+; 785  : {
+
+  00db2	55		 push	 ebp
+  00db3	8b ec		 mov	 ebp, esp
+  00db5	51		 push	 ecx
+
+; 786  :   I2C_BUSINFO* pBus;
+; 787  : 
+; 788  :   if (!IsKeyValid(pContext, key))
+
+  00db6	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  00db9	50		 push	 eax
+  00dba	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00dbd	51		 push	 ecx
+  00dbe	e8 00 00 00 00	 call	 _IsKeyValid
+  00dc3	83 c4 08	 add	 esp, 8
+  00dc6	85 c0		 test	 eax, eax
+  00dc8	75 04		 jne	 SHORT $L10714
+
+; 789  :     return I2C_FAILURE;
+
+  00dca	33 c0		 xor	 eax, eax
+  00dcc	eb 37		 jmp	 SHORT $L10712
+$L10714:
+
+; 790  : 
+; 791  :   pBus = I2C_GETBUSINFO(pContext, I2C_BUSFROMKEY(key));
+
+  00dce	8b 55 0c	 mov	 edx, DWORD PTR _key$[ebp]
+  00dd1	c1 ea 18	 shr	 edx, 24			; 00000018H
+  00dd4	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00dda	83 ea 01	 sub	 edx, 1
+  00ddd	c1 e2 06	 shl	 edx, 6
+  00de0	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00de3	8d 8c 10 2c 04
+	00 00		 lea	 ecx, DWORD PTR [eax+edx+1068]
+  00dea	89 4d fc	 mov	 DWORD PTR _pBus$[ebp], ecx
+
+; 792  :   return setSDA(pContext, pBus, state, delay);
+
+  00ded	8a 55 14	 mov	 dl, BYTE PTR _delay$[ebp]
+  00df0	52		 push	 edx
+  00df1	8b 45 10	 mov	 eax, DWORD PTR _state$[ebp]
+  00df4	50		 push	 eax
+  00df5	8b 4d fc	 mov	 ecx, DWORD PTR _pBus$[ebp]
+  00df8	51		 push	 ecx
+  00df9	8b 55 08	 mov	 edx, DWORD PTR _pContext$[ebp]
+  00dfc	52		 push	 edx
+  00dfd	e8 00 00 00 00	 call	 _setSDA
+  00e02	83 c4 10	 add	 esp, 16			; 00000010H
+$L10712:
+
+; 793  : }
+
+  00e05	8b e5		 mov	 esp, ebp
+  00e07	5d		 pop	 ebp
+  00e08	c3		 ret	 0
+_i2c_setsda ENDP
+_PTEXT	ENDS
+PUBLIC	_i2c_setscl
+_PTEXT	SEGMENT
+_pContext$ = 8
+_key$ = 12
+_state$ = 16
+_delay$ = 20
+_pBus$ = -4
+_i2c_setscl PROC NEAR
+
+; 811  : {
+
+  00e09	55		 push	 ebp
+  00e0a	8b ec		 mov	 ebp, esp
+  00e0c	51		 push	 ecx
+
+; 812  :   I2C_BUSINFO* pBus;
+; 813  : 
+; 814  :   if (!IsKeyValid(pContext, key))
+
+  00e0d	8b 45 0c	 mov	 eax, DWORD PTR _key$[ebp]
+  00e10	50		 push	 eax
+  00e11	8b 4d 08	 mov	 ecx, DWORD PTR _pContext$[ebp]
+  00e14	51		 push	 ecx
+  00e15	e8 00 00 00 00	 call	 _IsKeyValid
+  00e1a	83 c4 08	 add	 esp, 8
+  00e1d	85 c0		 test	 eax, eax
+  00e1f	75 04		 jne	 SHORT $L10727
+
+; 815  :     return I2C_FAILURE;
+
+  00e21	33 c0		 xor	 eax, eax
+  00e23	eb 37		 jmp	 SHORT $L10725
+$L10727:
+
+; 816  : 
+; 817  :   pBus = I2C_GETBUSINFO(pContext, I2C_BUSFROMKEY(key));
+
+  00e25	8b 55 0c	 mov	 edx, DWORD PTR _key$[ebp]
+  00e28	c1 ea 18	 shr	 edx, 24			; 00000018H
+  00e2b	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00e31	83 ea 01	 sub	 edx, 1
+  00e34	c1 e2 06	 shl	 edx, 6
+  00e37	8b 45 08	 mov	 eax, DWORD PTR _pContext$[ebp]
+  00e3a	8d 8c 10 2c 04
+	00 00		 lea	 ecx, DWORD PTR [eax+edx+1068]
+  00e41	89 4d fc	 mov	 DWORD PTR _pBus$[ebp], ecx
+
+; 818  :   return setSCL(pContext, pBus, state, delay);
+
+  00e44	8a 55 14	 mov	 dl, BYTE PTR _delay$[ebp]
+  00e47	52		 push	 edx
+  00e48	8b 45 10	 mov	 eax, DWORD PTR _state$[ebp]
+  00e4b	50		 push	 eax
+  00e4c	8b 4d fc	 mov	 ecx, DWORD PTR _pBus$[ebp]
+  00e4f	51		 push	 ecx
+  00e50	8b 55 08	 mov	 edx, DWORD PTR _pContext$[ebp]
+  00e53	52		 push	 edx
+  00e54	e8 00 00 00 00	 call	 _setSCL
+  00e59	83 c4 10	 add	 esp, 16			; 00000010H
+$L10725:
+
+; 819  : }
+
+  00e5c	8b e5		 mov	 esp, ebp
+  00e5e	5d		 pop	 ebp
+  00e5f	c3		 ret	 0
+_i2c_setscl ENDP
+_PTEXT	ENDS
+END

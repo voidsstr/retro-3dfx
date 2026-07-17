@@ -1,0 +1,1370 @@
+/*
+** Copyright 1991-1997, Silicon Graphics, Inc.
+** All Rights Reserved.
+**
+** This is UNPUBLISHED PROPRIETARY SOURCE CODE of Silicon Graphics, Inc.;
+** the contents of this file may not be disclosed to third parties, copied or
+** duplicated in any form, in whole or in part, without the prior written
+** permission of Silicon Graphics, Inc.
+**
+** RESTRICTED RIGHTS LEGEND:
+** Use, duplication or disclosure by the Government is subject to restrictions
+** as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+** and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+** successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished -
+** rights reserved under the Copyright Laws of the United States.
+*/
+#include <windows.h>
+#include "render.h"
+#include "context.h"
+#include "global.h"
+#include "mips.h"
+#include "geom_og.h"
+#include "sst_globals.h"
+#include <glide.h>
+
+#ifdef __GL_PC_RAST
+extern int __glPCPickTriangleProcs(__GLcontext *gc);
+#endif
+
+void __glSSTPickTriangleProcs(__GLcontext *gc)
+{
+    GLuint modeFlags = gc->polygon.shader.modeFlags;
+
+    /*
+    ** Setup cullFace so that a single test will do the cull check.
+    */
+    if (modeFlags & __GL_SHADE_CULL_FACE) {
+        switch (gc->state.polygon.cull) {
+          case GL_FRONT:
+            gc->polygon.cullFace = __GL_CULL_FLAG_FRONT;
+            break;
+          case GL_BACK:
+            gc->polygon.cullFace = __GL_CULL_FLAG_BACK;
+            break;
+          case GL_FRONT_AND_BACK:
+            gc->procs.renderTriangle = __glDontRenderTriangle;
+            gc->procs.fillTriangle = 0;         /* Done to find bugs */
+            return;
+        }
+    } else {
+        gc->polygon.cullFace = __GL_CULL_FLAG_DONT;
+    }
+
+    /* Build lookup table for face direction */
+    switch (gc->state.polygon.frontFaceDirection) {
+      case GL_CW:
+        if (gc->constants.yInverted) {
+            gc->polygon.face[__GL_CW] = __GL_BACKFACE;
+            gc->polygon.face[__GL_CCW] = __GL_FRONTFACE;
+        } else {
+            gc->polygon.face[__GL_CW] = __GL_FRONTFACE;
+            gc->polygon.face[__GL_CCW] = __GL_BACKFACE;
+        }
+        break;
+      case GL_CCW:
+        if (gc->constants.yInverted) {
+            gc->polygon.face[__GL_CW] = __GL_FRONTFACE;
+            gc->polygon.face[__GL_CCW] = __GL_BACKFACE;
+        } else {
+            gc->polygon.face[__GL_CW] = __GL_BACKFACE;
+            gc->polygon.face[__GL_CCW] = __GL_FRONTFACE;
+        }
+        break;
+    }
+
+    /* Make polygon mode indexable and zero based */
+    gc->polygon.mode[__GL_FRONTFACE] =
+        (GLubyte) (gc->state.polygon.frontMode & 0xf);
+    gc->polygon.mode[__GL_BACKFACE] =
+        (GLubyte) (gc->state.polygon.backMode & 0xf);
+    
+    if (gc->renderMode == GL_FEEDBACK) {
+        gc->procs.renderTriangle = __glFeedbackTriangle;
+        gc->procs.fillTriangle = 0;             /* Done to find bugs */
+        return;
+    }
+    if (gc->renderMode == GL_SELECT) {
+        gc->procs.renderTriangle = __glSelectTriangle;
+        gc->procs.fillTriangle = 0;             /* Done to find bugs */
+        return;
+    }
+
+    /* invoke sw raster path for sst unsupported rasterization */
+    if ((modeFlags & __GL_SHADE_STENCIL_TEST) ||
+        (modeFlags & __GL_SHADE_STIPPLE) ||
+        (modeFlags & __GL_SHADE_MASK)) {
+#if 0
+      if (__glPCPickTriangleProcs(gc)) {
+        gc->procs.WraprenderTriangle = gc->procs.renderTriangle;
+        gc->procs.renderTriangle =  __glSSTLockRenderTriangle;
+        return;
+      }
+#else
+        if ((gc->state.polygon.frontMode == gc->state.polygon.backMode) &&
+                (gc->state.polygon.frontMode == GL_FILL)) {
+            if (modeFlags & __GL_SHADE_SMOOTH_LIGHT) {
+                gc->procs.renderTriangle = __glRenderSmoothTriangle;
+            } else {
+                gc->procs.renderTriangle = __glRenderFlatTriangle;
+            }
+        } else {
+            gc->procs.renderTriangle = __glRenderTriangle;
+        }
+        if (gc->state.enables.general & __GL_POLYGON_SMOOTH_ENABLE) {
+            gc->procs.fillTriangle = __glFillAntiAliasedTriangle;
+        } else {
+            gc->procs.fillTriangle = __glFillTriangle;
+        }
+        if ((modeFlags & __GL_SHADE_CHEAP_FOG) &&
+                !(modeFlags & __GL_SHADE_SMOOTH_LIGHT)) {
+            gc->procs.fillTriangle2 = gc->procs.fillTriangle;
+            gc->procs.fillTriangle = __glFillFlatFogTriangle;
+        }
+return;
+#endif
+    }
+
+    if ((gc->state.polygon.frontMode == gc->state.polygon.backMode) &&
+            (gc->state.polygon.frontMode == GL_FILL)) {
+        if (modeFlags & __GL_SHADE_SMOOTH_LIGHT) {
+            if (gc->state.light.model.twoSided) {
+                gc->procs.renderTriangle = __glSSTRenderSmoothTriangle;
+            } else {
+                gc->procs.renderTriangle = __glSSTRenderSmoothOneSidedTriangle;
+            }
+        } else {
+            if (gc->state.light.model.twoSided) {
+                gc->procs.renderTriangle = __glSSTRenderFlatTriangle;
+            } else {
+                gc->procs.renderTriangle = __glSSTRenderFlatOneSidedTriangle;
+            }
+        }
+    } else {
+        gc->procs.renderTriangle = __glSSTRenderTriangle;
+    }
+#if 0 /* don't need for sst */
+    if (gc->state.enables.general & __GL_POLYGON_SMOOTH_ENABLE) {
+        gc->procs.fillTriangle = __glFillAntiAliasedTriangle;
+    } else {
+        gc->procs.fillTriangle = __glFillTriangle;
+    }
+    if ((modeFlags & __GL_SHADE_CHEAP_FOG) &&
+            !(modeFlags & __GL_SHADE_SMOOTH_LIGHT)) {
+        gc->procs.fillTriangle2 = gc->procs.fillTriangle;
+        gc->procs.fillTriangle = __glFillFlatFogTriangle;
+    }
+#endif
+#if __GL_DISABLE_RASTER
+    if (gc->vertexArray.controlWord & VERTARRAY_CW_DISABLE_RASTER) {
+        gc->procs.fillTriangle = __glDontFillTriangle;
+    }
+#endif
+}
+
+void __glSSTPickLineProcs(__GLcontext *gc)
+{
+    GLuint modeFlags = gc->polygon.shader.modeFlags;
+    GLboolean wideLine;
+    GLboolean replicateLine;
+    GLuint aaline;
+
+    if (gc->vertex.faceNeeds[__GL_FRONTFACE] == 0) {
+        gc->procs.vertexLStrip = __glOtherLStripVertexFast;
+    } else {
+        gc->procs.vertexLStrip = __glOtherLStripVertex;
+    }
+    gc->procs.vertex2ndLines = __glSecondLinesVertex;
+    if (gc->renderMode == GL_FEEDBACK) {
+        gc->procs.renderLine = __glFeedbackLine;
+    } else if (gc->renderMode == GL_SELECT) {
+        gc->procs.renderLine = __glSelectLine;
+    } else {
+        aaline = gc->state.enables.general & __GL_LINE_SMOOTH_ENABLE;
+        if (modeFlags & (__GL_SHADE_MASK|__GL_SHADE_STENCIL_TEST|__GL_SHADE_LINE_STIPPLE)) {
+            // Software path
+            __GLspanFunc *sp;
+            __GLstippledSpanFunc *ssp;
+            int spanCount;
+
+            replicateLine = wideLine = GL_FALSE;
+
+            aaline = gc->state.enables.general & __GL_LINE_SMOOTH_ENABLE;
+            if (aaline) {
+                gc->procs.renderLine = __glRenderAntiAliasLine;
+            } else {
+                gc->procs.renderLine = __glRenderAliasLine;
+            }
+
+            sp = gc->procs.line.lineFuncs;
+            ssp = gc->procs.line.stippledLineFuncs;
+
+            if (!aaline && (modeFlags & __GL_SHADE_LINE_STIPPLE)) {
+                *sp++ = __glStippleLine;
+                *ssp++ = NULL;
+            }
+
+            if (!aaline && gc->state.line.aliasedWidth > 1) {
+                wideLine = GL_TRUE;
+            }
+            spanCount = sp - gc->procs.line.lineFuncs;
+            gc->procs.line.n = spanCount;
+
+            *sp++ = __glScissorLine;
+            *ssp++ = __glScissorStippledLine;
+
+            if (!aaline) {
+                if (modeFlags & __GL_SHADE_STENCIL_TEST) {
+                    *sp++ = __glStencilTestLine;
+                    *ssp++ = __glStencilTestStippledLine;
+                    if (modeFlags & __GL_SHADE_DEPTH_TEST) {
+                        *sp = __glDepthTestStencilLine;
+                        *ssp = __glDepthTestStencilStippledLine;
+                    } else {
+                        *sp = __glDepthPassLine;
+                        *ssp = __glDepthPassStippledLine;
+                    }
+                    sp++;
+                    ssp++;
+                } else {
+                    if (modeFlags & __GL_SHADE_DEPTH_TEST) {
+                        if (gc->depthBuffer.testFunc == GL_NEVER) {
+                            /* Unexpected end of line routine picking! */
+                            gc->procs.line.processLine = (__GLspanFunc) __glNop;
+                            return;
+                        } else {
+                            *sp++ = __glDepthTestLine;
+                        }
+                        *ssp++ = __glDepthTestStippledLine;
+                    }
+                }
+            }
+            /* Load phase three procs */
+            if (modeFlags & __GL_SHADE_RGB) {
+                if (modeFlags & __GL_SHADE_SMOOTH) {
+                    *sp = __glShadeRGBASpan;
+                    *ssp = __glShadeRGBASpan;
+                } else {
+                    *sp = __glFlatRGBASpan;
+                    *ssp = __glFlatRGBASpan;
+                }
+            } else {
+                if (modeFlags & __GL_SHADE_SMOOTH) {
+                    *sp = __glShadeCISpan;
+                    *ssp = __glShadeCISpan;
+                } else {
+                    *sp = __glFlatCISpan;
+                    *ssp = __glFlatCISpan;
+                }
+            }
+            sp++;
+            ssp++;
+            if (modeFlags & __GL_SHADE_TEXTURE) {
+                *sp++ = __glTextureSpan;
+                *ssp++ = __glTextureStippledSpan;
+            }
+            if (modeFlags & __GL_SHADE_SLOW_FOG) {
+                if (gc->state.hints.fog == GL_NICEST) {
+                    *sp = __glFogSpanSlow;
+                    *ssp = __glFogStippledSpanSlow;
+                } else {
+                    *sp = __glFogSpan;
+                    *ssp = __glFogStippledSpan;
+                }
+                sp++;
+                ssp++;
+            }
+
+            if (aaline) {
+                *sp++ = __glAntiAliasLine;
+                *ssp++ = __glAntiAliasStippledLine;
+            }
+
+            if (aaline) {
+                if (modeFlags & __GL_SHADE_STENCIL_TEST) {
+                    *sp++ = __glStencilTestLine;
+                    *ssp++ = __glStencilTestStippledLine;
+                    if (modeFlags & __GL_SHADE_DEPTH_TEST) {
+                        *sp = __glDepthTestStencilLine;
+                        *ssp = __glDepthTestStencilStippledLine;
+                    } else {
+                        *sp = __glDepthPassLine;
+                        *ssp = __glDepthPassStippledLine;
+                    }
+                    sp++;
+                    ssp++;
+                } else {
+                    if (modeFlags & __GL_SHADE_DEPTH_TEST) {
+                        if( gc->depthBuffer.testFunc == GL_NEVER ) {
+                            /* Unexpected end of line routine picking! */
+                            gc->procs.line.processLine = (__GLspanFunc) __glNop;
+                            return;
+                        } else {
+                            *sp++ = __glDepthTestLine;
+                        }
+                        *ssp++ = __glDepthTestStippledLine;
+                    }
+                }
+            }
+
+            if (modeFlags & __GL_SHADE_ALPHA_TEST) {
+                *sp++ = __glAlphaTestSpan;
+                *ssp++ = __glAlphaTestStippledSpan;
+            }
+
+            if (modeFlags & __GL_SHADE_INDEX_TEST) {
+                *sp++ = __glIndexTestSpan;
+                *ssp++ = __glIndexTestStippledSpan;
+            }
+           
+            if (gc->buffers.doubleStore) {
+                replicateLine = GL_TRUE;
+            }
+            spanCount = sp - gc->procs.line.lineFuncs;
+            gc->procs.line.m = spanCount;
+
+            *sp++ = __glStoreLine;
+            *ssp++ = __glStoreStippledLine;
+        
+            spanCount = sp - gc->procs.line.lineFuncs;
+            gc->procs.line.l = spanCount;
+
+            sp = &gc->procs.line.wideLineRep;
+            ssp = &gc->procs.line.wideStippledLineRep;
+            if (wideLine) {
+                *sp = __glWideLineRep;
+                *ssp = __glWideStippleLineRep;
+                sp = &gc->procs.line.drawLine;
+                ssp = &gc->procs.line.drawStippledLine;
+            } 
+            if (replicateLine) {
+                *sp = __glDrawBothLine;
+                *ssp = __glDrawBothStippledLine;
+            } else {
+                *sp = (__GLspanFunc) __glNop;
+                *ssp = (__GLstippledSpanFunc) __glNop;
+                gc->procs.line.m = gc->procs.line.l;
+            }
+            if (!wideLine) {
+                gc->procs.line.n = gc->procs.line.m;
+            }
+
+            if (!wideLine && !replicateLine && spanCount == 3) {
+                gc->procs.line.processLine = __glProcessLine3NW;
+            } else {
+                gc->procs.line.processLine = __glProcessLine;
+            }
+            if ((modeFlags & __GL_SHADE_CHEAP_FOG) &&
+                    !(modeFlags & __GL_SHADE_SMOOTH_LIGHT)) {
+                gc->procs.renderLine2 = gc->procs.renderLine;
+                gc->procs.renderLine = __glRenderFlatFogLine;
+            }
+
+        } else {
+            // Hardware accelerated
+            replicateLine = wideLine = GL_FALSE;
+
+            if (aaline) {
+                if (gc->state.line.smoothWidth == 1) {
+                    if (gc->texture.textureEnabled) {
+                        gc->procs.renderLine = __glSSTRenderAntiAliasedLine_Tex;
+                    } else {
+                        gc->procs.renderLine = __glSSTRenderAntiAliasedLine;
+                    }
+                } else {
+                    gc->procs.renderLine = __glSSTRenderAntiAliasedWideLine;
+                }
+            } else {
+                if (gc->state.line.aliasedWidth == 1) {
+                    if (gc->texture.textureEnabled) {
+                        gc->procs.renderLine = __glSSTRenderAliasedLine_Tex;
+                    } else {
+                        gc->procs.renderLine = __glSSTRenderAliasedLine;
+                    }
+                } else {
+                    gc->procs.renderLine = __glSSTRenderAliasedWideLine;
+                }
+            }
+        }
+    }
+    #if __GL_DISABLE_RASTER
+        if (gc->vertexArray.controlWord & VERTARRAY_CW_DISABLE_RASTER) {
+            gc->procs.renderLine2 = __glDontRenderLine;
+            gc->procs.renderLine = __glDontRenderLine;
+        }
+    #endif
+}
+
+void __glSSTPickPointProcs(__GLcontext *gc)
+{
+    GLuint modeFlags = gc->polygon.shader.modeFlags;
+
+    if (gc->vertex.faceNeeds[__GL_FRONTFACE] == 0) {
+        gc->procs.vertexPoints = __glPointFast;
+    } else {
+        gc->procs.vertexPoints = __glPoint;
+    }
+
+    if (gc->renderMode == GL_FEEDBACK) {
+        gc->procs.renderPoint = __glFeedbackPoint;
+        return;
+    } 
+    if (gc->renderMode == GL_SELECT) {
+        gc->procs.renderPoint = __glSelectPoint;
+        return;
+    } 
+
+    // If color mask is set, we need to use sw rendering
+    if ((modeFlags & __GL_SHADE_MASK) ||
+        (modeFlags & __GL_SHADE_STENCIL_TEST)) {
+        if (gc->state.enables.general & __GL_POINT_SMOOTH_ENABLE) {
+            if (gc->modes.colorIndexMode) {
+                gc->procs.renderPoint = __glRenderAntiAliasedCIPoint;
+            } else {
+                gc->procs.renderPoint = __glRenderAntiAliasedRGBPoint;
+            }
+        } else if (gc->state.point.aliasedSize != 1) {
+            gc->procs.renderPoint = __glRenderAliasedPointN;
+        } else if (gc->texture.textureEnabled) {
+            gc->procs.renderPoint = __glRenderAliasedPoint1;
+        } else {
+            gc->procs.renderPoint = __glRenderAliasedPoint1_NoTex;
+        }
+        return;
+    }
+
+    if (gc->state.enables.general & __GL_POINT_SMOOTH_ENABLE) {
+        if (gc->modes.colorIndexMode) {
+            gc->procs.renderPoint = __glRenderAntiAliasedCIPoint;
+        } else if (gc->state.point.a != 1.0 ||
+                   gc->state.point.b != 0.0 ||
+                   gc->state.point.c != 0.0) {
+            gc->procs.renderPoint2 = __glSSTRenderAntiAliasedPointN;
+            gc->procs.renderPoint = __glSSTComputePointSize;
+        } else if (gc->state.point.smoothSize != 1) {     
+            gc->procs.renderPoint = __glSSTRenderAntiAliasedPointN;
+        } else if (gc->texture.textureEnabled) {
+            gc->procs.renderPoint = __glSSTRenderAntiAliasedPoint1;
+        } else {
+            gc->procs.renderPoint = __glSSTRenderAntiAliasedPoint1_NoTex;
+        }
+    } else if (gc->state.point.a != 1.0 ||
+               gc->state.point.b != 0.0 ||
+               gc->state.point.c != 0.0) {
+        gc->procs.renderPoint2 = __glSSTRenderAliasedPointN;
+        gc->procs.renderPoint = __glSSTComputePointSize;
+    } else if (gc->state.point.aliasedSize != 1) {
+        gc->procs.renderPoint = __glSSTRenderAliasedPointN;
+    } else if (gc->texture.textureEnabled) {
+        gc->procs.renderPoint = __glSSTRenderAliasedPoint1;
+    } else {
+        gc->procs.renderPoint = __glSSTRenderAliasedPoint1_NoTex;
+    }
+#if 0 /* sst doesn't need additional proc for fogging */
+    if (((modeFlags & __GL_SHADE_CHEAP_FOG) &&
+            !(modeFlags & __GL_SHADE_SMOOTH_LIGHT)) ||
+            (modeFlags & __GL_SHADE_SLOW_FOG)) {
+        gc->procs.renderPoint2 = gc->procs.renderPoint;
+        gc->procs.renderPoint = __glRenderFlatFogPoint;
+    }
+#endif
+    #if __GL_DISABLE_RASTER
+        if (gc->vertexArray.controlWord & VERTARRAY_CW_DISABLE_RASTER) {
+            gc->procs.renderPoint2 = __glDontRenderPoint;
+            gc->procs.renderPoint = __glDontRenderPoint;
+        }
+    #endif
+}
+
+void __glSSTPickTextureProcs(__GLcontext *gc)
+{
+    int texEnable;
+    int hwEnable;
+    GLuint modeFlags = gc->polygon.shader.modeFlags;
+    __GLtextureParamState *params;
+    __GLtexture *current;
+
+    texEnable = gc->state.enables.texture[0];
+
+    gc->texture.currentTexture[0] = current = NULL;
+
+    hwEnable = 0;
+    if ( texEnable & __GL_TEXTURE_2D_ENABLE) {
+        __GLtexture *tex = __glLookUpTexture(gc, GL_TEXTURE_2D, 0);
+        
+        if (__glIsTextureConsistent(gc, tex)) {
+            gc->texture.currentTexture[0] = current = tex;
+            hwEnable = 1;
+            gc->texture.interpUVScaled[0] = GL_TRUE;
+        }
+    } else {
+        if ( texEnable & __GL_TEXTURE_1D_ENABLE) {
+            __GLtexture *tex = __glLookUpTexture(gc, GL_TEXTURE_1D, 0);
+            
+            if (__glIsTextureConsistent(gc, tex)) {
+                gc->texture.currentTexture[0] = current = tex;
+                gc->texture.interpUVScaled[0] = GL_TRUE;
+            }
+        }
+    }
+
+    if ( gc->grNTexelFx == 2 ) {
+        texEnable = gc->state.enables.texture[1];
+
+        gc->texture.currentTexture[1] = NULL;
+        if ( texEnable & __GL_TEXTURE_2D_ENABLE) {
+            __GLtexture *tex = __glLookUpTexture(gc, GL_TEXTURE_2D, 1);
+            
+            if (__glIsTextureConsistent(gc, tex)) {
+                gc->texture.currentTexture[1] = tex;
+                hwEnable = 1;
+                gc->texture.interpUVScaled[0] = GL_TRUE;
+            }
+        } else {
+            if ( texEnable & __GL_TEXTURE_1D_ENABLE ) {
+                __GLtexture *tex = __glLookUpTexture(gc, GL_TEXTURE_1D, 1);
+                
+                if (__glIsTextureConsistent(gc, tex)) {
+                    gc->texture.currentTexture[1] = tex;
+                    gc->texture.interpUVScaled[1] = GL_TRUE;
+                }
+            }
+        }
+    }
+
+    if (hwEnable) {
+        __glSSTEnableTexturing(gc);
+    } else {
+		__glSSTDisableTexturing(gc);
+	}
+
+
+    /* Pick texturing function for the current texture */
+    if (current) {
+        GLenum baseFormat, mode;
+
+/* XXX most of this should be bound into the texture param code, right? */
+        params = __glLookUpTextureParams(gc, GL_TEXTURE_2D, 0 );
+        current->params = *params;
+
+        /*
+        ** Figure out if mipmapping is being used.  If not, then the
+        ** rho computations can be avoided as there is only one texture
+        ** to choose from.
+        */
+        gc->procs.calcLineRho = __glComputeLineRho;
+        gc->procs.calcPolygonRho = __glComputePolygonRho;
+        if ((current->params.minFilter == GL_LINEAR)
+            || (current->params.minFilter == GL_NEAREST)) {
+            /* No mipmapping needed */
+            if (current->params.minFilter == current->params.magFilter) {
+                /* No rho needed as min/mag application is identical */
+                current->textureFunc = __glFastTextureFragment;
+                gc->procs.calcLineRho = __glNopLineRho;
+                gc->procs.calcPolygonRho = __glNopPolygonRho;
+            } else {
+                current->textureFunc = __glTextureFragment;
+
+                /*
+                ** Pre-calculate min/mag switchover point.  The rho calculation
+                ** doesn't perform a square root (ever).  Consequently, these
+                ** constants are squared.
+                */
+                if ((current->params.magFilter == GL_LINEAR) &&
+                    ((current->params.minFilter == GL_NEAREST_MIPMAP_NEAREST) ||
+                     (current->params.minFilter == GL_LINEAR_MIPMAP_NEAREST))) {
+                    current->c = ((__GLfloat) 2.0);
+                } else {
+                    current->c = __glOne;
+                }
+            }
+        } else {
+            current->textureFunc = __glMipMapFragment;
+
+            /*
+            ** Pre-calculate min/mag switchover point.  The rho
+            ** calculation doesn't perform a square root (ever).
+            ** Consequently, these constants are squared.
+            */
+            if ((current->params.magFilter == GL_LINEAR) &&
+                ((current->params.minFilter == GL_NEAREST_MIPMAP_NEAREST) ||
+                 (current->params.minFilter == GL_LINEAR_MIPMAP_NEAREST))) {
+                current->c = ((__GLfloat) 2.0);
+            } else {
+                current->c = __glOne;
+            }
+        }
+
+        /* Pick environment function according to base format and mode */
+        baseFormat = current->texelFormat = current->level[0].baseFormat;
+        mode = gc->state.texture[0].env[0].mode;
+        /* release reference to any previous texture environment table */
+        if (gc->texture.envTable) {
+           gc->texture.envTable->refcount--;
+        }
+        gc->texture.envTable = __glCreateTextureEnvTable(mode, current);
+        switch (mode) {
+          case GL_MODULATE:
+            switch (baseFormat) {
+              case GL_LUMINANCE:
+                  current->env = __glTextureModulateL;
+                break;
+              case GL_LUMINANCE_ALPHA:
+                  current->env = __glTextureModulateLA;
+                break;
+              case GL_RGB:
+                  current->env = __glTextureModulateRGB;
+                break;
+              case GL_RGBA:
+                  current->env = __glTextureModulateRGBA;
+                break;
+              case GL_ALPHA:
+                  current->env = __glTextureModulateA;
+                break;
+              case GL_INTENSITY:
+                  current->env = __glTextureModulateI;
+                break;
+            case GL_COLOR_INDEX:
+                current->env = __glTextureModulateCI;
+                break;
+            }
+            break;
+          case GL_DECAL:
+            switch (baseFormat) {
+              case GL_LUMINANCE:
+                current->env = (void (*)(__GLcontext *gc, 
+                        __GLcolor *frag, __GLtexel *texel)) __glNop; 
+                break;
+              case GL_LUMINANCE_ALPHA:
+                current->env = (void (*)(__GLcontext *gc, 
+                        __GLcolor *frag, __GLtexel *texel)) __glNop; 
+                break;
+              case GL_RGB:
+                  current->env = __glTextureDecalRGB;
+                break;
+              case GL_RGBA:
+                  current->env = __glTextureDecalRGBA;
+                break;
+              case GL_ALPHA:
+                current->env = (void (*)(__GLcontext *gc, 
+                        __GLcolor *frag, __GLtexel *texel)) __glNop; 
+                break;
+              case GL_INTENSITY:
+                current->env = (void (*)(__GLcontext *gc, 
+                        __GLcolor *frag, __GLtexel *texel)) __glNop; 
+                break;
+            }
+            break;
+          case GL_BLEND:
+            switch (baseFormat) {
+              case GL_LUMINANCE:
+                  current->env = __glTextureBlendL;
+                break;
+              case GL_LUMINANCE_ALPHA:
+                  current->env = __glTextureBlendLA;
+                break;
+              case GL_RGB:
+                  current->env = __glTextureBlendRGB;
+                break;
+              case GL_RGBA:
+                  current->env = __glTextureBlendRGBA;
+                break;
+              case GL_ALPHA:
+                  current->env = __glTextureBlendA;
+                break;
+              case GL_INTENSITY:
+                  current->env = __glTextureBlendI;
+                break;
+            }
+            break;
+          case GL_REPLACE:
+            switch (baseFormat) {
+              case GL_LUMINANCE:
+                  current->env = __glTextureReplaceL;
+                break;
+              case GL_LUMINANCE_ALPHA:
+                  current->env = __glTextureReplaceLA;
+                break;
+              case GL_RGB:
+                  current->env = __glTextureReplaceRGB;
+                break;
+              case GL_RGBA:
+                  current->env = __glTextureReplaceRGBA;
+                break;
+              case GL_ALPHA:
+                  current->env = __glTextureReplaceA;
+                break;
+              case GL_INTENSITY:
+                  current->env = __glTextureReplaceI;
+                break;
+              case GL_COLOR_INDEX:
+                  current->env = __glTextureReplaceCI;
+                break;
+            }
+            break;
+          case GL_ADD:
+            switch (baseFormat) {
+              case GL_COLOR_INDEX:
+                current->env = __glTextureAddCI;
+                break;
+            }
+            break;
+        }
+
+        /* Pick mag/min functions */
+        switch (current->dim) {
+          case 1:
+            current->nearest = __glNearestFilter1;
+            current->linear = __glLinearFilter1;
+            break;
+          case 2:
+            current->nearest = __glNearestFilter2;
+            current->linear = __glLinearFilter2;
+            break;
+        }
+
+        /* set min filter function */
+        switch (current->params.minFilter) {
+          case GL_LINEAR:
+            gc->texture.interpUVScaled[0] = GL_TRUE;
+            current->minnify = __glLinearFilterUVScaled;
+            break;
+          case GL_NEAREST:
+            gc->texture.interpUVScaled[0] = GL_TRUE;
+            current->minnify = __glNearestFilterUVScaled;
+            break;
+          case GL_NEAREST_MIPMAP_NEAREST:
+            gc->texture.interpUVScaled[0] = GL_FALSE;
+            current->minnify = __glNMNFilter;
+            break;
+          case GL_LINEAR_MIPMAP_NEAREST:
+            gc->texture.interpUVScaled[0] = GL_FALSE;
+            current->minnify = __glLMNFilter;
+            break;
+          case GL_NEAREST_MIPMAP_LINEAR:
+            gc->texture.interpUVScaled[0] = GL_FALSE;
+            current->minnify = __glNMLFilter;
+            break;
+          case GL_LINEAR_MIPMAP_LINEAR:
+            gc->texture.interpUVScaled[0] = GL_FALSE;
+            current->minnify = __glLMLFilter;
+            break;
+        }
+
+        /* set mag filter function */
+        switch (current->params.magFilter) {
+          case GL_LINEAR:
+            if (gc->texture.interpUVScaled) {
+                current->magnify = __glLinearFilterUVScaled;
+            } else {
+                current->magnify = __glLinearFilter;
+            }
+            break;
+          case GL_NEAREST:
+            if (gc->texture.interpUVScaled) {
+                current->magnify = __glNearestFilterUVScaled;
+            } else {
+                current->magnify = __glNearestFilter;
+            }
+            break;
+        }
+
+        gc->procs.texture = current->textureFunc;
+        if (gc->texture.interpUVScaled) {
+            gc->procs.textureRaster = __glTextureFragmentUVScale;
+        } else {
+            gc->procs.textureRaster = current->textureFunc;
+        }
+    } else {
+        gc->procs.texture = 0;
+        gc->procs.textureRaster = 0;
+    }
+}
+
+void __glSSTPickPixelProcs(__GLcontext *gc)
+{
+    __GLpixelTransferMode *tm;
+    __GLpixelMachine *pm;
+    GLboolean mapColor;
+    GLfloat red, green, blue, alpha;
+    GLint entry;
+    GLuint enables = gc->state.enables.general;
+    __GLpixelMapHead *pmap;
+
+    /* Set read buffer pointer */
+    switch (gc->state.pixel.readBuffer) {
+      case GL_FRONT:
+        gc->readBuffer = gc->front;
+        break;
+      case GL_BACK:
+        gc->readBuffer = gc->back;
+        break;
+      case GL_AUX0:
+      case GL_AUX1:
+      case GL_AUX2:
+      case GL_AUX3:
+#if __GL_NUMBER_OF_AUX_BUFFERS > 0
+        {
+            GLint i = gc->state.pixel.readBuffer - GL_AUX0;
+            gc->readBuffer = &gc->auxBuffer[i];
+        }
+#endif
+        break;
+    }
+
+    if (gc->texture.textureEnabled
+            || (enables & __GL_FOG_ENABLE)) {
+        gc->procs.pxStore = __glSlowDrawPixelsStore;
+    } else {
+        gc->procs.pxStore = gc->procs.store;
+    }
+
+    tm = &gc->state.pixel.transferMode;
+    pm = &(gc->pixel);
+    mapColor = tm->mapColor;
+    if (mapColor || gc->modes.rgbMode || tm->indexShift || tm->indexOffset) {
+        pm->iToICurrent = GL_FALSE;
+        pm->iToRGBACurrent = GL_FALSE;
+        pm->modifyCI = GL_TRUE;
+    } else {
+        pm->modifyCI = GL_FALSE;
+    }
+    if (tm->mapStencil || tm->indexShift || tm->indexOffset) {
+        pm->modifyStencil = GL_TRUE;
+    } else {
+        pm->modifyStencil = GL_FALSE;
+    }
+    if (tm->d_scale != __glOne || tm->d_bias) {
+        pm->modifyDepth = GL_TRUE;
+    } else {
+        pm->modifyDepth = GL_FALSE;
+    }
+    if (mapColor || tm->r_bias || tm->g_bias || tm->b_bias || tm->a_bias ||
+        tm->r_scale != __glOne || tm->g_scale != __glOne ||
+        tm->b_scale != __glOne || tm->a_scale != __glOne) {
+        pm->modifyRGBA = GL_TRUE;
+        pm->rgbaCurrent = GL_FALSE;
+    } else {
+        pm->modifyRGBA = GL_FALSE;
+    }
+
+    if (pm->modifyRGBA) {
+        /* Compute default values for red, green, blue, alpha */
+        red = gc->state.pixel.transferMode.r_bias;
+        green = gc->state.pixel.transferMode.g_bias;
+        blue = gc->state.pixel.transferMode.b_bias;
+        alpha = gc->state.pixel.transferMode.a_scale +
+            gc->state.pixel.transferMode.a_bias;
+        if (mapColor) {
+            pmap = 
+                &gc->state.pixel.pixelMap[__GL_PIXEL_MAP_R_TO_R];
+            entry = (GLint)(red * (pmap->size-1) + __glHalf);
+            if (entry < 0) entry = 0;
+            else if (entry > pmap->size-1) entry = pmap->size-1;
+            red = pmap->base.mapF[entry];
+
+            pmap = 
+                &gc->state.pixel.pixelMap[__GL_PIXEL_MAP_G_TO_G];
+            entry = (GLint)(green * (pmap->size-1) + __glHalf);
+            if (entry < 0) entry = 0;
+            else if (entry > pmap->size-1) entry = pmap->size-1;
+            green = pmap->base.mapF[entry];
+
+            pmap = 
+                &gc->state.pixel.pixelMap[__GL_PIXEL_MAP_B_TO_B];
+            entry = (GLint)(blue * (pmap->size-1) + __glHalf);
+            if (entry < 0) entry = 0;
+            else if (entry > pmap->size-1) entry = pmap->size-1;
+            blue = pmap->base.mapF[entry];
+
+            pmap = 
+                &gc->state.pixel.pixelMap[__GL_PIXEL_MAP_A_TO_A];
+            entry = (GLint)(alpha * (pmap->size-1) + __glHalf);
+            if (entry < 0) entry = 0;
+            else if (entry > pmap->size-1) entry = pmap->size-1;
+            alpha = pmap->base.mapF[entry];
+        } else {
+            if (red > __glOne) red = __glOne;
+            else if (red < 0) red = 0;
+            if (green > __glOne) green = __glOne;
+            else if (green < 0) green = 0;
+            if (blue > __glOne) blue = __glOne;
+            else if (blue < 0) blue = 0;
+            if (alpha > __glOne) alpha = __glOne;
+            else if (alpha < 0) alpha = 0;
+        }
+        pm->red0Mod = red * gc->frontBuffer.redScale;
+        pm->green0Mod = green * gc->frontBuffer.greenScale;
+        pm->blue0Mod = blue * gc->frontBuffer.blueScale;
+        pm->alpha1Mod = alpha * gc->frontBuffer.alphaScale;
+    } else {
+        pm->red0Mod = __glZero;
+        pm->green0Mod = __glZero;
+        pm->blue0Mod = __glZero;
+        pm->alpha1Mod = gc->frontBuffer.alphaScale;
+    }
+
+    if ((enables & __GL_ALPHA_TEST_ENABLE) || 
+        (enables & __GL_STENCIL_TEST_ENABLE) ||
+        (enables & __GL_DEPTH_TEST_ENABLE) || 
+        gc->state.raster.drawBuffer == GL_NONE ||
+        gc->state.raster.drawBuffer == GL_FRONT_AND_BACK ||
+        !(enables & __GL_DITHER_ENABLE) ||
+        (enables & __GL_BLEND_ENABLE) ||
+        gc->texture.textureEnabled ||
+        (enables & __GL_FOG_ENABLE)) {
+        pm->fastRGBA = GL_FALSE;
+    } else {
+        pm->fastRGBA = GL_TRUE;
+    }
+
+    gc->procs.drawPixels = __glSSTPickDrawPixels;
+    gc->procs.readPixels = __glSSTPickReadPixels;
+    gc->procs.copyPixels = __glSlowPickCopyPixels;
+}
+
+void __glSSTValidateBlend(__GLcontext *gc)
+{
+    if (gc->state.enables.general & __GL_BLEND_ENABLE) {
+      grAlphaBlendFunction(gc->grBlendSrc, gc->grBlendDst,
+                           GR_BLEND_ONE, GR_BLEND_ZERO);
+    } else {
+      grAlphaBlendFunction(GR_BLEND_ONE, GR_BLEND_ZERO,
+                           GR_BLEND_ONE, GR_BLEND_ZERO);
+    }
+}
+
+void __glSSTValidateAlphaTest(__GLcontext *gc)
+{
+    if (gc->state.enables.general & __GL_ALPHA_TEST_ENABLE) {
+        grAlphaTestFunction(gc->state.raster.alphaFunction - GL_NEVER);
+    } else {
+        grAlphaTestFunction(GR_CMP_ALWAYS);
+    }
+}
+
+void __glSSTValidateAlphaFunc(__GLcontext *gc)
+{
+    GLenum af = gc->state.raster.alphaFunction;
+    GLfloat ref = gc->state.raster.alphaReference;
+
+    grAlphaTestReferenceValue((GrAlpha_t)(ref * __GL_SST_MAX_ALPHA));
+    if (gc->state.enables.general & __GL_BLEND_ENABLE) {
+        grAlphaTestFunction(af - GL_NEVER);
+    } else {
+        grAlphaTestFunction(GR_CMP_ALWAYS);
+    }
+}
+
+void __glSSTValidateCull(__GLcontext *gc)
+{
+    GLuint cullBit, frontBit;
+    
+    if (gc->state.enables.general & __GL_CULL_FACE_ENABLE) {
+        cullBit = (gc->state.polygon.cull == GL_FRONT);
+        frontBit = (gc->state.polygon.frontFaceDirection == GL_CW);
+        if (gc->constants.yInverted) {
+	    if (frontBit ^ cullBit) {
+		grCullMode(GR_CULL_NEGATIVE);
+	    } else {
+		grCullMode(GR_CULL_POSITIVE);
+	    }
+        } else {
+	    if (frontBit ^ cullBit) {
+		grCullMode(GR_CULL_POSITIVE);
+	    } else {
+		grCullMode(GR_CULL_NEGATIVE);
+	    }
+        }
+    } else {
+        grCullMode(GR_CULL_DISABLE);
+    }
+}
+
+void __glSSTValidate(__GLcontext *gc)
+{
+    (*gc->procs.pickAllProcs)(gc);
+}
+
+void __glSSTPickAllProcs(__GLcontext *gc)
+{
+    GLuint enables = gc->state.enables.general;
+    GLuint texenables = gc->state.enables.texture[0];
+    GLuint modeFlags = 0;
+    GLuint ogkey = 0;
+
+    __glPickVertexShape(gc);
+
+    if (gc->dirtyMask & (__GL_DIRTY_GENERIC | __GL_DIRTY_VERTARRAY)) {
+        __glGenericPickVertexArrayEnables(gc);
+
+        if ((gc->dirtyMask == __GL_DIRTY_VERTARRAY) && !gc->validateMask) {
+            gc->dirtyMask = 0;
+            return;
+        }
+    }
+
+    if (gc->dirtyMask & (__GL_DIRTY_GENERIC | __GL_DIRTY_LIGHTING)) {
+        /* 
+        ** Set textureEnabled flag early on, so we can set modeFlags
+        ** based upon it.
+        */
+        (*gc->procs.pickTextureProcs)(gc);
+        gc->texture.textureEnabled =
+            (GLboolean) (gc->texture.currentTexture[0] != NULL) ||
+                        (gc->texture.currentTexture[1] != NULL );
+    }
+
+    /* Compute shading mode flags before triangle, span, and line picker */
+    if (gc->modes.rgbMode) {
+        modeFlags |= __GL_SHADE_RGB;
+
+        if (enables & __GL_COLOR_LOGIC_OP_ENABLE) {
+            modeFlags |= __GL_SHADE_LOGICOP;
+        } else if (enables & __GL_BLEND_ENABLE) {
+            modeFlags |= __GL_SHADE_BLEND;
+            ogkey |= __GL_GEOM_OG_KEY_SHADE_BLEND;          
+        }
+        if (enables & __GL_ALPHA_TEST_ENABLE) {
+            modeFlags |= __GL_SHADE_ALPHA_TEST;
+            ogkey |= __GL_GEOM_OG_KEY_SHADE_ALPHA_TEST;     
+        }
+        if (!gc->state.raster.rMask ||
+            !gc->state.raster.gMask ||
+            !gc->state.raster.bMask ||
+            (!gc->state.raster.aMask && gc->modes.alphaBits)) {
+            /* XXXwheeler: if rgb are the same, we can handle this in hardware */
+            if (gc->state.raster.rMask != gc->state.raster.gMask ||
+                gc->state.raster.gMask != gc->state.raster.bMask) 
+                    modeFlags |= __GL_SHADE_MASK;
+        }
+    } else {
+        if (enables & __GL_INDEX_LOGIC_OP_ENABLE) {
+            modeFlags |= __GL_SHADE_LOGICOP;
+        }
+        if (gc->state.raster.writeMask != __GL_MASK_INDEXI(gc, ~0)) {
+            modeFlags |= __GL_SHADE_MASK;
+        }
+        if (enables & __GL_INDEX_TEST_ENABLE) {
+            modeFlags |= __GL_SHADE_INDEX_TEST;
+        }
+    }
+    if ( gc->texture.textureEnabled ) {
+        modeFlags |= __GL_SHADE_TEXTURE;
+        ogkey |= __GL_GEOM_OG_KEY_SHADE_TEXTURE;            
+        if (gc->texture.interpUVScaled) {
+            modeFlags |= __GL_SHADE_TEXTURE_UVSCALED;
+        }
+        /* XXX the triangle rasterization code assumes perspective
+         * correction if rho interpolation is required.
+         */
+        if (gc->state.hints.perspectiveCorrection != GL_FASTEST ||
+            gc->texture.currentTexture[gc->texture.currentTexUnit]->params.minFilter !=
+            gc->texture.currentTexture[gc->texture.currentTexUnit]->params.magFilter) {
+            modeFlags |= __GL_SHADE_TEXTURE_PERSP;
+            ogkey |= __GL_GEOM_OG_KEY_SHADE_TEXTURE_PERSP;          
+        }
+    }
+    if (gc->state.light.shadingModel == GL_SMOOTH) {
+        modeFlags |= __GL_SHADE_SMOOTH | __GL_SHADE_SMOOTH_LIGHT;
+        ogkey |= (__GL_GEOM_OG_KEY_SHADE_SMOOTH |
+                  __GL_GEOM_OG_KEY_SHADE_SMOOTH_LIGHT);     
+    }
+    if ((enables & __GL_DEPTH_TEST_ENABLE) && 
+        gc->modes.haveDepthBuffer) {
+            modeFlags |= ( __GL_SHADE_DEPTH_TEST |  __GL_SHADE_DEPTH_ITER );
+            ogkey |= __GL_GEOM_OG_KEY_SHADE_DEPTH_TEST;     
+#if 0
+            if((enables & __GL_POLYGON_OFFSET_FILL_ENABLE) &&
+               (gc->state.polygon.factor != 0.0 ||
+                gc->state.polygon.units != 0.0)) {
+                   modeFlags |= __GL_SHADE_POLYGON_OFFSET_FILL;
+            }
+#endif
+    }
+    if (enables & __GL_CULL_FACE_ENABLE) {
+        modeFlags |= __GL_SHADE_CULL_FACE;
+    }
+#if 0
+    /* Only turn on dither for 8- and 16-bit framebuffers */
+    if (enables & __GL_DITHER_ENABLE && gc->front->buf.elementSize < 3) {
+        modeFlags |= __GL_SHADE_DITHER;
+    }
+#endif
+    if (enables & __GL_POLYGON_STIPPLE_ENABLE) {
+        modeFlags |= __GL_SHADE_STIPPLE;
+    }
+    if (enables & __GL_LINE_STIPPLE_ENABLE) {
+        modeFlags |= __GL_SHADE_LINE_STIPPLE;
+    }
+    if ((enables & __GL_STENCIL_TEST_ENABLE) && 
+            gc->modes.haveStencilBuffer) {
+        modeFlags |= __GL_SHADE_STENCIL_TEST;
+    }
+    if ((enables & __GL_LIGHTING_ENABLE) && 
+            gc->state.light.model.twoSided) {
+        modeFlags |= __GL_SHADE_TWOSIDED;
+        ogkey |= __GL_GEOM_OG_KEY_SHADE_TWOSIDED;           
+    }
+
+    if (enables & __GL_FOG_ENABLE) {
+        /* Figure out type of fogging to do.  Try to do cheap fog */
+        if ((!(modeFlags & __GL_SHADE_TEXTURE) ||
+             (gc->state.texture[gc->texture.currentTexUnit].env[0].mode == GL_ADD)) &&
+                (gc->state.hints.fog != GL_NICEST)) {
+            /*
+            ** Cheap fog can be done.  Now figure out which kind we
+            ** will do.  If smooth shading, its easy - just change
+            ** the calcColor proc (let the color proc picker do it).
+            ** Otherwise, set has flag later on to use smooth shading
+            ** to do flat shaded fogging.
+            */
+            modeFlags |= __GL_SHADE_CHEAP_FOG | __GL_SHADE_SMOOTH;
+            ogkey |= (__GL_GEOM_OG_KEY_SHADE_CHEAP_FOG |
+                      __GL_GEOM_OG_KEY_SHADE_SMOOTH);       
+        } else {
+            /* Use slowest fog mode */
+            modeFlags |= __GL_SHADE_SLOW_FOG;
+        }
+    }
+#if 0
+    if ((gc->state.raster.drawBuffer == GL_FRONT ||
+         gc->state.raster.drawBuffer == GL_FRONT_AND_BACK) &&
+        (gc->drawablePrivate->ownershipBuffer.update != NULL)) {
+        modeFlags |= __GL_SHADE_OWNERSHIP_TEST;
+    }
+#endif
+    gc->polygon.shader.modeFlags = modeFlags;
+    gc->ogKey = (gc->ogKey & ~__GL_GEOM_OG_KEY_SHADE_MASK) | ogkey; 
+
+    ogkey = 0;
+    if (gc->dirtyMask & (__GL_DIRTY_GENERIC | __GL_DIRTY_LIGHTING)) {
+        GLuint needs;
+        GLuint faceNeeds;
+
+        /* Compute needs mask */
+        faceNeeds = needs = 0;
+        if (gc->texture.textureEnabled) {
+            needs |= __GL_HAS_TEXTURE;
+            ogkey |= __GL_GEOM_OG_KEY_HAS_TEXTURE;                  
+            if ((texenables & __GL_TEXTURE_GEN_S_ENABLE)) {
+                switch (gc->state.texture[gc->texture.currentTexUnit].s.mode) {
+                  case GL_EYE_LINEAR:
+                    needs |= __GL_HAS_EYE;
+                    ogkey |= __GL_GEOM_OG_KEY_HAS_EYE;              
+                    break;
+                  case GL_SPHERE_MAP:
+                    needs |= __GL_HAS_EYE | __GL_HAS_NORMAL;
+                    ogkey |= (__GL_GEOM_OG_KEY_HAS_EYE |
+                              __GL_GEOM_OG_KEY_HAS_NORMAL);                 
+                    break;
+                }
+            }
+            if ((texenables & __GL_TEXTURE_GEN_T_ENABLE)) {
+                switch (gc->state.texture[gc->texture.currentTexUnit].t.mode) {
+                  case GL_EYE_LINEAR:
+                    needs |= __GL_HAS_EYE;
+                    ogkey |= __GL_GEOM_OG_KEY_HAS_EYE;              
+                    break;
+                  case GL_SPHERE_MAP:
+                    needs |= __GL_HAS_EYE | __GL_HAS_NORMAL;
+                    ogkey |= (__GL_GEOM_OG_KEY_HAS_EYE |
+                              __GL_GEOM_OG_KEY_HAS_NORMAL);                 
+                    break;
+                }
+            }
+            if (modeFlags & __GL_SHADE_TEXTURE_PERSP) {
+                needs |= __GL_HAS_WINDOW_TEXTURE;
+                ogkey |= __GL_GEOM_OG_KEY_HAS_WINDOW_TEXTURE;               
+            }
+        }
+        if (enables & __GL_LIGHTING_ENABLE) {
+            faceNeeds |= __GL_HAS_NORMAL;
+            ogkey |= __GL_GEOM_OG_KEY_HAS_NORMAL;                   
+            if (gc->state.light.model.localViewer) {
+                faceNeeds |= __GL_HAS_EYE;
+                ogkey |= __GL_GEOM_OG_KEY_HAS_EYE;                  
+            } else {
+                GLint i;
+                __GLlightSourceState *lss = &gc->state.light.source[0];
+
+                for (i = 0; i < gc->constants.numberOfLights; i++, lss++)
+                    if ((gc->state.enables.lights & (1<<i)) && 
+                        (lss->positionEye.w != __glZero))
+                    {
+                        /* local light source enabled */
+                        faceNeeds |= __GL_HAS_EYE;
+                        ogkey |= __GL_GEOM_OG_KEY_HAS_EYE;                  
+                        break;
+                    }
+            }
+            ogkey |= __GL_GEOM_OG_KEY_LIGHTING_ENABLE;
+        } else {
+            ogkey &= ~__GL_GEOM_OG_KEY_LIGHTING_ENABLE;
+        }
+        
+        if (enables & __GL_FOG_ENABLE) {
+            /* Need z in eye coordinates for fog */
+            needs |= __GL_HAS_EYE;
+            ogkey |= __GL_GEOM_OG_KEY_HAS_EYE;              
+
+            /* Need fog value at vertex if not nicest */
+            if (gc->state.hints.fog != GL_NICEST) {
+                needs |= __GL_HAS_FOG;
+                ogkey |= __GL_GEOM_OG_KEY_HAS_FOG;
+            }
+        }
+        if (gc->state.enables.clipPlanes) {
+            /* Clip with user planes in eye space! */
+            needs |= __GL_HAS_EYE;
+            ogkey |= __GL_GEOM_OG_KEY_HAS_EYE;              
+        }
+        gc->vertex.needs = needs;
+        gc->vertex.faceNeeds[__GL_FRONTFACE] = faceNeeds | needs;
+        gc->vertex.faceNeeds[__GL_BACKFACE] = faceNeeds | needs;
+        if ((enables & __GL_LIGHTING_ENABLE) || 
+                (modeFlags & 
+                (__GL_SHADE_CHEAP_FOG | __GL_SHADE_SMOOTH_LIGHT))) {
+            gc->vertex.faceNeeds[__GL_FRONTFACE] |= __GL_HAS_FRONT_COLOR;
+            ogkey |= __GL_GEOM_OG_KEY_HAS_FRONT_COLOR;              
+            if (gc->state.light.model.twoSided) {
+                gc->vertex.faceNeeds[__GL_BACKFACE] |= __GL_HAS_BACK_COLOR;
+                ogkey |= __GL_GEOM_OG_KEY_HAS_BACK_COLOR; /* XXXshui rid? */   
+            } else {
+                gc->vertex.faceNeeds[__GL_BACKFACE] = 
+                        gc->vertex.faceNeeds[__GL_FRONTFACE];
+            }
+        } 
+        if ((gc->state.light.shadingModel == GL_SMOOTH) ||
+            gc->vertexCache.vertexCacheEnabled) {
+            gc->vertex.materialNeeds = 
+                    (gc->vertex.faceNeeds[__GL_FRONTFACE] | 
+                     gc->vertex.faceNeeds[__GL_BACKFACE]) & ~__GL_HAS_TEXTURE;
+            /* XXXshui maybe apply to ogkey */
+        } else {
+            /* Need nothing if only the provoking vertex needs to be lit! */
+            gc->vertex.materialNeeds = 0;
+        }
+        gc->ogKey = (gc->ogKey & ~__GL_GEOM_OG_KEY_HAS_MASK) | ogkey;
+#if 1
+        (*gc->front->pick)(gc, gc->front);
+        if (gc->modes.doubleBufferMode) {
+            (*gc->back->pick)(gc, gc->back);
+        }
+#endif  
+#if __GL_NUMBER_OF_AUX_BUFFERS > 0
+        {
+            GLint i;
+            for (i = 0; i < gc->modes.numAuxBuffers; i++) {
+                (*gc->auxBuffer[i].pick)(gc, &gc->auxBuffer[i]);
+            }
+        }
+#endif
+        if (gc->modes.haveStencilBuffer) {
+            (*gc->stencilBuffer.pick)(gc, &gc->stencilBuffer);
+        }
+        (*gc->procs.pickBufferProcs)(gc);
+#if 1 /* but need for simple imaging! */
+        /* 
+        ** Note: Must call gc->front->pick and gc->back->pick before calling
+        ** pickStoreProcs.  This also must be called prior to line, point, 
+        ** polygon, clipping, or bitmap pickers.  The LIGHT implementation
+        ** depends upon it.
+        */
+        (*gc->procs.pickStoreProcs)(gc);
+#endif
+        (*gc->procs.pickTransformProcs)(gc);
+
+        __glValidateLighting(gc);
+
+        /*
+        ** Note: pickColorMaterialProcs is called frequently outside of this
+        ** generic picking routine.
+        */
+        (*gc->procs.pickColorMaterialProcs)(gc);
+
+        (*gc->procs.pickCalcTextureProcs)(gc);
+#if 1
+        (*gc->procs.pickBlendProcs)(gc);
+#endif
+#if 1
+        (*gc->procs.pickFogProcs)(gc);
+#endif
+        (*gc->procs.pickParameterClipProcs)(gc);
+        (*gc->procs.pickClipProcs)(gc);
+
+        /*
+        ** Needs to be done after pickStoreProcs.
+        */
+        (*gc->procs.pickRenderBitmapProcs)(gc);
+        if (gc->validateMask & __GL_VALIDATE_ALPHA_FUNC) {
+            __glValidateAlphaTest(gc);
+        }
+
+#if 0
+        if (gc->validateMask & __GL_VALIDATE_INDEX_FUNC) {
+            __glValidateIndexTest(gc);
+        }
+#endif
+        (*gc->procs.computeClipBox)(gc);
+
+    }
+#if 0
+    if (gc->dirtyMask & __GL_DIRTY_POLYGON_STIPPLE) {
+        /*
+        ** Usually, the polygon stipple is converted immediately after
+        ** it is changed.  However, if the polygon stipple was changed
+        ** when this context was the destination of a CopyContext, then
+        ** the polygon stipple will be converted here.
+        */
+        (*gc->procs.convertPolygonStipple)(gc);
+    }
+#endif
+    if (gc->dirtyMask & __GL_DIRTY_DEPTH) {
+        (*gc->procs.pickDepthProcs)(gc);
+    }
+    
+    if (gc->dirtyMask & (__GL_DIRTY_GENERIC | __GL_DIRTY_POLYGON | 
+            __GL_DIRTY_LIGHTING | __GL_DIRTY_DEPTH)) {
+        /* 
+        ** May be used for picking Rect() procs, need to check polygon 
+        ** bit.  Must also be called after gc->vertex.needs is set.
+        ** Needs to be called prior to point, line, and triangle pickers.
+        ** Also needs to be called after the store procs picker is called.
+        */
+        (*gc->procs.pickVertexProcs)(gc);
+
+        (*gc->procs.pickSpanProcs)(gc);
+
+        (*gc->procs.pickTriangleProcs)(gc);
+    }
+
+    if (gc->dirtyMask & (__GL_DIRTY_GENERIC | __GL_DIRTY_POINT |
+            __GL_DIRTY_LIGHTING)) {
+        (*gc->procs.pickPointProcs)(gc);
+    }
+
+    if (gc->dirtyMask & (__GL_DIRTY_GENERIC | __GL_DIRTY_LINE |
+            __GL_DIRTY_LIGHTING)) {
+        (*gc->procs.pickLineProcs)(gc);
+    }
+
+    if (gc->dirtyMask & (__GL_DIRTY_GENERIC | __GL_DIRTY_PIXEL | 
+            __GL_DIRTY_LIGHTING)) {
+        (*gc->procs.pickPixelProcs)(gc);
+    }
+
+    if (gc->dirtyMask & (__GL_DIRTY_GENERIC | __GL_DIRTY_LIGHTING)) {
+        (*gc->procs.pickVertexArrayProcs)(gc);
+    }
+
+#if defined(__GL_USE_VCACHE)
+    /*
+    ** Vertex cache stuff
+    */
+    __glPickVcacheProcs(gc);
+#endif
+
+    gc->validateMask = 0;
+    gc->dirtyMask = 0;
+}

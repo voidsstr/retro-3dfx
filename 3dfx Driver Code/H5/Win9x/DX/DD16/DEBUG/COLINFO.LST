@@ -1,0 +1,544 @@
+Microsoft (R) Macro Assembler Version 6.14.8444		    11/10/00 19:13:25
+..\colinfo.asm						     Page 1 - 1
+
+
+				;/* $Header: /devel/h3/Win95/dx/dd16/colinfo.asm 3     12/28/98 11:22a Michael $ */
+				;/*
+				;** Copyright (c) 1995-1999, 3Dfx Interactive, Inc.
+				;** All Rights Reserved.
+				;**
+				;** This is UNPUBLISHED PROPRIETARY SOURCE CODE of 3Dfx Interactive, Inc.;
+				;** the contents of this file may not be disclosed to third parties, copied or
+				;** duplicated in any form, in whole or in part, without the prior written
+				;** permission of 3Dfx Interactive, Inc.
+				;**
+				;** RESTRICTED RIGHTS LEGEND:
+				;** Use, duplication or disclosure by the Government is subject to restrictions
+				;** as set forth in subdivision (c)(1)(ii) of the Rights in Technical Data
+				;** and Computer Software clause at DFARS 252.227-7013, and/or in similar or
+				;** successor clauses in the FAR, DOD or NASA FAR Supplement. Unpublished  -
+				;** rights reserved under the Copyright Laws of the United States.
+				;**
+				;** File name:   colinfo.asm
+				;**
+				;** Description: Handles the ColorInfo display driver export function.
+				;**
+				;** $Revision: 3 $
+				;** $Date: 12/28/98 11:22a $
+				;**
+				;** $History: colinfo.asm $
+				;; 
+				;; *****************  Version 3  *****************
+				;; User: Michael      Date: 12/28/98   Time: 11:22a
+				;; Updated in $/devel/h3/Win95/dx/dd16
+				;; Added the 3Dfx/STB unified file/funciton header.  Add VSS keywords to
+				;; files where this was missing.
+				;** 
+				;**
+				;*/
+
+				        option OLDSTRUCTS
+				        .xlist
+				        .list
+
+				.586p
+
+ 0000				_TEXT segment WORD PUBLIC 'CODE' use16
+
+				DIB_ColorInfo PROTO FAR PASCAL
+
+				; This table contains 5 bit values for use in returning the nearest physical
+				; match to the 24 bit logical value, we use this to quickly replicate what the
+				; DIB_ColorInfo function would have returned.
+
+ 0000				ByteTo5BitLookup label byte
+ 0000  00 00 00 00 00 00	    db  000h, 000h, 000h, 000h, 000h, 000h, 000h, 000h, 000h, 000h, 000h, 000h
+       00 00 00 00 00 00
+ 000C  01 01 01 01 01 01	    db  001h, 001h, 001h, 001h, 001h, 001h, 001h, 001h  ;0c thru 13
+       01 01
+ 0014  02 02 02 02 02 02	    db  002h, 002h, 002h, 002h, 002h, 002h, 002h, 002h  ;14 thru 1b
+       02 02
+ 001C  03 03 03 03 03 03	    db  003h, 003h, 003h, 003h, 003h, 003h, 003h, 003h  ;1c thru 23
+       03 03
+ 0024  04 04 04 04 04 04	    db  004h, 004h, 004h, 004h, 004h, 004h, 004h, 004h  ;24 thru 2b
+       04 04
+ 002C  05 05 05 05 05 05	    db  005h, 005h, 005h, 005h, 005h, 005h, 005h, 005h  ;2c thru 33
+       05 05
+ 0034  06 06 06 06 06 06	    db  006h, 006h, 006h, 006h, 006h, 006h, 006h, 006h  ;34 thru 3b
+       06 06
+ 003C  07 07 07 07 07 07	    db  007h, 007h, 007h, 007h, 007h, 007h, 007h, 007h  ;3c thru 43
+       07 07
+ 0044  08 08 08 08 08 08	    db  008h, 008h, 008h, 008h, 008h, 008h, 008h, 008h  ;44 thru 4b
+       08 08
+ 004C  09 09 09 09 09 09	    db  009h, 009h, 009h, 009h, 009h, 009h, 009h, 009h  ;4c thru 53
+       09 09
+ 0054  0A 0A 0A 0A 0A 0A	    db  00ah, 00ah, 00ah, 00ah, 00ah, 00ah, 00ah, 00ah  ;54 thru 5b
+       0A 0A
+ 005C  0B 0B 0B 0B 0B 0B	    db  00bh, 00bh, 00bh, 00bh, 00bh, 00bh, 00bh, 00bh  ;5c thru 63
+       0B 0B
+ 0064  0C 0C 0C 0C 0C 0C	    db  00ch, 00ch, 00ch, 00ch, 00ch, 00ch, 00ch, 00ch  ;64 thru 6b
+       0C 0C
+ 006C  0D 0D 0D 0D 0D 0D	    db  00dh, 00dh, 00dh, 00dh, 00dh, 00dh, 00dh, 00dh  ;6c thru 73
+       0D 0D
+ 0074  0E 0E 0E 0E 0E 0E	    db  00eh, 00eh, 00eh, 00eh, 00eh, 00eh, 00eh, 00eh  ;74 thru 7b
+       0E 0E
+ 007C  0F 0F 0F 0F 0F 0F	    db  00fh, 00fh, 00fh, 00fh, 00fh, 00fh, 00fh, 00fh  ;7c thru 83
+       0F 0F
+ 0084  10 10 10 10 10 10	    db  010h, 010h, 010h, 010h, 010h, 010h, 010h, 010h  ;84 thru 8b
+       10 10
+ 008C  11 11 11 11 11 11	    db  011h, 011h, 011h, 011h, 011h, 011h, 011h, 011h  ;8c thru 93
+       11 11
+ 0094  12 12 12 12 12 12	    db  012h, 012h, 012h, 012h, 012h, 012h, 012h, 012h  ;94 thru 9b
+       12 12
+ 009C  13 13 13 13 13 13	    db  013h, 013h, 013h, 013h, 013h, 013h, 013h, 013h  ;9c thru a3
+       13 13
+ 00A4  14 14 14 14 14 14	    db  014h, 014h, 014h, 014h, 014h, 014h, 014h, 014h  ;a4 thru ab
+       14 14
+ 00AC  15 15 15 15 15 15	    db  015h, 015h, 015h, 015h, 015h, 015h, 015h, 015h  ;ac thru b3
+       15 15
+ 00B4  16 16 16 16 16 16	    db  016h, 016h, 016h, 016h, 016h, 016h, 016h, 016h  ;b4 thru bb
+       16 16
+ 00BC  17 17 17 17 17 17	    db  017h, 017h, 017h, 017h, 017h, 017h, 017h, 017h  ;bc thru c3
+       17 17
+ 00C4  18 18 18 18 18 18	    db  018h, 018h, 018h, 018h, 018h, 018h, 018h, 018h  ;c4 thru cb
+       18 18
+ 00CC  19 19 19 19 19 19	    db  019h, 019h, 019h, 019h, 019h, 019h, 019h, 019h  ;cc thru d3
+       19 19
+ 00D4  1A 1A 1A 1A 1A 1A	    db  01ah, 01ah, 01ah, 01ah, 01ah, 01ah, 01ah, 01ah  ;d4 thru db
+       1A 1A
+ 00DC  1B 1B 1B 1B 1B 1B	    db  01bh, 01bh, 01bh, 01bh, 01bh, 01bh, 01bh, 01bh  ;dc thru e3
+       1B 1B
+ 00E4  1C 1C 1C 1C 1C 1C	    db  01ch, 01ch, 01ch, 01ch, 01ch, 01ch, 01ch, 01ch  ;e4 thru eb
+       1C 1C
+ 00EC  1D 1D 1D 1D 1D 1D	    db  01dh, 01dh, 01dh, 01dh, 01dh, 01dh, 01dh, 01dh  ;ec thru f3
+       1D 1D
+ 00F4  1E 1E 1E 1E 1E 1E	    db  01eh, 01eh, 01eh, 01eh, 01eh, 01eh, 01eh, 01eh  ;f4 thru fb
+       1E 1E
+ 00FC  1F 1F 1F 1F		    db  01fh, 01fh, 01fh, 01fh                          ;fc thru ff
+
+				; This table contains 6 bit values for use in returning the nearest physical
+				; match to the 24 bit logical value, we use this to quickly replicate what the
+				; DIB_ColorInfo function would have returned.
+
+ 0100				ByteTo6BitLookup label byte
+ 0100  00 00 00 00 00 00	    db  000h, 000h, 000h, 000h, 000h, 000h
+ 0106  01 01 01 01		    db  001h, 001h, 001h, 001h   ;06 thru 09
+ 010A  02 02 02 02		    db  002h, 002h, 002h, 002h   ;0a thru 0d
+ 010E  03 03 03 03		    db  003h, 003h, 003h, 003h   ;0e thru 11
+ 0112  04 04 04 04		    db  004h, 004h, 004h, 004h   ;12 thru 15
+ 0116  05 05 05 05		    db  005h, 005h, 005h, 005h   ;16 thru 19
+ 011A  06 06 06 06		    db  006h, 006h, 006h, 006h   ;1a thru 1d
+ 011E  07 07 07 07		    db  007h, 007h, 007h, 007h   ;1e thru 21
+ 0122  08 08 08 08		    db  008h, 008h, 008h, 008h   ;22 thru 25
+ 0126  09 09 09 09		    db  009h, 009h, 009h, 009h   ;26 thru 29
+ 012A  0A 0A 0A 0A		    db  00ah, 00ah, 00ah, 00ah   ;2a thru 2d
+ 012E  0B 0B 0B 0B		    db  00bh, 00bh, 00bh, 00bh   ;2e thru 31
+ 0132  0C 0C 0C 0C		    db  00ch, 00ch, 00ch, 00ch   ;32 thru 35
+ 0136  0D 0D 0D 0D		    db  00dh, 00dh, 00dh, 00dh   ;36 thru 39
+ 013A  0E 0E 0E 0E		    db  00eh, 00eh, 00eh, 00eh   ;3a thru 3d
+ 013E  0F 0F 0F 0F		    db  00fh, 00fh, 00fh, 00fh   ;3e thru 41
+ 0142  10 10 10 10		    db  010h, 010h, 010h, 010h   ;42 thru 45
+ 0146  11 11 11 11		    db  011h, 011h, 011h, 011h   ;46 thru 49
+ 014A  12 12 12 12		    db  012h, 012h, 012h, 012h   ;4a thru 4d
+ 014E  13 13 13 13		    db  013h, 013h, 013h, 013h   ;4e thru 51
+ 0152  14 14 14 14		    db  014h, 014h, 014h, 014h   ;52 thru 55
+ 0156  15 15 15 15		    db  015h, 015h, 015h, 015h   ;56 thru 59
+ 015A  16 16 16 16		    db  016h, 016h, 016h, 016h   ;5a thru 5d
+ 015E  17 17 17 17		    db  017h, 017h, 017h, 017h   ;5e thru 61
+ 0162  18 18 18 18		    db  018h, 018h, 018h, 018h   ;62 thru 65
+ 0166  19 19 19 19		    db  019h, 019h, 019h, 019h   ;66 thru 69
+ 016A  1A 1A 1A 1A		    db  01ah, 01ah, 01ah, 01ah   ;6a thru 6d
+ 016E  1B 1B 1B 1B		    db  01bh, 01bh, 01bh, 01bh   ;6e thru 71
+ 0172  1C 1C 1C 1C		    db  01ch, 01ch, 01ch, 01ch   ;72 thru 75
+ 0176  1D 1D 1D 1D		    db  01dh, 01dh, 01dh, 01dh   ;76 thru 79
+ 017A  1E 1E 1E 1E		    db  01eh, 01eh, 01eh, 01eh   ;7a thru 7d
+ 017E  1F 1F 1F 1F		    db  01fh, 01fh, 01fh, 01fh   ;7e thru 81
+ 0182  20 20 20 20		    db  020h, 020h, 020h, 020h   ;82 thru 85
+ 0186  21 21 21 21		    db  021h, 021h, 021h, 021h   ;86 thru 89
+ 018A  22 22 22 22		    db  022h, 022h, 022h, 022h   ;8a thru 8d
+ 018E  23 23 23 23		    db  023h, 023h, 023h, 023h   ;8e thru 91
+ 0192  24 24 24 24		    db  024h, 024h, 024h, 024h   ;92 thru 95
+ 0196  25 25 25 25		    db  025h, 025h, 025h, 025h   ;96 thru 99
+ 019A  26 26 26 26		    db  026h, 026h, 026h, 026h   ;9a thru 9d
+ 019E  27 27 27 27		    db  027h, 027h, 027h, 027h   ;9e thru a1
+ 01A2  28 28 28 28		    db  028h, 028h, 028h, 028h   ;a2 thru a5
+ 01A6  29 29 29 29		    db  029h, 029h, 029h, 029h   ;a6 thru a9
+ 01AA  2A 2A 2A 2A		    db  02ah, 02ah, 02ah, 02ah   ;aa thru ad
+ 01AE  2B 2B 2B 2B		    db  02bh, 02bh, 02bh, 02bh   ;ae thru b1
+ 01B2  2C 2C 2C 2C		    db  02ch, 02ch, 02ch, 02ch   ;b2 thru b5
+ 01B6  2D 2D 2D 2D		    db  02dh, 02dh, 02dh, 02dh   ;b6 thru b9
+ 01BA  2E 2E 2E 2E		    db  02eh, 02eh, 02eh, 02eh   ;ba thru bd
+ 01BE  2F 2F 2F 2F		    db  02fh, 02fh, 02fh, 02fh   ;be thru c1
+ 01C2  30 30 30 30		    db  030h, 030h, 030h, 030h   ;c2 thru c5
+ 01C6  31 31 31 31		    db  031h, 031h, 031h, 031h   ;c6 thru c9
+ 01CA  32 32 32 32		    db  032h, 032h, 032h, 032h   ;ca thru cd
+ 01CE  33 33 33 33		    db  033h, 033h, 033h, 033h   ;ce thru d1
+ 01D2  34 34 34 34		    db  034h, 034h, 034h, 034h   ;d2 thru d5
+ 01D6  35 35 35 35		    db  035h, 035h, 035h, 035h   ;d6 thru d9
+ 01DA  36 36 36 36		    db  036h, 036h, 036h, 036h   ;da thru dd
+ 01DE  37 37 37 37		    db  037h, 037h, 037h, 037h   ;de thru e1
+ 01E2  38 38 38 38		    db  038h, 038h, 038h, 038h   ;e2 thru e5
+ 01E6  39 39 39 39		    db  039h, 039h, 039h, 039h   ;e6 thru e9
+ 01EA  3A 3A 3A 3A		    db  03ah, 03ah, 03ah, 03ah   ;ea thru ed
+ 01EE  3B 3B 3B 3B		    db  03bh, 03bh, 03bh, 03bh   ;ee thru f1
+ 01F2  3C 3C 3C 3C		    db  03ch, 03ch, 03ch, 03ch   ;f2 thru f5
+ 01F6  3D 3D 3D 3D		    db  03dh, 03dh, 03dh, 03dh   ;f6 thru f9
+ 01FA  3E 3E 3E 3E		    db  03eh, 03eh, 03eh, 03eh   ;fa thru fd
+ 01FE  3F 3F			    db  03fh, 03fh               ;fe thru ff
+
+				; This table contains 8 bit values for use in returning the RGB logical
+				; value from the 15 bit physical value, we use this to quickly replicate what the
+				; DIB_ColorInfo function would have returned.
+
+ 0200				PhysLog15BitLookup Label byte
+ 0200  00 10 18 20 28 30	    db  000h, 010h, 018h, 020h, 028h, 030h, 038h, 040h
+       38 40
+ 0208  48 50 58 60 68 70	    db  048h, 050h, 058h, 060h, 068h, 070h, 078h, 080h
+       78 80
+ 0210  88 90 98 A0 A8 B0	    db  088h, 090h, 098h, 0a0h, 0a8h, 0b0h, 0b8h, 0c0h
+       B8 C0
+ 0218  C8 D0 D8 E0 E8 F0	    db  0c8h, 0d0h, 0d8h, 0e0h, 0e8h, 0f0h, 0f8h, 0ffh
+       F8 FF
+
+				; This table contains 8 bit values for use in returning the RGB logical
+				; value from the 16 bit physical value, we use this to quickly replicate what the
+				; DIB_ColorInfo function would have returned.
+
+ 0220				PhysLog16BitLookup label byte
+ 0220  00 08 0C 10 14 18	    db  000h, 008h, 00ch, 010h, 014h, 018h, 01ch, 020h
+       1C 20
+ 0228  24 28 2C 30 34 38	    db  024h, 028h, 02ch, 030h, 034h, 038h, 03ch, 040h
+       3C 40
+ 0230  44 48 4C 50 54 58	    db  044h, 048h, 04ch, 050h, 054h, 058h, 05ch, 060h
+       5C 60
+ 0238  64 68 6C 70 74 78	    db  064h, 068h, 06ch, 070h, 074h, 078h, 07ch, 080h
+       7C 80
+ 0240  84 88 8C 90 94 98	    db  084h, 088h, 08ch, 090h, 094h, 098h, 09ch, 0a0h
+       9C A0
+ 0248  A4 A8 AC B0 B4 B8	    db  0a4h, 0a8h, 0ach, 0b0h, 0b4h, 0b8h, 0bch, 0c0h
+       BC C0
+ 0250  C4 C8 CC D0 D4 D8	    db  0c4h, 0c8h, 0cch, 0d0h, 0d4h, 0d8h, 0dch, 0e0h
+       DC E0
+ 0258  E4 E8 EC F0 F4 F8	    db  0e4h, 0e8h, 0ech, 0f0h, 0f4h, 0f8h, 0fch, 0ffh
+       FC FF
+				    
+				;*----------------------------------------------------------------------
+				;Function name:  ColorInfo
+				;
+				;Description:    Converts a logical color (an RGB value) to a physical
+				;                color (a physical color value) or converts a physical
+				;                to a logical color, depending on the value of the
+				;                lpPColor parameter.  Every graphics device driver must
+				;                export a ColorInfo function.
+				;
+				;Information:
+				; COLORREF ColorInfo( LPPDEVICE lpDestDev, 
+				;                     DWORD     dwColorin, 
+				;                     LPPCOLOR  lpPColor);
+				; 
+				; lpDestDev
+				;     Address of a PDEVICE or PBITMAP structure that specifies the
+				;     destination device or bitmap.
+				; 
+				; dwColorin
+				;     A logical or physical color, depending on the value of lpPColor
+				;     parameter.
+				; 
+				; lpPColor
+				;     Address of a PCOLOR structure or is NULL.  If lpPColor points to a
+				;     PCOLOR structure, the function assumes that dwColorin specifies a
+				;     logical color (an RGB value) and copies the physical color value
+				;     that most closely matches the logical color to this structure.  If
+				;     lpPColor is NULL, the function assumes that dwColorin specifies a
+				;     physical color and returns the logical color that matches the
+				;     physical color.
+				; 
+				; The export ordinal for this function is 2.  When converting a
+				; logical color, ColorInfo chooses the best possible physical color to
+				; match the logical color and returns the RGB color value that
+				; corresponds to this physical color.  GDI uses the physical colors
+				; returned by ColorInfo to set text colors, background colors, and
+				; pixel colors using the Pixel function.  If dwColorin is a logical
+				; color, it may specify either an RGB value or a color index.  If
+				; dwColorin specifies a color index (high-order byte is 0xFF),
+				; ColorInfo should return the index without carrying out a conversion.
+				; If dwColorin is a physical color, ColorInfo should return an RGB
+				; value only for static colors and return color indices for all other
+				; colors.  If GDI receives a color index from ColorInfo, it uses other
+				; functions to determine the corresponding logical color.
+				; 
+				;
+				;Return:         Returns the logical color (RGB value) that most
+				;                closely matches the physical color either specified
+				;                by dwColorin or copied to the PCOLOR structure pointed
+				;                to by lpPColor.
+				;----------------------------------------------------------------------*
+
+ 0260				ColorInfo PROC FAR PASCAL PUBLIC,
+				         lpDestDev:DWORD, 
+				         dwColorin:DWORD, 
+				         lpPColor:DWORD
+
+ 0263  66| 8B 46 0A		         mov         EAX, dwColorin    ; quick check for black or white
+ 0267  66| 25 00FFFFFF		         and         EAX, 0FFFFFFh
+ 026D  75 18			         jne short   Color_003
+				         ; Black falls through
+ 026F  83 7E 08 00		         cmp         word ptr lpPColor+2, 0 ; check for NULL lpPColor
+ 0273  74 0C			         je short    Color_001
+ 0275  C4 5E 06			         les         BX, lpPColor
+ 0278  26: C7 47 02 4000	         mov         word ptr ES:[BX+2], 4000h ; returning 040000000 like DIB ENGINE
+ 027E  26: 89 07		         mov         ES:[BX], AX     ; AX = 0, so we can use it here
+ 0281				Color_001:
+ 0281  33 D2			         xor         DX, DX            ; for physical to logical return 
+				         ret
+				         
+				         ; now check for white
+ 0287				Color_003:
+ 0287  66| 3D 00FFFFFF		         cmp         EAX, 0FFFFFFh     ; white check
+ 028D  75 1B			         jne short   Color_005
+ 028F  83 7E 08 00		         cmp         word ptr lpPColor+2, 0 ; check for NULL lpPColor
+ 0293  74 0E			         je short    Color_004
+ 0295  C4 5E 06			         les         BX, lpPColor
+ 0298  26: C7 47 02 40FF	         mov         word ptr ES:[BX+2], 40FFh ; returning 40FFFFFF like DIB ENGINE
+ 029E  26: C7 07 FFFF		         mov         word ptr ES:[BX], 0FFFFh ; AX = 0, so we can use it here
+ 02A3				Color_004:
+ 02A3  BA 00FF			         mov         DX, 0FFh          ; for physical to logical return
+				         ret
+
+ 02AA				Color_005:
+ 02AA  C4 5E 0E			         les         BX, lpDestDev
+ 02AD  26: 8A 4F 09		         mov         CL, ES:[BX].deBitsPixel
+
+ 02B1  83 7E 08 00		         cmp         WORD PTR lpPColor+2,0
+ 02B5  74 28			         je short    PhysicalToLogical
+
+ 02B7  80 F9 10			         cmp         cl, 16
+ 02BA  0F 84 00A9		         je          LogicalToPhysical16
+ 02BE  80 F9 01         cmp         cl, 1
+ 02C1  74 3F			         je short    LogicalToPhysicalMono
+ 02C3  80 F9 20			         cmp         cl, 32
+ 02C6  0F 84 0209		         je          LogicalToPhysical32
+
+ 02CA  66| FF 76 0E		         push        lpDestDev
+ 02CE  66| FF 76 0A		         push        dwColorin
+ 02D2  66| FF 76 06		         push        lpPColor
+ 02D6  9A ---- 0000 E		         call        DIB_ColorInfo
+				         ret
+
+ 02DF				PhysicalToLogical:
+
+ 02DF  80 F9 10			         cmp         cl, 16
+ 02E2  0F 84 018B		         je          PhysicalToLogical16
+ 02E6  80 F9 20			         cmp         cl, 32
+ 02E9  0F 84 0203		         je          PhysicalToLogical32
+
+ 02ED  66| FF 76 0E		         push        lpDestDev
+ 02F1  66| FF 76 0A		         push        dwColorin
+ 02F5  66| FF 76 06		         push        lpPColor
+ 02F9  9A ---- 0000 E		         call        DIB_ColorInfo
+				         ret
+
+ 0302				LogicalToPhysicalMono:
+
+ 0302  66| 3D 00C0C0C0		         cmp         eax, 0C0C0C0h
+ 0308  74 48			         jz          monowhite
+ 030A  66| 3D 00E1E1E1		         cmp         eax, 0E1E1E1h
+ 0310  74 40			         jz          monowhite
+ 0312  66| 3D 00919191		         cmp         eax, 0919191h
+ 0318  74 38			         jz          monowhite
+ 031A  66| 3D 00FF00FF		         cmp         eax, 0FF00FFh
+ 0320  74 30			         jz          monowhite
+ 0322  66| 3D 00FF0000		         cmp         eax, 0FF0000h
+ 0328  74 15			         jz          monoblack
+
+ 032A  66| FF 76 0E		         push        lpDestDev
+ 032E  66| FF 76 0A		         push        dwColorin
+ 0332  66| FF 76 06		         push        lpPColor
+ 0336  9A ---- 0000 E		         call        DIB_ColorInfo
+				         ret
+
+ 033F				monoblack:
+
+ 033F  C4 5E 06			         les         bx, lpPColor
+ 0342  66| 26: C7 07		         mov         DWORD PTR es:[bx], 80000000h
+       80000000
+ 034A  33 C0			         xor         ax, ax
+ 034C  33 D2			         xor         dx, dx
+				         ret
+
+ 0352				monowhite:
+
+ 0352  C4 5E 06			         les         bx, lpPColor
+ 0355  66| 26: C7 07		         mov         DWORD PTR es:[bx], 81000001h
+       81000001
+ 035D  B8 FFFF			         mov         ax, 0FFFFh
+ 0360  BA 00FF			         mov         dx, 0FFh
+				         ret
+
+ 0367				LogicalToPhysical16:
+
+ 0367  26: F7 47 1C 0040	         test        es:[bx].deFlags, FIVE6FIVE
+ 036D  0F 85 0080		         jne         LogicalToPhysical16_565
+
+ 0371				LogicalToPhysical16_555:
+
+ 0371  66| 3D 00C0C0C0		         cmp         eax, 0C0C0C0h
+ 0377  74 54			         je          LtoP16_C0_555
+
+ 0379  66| 3D 00808080		         cmp         eax, 0808080h
+ 037F  74 5E			         je          LtoP16_80_555
+
+				         ; NOTE: Logical color is passed in as XBGR format... Blue Green Red
+
+ 0381  66| 8B D8		         mov         ebx, eax
+ 0384  66| C1 EB 10		         shr         ebx, 16
+ 0388  66| 33 C9		         xor         ecx, ecx
+ 038B  8B D3			         mov         dx, bx
+ 038D  2E: 8A 8F 0000 R		         mov         cl, BYTE PTR CS:[OFFSET ByteTo5BitLookup + bx]
+ 0392  57			         push        di
+ 0393  0F B6 F9			         movzx       di, cl
+ 0396  2E: 8A 95 0200 R		         mov         dl, BYTE PTR CS:[OFFSET PhysLog15BitLookup + di]
+ 039B  8A D8			         mov         bl, al
+ 039D  2E: 8A AF 0000 R		         mov         ch, BYTE PTR CS:[OFFSET ByteTo5BitLookup + bx]
+ 03A2  0F B6 FD			         movzx       di, ch
+ 03A5  2E: 8A 85 0200 R		         mov         al, BYTE PTR CS:[OFFSET PhysLog15BitLookup + di]
+ 03AA  C0 E5 02			         shl         ch, 2    ; prep for 5:5:5
+ 03AD  8A DC			         mov         bl, ah   ; get green
+ 03AF  2E: 8A 9F 0000 R		         mov         bl, BYTE PTR CS:[OFFSET ByteTo5BitLookup + bx]
+ 03B4  0F B6 FB			         movzx       di, bl
+ 03B7  2E: 8A A5 0200 R		         mov         ah, BYTE PTR CS:[OFFSET PhysLog15BitLookup + di]
+ 03BC  5F			         pop         di
+ 03BD  C1 E3 05			         shl         bx, 5
+ 03C0  0B CB			         or          cx, bx
+
+ 03C2  C4 5E 06			         les         bx, lpPColor
+ 03C5  66| 26: 89 0F		         mov         DWORD PTR es:[bx], ecx
+				         ret
+
+ 03CD				LtoP16_C0_555:
+ 03CD  C4 5E 06			         les         bx, lpPColor
+ 03D0  66| 26: C7 07		         mov         DWORD PTR es:[bx], 5EF7h
+       00005EF7
+ 03D8  BA 00C0			         mov         dx, 0C0h
+				         ret
+
+ 03DF				LtoP16_80_555:
+ 03DF  C4 5E 06			         les         bx, lpPColor
+ 03E2  66| 26: C7 07		         mov         DWORD PTR es:[bx], 3DEFh
+       00003DEF
+ 03EA  BA 0080			         mov         dx, 080h
+				         ret
+
+
+ 03F1				LogicalToPhysical16_565:
+
+ 03F1  66| 3D 00C0C0C0		         cmp         eax, 0C0C0C0h
+ 03F7  74 54			         je          LtoP16_C0_565
+
+ 03F9  66| 3D 00808080		         cmp         eax, 0808080h
+ 03FF  74 5E			         je          LtoP16_80_565
+
+				    ; NOTE: Logical color is passed in as XBGR format... Blue Green Red
+
+ 0401  66| 8B D8		         mov         ebx, eax
+ 0404  66| C1 EB 10		         shr         ebx, 16
+ 0408  66| 33 C9		         xor         ecx, ecx
+ 040B  8B D3			         mov         dx, bx
+ 040D  2E: 8A 8F 0000 R		         mov         cl, BYTE PTR CS:[OFFSET ByteTo5BitLookup + bx]
+ 0412  57			         push        di
+ 0413  0F B6 F9			         movzx       di, cl
+ 0416  2E: 8A 95 0200 R		         mov         dl, BYTE PTR CS:[OFFSET PhysLog15BitLookup + di]
+ 041B  8A D8			         mov         bl, al
+ 041D  2E: 8A AF 0000 R		         mov         ch, BYTE PTR CS:[OFFSET ByteTo5BitLookup + bx]
+ 0422  0F B6 FD			         movzx       di, ch
+ 0425  2E: 8A 85 0200 R		         mov         al, BYTE PTR CS:[OFFSET PhysLog15BitLookup + di]
+ 042A  C0 E5 03			         shl         ch, 3    ; prep for 5:6:5
+ 042D  8A DC			         mov         bl, ah   ; get green
+ 042F  2E: 8A 9F 0100 R		         mov         bl, BYTE PTR CS:[OFFSET ByteTo6BitLookup + bx]
+ 0434  0F B6 FB			         movzx       di, bl
+ 0437  2E: 8A A5 0220 R		         mov         ah, BYTE PTR CS:[OFFSET PhysLog16BitLookup + di]
+ 043C  5F			         pop         di
+ 043D  C1 E3 05			         shl         bx, 5
+ 0440  0B CB			         or          cx, bx
+
+ 0442  C4 5E 06			         les         bx, lpPColor
+ 0445  66| 26: 89 0F		         mov         DWORD PTR es:[bx], ecx
+				         ret
+
+ 044D				LtoP16_C0_565:
+ 044D  C4 5E 06			         les         bx, lpPColor
+ 0450  66| 26: C7 07		         mov         DWORD PTR es:[bx], 0BDF7h
+       0000BDF7
+ 0458  BA 00C0			         mov         dx, 0C0h
+				         ret
+
+ 045F				LtoP16_80_565:
+ 045F  C4 5E 06			         les         bx, lpPColor
+ 0462  66| 26: C7 07		         mov         DWORD PTR es:[bx], 7BEFh
+       00007BEF
+ 046A  BA 0080			         mov         dx, 080h
+				         ret
+
+ 0471				PhysicalToLogical16:
+
+ 0471  26: F7 47 1C 0040	         test        es:[bx].deFlags, FIVE6FIVE
+ 0477  75 2D			         jne         PhysicalToLogical16_565
+
+ 0479				PhysicalToLogical16_555:
+
+ 0479  8B D8			         mov         bx, ax
+ 047B  83 E3 1F			         and         bx, 0001fh
+ 047E  2E: 0F B6 97 0200 R	         movzx       dx, BYTE PTR CS:[OFFSET PhysLog15BitLookup + bx]
+ 0484  8B D8			         mov         bx, ax
+ 0486  81 E3 7C00		         and         bx, 07c00h
+ 048A  C1 EB 0A			         shr         bx, 10
+ 048D  2E: 8A 8F 0200 R		         mov         cl, BYTE PTR CS:[OFFSET PhysLog15BitLookup + bx]
+ 0492  8B D8			         mov         bx, ax
+ 0494  81 E3 03E0		         and         bx, 003e0h
+ 0498  C1 EB 05			         shr         bx, 5
+ 049B  2E: 8A AF 0200 R		         mov         ch, BYTE PTR CS:[OFFSET PhysLog15BitLookup + bx]
+ 04A0  8B C1			         mov         ax, cx
+				         ret
+
+ 04A6				PhysicalToLogical16_565:
+
+ 04A6  8B D8			         mov         bx, ax
+ 04A8  83 E3 1F			         and         bx, 0001fh
+ 04AB  2E: 0F B6 97 0200 R	         movzx       dx, BYTE PTR CS:[OFFSET PhysLog15BitLookup + bx]
+ 04B1  8B D8			         mov         bx, ax
+ 04B3  81 E3 F800		         and         bx, 0f800h
+ 04B7  C1 EB 0B			         shr         bx, 11
+ 04BA  2E: 8A 8F 0200 R		         mov         cl, BYTE PTR CS:[OFFSET PhysLog15BitLookup + bx]
+ 04BF  8B D8			         mov         bx, ax
+ 04C1  81 E3 07E0		         and         bx, 007e0h
+ 04C5  C1 EB 05			         shr         bx, 5
+ 04C8  2E: 8A AF 0220 R		         mov         ch, BYTE PTR CS:[OFFSET PhysLog16BitLookup + bx]
+ 04CD  8B C1			         mov         ax, cx
+				         ret
+
+ 04D3				LogicalToPhysical32:          ; Simply perform BGR/RGB swap and return in DX:AX
+ 04D3  8B 56 0C			         mov         dx, WORD PTR dwColorin + 2
+ 04D6  8A CA			         mov         cl, dl
+ 04D8  8A D0			         mov         dl, al
+ 04DA  8A C1			         mov         al, cl
+ 04DC  C4 5E 06			         les         bx, lpPColor      ; Store to lpPColor as well
+ 04DF  26: 89 57 02		         mov         WORD PTR es:[bx+2], dx
+ 04E3  26: 89 07		         mov         WORD PTR es:[bx], ax
+
+ 04E6  8B 56 0C			         mov         dx, WORD PTR dwColorin + 2
+ 04E9  8B 46 0A			         mov         ax, WORD PTR dwColorin
+				         ret
+
+ 04F0				PhysicalToLogical32:          ; Simply perform BGR/RGB swap and return in DX:AX
+ 04F0  8B 56 0C			         mov         dx, WORD PTR dwColorin + 2
+ 04F3  8A D8			         mov         bl, al
+ 04F5  32 F6			         xor         dh, dh
+ 04F7  8A C2			         mov         al, dl
+ 04F9  8A D3			         mov         dl, bl
+				         ret
+
+ 04FF				ColorInfo ENDP
+
+ 04FF				_TEXT   ends
+
+				END

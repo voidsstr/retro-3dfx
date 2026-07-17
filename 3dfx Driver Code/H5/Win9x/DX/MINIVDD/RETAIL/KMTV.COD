@@ -1,0 +1,4979 @@
+	TITLE	..\kmtv.c
+	.386P
+include listing.inc
+if @Version gt 510
+.model FLAT
+else
+_TEXT	SEGMENT PARA USE32 PUBLIC 'CODE'
+_TEXT	ENDS
+_DATA	SEGMENT DWORD USE32 PUBLIC 'DATA'
+_DATA	ENDS
+CONST	SEGMENT DWORD USE32 PUBLIC 'CONST'
+CONST	ENDS
+_BSS	SEGMENT DWORD USE32 PUBLIC 'BSS'
+_BSS	ENDS
+$$SYMBOLS	SEGMENT BYTE USE32 'DEBSYM'
+$$SYMBOLS	ENDS
+$$TYPES	SEGMENT BYTE USE32 'DEBTYP'
+$$TYPES	ENDS
+_TLS	SEGMENT DWORD USE32 PUBLIC 'TLS'
+_TLS	ENDS
+_PTEXT	SEGMENT PARA USE32 PUBLIC 'PCODE'
+_PTEXT	ENDS
+_LTEXT	SEGMENT PARA USE32 PUBLIC 'LCODE'
+_LTEXT	ENDS
+_PDATA	SEGMENT DWORD USE32 PUBLIC 'PDATA'
+_PDATA	ENDS
+_LDATA	SEGMENT DWORD USE32 PUBLIC 'LCODE'
+_LDATA	ENDS
+FLAT	GROUP _DATA, CONST, _BSS, _PDATA, _LDATA
+	ASSUME	CS: FLAT, DS: FLAT, SS: FLAT
+endif
+PUBLIC	_dwLockCounter
+_DATA	SEGMENT
+COMM	_kmtvInfo:BYTE:0320H
+_DATA	ENDS
+_LDATA	SEGMENT
+_dwLockCounter DD 00H
+_LDATA	ENDS
+PUBLIC	_AllocalSysBuff
+EXTRN	_CCODE__PageAllocate:NEAR
+EXTRN	_CCODE__PageFree:NEAR
+_LTEXT	SEGMENT
+_lpParams$ = 8
+_AllocalSysBuff PROC NEAR
+
+; 225  :    if( ( lpParams->cbInBuffer >= 8))
+
+  00000	8b 44 24 04	 mov	 eax, DWORD PTR _lpParams$[esp-4]
+  00004	83 78 14 08	 cmp	 DWORD PTR [eax+20], 8
+  00008	72 4d		 jb	 SHORT $L12782
+
+; 226  :    {
+; 227  :        GLOBALDATA * ppdev =(GLOBALDATA *)(*((DWORD *)(lpParams->lpvInBuffer) + 2));
+
+  0000a	8b 40 10	 mov	 eax, DWORD PTR [eax+16]
+  0000d	56		 push	 esi
+  0000e	8b 70 08	 mov	 esi, DWORD PTR [eax+8]
+
+; 228  : 
+; 229  :        if( *(DWORD *)(lpParams->lpvInBuffer))
+
+  00011	8b 08		 mov	 ecx, DWORD PTR [eax]
+  00013	85 c9		 test	 ecx, ecx
+
+; 230  :        {
+; 231  :            if(!_FF(KMVTBuff))
+
+  00015	8b 46 2c	 mov	 eax, DWORD PTR [esi+44]
+  00018	74 23		 je	 SHORT $L12787
+  0001a	85 c0		 test	 eax, eax
+  0001c	75 35		 jne	 SHORT $L12795
+
+; 232  :            {
+; 233  :              //allocate one page
+; 234  :              _FF(KMVTBuff) =(DWORD) _PageAllocate( 1,  PG_SYS, (ULONG) NULL,
+; 235  :                 0x0, 0x0, 0xFFFFFFFF, (ULONG)NULL, PAGEFIXED | PAGEZEROINIT);
+
+  0001e	6a 09		 push	 9
+  00020	6a 00		 push	 0
+  00022	6a ff		 push	 -1
+  00024	6a 00		 push	 0
+  00026	6a 00		 push	 0
+  00028	6a 00		 push	 0
+  0002a	6a 01		 push	 1
+  0002c	6a 01		 push	 1
+  0002e	e8 00 00 00 00	 call	 _CCODE__PageAllocate
+  00033	83 c4 20	 add	 esp, 32			; 00000020H
+  00036	89 46 2c	 mov	 DWORD PTR [esi+44], eax
+
+; 244  :            }
+; 245  :        }
+; 246  :        return 0;
+
+  00039	33 c0		 xor	 eax, eax
+  0003b	5e		 pop	 esi
+
+; 250  : }
+
+  0003c	c3		 ret	 0
+$L12787:
+
+; 236  :            }
+; 237  :        }
+; 238  :        else
+; 239  :        {
+; 240  :            if(_FF(KMVTBuff))
+
+  0003d	85 c0		 test	 eax, eax
+  0003f	74 12		 je	 SHORT $L12795
+
+; 241  :            {
+; 242  :              _PageFree((PVOID)_FF(KMVTBuff), 0);
+
+  00041	6a 00		 push	 0
+  00043	50		 push	 eax
+  00044	e8 00 00 00 00	 call	 _CCODE__PageFree
+  00049	83 c4 08	 add	 esp, 8
+
+; 243  :              _FF(KMVTBuff) = 0;
+
+  0004c	c7 46 2c 00 00
+	00 00		 mov	 DWORD PTR [esi+44], 0
+$L12795:
+
+; 244  :            }
+; 245  :        }
+; 246  :        return 0;
+
+  00053	33 c0		 xor	 eax, eax
+  00055	5e		 pop	 esi
+
+; 250  : }
+
+  00056	c3		 ret	 0
+$L12782:
+
+; 247  :     }
+; 248  :     else
+; 249  :         return 1;
+
+  00057	b8 01 00 00 00	 mov	 eax, 1
+
+; 250  : }
+
+  0005c	c3		 ret	 0
+_AllocalSysBuff ENDP
+_LTEXT	ENDS
+PUBLIC	_SetBusy
+_LTEXT	SEGMENT
+_lpBusy$ = 8
+_wFlag$ = 12
+_SetBusy PROC NEAR
+
+; 253  : {
+
+  00060	55		 push	 ebp
+  00061	8b ec		 mov	 ebp, esp
+  00063	53		 push	 ebx
+  00064	56		 push	 esi
+  00065	57		 push	 edi
+
+; 254  :       _asm{
+; 255  :         mov   ax, wFlag
+
+  00066	66 8b 45 0c	 mov	 ax, WORD PTR _wFlag$[ebp]
+
+; 256  :         mov   ebx, lpBusy
+
+  0006a	8b 5d 08	 mov	 ebx, DWORD PTR _lpBusy$[ebp]
+
+; 257  :         bts   WORD PTR [ebx],ax
+
+  0006d	66 0f ab 03	 bts	 WORD PTR [ebx], ax
+
+; 258  :         jnc   NotBusy
+
+  00071	73 06		 jae	 SHORT $NotBusy$12804
+
+; 259  :       }
+; 260  :       return 1;
+
+  00073	66 b8 01 00	 mov	 ax, 1
+  00077	eb 03		 jmp	 SHORT $L12803
+$NotBusy$12804:
+
+; 261  : NotBusy:
+; 262  :       return 0;
+
+  00079	66 33 c0	 xor	 ax, ax
+$L12803:
+
+; 263  : }// SetBusy
+
+  0007c	5f		 pop	 edi
+  0007d	5e		 pop	 esi
+  0007e	5b		 pop	 ebx
+  0007f	5d		 pop	 ebp
+  00080	c3		 ret	 0
+_SetBusy ENDP
+_LTEXT	ENDS
+PUBLIC	_ClearBusy
+_LTEXT	SEGMENT
+_lpBusy$ = 8
+_wFlag$ = 12
+_ClearBusy PROC NEAR
+
+; 267  : {
+
+  00081	55		 push	 ebp
+  00082	8b ec		 mov	 ebp, esp
+  00084	53		 push	 ebx
+
+; 268  :    _asm{
+; 269  :        mov  ax, wFlag
+
+  00085	66 8b 45 0c	 mov	 ax, WORD PTR _wFlag$[ebp]
+
+; 270  :        mov  ebx, lpBusy
+
+  00089	8b 5d 08	 mov	 ebx, DWORD PTR _lpBusy$[ebp]
+
+; 271  :        btr  WORD PTR [ebx], ax
+
+  0008c	66 0f b3 03	 btr	 WORD PTR [ebx], ax
+  00090	5b		 pop	 ebx
+
+; 272  :     }
+; 273  : }
+
+  00091	5d		 pop	 ebp
+  00092	c3		 ret	 0
+_ClearBusy ENDP
+_LTEXT	ENDS
+PUBLIC	_ddFlipOverlay
+PUBLIC	_DDGetIRQInfo
+PUBLIC	_DDIsOurIRQ
+PUBLIC	_DDEnableIRQ
+PUBLIC	_DDSkipNextField
+PUBLIC	_DDBobNextField
+PUBLIC	_DDSetState
+PUBLIC	_DDLock
+PUBLIC	_DDFlipVideoPort
+PUBLIC	_DDGetPolarity
+PUBLIC	_DDSetSkipPattern
+PUBLIC	_DDGetCurrentAutoflip
+PUBLIC	_DDGetPreviousAutoflip
+PUBLIC	_DDTransfer
+PUBLIC	_DDGetTransferStatus
+PUBLIC	_GetKernelInfo@4
+EXTRN	_FindActiveBanshee:NEAR
+_LTEXT	SEGMENT
+_lpParams$ = 8
+_GetKernelInfo@4 PROC NEAR
+
+; 278  :    LPDDMINIVDDTABLE lpVddTable;
+; 279  : 
+; 280  :    if( lpParams->cbOutBuffer < sizeof( DDMINIVDDTABLE ))
+
+  000a1	8b 44 24 04	 mov	 eax, DWORD PTR _lpParams$[esp-4]
+  000a5	b9 40 00 00 00	 mov	 ecx, 64			; 00000040H
+  000aa	39 48 1c	 cmp	 DWORD PTR [eax+28], ecx
+  000ad	73 08		 jae	 SHORT $L12817
+
+; 281  :        return 1;
+
+  000af	b8 01 00 00 00	 mov	 eax, 1
+
+; 313  : 
+; 314  : }
+
+  000b4	c2 04 00	 ret	 4
+$L12817:
+  000b7	56		 push	 esi
+
+; 282  :    lpParams->lpcbBytesReturned = sizeof(DDMINIVDDTABLE);
+; 283  : 
+; 284  :    lpVddTable = (LPDDMINIVDDTABLE)lpParams->lpvOutBuffer;
+
+  000b8	8b 70 18	 mov	 esi, DWORD PTR [eax+24]
+  000bb	57		 push	 edi
+  000bc	89 48 20	 mov	 DWORD PTR [eax+32], ecx
+
+; 285  :    
+; 286  :    lpVddTable->dwMiniVDDContext = 0x1;     //any number now
+; 287  :    lpVddTable->vddFlipOverlay = ddFlipOverlay;
+; 288  : 
+; 289  : 
+; 290  :    memset (&kmtvInfo, 0, sizeof (kmtvInfo));   
+
+  000bf	b9 c8 00 00 00	 mov	 ecx, 200		; 000000c8H
+  000c4	33 c0		 xor	 eax, eax
+  000c6	bf 00 00 00 00	 mov	 edi, OFFSET FLAT:_kmtvInfo
+  000cb	c7 06 01 00 00
+	00		 mov	 DWORD PTR [esi], 1
+  000d1	f3 ab		 rep stosd
+  000d3	c7 46 20 00 00
+	00 00		 mov	 DWORD PTR [esi+32], OFFSET FLAT:_ddFlipOverlay
+
+; 291  :    kmtvInfo.pDev = FindActiveBanshee();
+
+  000da	e8 00 00 00 00	 call	 _FindActiveBanshee
+  000df	a3 10 00 00 00	 mov	 DWORD PTR _kmtvInfo+16, eax
+
+; 292  :    kmtvInfo.Context =  lpVddTable->dwMiniVDDContext;
+; 293  : 
+; 294  :    if(kmtvInfo.pDev->lpDriverData->PLDRevisionID)
+
+  000e4	8b 80 14 02 00
+	00		 mov	 eax, DWORD PTR [eax+532]
+  000ea	c7 05 08 00 00
+	00 01 00 00 00	 mov	 DWORD PTR _kmtvInfo+8, 1
+  000f4	8b 88 b8 04 00
+	00		 mov	 ecx, DWORD PTR [eax+1208]
+  000fa	85 c9		 test	 ecx, ecx
+  000fc	74 62		 je	 SHORT $L12820
+
+; 295  :    {
+; 296  :     lpVddTable->vddGetIRQInfo = DDGetIRQInfo;
+
+  000fe	c7 46 04 00 00
+	00 00		 mov	 DWORD PTR [esi+4], OFFSET FLAT:_DDGetIRQInfo
+
+; 297  :     lpVddTable->vddIsOurIRQ = DDIsOurIRQ;
+
+  00105	c7 46 08 00 00
+	00 00		 mov	 DWORD PTR [esi+8], OFFSET FLAT:_DDIsOurIRQ
+
+; 298  :     lpVddTable->vddEnableIRQ = DDEnableIRQ;   
+
+  0010c	c7 46 0c 00 00
+	00 00		 mov	 DWORD PTR [esi+12], OFFSET FLAT:_DDEnableIRQ
+
+; 299  :     lpVddTable->vddSkipNextField = DDSkipNextField;
+
+  00113	c7 46 10 00 00
+	00 00		 mov	 DWORD PTR [esi+16], OFFSET FLAT:_DDSkipNextField
+
+; 300  :     lpVddTable->vddBobNextField = DDBobNextField;
+
+  0011a	c7 46 14 00 00
+	00 00		 mov	 DWORD PTR [esi+20], OFFSET FLAT:_DDBobNextField
+
+; 301  :     lpVddTable->vddSetState = DDSetState;
+
+  00121	c7 46 18 00 00
+	00 00		 mov	 DWORD PTR [esi+24], OFFSET FLAT:_DDSetState
+
+; 302  :     lpVddTable->vddLock = DDLock;
+
+  00128	c7 46 1c 00 00
+	00 00		 mov	 DWORD PTR [esi+28], OFFSET FLAT:_DDLock
+
+; 303  :     lpVddTable->vddGetPolarity = DDGetPolarity;
+
+  0012f	c7 46 28 00 00
+	00 00		 mov	 DWORD PTR [esi+40], OFFSET FLAT:_DDGetPolarity
+
+; 304  :     lpVddTable->vddFlipVideoPort = DDFlipVideoPort;
+
+  00136	c7 46 24 00 00
+	00 00		 mov	 DWORD PTR [esi+36], OFFSET FLAT:_DDFlipVideoPort
+
+; 305  :     lpVddTable->vddSetSkipPattern = DDSetSkipPattern;
+
+  0013d	c7 46 2c 00 00
+	00 00		 mov	 DWORD PTR [esi+44], OFFSET FLAT:_DDSetSkipPattern
+
+; 306  :     lpVddTable->vddGetCurrentAutoflip = DDGetCurrentAutoflip;
+
+  00144	c7 46 30 00 00
+	00 00		 mov	 DWORD PTR [esi+48], OFFSET FLAT:_DDGetCurrentAutoflip
+
+; 307  :     lpVddTable->vddGetPreviousAutoflip = DDGetPreviousAutoflip;
+
+  0014b	c7 46 34 00 00
+	00 00		 mov	 DWORD PTR [esi+52], OFFSET FLAT:_DDGetPreviousAutoflip
+
+; 308  :     lpVddTable->vddTransfer = DDTransfer;
+
+  00152	c7 46 38 00 00
+	00 00		 mov	 DWORD PTR [esi+56], OFFSET FLAT:_DDTransfer
+
+; 309  :     lpVddTable->vddGetTransferStatus = DDGetTransferStatus;
+
+  00159	c7 46 3c 00 00
+	00 00		 mov	 DWORD PTR [esi+60], OFFSET FLAT:_DDGetTransferStatus
+$L12820:
+  00160	5f		 pop	 edi
+
+; 310  :    }
+; 311  : 
+; 312  :    return 0;   
+
+  00161	33 c0		 xor	 eax, eax
+  00163	5e		 pop	 esi
+
+; 313  : 
+; 314  : }
+
+  00164	c2 04 00	 ret	 4
+_GetKernelInfo@4 ENDP
+_LTEXT	ENDS
+EXTRN	_myWrapAgp:NEAR
+EXTRN	_myAgpEpilog:NEAR
+EXTRN	__fltused:NEAR
+_LTEXT	SEGMENT
+_fenceVar$13342 = -2
+_fenceVar$13384 = -2
+_i$13387 = -32
+_nNumChips$13388 = -36
+_rdPtrMin$13389 = -24
+_dwCmdFifoMin$13406 = -24
+_fenceVar$13419 = -2
+_fenceVar$13463 = -2
+_i$13464 = -40
+_nNumChips$13466 = -36
+_rdPtrMin$13467 = -4
+_dwCmdFifoMin$13484 = -24
+_fenceVar$13497 = -2
+_i$13554 = -24
+_fenceVar$13571 = -2
+_lpFlipInfo$ = -20
+_dwSurfAddr$ = -16
+_ppdev$ = -8
+_pFlags$ = -28
+_dwDstBaseAddr$ = -12
+_dwTxtrBaseAddr$ = -40
+_ddFlipOverlay PROC NEAR
+
+; 333  : {
+
+  00171	55		 push	 ebp
+  00172	8b ec		 mov	 ebp, esp
+  00174	83 ec 2c	 sub	 esp, 44			; 0000002cH
+  00177	56		 push	 esi
+  00178	57		 push	 edi
+
+; 334  :   DDFLIPOVERLAYINFO *lpFlipInfo;
+; 335  :   LPDDSURFACEDATA   lpTarget;
+; 336  :   DWORD dwSurfAddr;
+; 337  :   GLOBALDATA * ppdev;
+; 338  :   WORD       * pFlags;
+; 339  :   OVLBLTPARAMS * lpBltParams;
+; 340  :   BOOL       fHWBusy = TRUE;
+; 341  :   DWORD        dwDstBaseAddr;
+; 342  :   DWORD        dwTxtrBaseAddr;
+; 343  :   SstIORegs   *ghwIO;
+; 344  :   SstGRegs   *ghw2D;
+; 345  :   SstRegs   *ghw3D;
+; 346  : 
+; 347  :    _asm mov lpFlipInfo, esi
+
+  00179	89 75 ec	 mov	 DWORD PTR _lpFlipInfo$[ebp], esi
+
+; 348  :    
+; 349  :    lpTarget= (LPDDSURFACEDATA)lpFlipInfo->lpTargetSurface;
+
+  0017c	8b 45 ec	 mov	 eax, DWORD PTR _lpFlipInfo$[ebp]
+  0017f	8b 40 08	 mov	 eax, DWORD PTR [eax+8]
+
+; 350  : 
+; 351  :    ppdev = (GLOBALDATA *)lpTarget->dwDriverReserved1;
+
+  00182	8b 70 68	 mov	 esi, DWORD PTR [eax+104]
+
+; 352  : 
+; 353  :    lpBltParams =
+; 354  :        (OVLBLTPARAMS *)( (DWORD )ppdev + (DWORD)lpTarget->dwDriverReserved2);
+
+  00185	8b 78 6c	 mov	 edi, DWORD PTR [eax+108]
+  00188	03 fe		 add	 edi, esi
+  0018a	89 75 f8	 mov	 DWORD PTR _ppdev$[ebp], esi
+
+; 355  : 
+; 356  :    pFlags = lpBltParams->pDebAddr;
+
+  0018d	8b 4f 4a	 mov	 ecx, DWORD PTR [edi+74]
+
+; 357  :    if( !pFlags)
+
+  00190	85 c9		 test	 ecx, ecx
+  00192	89 4d e4	 mov	 DWORD PTR _pFlags$[ebp], ecx
+  00195	75 06		 jne	 SHORT $L12840
+
+; 358  :        pFlags = (WORD *)_FF(lpDeFlags);
+
+  00197	8b 4e 04	 mov	 ecx, DWORD PTR [esi+4]
+  0019a	89 4d e4	 mov	 DWORD PTR _pFlags$[ebp], ecx
+$L12840:
+
+; 359  : 
+; 360  :    //The check deVersion and deType in DIBENGINE
+; 361  :    //if it is not a correct one then we cannot use deFlags too
+; 362  :    if( *(WORD *)((DWORD)pFlags + offsetof(DIBENGINE, deVersion) 
+; 363  :                         - offsetof(DIBENGINE,deFlags)) != 0x400)
+
+  0019d	66 81 79 02 00
+	04		 cmp	 WORD PTR [ecx+2], 1024	; 00000400H
+  001a3	74 08		 je	 SHORT $L12848
+  001a5	5f		 pop	 edi
+
+; 364  :            return 0;
+
+  001a6	33 c0		 xor	 eax, eax
+  001a8	5e		 pop	 esi
+
+; 733  : }    
+
+  001a9	8b e5		 mov	 esp, ebp
+  001ab	5d		 pop	 ebp
+  001ac	c3		 ret	 0
+$L12848:
+
+; 365  : 
+; 366  :    if( *(WORD *)((DWORD)pFlags + offsetof(DIBENGINE, deType) 
+; 367  :                         - offsetof(DIBENGINE,deFlags)) != 0x5250)
+
+  001ad	66 81 79 e4 50
+	52		 cmp	 WORD PTR [ecx-28], 21072 ; 00005250H
+  001b3	74 08		 je	 SHORT $L12855
+  001b5	5f		 pop	 edi
+
+; 368  :            return 0;
+
+  001b6	33 c0		 xor	 eax, eax
+  001b8	5e		 pop	 esi
+
+; 733  : }    
+
+  001b9	8b e5		 mov	 esp, ebp
+  001bb	5d		 pop	 ebp
+  001bc	c3		 ret	 0
+$L12855:
+
+; 369  : 
+; 370  :    if(lpBltParams->wShrinkFlags & OVL_SHRINK)
+
+  001bd	f6 47 48 01	 test	 BYTE PTR [edi+72], 1
+
+; 371  :    {
+; 372  :        if(lpTarget->dwOverlayDestHeight)
+
+  001c1	8b 48 30	 mov	 ecx, DWORD PTR [eax+48]
+  001c4	89 4d e8	 mov	 DWORD PTR -24+[ebp], ecx
+  001c7	74 0c		 je	 SHORT $L12856
+  001c9	85 c9		 test	 ecx, ecx
+  001cb	74 14		 je	 SHORT $L12859
+  001cd	5f		 pop	 edi
+
+; 373  :          return 0;      //not sync
+
+  001ce	33 c0		 xor	 eax, eax
+  001d0	5e		 pop	 esi
+
+; 733  : }    
+
+  001d1	8b e5		 mov	 esp, ebp
+  001d3	5d		 pop	 ebp
+  001d4	c3		 ret	 0
+$L12856:
+
+; 374  :         
+; 375  :    }
+; 376  :    else
+; 377  :    {
+; 378  :        if(!lpTarget->dwOverlayDestHeight)
+
+  001d5	85 c9		 test	 ecx, ecx
+  001d7	75 08		 jne	 SHORT $L12859
+  001d9	5f		 pop	 edi
+
+; 379  :          return 0;      //not sync
+
+  001da	33 c0		 xor	 eax, eax
+  001dc	5e		 pop	 esi
+
+; 733  : }    
+
+  001dd	8b e5		 mov	 esp, ebp
+  001df	5d		 pop	 ebp
+  001e0	c3		 ret	 0
+$L12859:
+
+; 380  :    }
+; 381  : 
+; 382  :    dwSurfAddr = lpTarget->dwSurfaceOffset;
+
+  001e1	8b 50 08	 mov	 edx, DWORD PTR [eax+8]
+  001e4	53		 push	 ebx
+
+; 383  : 
+; 384  : 
+; 385  :    ghw2D = (SstGRegs*)(_FF(regBase[HWINFO_SST_2DREGS_INDEX]));
+; 386  :    ghw3D = (SstRegs*)(_FF(regBase[HWINFO_SST_3DREGS_INDEX]));
+; 387  :    ghwIO = (SstIORegs*)(_FF(regBase[HWINFO_SST_IOREGS_INDEX]));
+
+  001e5	8b 9e 3c 17 00
+	00		 mov	 ebx, DWORD PTR [esi+5948]
+  001eb	89 55 f0	 mov	 DWORD PTR _dwSurfAddr$[ebp], edx
+
+; 388  : 
+; 389  : 
+; 390  :    if(!lpTarget->dwOverlayDestHeight)
+
+  001ee	85 c9		 test	 ecx, ecx
+  001f0	75 37		 jne	 SHORT $L12863
+
+; 391  :    {
+; 392  :       //in this case we are shrinking overlay
+; 393  :       dwTxtrBaseAddr = _FF(dwTxtrSurfAddr1);
+; 394  :       if(_FF(dwCurrentSKSurf) & 0x1)
+
+  001f2	8b 86 d0 1a 00
+	00		 mov	 eax, DWORD PTR [esi+6864]
+  001f8	8b 8e dc 1a 00
+	00		 mov	 ecx, DWORD PTR [esi+6876]
+  001fe	a8 01		 test	 al, 1
+  00200	89 4d d8	 mov	 DWORD PTR _dwTxtrBaseAddr$[ebp], ecx
+  00203	74 0b		 je	 SHORT $L12864
+
+; 395  :       {
+; 396  :        dwDstBaseAddr = _FF(dwShrinkSurfAddr2);
+
+  00205	8b 96 d8 1a 00
+	00		 mov	 edx, DWORD PTR [esi+6872]
+  0020b	89 55 f4	 mov	 DWORD PTR _dwDstBaseAddr$[ebp], edx
+
+; 397  :       }
+; 398  :       else
+
+  0020e	eb 09		 jmp	 SHORT $L12865
+$L12864:
+
+; 399  :       {
+; 400  :        dwDstBaseAddr = _FF(dwShrinkSurfAddr1);
+
+  00210	8b 8e d4 1a 00
+	00		 mov	 ecx, DWORD PTR [esi+6868]
+  00216	89 4d f4	 mov	 DWORD PTR _dwDstBaseAddr$[ebp], ecx
+$L12865:
+
+; 401  :       }
+; 402  :       if(_FF(dwCurrentSKSurf) & 0x10000)  //there are two shrink surfaces
+
+  00219	a9 00 00 01 00	 test	 eax, 65536		; 00010000H
+  0021e	74 52		 je	 SHORT $L12868
+
+; 403  :          (WORD)_FF(dwCurrentSKSurf) += 1;
+
+  00220	66 ff 86 d0 1a
+	00 00		 inc	 WORD PTR [esi+6864]
+
+; 404  :    }
+; 405  :    else
+
+  00227	eb 49		 jmp	 SHORT $L12868
+$L12863:
+
+; 406  :    {
+; 407  :        if(lpTarget->dwOverlayFlags & DDOVER_INTERLEAVED)
+
+  00229	f7 40 1c 00 00
+	80 00		 test	 DWORD PTR [eax+28], 8388608 ; 00800000H
+
+; 408  :        {
+; 409  :           if(lpFlipInfo->dwFlags & DDFLIP_ODD )
+
+  00230	8b 4d ec	 mov	 ecx, DWORD PTR _lpFlipInfo$[ebp]
+  00233	74 23		 je	 SHORT $L12869
+  00235	8b 49 0c	 mov	 ecx, DWORD PTR [ecx+12]
+  00238	f6 c1 04	 test	 cl, 4
+  0023b	74 0e		 je	 SHORT $L12870
+
+; 410  :           {
+; 411  :             dwSurfAddr += lpTarget->lPitch; //set in ring0 for pitch
+
+  0023d	8b 40 18	 mov	 eax, DWORD PTR [eax+24]
+  00240	03 c2		 add	 eax, edx
+
+; 412  :             dwSurfAddr &= ~SSTG_IS_TILED;
+
+  00242	25 ff ff ff 7f	 and	 eax, 2147483647		; 7fffffffH
+  00247	8b d0		 mov	 edx, eax
+
+; 413  :           }
+; 414  :           else if(lpFlipInfo->dwFlags & DDFLIP_EVEN )
+
+  00249	eb 21		 jmp	 SHORT $L13615
+$L12870:
+  0024b	f6 c1 02	 test	 cl, 2
+  0024e	74 1f		 je	 SHORT $L12875
+
+; 415  :             dwSurfAddr |= 0x80000000;
+
+  00250	81 ca 00 00 00
+	80		 or	 edx, -2147483648	; 80000000H
+
+; 416  :        }
+; 417  :        else
+
+  00256	eb 14		 jmp	 SHORT $L13615
+$L12869:
+
+; 418  :        {
+; 419  :           if(lpFlipInfo->dwFlags & DDFLIP_EVEN )
+
+  00258	f6 41 0c 02	 test	 BYTE PTR [ecx+12], 2
+  0025c	74 08		 je	 SHORT $L12874
+
+; 420  :             dwSurfAddr |= 0x80000000;
+
+  0025e	81 ca 00 00 00
+	80		 or	 edx, -2147483648	; 80000000H
+
+; 421  :           else
+
+  00264	eb 06		 jmp	 SHORT $L13615
+$L12874:
+
+; 422  :             dwSurfAddr &= ~SSTG_IS_TILED;
+
+  00266	81 e2 ff ff ff
+	7f		 and	 edx, 2147483647		; 7fffffffH
+$L13615:
+  0026c	89 55 f0	 mov	 DWORD PTR _dwSurfAddr$[ebp], edx
+$L12875:
+
+; 423  :        }
+; 424  : 
+; 425  :        dwDstBaseAddr = dwSurfAddr;
+
+  0026f	89 55 f4	 mov	 DWORD PTR _dwDstBaseAddr$[ebp], edx
+$L12868:
+
+; 426  :    }
+; 427  : 
+; 428  :    if( dwLockCounter++ == 0) 
+
+  00272	a1 00 00 00 00	 mov	 eax, DWORD PTR _dwLockCounter
+  00277	8b d0		 mov	 edx, eax
+  00279	40		 inc	 eax
+  0027a	85 d2		 test	 edx, edx
+  0027c	a3 00 00 00 00	 mov	 DWORD PTR _dwLockCounter, eax
+  00281	0f 85 2a 07 00
+	00		 jne	 $L12877
+
+; 429  :    {
+; 430  :       //check busy bit
+; 431  :       if( !SetBusy(pFlags, BUSY_BIT))
+
+  00287	8b 45 e4	 mov	 eax, DWORD PTR _pFlags$[ebp]
+  0028a	6a 04		 push	 4
+  0028c	50		 push	 eax
+  0028d	e8 00 00 00 00	 call	 _SetBusy
+  00292	83 c4 08	 add	 esp, 8
+  00295	66 85 c0	 test	 ax, ax
+  00298	0f 85 13 07 00
+	00		 jne	 $L12877
+
+; 432  :       {
+; 433  : 
+; 434  :         if(!SetBusy(&_FF(cursorBusy), CBUSY_BIT))
+
+  0029e	81 c6 70 04 00
+	00		 add	 esi, 1136		; 00000470H
+  002a4	6a 01		 push	 1
+  002a6	56		 push	 esi
+  002a7	89 75 d4	 mov	 DWORD PTR -44+[ebp], esi
+  002aa	e8 00 00 00 00	 call	 _SetBusy
+  002af	83 c4 08	 add	 esp, 8
+  002b2	66 85 c0	 test	 ax, ax
+  002b5	0f 85 e8 06 00
+	00		 jne	 $L12878
+
+; 435  :         {
+; 436  :             if(!(GET(ghwIO->status) & SST_BUSY))
+
+  002bb	8b 03		 mov	 eax, DWORD PTR [ebx]
+  002bd	f6 c4 02	 test	 ah, 2
+  002c0	0f 85 cf 06 00
+	00		 jne	 $L13005
+
+; 437  :             {
+; 438  :                CMDFIFO_PROLOG(hwPtr);
+
+  002c6	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  002c9	33 db		 xor	 ebx, ebx
+
+; 439  :                _FF(gdiFlags) |= SDATA_GDIFLAGS_2D_DIRTY;
+; 440  :                _FF(gdiFlags) &= ~SDATA_GDIFLAGS_KMTV_FLAG;
+
+  002cb	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  002ce	8b 8a a0 05 00
+	00		 mov	 ecx, DWORD PTR [edx+1440]
+  002d4	80 e4 ef	 and	 ah, -17			; ffffffefH
+  002d7	0c 02		 or	 al, 2
+  002d9	8b 71 0c	 mov	 esi, DWORD PTR [ecx+12]
+  002dc	89 42 08	 mov	 DWORD PTR [edx+8], eax
+
+; 441  : 
+; 442  :                if(!lpTarget->dwOverlayDestHeight)
+
+  002df	8b 45 e8	 mov	 eax, DWORD PTR -24+[ebp]
+  002e2	85 c0		 test	 eax, eax
+  002e4	0f 85 ef 04 00
+	00		 jne	 $L12977
+
+; 443  :                {
+; 444  :                  if(!_FF(dd3DSurfaceCount) && IS_NAPALM(_FF(VendorDeviceID))&&dwTxtrBaseAddr)
+
+  002ea	8b 82 88 05 00
+	00		 mov	 eax, DWORD PTR [edx+1416]
+  002f0	85 c0		 test	 eax, eax
+  002f2	0f 85 ef 02 00
+	00		 jne	 $L12887
+  002f8	8b 82 b0 04 00
+	00		 mov	 eax, DWORD PTR [edx+1200]
+  002fe	3d 1a 12 06 00	 cmp	 eax, 397850		; 0006121aH
+  00303	74 43		 je	 SHORT $L12888
+  00305	3d 1a 12 07 00	 cmp	 eax, 463386		; 0007121aH
+  0030a	74 3c		 je	 SHORT $L12888
+  0030c	3d 1a 12 08 00	 cmp	 eax, 528922		; 0008121aH
+  00311	74 35		 je	 SHORT $L12888
+  00313	3d 1a 12 09 00	 cmp	 eax, 594458		; 0009121aH
+  00318	74 2e		 je	 SHORT $L12888
+  0031a	3d 1a 12 0a 00	 cmp	 eax, 659994		; 000a121aH
+  0031f	74 27		 je	 SHORT $L12888
+  00321	3d 1a 12 0b 00	 cmp	 eax, 725530		; 000b121aH
+  00326	74 20		 je	 SHORT $L12888
+  00328	3d 1a 12 0c 00	 cmp	 eax, 791066		; 000c121aH
+  0032d	74 19		 je	 SHORT $L12888
+  0032f	3d 1a 12 0d 00	 cmp	 eax, 856602		; 000d121aH
+  00334	74 12		 je	 SHORT $L12888
+  00336	3d 1a 12 0e 00	 cmp	 eax, 922138		; 000e121aH
+  0033b	74 0b		 je	 SHORT $L12888
+  0033d	3d 1a 12 0f 00	 cmp	 eax, 987674		; 000f121aH
+  00342	0f 85 9f 02 00
+	00		 jne	 $L12887
+$L12888:
+  00348	8b 45 d8	 mov	 eax, DWORD PTR _dwTxtrBaseAddr$[ebp]
+  0034b	85 c0		 test	 eax, eax
+  0034d	0f 84 94 02 00
+	00		 je	 $L12887
+
+; 445  :                  {
+; 446  : 
+; 447  :                      CMDFIFO_CHECKROOM(hwPtr,
+; 448  :                         13 + PH3_SIZE + 20 +  PH1_SIZE + 2 + PH4_SIZE +3);
+
+  00353	8b 41 28	 mov	 eax, DWORD PTR [ecx+40]
+  00356	bb 29 00 00 00	 mov	 ebx, 41			; 00000029H
+  0035b	03 c3		 add	 eax, ebx
+  0035d	3d ff ff 00 00	 cmp	 eax, 65535		; 0000ffffH
+  00362	89 41 28	 mov	 DWORD PTR [ecx+40], eax
+  00365	72 27		 jb	 SHORT $L12896
+
+; 350  : 
+; 351  :    ppdev = (GLOBALDATA *)lpTarget->dwDriverReserved1;
+
+  00367	66 87 45 fe	 xchg	 ax, WORD PTR _fenceVar$13342[ebp]
+
+; 445  :                  {
+; 446  : 
+; 447  :                      CMDFIFO_CHECKROOM(hwPtr,
+; 448  :                         13 + PH3_SIZE + 20 +  PH1_SIZE + 2 + PH4_SIZE +3);
+
+  0036b	8b 8a a0 05 00
+	00		 mov	 ecx, DWORD PTR [edx+1440]
+  00371	8b 82 f0 17 00
+	00		 mov	 eax, DWORD PTR [edx+6128]
+  00377	85 c0		 test	 eax, eax
+  00379	89 59 28	 mov	 DWORD PTR [ecx+40], ebx
+  0037c	74 10		 je	 SHORT $L12896
+  0037e	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00381	56		 push	 esi
+  00382	52		 push	 edx
+  00383	e8 00 00 00 00	 call	 _myAgpEpilog
+  00388	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0038b	83 c4 08	 add	 esp, 8
+$L12896:
+  0038e	8b 8a a0 05 00
+	00		 mov	 ecx, DWORD PTR [edx+1440]
+  00394	8b 41 14	 mov	 eax, DWORD PTR [ecx+20]
+  00397	3b c3		 cmp	 eax, ebx
+  00399	89 41 14	 mov	 DWORD PTR [ecx+20], eax
+  0039c	0f 83 35 01 00
+	00		 jae	 $L13400
+  003a2	8b 59 08	 mov	 ebx, DWORD PTR [ecx+8]
+  003a5	8d 86 a4 00 00
+	00		 lea	 eax, DWORD PTR [esi+164]
+  003ab	3b c3		 cmp	 eax, ebx
+  003ad	0f 86 a9 00 00
+	00		 jbe	 $L13407
+  003b3	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  003b6	f6 c4 20	 test	 ah, 32			; 00000020H
+  003b9	74 08		 je	 SHORT $L13390
+  003bb	8b 82 d0 04 00
+	00		 mov	 eax, DWORD PTR [edx+1232]
+  003c1	eb 05		 jmp	 SHORT $L13616
+$L13390:
+  003c3	b8 01 00 00 00	 mov	 eax, 1
+$L13616:
+  003c8	85 c0		 test	 eax, eax
+  003ca	89 45 dc	 mov	 DWORD PTR _nNumChips$13388[ebp], eax
+  003cd	89 5d e8	 mov	 DWORD PTR _rdPtrMin$13389[ebp], ebx
+  003d0	c7 45 e0 00 00
+	00 00		 mov	 DWORD PTR _i$13387[ebp], 0
+  003d7	7e 3e		 jle	 SHORT $L13394
+  003d9	8d 82 40 17 00
+	00		 lea	 eax, DWORD PTR [edx+5952]
+  003df	89 45 fc	 mov	 DWORD PTR -4+[ebp], eax
+$L13395:
+  003e2	8b 45 fc	 mov	 eax, DWORD PTR -4+[ebp]
+  003e5	8b 00		 mov	 eax, DWORD PTR [eax]
+  003e7	8b 40 2c	 mov	 eax, DWORD PTR [eax+44]
+  003ea	03 41 10	 add	 eax, DWORD PTR [ecx+16]
+  003ed	3b c6		 cmp	 eax, esi
+  003ef	77 f1		 ja	 SHORT $L13395
+  003f1	3b 41 04	 cmp	 eax, DWORD PTR [ecx+4]
+  003f4	74 ec		 je	 SHORT $L13395
+  003f6	3b d8		 cmp	 ebx, eax
+  003f8	72 03		 jb	 SHORT $L13381
+  003fa	89 45 e8	 mov	 DWORD PTR _rdPtrMin$13389[ebp], eax
+$L13381:
+  003fd	8b 5d fc	 mov	 ebx, DWORD PTR -4+[ebp]
+  00400	8b 45 e0	 mov	 eax, DWORD PTR _i$13387[ebp]
+  00403	83 c3 10	 add	 ebx, 16			; 00000010H
+  00406	40		 inc	 eax
+  00407	89 5d fc	 mov	 DWORD PTR -4+[ebp], ebx
+  0040a	8b 5d dc	 mov	 ebx, DWORD PTR _nNumChips$13388[ebp]
+  0040d	3b c3		 cmp	 eax, ebx
+  0040f	8b 5d e8	 mov	 ebx, DWORD PTR _rdPtrMin$13389[ebp]
+  00412	89 45 e0	 mov	 DWORD PTR _i$13387[ebp], eax
+  00415	7c cb		 jl	 SHORT $L13395
+$L13394:
+  00417	8b 41 18	 mov	 eax, DWORD PTR [ecx+24]
+  0041a	89 06		 mov	 DWORD PTR [esi], eax
+  0041c	8b 82 f0 17 00
+	00		 mov	 eax, DWORD PTR [edx+6128]
+  00422	85 c0		 test	 eax, eax
+  00424	74 06		 je	 SHORT $L13398
+  00426	8b 49 1c	 mov	 ecx, DWORD PTR [ecx+28]
+  00429	89 4e 04	 mov	 DWORD PTR [esi+4], ecx
+$L13398:
+
+; 350  : 
+; 351  :    ppdev = (GLOBALDATA *)lpTarget->dwDriverReserved1;
+
+  0042c	66 87 45 fe	 xchg	 ax, WORD PTR _fenceVar$13384[ebp]
+
+; 445  :                  {
+; 446  : 
+; 447  :                      CMDFIFO_CHECKROOM(hwPtr,
+; 448  :                         13 + PH3_SIZE + 20 +  PH1_SIZE + 2 + PH4_SIZE +3);
+
+  00430	8b 82 f0 17 00
+	00		 mov	 eax, DWORD PTR [edx+6128]
+  00436	85 c0		 test	 eax, eax
+  00438	74 10		 je	 SHORT $L13399
+  0043a	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0043d	56		 push	 esi
+  0043e	52		 push	 edx
+  0043f	e8 00 00 00 00	 call	 _myWrapAgp
+  00444	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  00447	83 c4 08	 add	 esp, 8
+$L13399:
+  0044a	8b 8a a0 05 00
+	00		 mov	 ecx, DWORD PTR [edx+1440]
+  00450	8b 71 04	 mov	 esi, DWORD PTR [ecx+4]
+  00453	2b de		 sub	 ebx, esi
+  00455	c1 fb 02	 sar	 ebx, 2
+  00458	4b		 dec	 ebx
+  00459	89 59 14	 mov	 DWORD PTR [ecx+20], ebx
+$L13407:
+  0045c	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  0045f	f6 c4 20	 test	 ah, 32			; 00000020H
+  00462	74 08		 je	 SHORT $L13408
+  00464	8b 82 d0 04 00
+	00		 mov	 eax, DWORD PTR [edx+1232]
+  0046a	eb 05		 jmp	 SHORT $L13409
+$L13408:
+  0046c	b8 01 00 00 00	 mov	 eax, 1
+$L13409:
+  00471	8b 59 08	 mov	 ebx, DWORD PTR [ecx+8]
+  00474	2b 59 04	 sub	 ebx, DWORD PTR [ecx+4]
+  00477	43		 inc	 ebx
+  00478	85 c0		 test	 eax, eax
+  0047a	89 5d e8	 mov	 DWORD PTR _dwCmdFifoMin$13406[ebp], ebx
+  0047d	7e 55		 jle	 SHORT $L13412
+  0047f	81 c2 40 17 00
+	00		 add	 edx, 5952		; 00001740H
+  00485	89 45 e0	 mov	 DWORD PTR -32+[ebp], eax
+  00488	89 55 dc	 mov	 DWORD PTR -36+[ebp], edx
+$L13410:
+  0048b	8b 41 14	 mov	 eax, DWORD PTR [ecx+20]
+  0048e	83 f8 29	 cmp	 eax, 41			; 00000029H
+  00491	73 26		 jae	 SHORT $L13414
+  00493	8b 12		 mov	 edx, DWORD PTR [edx]
+  00495	8b 59 10	 mov	 ebx, DWORD PTR [ecx+16]
+$L13413:
+  00498	8b 42 2c	 mov	 eax, DWORD PTR [edx+44]
+  0049b	03 c3		 add	 eax, ebx
+  0049d	3b c6		 cmp	 eax, esi
+  0049f	77 0a		 ja	 SHORT $L13415
+  004a1	8b 41 08	 mov	 eax, DWORD PTR [ecx+8]
+  004a4	2b c6		 sub	 eax, esi
+  004a6	c1 f8 02	 sar	 eax, 2
+  004a9	eb 06		 jmp	 SHORT $L13416
+$L13415:
+  004ab	2b c6		 sub	 eax, esi
+  004ad	c1 f8 02	 sar	 eax, 2
+  004b0	48		 dec	 eax
+$L13416:
+  004b1	83 f8 29	 cmp	 eax, 41			; 00000029H
+  004b4	72 e2		 jb	 SHORT $L13413
+  004b6	8b 5d e8	 mov	 ebx, DWORD PTR _dwCmdFifoMin$13406[ebp]
+$L13414:
+  004b9	3b d8		 cmp	 ebx, eax
+  004bb	72 05		 jb	 SHORT $L13378
+  004bd	8b d8		 mov	 ebx, eax
+  004bf	89 5d e8	 mov	 DWORD PTR _dwCmdFifoMin$13406[ebp], ebx
+$L13378:
+  004c2	8b 55 dc	 mov	 edx, DWORD PTR -36+[ebp]
+  004c5	8b 45 e0	 mov	 eax, DWORD PTR -32+[ebp]
+  004c8	83 c2 10	 add	 edx, 16			; 00000010H
+  004cb	48		 dec	 eax
+  004cc	89 55 dc	 mov	 DWORD PTR -36+[ebp], edx
+  004cf	89 45 e0	 mov	 DWORD PTR -32+[ebp], eax
+  004d2	75 b7		 jne	 SHORT $L13410
+$L13412:
+  004d4	89 59 14	 mov	 DWORD PTR [ecx+20], ebx
+$L13400:
+
+; 449  : //                        13 + PH3_SIZE + 20 + 7 * PH1_SIZE + 12 + 3 * ( PH4_SIZE +3));
+; 450  : 
+; 451  : 				     SETPH(hwPtr, CMDFIFO_BUILD_PK2(
+; 452  :                         dstBaseAddrBit
+; 453  :                         | dstFormatBit
+; 454  :                         | ropBit
+; 455  :                         | srcBaseAddrBit
+; 456  :                         | clip1minBit
+; 457  :                         | clip1maxBit
+; 458  :                         | srcFormatBit
+; 459  :                         | srcSizeBit
+; 460  :                         | srcXYBit
+; 461  :                         | dstSizeBit
+; 462  :                         | dstXYBit
+; 463  :                         | commandBit ) );
+
+  004d7	c7 06 62 60 f0
+	39		 mov	 DWORD PTR [esi], 972054626 ; 39f06062H
+
+; 464  :                     SETPD(hwPtr, ghw2D->dstBaseAddr, dwTxtrBaseAddr);
+
+  004dd	8b 45 d8	 mov	 eax, DWORD PTR _dwTxtrBaseAddr$[ebp]
+  004e0	89 46 04	 mov	 DWORD PTR [esi+4], eax
+
+; 465  :                     SETPD(hwPtr, ghw2D->dstFormat, lpBltParams->txtrbltDstFormat); 
+
+  004e3	8b 57 20	 mov	 edx, DWORD PTR [edi+32]
+  004e6	89 56 08	 mov	 DWORD PTR [esi+8], edx
+
+; 466  :                     SETPD(hwPtr, ghw2D->rop,
+; 467  :                     (SSTG_ROP_SRC << 16 )| (SSTG_ROP_SRC << 8 ) | SSTG_ROP_SRC );
+
+  004e9	c7 46 0c cc cc
+	cc 00		 mov	 DWORD PTR [esi+12], 13421772 ; 00ccccccH
+
+; 468  :                     SETPD(hwPtr, ghw2D->srcBaseAddr, dwSurfAddr);
+
+  004f0	8b 55 f0	 mov	 edx, DWORD PTR _dwSurfAddr$[ebp]
+  004f3	89 56 10	 mov	 DWORD PTR [esi+16], edx
+
+; 469  :                     SETPD(hwPtr, ghw2D->clip1min,  lpBltParams->clip1min);     
+
+  004f6	8b 57 04	 mov	 edx, DWORD PTR [edi+4]
+  004f9	89 56 14	 mov	 DWORD PTR [esi+20], edx
+
+; 470  :                     SETPD(hwPtr, ghw2D->clip1max,  lpBltParams->txtrclip1max);     
+
+  004fc	8b 57 24	 mov	 edx, DWORD PTR [edi+36]
+  004ff	89 56 18	 mov	 DWORD PTR [esi+24], edx
+
+; 471  :                     SETPD(hwPtr, ghw2D->srcFormat, lpBltParams->bltSrcFormat); 
+
+  00502	8b 57 0c	 mov	 edx, DWORD PTR [edi+12]
+  00505	89 56 1c	 mov	 DWORD PTR [esi+28], edx
+
+; 472  :                     SETPD(hwPtr, ghw2D->srcSize,   lpBltParams->bltSrcSize);     
+
+  00508	8b 57 10	 mov	 edx, DWORD PTR [edi+16]
+  0050b	89 56 20	 mov	 DWORD PTR [esi+32], edx
+
+; 473  :                     SETPD(hwPtr, ghw2D->srcXY,     lpBltParams->bltSrcXY);          
+
+  0050e	8b 57 14	 mov	 edx, DWORD PTR [edi+20]
+  00511	89 56 24	 mov	 DWORD PTR [esi+36], edx
+
+; 474  :                     SETPD(hwPtr, ghw2D->dstSize,   lpBltParams->txtrbltDstSize);     
+
+  00514	8b 57 28	 mov	 edx, DWORD PTR [edi+40]
+  00517	89 56 28	 mov	 DWORD PTR [esi+40], edx
+
+; 475  :                     SETPD(hwPtr, ghw2D->dstXY,     lpBltParams->bltDstXY);          
+
+  0051a	8b 57 1c	 mov	 edx, DWORD PTR [edi+28]
+  0051d	89 56 2c	 mov	 DWORD PTR [esi+44], edx
+
+; 476  :                     SETPD(hwPtr, ghw2D->command,
+; 477  :                         (SSTG_ROP_SRC << SSTG_ROP0_SHIFT )|
+; 478  :                         SSTG_BLT | SSTG_GO | SSTG_CLIPSELECT );
+
+  00520	c7 46 30 01 01
+	80 cc		 mov	 DWORD PTR [esi+48], -864026367 ; cc800101H
+
+; 479  : 
+; 480  : 				    dwTxtrBaseAddr += lpBltParams->srcAddrOff;
+
+  00527	8b 57 3c	 mov	 edx, DWORD PTR [edi+60]
+  0052a	03 c2		 add	 eax, edx
+
+; 481  :  				    dwTxtrBaseAddr = (dwTxtrBaseAddr & 0x1FFFFFF) + ((dwTxtrBaseAddr & 0x2000000) >> 24);
+; 482  :                     //do texture shrinking
+; 483  : //                    while(GET(ghwIO->status)&(SST_BUSY | SST_TMU_BUSY))
+; 484  : //                        ;
+; 485  : 
+; 486  : //                    SETPH( hwPtr, CMDFIFO_BUILD_PK1( 2, 1, clipLeftRight, 0xf ) );
+; 487  : //                    SETPD( hwPtr, ghw3D->clipLeftRight, lpBltParams->dstWidth);
+; 488  : //                    SETPD( hwPtr, ghw3D->clipBottomTop, lpBltParams->dstHeight);
+; 489  : 
+; 490  :                     SETPH( hwPtr, CMDFIFO_BUILD_PK1( 2, 1, colBufferAddr, 0x0 ) );
+
+  0052c	c7 46 34 d9 83
+	02 00		 mov	 DWORD PTR [esi+52], 164825 ; 000283d9H
+
+; 491  :                     SETPD( hwPtr, ghw3D->colBufferAddr,   dwDstBaseAddr);
+
+  00533	8b 55 f4	 mov	 edx, DWORD PTR _dwDstBaseAddr$[ebp]
+  00536	89 56 38	 mov	 DWORD PTR [esi+56], edx
+
+; 492  :                     SETPD( hwPtr, ghw3D->colBufferStride, lpBltParams->dstPitch);
+
+  00539	8b 57 34	 mov	 edx, DWORD PTR [edi+52]
+  0053c	89 56 3c	 mov	 DWORD PTR [esi+60], edx
+
+; 493  : 
+; 494  : 				    //set sextureMode for TMU0
+; 495  :                     //loads texture and enbales bi-linear filter
+; 496  : 
+; 497  : 
+; 498  : /*  SETPH( hwPtr, CMDFIFO_BUILD_PK4(R0|R1|R3, textureMode, TMU2CHIP(TREX1)) );
+; 499  :   SETPD( hwPtr, SST_TREX(ghw0,TREX1)->textureMode, SST_TCLAMPS|
+; 500  :                                                      SST_TCLAMPT|
+; 501  :                          (TEXFMT_ARGB_8888 << SST_TFORMAT_SHIFT));
+; 502  :   SETPD( hwPtr, SST_TREX(ghw0,TREX1)->tLOD, lpBltParams->tLOD );
+; 503  :   SETPD( hwPtr, SST_TREX(ghw0,TREX1)->texBaseAddr, dwTxtrBaseAddr);
+; 504  : */
+; 505  : 					SETPH( hwPtr, CMDFIFO_BUILD_PK4(R0|R1|R3, textureMode, TMU2CHIP(TREX0)));
+
+  0053f	c7 46 40 04 96
+	05 00		 mov	 DWORD PTR [esi+64], 366084 ; 00059604H
+
+; 506  : 					SETPD( hwPtr, SST_TREX(ghw0,TREX0)->textureMode,
+; 507  :                                                      SST_TCLAMPS|
+; 508  :                                                      SST_TCLAMPT|
+; 509  :                          (TEXFMT_ARGB_8888 << SST_TFORMAT_SHIFT)|
+; 510  :                         SST_TC_REPLACE | SST_TCA_REPLACE |
+; 511  :                         SST_TMINFILTER | SST_TMAGFILTER);
+
+  00546	c7 46 44 c6 1f
+	24 08		 mov	 DWORD PTR [esi+68], 136585158 ; 08241fc6H
+
+; 512  :                     SETPD( hwPtr, SST_TREX(ghw3D,TREX0)->tLOD, lpBltParams->tLOD );
+
+  0054d	8b 57 38	 mov	 edx, DWORD PTR [edi+56]
+  00550	89 56 48	 mov	 DWORD PTR [esi+72], edx
+
+; 513  :                     SETPD( hwPtr, SST_TREX(ghw3D,TREX0)->texBaseAddr, dwTxtrBaseAddr);
+
+  00553	8b d0		 mov	 edx, eax
+  00555	c1 ea 18	 shr	 edx, 24			; 00000018H
+  00558	83 e2 02	 and	 edx, 2
+  0055b	25 ff ff ff 01	 and	 eax, 33554431		; 01ffffffH
+  00560	03 d0		 add	 edx, eax
+  00562	89 56 4c	 mov	 DWORD PTR [esi+76], edx
+
+; 514  : /*
+; 515  :                     // decal texture, filtered, no fog, no alpha blending, no z buffering
+; 516  :                     SETPH( hwPtr, CMDFIFO_BUILD_PK1( 4, 1, fbzColorPath, 0xf ) );
+; 517  :                     SETPD( hwPtr, ghw3D->fbzColorPath, SST_ENTEXTUREMAP | SST_PARMADJUST |
+; 518  :                             SST_RGBAZ_CLAMP );
+; 519  :                     SETPD( hwPtr, ghw3D->fogMode, 0 );
+; 520  :                     SETPD( hwPtr, ghw3D->alphaMode, 0 );
+; 521  :                     SETPD( hwPtr, ghw3D->fbzMode, SST_RGBWRMASK );
+; 522  : 				 	 //need a NOP
+; 523  : 					SETPH( hwPtr, CMDFIFO_BUILD_PK1(1, 0, nopCMD, 0xF));
+; 524  :   					SETPD( hwPtr, ghw->nopCMD,0);
+; 525  : 					 //combineMode for LFB
+; 526  :                     SETPH( hwPtr, CMDFIFO_BUILD_PK1CHIP( 1, 1, combineMode, 1 ) );
+; 527  :                     SETPD( hwPtr, SST_CHIP(ghw, CHIP_FBI)->combineMode, SST_CM_CC_OTHERSELECT_TRGB |
+; 528  :                                     SST_CM_USE_COMBINE_MODE );
+; 529  :                     //combineMode for TMU0
+; 530  :                     SETPH( hwPtr, CMDFIFO_BUILD_PK1CHIP( 1, 1, combineMode, 2 ) );
+; 531  :                     SETPD( hwPtr, SST_CHIP(ghw , CHIP_TMU0)->combineMode, SST_CM_TC_LOCALSELECT_LOCAL_TRGB |
+; 532  :                                     SST_CM_USE_COMBINE_MODE );
+; 533  :                     //combineMode for TMU1
+; 534  :                    // SETPH( hwPtr, CMDFIFO_BUILD_PK1CHIP( 1, 1, combineMode, 4 ) );
+; 535  :                    // SETPD( hwPtr, SST_CHIP(ghw, CHIP_TMU1)->combineMode, SST_CM_TC_LOCALSELECT_LOCAL_TRGB |
+; 536  :                    //                 SST_CM_USE_COMBINE_MODE );
+; 537  :  
+; 538  :                     SETPH( hwPtr, CMDFIFO_BUILD_PK4( R0|R1|R2, renderMode, 0 ) );
+; 539  :                     SETPD( hwPtr, ghw3D->renderMode,SST_RM_32BPP       |
+; 540  : 								   SST_RM_YORIGIN_SELECT|	
+; 541  :                                    SST_RM_RED_WMASK   |
+; 542  :                                    SST_RM_GREEN_WMASK |
+; 543  :                                    SST_RM_BLUE_WMASK );
+; 544  :                     SETPD( hwPtr, ghw3D->stencilMode, SST_STENCIL_MODE_DISABLE);
+; 545  :                     SETPD( hwPtr, ghw3D->stencilOp, 0); // D3DSTENCILOP_KEEP
+; 546  : */
+; 547  :                
+; 548  :                     SETPH( hwPtr, CMDFIFO_BUILD_PK3( CMD_START, 4, (SST_SETUP_ST0 | SST_SETUP_W0 |SST_SETUP_FAN), 1) );
+
+  00565	c7 46 50 0b c1
+	40 10		 mov	 DWORD PTR [esi+80], 272679179 ; 1040c10bH
+
+; 549  :                     SETFPD( hwPtr, ghw3D->sVx, 0.0f );
+
+  0056c	33 d2		 xor	 edx, edx
+  0056e	89 56 54	 mov	 DWORD PTR [esi+84], edx
+
+; 550  :                     SETFPD( hwPtr, ghw3D->sVy, 0.0f );
+
+  00571	89 56 58	 mov	 DWORD PTR [esi+88], edx
+
+; 551  :                     SETFPD( hwPtr, ghw3D->sOow0, 1.f );
+
+  00574	bb 00 00 80 3f	 mov	 ebx, 1065353216		; 3f800000H
+  00579	89 5e 5c	 mov	 DWORD PTR [esi+92], ebx
+
+; 552  :                     SETFPD( hwPtr, ghw3D->sSow0, 0.f );
+
+  0057c	89 56 60	 mov	 DWORD PTR [esi+96], edx
+
+; 553  :                     SETFPD( hwPtr, ghw3D->sTow0, 0.f );
+
+  0057f	89 56 64	 mov	 DWORD PTR [esi+100], edx
+
+; 554  : 				   
+; 555  : 				    SETFPD( hwPtr, ghw3D->sVx,  0.0f );
+
+  00582	89 56 68	 mov	 DWORD PTR [esi+104], edx
+
+; 556  :                     SETPD( hwPtr, ghw3D->sVy,  lpBltParams->dstHeight);
+
+  00585	8b 47 30	 mov	 eax, DWORD PTR [edi+48]
+  00588	89 46 6c	 mov	 DWORD PTR [esi+108], eax
+
+; 557  :                     SETFPD( hwPtr, ghw3D->sOow0, 1.f );
+
+  0058b	89 5e 70	 mov	 DWORD PTR [esi+112], ebx
+
+; 558  :                     SETFPD( hwPtr, ghw3D->sSow0, 0.0f );
+
+  0058e	89 56 74	 mov	 DWORD PTR [esi+116], edx
+
+; 559  :                     SETPD( hwPtr, ghw3D->sTow0, lpBltParams->maxt);
+
+  00591	8b 57 44	 mov	 edx, DWORD PTR [edi+68]
+  00594	89 56 78	 mov	 DWORD PTR [esi+120], edx
+
+; 560  : 
+; 561  :                  	SETPD( hwPtr, ghw3D->sVx,   lpBltParams->dstWidth);
+
+  00597	8b 5f 2c	 mov	 ebx, DWORD PTR [edi+44]
+  0059a	89 5e 7c	 mov	 DWORD PTR [esi+124], ebx
+
+; 562  :                     SETPD( hwPtr, ghw3D->sVy,   lpBltParams->dstHeight);
+
+  0059d	89 86 80 00 00
+	00		 mov	 DWORD PTR [esi+128], eax
+
+; 563  :                     SETFPD( hwPtr, ghw3D->sOow0, 1.f );
+
+  005a3	b8 00 00 80 3f	 mov	 eax, 1065353216		; 3f800000H
+  005a8	89 86 84 00 00
+	00		 mov	 DWORD PTR [esi+132], eax
+
+; 564  :                     SETPD( hwPtr, ghw3D->sSow0, lpBltParams->maxs);
+
+  005ae	8b 7f 40	 mov	 edi, DWORD PTR [edi+64]
+  005b1	89 be 88 00 00
+	00		 mov	 DWORD PTR [esi+136], edi
+
+; 565  :                     SETPD( hwPtr, ghw3D->sTow0, lpBltParams->maxt);
+
+  005b7	89 96 8c 00 00
+	00		 mov	 DWORD PTR [esi+140], edx
+
+; 566  : 
+; 567  : 				    SETPD( hwPtr, ghw3D->sVx,   lpBltParams->dstWidth);
+
+  005bd	89 9e 90 00 00
+	00		 mov	 DWORD PTR [esi+144], ebx
+
+; 568  :                     SETFPD( hwPtr, ghw3D->sVy,   0.0f);
+
+  005c3	33 d2		 xor	 edx, edx
+  005c5	89 96 94 00 00
+	00		 mov	 DWORD PTR [esi+148], edx
+
+; 569  :                     SETFPD( hwPtr, ghw3D->sOow0, 1.f );
+
+  005cb	89 86 98 00 00
+	00		 mov	 DWORD PTR [esi+152], eax
+
+; 570  :                     SETPD( hwPtr, ghw3D->sSow0, lpBltParams->maxs);
+
+  005d1	89 be 9c 00 00
+	00		 mov	 DWORD PTR [esi+156], edi
+
+; 571  :                     SETFPD( hwPtr, ghw3D->sTow0, 0.0f);
+
+  005d7	89 96 a0 00 00
+	00		 mov	 DWORD PTR [esi+160], edx
+  005dd	bb 29 00 00 00	 mov	 ebx, 41			; 00000029H
+
+; 572  : 				 
+; 573  :                    // BUMP(13 + PH3_SIZE + 20 + 7 * PH1_SIZE + 12 + 4 * ( PH4_SIZE +3));
+; 574  :                     BUMP(13 + PH3_SIZE + 20 +  PH1_SIZE + 2 +  PH4_SIZE +3);
+; 575  :                  }
+; 576  :                  else
+
+  005e2	e9 d5 01 00 00	 jmp	 $L12948
+$L12887:
+
+; 577  :                  {
+; 578  :                     CMDFIFO_CHECKROOM(hwPtr,13);
+
+  005e7	8b 41 28	 mov	 eax, DWORD PTR [ecx+40]
+  005ea	bb 0d 00 00 00	 mov	 ebx, 13			; 0000000dH
+  005ef	03 c3		 add	 eax, ebx
+  005f1	3d ff ff 00 00	 cmp	 eax, 65535		; 0000ffffH
+  005f6	89 41 28	 mov	 DWORD PTR [ecx+40], eax
+  005f9	72 27		 jb	 SHORT $L12956
+
+; 350  : 
+; 351  :    ppdev = (GLOBALDATA *)lpTarget->dwDriverReserved1;
+
+  005fb	66 87 45 fe	 xchg	 ax, WORD PTR _fenceVar$13419[ebp]
+
+; 577  :                  {
+; 578  :                     CMDFIFO_CHECKROOM(hwPtr,13);
+
+  005ff	8b 82 a0 05 00
+	00		 mov	 eax, DWORD PTR [edx+1440]
+  00605	89 58 28	 mov	 DWORD PTR [eax+40], ebx
+  00608	8b 82 f0 17 00
+	00		 mov	 eax, DWORD PTR [edx+6128]
+  0060e	85 c0		 test	 eax, eax
+  00610	74 10		 je	 SHORT $L12956
+  00612	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  00615	56		 push	 esi
+  00616	51		 push	 ecx
+  00617	e8 00 00 00 00	 call	 _myAgpEpilog
+  0061c	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  0061f	83 c4 08	 add	 esp, 8
+$L12956:
+  00622	8b 8a a0 05 00
+	00		 mov	 ecx, DWORD PTR [edx+1440]
+  00628	8b 41 14	 mov	 eax, DWORD PTR [ecx+20]
+  0062b	3b c3		 cmp	 eax, ebx
+  0062d	89 41 14	 mov	 DWORD PTR [ecx+20], eax
+  00630	0f 83 32 01 00
+	00		 jae	 $L13478
+  00636	8b 59 08	 mov	 ebx, DWORD PTR [ecx+8]
+  00639	8d 46 34	 lea	 eax, DWORD PTR [esi+52]
+  0063c	3b c3		 cmp	 eax, ebx
+  0063e	0f 86 a9 00 00
+	00		 jbe	 $L13485
+  00644	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  00647	f6 c4 20	 test	 ah, 32			; 00000020H
+  0064a	74 08		 je	 SHORT $L13468
+  0064c	8b 82 d0 04 00
+	00		 mov	 eax, DWORD PTR [edx+1232]
+  00652	eb 05		 jmp	 SHORT $L13617
+$L13468:
+  00654	b8 01 00 00 00	 mov	 eax, 1
+$L13617:
+  00659	85 c0		 test	 eax, eax
+  0065b	89 45 dc	 mov	 DWORD PTR _nNumChips$13466[ebp], eax
+  0065e	89 5d fc	 mov	 DWORD PTR _rdPtrMin$13467[ebp], ebx
+  00661	c7 45 d8 00 00
+	00 00		 mov	 DWORD PTR _i$13464[ebp], 0
+  00668	7e 3e		 jle	 SHORT $L13472
+  0066a	8d 82 40 17 00
+	00		 lea	 eax, DWORD PTR [edx+5952]
+  00670	89 45 e8	 mov	 DWORD PTR -24+[ebp], eax
+$L13473:
+  00673	8b 45 e8	 mov	 eax, DWORD PTR -24+[ebp]
+  00676	8b 00		 mov	 eax, DWORD PTR [eax]
+  00678	8b 40 2c	 mov	 eax, DWORD PTR [eax+44]
+  0067b	03 41 10	 add	 eax, DWORD PTR [ecx+16]
+  0067e	3b c6		 cmp	 eax, esi
+  00680	77 f1		 ja	 SHORT $L13473
+  00682	3b 41 04	 cmp	 eax, DWORD PTR [ecx+4]
+  00685	74 ec		 je	 SHORT $L13473
+  00687	3b d8		 cmp	 ebx, eax
+  00689	72 03		 jb	 SHORT $L13459
+  0068b	89 45 fc	 mov	 DWORD PTR _rdPtrMin$13467[ebp], eax
+$L13459:
+  0068e	8b 5d e8	 mov	 ebx, DWORD PTR -24+[ebp]
+  00691	8b 45 d8	 mov	 eax, DWORD PTR _i$13464[ebp]
+  00694	83 c3 10	 add	 ebx, 16			; 00000010H
+  00697	40		 inc	 eax
+  00698	89 5d e8	 mov	 DWORD PTR -24+[ebp], ebx
+  0069b	8b 5d dc	 mov	 ebx, DWORD PTR _nNumChips$13466[ebp]
+  0069e	3b c3		 cmp	 eax, ebx
+  006a0	8b 5d fc	 mov	 ebx, DWORD PTR _rdPtrMin$13467[ebp]
+  006a3	89 45 d8	 mov	 DWORD PTR _i$13464[ebp], eax
+  006a6	7c cb		 jl	 SHORT $L13473
+$L13472:
+  006a8	8b 41 18	 mov	 eax, DWORD PTR [ecx+24]
+  006ab	89 06		 mov	 DWORD PTR [esi], eax
+  006ad	8b 82 f0 17 00
+	00		 mov	 eax, DWORD PTR [edx+6128]
+  006b3	85 c0		 test	 eax, eax
+  006b5	74 06		 je	 SHORT $L13476
+  006b7	8b 49 1c	 mov	 ecx, DWORD PTR [ecx+28]
+  006ba	89 4e 04	 mov	 DWORD PTR [esi+4], ecx
+$L13476:
+
+; 350  : 
+; 351  :    ppdev = (GLOBALDATA *)lpTarget->dwDriverReserved1;
+
+  006bd	66 87 45 fe	 xchg	 ax, WORD PTR _fenceVar$13463[ebp]
+
+; 577  :                  {
+; 578  :                     CMDFIFO_CHECKROOM(hwPtr,13);
+
+  006c1	8b 82 f0 17 00
+	00		 mov	 eax, DWORD PTR [edx+6128]
+  006c7	85 c0		 test	 eax, eax
+  006c9	74 10		 je	 SHORT $L13477
+  006cb	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  006ce	56		 push	 esi
+  006cf	52		 push	 edx
+  006d0	e8 00 00 00 00	 call	 _myWrapAgp
+  006d5	8b 55 f8	 mov	 edx, DWORD PTR _ppdev$[ebp]
+  006d8	83 c4 08	 add	 esp, 8
+$L13477:
+  006db	8b 8a a0 05 00
+	00		 mov	 ecx, DWORD PTR [edx+1440]
+  006e1	8b 71 04	 mov	 esi, DWORD PTR [ecx+4]
+  006e4	2b de		 sub	 ebx, esi
+  006e6	c1 fb 02	 sar	 ebx, 2
+  006e9	4b		 dec	 ebx
+  006ea	89 59 14	 mov	 DWORD PTR [ecx+20], ebx
+$L13485:
+  006ed	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  006f0	f6 c4 20	 test	 ah, 32			; 00000020H
+  006f3	74 08		 je	 SHORT $L13486
+  006f5	8b 82 d0 04 00
+	00		 mov	 eax, DWORD PTR [edx+1232]
+  006fb	eb 05		 jmp	 SHORT $L13487
+$L13486:
+  006fd	b8 01 00 00 00	 mov	 eax, 1
+$L13487:
+  00702	8b 59 08	 mov	 ebx, DWORD PTR [ecx+8]
+  00705	2b 59 04	 sub	 ebx, DWORD PTR [ecx+4]
+  00708	43		 inc	 ebx
+  00709	85 c0		 test	 eax, eax
+  0070b	89 5d e8	 mov	 DWORD PTR _dwCmdFifoMin$13484[ebp], ebx
+  0070e	7e 55		 jle	 SHORT $L13490
+  00710	81 c2 40 17 00
+	00		 add	 edx, 5952		; 00001740H
+  00716	89 45 dc	 mov	 DWORD PTR -36+[ebp], eax
+  00719	89 55 d8	 mov	 DWORD PTR -40+[ebp], edx
+$L13488:
+  0071c	8b 41 14	 mov	 eax, DWORD PTR [ecx+20]
+  0071f	83 f8 0d	 cmp	 eax, 13			; 0000000dH
+  00722	73 26		 jae	 SHORT $L13492
+  00724	8b 12		 mov	 edx, DWORD PTR [edx]
+  00726	8b 59 10	 mov	 ebx, DWORD PTR [ecx+16]
+$L13491:
+  00729	8b 42 2c	 mov	 eax, DWORD PTR [edx+44]
+  0072c	03 c3		 add	 eax, ebx
+  0072e	3b c6		 cmp	 eax, esi
+  00730	77 0a		 ja	 SHORT $L13493
+  00732	8b 41 08	 mov	 eax, DWORD PTR [ecx+8]
+  00735	2b c6		 sub	 eax, esi
+  00737	c1 f8 02	 sar	 eax, 2
+  0073a	eb 06		 jmp	 SHORT $L13494
+$L13493:
+  0073c	2b c6		 sub	 eax, esi
+  0073e	c1 f8 02	 sar	 eax, 2
+  00741	48		 dec	 eax
+$L13494:
+  00742	83 f8 0d	 cmp	 eax, 13			; 0000000dH
+  00745	72 e2		 jb	 SHORT $L13491
+  00747	8b 5d e8	 mov	 ebx, DWORD PTR _dwCmdFifoMin$13484[ebp]
+$L13492:
+  0074a	3b d8		 cmp	 ebx, eax
+  0074c	72 05		 jb	 SHORT $L13456
+  0074e	8b d8		 mov	 ebx, eax
+  00750	89 5d e8	 mov	 DWORD PTR _dwCmdFifoMin$13484[ebp], ebx
+$L13456:
+  00753	8b 55 d8	 mov	 edx, DWORD PTR -40+[ebp]
+  00756	8b 45 dc	 mov	 eax, DWORD PTR -36+[ebp]
+  00759	83 c2 10	 add	 edx, 16			; 00000010H
+  0075c	48		 dec	 eax
+  0075d	89 55 d8	 mov	 DWORD PTR -40+[ebp], edx
+  00760	89 45 dc	 mov	 DWORD PTR -36+[ebp], eax
+  00763	75 b7		 jne	 SHORT $L13488
+$L13490:
+  00765	89 59 14	 mov	 DWORD PTR [ecx+20], ebx
+$L13478:
+
+; 579  :                     SETPH(hwPtr, CMDFIFO_BUILD_PK2(
+; 580  :                         dstBaseAddrBit
+; 581  :                         | dstFormatBit
+; 582  :                         | ropBit
+; 583  :                         | srcBaseAddrBit
+; 584  :                         | clip1minBit
+; 585  :                         | clip1maxBit
+; 586  :                         | srcFormatBit
+; 587  :                         | srcSizeBit
+; 588  :                         | srcXYBit
+; 589  :                         | dstSizeBit
+; 590  :                         | dstXYBit
+; 591  :                         | commandBit ) );
+
+  00768	c7 06 62 60 f0
+	39		 mov	 DWORD PTR [esi], 972054626 ; 39f06062H
+
+; 592  :                     SETPD(hwPtr, ghw2D->dstBaseAddr, dwDstBaseAddr);
+
+  0076e	8b 45 f4	 mov	 eax, DWORD PTR _dwDstBaseAddr$[ebp]
+  00771	89 46 04	 mov	 DWORD PTR [esi+4], eax
+
+; 593  :                     SETPD(hwPtr, ghw2D->dstFormat, lpBltParams->bltDstFormat); 
+
+  00774	8b 17		 mov	 edx, DWORD PTR [edi]
+  00776	89 56 08	 mov	 DWORD PTR [esi+8], edx
+
+; 594  :                     SETPD(hwPtr, ghw2D->rop,
+; 595  :                     (SSTG_ROP_SRC << 16 )| (SSTG_ROP_SRC << 8 ) | SSTG_ROP_SRC );
+
+  00779	c7 46 0c cc cc
+	cc 00		 mov	 DWORD PTR [esi+12], 13421772 ; 00ccccccH
+
+; 596  :                     SETPD(hwPtr, ghw2D->srcBaseAddr, dwSurfAddr);
+
+  00780	8b 45 f0	 mov	 eax, DWORD PTR _dwSurfAddr$[ebp]
+  00783	89 46 10	 mov	 DWORD PTR [esi+16], eax
+
+; 597  :                     SETPD(hwPtr, ghw2D->clip1min,  lpBltParams->clip1min);     
+
+  00786	8b 57 04	 mov	 edx, DWORD PTR [edi+4]
+  00789	89 56 14	 mov	 DWORD PTR [esi+20], edx
+
+; 598  :                     SETPD(hwPtr, ghw2D->clip1max,  lpBltParams->clip1max);     
+
+  0078c	8b 47 08	 mov	 eax, DWORD PTR [edi+8]
+  0078f	89 46 18	 mov	 DWORD PTR [esi+24], eax
+
+; 599  :                     SETPD(hwPtr, ghw2D->srcFormat, lpBltParams->bltSrcFormat); 
+
+  00792	8b 57 0c	 mov	 edx, DWORD PTR [edi+12]
+  00795	89 56 1c	 mov	 DWORD PTR [esi+28], edx
+
+; 600  :                     SETPD(hwPtr, ghw2D->srcSize,   lpBltParams->bltSrcSize);     
+
+  00798	8b 47 10	 mov	 eax, DWORD PTR [edi+16]
+  0079b	89 46 20	 mov	 DWORD PTR [esi+32], eax
+
+; 601  :                     SETPD(hwPtr, ghw2D->srcXY,     lpBltParams->bltSrcXY);          
+
+  0079e	8b 57 14	 mov	 edx, DWORD PTR [edi+20]
+  007a1	89 56 24	 mov	 DWORD PTR [esi+36], edx
+
+; 602  :                     SETPD(hwPtr, ghw2D->dstSize,   lpBltParams->bltDstSize);     
+
+  007a4	8b 47 18	 mov	 eax, DWORD PTR [edi+24]
+  007a7	89 46 28	 mov	 DWORD PTR [esi+40], eax
+
+; 603  :                     SETPD(hwPtr, ghw2D->dstXY,     lpBltParams->bltDstXY);          
+
+  007aa	8b 57 1c	 mov	 edx, DWORD PTR [edi+28]
+  007ad	89 56 2c	 mov	 DWORD PTR [esi+44], edx
+
+; 604  :                     SETPD(hwPtr, ghw2D->command,
+; 605  :                         (SSTG_ROP_SRC << SSTG_ROP0_SHIFT )|
+; 606  :                         SSTG_STRETCH_BLT | SSTG_GO | SSTG_CLIPSELECT );
+
+  007b0	c7 46 30 02 01
+	80 cc		 mov	 DWORD PTR [esi+48], -864026366 ; cc800102H
+  007b7	bb 0d 00 00 00	 mov	 ebx, 13			; 0000000dH
+$L12948:
+
+; 607  :                      BUMP(13);
+; 608  :                  }    
+; 609  : 
+; 610  :                  if(lpFlipInfo->dwFlags & DDFLIP_EVEN )
+
+  007bc	8b 45 ec	 mov	 eax, DWORD PTR _lpFlipInfo$[ebp]
+  007bf	8a 50 0c	 mov	 dl, BYTE PTR [eax+12]
+
+; 611  :                     dwDstBaseAddr |= 0x80000000;
+
+  007c2	8b 45 f4	 mov	 eax, DWORD PTR _dwDstBaseAddr$[ebp]
+  007c5	f6 c2 02	 test	 dl, 2
+  007c8	74 07		 je	 SHORT $L12976
+  007ca	0d 00 00 00 80	 or	 eax, -2147483648	; 80000000H
+
+; 612  :                  else
+
+  007cf	eb 05		 jmp	 SHORT $L13618
+$L12976:
+
+; 613  :                     dwDstBaseAddr &= ~SSTG_IS_TILED;
+
+  007d1	25 ff ff ff 7f	 and	 eax, 2147483647		; 7fffffffH
+$L13618:
+  007d6	89 45 f4	 mov	 DWORD PTR _dwDstBaseAddr$[ebp], eax
+$L12977:
+
+; 614  :                }
+; 615  : 
+; 616  :                CMDFIFO_CHECKROOM(hwPtr, 4);
+
+  007d9	8b 51 28	 mov	 edx, DWORD PTR [ecx+40]
+  007dc	83 c2 04	 add	 edx, 4
+  007df	8b c2		 mov	 eax, edx
+  007e1	89 51 28	 mov	 DWORD PTR [ecx+40], edx
+  007e4	3d ff ff 00 00	 cmp	 eax, 65535		; 0000ffffH
+  007e9	72 2a		 jb	 SHORT $L12985
+
+; 350  : 
+; 351  :    ppdev = (GLOBALDATA *)lpTarget->dwDriverReserved1;
+
+  007eb	66 87 45 fe	 xchg	 ax, WORD PTR _fenceVar$13497[ebp]
+
+; 614  :                }
+; 615  : 
+; 616  :                CMDFIFO_CHECKROOM(hwPtr, 4);
+
+  007ef	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  007f2	8b 88 a0 05 00
+	00		 mov	 ecx, DWORD PTR [eax+1440]
+  007f8	c7 41 28 04 00
+	00 00		 mov	 DWORD PTR [ecx+40], 4
+  007ff	8b 88 f0 17 00
+	00		 mov	 ecx, DWORD PTR [eax+6128]
+  00805	85 c9		 test	 ecx, ecx
+  00807	74 0c		 je	 SHORT $L12985
+  00809	8b d0		 mov	 edx, eax
+  0080b	56		 push	 esi
+  0080c	52		 push	 edx
+  0080d	e8 00 00 00 00	 call	 _myAgpEpilog
+  00812	83 c4 08	 add	 esp, 8
+$L12985:
+  00815	8b 7d f8	 mov	 edi, DWORD PTR _ppdev$[ebp]
+  00818	8d 0c 9e	 lea	 ecx, DWORD PTR [esi+ebx*4]
+  0081b	8b 97 a0 05 00
+	00		 mov	 edx, DWORD PTR [edi+1440]
+  00821	8b 42 14	 mov	 eax, DWORD PTR [edx+20]
+  00824	2b c3		 sub	 eax, ebx
+  00826	83 f8 04	 cmp	 eax, 4
+  00829	89 42 14	 mov	 DWORD PTR [edx+20], eax
+  0082c	0f 83 23 01 00
+	00		 jae	 $L13532
+  00832	8b 72 08	 mov	 esi, DWORD PTR [edx+8]
+  00835	8d 41 10	 lea	 eax, DWORD PTR [ecx+16]
+  00838	3b c6		 cmp	 eax, esi
+  0083a	0f 86 98 00 00
+	00		 jbe	 $L13539
+  00840	8b 47 08	 mov	 eax, DWORD PTR [edi+8]
+  00843	f6 c4 20	 test	 ah, 32			; 00000020H
+  00846	74 0a		 je	 SHORT $L13557
+  00848	8b c7		 mov	 eax, edi
+  0084a	8b b8 d0 04 00
+	00		 mov	 edi, DWORD PTR [eax+1232]
+  00850	eb 05		 jmp	 SHORT $L13558
+$L13557:
+  00852	bf 01 00 00 00	 mov	 edi, 1
+$L13558:
+  00857	85 ff		 test	 edi, edi
+  00859	c7 45 e8 00 00
+	00 00		 mov	 DWORD PTR _i$13554[ebp], 0
+  00860	7e 2e		 jle	 SHORT $L13561
+  00862	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00865	8d 98 40 17 00
+	00		 lea	 ebx, DWORD PTR [eax+5952]
+$L13562:
+  0086b	8b 03		 mov	 eax, DWORD PTR [ebx]
+  0086d	8b 40 2c	 mov	 eax, DWORD PTR [eax+44]
+  00870	03 42 10	 add	 eax, DWORD PTR [edx+16]
+  00873	3b c1		 cmp	 eax, ecx
+  00875	77 f4		 ja	 SHORT $L13562
+  00877	3b 42 04	 cmp	 eax, DWORD PTR [edx+4]
+  0087a	74 ef		 je	 SHORT $L13562
+  0087c	3b f0		 cmp	 esi, eax
+  0087e	72 02		 jb	 SHORT $L13569
+  00880	8b f0		 mov	 esi, eax
+$L13569:
+  00882	8b 45 e8	 mov	 eax, DWORD PTR _i$13554[ebp]
+  00885	83 c3 10	 add	 ebx, 16			; 00000010H
+  00888	40		 inc	 eax
+  00889	3b c7		 cmp	 eax, edi
+  0088b	89 45 e8	 mov	 DWORD PTR _i$13554[ebp], eax
+  0088e	7c db		 jl	 SHORT $L13562
+$L13561:
+  00890	8b 42 18	 mov	 eax, DWORD PTR [edx+24]
+  00893	89 01		 mov	 DWORD PTR [ecx], eax
+  00895	8b 45 f8	 mov	 eax, DWORD PTR _ppdev$[ebp]
+  00898	8b b8 f0 17 00
+	00		 mov	 edi, DWORD PTR [eax+6128]
+  0089e	85 ff		 test	 edi, edi
+  008a0	74 06		 je	 SHORT $L13565
+  008a2	8b 52 1c	 mov	 edx, DWORD PTR [edx+28]
+  008a5	89 51 04	 mov	 DWORD PTR [ecx+4], edx
+$L13565:
+
+; 350  : 
+; 351  :    ppdev = (GLOBALDATA *)lpTarget->dwDriverReserved1;
+
+  008a8	66 87 45 fe	 xchg	 ax, WORD PTR _fenceVar$13571[ebp]
+
+; 614  :                }
+; 615  : 
+; 616  :                CMDFIFO_CHECKROOM(hwPtr, 4);
+
+  008ac	8b 7d f8	 mov	 edi, DWORD PTR _ppdev$[ebp]
+  008af	8b 87 f0 17 00
+	00		 mov	 eax, DWORD PTR [edi+6128]
+  008b5	85 c0		 test	 eax, eax
+  008b7	74 0a		 je	 SHORT $L13566
+  008b9	51		 push	 ecx
+  008ba	57		 push	 edi
+  008bb	e8 00 00 00 00	 call	 _myWrapAgp
+  008c0	83 c4 08	 add	 esp, 8
+$L13566:
+  008c3	8b 97 a0 05 00
+	00		 mov	 edx, DWORD PTR [edi+1440]
+  008c9	8b 7d f8	 mov	 edi, DWORD PTR _ppdev$[ebp]
+  008cc	8b 4a 04	 mov	 ecx, DWORD PTR [edx+4]
+  008cf	2b f1		 sub	 esi, ecx
+  008d1	c1 fe 02	 sar	 esi, 2
+  008d4	4e		 dec	 esi
+  008d5	89 72 14	 mov	 DWORD PTR [edx+20], esi
+$L13539:
+  008d8	8b 47 08	 mov	 eax, DWORD PTR [edi+8]
+  008db	f6 c4 20	 test	 ah, 32			; 00000020H
+  008de	74 08		 je	 SHORT $L13540
+  008e0	8b 87 d0 04 00
+	00		 mov	 eax, DWORD PTR [edi+1232]
+  008e6	eb 05		 jmp	 SHORT $L13541
+$L13540:
+  008e8	b8 01 00 00 00	 mov	 eax, 1
+$L13541:
+  008ed	8b 7a 08	 mov	 edi, DWORD PTR [edx+8]
+  008f0	8b 72 04	 mov	 esi, DWORD PTR [edx+4]
+  008f3	2b fe		 sub	 edi, esi
+  008f5	47		 inc	 edi
+  008f6	85 c0		 test	 eax, eax
+  008f8	7e 55		 jle	 SHORT $L13544
+  008fa	8b 75 f8	 mov	 esi, DWORD PTR _ppdev$[ebp]
+  008fd	89 45 d8	 mov	 DWORD PTR -40+[ebp], eax
+  00900	81 c6 40 17 00
+	00		 add	 esi, 5952		; 00001740H
+  00906	89 75 e8	 mov	 DWORD PTR -24+[ebp], esi
+$L13542:
+  00909	8b 42 14	 mov	 eax, DWORD PTR [edx+20]
+  0090c	83 f8 04	 cmp	 eax, 4
+  0090f	73 26		 jae	 SHORT $L13546
+  00911	8b 45 e8	 mov	 eax, DWORD PTR -24+[ebp]
+  00914	8b 5a 10	 mov	 ebx, DWORD PTR [edx+16]
+  00917	8b 30		 mov	 esi, DWORD PTR [eax]
+$L13545:
+  00919	8b 46 2c	 mov	 eax, DWORD PTR [esi+44]
+  0091c	03 c3		 add	 eax, ebx
+  0091e	3b c1		 cmp	 eax, ecx
+  00920	77 0a		 ja	 SHORT $L13550
+  00922	8b 42 08	 mov	 eax, DWORD PTR [edx+8]
+  00925	2b c1		 sub	 eax, ecx
+  00927	c1 f8 02	 sar	 eax, 2
+  0092a	eb 06		 jmp	 SHORT $L13551
+$L13550:
+  0092c	2b c1		 sub	 eax, ecx
+  0092e	c1 f8 02	 sar	 eax, 2
+  00931	48		 dec	 eax
+$L13551:
+  00932	83 f8 04	 cmp	 eax, 4
+  00935	72 e2		 jb	 SHORT $L13545
+$L13546:
+  00937	3b f8		 cmp	 edi, eax
+  00939	72 02		 jb	 SHORT $L13549
+  0093b	8b f8		 mov	 edi, eax
+$L13549:
+  0093d	8b 75 e8	 mov	 esi, DWORD PTR -24+[ebp]
+  00940	8b 45 d8	 mov	 eax, DWORD PTR -40+[ebp]
+  00943	83 c6 10	 add	 esi, 16			; 00000010H
+  00946	48		 dec	 eax
+  00947	89 75 e8	 mov	 DWORD PTR -24+[ebp], esi
+  0094a	89 45 d8	 mov	 DWORD PTR -40+[ebp], eax
+  0094d	75 ba		 jne	 SHORT $L13542
+$L13544:
+  0094f	89 7a 14	 mov	 DWORD PTR [edx+20], edi
+  00952	8b 7d f8	 mov	 edi, DWORD PTR _ppdev$[ebp]
+$L13532:
+
+; 617  :                SETPH(hwPtr, CMDFIFO_BUILD_PK1(1, 0, leftOverlayBuf, 0xF ));
+
+  00955	c7 01 a1 04 01
+	00		 mov	 DWORD PTR [ecx], 66721	; 000104a1H
+
+; 618  :                SETPD(hwPtr, ghw3D->leftOverlayBuf, dwDstBaseAddr);
+
+  0095b	8b 45 f4	 mov	 eax, DWORD PTR _dwDstBaseAddr$[ebp]
+  0095e	89 41 04	 mov	 DWORD PTR [ecx+4], eax
+
+; 619  :                SETPH(hwPtr, CMDFIFO_BUILD_PK1(1, 0, swapbufferCMD, 0xF) );
+
+  00961	c7 41 08 51 02
+	01 00		 mov	 DWORD PTR [ecx+8], 66129 ; 00010251H
+
+; 620  :                SETPD(hwPtr, ghw3D->swapbufferCMD, 1);
+
+  00968	c7 41 0c 01 00
+	00 00		 mov	 DWORD PTR [ecx+12], 1
+
+; 621  :                BUMP(4);
+; 622  :    
+; 623  :                CMDFIFO_EPILOG(hwPtr);
+
+  0096f	8b 87 f0 17 00
+	00		 mov	 eax, DWORD PTR [edi+6128]
+  00975	83 c1 10	 add	 ecx, 16			; 00000010H
+  00978	89 4a 0c	 mov	 DWORD PTR [edx+12], ecx
+  0097b	8b 72 14	 mov	 esi, DWORD PTR [edx+20]
+  0097e	83 c6 fc	 add	 esi, -4			; fffffffcH
+  00981	85 c0		 test	 eax, eax
+  00983	89 72 14	 mov	 DWORD PTR [edx+20], esi
+  00986	74 0d		 je	 SHORT $L13005
+  00988	51		 push	 ecx
+  00989	8b 4d f8	 mov	 ecx, DWORD PTR _ppdev$[ebp]
+  0098c	51		 push	 ecx
+  0098d	e8 00 00 00 00	 call	 _myAgpEpilog
+  00992	83 c4 08	 add	 esp, 8
+$L13005:
+
+; 624  :                fHWBusy = FALSE;
+; 625  :             }
+; 626  :             ClearBusy(&_FF(cursorBusy), CBUSY_BIT);
+
+  00995	8b 55 d4	 mov	 edx, DWORD PTR -44+[ebp]
+  00998	6a 01		 push	 1
+  0099a	52		 push	 edx
+  0099b	e8 00 00 00 00	 call	 _ClearBusy
+  009a0	83 c4 08	 add	 esp, 8
+$L12878:
+
+; 627  :         }
+; 628  : 
+; 629  :           ClearBusy(pFlags, BUSY_BIT);
+
+  009a3	8b 45 e4	 mov	 eax, DWORD PTR _pFlags$[ebp]
+  009a6	6a 04		 push	 4
+  009a8	50		 push	 eax
+  009a9	e8 00 00 00 00	 call	 _ClearBusy
+  009ae	83 c4 08	 add	 esp, 8
+$L12877:
+
+; 630  :       }
+; 631  : 
+; 632  : /*      if (fHWBusy & !(_FF(gdiFlags) & SDATA_GDIFLAGS_KMTV_FLAG))
+; 633  :       {
+; 634  :          DWORD wrPtr;
+; 635  :          KMVTBUFF * bltBuff;
+; 636  :          KMVT_CMDFIFO_PROLOG(hwPtr);
+; 637  :          bltBuff = (KMVTBUFF *)_FF(KMVTBuff);
+; 638  :          hwPtr = bltBuff->data;
+; 639  :          bltBuff->dwSize = 4;
+; 640  :          wrPtr = 0;
+; 641  :          hwIndex = wrPtr;
+; 642  : 
+; 643  :          if(!lpTarget->dwOverlayDestHeight)
+; 644  :          {
+; 645  : 
+; 646  :              srcFormat = lpBltParams->bltSrcFormat & (~0x3FFF);
+; 647  :              dstFormat = lpBltParams->bltDstFormat & (~0x3FFF);
+; 648  : 
+; 649  :              dstFormat |= (DWORD)lpTarget->dwDriverReserved3;
+; 650  :              srcFormat |=lpTarget->lPitch;
+; 651  : 
+; 652  : 
+; 653  :              bltBuff->dwSize = 17;
+; 654  :              SETPH(hwPtr, CMDFIFO_BUILD_PK2(
+; 655  :                   dstBaseAddrBit
+; 656  :                   | dstFormatBit
+; 657  :                   | ropBit
+; 658  :                   | srcBaseAddrBit
+; 659  :                   | clip1minBit
+; 660  :                   | clip1maxBit
+; 661  :                   | srcFormatBit
+; 662  :                   | srcSizeBit
+; 663  :                   | srcXYBit
+; 664  :                   | dstSizeBit
+; 665  :                   | dstXYBit
+; 666  :                   | commandBit ) );
+; 667  :    
+; 668  :             wrPtr = (wrPtr + 1) & 0xFF;
+; 669  :             hwIndex = wrPtr;
+; 670  :             
+; 671  :             SETPD(hwPtr, ghw2D->dstBaseAddr, dwDstBaseAddr);
+; 672  :             wrPtr = (wrPtr + 1) & 0xFF;
+; 673  :             hwIndex = wrPtr;
+; 674  :             SETPD(hwPtr, ghw2D->dstFormat, dstFormat); 
+; 675  :             wrPtr = (wrPtr + 1) & 0xFF;
+; 676  :             hwIndex = wrPtr;
+; 677  :             SETPD(hwPtr, ghw2D->rop,
+; 678  :                 (SSTG_ROP_SRC << 16 )| (SSTG_ROP_SRC << 8 ) | SSTG_ROP_SRC );
+; 679  :             wrPtr = (wrPtr + 1) & 0xFF;
+; 680  :             hwIndex = wrPtr;
+; 681  :             SETPD(hwPtr, ghw2D->srcBaseAddr, dwSurfAddr);
+; 682  :             wrPtr = (wrPtr + 1) & 0xFF;
+; 683  :             hwIndex = wrPtr;
+; 684  :             SETPD(hwPtr, ghw2D->clip1min,  lpBltParams->clip1min);     
+; 685  :             wrPtr = (wrPtr + 1) & 0xFF;
+; 686  :             hwIndex = wrPtr;
+; 687  :             SETPD(hwPtr, ghw2D->clip1max,  lpBltParams->clip1max);     
+; 688  :             wrPtr = (wrPtr + 1) & 0xFF;
+; 689  :             hwIndex = wrPtr;
+; 690  :             SETPD(hwPtr, ghw2D->srcFormat, srcFormat); 
+; 691  :             wrPtr = (wrPtr + 1) & 0xFF;
+; 692  :             hwIndex = wrPtr;
+; 693  :             SETPD(hwPtr, ghw2D->srcSize,   lpBltParams->bltSrcSize);     
+; 694  :             wrPtr = (wrPtr + 1) & 0xFF;
+; 695  :             hwIndex = wrPtr;
+; 696  :             SETPD(hwPtr, ghw2D->srcXY,     lpBltParams->bltSrcXY);          
+; 697  :             wrPtr = (wrPtr + 1) & 0xFF;
+; 698  :             hwIndex = wrPtr;
+; 699  :             SETPD(hwPtr, ghw2D->dstSize,   lpBltParams->bltDstSize);     
+; 700  :             wrPtr = (wrPtr + 1) & 0xFF;
+; 701  :             hwIndex = wrPtr;
+; 702  :             SETPD(hwPtr, ghw2D->dstXY,     lpBltParams->bltDstXY);          
+; 703  :             wrPtr = (wrPtr + 1) & 0xFF;
+; 704  :             hwIndex = wrPtr;
+; 705  :             SETPD(hwPtr, ghw2D->command,
+; 706  :                 (SSTG_ROP_SRC << SSTG_ROP0_SHIFT )|
+; 707  :                 SSTG_STRETCH_BLT | SSTG_GO | SSTG_CLIPSELECT );
+; 708  :             wrPtr = (wrPtr + 1) & 0xFF;
+; 709  :             hwIndex = wrPtr;
+; 710  : 
+; 711  :             if(lpFlipInfo->dwFlags & DDFLIP_EVEN )
+; 712  :                    dwDstBaseAddr |= 0x80000000;
+; 713  :              else
+; 714  :                    dwDstBaseAddr &= ~SSTG_IS_TILED;
+; 715  : 
+; 716  :         }
+; 717  :         SETPH(hwPtr, CMDFIFO_BUILD_PK1(1, 0, leftOverlayBuf, 0xF ));
+; 718  :         wrPtr = (wrPtr + 1) & 0xFF;
+; 719  :         hwIndex = wrPtr;
+; 720  :         SETPD(hwPtr, ghw3D->leftOverlayBuf, dwDstBaseAddr);
+; 721  :         wrPtr = (wrPtr + 1) & 0xFF;
+; 722  :         hwIndex = wrPtr;
+; 723  :         SETPH(hwPtr, CMDFIFO_BUILD_PK1(1, 0, swapbufferCMD, 0xF) );
+; 724  :         wrPtr = (wrPtr + 1) & 0xFF;
+; 725  :         hwIndex = wrPtr;
+; 726  :         SETPD(hwPtr, ghw3D->swapbufferCMD, 1);
+; 727  : 
+; 728  :         _FF(gdiFlags) |= SDATA_GDIFLAGS_KMTV_FLAG;
+; 729  :       }    */
+; 730  :    } 
+; 731  :    dwLockCounter--;
+
+  009b1	a1 00 00 00 00	 mov	 eax, DWORD PTR _dwLockCounter
+  009b6	5b		 pop	 ebx
+  009b7	48		 dec	 eax
+  009b8	5f		 pop	 edi
+  009b9	a3 00 00 00 00	 mov	 DWORD PTR _dwLockCounter, eax
+
+; 732  :    return 0;
+
+  009be	33 c0		 xor	 eax, eax
+  009c0	5e		 pop	 esi
+
+; 733  : }    
+
+  009c1	8b e5		 mov	 esp, ebp
+  009c3	5d		 pop	 ebp
+  009c4	c3		 ret	 0
+_ddFlipOverlay ENDP
+_lpGetIrqInfo$ = -4
+_DDGetIRQInfo PROC NEAR
+
+; 760  : {
+
+  009d1	55		 push	 ebp
+  009d2	8b ec		 mov	 ebp, esp
+  009d4	51		 push	 ecx
+
+; 761  :    DDGETIRQINFO	*lpGetIrqInfo;
+; 762  :    _asm mov lpGetIrqInfo, edi
+
+  009d5	89 7d fc	 mov	 DWORD PTR _lpGetIrqInfo$[ebp], edi
+
+; 763  : // _asm int 1;
+; 764  :    //Debug_Printf("KMVT - GetIRQInfo\n");
+; 765  : 
+; 766  :    //return handled since we have our own irq handler in h3irq and
+; 767  :    //will manage the IRQ ourselves
+; 768  :    lpGetIrqInfo->dwSize = sizeof (DDGETIRQINFO);
+
+  009d8	8b 45 fc	 mov	 eax, DWORD PTR _lpGetIrqInfo$[ebp]
+  009db	c7 00 0c 00 00
+	00		 mov	 DWORD PTR [eax], 12	; 0000000cH
+
+; 769  :    lpGetIrqInfo->dwFlags = IRQINFO_HANDLED;
+
+  009e1	c7 40 04 01 00
+	00 00		 mov	 DWORD PTR [eax+4], 1
+
+; 770  :    return 0;
+
+  009e8	33 c0		 xor	 eax, eax
+
+; 771  : }
+
+  009ea	8b e5		 mov	 esp, ebp
+  009ec	5d		 pop	 ebp
+  009ed	c3		 ret	 0
+_DDGetIRQInfo ENDP
+_LTEXT	ENDS
+EXTRN	_CCODE_Cancel_Global_Event@4:NEAR
+EXTRN	_GETGBL_KMVTBuff:NEAR
+_LTEXT	SEGMENT
+_lpEnableIRQ$ = -4
+_DDEnableIRQ PROC NEAR
+
+; 802  : {
+
+  009f1	55		 push	 ebp
+  009f2	8b ec		 mov	 ebp, esp
+  009f4	51		 push	 ecx
+
+; 803  : 
+; 804  :    DDENABLEIRQINFO    *lpEnableIRQ;
+; 805  :    DWORD 	       dwReg;
+; 806  :    int i;
+; 807  : 
+; 808  :    _asm mov lpEnableIRQ, esi
+
+  009f5	89 75 fc	 mov	 DWORD PTR _lpEnableIRQ$[ebp], esi
+
+; 809  : #ifdef DEBUG
+; 810  :    Debug_Printf("KMVT - Enable IRQ sources %04.4x (vsync 0x01 vport 0x04)\n", lpEnableIRQ->dwIRQSources);
+; 811  : #endif
+; 812  : //_asm int 1;
+; 813  :    if (lpEnableIRQ->dwIRQSources != kmtvInfo.dwIRQSources) {
+
+  009f8	8b 45 fc	 mov	 eax, DWORD PTR _lpEnableIRQ$[ebp]
+  009fb	8b 0d 04 00 00
+	00		 mov	 ecx, DWORD PTR _kmtvInfo+4
+  00a01	8b 40 04	 mov	 eax, DWORD PTR [eax+4]
+  00a04	3b c1		 cmp	 eax, ecx
+  00a06	0f 84 52 01 00
+	00		 je	 $L13626
+
+; 814  : 	dwReg = (((SstRegs *)(kmtvInfo.pDev->RegBase[HWINFO_SST_3DREGS_INDEX]))->intrCtrl &
+; 815  :                 0x7FFFFFFF);
+
+  00a0c	8b 15 10 00 00
+	00		 mov	 edx, DWORD PTR _kmtvInfo+16
+  00a12	53		 push	 ebx
+  00a13	56		 push	 esi
+  00a14	57		 push	 edi
+  00a15	8b 8a 9c 00 00
+	00		 mov	 ecx, DWORD PTR [edx+156]
+  00a1b	8b 59 04	 mov	 ebx, DWORD PTR [ecx+4]
+  00a1e	81 e3 ff ff ff
+	7f		 and	 ebx, 2147483647		; 7fffffffH
+
+; 816  : 	if (lpEnableIRQ->dwIRQSources & DDIRQ_VPORT0_VSYNC)
+
+  00a24	a8 04		 test	 al, 4
+  00a26	0f 84 86 00 00
+	00		 je	 $L13018
+
+; 817  : 	{
+; 818  : 	   // VMI_IRQ_ENABLE;
+; 819  : 	   kmtvInfo.pDev->dwIMask |= H3_VMI_INT_ENABLE;
+
+  00a2c	8b 72 54	 mov	 esi, DWORD PTR [edx+84]
+
+; 820  : 	   dwReg |= H3_VMI_INT_ENABLE;
+; 821  : 
+; 822  : 	   if (!kmtvInfo.bInitialized) {
+
+  00a2f	a1 24 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+36
+  00a34	81 ce 00 00 20
+	00		 or	 esi, 2097152		; 00200000H
+  00a3a	81 cb 00 00 20
+	00		 or	 ebx, 2097152		; 00200000H
+  00a40	89 72 54	 mov	 DWORD PTR [edx+84], esi
+  00a43	33 f6		 xor	 esi, esi
+  00a45	3b c6		 cmp	 eax, esi
+  00a47	0f 85 df 00 00
+	00		 jne	 $L13024
+
+; 823  : 	       KMVTBUFF * lpKMVTBuff;
+; 824  : 	       lpKMVTBuff = (KMVTBUFF *)GETGBL_KMVTBuff((DWORD)kmtvInfo.pDev->lpDriverData);
+
+  00a4d	8b 92 14 02 00
+	00		 mov	 edx, DWORD PTR [edx+532]
+  00a53	52		 push	 edx
+  00a54	e8 00 00 00 00	 call	 _GETGBL_KMVTBuff
+
+; 825  : 	       kmtvInfo.dwVBILines = lpKMVTBuff->dwVBILines;
+
+  00a59	8b 40 60	 mov	 eax, DWORD PTR [eax+96]
+
+; 826  : 		   kmtvInfo.Num = 0;
+; 827  : 		   kmtvInfo.dwCurrentTransfer = 0;
+; 828  : 		   kmtvInfo.dwQueuedTransfers = 0;
+; 829  : 		   kmtvInfo.dwBusMasterTransfers = 0;
+; 830  : 	       kmtvInfo.dwTransferID = 0;
+; 831  : 	       kmtvInfo.dwVBITransferID = 0;
+; 832  : 		   kmtvInfo.dwFieldCount = 0;
+; 833  : 		   kmtvInfo.bReportForVideo = FALSE;		// default to vbi
+; 834  : 		   memset (kmtvInfo.Transfer, sizeof (TRANSFER_DATA) * MAX_TRANSFERS, 0);
+; 835  : 		   kmtvInfo.bInitialized = 1;
+; 836  : 	   }
+; 837  : 	}
+; 838  : 	else
+
+  00a5c	8b 15 10 00 00
+	00		 mov	 edx, DWORD PTR _kmtvInfo+16
+  00a62	83 c4 04	 add	 esp, 4
+  00a65	a3 1c 00 00 00	 mov	 DWORD PTR _kmtvInfo+28, eax
+  00a6a	89 35 28 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+40, esi
+  00a70	89 35 30 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+48, esi
+  00a76	89 35 34 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+52, esi
+  00a7c	89 35 38 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+56, esi
+  00a82	89 35 14 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+20, esi
+  00a88	89 35 18 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+24, esi
+  00a8e	89 35 40 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+64, esi
+  00a94	89 35 44 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+68, esi
+  00a9a	33 c9		 xor	 ecx, ecx
+  00a9c	b8 d0 02 00 00	 mov	 eax, 720		; 000002d0H
+  00aa1	bf 50 00 00 00	 mov	 edi, OFFSET FLAT:_kmtvInfo+80
+  00aa6	c7 05 24 00 00
+	00 01 00 00 00	 mov	 DWORD PTR _kmtvInfo+36, 1
+  00ab0	eb 7a		 jmp	 SHORT $L13024
+$L13018:
+
+; 839  : 	{
+; 840  : 	   //  VMI_IRQ_DISABLE;
+; 841  : 	   kmtvInfo.pDev->dwIMask &= ~H3_VMI_INT_ENABLE;
+
+  00ab2	8b 4a 54	 mov	 ecx, DWORD PTR [edx+84]
+
+; 842  : 	   dwReg &= ~H3_VMI_INT_ENABLE;
+
+  00ab5	81 e3 ff ff df
+	ff		 and	 ebx, -2097153		; ffdfffffH
+  00abb	81 e1 ff ff df
+	ff		 and	 ecx, -2097153		; ffdfffffH
+
+; 843  :            kmtvInfo.bInitialized = 0;
+
+  00ac1	33 ff		 xor	 edi, edi
+  00ac3	89 4a 54	 mov	 DWORD PTR [edx+84], ecx
+  00ac6	89 3d 24 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+36, edi
+  00acc	be 6c 00 00 00	 mov	 esi, OFFSET FLAT:_kmtvInfo+108
+$L13025:
+
+; 844  : 		
+; 845  : #ifndef USE_VMM_CALLBACK
+; 846  :           //Just by chance there are any transfers still pending, be sure to cancel them.
+; 847  : 	   for (i=0; i<MAX_TRANSFERS; i++)
+; 848  : 	   {
+; 849  : 		if (kmtvInfo.Transfer[i].dwFlags & TRANSFER_QUEUED) 
+
+  00ad1	f6 46 e4 04	 test	 BYTE PTR [esi-28], 4
+  00ad5	74 12		 je	 SHORT $L13026
+
+; 850  : 		{
+; 851  : 			if (kmtvInfo.Transfer[i].EventHandle)
+
+  00ad7	8b 06		 mov	 eax, DWORD PTR [esi]
+  00ad9	3b c7		 cmp	 eax, edi
+  00adb	74 0c		 je	 SHORT $L13026
+
+; 852  : 		     Cancel_Global_Event(kmtvInfo.Transfer[i].EventHandle);
+
+  00add	50		 push	 eax
+  00ade	e8 00 00 00 00	 call	 _CCODE_Cancel_Global_Event@4
+  00ae3	8b 15 10 00 00
+	00		 mov	 edx, DWORD PTR _kmtvInfo+16
+$L13026:
+  00ae9	83 c6 24	 add	 esi, 36			; 00000024H
+  00aec	81 fe 3c 03 00
+	00		 cmp	 esi, OFFSET FLAT:_kmtvInfo+828
+  00af2	7c dd		 jl	 SHORT $L13025
+
+; 853  : 		}
+; 854  :   	   }
+; 855  : #endif	
+; 856  :   	   kmtvInfo.dwCurrentTransfer = 0;
+
+  00af4	89 3d 30 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+48, edi
+
+; 857  :   	   kmtvInfo.dwQueuedTransfers = 0;
+
+  00afa	89 3d 34 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+52, edi
+
+; 858  : 	   kmtvInfo.dwBusMasterTransfers = 0;
+
+  00b00	89 3d 38 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+56, edi
+
+; 859  : 	   kmtvInfo.dwTransferID = 0;
+
+  00b06	89 3d 14 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+20, edi
+
+; 860  : 	   kmtvInfo.dwVBITransferID = 0;
+
+  00b0c	89 3d 18 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+24, edi
+
+; 861  : 	   kmtvInfo.dwFieldCount = 0;
+
+  00b12	89 3d 40 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+64, edi
+
+; 862  : 	   kmtvInfo.bReportForVideo = FALSE;		// default to vbi
+
+  00b18	89 3d 44 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+68, edi
+
+; 863  : 	   memset (kmtvInfo.Transfer, sizeof (TRANSFER_DATA) * MAX_TRANSFERS, 0);
+
+  00b1e	33 c9		 xor	 ecx, ecx
+  00b20	b8 d0 02 00 00	 mov	 eax, 720		; 000002d0H
+  00b25	bf 50 00 00 00	 mov	 edi, OFFSET FLAT:_kmtvInfo+80
+  00b2a	33 f6		 xor	 esi, esi
+$L13024:
+
+; 864  : 	}
+; 865  : #if 0
+; 866  : 	if (lpEnableIRQ->dwIRQSources & DDIRQ_DISPLAY_VSYNC)
+; 867  : 	{
+; 868  : 	   //VSYNC_IRQ_ENABLE;
+; 869  : 	   kmtvInfo.pDev->dwIMask |= H3_VSYNC_INT_ENABLE;
+; 870  : 	   dwReg |= H3_VSYNC_INT_ENABLE;
+; 871  : 	}
+; 872  : 	else
+; 873  : 	{
+; 874  : 	   //VSYNC_IRQ_DISABLE;
+; 875  : 	   kmtvInfo.pDev->dwIMask &= ~H3_VSYNC_INT_ENABLE;
+; 876  : 	   dwReg &= ~H3_VSYNC_INT_ENABLE;
+; 877  : 	}
+; 878  : #endif
+; 879  : //kmtvInfo.Context = lpEnableIRQ->dwContext;
+; 880  : 	kmtvInfo.IRQCallback = (lpEnableIRQ->dwIRQSources) ? lpEnableIRQ->IRQCallback : 0;
+
+  00b2c	8b 4d fc	 mov	 ecx, DWORD PTR _lpEnableIRQ$[ebp]
+  00b2f	8b 41 04	 mov	 eax, DWORD PTR [ecx+4]
+  00b32	3b c6		 cmp	 eax, esi
+  00b34	74 0b		 je	 SHORT $L13622
+  00b36	8b 49 0c	 mov	 ecx, DWORD PTR [ecx+12]
+  00b39	89 0d 00 00 00
+	00		 mov	 DWORD PTR _kmtvInfo, ecx
+  00b3f	eb 06		 jmp	 SHORT $L13623
+$L13622:
+  00b41	89 35 00 00 00
+	00		 mov	 DWORD PTR _kmtvInfo, esi
+$L13623:
+
+; 881  : 	kmtvInfo.dwIRQSources = lpEnableIRQ->dwIRQSources;
+; 882  : 	((SstRegs *)((kmtvInfo.pDev)->RegBase[HWINFO_SST_3DREGS_INDEX]))->intrCtrl = dwReg;
+
+  00b47	8b 92 9c 00 00
+	00		 mov	 edx, DWORD PTR [edx+156]
+  00b4d	a3 04 00 00 00	 mov	 DWORD PTR _kmtvInfo+4, eax
+  00b52	89 5a 04	 mov	 DWORD PTR [edx+4], ebx
+  00b55	5f		 pop	 edi
+  00b56	5e		 pop	 esi
+
+; 883  : 
+; 884  :      }
+; 885  : 	return 0;
+
+  00b57	33 c0		 xor	 eax, eax
+  00b59	5b		 pop	 ebx
+
+; 886  : }
+
+  00b5a	8b e5		 mov	 esp, ebp
+  00b5c	5d		 pop	 ebp
+  00b5d	c3		 ret	 0
+$L13626:
+
+; 883  : 
+; 884  :      }
+; 885  : 	return 0;
+
+  00b5e	33 c0		 xor	 eax, eax
+
+; 886  : }
+
+  00b60	8b e5		 mov	 esp, ebp
+  00b62	5d		 pop	 ebp
+  00b63	c3		 ret	 0
+_DDEnableIRQ ENDP
+_DDIsOurIRQ PROC NEAR
+
+; 914  :   
+; 915  :    //This shouldn't occur since we are handling the interupts as stated
+; 916  :    //in ddgetirqinfo when it returned handled 
+; 917  :    int IrqCtrl = ((SstRegs *)(kmtvInfo.pDev->RegBase[HWINFO_SST_3DREGS_INDEX]))->intrCtrl;
+
+  00b71	a1 10 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+16
+  00b76	57		 push	 edi
+  00b77	8b 88 9c 00 00
+	00		 mov	 ecx, DWORD PTR [eax+156]
+  00b7d	8b 41 04	 mov	 eax, DWORD PTR [ecx+4]
+
+; 918  :    if (IrqCtrl & H3_VSYNC_INTERRUPT) 
+
+  00b80	f6 c4 01	 test	 ah, 1
+  00b83	74 05		 je	 SHORT $L13036
+
+; 919  :    {
+; 920  :       _asm mov edi, DDIRQ_DISPLAY_VSYNC
+
+  00b85	bf 01 00 00 00	 mov	 edi, 1
+$L13036:
+
+; 921  :    }
+; 922  :    if (IrqCtrl & H3_VMI_INTERRUPT) 
+
+  00b8a	a9 00 00 80 00	 test	 eax, 8388608		; 00800000H
+  00b8f	74 05		 je	 SHORT $L13628
+
+; 923  :    {
+; 924  :       _asm mov edi, DDIRQ_VPORT0_VSYNC
+
+  00b91	bf 04 00 00 00	 mov	 edi, 4
+$L13628:
+
+; 925  :    }
+; 926  : 
+; 927  :    return 0;
+
+  00b96	33 c0		 xor	 eax, eax
+  00b98	5f		 pop	 edi
+
+; 928  : }
+
+  00b99	c3		 ret	 0
+_DDIsOurIRQ ENDP
+_lpSkipInfo$ = -4
+_DDSkipNextField PROC NEAR
+
+; 951  : {
+
+  00ba1	55		 push	 ebp
+  00ba2	8b ec		 mov	 ebp, esp
+  00ba4	51		 push	 ecx
+
+; 952  : 
+; 953  :    DDSKIPINFO    *lpSkipInfo;
+; 954  :    _asm mov lpSkipInfo, esi
+
+  00ba5	89 75 fc	 mov	 DWORD PTR _lpSkipInfo$[ebp], esi
+
+; 955  : #ifdef DEBUG
+; 956  :    Debug_Printf("KMVT - DDSkipNextField\n");
+; 957  : #endif
+; 958  : //_asm int 1;
+; 959  : 
+; 960  :    if (lpSkipInfo->dwSkipFlags & DDSKIP_SKIPNEXT)
+
+  00ba8	8b 45 fc	 mov	 eax, DWORD PTR _lpSkipInfo$[ebp]
+  00bab	8b 40 08	 mov	 eax, DWORD PTR [eax+8]
+  00bae	a8 01		 test	 al, 1
+  00bb0	74 0d		 je	 SHORT $L13041
+
+; 961  :        kmtvInfo.bSkipNextField = TRUE; 
+
+  00bb2	c6 05 0e 00 00
+	00 01		 mov	 BYTE PTR _kmtvInfo+14, 1
+
+; 966  : 
+; 967  :    return 0;
+
+  00bb9	33 c0		 xor	 eax, eax
+
+; 968  : }
+
+  00bbb	8b e5		 mov	 esp, ebp
+  00bbd	5d		 pop	 ebp
+  00bbe	c3		 ret	 0
+$L13041:
+
+; 962  :    else if (lpSkipInfo->dwSkipFlags & DDSKIP_ENABLENEXT)
+
+  00bbf	a8 02		 test	 al, 2
+  00bc1	74 0d		 je	 SHORT $L13043
+
+; 963  :        kmtvInfo.bSkipNextField = FALSE;
+
+  00bc3	c6 05 0e 00 00
+	00 00		 mov	 BYTE PTR _kmtvInfo+14, 0
+
+; 966  : 
+; 967  :    return 0;
+
+  00bca	33 c0		 xor	 eax, eax
+
+; 968  : }
+
+  00bcc	8b e5		 mov	 esp, ebp
+  00bce	5d		 pop	 ebp
+  00bcf	c3		 ret	 0
+$L13043:
+
+; 964  :    else
+; 965  :        return 1;
+
+  00bd0	b8 01 00 00 00	 mov	 eax, 1
+
+; 968  : }
+
+  00bd5	8b e5		 mov	 esp, ebp
+  00bd7	5d		 pop	 ebp
+  00bd8	c3		 ret	 0
+_DDSkipNextField ENDP
+_lpBobInfo$ = -4
+_DDBobNextField PROC NEAR
+
+; 994  : {
+
+  00be1	55		 push	 ebp
+  00be2	8b ec		 mov	 ebp, esp
+  00be4	51		 push	 ecx
+
+; 995  : 
+; 996  :    DDBOBINFO	*lpBobInfo;
+; 997  :    _asm mov lpBobInfo, esi
+
+  00be5	89 75 fc	 mov	 DWORD PTR _lpBobInfo$[ebp], esi
+
+; 998  : 
+; 999  : #ifdef DEBUG
+; 1000 :    Debug_Printf("KMVT - DDBobNextField\n");
+; 1001 : #endif
+; 1002 : //_asm int 1;
+; 1003 :    return 0;
+
+  00be8	33 c0		 xor	 eax, eax
+
+; 1004 : }
+
+  00bea	8b e5		 mov	 esp, ebp
+  00bec	5d		 pop	 ebp
+  00bed	c3		 ret	 0
+_DDBobNextField ENDP
+_lpStateOut$ = -4
+_lpStateIn$ = -8
+_DDSetState PROC NEAR
+
+; 1039 : {
+
+  00bf1	55		 push	 ebp
+  00bf2	8b ec		 mov	 ebp, esp
+  00bf4	83 ec 08	 sub	 esp, 8
+
+; 1040 : 
+; 1041 :   DDSTATEOUTINFO	*lpStateOut;
+; 1042 :   DDSTATEININFO		*lpStateIn;
+; 1043 :    _asm mov lpStateIn, esi
+
+  00bf7	89 75 f8	 mov	 DWORD PTR _lpStateIn$[ebp], esi
+
+; 1044 :    _asm mov lpStateOut, edi
+
+  00bfa	89 7d fc	 mov	 DWORD PTR _lpStateOut$[ebp], edi
+
+; 1045 : 
+; 1046 : #ifdef DEBUG
+; 1047 :    Debug_Printf("KMVT - DDSetState\n");
+; 1048 : #endif
+; 1049 : //_asm int 1;
+; 1050 :    return 0;
+
+  00bfd	33 c0		 xor	 eax, eax
+
+; 1051 : }
+
+  00bff	8b e5		 mov	 esp, ebp
+  00c01	5d		 pop	 ebp
+  00c02	c3		 ret	 0
+_DDSetState ENDP
+_lpLockInInfo$ = -4
+_lpLockOutInfo$ = -8
+_DDLock	PROC NEAR
+
+; 1074 : {
+
+  00c11	55		 push	 ebp
+  00c12	8b ec		 mov	 ebp, esp
+  00c14	83 ec 08	 sub	 esp, 8
+
+; 1075 :    DDLOCKININFO		*lpLockInInfo;
+; 1076 :    DDLOCKOUTINFO	*lpLockOutInfo;
+; 1077 :    LPDDSURFACEDATA lpSurf;
+; 1078 :     KMVTBUFF * lpKMVTBuff;
+; 1079 :    _asm mov lpLockInInfo, esi
+
+  00c17	89 75 fc	 mov	 DWORD PTR _lpLockInInfo$[ebp], esi
+
+; 1080 :    _asm mov lpLockOutInfo, edi
+
+  00c1a	89 7d f8	 mov	 DWORD PTR _lpLockOutInfo$[ebp], edi
+
+; 1081 : 
+; 1082 : #ifdef DEBUG
+; 1083 :    Debug_Printf("KMVT - DDLock\n");
+; 1084 : #endif
+; 1085 :    // modify to reflect decimated size
+; 1086 :     lpKMVTBuff = (KMVTBUFF *)GETGBL_KMVTBuff((DWORD)kmtvInfo.pDev->lpDriverData);
+
+  00c1d	a1 10 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+16
+  00c22	8b 88 14 02 00
+	00		 mov	 ecx, DWORD PTR [eax+532]
+  00c28	51		 push	 ecx
+  00c29	e8 00 00 00 00	 call	 _GETGBL_KMVTBuff
+  00c2e	83 c4 04	 add	 esp, 4
+
+; 1087 : 	if (lpKMVTBuff)
+
+  00c31	85 c0		 test	 eax, eax
+  00c33	74 18		 je	 SHORT $L13633
+
+; 1088 : 	{
+; 1089 : 		lpSurf = (LPDDSURFACEDATA)lpLockInInfo->lpSurfaceData;
+
+  00c35	8b 55 fc	 mov	 edx, DWORD PTR _lpLockInInfo$[ebp]
+  00c38	8b 4a 04	 mov	 ecx, DWORD PTR [edx+4]
+
+; 1090 : 		lpSurf->dwWidth = lpKMVTBuff->dwDataWidth;
+
+  00c3b	8b 90 88 00 00
+	00		 mov	 edx, DWORD PTR [eax+136]
+
+; 1091 : 		lpSurf->dwHeight = lpKMVTBuff->dwDataHeight;
+
+  00c41	8b 80 8c 00 00
+	00		 mov	 eax, DWORD PTR [eax+140]
+  00c47	89 51 10	 mov	 DWORD PTR [ecx+16], edx
+  00c4a	89 41 14	 mov	 DWORD PTR [ecx+20], eax
+$L13633:
+
+; 1092 : 	}
+; 1093 : 
+; 1094 :    return 0;
+
+  00c4d	33 c0		 xor	 eax, eax
+
+; 1095 : }
+
+  00c4f	8b e5		 mov	 esp, ebp
+  00c51	5d		 pop	 ebp
+  00c52	c3		 ret	 0
+_DDLock	ENDP
+_lpFlipVideoPort$ = -4
+_DDFlipVideoPort PROC NEAR
+
+; 1118 : {
+
+  00c61	55		 push	 ebp
+  00c62	8b ec		 mov	 ebp, esp
+  00c64	51		 push	 ecx
+
+; 1119 : 
+; 1120 :    DDFLIPVIDEOPORTINFO	*lpFlipVideoPort;
+; 1121 :    _asm mov lpFlipVideoPort, esi
+
+  00c65	89 75 fc	 mov	 DWORD PTR _lpFlipVideoPort$[ebp], esi
+
+; 1122 : #ifdef DEBUG
+; 1123 :    Debug_Printf("KMVT - DDFlipVideoPort\n");
+; 1124 : #endif
+; 1125 : //_asm int 1;
+; 1126 :    return 0;
+
+  00c68	33 c0		 xor	 eax, eax
+
+; 1127 : }
+
+  00c6a	8b e5		 mov	 esp, ebp
+  00c6c	5d		 pop	 ebp
+  00c6d	c3		 ret	 0
+_DDFlipVideoPort ENDP
+_lpPolarityIn$ = -8
+_lpPolarityOut$ = -4
+_DDGetPolarity PROC NEAR
+
+; 1154 : {
+
+  00c71	55		 push	 ebp
+  00c72	8b ec		 mov	 ebp, esp
+  00c74	83 ec 08	 sub	 esp, 8
+
+; 1155 : 
+; 1156 :    DDPOLARITYININFO   *lpPolarityIn;
+; 1157 :    DDPOLARITYOUTINFO  *lpPolarityOut;
+; 1158 :     KMVTBUFF * lpKMVTBuff;
+; 1159 :    _asm mov lpPolarityIn, esi
+
+  00c77	89 75 f8	 mov	 DWORD PTR _lpPolarityIn$[ebp], esi
+
+; 1160 :    _asm mov lpPolarityOut, edi
+
+  00c7a	89 7d fc	 mov	 DWORD PTR _lpPolarityOut$[ebp], edi
+
+; 1161 : 
+; 1162 :     lpKMVTBuff = (KMVTBUFF *)GETGBL_KMVTBuff((DWORD)kmtvInfo.pDev->lpDriverData);
+
+  00c7d	a1 10 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+16
+  00c82	8b 88 14 02 00
+	00		 mov	 ecx, DWORD PTR [eax+532]
+  00c88	51		 push	 ecx
+  00c89	e8 00 00 00 00	 call	 _GETGBL_KMVTBuff
+  00c8e	83 c4 04	 add	 esp, 4
+
+; 1163 : 	if (lpKMVTBuff && lpKMVTBuff->bVMIPLDinUse)
+
+  00c91	85 c0		 test	 eax, eax
+  00c93	74 1c		 je	 SHORT $L13072
+  00c95	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  00c9b	85 c9		 test	 ecx, ecx
+  00c9d	74 12		 je	 SHORT $L13072
+
+; 1164 : 	{
+; 1165 : 		lpPolarityOut->bPolarity = lpKMVTBuff->bLastFieldEven;
+
+  00c9f	8b 90 94 00 00
+	00		 mov	 edx, DWORD PTR [eax+148]
+  00ca5	8b 45 fc	 mov	 eax, DWORD PTR _lpPolarityOut$[ebp]
+  00ca8	89 50 04	 mov	 DWORD PTR [eax+4], edx
+
+; 1173 : 	}
+; 1174 : #ifdef DEBUG
+; 1175 :    Debug_Printf("KMVT - DDGetPolarity %d\n", lpPolarityOut->bPolarity);
+; 1176 : #endif
+; 1177 :    return 0;
+
+  00cab	33 c0		 xor	 eax, eax
+
+; 1178 : }
+
+  00cad	8b e5		 mov	 esp, ebp
+  00caf	5d		 pop	 ebp
+  00cb0	c3		 ret	 0
+$L13072:
+
+; 1166 : 	}
+; 1167 : 	else
+; 1168 : 	{
+; 1169 : 	   if (((((SstIORegs *)(kmtvInfo.pDev->RegBase[HWINFO_SST_IOREGS_INDEX]))->vidCurrentLine) >> 18) & 0x01)
+
+  00cb1	8b 0d 10 00 00
+	00		 mov	 ecx, DWORD PTR _kmtvInfo+16
+  00cb7	8b 91 90 00 00
+	00		 mov	 edx, DWORD PTR [ecx+144]
+  00cbd	f7 82 94 00 00
+	00 00 00 04 00	 test	 DWORD PTR [edx+148], 262144 ; 00040000H
+  00cc7	74 10		 je	 SHORT $L13075
+
+; 1170 : 		lpPolarityOut->bPolarity = TRUE;
+
+  00cc9	8b 45 fc	 mov	 eax, DWORD PTR _lpPolarityOut$[ebp]
+  00ccc	c7 40 04 01 00
+	00 00		 mov	 DWORD PTR [eax+4], 1
+
+; 1173 : 	}
+; 1174 : #ifdef DEBUG
+; 1175 :    Debug_Printf("KMVT - DDGetPolarity %d\n", lpPolarityOut->bPolarity);
+; 1176 : #endif
+; 1177 :    return 0;
+
+  00cd3	33 c0		 xor	 eax, eax
+
+; 1178 : }
+
+  00cd5	8b e5		 mov	 esp, ebp
+  00cd7	5d		 pop	 ebp
+  00cd8	c3		 ret	 0
+$L13075:
+
+; 1171 : 	   else
+; 1172 : 		lpPolarityOut->bPolarity = FALSE;
+
+  00cd9	8b 4d fc	 mov	 ecx, DWORD PTR _lpPolarityOut$[ebp]
+
+; 1173 : 	}
+; 1174 : #ifdef DEBUG
+; 1175 :    Debug_Printf("KMVT - DDGetPolarity %d\n", lpPolarityOut->bPolarity);
+; 1176 : #endif
+; 1177 :    return 0;
+
+  00cdc	33 c0		 xor	 eax, eax
+  00cde	c7 41 04 00 00
+	00 00		 mov	 DWORD PTR [ecx+4], 0
+
+; 1178 : }
+
+  00ce5	8b e5		 mov	 esp, ebp
+  00ce7	5d		 pop	 ebp
+  00ce8	c3		 ret	 0
+_DDGetPolarity ENDP
+_lpSkipInfo$ = -4
+_DDSetSkipPattern PROC NEAR
+
+; 1203 : {
+
+  00cf1	55		 push	 ebp
+  00cf2	8b ec		 mov	 ebp, esp
+  00cf4	51		 push	 ecx
+
+; 1204 : 
+; 1205 :    DDSKIPINFO	*lpSkipInfo;
+; 1206 :    _asm mov lpSkipInfo, esi
+
+  00cf5	89 75 fc	 mov	 DWORD PTR _lpSkipInfo$[ebp], esi
+
+; 1207 : #ifdef DEBUG
+; 1208 :    Debug_Printf("KMVT - DDSetSkipPattern\n");
+; 1209 : #endif
+; 1210 : //_asm int 1;
+; 1211 :    return 0;
+
+  00cf8	33 c0		 xor	 eax, eax
+
+; 1212 : }
+
+  00cfa	8b e5		 mov	 esp, ebp
+  00cfc	5d		 pop	 ebp
+  00cfd	c3		 ret	 0
+_DDSetSkipPattern ENDP
+_LTEXT	ENDS
+EXTRN	_GETGBL_dwOvlOffset:NEAR
+_LTEXT	SEGMENT
+_lpAutoFlipIn$ = -4
+_lpAutoFlipOut$ = -8
+_bNewBuf$ = -4
+_DDGetCurrentAutoflip PROC NEAR
+
+; 1234 : {
+
+  00d01	55		 push	 ebp
+  00d02	8b ec		 mov	 ebp, esp
+  00d04	83 ec 08	 sub	 esp, 8
+  00d07	53		 push	 ebx
+  00d08	56		 push	 esi
+
+; 1235 : 
+; 1236 :    DDGETAUTOFLIPININFO	*lpAutoFlipIn;
+; 1237 :    DDGETAUTOFLIPOUTINFO *lpAutoFlipOut;
+; 1238 :    BYTE bNewBuf, bBufModeSelect, bPolarity;
+; 1239 :     KMVTBUFF * lpKMVTBuff;
+; 1240 : 
+; 1241 :    _asm mov lpAutoFlipIn, esi
+
+  00d09	89 75 fc	 mov	 DWORD PTR _lpAutoFlipIn$[ebp], esi
+
+; 1242 :    _asm mov lpAutoFlipOut, edi
+
+  00d0c	89 7d f8	 mov	 DWORD PTR _lpAutoFlipOut$[ebp], edi
+
+; 1243 : //   Debug_Printf("KMVT - DDGetCurrentAutoflip\n");
+; 1244 : 	//Get previous buffer number
+; 1245 :    bNewBuf = (BYTE)((((SstIORegs *)(kmtvInfo.pDev->RegBase[HWINFO_SST_IOREGS_INDEX]))->vidCurrentLine) >> 16) & 0x3;
+
+  00d0f	a1 10 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+16
+  00d14	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  00d1a	8b 99 94 00 00
+	00		 mov	 ebx, DWORD PTR [ecx+148]
+
+; 1246 : 
+; 1247 :    if (kmtvInfo.bReportForVideo)
+
+  00d20	8b 0d 44 00 00
+	00		 mov	 ecx, DWORD PTR _kmtvInfo+68
+  00d26	c1 eb 10	 shr	 ebx, 16			; 00000010H
+  00d29	80 e3 03	 and	 bl, 3
+  00d2c	85 c9		 test	 ecx, ecx
+  00d2e	88 5d fc	 mov	 BYTE PTR _bNewBuf$[ebp], bl
+  00d31	0f 84 8c 00 00
+	00		 je	 $L13090
+
+; 1248 :    {
+; 1249 : 
+; 1250 : 	   lpKMVTBuff = (KMVTBUFF *)GETGBL_KMVTBuff((DWORD)kmtvInfo.pDev->lpDriverData);
+
+  00d37	8b 90 14 02 00
+	00		 mov	 edx, DWORD PTR [eax+532]
+  00d3d	52		 push	 edx
+  00d3e	e8 00 00 00 00	 call	 _GETGBL_KMVTBuff
+  00d43	8b f0		 mov	 esi, eax
+
+; 1251 : 	   if (GETGBL_dwOvlOffset((DWORD)kmtvInfo.pDev->lpDriverData) 
+; 1252 : 		   && (kmtvInfo.pDev->dwIMask & H3_VSYNC_INT_ENABLE) 
+; 1253 : 		   &&  (lpKMVTBuff->dwStatus & INTERLEAVE_ON ))
+
+  00d45	a1 10 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+16
+  00d4a	8b 88 14 02 00
+	00		 mov	 ecx, DWORD PTR [eax+532]
+  00d50	51		 push	 ecx
+  00d51	e8 00 00 00 00	 call	 _GETGBL_dwOvlOffset
+  00d56	83 c4 08	 add	 esp, 8
+  00d59	85 c0		 test	 eax, eax
+  00d5b	a1 10 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+16
+  00d60	74 1b		 je	 SHORT $L13094
+  00d62	f6 40 54 04	 test	 BYTE PTR [eax+84], 4
+  00d66	74 15		 je	 SHORT $L13094
+  00d68	8b 4e 4c	 mov	 ecx, DWORD PTR [esi+76]
+  00d6b	f7 c1 00 00 02
+	00		 test	 ecx, 131072		; 00020000H
+  00d71	74 0a		 je	 SHORT $L13094
+
+; 1254 : 	   {	// manual flipping
+; 1255 : 			bNewBuf = (BYTE)(lpKMVTBuff->dwStatus & BUFFER_IN_USE_MASK);
+
+  00d73	8a d1		 mov	 dl, cl
+  00d75	80 e2 03	 and	 dl, 3
+  00d78	88 55 fc	 mov	 BYTE PTR _bNewBuf$[ebp], dl
+
+; 1256 : 	   }
+; 1257 : 	   else
+
+  00d7b	eb 4a		 jmp	 SHORT $L13107
+$L13094:
+
+; 1258 : 	   {
+; 1259 : 		   //Query buffer mode - single, double or triple
+; 1260 : 		    bBufModeSelect = (BYTE)((((SstIORegs *)(kmtvInfo.pDev->RegBase[HWINFO_SST_IOREGS_INDEX]))->vidInFormat) >> 9) & 0x3;
+
+  00d7d	8b 88 90 00 00
+	00		 mov	 ecx, DWORD PTR [eax+144]
+  00d83	8b 41 70	 mov	 eax, DWORD PTR [ecx+112]
+  00d86	c1 e8 09	 shr	 eax, 9
+  00d89	24 03		 and	 al, 3
+
+; 1261 : 			if (lpKMVTBuff && lpKMVTBuff->bVMIPLDinUse)		// since this is on vbi - use hw
+
+  00d8b	85 f6		 test	 esi, esi
+  00d8d	74 12		 je	 SHORT $L13099
+  00d8f	8b 96 90 00 00
+	00		 mov	 edx, DWORD PTR [esi+144]
+  00d95	85 d2		 test	 edx, edx
+  00d97	74 08		 je	 SHORT $L13099
+
+; 1262 : 			{
+; 1263 : 				bPolarity = (BYTE)lpKMVTBuff->bLastFieldEven;
+
+  00d99	8a 8e 94 00 00
+	00		 mov	 cl, BYTE PTR [esi+148]
+
+; 1264 : 			}
+; 1265 : 			else
+
+  00d9f	eb 0c		 jmp	 SHORT $L13101
+$L13099:
+
+; 1266 : 			{
+; 1267 : 			   bPolarity = (BYTE)((((SstIORegs *)(kmtvInfo.pDev->RegBase[HWINFO_SST_IOREGS_INDEX]))->vidCurrentLine) >> 18) & 0x01;
+
+  00da1	8b 89 94 00 00
+	00		 mov	 ecx, DWORD PTR [ecx+148]
+  00da7	c1 e9 12	 shr	 ecx, 18			; 00000012H
+  00daa	80 e1 01	 and	 cl, 1
+$L13101:
+
+; 1268 : 			}
+; 1269 : 			if (!(lpKMVTBuff->dwVidInFormat & H3_VMI_DEINTERLACE_WEAVE)		// changes on every field
+; 1270 : 				|| bPolarity)								// both change on even field
+
+  00dad	f6 86 80 00 00
+	00 10		 test	 BYTE PTR [esi+128], 16	; 00000010H
+  00db4	74 04		 je	 SHORT $L13105
+  00db6	84 c9		 test	 cl, cl
+  00db8	74 0d		 je	 SHORT $L13107
+$L13105:
+
+; 1271 : 			{
+; 1272 : 				bNewBuf++;
+
+  00dba	fe c3		 inc	 bl
+
+; 1273 : 				if (bNewBuf > bBufModeSelect)
+
+  00dbc	3a d8		 cmp	 bl, al
+  00dbe	88 5d fc	 mov	 BYTE PTR _bNewBuf$[ebp], bl
+  00dc1	76 04		 jbe	 SHORT $L13107
+$L13090:
+
+; 1274 : 					bNewBuf = 0;
+; 1275 : 			}
+; 1276 : 	   }
+; 1277 :    }
+; 1278 :    else
+; 1279 : 		bNewBuf = 0;
+
+  00dc3	c6 45 fc 00	 mov	 BYTE PTR _bNewBuf$[ebp], 0
+$L13107:
+
+; 1280 : 
+; 1281 :     lpAutoFlipOut->dwSurfaceIndex = bNewBuf;
+
+  00dc7	8b 45 fc	 mov	 eax, DWORD PTR _bNewBuf$[ebp]
+  00dca	8b 4d f8	 mov	 ecx, DWORD PTR _lpAutoFlipOut$[ebp]
+  00dcd	25 ff 00 00 00	 and	 eax, 255		; 000000ffH
+  00dd2	5e		 pop	 esi
+  00dd3	89 41 04	 mov	 DWORD PTR [ecx+4], eax
+
+; 1282 : #ifdef DEBUG
+; 1283 : 	if (kmtvInfo.dwFieldCount >= 180 && kmtvInfo.dwFieldCount < 190)
+; 1284 : 	{
+; 1285 : 	   Debug_Printf("KMVT - DDGetCurrentAutoflip - %d\n", bNewBuf);
+; 1286 : 	}
+; 1287 : #endif
+; 1288 : 
+; 1289 :    return 0;
+
+  00dd6	33 c0		 xor	 eax, eax
+  00dd8	5b		 pop	 ebx
+
+; 1290 : }
+
+  00dd9	8b e5		 mov	 esp, ebp
+  00ddb	5d		 pop	 ebp
+  00ddc	c3		 ret	 0
+_DDGetCurrentAutoflip ENDP
+_lpAutoFlipIn$ = -4
+_lpAutoFlipOut$ = -8
+_bNewBuf$ = -4
+_DDGetPreviousAutoflip PROC NEAR
+
+; 1313 : {
+
+  00de1	55		 push	 ebp
+  00de2	8b ec		 mov	 ebp, esp
+  00de4	83 ec 08	 sub	 esp, 8
+
+; 1314 :    DDGETAUTOFLIPININFO	*lpAutoFlipIn;
+; 1315 :    DDGETAUTOFLIPOUTINFO *lpAutoFlipOut;
+; 1316 :    BYTE bNewBuf;
+; 1317 :     KMVTBUFF * lpKMVTBuff;
+; 1318 : 
+; 1319 :    _asm mov lpAutoFlipIn, esi
+
+  00de7	89 75 fc	 mov	 DWORD PTR _lpAutoFlipIn$[ebp], esi
+
+; 1320 :    _asm mov lpAutoFlipOut, edi
+
+  00dea	89 7d f8	 mov	 DWORD PTR _lpAutoFlipOut$[ebp], edi
+
+; 1321 : 
+; 1322 :    _asm mov lpAutoFlipIn, esi
+
+  00ded	89 75 fc	 mov	 DWORD PTR _lpAutoFlipIn$[ebp], esi
+
+; 1323 :    _asm mov lpAutoFlipOut, edi
+
+  00df0	89 7d f8	 mov	 DWORD PTR _lpAutoFlipOut$[ebp], edi
+
+; 1324 : //   Debug_Printf("KMVT - DDGetCurrentAutoflip\n");
+; 1325 :    if (kmtvInfo.bReportForVideo)
+
+  00df3	a1 44 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+68
+  00df8	85 c0		 test	 eax, eax
+  00dfa	74 31		 je	 SHORT $L13114
+
+; 1326 :    {
+; 1327 : 		lpKMVTBuff = (KMVTBUFF *)GETGBL_KMVTBuff((DWORD)kmtvInfo.pDev->lpDriverData);
+
+  00dfc	a1 10 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+16
+  00e01	8b 88 14 02 00
+	00		 mov	 ecx, DWORD PTR [eax+532]
+  00e07	51		 push	 ecx
+  00e08	e8 00 00 00 00	 call	 _GETGBL_KMVTBuff
+
+; 1328 : 		if (0 && lpKMVTBuff && lpKMVTBuff->bVMIPLDinUse)			// since this is on vbi - use hw
+; 1329 : 			lpAutoFlipOut->dwSurfaceIndex = lpKMVTBuff->dwLastBufferFilled;
+; 1330 : 		else
+; 1331 : 		{
+; 1332 : 		   bNewBuf = (BYTE)((((SstIORegs *)(kmtvInfo.pDev->RegBase[HWINFO_SST_IOREGS_INDEX]))->vidCurrentLine) >> 16) & 0x3;
+
+  00e0d	8b 15 10 00 00
+	00		 mov	 edx, DWORD PTR _kmtvInfo+16
+  00e13	83 c4 04	 add	 esp, 4
+  00e16	8b 82 90 00 00
+	00		 mov	 eax, DWORD PTR [edx+144]
+  00e1c	8b 88 94 00 00
+	00		 mov	 ecx, DWORD PTR [eax+148]
+  00e22	c1 e9 10	 shr	 ecx, 16			; 00000010H
+  00e25	80 e1 03	 and	 cl, 3
+  00e28	88 4d fc	 mov	 BYTE PTR _bNewBuf$[ebp], cl
+
+; 1333 : 		}
+; 1334 :    }
+; 1335 :    else
+
+  00e2b	eb 04		 jmp	 SHORT $L13121
+$L13114:
+
+; 1336 : 	   bNewBuf = 0;
+
+  00e2d	c6 45 fc 00	 mov	 BYTE PTR _bNewBuf$[ebp], 0
+$L13121:
+
+; 1337 :    lpAutoFlipOut->dwSurfaceIndex = bNewBuf;
+
+  00e31	8b 55 fc	 mov	 edx, DWORD PTR _bNewBuf$[ebp]
+  00e34	8b 45 f8	 mov	 eax, DWORD PTR _lpAutoFlipOut$[ebp]
+  00e37	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  00e3d	89 50 04	 mov	 DWORD PTR [eax+4], edx
+
+; 1338 : #ifdef DEBUG
+; 1339 :    Debug_Printf("KMVT - DDGetPreviousAutoflip - %d\n", bNewBuf);
+; 1340 : #endif
+; 1341 : 
+; 1342 : 
+; 1343 :    return 0;
+
+  00e40	33 c0		 xor	 eax, eax
+
+; 1344 : }
+
+  00e42	8b e5		 mov	 esp, ebp
+  00e44	5d		 pop	 ebp
+  00e45	c3		 ret	 0
+_DDGetPreviousAutoflip ENDP
+_LTEXT	ENDS
+PUBLIC	_AddTransfer
+PUBLIC	_TransferVMEvent
+EXTRN	_CCODE_Schedule_Global_Event@8:NEAR
+_LTEXT	SEGMENT
+_lpTransferIn$ = -8
+_lpTransferOut$ = -12
+_dwTransferIndex$ = -4
+_DDTransfer PROC NEAR
+
+; 1371 : {
+
+  00e51	55		 push	 ebp
+  00e52	8b ec		 mov	 ebp, esp
+  00e54	83 ec 0c	 sub	 esp, 12			; 0000000cH
+  00e57	56		 push	 esi
+
+; 1372 :    DDTRANSFERININFO      *lpTransferIn;
+; 1373 :    DDTRANSFEROUTINFO     *lpTransferOut;
+; 1374 :    DDSURFACEDATA         *lpSurfaceData;
+; 1375 :    GLOBALDATA 		 *ppdev;
+; 1376 :    KMVTBUFF            * bltBuff = 0;
+; 1377 :    DWORD		  dwTransferIndex=0;
+
+  00e58	c7 45 fc 00 00
+	00 00		 mov	 DWORD PTR _dwTransferIndex$[ebp], 0
+
+; 1378 :    BOOL				bIsEven;
+; 1379 : 
+; 1380 : 
+; 1381 :    _asm mov lpTransferIn, esi
+
+  00e5f	89 75 f8	 mov	 DWORD PTR _lpTransferIn$[ebp], esi
+
+; 1382 :    _asm mov lpTransferOut, edi
+
+  00e62	89 7d f4	 mov	 DWORD PTR _lpTransferOut$[ebp], edi
+
+; 1383 :   
+; 1384 :    lpSurfaceData = (DDSURFACEDATA *)lpTransferIn->lpSurfaceData;
+
+  00e65	8b 75 f8	 mov	 esi, DWORD PTR _lpTransferIn$[ebp]
+
+; 1385 :    lpTransferOut->dwSize = sizeof (DDTRANSFEROUTINFO ); 
+
+  00e68	8b 4d f4	 mov	 ecx, DWORD PTR _lpTransferOut$[ebp]
+  00e6b	8b 46 04	 mov	 eax, DWORD PTR [esi+4]
+  00e6e	c7 01 08 00 00
+	00		 mov	 DWORD PTR [ecx], 8
+
+; 1386 :    //Get global information specifically number of VBI lines
+; 1387 :    if (lpSurfaceData) {
+
+  00e74	85 c0		 test	 eax, eax
+  00e76	0f 84 a0 00 00
+	00		 je	 $L13641
+
+; 1388 : 	ppdev = (GLOBALDATA *)lpSurfaceData->dwDriverReserved1;
+; 1389 : 	bltBuff = (KMVTBUFF *)_FF(KMVTBuff);
+
+  00e7c	8b 40 68	 mov	 eax, DWORD PTR [eax+104]
+  00e7f	8b 40 2c	 mov	 eax, DWORD PTR [eax+44]
+
+; 1390 :    }
+; 1391 :    if (!bltBuff)
+
+  00e82	85 c0		 test	 eax, eax
+
+; 1392 :      return 0;
+
+  00e84	0f 84 92 00 00
+	00		 je	 $L13641
+
+; 1393 : 	if (bltBuff->bVMIPLDinUse)
+
+  00e8a	8b 90 90 00 00
+	00		 mov	 edx, DWORD PTR [eax+144]
+  00e90	85 d2		 test	 edx, edx
+  00e92	74 12		 je	 SHORT $L13137
+
+; 1394 : 	{
+; 1395 : 		lpTransferOut->dwBufferPolarity = !bltBuff->bLastFieldEven;
+
+  00e94	8b 80 94 00 00
+	00		 mov	 eax, DWORD PTR [eax+148]
+  00e9a	33 d2		 xor	 edx, edx
+  00e9c	85 c0		 test	 eax, eax
+  00e9e	0f 94 c2	 sete	 dl
+  00ea1	89 51 04	 mov	 DWORD PTR [ecx+4], edx
+
+; 1396 : 		bIsEven = bltBuff->bLastFieldEven;
+; 1397 : 	}
+; 1398 : 	else
+
+  00ea4	eb 31		 jmp	 SHORT $L13138
+$L13137:
+
+; 1399 : 	{
+; 1400 : 	   if (((((SstIORegs *)(kmtvInfo.pDev->RegBase[HWINFO_SST_IOREGS_INDEX]))->vidCurrentLine) >> 18) & 0x01)
+
+  00ea6	a1 10 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+16
+  00eab	8b 90 90 00 00
+	00		 mov	 edx, DWORD PTR [eax+144]
+  00eb1	f7 82 94 00 00
+	00 00 00 04 00	 test	 DWORD PTR [edx+148], 262144 ; 00040000H
+  00ebb	74 09		 je	 SHORT $L13140
+
+; 1401 : 			lpTransferOut->dwBufferPolarity = FALSE;
+
+  00ebd	c7 41 04 00 00
+	00 00		 mov	 DWORD PTR [ecx+4], 0
+
+; 1402 : 	   else
+
+  00ec4	eb 07		 jmp	 SHORT $L13141
+$L13140:
+
+; 1403 : 			lpTransferOut->dwBufferPolarity = TRUE;
+
+  00ec6	c7 41 04 01 00
+	00 00		 mov	 DWORD PTR [ecx+4], 1
+$L13141:
+
+; 1404 : 	   bIsEven = !lpTransferOut->dwBufferPolarity;
+
+  00ecd	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  00ed0	33 c0		 xor	 eax, eax
+  00ed2	85 d2		 test	 edx, edx
+  00ed4	0f 94 c0	 sete	 al
+$L13138:
+
+; 1405 : 	}
+; 1406 : 
+; 1407 : 
+; 1408 :    if ((lpTransferIn->lpDestMDL==0) || (lpTransferIn->lpDestMDL->ByteCount==0)){
+
+  00ed7	8b 4e 18	 mov	 ecx, DWORD PTR [esi+24]
+  00eda	85 c9		 test	 ecx, ecx
+  00edc	74 3e		 je	 SHORT $L13641
+  00ede	8b 51 14	 mov	 edx, DWORD PTR [ecx+20]
+  00ee1	85 d2		 test	 edx, edx
+  00ee3	74 37		 je	 SHORT $L13641
+
+; 1411 :    }
+; 1412 : 
+; 1413 :    //do asynchronous transfers
+; 1414 :    kmtvInfo.fTransferFull = AddTransfer (lpTransferIn, &dwTransferIndex, bIsEven);
+
+  00ee5	50		 push	 eax
+  00ee6	8d 45 fc	 lea	 eax, DWORD PTR _dwTransferIndex$[ebp]
+  00ee9	50		 push	 eax
+  00eea	56		 push	 esi
+  00eeb	e8 00 00 00 00	 call	 _AddTransfer
+  00ef0	83 c4 0c	 add	 esp, 12			; 0000000cH
+  00ef3	a2 2c 00 00 00	 mov	 BYTE PTR _kmtvInfo+44, al
+
+; 1415 : 
+; 1416 :    if (!kmtvInfo.fTransferFull && (dwTransferIndex < MAX_TRANSFERS)) 
+
+  00ef8	84 c0		 test	 al, al
+  00efa	75 20		 jne	 SHORT $L13641
+  00efc	8b 45 fc	 mov	 eax, DWORD PTR _dwTransferIndex$[ebp]
+  00eff	83 f8 14	 cmp	 eax, 20			; 00000014H
+  00f02	73 18		 jae	 SHORT $L13641
+
+; 1417 :    {
+; 1418 : #ifdef USE_EVENT_TRANSFER
+; 1419 : #ifdef USE_VMM_CALLBACK
+; 1420 : 	 kmtvInfo.pKMVTbuff = bltBuff;
+; 1421 : #ifdef USE_VMM_CALLBACK_IRQ
+; 1422 :      kmtvInfo.Transfer[dwTransferIndex].EventHandle = Call_When_VM_Ints_Enabled( TransferVMEvent, (ULONG)dwTransferIndex);
+; 1423 : #else
+; 1424 :      kmtvInfo.Transfer[dwTransferIndex].EventHandle = Call_When_VM_Returns( TransferVMEvent, (ULONG)dwTransferIndex);
+; 1425 : #endif
+; 1426 : #else
+; 1427 : 	 kmtvInfo.Transfer[dwTransferIndex].EventHandle = Schedule_Global_Event( TransferVMEvent, (ULONG)dwTransferIndex);
+
+  00f04	50		 push	 eax
+  00f05	68 00 00 00 00	 push	 OFFSET FLAT:_TransferVMEvent
+  00f0a	e8 00 00 00 00	 call	 _CCODE_Schedule_Global_Event@8
+  00f0f	8b 4d fc	 mov	 ecx, DWORD PTR _dwTransferIndex$[ebp]
+  00f12	8d 0c c9	 lea	 ecx, DWORD PTR [ecx+ecx*8]
+  00f15	89 04 8d 6c 00
+	00 00		 mov	 DWORD PTR _kmtvInfo[ecx*4+108], eax
+$L13641:
+
+; 1409 :      Debug_Printf("KMVT - MDL is NULL - return\n");    
+; 1410 :      return 0;
+
+  00f1c	33 c0		 xor	 eax, eax
+  00f1e	5e		 pop	 esi
+
+; 1428 : #endif
+; 1429 : #else
+; 1430 : 	 TransferVMEvent(dwTransferIndex);
+; 1431 : #endif
+; 1432 : 
+; 1433 :      return 0;
+; 1434 :    } 
+; 1435 : 
+; 1436 : #ifdef DEBUG
+; 1437 :     Debug_Printf (" ******* Transfer FULL ******** \n");
+; 1438 : #endif
+; 1439 : 	return 0;
+; 1440 :  
+; 1441 : }
+
+  00f1f	8b e5		 mov	 esp, ebp
+  00f21	5d		 pop	 ebp
+  00f22	c3		 ret	 0
+_DDTransfer ENDP
+_lpTransferStatus$ = -4
+_DDGetTransferStatus PROC NEAR
+
+; 1467 : {
+
+  00f31	55		 push	 ebp
+  00f32	8b ec		 mov	 ebp, esp
+  00f34	51		 push	 ecx
+  00f35	56		 push	 esi
+  00f36	57		 push	 edi
+
+; 1468 :    DDGETTRANSFERSTATUSOUTINFO	*lpTransferStatus;
+; 1469 :    DWORD i=0;
+; 1470 :    BOOL  fFound=FALSE;
+
+  00f37	33 c9		 xor	 ecx, ecx
+
+; 1471 : 
+; 1472 :    _asm mov lpTransferStatus, edi
+
+  00f39	89 7d fc	 mov	 DWORD PTR _lpTransferStatus$[ebp], edi
+
+; 1473 : // Debug_Printf("KMVT - DDGetTransferStatus - QueuedTransfers=%d Busmasterready = %d\n",kmtvInfo.dwQueuedTransfers, kmtvInfo.dwBusMasterTransfers);
+; 1474 :    for (i=kmtvInfo.dwCurrentTransfer;i<MAX_TRANSFERS && !fFound; i++) {
+
+  00f3c	a1 30 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+48
+  00f41	8b 7d fc	 mov	 edi, DWORD PTR _lpTransferStatus$[ebp]
+  00f44	83 f8 14	 cmp	 eax, 20			; 00000014H
+  00f47	73 58		 jae	 SHORT $L13153
+  00f49	8d 14 c0	 lea	 edx, DWORD PTR [eax+eax*8]
+  00f4c	8d 14 95 50 00
+	00 00		 lea	 edx, DWORD PTR _kmtvInfo[edx*4+80]
+$L13151:
+  00f53	85 c9		 test	 ecx, ecx
+  00f55	75 4a		 jne	 SHORT $L13153
+
+; 1475 : 	if (kmtvInfo.Transfer[i].dwFlags == TRANSFER_COMPLETE) {
+
+  00f57	83 3a 01	 cmp	 DWORD PTR [edx], 1
+  00f5a	75 35		 jne	 SHORT $L13155
+
+; 1476 : 		lpTransferStatus->dwTransferID = kmtvInfo.Transfer[kmtvInfo.dwCurrentTransfer].dwTransferID;
+
+  00f5c	8d 04 c0	 lea	 eax, DWORD PTR [eax+eax*8]
+  00f5f	8b 0c 85 54 00
+	00 00		 mov	 ecx, DWORD PTR _kmtvInfo[eax*4+84]
+
+; 1477 : #ifdef USE_VMM_CALLBACK_IRQ
+; 1478 : 		if (kmtvInfo.dwTransferID)
+; 1479 : 			kmtvInfo.dwTransferID--;  
+; 1480 : #else
+; 1481 : #ifndef USE_EVENT_TRANSFER
+; 1482 : 		if (kmtvInfo.dwTransferID)
+; 1483 : 			kmtvInfo.dwTransferID--;  
+; 1484 : #endif
+; 1485 : #endif
+; 1486 : //       Debug_Printf("KMVT - DDGetTransferStatus - Index=%d \n",kmtvInfo.dwCurrentTransfer);
+; 1487 : 		kmtvInfo.Transfer[i].dwFlags = TRANSFER_READY;
+
+  00f66	c7 02 00 00 00
+	00		 mov	 DWORD PTR [edx], 0
+
+; 1488 : 		kmtvInfo.dwBusMasterTransfers--;
+
+  00f6c	a1 38 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+56
+  00f71	89 4f 04	 mov	 DWORD PTR [edi+4], ecx
+  00f74	48		 dec	 eax
+  00f75	a3 38 00 00 00	 mov	 DWORD PTR _kmtvInfo+56, eax
+
+; 1489 : 		kmtvInfo.dwCurrentTransfer++;
+
+  00f7a	a1 30 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+48
+  00f7f	40		 inc	 eax
+
+; 1490 : 		if (kmtvInfo.dwCurrentTransfer == MAX_TRANSFERS)
+
+  00f80	83 f8 14	 cmp	 eax, 20			; 00000014H
+  00f83	a3 30 00 00 00	 mov	 DWORD PTR _kmtvInfo+48, eax
+  00f88	75 07		 jne	 SHORT $L13155
+
+; 1491 : 			kmtvInfo.dwCurrentTransfer = 0;
+
+  00f8a	33 c0		 xor	 eax, eax
+  00f8c	a3 30 00 00 00	 mov	 DWORD PTR _kmtvInfo+48, eax
+$L13155:
+  00f91	83 c2 24	 add	 edx, 36			; 00000024H
+
+; 1492 : 	}
+; 1493 : 	fFound = TRUE;
+
+  00f94	b9 01 00 00 00	 mov	 ecx, 1
+  00f99	81 fa 20 03 00
+	00		 cmp	 edx, OFFSET FLAT:_kmtvInfo+800
+  00f9f	72 b2		 jb	 SHORT $L13151
+$L13153:
+
+; 1494 :    }
+; 1495 :    for (i=0; i<kmtvInfo.dwCurrentTransfer && !fFound; i++) {
+
+  00fa1	33 f6		 xor	 esi, esi
+  00fa3	85 c0		 test	 eax, eax
+  00fa5	76 62		 jbe	 SHORT $L13158
+  00fa7	ba 50 00 00 00	 mov	 edx, OFFSET FLAT:_kmtvInfo+80
+$L13156:
+  00fac	85 c9		 test	 ecx, ecx
+  00fae	0f 85 cf 00 00
+	00		 jne	 $L13647
+
+; 1496 : 	if (kmtvInfo.Transfer[i].dwFlags == TRANSFER_COMPLETE) {
+
+  00fb4	83 3a 01	 cmp	 DWORD PTR [edx], 1
+  00fb7	75 35		 jne	 SHORT $L13160
+
+; 1497 : 		lpTransferStatus->dwTransferID = kmtvInfo.Transfer[kmtvInfo.dwCurrentTransfer].dwTransferID;
+
+  00fb9	8d 04 c0	 lea	 eax, DWORD PTR [eax+eax*8]
+  00fbc	8b 0c 85 54 00
+	00 00		 mov	 ecx, DWORD PTR _kmtvInfo[eax*4+84]
+
+; 1498 : #ifdef USE_VMM_CALLBACK_IRQ
+; 1499 : 		if (kmtvInfo.dwTransferID)
+; 1500 : 			kmtvInfo.dwTransferID--;  
+; 1501 : #else
+; 1502 : #ifndef USE_EVENT_TRANSFER
+; 1503 : 		if (kmtvInfo.dwTransferID)
+; 1504 : 			kmtvInfo.dwTransferID--;  
+; 1505 : #endif
+; 1506 : #endif
+; 1507 : //             Debug_Printf("KMVT - DDGetTransferStatus - Index=%d \n",kmtvInfo.dwCurrentTransfer);
+; 1508 : 		kmtvInfo.Transfer[i].dwFlags = TRANSFER_READY;
+
+  00fc3	c7 02 00 00 00
+	00		 mov	 DWORD PTR [edx], 0
+
+; 1509 : 		kmtvInfo.dwBusMasterTransfers--;
+
+  00fc9	a1 38 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+56
+  00fce	89 4f 04	 mov	 DWORD PTR [edi+4], ecx
+  00fd1	48		 dec	 eax
+  00fd2	a3 38 00 00 00	 mov	 DWORD PTR _kmtvInfo+56, eax
+
+; 1510 : 		kmtvInfo.dwCurrentTransfer++;
+
+  00fd7	a1 30 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+48
+  00fdc	40		 inc	 eax
+
+; 1511 : 		if (kmtvInfo.dwCurrentTransfer == MAX_TRANSFERS)
+
+  00fdd	83 f8 14	 cmp	 eax, 20			; 00000014H
+  00fe0	a3 30 00 00 00	 mov	 DWORD PTR _kmtvInfo+48, eax
+  00fe5	75 07		 jne	 SHORT $L13160
+
+; 1512 : 			kmtvInfo.dwCurrentTransfer = 0;
+
+  00fe7	33 c0		 xor	 eax, eax
+  00fe9	a3 30 00 00 00	 mov	 DWORD PTR _kmtvInfo+48, eax
+$L13160:
+  00fee	46		 inc	 esi
+  00fef	83 c2 24	 add	 edx, 36			; 00000024H
+  00ff2	3b f0		 cmp	 esi, eax
+
+; 1513 : 	}
+; 1514 : 	fFound = TRUE;
+
+  00ff4	b9 01 00 00 00	 mov	 ecx, 1
+  00ff9	72 b1		 jb	 SHORT $L13156
+
+; 1545 : #endif
+; 1546 :    }
+; 1547 :    lpTransferStatus->dwSize = sizeof (DDGETTRANSFERSTATUSOUTINFO);
+
+  00ffb	c7 07 08 00 00
+	00		 mov	 DWORD PTR [edi], 8
+  01001	5f		 pop	 edi
+
+; 1548 :    return 0;
+
+  01002	33 c0		 xor	 eax, eax
+  01004	5e		 pop	 esi
+
+; 1549 : }
+
+  01005	8b e5		 mov	 esp, ebp
+  01007	5d		 pop	 ebp
+  01008	c3		 ret	 0
+$L13158:
+
+; 1515 :    }
+; 1516 :    if (fFound) {
+
+  01009	85 c9		 test	 ecx, ecx
+
+; 1517 : 	  lpTransferStatus->dwSize = sizeof (DDGETTRANSFERSTATUSOUTINFO);
+; 1518 : 	  return 0;
+
+  0100b	75 76		 jne	 SHORT $L13647
+
+; 1519 :    }
+; 1520 : 
+; 1521 :    
+; 1522 :    if ((kmtvInfo.dwBusMasterTransfers > 0) && kmtvInfo.Transfer[kmtvInfo.dwCurrentTransfer].dwFlags == TRANSFER_COMPLETE) {
+
+  0100d	8b 0d 38 00 00
+	00		 mov	 ecx, DWORD PTR _kmtvInfo+56
+  01013	85 c9		 test	 ecx, ecx
+  01015	76 57		 jbe	 SHORT $L13163
+  01017	8d 04 c0	 lea	 eax, DWORD PTR [eax+eax*8]
+  0101a	c1 e0 02	 shl	 eax, 2
+  0101d	83 b8 50 00 00
+	00 01		 cmp	 DWORD PTR _kmtvInfo[eax+80], 1
+  01024	75 48		 jne	 SHORT $L13163
+
+; 1523 : 		lpTransferStatus->dwTransferID = kmtvInfo.Transfer[kmtvInfo.dwCurrentTransfer].dwTransferID;
+
+  01026	8b 90 54 00 00
+	00		 mov	 edx, DWORD PTR _kmtvInfo[eax+84]
+
+; 1524 : #ifdef USE_VMM_CALLBACK_IRQ
+; 1525 : 		if (kmtvInfo.dwTransferID)
+; 1526 : 			kmtvInfo.dwTransferID--;  
+; 1527 : #else
+; 1528 : #ifndef USE_EVENT_TRANSFER
+; 1529 : 		if (kmtvInfo.dwTransferID)
+; 1530 : 			kmtvInfo.dwTransferID--;  
+; 1531 : #endif
+; 1532 : #endif
+; 1533 : //        Debug_Printf("KMVT - DDGetTransferStatus - Index=%d \n",kmtvInfo.dwCurrentTransfer);
+; 1534 : 
+; 1535 : 		kmtvInfo.Transfer[kmtvInfo.dwCurrentTransfer].dwFlags = TRANSFER_READY;
+
+  0102c	c7 80 50 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _kmtvInfo[eax+80], 0
+
+; 1536 : 		kmtvInfo.dwBusMasterTransfers--;
+
+  01036	8b 35 38 00 00
+	00		 mov	 esi, DWORD PTR _kmtvInfo+56
+
+; 1537 : 		kmtvInfo.dwCurrentTransfer++;
+
+  0103c	a1 30 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+48
+  01041	4e		 dec	 esi
+  01042	40		 inc	 eax
+
+; 1538 : 		if (kmtvInfo.dwCurrentTransfer == MAX_TRANSFERS)
+
+  01043	83 f8 14	 cmp	 eax, 20			; 00000014H
+  01046	89 57 04	 mov	 DWORD PTR [edi+4], edx
+  01049	89 35 38 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+56, esi
+  0104f	a3 30 00 00 00	 mov	 DWORD PTR _kmtvInfo+48, eax
+  01054	75 2d		 jne	 SHORT $L13647
+
+; 1545 : #endif
+; 1546 :    }
+; 1547 :    lpTransferStatus->dwSize = sizeof (DDGETTRANSFERSTATUSOUTINFO);
+
+  01056	c7 07 08 00 00
+	00		 mov	 DWORD PTR [edi], 8
+  0105c	5f		 pop	 edi
+  0105d	c7 05 30 00 00
+	00 00 00 00 00	 mov	 DWORD PTR _kmtvInfo+48, 0
+
+; 1548 :    return 0;
+
+  01067	33 c0		 xor	 eax, eax
+  01069	5e		 pop	 esi
+
+; 1549 : }
+
+  0106a	8b e5		 mov	 esp, ebp
+  0106c	5d		 pop	 ebp
+  0106d	c3		 ret	 0
+$L13163:
+
+; 1539 : 			kmtvInfo.dwCurrentTransfer = 0;
+; 1540 : #ifdef USE_EVENT_TRANSFER
+; 1541 :    } else if (kmtvInfo.dwTransferID) {
+
+  0106e	a1 14 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+20
+  01073	85 c0		 test	 eax, eax
+
+; 1542 : 		lpTransferStatus->dwTransferID = kmtvInfo.dwTransferID;
+; 1543 :    } else if (kmtvInfo.dwVBITransferID) {
+
+  01075	75 09		 jne	 SHORT $L13649
+  01077	a1 18 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+24
+  0107c	85 c0		 test	 eax, eax
+  0107e	74 03		 je	 SHORT $L13647
+$L13649:
+
+; 1544 : 			lpTransferStatus->dwTransferID = kmtvInfo.dwVBITransferID;
+
+  01080	89 47 04	 mov	 DWORD PTR [edi+4], eax
+$L13647:
+
+; 1545 : #endif
+; 1546 :    }
+; 1547 :    lpTransferStatus->dwSize = sizeof (DDGETTRANSFERSTATUSOUTINFO);
+
+  01083	c7 07 08 00 00
+	00		 mov	 DWORD PTR [edi], 8
+  01089	5f		 pop	 edi
+
+; 1548 :    return 0;
+
+  0108a	33 c0		 xor	 eax, eax
+  0108c	5e		 pop	 esi
+
+; 1549 : }
+
+  0108d	8b e5		 mov	 esp, ebp
+  0108f	5d		 pop	 ebp
+  01090	c3		 ret	 0
+_DDGetTransferStatus ENDP
+_lpTransferIn$ = 8
+_dwCurrentIndex$ = 12
+_polarity$ = 16
+_AddTransfer PROC NEAR
+
+; 1555 :    BYTE  fSlotsFull = 1;
+; 1556 :    BOOL  bFirstCheck = TRUE;
+; 1557 :    DWORD i;
+; 1558 :    *dwCurrentIndex = 0;
+; 1559 : //   for (i = kmtvInfo.dwCurrentTransfer, bFirstCheck = TRUE; 
+; 1560 : //		fSlotsFull && (bFirstCheck || i != kmtvInfo.dwCurrentTransfer)
+; 1561 : //			i = ((i < MAX_TRANSFERS - 1) ? i + 1 : 0))
+; 1562 : 
+; 1563 :    for (i = kmtvInfo.dwCurrentTransfer, bFirstCheck = TRUE; 
+; 1564 : 		i<MAX_TRANSFERS; i++)
+
+  01091	8b 4c 24 04	 mov	 ecx, DWORD PTR _lpTransferIn$[esp-4]
+  01095	53		 push	 ebx
+  01096	8b 1d 30 00 00
+	00		 mov	 ebx, DWORD PTR _kmtvInfo+48
+  0109c	55		 push	 ebp
+  0109d	8b 6c 24 14	 mov	 ebp, DWORD PTR _polarity$[esp+4]
+  010a1	56		 push	 esi
+  010a2	57		 push	 edi
+  010a3	8b 7c 24 18	 mov	 edi, DWORD PTR _dwCurrentIndex$[esp+12]
+  010a7	8b d3		 mov	 edx, ebx
+  010a9	b0 01		 mov	 al, 1
+  010ab	83 fa 14	 cmp	 edx, 20			; 00000014H
+  010ae	c7 07 00 00 00
+	00		 mov	 DWORD PTR [edi], 0
+  010b4	0f 83 80 00 00
+	00		 jae	 $L13182
+  010ba	8d 34 d2	 lea	 esi, DWORD PTR [edx+edx*8]
+  010bd	8d 34 b5 50 00
+	00 00		 lea	 esi, DWORD PTR _kmtvInfo[esi*4+80]
+$L13180:
+
+; 1565 :    {
+; 1566 : 	if (kmtvInfo.Transfer[i].dwFlags == TRANSFER_READY)
+
+  010c4	83 3e 00	 cmp	 DWORD PTR [esi], 0
+  010c7	74 0e		 je	 SHORT $L13653
+  010c9	83 c6 24	 add	 esi, 36			; 00000024H
+  010cc	42		 inc	 edx
+  010cd	81 fe 20 03 00
+	00		 cmp	 esi, OFFSET FLAT:_kmtvInfo+800
+  010d3	72 ef		 jb	 SHORT $L13180
+
+; 1585 :    {
+; 1586 :    	if (kmtvInfo.Transfer[i].dwFlags == TRANSFER_READY)
+
+  010d5	eb 63		 jmp	 SHORT $L13182
+$L13653:
+
+; 1567 : 	{
+; 1568 :   	   kmtvInfo.dwQueuedTransfers ++;
+
+  010d7	8b 35 34 00 00
+	00		 mov	 esi, DWORD PTR _kmtvInfo+52
+
+; 1569 : //  Debug_Printf (" AddTransfer1 = %d Queued=%d\n", i,kmtvInfo.dwQueuedTransfers);
+; 1570 : 
+; 1571 : 	   *dwCurrentIndex = i;
+; 1572 : 	   kmtvInfo.Transfer[i].lpSurfaceData = (DDSURFACEDATA *)lpTransferIn->lpSurfaceData;
+
+  010dd	8d 04 d2	 lea	 eax, DWORD PTR [edx+edx*8]
+  010e0	46		 inc	 esi
+  010e1	89 17		 mov	 DWORD PTR [edi], edx
+  010e3	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  010e6	89 35 34 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+52, esi
+  010ec	c1 e0 02	 shl	 eax, 2
+  010ef	89 90 5c 00 00
+	00		 mov	 DWORD PTR _kmtvInfo[eax+92], edx
+
+; 1573 : 	   kmtvInfo.Transfer[i].dwTransferID = lpTransferIn->dwTransferID;
+
+  010f5	8b 51 10	 mov	 edx, DWORD PTR [ecx+16]
+  010f8	89 90 54 00 00
+	00		 mov	 DWORD PTR _kmtvInfo[eax+84], edx
+
+; 1574 : 	   kmtvInfo.Transfer[i].pMDL = lpTransferIn->lpDestMDL;
+
+  010fe	8b 51 18	 mov	 edx, DWORD PTR [ecx+24]
+  01101	89 90 58 00 00
+	00		 mov	 DWORD PTR _kmtvInfo[eax+88], edx
+
+; 1575 : 	   kmtvInfo.Transfer[i].dwTransferFlags = lpTransferIn->dwTransferFlags;
+
+  01107	8b 51 14	 mov	 edx, DWORD PTR [ecx+20]
+  0110a	89 90 68 00 00
+	00		 mov	 DWORD PTR _kmtvInfo[eax+104], edx
+
+; 1576 : 	   kmtvInfo.Transfer[i].dwStartLine = lpTransferIn->dwStartLine;
+
+  01110	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+  01113	89 90 60 00 00
+	00		 mov	 DWORD PTR _kmtvInfo[eax+96], edx
+
+; 1577 : 	   kmtvInfo.Transfer[i].dwEndLine = lpTransferIn->dwEndLine;
+
+  01119	8b 51 0c	 mov	 edx, DWORD PTR [ecx+12]
+  0111c	89 90 64 00 00
+	00		 mov	 DWORD PTR _kmtvInfo[eax+100], edx
+
+; 1578 : 	   kmtvInfo.Transfer[i].dwFlags = TRANSFER_QUEUED;
+
+  01122	c7 80 50 00 00
+	00 04 00 00 00	 mov	 DWORD PTR _kmtvInfo[eax+80], 4
+
+; 1579 : 	   kmtvInfo.Transfer[i].bPolarity = polarity;
+
+  0112c	89 a8 70 00 00
+	00		 mov	 DWORD PTR _kmtvInfo[eax+112], ebp
+
+; 1580 :        fSlotsFull = 0;
+
+  01132	8b 1d 30 00 00
+	00		 mov	 ebx, DWORD PTR _kmtvInfo+48
+  01138	32 c0		 xor	 al, al
+$L13182:
+
+; 1581 : 	   break;
+; 1582 :      }
+; 1583 :    }
+; 1584 :    for (i=0; (i<kmtvInfo.dwCurrentTransfer) && fSlotsFull; i++)
+
+  0113a	33 d2		 xor	 edx, edx
+  0113c	85 db		 test	 ebx, ebx
+  0113e	76 78		 jbe	 SHORT $L13187
+  01140	be 50 00 00 00	 mov	 esi, OFFSET FLAT:_kmtvInfo+80
+$L13185:
+  01145	84 c0		 test	 al, al
+  01147	74 6f		 je	 SHORT $L13187
+
+; 1585 :    {
+; 1586 :    	if (kmtvInfo.Transfer[i].dwFlags == TRANSFER_READY)
+
+  01149	83 3e 00	 cmp	 DWORD PTR [esi], 0
+  0114c	74 0d		 je	 SHORT $L13654
+  0114e	42		 inc	 edx
+  0114f	83 c6 24	 add	 esi, 36			; 00000024H
+  01152	3b d3		 cmp	 edx, ebx
+  01154	72 ef		 jb	 SHORT $L13185
+  01156	5f		 pop	 edi
+  01157	5e		 pop	 esi
+  01158	5d		 pop	 ebp
+  01159	5b		 pop	 ebx
+
+; 1601 : 	   break;
+; 1602 :      }
+; 1603 :    }
+; 1604 :    return fSlotsFull;
+; 1605 : }
+
+  0115a	c3		 ret	 0
+$L13654:
+
+; 1587 : 	{
+; 1588 : 	 	kmtvInfo.dwQueuedTransfers ++;
+
+  0115b	8b 35 34 00 00
+	00		 mov	 esi, DWORD PTR _kmtvInfo+52
+
+; 1589 : // Debug_Printf (" AddTransfer2 = %d Queued=%d\n", i,kmtvInfo.dwQueuedTransfers);
+; 1590 : 
+; 1591 : 	   *dwCurrentIndex = i;
+; 1592 : 	   kmtvInfo.Transfer[i].lpSurfaceData = (DDSURFACEDATA *)lpTransferIn->lpSurfaceData;
+
+  01161	8d 04 d2	 lea	 eax, DWORD PTR [edx+edx*8]
+  01164	46		 inc	 esi
+  01165	89 17		 mov	 DWORD PTR [edi], edx
+  01167	8b 51 04	 mov	 edx, DWORD PTR [ecx+4]
+  0116a	89 35 34 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+52, esi
+  01170	c1 e0 02	 shl	 eax, 2
+  01173	89 90 5c 00 00
+	00		 mov	 DWORD PTR _kmtvInfo[eax+92], edx
+
+; 1593 : 	   kmtvInfo.Transfer[i].dwTransferID = lpTransferIn->dwTransferID;
+
+  01179	8b 51 10	 mov	 edx, DWORD PTR [ecx+16]
+  0117c	89 90 54 00 00
+	00		 mov	 DWORD PTR _kmtvInfo[eax+84], edx
+
+; 1594 : 	   kmtvInfo.Transfer[i].pMDL = lpTransferIn->lpDestMDL;
+
+  01182	8b 51 18	 mov	 edx, DWORD PTR [ecx+24]
+  01185	89 90 58 00 00
+	00		 mov	 DWORD PTR _kmtvInfo[eax+88], edx
+
+; 1595 : 	   kmtvInfo.Transfer[i].dwTransferFlags = lpTransferIn->dwTransferFlags;
+
+  0118b	8b 51 14	 mov	 edx, DWORD PTR [ecx+20]
+  0118e	89 90 68 00 00
+	00		 mov	 DWORD PTR _kmtvInfo[eax+104], edx
+
+; 1596 : 	   kmtvInfo.Transfer[i].dwStartLine = lpTransferIn->dwStartLine;
+
+  01194	8b 51 08	 mov	 edx, DWORD PTR [ecx+8]
+
+; 1597 : 	   kmtvInfo.Transfer[i].dwEndLine = lpTransferIn->dwEndLine;
+
+  01197	8b 49 0c	 mov	 ecx, DWORD PTR [ecx+12]
+  0119a	89 90 60 00 00
+	00		 mov	 DWORD PTR _kmtvInfo[eax+96], edx
+  011a0	89 88 64 00 00
+	00		 mov	 DWORD PTR _kmtvInfo[eax+100], ecx
+
+; 1598 : 	   kmtvInfo.Transfer[i].dwFlags = TRANSFER_QUEUED;
+
+  011a6	c7 80 50 00 00
+	00 04 00 00 00	 mov	 DWORD PTR _kmtvInfo[eax+80], 4
+
+; 1599 : 	   kmtvInfo.Transfer[i].bPolarity = polarity;
+
+  011b0	89 a8 70 00 00
+	00		 mov	 DWORD PTR _kmtvInfo[eax+112], ebp
+
+; 1600 :        fSlotsFull = 0;
+
+  011b6	32 c0		 xor	 al, al
+$L13187:
+  011b8	5f		 pop	 edi
+  011b9	5e		 pop	 esi
+  011ba	5d		 pop	 ebp
+  011bb	5b		 pop	 ebx
+
+; 1601 : 	   break;
+; 1602 :      }
+; 1603 :    }
+; 1604 :    return fSlotsFull;
+; 1605 : }
+
+  011bc	c3		 ret	 0
+_AddTransfer ENDP
+_RefData$ = -40
+_pMDL$ = -12
+_lpBufferStart$ = -8
+_dwNumLines$ = -16
+_dwMaxTransferCnt$ = -24
+_lineWidth$ = -28
+_dwTransferFlags$ = -40
+_linecnt$ = -8
+_lineOffset$ = -4
+_bInterleaved$ = -20
+_polarity$ = -32
+_dwVidLines$13255 = -24
+_bytes$13278 = -32
+_bytesPerLine$13279 = -20
+_TransferVMEvent PROC NEAR
+
+; 1622 : {
+
+  011c1	55		 push	 ebp
+  011c2	8b ec		 mov	 ebp, esp
+  011c4	83 ec 28	 sub	 esp, 40			; 00000028H
+  011c7	53		 push	 ebx
+  011c8	56		 push	 esi
+  011c9	57		 push	 edi
+
+; 1623 : 
+; 1624 :    DWORD	RefData;
+; 1625 :    DDSURFACEDATA         *lpSurfaceData;
+; 1626 :    PMDL                   pMDL;
+; 1627 :    BYTE                  *lpBufferStart, *lpBufferDest;
+; 1628 :    DWORD 		  dwNumLines;
+; 1629 :    GLOBALDATA 		 *ppdev;
+; 1630 :    KMVTBUFF            * bltBuff;
+; 1631 :    BYTE			  bUseAllLines = 0;
+; 1632 :    DWORD                  dwMaxTransferCnt;
+; 1633 :    DWORD		  lineWidth, dwTransferFlags;
+; 1634 :    DWORD			linecnt;
+; 1635 :    DWORD				lineOffset;
+; 1636 : 	BYTE		*lpSrcLine;
+; 1637 : 	BOOL		bInterleaved = FALSE;
+; 1638 : 	DWORD		polarity;
+; 1639 : 
+; 1640 : 
+; 1641 : #ifdef USE_EVENT_TRANSFER
+; 1642 :    _asm mov RefData, edx
+
+  011ca	89 55 d8	 mov	 DWORD PTR _RefData$[ebp], edx
+
+; 1643 : #else
+; 1644 : 	   RefData = refData;
+; 1645 : #endif
+; 1646 : 
+; 1647 :    kmtvInfo.Transfer[RefData].dwFlags = TRANSFER_IN_PROGRESS;	// do this first to avoid deadlock
+
+  011cd	8b 4d d8	 mov	 ecx, DWORD PTR _RefData$[ebp]
+  011d0	8d 04 c9	 lea	 eax, DWORD PTR [ecx+ecx*8]
+  011d3	c1 e0 02	 shl	 eax, 2
+
+; 1648 :    if (RefData >= MAX_TRANSFERS || !kmtvInfo.bInitialized)
+
+  011d6	83 f9 14	 cmp	 ecx, 20			; 00000014H
+  011d9	89 45 dc	 mov	 DWORD PTR -36+[ebp], eax
+  011dc	c7 80 50 00 00
+	00 02 00 00 00	 mov	 DWORD PTR _kmtvInfo[eax+80], 2
+  011e6	0f 83 8e 03 00
+	00		 jae	 $L13295
+  011ec	8b 0d 24 00 00
+	00		 mov	 ecx, DWORD PTR _kmtvInfo+36
+  011f2	85 c9		 test	 ecx, ecx
+  011f4	0f 84 80 03 00
+	00		 je	 $L13295
+
+; 1649 : 	return;
+; 1650 : 
+; 1651 :    kmtvInfo.dwQueuedTransfers --;
+
+  011fa	8b 15 34 00 00
+	00		 mov	 edx, DWORD PTR _kmtvInfo+52
+  01200	4a		 dec	 edx
+  01201	89 15 34 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+52, edx
+
+; 1652 :    polarity = kmtvInfo.Transfer[RefData].bPolarity;
+; 1653 : 
+; 1654 :    
+; 1655 :    //Video Capture
+; 1656 :    bUseAllLines = 1;
+; 1657 : 
+; 1658 :    //Get global information specifically number of VBI lines
+; 1659 :    lpSurfaceData = kmtvInfo.Transfer[RefData].lpSurfaceData; 
+
+  01207	8b b8 5c 00 00
+	00		 mov	 edi, DWORD PTR _kmtvInfo[eax+92]
+  0120d	8b 88 70 00 00
+	00		 mov	 ecx, DWORD PTR _kmtvInfo[eax+112]
+  01213	b2 01		 mov	 dl, 1
+
+; 1660 :    if (!lpSurfaceData || !kmtvInfo.bInitialized)
+
+  01215	85 ff		 test	 edi, edi
+  01217	89 4d e0	 mov	 DWORD PTR _polarity$[ebp], ecx
+  0121a	0f 84 5a 03 00
+	00		 je	 $L13295
+
+; 1661 : 	   return;
+; 1662 :    pMDL = kmtvInfo.Transfer[RefData].pMDL;
+
+  01220	8b 88 58 00 00
+	00		 mov	 ecx, DWORD PTR _kmtvInfo[eax+88]
+
+; 1663 :    dwNumLines =    kmtvInfo.Transfer[RefData].dwEndLine - kmtvInfo.Transfer[RefData].dwStartLine + 1;
+
+  01226	8b 98 64 00 00
+	00		 mov	 ebx, DWORD PTR _kmtvInfo[eax+100]
+  0122c	89 4d f4	 mov	 DWORD PTR _pMDL$[ebp], ecx
+
+; 1664 :    lineWidth = lpSurfaceData->dwWidth * (lpSurfaceData->dwFormatBitCount / 8);
+
+  0122f	8b 4f 4c	 mov	 ecx, DWORD PTR [edi+76]
+  01232	c1 e9 03	 shr	 ecx, 3
+  01235	0f af 4f 10	 imul	 ecx, DWORD PTR [edi+16]
+  01239	8b b0 60 00 00
+	00		 mov	 esi, DWORD PTR _kmtvInfo[eax+96]
+  0123f	89 4d e4	 mov	 DWORD PTR _lineWidth$[ebp], ecx
+
+; 1665 :    dwTransferFlags = kmtvInfo.Transfer[RefData].dwTransferFlags;
+
+  01242	8b 88 68 00 00
+	00		 mov	 ecx, DWORD PTR _kmtvInfo[eax+104]
+  01248	2b de		 sub	 ebx, esi
+
+; 1666 : 
+; 1667 :    //Get global information specifically number of VBI lines
+; 1668 :    ppdev = (GLOBALDATA *)lpSurfaceData->dwDriverReserved1;
+
+  0124a	8b 77 68	 mov	 esi, DWORD PTR [edi+104]
+  0124d	43		 inc	 ebx
+
+; 1669 :    if (!ppdev || !kmtvInfo.bInitialized)
+
+  0124e	85 f6		 test	 esi, esi
+  01250	89 5d f0	 mov	 DWORD PTR _dwNumLines$[ebp], ebx
+  01253	89 4d d8	 mov	 DWORD PTR _dwTransferFlags$[ebp], ecx
+  01256	0f 84 1e 03 00
+	00		 je	 $L13295
+
+; 1670 : 	   return;
+; 1671 : #ifdef USE_VMM_CALLBACK
+; 1672 : 	bltBuff = kmtvInfo.pKMVTbuff;
+; 1673 : #else
+; 1674 :    bltBuff = (KMVTBUFF *)_FF(KMVTBuff);
+
+  0125c	8b 76 2c	 mov	 esi, DWORD PTR [esi+44]
+
+; 1675 : #endif
+; 1676 :    if (!bltBuff || !kmtvInfo.bInitialized)
+
+  0125f	85 f6		 test	 esi, esi
+  01261	0f 84 13 03 00
+	00		 je	 $L13295
+
+; 1677 : 	   return;
+; 1678 :    lineOffset = lpSurfaceData->lPitch;						// pitch on surface
+; 1679 : 
+; 1680 : 	bInterleaved = ((bltBuff->dwVidInFormat & H3_VMI_DEINTERLACE_WEAVE)
+; 1681 : 			|| (bltBuff->dwStatus & INTERLEAVE_ON));
+
+  01267	f6 86 80 00 00
+	00 10		 test	 BYTE PTR [esi+128], 16	; 00000010H
+  0126e	75 12		 jne	 SHORT $L13660
+  01270	8b 4e 4c	 mov	 ecx, DWORD PTR [esi+76]
+  01273	c7 45 ec 00 00
+	00 00		 mov	 DWORD PTR _bInterleaved$[ebp], 0
+  0127a	f7 c1 00 00 02
+	00		 test	 ecx, 131072		; 00020000H
+  01280	74 07		 je	 SHORT $L13661
+$L13660:
+  01282	c7 45 ec 01 00
+	00 00		 mov	 DWORD PTR _bInterleaved$[ebp], 1
+$L13661:
+
+; 1682 :    ///////////////////////////////////
+; 1683 :    //VBI Capture 
+; 1684 :    ///////////////////////////////////
+; 1685 :    if (lpSurfaceData->dwFormatFourCC == FOURCC_RAW8) 
+
+  01289	81 7f 48 52 41
+	57 38		 cmp	 DWORD PTR [edi+72], 945242450 ; 38574152H
+  01290	0f 85 e3 00 00
+	00		 jne	 $L13227
+
+; 1686 :    {
+; 1687 :       BYTE bBufNum;
+; 1688 : 
+; 1689 : 		if (0 && bltBuff->bVMIPLDinUse)			// since this is on vbi - use hw
+; 1690 : 			bBufNum = (BYTE)bltBuff->dwLastBufferFilled;
+; 1691 : 		else
+; 1692 : 		   bBufNum = (BYTE)((*(DWORD*)(kmtvInfo.pDev->RegBase[HWINFO_SST_IOREGS_INDEX] + H4_VID_IN_STATUS_CURLINE)) >> 16) & 0x3;
+
+  01296	8b 0d 10 00 00
+	00		 mov	 ecx, DWORD PTR _kmtvInfo+16
+  0129c	8b 89 90 00 00
+	00		 mov	 ecx, DWORD PTR [ecx+144]
+  012a2	8b 89 94 00 00
+	00		 mov	 ecx, DWORD PTR [ecx+148]
+  012a8	c1 e9 10	 shr	 ecx, 16			; 00000010H
+  012ab	83 e1 03	 and	 ecx, 3
+
+; 1693 : 
+; 1694 : 	  lpBufferStart = (BYTE *)bltBuff->fpVidMem[bBufNum];
+
+  012ae	8b 7c 8e 64	 mov	 edi, DWORD PTR [esi+ecx*4+100]
+
+; 1695 : 	  if (!lpBufferStart || !kmtvInfo.bInitialized)
+
+  012b2	85 ff		 test	 edi, edi
+  012b4	0f 84 c0 02 00
+	00		 je	 $L13295
+
+; 1696 : 		  return;
+; 1697 : 
+; 1698 : 	  if (bInterleaved)	// see if half or full
+
+  012ba	8b 4d ec	 mov	 ecx, DWORD PTR _bInterleaved$[ebp]
+  012bd	85 c9		 test	 ecx, ecx
+  012bf	74 0c		 je	 SHORT $L13238
+
+; 1699 : 	  {
+; 1700 : 			if (dwNumLines < (bltBuff->dwVBILines-2))			// not a match 
+
+  012c1	8b 4e 60	 mov	 ecx, DWORD PTR [esi+96]
+  012c4	83 e9 02	 sub	 ecx, 2
+  012c7	3b d9		 cmp	 ebx, ecx
+  012c9	73 02		 jae	 SHORT $L13238
+
+; 1701 : 				bUseAllLines = 0;
+
+  012cb	32 d2		 xor	 dl, dl
+$L13238:
+
+; 1702 : 	  }
+; 1703 : 	  lineOffset = bltBuff->dwVideoSurfacePitch;
+
+  012cd	8b 76 78	 mov	 esi, DWORD PTR [esi+120]
+
+; 1704 : 
+; 1705 : 	  if (!bUseAllLines) {
+
+  012d0	84 d2		 test	 dl, dl
+  012d2	89 75 fc	 mov	 DWORD PTR _lineOffset$[ebp], esi
+  012d5	75 07		 jne	 SHORT $L13239
+
+; 1706 : 	    lineOffset <<= 1;		// double if every other line
+
+  012d7	8b ce		 mov	 ecx, esi
+  012d9	d1 e1		 shl	 ecx, 1
+  012db	89 4d fc	 mov	 DWORD PTR _lineOffset$[ebp], ecx
+$L13239:
+
+; 1707 : 	  }
+; 1708 : 
+; 1709 :       if ((bInterleaved) && polarity)		// must skip first line
+
+  012de	8b 4d ec	 mov	 ecx, DWORD PTR _bInterleaved$[ebp]
+  012e1	85 c9		 test	 ecx, ecx
+  012e3	74 09		 je	 SHORT $L13240
+  012e5	8b 4d e0	 mov	 ecx, DWORD PTR _polarity$[ebp]
+  012e8	85 c9		 test	 ecx, ecx
+  012ea	74 02		 je	 SHORT $L13240
+
+; 1710 : 		lpBufferStart += bltBuff->dwVideoSurfacePitch;
+
+  012ec	03 fe		 add	 edi, esi
+$L13240:
+
+; 1711 :  
+; 1712 : 	lpSrcLine = lpBufferStart;
+; 1713 : 	if (dwTransferFlags & DDTRANSFER_INVERT)
+
+  012ee	8a 4d d8	 mov	 cl, BYTE PTR _dwTransferFlags$[ebp]
+  012f1	8b d7		 mov	 edx, edi
+  012f3	f6 c1 04	 test	 cl, 4
+  012f6	74 10		 je	 SHORT $L13241
+
+; 1714 : 	{
+; 1715 : 		lineOffset = 0 - (lineOffset);
+
+  012f8	8b 55 fc	 mov	 edx, DWORD PTR _lineOffset$[ebp]
+  012fb	f7 da		 neg	 edx
+  012fd	89 55 fc	 mov	 DWORD PTR _lineOffset$[ebp], edx
+
+; 1716 : 		lpSrcLine = lpBufferStart + ((dwNumLines - 1) * bltBuff->dwVideoSurfacePitch);
+
+  01300	8d 53 ff	 lea	 edx, DWORD PTR [ebx-1]
+  01303	0f af d6	 imul	 edx, esi
+  01306	03 d7		 add	 edx, edi
+$L13241:
+
+; 1717 : 	}
+; 1718 : 	//in the case of vddtransfer we need to copy the data as specified 
+; 1719 : 	//in the linked list of MDL
+; 1720 : 
+; 1721 : 	//Micronas chip only generates 1140 valid bytes per line so only 
+; 1722 : 	//copy that much.
+; 1723 : 	lineWidth = 1140;
+; 1724 : 	for (linecnt = 0; linecnt < dwNumLines && pMDL;)
+
+  01308	33 f6		 xor	 esi, esi
+  0130a	85 db		 test	 ebx, ebx
+  0130c	89 75 f8	 mov	 DWORD PTR _linecnt$[ebp], esi
+  0130f	0f 86 2c 02 00
+	00		 jbe	 $L13276
+$L13243:
+  01315	8b 4d f4	 mov	 ecx, DWORD PTR _pMDL$[ebp]
+  01318	85 c9		 test	 ecx, ecx
+  0131a	0f 84 21 02 00
+	00		 je	 $L13276
+
+; 1725 : 	{
+; 1726 : 		BYTE *lpDestLine;
+; 1727 : 		DWORD bytes;
+; 1728 : 		DWORD bytesPerLine = lineWidth;
+; 1729 : 
+; 1730 : 		//Now get the pointer to the memory destination
+; 1731 : 		lpBufferDest = (BYTE *)(pMDL->lpMappedSystemVa);
+
+  01320	8b 41 0c	 mov	 eax, DWORD PTR [ecx+12]
+
+; 1732 : 		if (!lpBufferDest || !kmtvInfo.bInitialized)
+
+  01323	85 c0		 test	 eax, eax
+  01325	0f 84 4f 02 00
+	00		 je	 $L13295
+
+; 1733 : 			return;
+; 1734 : 		lpDestLine = lpBufferDest;
+; 1735 : 		dwMaxTransferCnt = pMDL->ByteCount; 
+
+  0132b	8b 49 14	 mov	 ecx, DWORD PTR [ecx+20]
+
+; 1736 : 
+; 1737 : 		// must copy line at a time to not affect graphic performance (kephart suggestion)
+; 1738 : 		for (bytes = 0;  kmtvInfo.bInitialized &&
+; 1739 : 			linecnt < dwNumLines && bytes < dwMaxTransferCnt;)		// should this be <= for numlines
+
+  0132e	33 db		 xor	 ebx, ebx
+  01330	89 4d e8	 mov	 DWORD PTR _dwMaxTransferCnt$[ebp], ecx
+$L13252:
+  01333	8b 4d f0	 mov	 ecx, DWORD PTR _dwNumLines$[ebp]
+  01336	3b f1		 cmp	 esi, ecx
+  01338	73 2b		 jae	 SHORT $L13253
+  0133a	3b 5d e8	 cmp	 ebx, DWORD PTR _dwMaxTransferCnt$[ebp]
+  0133d	73 26		 jae	 SHORT $L13253
+
+; 1740 : 		{
+; 1741 : 
+; 1742 : 			memcpy (lpDestLine, lpSrcLine, bytesPerLine);	// use width in case pitch diff - tiled space
+
+  0133f	b9 1d 01 00 00	 mov	 ecx, 285		; 0000011dH
+  01344	8b f2		 mov	 esi, edx
+  01346	8b f8		 mov	 edi, eax
+
+; 1743 : 			linecnt++;
+; 1744 :   			lpDestLine += lineWidth;
+
+  01348	05 74 04 00 00	 add	 eax, 1140		; 00000474H
+  0134d	f3 a5		 rep movsd
+  0134f	8b 4d f8	 mov	 ecx, DWORD PTR _linecnt$[ebp]
+
+; 1745 : 			lpSrcLine += lineOffset;
+
+  01352	8b 75 fc	 mov	 esi, DWORD PTR _lineOffset$[ebp]
+  01355	41		 inc	 ecx
+  01356	03 d6		 add	 edx, esi
+  01358	89 4d f8	 mov	 DWORD PTR _linecnt$[ebp], ecx
+
+; 1746 :   			bytes += lineWidth;		// must reflect dest
+
+  0135b	81 c3 74 04 00
+	00		 add	 ebx, 1140		; 00000474H
+  01361	8b f1		 mov	 esi, ecx
+  01363	eb ce		 jmp	 SHORT $L13252
+$L13253:
+
+; 1747 : 		}
+; 1748 : 		pMDL = pMDL->MdlNext;
+
+  01365	8b 45 f4	 mov	 eax, DWORD PTR _pMDL$[ebp]
+  01368	3b f1		 cmp	 esi, ecx
+  0136a	8b 00		 mov	 eax, DWORD PTR [eax]
+  0136c	89 45 f4	 mov	 DWORD PTR _pMDL$[ebp], eax
+
+; 1815 : 			if (!lpBufferDest || !kmtvInfo.bInitialized)
+
+  0136f	8b 45 dc	 mov	 eax, DWORD PTR -36+[ebp]
+  01372	72 a1		 jb	 SHORT $L13243
+  01374	e9 c8 01 00 00	 jmp	 $L13276
+$L13227:
+
+; 1749 : 	}  
+; 1750 :    }
+; 1751 :    else 
+; 1752 :    {
+; 1753 :      ///////////////////////////////////
+; 1754 :      // Video Capture
+; 1755 :      ///////////////////////////////////
+; 1756 : 	    DWORD dwVidLines = bltBuff->dwVideoLines;
+; 1757 : 		BYTE bBufNum;
+; 1758 : 		lpBufferStart = (BYTE *)(lpSurfaceData->fpLockPtr);
+
+  01379	8b 47 0c	 mov	 eax, DWORD PTR [edi+12]
+  0137c	8b 4e 70	 mov	 ecx, DWORD PTR [esi+112]
+
+; 1759 : 		if (!lpBufferStart || !kmtvInfo.bInitialized)
+
+  0137f	85 c0		 test	 eax, eax
+  01381	89 4d e8	 mov	 DWORD PTR _dwVidLines$13255[ebp], ecx
+  01384	89 45 f8	 mov	 DWORD PTR _lpBufferStart$[ebp], eax
+  01387	0f 84 ed 01 00
+	00		 je	 $L13295
+
+; 1760 : 			return;
+; 1761 : 		// if the fake interleave is active use this code for buffer start
+; 1762 : 		if (GETGBL_dwOvlOffset((DWORD)kmtvInfo.pDev->lpDriverData) 
+; 1763 : 		   && (kmtvInfo.pDev->dwIMask & H3_VSYNC_INT_ENABLE) 
+; 1764 : 		   &&  (bltBuff->dwStatus & INTERLEAVE_ON ))
+
+  0138d	8b 15 10 00 00
+	00		 mov	 edx, DWORD PTR _kmtvInfo+16
+  01393	8b 82 14 02 00
+	00		 mov	 eax, DWORD PTR [edx+532]
+  01399	50		 push	 eax
+  0139a	e8 00 00 00 00	 call	 _GETGBL_dwOvlOffset
+  0139f	83 c4 04	 add	 esp, 4
+  013a2	85 c0		 test	 eax, eax
+  013a4	74 41		 je	 SHORT $L13676
+  013a6	8b 0d 10 00 00
+	00		 mov	 ecx, DWORD PTR _kmtvInfo+16
+  013ac	f6 41 54 04	 test	 BYTE PTR [ecx+84], 4
+  013b0	74 35		 je	 SHORT $L13676
+  013b2	f7 46 4c 00 00
+	02 00		 test	 DWORD PTR [esi+76], 131072 ; 00020000H
+  013b9	74 2c		 je	 SHORT $L13676
+
+; 1765 : 		{	// manual flipping
+; 1766 : 			bBufNum = (BYTE) kmtvInfo.dwFirstFieldBuffer;
+; 1767 : 			lpBufferStart = (BYTE *)bltBuff->fpVidMem[bBufNum];
+
+  013bb	8b 15 48 00 00
+	00		 mov	 edx, DWORD PTR _kmtvInfo+72
+  013c1	81 e2 ff 00 00
+	00		 and	 edx, 255		; 000000ffH
+  013c7	8b 44 96 64	 mov	 eax, DWORD PTR [esi+edx*4+100]
+
+; 1768 : 			if (!lpBufferStart || !kmtvInfo.bInitialized)
+
+  013cb	85 c0		 test	 eax, eax
+  013cd	89 45 f8	 mov	 DWORD PTR _lpBufferStart$[ebp], eax
+  013d0	0f 84 a4 01 00
+	00		 je	 $L13295
+  013d6	a1 24 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+36
+  013db	85 c0		 test	 eax, eax
+  013dd	0f 84 97 01 00
+	00		 je	 $L13295
+
+; 1769 : 				return;
+; 1770 : 			polarity = FALSE;		// just capture first field - ok for v3
+
+  013e3	33 c9		 xor	 ecx, ecx
+  013e5	eb 03		 jmp	 SHORT $L13261
+$L13676:
+  013e7	8b 4d e0	 mov	 ecx, DWORD PTR _polarity$[ebp]
+$L13261:
+
+; 1771 : 		}
+; 1772 : 
+; 1773 :  	    kmtvInfo.bReportForVideo = TRUE;		// doing video
+; 1774 : 
+; 1775 : 		if (kmtvInfo.dwActive == 1)		// is eav
+
+  013ea	8b 15 3c 00 00
+	00		 mov	 edx, DWORD PTR _kmtvInfo+60
+  013f0	b8 01 00 00 00	 mov	 eax, 1
+  013f5	3b d0		 cmp	 edx, eax
+  013f7	a3 44 00 00 00	 mov	 DWORD PTR _kmtvInfo+68, eax
+  013fc	75 03		 jne	 SHORT $L13266
+
+; 1776 : 			dwVidLines++;
+
+  013fe	ff 45 e8	 inc	 DWORD PTR _dwVidLines$13255[ebp]
+$L13266:
+
+; 1777 : 
+; 1778 : //		VDDtoWDMTellCapture(kmtvInfo.dwFieldCount, bIsEven, FALSE); 
+; 1779 : 
+; 1780 : 		if (!bltBuff->bVBIcropped)
+
+  01401	8b 86 9c 00 00
+	00		 mov	 eax, DWORD PTR [esi+156]
+  01407	85 c0		 test	 eax, eax
+  01409	75 0f		 jne	 SHORT $L13267
+
+; 1781 : 			lpBufferStart += (bltBuff->dwVBILines*lpSurfaceData->lPitch);
+
+  0140b	8b 46 60	 mov	 eax, DWORD PTR [esi+96]
+  0140e	8b 55 f8	 mov	 edx, DWORD PTR _lpBufferStart$[ebp]
+  01411	0f af 47 18	 imul	 eax, DWORD PTR [edi+24]
+  01415	03 d0		 add	 edx, eax
+  01417	89 55 f8	 mov	 DWORD PTR _lpBufferStart$[ebp], edx
+$L13267:
+
+; 1782 : 
+; 1783 : 		lineOffset = lpSurfaceData->lPitch;						// pitch on surface
+; 1784 : 		if (dwNumLines > dwVidLines)		// should be double
+
+  0141a	8b 45 e8	 mov	 eax, DWORD PTR _dwVidLines$13255[ebp]
+  0141d	8b 7f 18	 mov	 edi, DWORD PTR [edi+24]
+  01420	3b d8		 cmp	 ebx, eax
+
+; 1785 : 			bUseAllLines = 1;
+; 1786 : 		else 
+; 1787 : 			bUseAllLines = 0;
+; 1788 : 		if (bInterleaved && !bUseAllLines)	// see if half or full
+
+  01422	8b 5d ec	 mov	 ebx, DWORD PTR _bInterleaved$[ebp]
+  01425	8b d7		 mov	 edx, edi
+  01427	0f 97 c0	 seta	 al
+  0142a	85 db		 test	 ebx, ebx
+  0142c	89 55 fc	 mov	 DWORD PTR _lineOffset$[ebp], edx
+  0142f	74 13		 je	 SHORT $L13271
+  01431	84 c0		 test	 al, al
+  01433	75 0f		 jne	 SHORT $L13271
+
+; 1789 : 		{
+; 1790 : 			if (polarity)		// must skip first line
+
+  01435	85 c9		 test	 ecx, ecx
+  01437	74 0b		 je	 SHORT $L13271
+
+; 1791 : 				lpBufferStart += bltBuff->dwVideoSurfacePitch;
+
+  01439	8b 4e 78	 mov	 ecx, DWORD PTR [esi+120]
+  0143c	8b 5d f8	 mov	 ebx, DWORD PTR _lpBufferStart$[ebp]
+  0143f	03 d9		 add	 ebx, ecx
+  01441	89 5d f8	 mov	 DWORD PTR _lpBufferStart$[ebp], ebx
+$L13271:
+
+; 1792 : 		}
+; 1793 : 		if (bltBuff->bDoublePitch && !bUseAllLines)
+
+  01444	8b 8e a8 00 00
+	00		 mov	 ecx, DWORD PTR [esi+168]
+  0144a	85 c9		 test	 ecx, ecx
+  0144c	74 09		 je	 SHORT $L13272
+  0144e	84 c0		 test	 al, al
+  01450	75 05		 jne	 SHORT $L13272
+
+; 1794 : 				lineOffset <<= 1;		// double if every other line
+
+  01452	d1 e2		 shl	 edx, 1
+  01454	89 55 fc	 mov	 DWORD PTR _lineOffset$[ebp], edx
+$L13272:
+
+; 1795 : 
+; 1796 : 		lpSrcLine = lpBufferStart;
+; 1797 : 		if (dwTransferFlags & DDTRANSFER_INVERT)
+
+  01457	8a 45 d8	 mov	 al, BYTE PTR _dwTransferFlags$[ebp]
+  0145a	8b 5d f8	 mov	 ebx, DWORD PTR _lpBufferStart$[ebp]
+  0145d	a8 04		 test	 al, 4
+  0145f	74 16		 je	 SHORT $L13273
+
+; 1798 : 		{
+; 1799 : 			lineOffset = 0 - (lineOffset);
+
+  01461	f7 da		 neg	 edx
+  01463	89 55 fc	 mov	 DWORD PTR _lineOffset$[ebp], edx
+
+; 1800 : 			lpSrcLine = lpBufferStart + ((dwNumLines - 1) * lpSurfaceData->lPitch);
+
+  01466	8b 55 f0	 mov	 edx, DWORD PTR _dwNumLines$[ebp]
+  01469	8b 45 f8	 mov	 eax, DWORD PTR _lpBufferStart$[ebp]
+  0146c	8d 5a ff	 lea	 ebx, DWORD PTR [edx-1]
+  0146f	8b 55 fc	 mov	 edx, DWORD PTR _lineOffset$[ebp]
+  01472	0f af df	 imul	 ebx, edi
+  01475	03 d8		 add	 ebx, eax
+$L13273:
+
+; 1801 : 		}
+; 1802 : 
+; 1803 : 		//in the case of vddtransfer we need to copy the data as specified 
+; 1804 : 		//in the linked list of MDL
+; 1805 : 		for (linecnt = 0; linecnt < dwNumLines && pMDL;)
+
+  01477	8b 45 f0	 mov	 eax, DWORD PTR _dwNumLines$[ebp]
+  0147a	33 c9		 xor	 ecx, ecx
+  0147c	85 c0		 test	 eax, eax
+  0147e	89 4d f8	 mov	 DWORD PTR _linecnt$[ebp], ecx
+  01481	0f 86 b7 00 00
+	00		 jbe	 $L13678
+  01487	eb 03		 jmp	 SHORT $L13275
+$L13675:
+  01489	8b 55 fc	 mov	 edx, DWORD PTR _lineOffset$[ebp]
+$L13275:
+  0148c	8b 7d f4	 mov	 edi, DWORD PTR _pMDL$[ebp]
+  0148f	85 ff		 test	 edi, edi
+  01491	0f 84 a7 00 00
+	00		 je	 $L13678
+
+; 1806 : 		{
+; 1807 : 			BYTE *lpDestLine;
+; 1808 : 			DWORD bytes;
+; 1809 : 			DWORD bytesPerLine = lineWidth;
+
+  01497	8b 45 e4	 mov	 eax, DWORD PTR _lineWidth$[ebp]
+  0149a	8b f0		 mov	 esi, eax
+
+; 1810 : 			if (bytesPerLine > lineOffset)
+
+  0149c	3b c2		 cmp	 eax, edx
+  0149e	89 75 ec	 mov	 DWORD PTR _bytesPerLine$13279[ebp], esi
+  014a1	76 05		 jbe	 SHORT $L13280
+
+; 1811 : 				bytesPerLine = lineOffset;
+
+  014a3	89 55 ec	 mov	 DWORD PTR _bytesPerLine$13279[ebp], edx
+  014a6	8b f2		 mov	 esi, edx
+$L13280:
+
+; 1812 : 
+; 1813 : 			//Now get the pointer to the memory destination
+; 1814 : 			lpBufferDest = (BYTE *)(pMDL->lpMappedSystemVa);
+
+  014a8	8b 57 0c	 mov	 edx, DWORD PTR [edi+12]
+
+; 1815 : 			if (!lpBufferDest || !kmtvInfo.bInitialized)
+
+  014ab	85 d2		 test	 edx, edx
+  014ad	0f 84 c7 00 00
+	00		 je	 $L13295
+  014b3	83 3d 24 00 00
+	00 00		 cmp	 DWORD PTR _kmtvInfo+36, 0
+  014ba	0f 84 ba 00 00
+	00		 je	 $L13295
+
+; 1816 : 				return;
+; 1817 : 			lpDestLine = lpBufferDest;
+; 1818 : 			dwMaxTransferCnt = pMDL->ByteCount; 
+
+  014c0	8b 7f 14	 mov	 edi, DWORD PTR [edi+20]
+
+; 1819 : 
+; 1820 : 			// must copy line at a time to not affect graphic performance (kephart suggestion)
+; 1821 : 			for (bytes = 0; kmtvInfo.bInitialized &&
+; 1822 : 				linecnt < dwNumLines && bytes < dwMaxTransferCnt;)		// should this be <= for numlines
+
+  014c3	c7 45 e0 00 00
+	00 00		 mov	 DWORD PTR _bytes$13278[ebp], 0
+  014ca	89 7d e8	 mov	 DWORD PTR _dwMaxTransferCnt$[ebp], edi
+$L13285:
+  014cd	3b 4d f0	 cmp	 ecx, DWORD PTR _dwNumLines$[ebp]
+  014d0	73 59		 jae	 SHORT $L13286
+  014d2	8b 7d e8	 mov	 edi, DWORD PTR _dwMaxTransferCnt$[ebp]
+  014d5	39 7d e0	 cmp	 DWORD PTR _bytes$13278[ebp], edi
+  014d8	73 51		 jae	 SHORT $L13286
+
+; 1823 : 			{
+; 1824 : 				if (!linecnt)	// get rid of cc data
+
+  014da	85 c9		 test	 ecx, ecx
+  014dc	75 1b		 jne	 SHORT $L13287
+
+; 1825 : 				{
+; 1826 : 					DWORD ndx;
+; 1827 : 					WORD *pWord = (WORD *)lpDestLine;
+; 1828 : 					for (ndx = 0; ndx < bytesPerLine; ndx += 2)
+
+  014de	85 f6		 test	 esi, esi
+  014e0	76 34		 jbe	 SHORT $L13294
+  014e2	8d 4e 01	 lea	 ecx, DWORD PTR [esi+1]
+  014e5	b8 80 10 80 10	 mov	 eax, 276828288		; 10801080H
+  014ea	d1 e9		 shr	 ecx, 1
+  014ec	8b fa		 mov	 edi, edx
+  014ee	d1 e9		 shr	 ecx, 1
+  014f0	f3 ab		 rep stosd
+  014f2	13 c9		 adc	 ecx, ecx
+  014f4	66 f3 ab	 rep stosw
+
+; 1829 : 						*pWord++ = 0x1080;
+; 1830 : 				}
+; 1831 : 				else
+
+  014f7	eb 17		 jmp	 SHORT $L13684
+$L13287:
+
+; 1832 : 					memcpy (lpDestLine, lpSrcLine, bytesPerLine);	// use width in case pitch diff - tiled space
+
+  014f9	8b ce		 mov	 ecx, esi
+  014fb	8b f3		 mov	 esi, ebx
+  014fd	8b c1		 mov	 eax, ecx
+  014ff	8b fa		 mov	 edi, edx
+  01501	c1 e9 02	 shr	 ecx, 2
+  01504	f3 a5		 rep movsd
+  01506	8b c8		 mov	 ecx, eax
+  01508	83 e1 03	 and	 ecx, 3
+  0150b	f3 a4		 rep movsb
+  0150d	8b 75 ec	 mov	 esi, DWORD PTR _bytesPerLine$13279[ebp]
+$L13684:
+  01510	8b 4d f8	 mov	 ecx, DWORD PTR _linecnt$[ebp]
+  01513	8b 45 e4	 mov	 eax, DWORD PTR _lineWidth$[ebp]
+$L13294:
+
+; 1833 : 				linecnt++;
+; 1834 :   				lpDestLine += lineWidth;
+; 1835 : 				lpSrcLine += lineOffset;
+
+  01516	8b 7d fc	 mov	 edi, DWORD PTR _lineOffset$[ebp]
+  01519	41		 inc	 ecx
+  0151a	03 df		 add	 ebx, edi
+
+; 1836 :   				bytes += lineWidth;
+
+  0151c	8b 7d e0	 mov	 edi, DWORD PTR _bytes$13278[ebp]
+  0151f	03 d0		 add	 edx, eax
+  01521	03 f8		 add	 edi, eax
+  01523	89 4d f8	 mov	 DWORD PTR _linecnt$[ebp], ecx
+  01526	89 7d e0	 mov	 DWORD PTR _bytes$13278[ebp], edi
+  01529	eb a2		 jmp	 SHORT $L13285
+$L13286:
+
+; 1837 : 			}
+; 1838 : 			pMDL = pMDL->MdlNext;
+
+  0152b	8b 55 f4	 mov	 edx, DWORD PTR _pMDL$[ebp]
+  0152e	8b 02		 mov	 eax, DWORD PTR [edx]
+  01530	89 45 f4	 mov	 DWORD PTR _pMDL$[ebp], eax
+  01533	8b 45 f0	 mov	 eax, DWORD PTR _dwNumLines$[ebp]
+  01536	3b c8		 cmp	 ecx, eax
+  01538	0f 82 4b ff ff
+	ff		 jb	 $L13675
+$L13678:
+
+; 1801 : 		}
+; 1802 : 
+; 1803 : 		//in the case of vddtransfer we need to copy the data as specified 
+; 1804 : 		//in the linked list of MDL
+; 1805 : 		for (linecnt = 0; linecnt < dwNumLines && pMDL;)
+
+  0153e	8b 45 dc	 mov	 eax, DWORD PTR -36+[ebp]
+$L13276:
+
+; 1839 : 		}  
+; 1840 :    }
+; 1841 : 
+; 1842 :    kmtvInfo.Transfer[RefData].dwFlags = TRANSFER_COMPLETE;
+
+  01541	c7 80 50 00 00
+	00 01 00 00 00	 mov	 DWORD PTR _kmtvInfo[eax+80], 1
+
+; 1843 :    kmtvInfo.dwBusMasterTransfers ++;
+
+  0154b	8b 0d 38 00 00
+	00		 mov	 ecx, DWORD PTR _kmtvInfo+56
+
+; 1844 : 
+; 1845 : //Debug_Printf (" Transfer BusMaster Complete=%d Outstanding=%d\n", RefData,kmtvInfo.dwBusMasterTransfers); 
+; 1846 : 
+; 1847 : #ifdef USE_EVENT_TRANSFER
+; 1848 : #ifdef USE_VMM_CALLBACK_IRQ
+; 1849 : 	kmtvInfo.dwTransferID++;
+; 1850 : #else
+; 1851 :    //Now notify Windows that transfer is complete
+; 1852 :    if (kmtvInfo.IRQCallback)
+
+  01551	a1 00 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo
+  01556	41		 inc	 ecx
+  01557	85 c0		 test	 eax, eax
+  01559	89 0d 38 00 00
+	00		 mov	 DWORD PTR _kmtvInfo+56, ecx
+  0155f	74 19		 je	 SHORT $L13295
+
+; 1853 :    {
+; 1854 :       _asm {
+; 1855 : 	  push ebp
+
+  01561	55		 push	 ebp
+
+; 1856 : 	  push esi
+
+  01562	56		 push	 esi
+
+; 1857 : 	  push eax
+
+  01563	50		 push	 eax
+
+; 1858 : 	  push ebx
+
+  01564	53		 push	 ebx
+
+; 1859 : 	  mov eax, DDIRQ_BUSMASTER
+
+  01565	b8 02 00 00 00	 mov	 eax, 2
+
+; 1860 : 	  mov ebx, kmtvInfo.Context
+
+  0156a	8b 1d 08 00 00
+	00		 mov	 ebx, DWORD PTR _kmtvInfo+8
+
+; 1861 : 	  call [kmtvInfo.IRQCallback]
+
+  01570	ff 15 00 00 00
+	00		 call	 DWORD PTR _kmtvInfo
+
+; 1862 : 	  pop ebx
+
+  01576	5b		 pop	 ebx
+
+; 1863 : 	  pop eax
+
+  01577	58		 pop	 eax
+
+; 1864 : 	  pop esi
+
+  01578	5e		 pop	 esi
+
+; 1865 : 	  pop ebp          
+
+  01579	5d		 pop	 ebp
+$L13295:
+
+; 1866 :       } 
+; 1867 :    }	
+; 1868 : #endif
+; 1869 : #else
+; 1870 : 	kmtvInfo.dwTransferID++;
+; 1871 : #endif
+; 1872 :    return;
+; 1873 : 	
+; 1874 : }
+
+  0157a	5f		 pop	 edi
+  0157b	5e		 pop	 esi
+  0157c	5b		 pop	 ebx
+  0157d	8b e5		 mov	 esp, ebp
+  0157f	5d		 pop	 ebp
+  01580	c3		 ret	 0
+_TransferVMEvent ENDP
+_LTEXT	ENDS
+PUBLIC	_QueryActiveWDMVXD
+EXTRN	_CCODE_Get_DDB@8:NEAR
+_LTEXT	SEGMENT
+_Name$ = -1
+_QueryActiveWDMVXD PROC NEAR
+
+; 1881 : {
+
+  01581	51		 push	 ecx
+
+; 1882 :     DWORD fWDMVXDInstalled= 0;
+; 1883 : 	struct VxD_Desc_Block *pWDMDDB=0;
+; 1884 : 	CHAR Name = 0;
+; 1885 :     pWDMDDB = Get_DDB(V3TVMAP_DEVICE_ID, &Name );
+
+  01582	8d 44 24 03	 lea	 eax, DWORD PTR _Name$[esp+4]
+  01586	56		 push	 esi
+  01587	50		 push	 eax
+  01588	68 24 96 00 00	 push	 38436			; 00009624H
+  0158d	33 f6		 xor	 esi, esi
+  0158f	c6 44 24 0f 00	 mov	 BYTE PTR _Name$[esp+16], 0
+  01594	e8 00 00 00 00	 call	 _CCODE_Get_DDB@8
+
+; 1886 : 	if (pWDMDDB != 0)
+
+  01599	85 c0		 test	 eax, eax
+
+; 1887 : 		fWDMVXDInstalled = 1;
+
+  0159b	b8 01 00 00 00	 mov	 eax, 1
+  015a0	75 02		 jne	 SHORT $L13302
+
+; 1888 : 	return fWDMVXDInstalled;
+
+  015a2	8b c6		 mov	 eax, esi
+$L13302:
+  015a4	5e		 pop	 esi
+
+; 1889 : }
+
+  015a5	59		 pop	 ecx
+  015a6	c3		 ret	 0
+_QueryActiveWDMVXD ENDP
+_LTEXT	ENDS
+PUBLIC	_VDDtoWDMQueryActive@4
+_LTEXT	SEGMENT
+_lpParams$ = 8
+_VDDtoWDMQueryActive@4 PROC NEAR
+
+; 1892 : {   
+
+  015b1	55		 push	 ebp
+  015b2	8b ec		 mov	 ebp, esp
+
+; 1893 :    DWORD *outBuff = (DWORD *)lpParams->lpvOutBuffer;
+
+  015b4	8b 45 08	 mov	 eax, DWORD PTR _lpParams$[ebp]
+  015b7	56		 push	 esi
+  015b8	8b 70 18	 mov	 esi, DWORD PTR [eax+24]
+
+; 1894 :    lpParams->lpcbBytesReturned = 0;
+
+  015bb	c7 40 20 00 00
+	00 00		 mov	 DWORD PTR [eax+32], 0
+
+; 1895 :    kmtvInfo.dwActive = QueryActiveWDMVXD();
+
+  015c2	e8 00 00 00 00	 call	 _QueryActiveWDMVXD
+
+; 1896 :    //Don't bother querying WDM if it isn't installed
+; 1897 :    if (kmtvInfo.dwActive == 1) {
+
+  015c7	83 f8 01	 cmp	 eax, 1
+  015ca	a3 3c 00 00 00	 mov	 DWORD PTR _kmtvInfo+60, eax
+  015cf	75 17		 jne	 SHORT $L13688
+
+; 1898 : 	   //Now that we know WDM is installed, now
+; 1899 : 	   //check if any streams are open for the case
+; 1900 : 	   //of a DVD opening videoport versus WDM
+; 1901 : 		_asm {
+; 1902 : 			push eax
+
+  015d1	50		 push	 eax
+
+; 1903 : 			mov eax, 0
+
+  015d2	b8 00 00 00 00	 mov	 eax, 0
+
+; 1904 :   			VxDCall (V3TVMAP_QueryActive);
+
+  015d7	cd		 DB	 -51			; ffffffcdH
+  015d8	20		 DB	 32			; 00000020H
+  015d9	02		 DB	 2
+  015da	00		 DB	 0
+  015db	24		 DB	 36			; 00000024H
+  015dc	96		 DB	 -106			; ffffff96H
+
+; 1905 : 			mov kmtvInfo.dwActive, eax
+
+  015dd	a3 3c 00 00 00	 mov	 DWORD PTR _kmtvInfo+60, eax
+
+; 1906 : 	 	    pop eax
+
+  015e2	58		 pop	 eax
+
+; 1907 : 		}
+; 1908 :    } 
+; 1909 : // else 
+; 1910 : //	   Debug_Printf (" ****No WDM VXD Installed***\n");
+; 1911 :    
+; 1912 :    outBuff[0] = kmtvInfo.dwActive;
+
+  015e3	a1 3c 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+60
+$L13688:
+  015e8	89 06		 mov	 DWORD PTR [esi], eax
+
+; 1913 :    return 0;
+
+  015ea	33 c0		 xor	 eax, eax
+
+; 1914 : }
+
+  015ec	5e		 pop	 esi
+  015ed	5d		 pop	 ebp
+  015ee	c2 04 00	 ret	 4
+_VDDtoWDMQueryActive@4 ENDP
+_LTEXT	ENDS
+PUBLIC	_VDDtoWDMTellCapture
+_LTEXT	SEGMENT
+_polarity$ = 12
+_vbiBuffer$ = 16
+_dwResult$ = 12
+_dwPolarity_BufType$ = 16
+_frame$ = 8
+_VDDtoWDMTellCapture PROC NEAR
+
+; 1917 : {
+
+  015f1	55		 push	 ebp
+  015f2	8b ec		 mov	 ebp, esp
+
+; 1918 : 	DWORD   dwResult;
+; 1919 : 	DWORD	dwPolarity_BufType = (polarity | (vbiBuffer << 16));
+
+  015f4	8b 45 10	 mov	 eax, DWORD PTR _vbiBuffer$[ebp]
+  015f7	8b 4d 0c	 mov	 ecx, DWORD PTR _polarity$[ebp]
+  015fa	c1 e0 10	 shl	 eax, 16			; 00000010H
+  015fd	0b c1		 or	 eax, ecx
+  015ff	89 45 10	 mov	 DWORD PTR _dwPolarity_BufType$[ebp], eax
+
+; 1920 : 
+; 1921 : 	if (!kmtvInfo.dwActive)
+
+  01602	a1 3c 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+60
+  01607	85 c0		 test	 eax, eax
+  01609	75 04		 jne	 SHORT $L13319
+
+; 1922 : 	   return 0;
+
+  0160b	33 c0		 xor	 eax, eax
+
+; 1932 : }
+
+  0160d	5d		 pop	 ebp
+  0160e	c3		 ret	 0
+$L13319:
+
+; 1923 : 	_asm {
+; 1924 : 	   mov eax, frame
+
+  0160f	8b 45 08	 mov	 eax, DWORD PTR _frame$[ebp]
+
+; 1925 : 	   push ecx
+
+  01612	51		 push	 ecx
+
+; 1926 : 	   mov ecx, dwPolarity_BufType
+
+  01613	8b 4d 10	 mov	 ecx, DWORD PTR _dwPolarity_BufType$[ebp]
+
+; 1927 : 	   VxDCall (V3TVMAP_NotifyCapture);
+
+  01616	cd		 DB	 -51			; ffffffcdH
+  01617	20		 DB	 32			; 00000020H
+  01618	03		 DB	 3
+  01619	00		 DB	 0
+  0161a	24		 DB	 36			; 00000024H
+  0161b	96		 DB	 -106			; ffffff96H
+
+; 1928 : 	   pop ecx
+
+  0161c	59		 pop	 ecx
+
+; 1929 : 	   mov dwResult, eax
+
+  0161d	89 45 0c	 mov	 DWORD PTR _dwResult$[ebp], eax
+
+; 1930 : 	}
+; 1931 : 	return dwResult;
+
+  01620	8b 45 0c	 mov	 eax, DWORD PTR _dwResult$[ebp]
+
+; 1932 : }
+
+  01623	5d		 pop	 ebp
+  01624	c3		 ret	 0
+_VDDtoWDMTellCapture ENDP
+_LTEXT	ENDS
+PUBLIC	_VDDtoWDMScale@4
+_LTEXT	SEGMENT
+_lpParams$ = 8
+_lpSize$ = -4
+_lpStart$ = 8
+_dwResult$ = -8
+_VDDtoWDMScale@4 PROC NEAR
+
+; 1936 : {   
+
+  01631	55		 push	 ebp
+  01632	8b ec		 mov	 ebp, esp
+  01634	83 ec 08	 sub	 esp, 8
+
+; 1937 :    DWORD *inBuff =  (DWORD *)lpParams->lpvInBuffer;
+
+  01637	8b 45 08	 mov	 eax, DWORD PTR _lpParams$[ebp]
+  0163a	56		 push	 esi
+  0163b	8b 48 10	 mov	 ecx, DWORD PTR [eax+16]
+
+; 1938 :    DWORD *outBuff = (DWORD *)lpParams->lpvOutBuffer;
+
+  0163e	8b 50 18	 mov	 edx, DWORD PTR [eax+24]
+
+; 1939 :    DWORD lpSize = inBuff[0];
+; 1940 :    DWORD lpStart = inBuff[1];
+; 1941 :    DWORD   dwResult;
+; 1942 :    lpParams->lpcbBytesReturned = 0;
+
+  01641	c7 40 20 00 00
+	00 00		 mov	 DWORD PTR [eax+32], 0
+
+; 1943 :    outBuff[0] = 0;
+; 1944 :    if (!kmtvInfo.dwActive)
+
+  01648	a1 3c 00 00 00	 mov	 eax, DWORD PTR _kmtvInfo+60
+  0164d	8b 31		 mov	 esi, DWORD PTR [ecx]
+  0164f	8b 49 04	 mov	 ecx, DWORD PTR [ecx+4]
+  01652	85 c0		 test	 eax, eax
+  01654	89 75 fc	 mov	 DWORD PTR _lpSize$[ebp], esi
+  01657	89 4d 08	 mov	 DWORD PTR _lpStart$[ebp], ecx
+  0165a	c7 02 00 00 00
+	00		 mov	 DWORD PTR [edx], 0
+
+; 1945 : 	   return 0;
+
+  01660	74 16		 je	 SHORT $L13691
+
+; 1946 :    _asm {
+; 1947 : 	   mov eax, lpSize
+
+  01662	8b 45 fc	 mov	 eax, DWORD PTR _lpSize$[ebp]
+
+; 1948 : 	   push ecx
+
+  01665	51		 push	 ecx
+
+; 1949 : 	   mov ecx, lpStart
+
+  01666	8b 4d 08	 mov	 ecx, DWORD PTR _lpStart$[ebp]
+
+; 1950 :   	   VxDCall (V3TVMAP_NotifyMap);
+
+  01669	cd		 DB	 -51			; ffffffcdH
+  0166a	20		 DB	 32			; 00000020H
+  0166b	01		 DB	 1
+  0166c	00		 DB	 0
+  0166d	24		 DB	 36			; 00000024H
+  0166e	96		 DB	 -106			; ffffff96H
+
+; 1951 : 	   pop ecx
+
+  0166f	59		 pop	 ecx
+
+; 1952 : 	   mov dwResult, eax
+
+  01670	89 45 f8	 mov	 DWORD PTR _dwResult$[ebp], eax
+
+; 1953 :    }
+; 1954 :    outBuff[0] = dwResult;
+
+  01673	8b 45 f8	 mov	 eax, DWORD PTR _dwResult$[ebp]
+  01676	89 02		 mov	 DWORD PTR [edx], eax
+$L13691:
+
+; 1955 :    return 0;
+
+  01678	33 c0		 xor	 eax, eax
+
+; 1956 : }
+
+  0167a	5e		 pop	 esi
+  0167b	8b e5		 mov	 esp, ebp
+  0167d	5d		 pop	 ebp
+  0167e	c2 04 00	 ret	 4
+_VDDtoWDMScale@4 ENDP
+_LTEXT	ENDS
+END

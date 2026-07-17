@@ -1,0 +1,1270 @@
+-- init.lua
+-- initialization file for mdc (Manufacturing Diag Core)
+--
+run_test_list = {}; -- create the run_test_list
+if (not cfgvars) then
+   cfgvars = {}; -- create the configvars table
+end
+
+require("util");                -- utility function
+require("dbgtests");            
+require("gldtst");              -- 3d tests
+require("2dtst");               -- 2d blit tests
+
+collectgarbage(100);
+
+
+local log_arg_loc = findArg("log");
+if (log_arg_loc and (strsub(_args[log_arg_loc + 1],1,1) ~= "/") and
+    (strsub(_args[log_arg_loc + 1],1,1) ~= "-") ) then
+  local filepath = _args[log_arg_loc + 1]
+  make_path(filepath);
+  logDestination(filepath);
+else
+  logDestination("STDOUT.LOG");
+end
+
+global_status = 1; -- assume we passed until we find out otherwise
+running_glide = 0; -- always start with fact that glide is not running
+clock_changed = 0; -- always start with fact that clock is not changed
+mb_cksum_ok = 0;   -- assume checksum is valid
+
+-- read the banshee CRC reg correctly
+function HWbansheeCrc()
+
+   waitForVsync(1);
+   waitForVsync(0);
+   waitForVsync(1);
+   waitForVsync(0);
+
+   return format("0x%X",bansheeCrc());
+end
+
+-- read the banshee CRC reg during Master memory test correctly
+function HWbansheeMemCrc()
+   return format("0x%X",bansheeMemCrc());
+end
+
+-- read the banshee CRC reg during Slave memory test correctly
+function HWbansheeSliMemCrc()
+   return format("0x%X",bansheeSliMemCrc());
+end
+
+-- setup global chaining for enums and stuff
+
+function findIn(table, varname)
+   if (table == nil) then
+      return nil;
+   end
+
+   return (table[varname]);
+end
+
+function _global_fallback(varname)
+	local value;
+
+	value = _oldgetglobal(varname);
+	if (value == nil) then
+	      value = findIn(_oldgetglobal("_pkgs"),varname);
+	end
+	
+	return (value);
+end
+
+-- _oldgetglobal = settagmethod(0, "getglobal", _global_fallback);
+
+-- checksum check package
+-- this should be moved into builtin or something eventually
+
+function getCfgVar(module_name,var_name,default)
+       local value;
+       local tbl = cfgvars[module_name];
+
+       if (tbl and tbl[var_name]) then 
+	    value = tbl[var_name];
+
+	    return (tonumber(value));
+       else
+	    return default;
+       end
+
+
+end
+
+function setCfgVar(module_name,var_name,value)
+	local tbl = cfgvars[module_name];
+
+	if (tbl == nil) then
+	    cfgvars[module_name] = {}; -- create the table!
+	    tbl = cfgvars[module_name];
+	end
+
+	tbl[var_name] = value;
+end
+
+function render (a_val) 
+        if (type(a_val) == "string") then
+             return a_val;
+        elseif (type(a_val) == "number") then
+             return (format("0x%X",a_val));
+        else 
+             return (tostring(a_val));
+        end
+end
+
+-- should load checksum data here
+chksum = {};
+chksum.golden = {};
+
+function chksum.checkChecksum(chksum_name,checksum)
+
+    -- check for the escape key
+    while (kbhit() == 1) do
+       local this_key = getch();
+       if (this_key == 27) then
+         global_status = nil; -- make sure they know we failed (esc out)!
+         mdc_summary();
+       end
+    end
+
+    -- check for the break handler
+    if (break_requested() ~= nil) then
+       global_status = nil; -- make sure they know we failed (break out)
+       mdc_summary();
+    end
+
+    if (getCfgVar("chksum","generate")) then  
+	-- we should generate the checksums, not check them!!!
+	chksum.golden[chksum_name] = checksum;
+	return 1; -- true/pass
+    else
+	if (chksum.golden[chksum_name] ~= checksum) then
+           if ((chksum_name ~= "unreal_frm0") and (chksum_name ~= "unreal_frm1")) then
+	       print(format("checksum '%s' failed (ex=%s,rec=%s)",
+			chksum_name,render(chksum.golden[chksum_name]),render(checksum)));
+	       global_status = nil; -- tell the world we failed
+	       return nil; -- failure!
+           else
+               global_status = nil;
+               return nil; -- signal a failure only, but not ready to print it out
+           end
+	else
+	       return 1; -- true/pass
+	end
+  
+    end
+end
+
+--
+
+pass_banner =   " #####     ##     ####    ####   ######  #####\n"..
+		" #    #   #  #   #       #       #       #    #\n"..
+		" #    #  #    #   ####    ####   #####   #    #\n"..
+		" #####   ######       #       #  #       #    #\n"..
+		" #       #    #  #    #  #    #  #       #    #\n"..
+		" #       #    #   ####    ####   ######  #####\n";
+
+fail_banner =   " ######    ##       #    #       ######  #####\n"..
+		" #        #  #      #    #       #       #    #\n"..
+		" #####   #    #     #    #       #####   #    #\n"..
+		" #       ######     #    #       #       #    #\n"..
+		" #       #    #     #    #       #       #    #\n"..
+		" #       #    #     #    ######  ######  #####\n";
+
+
+local print_usage = 1;
+local repititions = 1; -- how many times should we repeat the non-interactive tests?
+
+global_status = 1; -- pass = 1, fail = nil
+
+function printUsage()
+    local indent = "    ";
+    print("Usage: mdc /<test> /<switch>  Note:MDC<cr>=run all non-interact tests");
+    print("/?,/help : display this help screen");
+    print("NON-INTERACTIVE TESTS (requires no user input):");
+    print("/basic     : basic tests               /glide     : run glide 3d tests"); 
+    print("/video     : vga video tests           /ddc       : monitor DDC test");
+    print("/blit2d    : run 2d blit tests         /serialrom : TV serial rom test");
+    print("/svid <num>: subsystem vendor id test  /ssid <num>: subsystem device id test");
+    print("/unreal    : unreal 3d render tests (must have unreal dir)");
+    print("/all       : run /basic,/video,/blit2d,/glide tests");
+    print("INTERACTIVE TESTS (requires user input):");
+    print("/vga <mode>: vga mode test (mode in hex)");
+    print("/color     : color bar test");
+    print("/ntsc,/pal,/palm,/paln,/palnc,/crt,/lcd : TV Out/LCD tests");
+--    print("");
+    print("SWITCHES (can be used with all tests except where noted below):");
+    print("/gengolden : generate golden file & run all tests");
+    print("/vpd <num> : checks part number & returns serial number from VPD");
+    print("/cksm <val>: verify BIOS checksum=val(hex) (no val=calculate chksm)");
+    print("/comp      : enable composite video for TV out(used w/ TV switches)");
+    print("/nopass    : do not display PASS banner");
+    print("/allmode   : test all vga video modes (used with /video test only");
+    print("/memr <num>: run random memory test with seed (use /basic or /all)");
+    print("/debug     : assists in troubleshooting bad boards");
+    print("/clk <mclk>: set memory clocks before running memory test");
+    print("/agp       : run AGP 2x test");
+    print("/4x        : run AGP 4x test");
+    print("/sli       : run 3d tests with SLI enabled");
+    print("/aa        : run 3d tests with Anti-aliasing enabled");
+--    print("/pci.list  :   list pci devices");
+--    print("/shell     :   command line shell");
+--    print("/memc <num>:   run constant memory test with given value");
+--    print("/mema <num> <num> : run alternate memory test with two values");
+--    print(indent .. "/fullmem   :   perform full memory test and include table in logfile");
+--    print(indent .. "/rep <reps>        : number of times to repeat");
+--    print(indent .. "/cont      :   continue on failure");
+--    print(indent .. "/clk <gclk> <mclk> : set clocks before running");
+--    print("");
+end
+
+
+local i = 0;
+local curarg;
+found_arg=0;
+curarg = _args[i];
+while (curarg) do
+  if (strfind(_args[i],"-",1,1)) then
+     found_arg=found_arg+1;
+  elseif (strfind(_args[i], "/",1,1)) then
+     found_arg=found_arg+1;
+  end
+  i = i + 1;
+  curarg = _args[i];
+end;
+if (found_arg == 0) then
+  run_test_list.all = 1;
+end
+
+
+if (findArg("?") or findArg("help")) then
+    printUsage();
+    return;
+end
+
+if (findArg("cont")) then
+   setCfgVar("main","stop_on_failure",0);
+end
+
+local mem_test_arg_loc = findArg("mema");
+if (mem_test_arg_loc and _args[mem_test_arg_loc + 1] and
+  _args[mem_test_arg_loc + 2]) then
+  do_alternate_fill = X(_args[mem_test_arg_loc + 1]);
+  do_alternate_fill2 = X(_args[mem_test_arg_loc + 2]);
+  run_test_list.basic = 1;
+end
+
+local mem_test_arg_loc = findArg("memr");
+if (mem_test_arg_loc and _args[mem_test_arg_loc + 1]) then
+   do_rndm_fill = X(_args[mem_test_arg_loc + 1]);
+   run_test_list.basic = 1;
+end
+
+local mem_test_arg_loc = findArg("memc");
+if (mem_test_arg_loc and _args[mem_test_arg_loc + 1]) then
+   do_const_fill = X(_args[mem_test_arg_loc + 1]);
+   run_test_list.basic = 1;
+end
+
+local clkarg_loc = findArg("clk");
+
+-- local reparg_loc = findArg("rep");
+if (reparg_loc) then
+	-- printTable(_args);
+	-- print(format("reparg_loc = %d",reparg_loc));
+	local reparg_count = tonumber(_args[reparg_loc+1]);
+	
+	if (type(reparg_count) ~= "number") then
+		error("invalid use of /rep switch, must be followed by a number");
+	else
+		print(format("Will perform %d repititions.",reparg_count));
+		repititions = reparg_count;
+	end
+end
+
+
+
+test_results = {};
+function recordTestResult(module_name,test_name,did_we_pass)
+    if (test_results[module_name] == nil) then
+	test_results[module_name] = {}; -- create table
+    end
+
+    local tbl = test_results[module_name];
+
+    if (tbl[test_name] == nil) then
+       tbl[test_name] = {};
+    end
+ 
+    if (did_we_pass == 1) then
+       if (tbl[test_name].pass_count == nil) then
+	    tbl[test_name].pass_count = 0;
+       end
+       
+       tbl[test_name].pass_count = tbl[test_name].pass_count + 1;
+    else
+       if (tbl[test_name].fail_count == nil) then
+	    tbl[test_name].fail_count = 0;
+       end
+       tbl[test_name].fail_count = tbl[test_name].fail_count + 1;
+       global_status = nil; -- signal failure
+
+       if (clock_changed == 1) then
+ 	   setmclk(clkarg_mem,oldpll,0);		-- Change memory clock if desired
+          clock_changed = 0;		                -- Let programs know clock has not changed
+	end
+       if (getCfgVar("main","stop_on_failure",1) == 1) then
+	   if (running_glide == 1) then
+		grGlideShutdown();
+	   end
+	   mdc_summary();
+       end;
+    end
+
+end
+
+
+if (findArg("video")) then
+	run_test_list.video = 1;
+end
+
+
+if (findArg("allmode")) then
+	allmodes = X("0x55AA");
+else
+       allmodes = X("0x007F");
+end
+
+
+if (findArg("serialrom")) then
+	run_test_list.serialrom = 1;
+end
+
+
+if (findArg("ddc")) then
+	run_test_list.ddc = 1;
+end
+
+local vgaarg_loc = findArg("vga");
+if (vgaarg_loc) then
+	local mode_str = _args[vgaarg_loc + 1];
+
+	if ( mode_str and (strsub(mode_str,1) ~= "/") and 
+		strtol(mode_str,nil,16)) then
+		local mode_num = strtol(mode_str,nil,16);
+		print(format("VGA Mode %Xh selected for visual dac check",
+			mode_num));
+		run_test_list.interactive = 1; 
+		run_test_list.interactive_mode = mode_num;
+               allmodes = X("0x0000");
+	else
+		print("ERROR: You must include a mode number after /vga");
+		print("");
+		print("              /-------bits per pixel----\\");
+		print("");
+		print("resolution    4bpp   8bpp   16bpp   24bpp");
+		print("----------    ----   ----   -----   -----");
+		print("640x480         12    101    111     112");
+		print("800x600        102    103    114     115");
+		print("1024x768       n/a    105    117     118");
+		print("1280x1024      n/a    107    11a     11b");
+
+		print("");
+		print("For example to test 1280x1024@24bpp, try:");
+		print("     mdc /vga 11b");
+		exit(1);
+	end
+end
+
+if (findArg("all")) then
+	run_test_list.all = 1; -- special keyword!
+end
+
+if (findArg("color")) then
+	run_test_list.color = 1;
+end
+
+if (findArg("paln")) then
+	run_test_list.paln = 1
+end
+
+if (findArg("palnc")) then
+	run_test_list.palnc = 1
+end
+
+if (findArg("palm")) then
+	run_test_list.palm = 1
+end
+
+if (findArg("pal")) then
+	run_test_list.pal = 1
+end
+
+if (findArg("ntsc")) then
+	run_test_list.ntsc = 1
+end
+
+if (findArg("comp")) then
+	composite = 1
+else
+	composite = 0
+end
+
+if (findArg("lcd")) then
+	run_test_list.lcd = 1
+end
+
+if (findArg("crt")) then
+	run_test_list.crt = 1
+end
+
+
+if (findArg("blit2d")) then
+	run_test_list.blit2d = 1;
+end
+
+if (findArg("glide")) then
+	run_test_list.glide = 1;        
+end
+
+if (findArg("unreal")) then
+	run_test_list.unreal = 1;
+end
+
+if (findArg("basic")) then
+	run_test_list.basic = 1;
+end
+
+if (findArg("pci.list")) then
+	printPciInfo();
+	print_usage = nil;
+end
+
+if (findArg("gengolden")) then
+	setCfgVar("chksum","generate",1);
+	run_test_list.all = 1;
+end
+
+if (findArg("fullmem")) then
+	-- we need to setup the extended memory test reporting!
+	setCfgVar("memerr","full_report",1); 
+end
+
+local vpd_arg_loc = findArg("vpd");
+if (vpd_arg_loc) then
+   assby_number = _args[vpd_arg_loc + 1];
+   eco_level = "     ",0;
+   serial_number = "Unknown                         ",0;
+   run_test_list.vpd = 1;
+else
+   assby_number = "Unknown",0;
+   eco_level = "     ",0;
+   serial_number = "Unknown                         ",0;
+end
+
+local svid_arg_loc = findArg("svid");
+if (svid_arg_loc) then
+   check_for_svid = 1;
+   sub_vendor_id = X(_args[svid_arg_loc + 1]);
+   run_test_list.svid = 1;
+else
+   check_for_svid = 0;
+   sub_vendor_id = "Unknown                 ",0;
+end
+
+local ssid_arg_loc = findArg("ssid");
+if (ssid_arg_loc) then
+   check_for_ssid = 1;
+   subsystem_id = X(_args[ssid_arg_loc + 1]);
+   run_test_list.ssid = 1;
+else
+   check_for_ssid = 0;
+   subsystem_id = "Unknown                  ",0;
+end
+
+local cksum_arg_loc = findArg("cksm");
+if (cksum_arg_loc) then
+   if (_args[cksum_arg_loc+1] ~= nil) then
+         mb_bios_cksm = X(_args[cksum_arg_loc+1]);
+	 if (mb_bios_cksm) then
+           check_cksm = 1;   --if value given, then do check
+	 end
+   else
+	 mb_bios_cksm = 0;
+	 check_cksm = 2;   --else, return checksum calculated
+   end
+
+else
+	mb_bios_cksm = 0;
+	check_cksm = 0;
+end
+
+if (findArg("agp")) then
+	run_test_list.agp = 1;
+	run_test_list.basic = 1;
+end
+
+if (findArg("4x")) then
+	run_test_list.agp4x = 1;
+	run_test_list.basic = 1;
+end
+
+local sli_arg_loc = findArg("sli");
+if (sli_arg_loc) then
+   check_for_sli = 1;
+else
+   check_for_sli = nil;
+end
+
+local aa_arg_loc = findArg("aa");
+if (aa_arg_loc) then
+   check_for_aa = 1;
+else
+   check_for_aa = nil;
+end
+
+if (findArg("debug")) then
+   diag_test_mode = 1;		--display robust table of pass/fail 
+end
+
+if (findArg("nopass")) then
+	display_pass = nil;
+else
+	display_pass = 1;
+end
+
+if (findArg("shell")) then
+	print("");
+	print("You will probably find the following useful:");
+	print("init_default_board()               -- initialize the default PCI board");
+
+
+	print("video_test();                      -- perform video test");
+	print("pci_test();                        -- perform pci test");
+	print("agp_test();                        -- perform agp test");
+	print("fbi_test();                        -- perform framebuffer test");
+	print("printPciInfo();                    -- print full PCI info");
+
+	print("set_vga_mode(mode);                -- set vga mode");
+	print("");
+	print("Lua Command Prompt (type 'q' to exit)");
+	command_prompt();
+	print_usage = nil;
+end
+
+-- 'summary' function, which is called when we're done.
+
+function mdc_summary()
+	local exit_code;
+	if (old_clock_settings) then
+          -- reset the clocks! 
+	  h3InitPlls(old_clock_settings.grxclock, old_clock_settings.memclock); 
+        end
+
+        if (diag_test_mode) then
+	  sectionBanner(1,"Full Results Summary");
+	  printTableSummary(test_results,1);
+        else
+         setupErrorExit(test_results);
+        end
+
+        print(format("   "));
+	sectionBanner(1,"Final Output Summary");
+	restoreText(); -- get the video back to text!
+	textOutputEnable(1); -- turn on output
+
+       -- print board speed/description!!!
+       -- print amount of memory found!!
+       if (getCfgVar("chksum","generate")) then
+         if (global_status) then
+             print("Generated golden checksums!");
+             persistTableToFile("chksum.golden",chksum.golden,"golden.sum");
+         else
+             print("Could not generate golden checksums!");
+             print("An error occurred!");
+         end
+       else 
+
+	 if (global_status) then
+	     if (display_pass) then
+	       print(pass_banner);
+	     end
+	     exit_code = 0;
+	 else
+             if (first_error ~= nil) then
+                exit_code = first_error;
+             else
+                exit_code = 1;
+             end;
+
+	     if (dofile("golden.sum") == nil) then
+		  print("ERROR: could not read golden file! (golden.sum)");
+		  print("       generate a golden file on a known golden board with:");
+		  print("       mdc /gengolden");
+		  print("");
+	     else
+		
+		printTableSummary(test_results,nil);
+		print(""); -- leave a blank line
+		print(fail_banner);
+	     end
+
+	 end
+       end
+
+       --
+       ssid = pciGetConfigData("PCI_SUBSYSTEM_ID");
+       if (ssid == 1) then
+          print("3dfx Voodoo5-6000 AGP Board Test Completed");
+       end
+       if (ssid == 2) then
+          print("3dfx Voodoo5-5500 SLI AGP Board Test Completed");
+       end
+       if (ssid == 3) then
+         print("3dfx Voodoo5-5000 SLI PCI Board Test Completed");
+       end
+       if (ssid == 4) then
+          print("3dfx Voodoo4-4800 AGP Board Test Completed");  --change for TV/FlatPanel later
+       end
+       if (ssid == 5) then
+          print("3dfx Voodoo4-4500 PCI Board Test Completed");
+       end
+
+       print(format("PCI Config VID  = 0x%X, DEVID = 0x%X",
+                pciGetConfigData("PCI_VENDOR_ID"),
+                pciGetConfigData("PCI_DEVICE_ID")));
+
+       print(format("PCI Config SVID = 0x%X, SSID = 0x%X",
+                pciGetConfigData("PCI_SUBVENDOR_ID"),
+                pciGetConfigData("PCI_SUBSYSTEM_ID")));
+
+       print(format("Memory Size = %dMB",fbi_size()));
+       print(format("Memory Clock = %dMhz",mem_clock()));
+       if (assby_number == "Unknown") then
+        print(format("Assembly Part Number = %s",assby_number));
+       else
+       print(format("Assembly Part Number = %s%s",assby_number,eco_level));
+       end
+       print(format("Serial Number of Board = %s",serial_number));
+       if (type(bios_version_string) == "string") then
+         print(format("BIOS: %s",bios_version_string));
+       end
+       if ((mb_cksum_ok == 0) and (check_cksm == 1)) then   -- if chksum okay, then display it
+            print(format("BIOS Checksum: %X",calc_mb_cksm));
+       else if ((mb_cksum_ok == 0) and (check_cksm == 2)) then -- display calculated checksum
+            print(format("Calculated BIOS Checksum: %X",calc_mb_cksm));
+       end
+       if (mb_cksum_ok == 1) then		-- if error occurred
+            print(format("BIOS Checksum Error--checksum calculated: %X",calc_mb_cksm));
+       end
+    end
+       print(format("[ 3dfx mfgdiag version %s, build on %s ]",
+		mdc_version, mdc_builddate));
+       print("see STDOUT.LOG for the full test output");
+       if (exit_code ~= nil) then
+         print("Exit Code: ".. tostring(exit_code) );
+       end;
+       exit(exit_code);
+end
+
+
+
+-- see if we need to run tests!
+if (next(run_test_list,nil)) then -- are there any items in 'run_test_list' ?
+    a_test_status = nil; -- clear test status
+    display_golden = nil;
+
+    if (getCfgVar("chksum","generate") == nil) then
+	if (dofile("golden.sum") == nil) then
+	   print("ERROR: could not read golden file! (golden.sum)");
+	   print("       generate a golden file on a known golden board with:");
+	   print("       mdc /gengolden");
+	   print("\nThe tests will run, but they will report failure...");
+	   print("[press a key]");
+	   getch();
+	else 
+          display_golden = 1;
+	   -- print("Golden Checksums: ");
+	   -- printTable(chksum.golden);
+	end
+    end
+
+    textOutputEnable(nil); -- turn off text output.
+
+
+    -- check to see if a board was selected!
+    if (init_default_board()) then
+       local lstatus = 1;
+       print_usage = nil;
+
+       if (display_golden == 1) then
+         if (run_test_list.vpd) then
+         -- Set initial result to fail
+         local assby_size = strlen(assby_number);
+         assby_result = checkVPD(assby_number, assby_size, serial_number, eco_level,0);
+         if (assby_result) then
+           print(format("Assembly Part Number = %s%s",assby_number,eco_level));
+           print(format("Serial Number of Board = %s",serial_number));
+         else
+           print("Assembly Part Number   = ???????");
+           print("Serial Number of Board = ???????");
+           print("                        ");
+         end
+        end
+        print("Read golden checksums...");
+       end
+      
+       sectionBanner(1,"Board Startup");
+
+       print("default board initialized");
+
+-- Original clock code that was not used!
+--     if (clkarg_loc) then
+--	local clkarg_grx = tonumber(_args[clkarg_loc + 1]);
+--	local clkarg_mem = tonumber(_args[clkarg_loc + 2]);
+--
+--	if (type(clkarg_grx) ~= "number") or (type(clkarg_mem) ~= "number") then
+--	      error("invalid use of /clk switch, must be followed by grx and mem clocks");
+--	else
+--	      print("NOTE: Setting the memory clock may require dramInit1 timing changes");
+--	      print("      for proper operation. dramInit1 is setup by the BIOS. See");
+--	      print("      the VooDoo5 Memory Tuning Guide for more information");
+--	      print("");
+--	      print(format("Setting Clocks, grx = %d, mem = %d",
+--		clkarg_grx,clkarg_mem));
+--	      h3InitPlls(clkarg_grx,clkarg_mem);
+-- 	end
+--    end
+
+
+-- New clock code for Voodoo5
+       if (clkarg_loc) then
+	clkarg_mem = tonumber(_args[clkarg_loc + 1]);
+
+	if (type(clkarg_mem) ~= "number") then
+	      print("invalid use of /clk switch, must be followed by new clock setting in Mhz");
+	      error("Example:  /clk 166 means change memory clock to 166Mhz");
+	end
+       end
+
+
+	-- non-interactive tests
+	   while (repititions > 0) do
+
+	     if (run_test_list.vpd) then
+		  sectionBanner(2,"ROM VPD Check");
+		  local assby_size = strlen(assby_number);
+
+                 -- check the Vital Product Data structure in BIOS
+	          assby_result = checkVPD(assby_number, assby_size, serial_number, eco_level,1);
+                 recordTestResult("rom","vpd_chk", assby_result);
+		  lstatus = assby_result and lstatus;
+	     end
+
+            if (run_test_list.serialrom) then
+ 	     	  sectionBanner(2,"Serial ROM Test");
+
+                 -- test the serial rom interface
+	          a_test_status = serial_rom_test();
+		  recordTestResult("rom","serial_rom",a_test_status);
+		  lstatus = a_test_status and lstatus;
+            end
+
+ 	     sectionBanner(2,"PCI Test");
+
+	     -- check pci bus
+	     a_test_status = pci_test(0,0,0);  --check pci scratch register
+	     recordTestResult("pci","bus",a_test_status);
+	     lstatus = a_test_status and lstatus;
+
+	     a_test_status = pci_test(1,X("0x0100008"),X("0x0FFF0FFF"));
+	     recordTestResult("pci","bus_1",a_test_status);
+	     lstatus = a_test_status and lstatus;
+
+	     a_test_status = pci_test(1,X("0x0100010"),X("0x00FFFFFF"));
+	     recordTestResult("pci","bus_2",a_test_status);
+	     lstatus = a_test_status and lstatus;
+
+	     a_test_status = pci_test(1,X("0x0200118"),X("0xFFFFFFFF"));
+	     recordTestResult("pci","bus_3",a_test_status);
+	     lstatus = a_test_status and lstatus;
+
+            -- check device ID (i.e. banshee or voodoo5?)
+	     pci_devid = pciGetConfigData("PCI_DEVICE_ID");
+	     a_test_status = chksum.checkChecksum("pci_deviceid",pci_devid);
+             recordTestResult("pci","cfg_deviceid",a_test_status);
+	     lstatus = a_test_status and lstatus;
+
+            -- check subvendor ID
+            if (run_test_list.svid) then
+	        pci_svid = pciGetConfigData("PCI_SUBVENDOR_ID");
+	        if (pci_svid == sub_vendor_id) then
+	          svid_result = 1;	-- subsystem ids match
+	          print(format("PCI Subsystem Vendor ID check passed."));
+               else
+                 svid_result = 0;    -- subsystem ids don't match
+	 	  print(format("PCI Subsystem Vendor ID check failed."));
+		end
+               recordTestResult("pci","cfg_subvendor", svid_result);
+		lstatus = svid_result and lstatus;
+            end
+
+            -- check subsystem ID
+            if (run_test_list.ssid) then
+		pci_ssid = pciGetConfigData("PCI_SUBSYSTEM_ID");
+		if (pci_ssid == subsystem_id) then
+		  svid_result = 1;	-- subsystem ids match
+	 	  print(format("PCI Subsystem ID check passed."));
+               else
+                 svid_result = 0;    -- subsystem ids don't match
+	 	  print(format("PCI Subsystem ID check failed."));
+		end
+               recordTestResult("pci","cfg_subsystem", svid_result);
+		lstatus = svid_result and lstatus;
+	     end
+
+	     if (run_test_list.all or run_test_list.basic) then
+	        sectionBanner(2,"ROM Check");
+               -- ROM tests
+               a_test_status, bios_version_string, calc_mb_cksm = checksumRom(check_cksm,mb_bios_cksm);
+               print(format("BIOS Version: %s",bios_version_string));
+               if ((a_test_status == 0) and (check_cksm)) then   -- if error occurred, don't display checksum
+                    mb_cksum_ok = 1;
+               end
+               recordTestResult("rom","bios_ver", a_test_status);
+		lstatus = a_test_status and lstatus;
+
+          if (run_test_list.agp) then
+ 		  sectionBanner(2,"AGP Test");
+
+                 -- test AGP 2x transfers
+		  a_test_status = agp_test(2);
+		  recordTestResult("agp","agp2x_chk",a_test_status);
+		  lstatus = a_test_status and lstatus;
+		  
+               end
+
+          if (run_test_list.agp4x) then
+ 		  sectionBanner(2,"AGP 4x Test");
+
+                 -- test AGP 4x transfers
+		  a_test_status = agp_test(4);
+		  recordTestResult("agp","agp4x_chk",a_test_status);
+		  lstatus = a_test_status and lstatus;
+		  
+               end
+
+
+		sectionBanner(2,"Memory Tests");
+		-- check memory size
+		memory_size = fbi_size();
+		a_test_status = chksum.checkChecksum("fbi_size", memory_size);
+		recordTestResult("fbi","memsize",a_test_status);
+		lstatus = a_test_status and lstatus;
+
+		if (clkarg_mem) then
+-- setmclk parameters are: 1st=new clock setting (decimal)
+--			   2nd=if 0, set pllctrl1 based on new clock setting
+--			       else, set pllctrl1 to this value
+--			   3rd=if 1, display frequency table in log file
+
+		  oldpll= setmclk(clkarg_mem,0,0);    -- Change memory clock if desired
+		  clock_changed = 1;		       -- Let programs know clock is changed
+		end
+
+		--  set_vga_mode(19); -- mode 13
+		set_vga_mode(273); -- 640x480x16bit
+		fbi_test(
+		 function(number)
+		   local lchksum = HWbansheeMemCrc();
+		   local my_status;
+
+		   my_status = chksum.checkChecksum(format("memtest_%d",number), lchksum);
+		   a_test_status = my_status and a_test_status;
+		   recordTestResult("fbi", format("memtest_%d",number),my_status);
+	 	 end);
+ 		lstatus = a_test_status and lstatus;
+
+		if (check_for_sli) then
+ 	          print("\nTesting Slave Memory\n");
+		  a_test_status = sli_fbi_test();
+		  recordTestResult("fbi", "slave_memory",a_test_status);
+    		  lstatus = a_test_status and lstatus;
+  		end;
+
+		if (clkarg_mem) then
+		   setmclk(clkarg_mem,oldpll,0);		-- Change memory clock if desired
+		   clock_changed = 0;		                -- Let programs know clock has not changed
+		end
+
+
+               if (do_const_fill) then
+--                  a_test_status = constFill(do_const_fill) and a_test_status;
+--                  lstatus = a_test_status and lstatus;
+                    constantFill = constFill(do_const_fill);
+	                a_test_status = chksum.checkChecksum("constFill",constantFill);
+                    recordTestResult("fbi","constFill",a_test_status);
+ 	                lstatus = a_test_status and lstatus;
+               end
+               if (do_rndm_fill) then
+--                    a_test_status = rndmFill(do_rndm_fill) and a_test_status;
+--                    lstatus = a_test_status and lstatus;
+                      randomFill = rndmFill(do_rndm_fill);
+                      a_test_status = chksum.checkChecksum("randomFill",randomFill);
+                      recordTestResult("fbi","rndmFill",a_test_status);
+                      lstatus = a_test_status and lstatus;
+               end
+
+               if (do_alternate_fill) then
+--                    a_test_status = alternateFill(do_alternate_fill,do_alternate_fill2) and a_test_status;
+--                    lstatus = a_test_status and lstatus;
+                      altFill = alternateFill(do_alternate_fill,do_alternate_fill2);
+                      a_test_status = chksum.checkChecksum("altFill",altFill);
+                      recordTestResult("fbi","altFill",a_test_status);
+                      lstatus = a_test_status and lstatus;
+               end
+
+		-- check desktopstart register
+	        desktopstart_check(X("0x555555"));
+                a_test_status = b2d.fb_check(format("desktopstart_reg1")) and a_test_status;
+  		lstatus = a_test_status and lstatus;
+		desktopstart_check(X("0xAAAAAA"));
+		a_test_status = b2d.fb_check(format("desktopstart_reg2")) and a_test_status;
+  		lstatus = a_test_status and lstatus;
+	        desktopstart_check(0);          -- restore register
+
+	      end	-- run_test_all
+
+             if (run_test_list.ddc) then
+		sectionBanner(2,"DDC Test");
+               a_test_status = 1;
+               did_ddccheck_run = nil;
+               local ddc_result;
+
+               ddc_result = ddccheck(
+                   function(cnt, data)
+                       did_ddccheck_run = 1;
+                       if (cnt < 8) then
+                         local mystatus = chksum.checkChecksum("ddc_data"..cnt,
+                                     data);
+                         recordTestResult("ddc","data"..cnt,mystatus);
+
+                         a_test_status = mystatus and a_test_status;
+                       end
+                    end
+                );
+
+                recordTestResult("ddc","data",(ddc_result == 0));
+                lstatus = (ddc_result == 0) and a_test_status and
+                          did_ddccheck_run and lstatus;
+                did_ddccheck_run = nil; -- clear out var
+                
+	     end  			-- end run_test_ddc
+
+	     if (run_test_list.all or run_test_list.video) then
+		sectionBanner(2,"Video Tests");
+		a_test_status = 1;
+		my_status = vga_core_test();
+		recordTestResult("vga",	"core", my_status);
+		lstatus = my_status and lstatus;
+		
+               if (getCfgVar("chksum","generate")) then  -- if generating checksums
+		   allmodes = X("0x55aa");		  -- then generate for all modes!
+		end
+		video_test(
+		function(number)
+			local lstatus = HWbansheeCrc();
+			local my_status;
+
+			my_status = chksum.checkChecksum(
+			     format("vga_mode_%Xh",number), lstatus);
+			a_test_status = my_status and a_test_status;
+			recordTestResult("vga",
+				format("mode_%Xh",number),my_status);
+
+		end, allmodes, -1);
+	     lstatus = a_test_status and lstatus;
+	     extvideo_test(
+		function(number)
+			local lstatus = HWbansheeCrc();
+			local my_status;
+
+			my_status = chksum.checkChecksum(
+			     format("vga_ext_mode_%Xh",number), lstatus);
+			a_test_status = my_status and a_test_status;
+			recordTestResult("vga",
+				format("ext_mode_%Xh",number),my_status);
+		end, allmodes, -1);
+	     lstatus = a_test_status and lstatus;
+	     end
+
+	     if (run_test_list.all or run_test_list.blit2d) then
+		sectionBanner(2,"Blit2d Tests");
+		a_test_status = b2d.run();           -- run the 2d blit tests
+		-- recordTestResult("b2d","main",a_test_status);
+		lstatus = a_test_status and lstatus; 
+	     end
+
+	     if (run_test_list.all or run_test_list.glide) then
+	        sectionBanner(2,"Glide (3d) Tests");
+		running_glide = 1;
+	        a_test_status = gt.run(check_for_sli, check_for_aa);  -- run the glide tests
+	        -- recordTestResult("3d","main",a_test_status);
+	        lstatus = a_test_status and lstatus;  
+	     end
+
+	     if (run_test_list.unreal) then
+               sectionBanner(2,"Glide (3d) Unreal Test");
+	       running_glide = 1;
+               gt.didrun = 0;
+               gt.my_status = 1;
+               if (not (run_test_list.all or run_test_list.glide)) then
+                  grGlideInit();
+               end  -- not
+               unreal_count = 1;	-- first time unreal test run
+               end_unreal_frm0 = 0;     -- signal to end unreal test 
+               end_unreal_frm1 = 0;     -- signal to end unreal test 
+               pixel_error_end = 0;
+               good_pixel_count = 0;    -- number of times get no pixel errors for frame 0
+               good_crc_count = 0;      -- number of times get good crcs for frame 0
+               good_pixel_count_1 = 0;    -- number of times get no pixel errors for frame 1
+               good_crc_count_1 = 0;      -- number of times get good crcs for frame 1
+               if (gplayTrace("unreal",1,2,
+                  function(frm)
+                      grSstIdle();
+                      gt.didrun = 1;
+                      gt.my_status = gt.fb_check("unreal_frm"..tostring(frm),"unrl"..tostring(frm))
+                          and gt.my_status;
+                  end)) then
+                  grGlideShutdown();
+		  restoreText(); -- get the video back to text!
+	          textOutputEnable(1); -- turn on output
+                  print("Could not open files for unreal test, check for");
+                  print("presence of UNREAL directory...");
+	          textOutputEnable(nil); -- turn on output
+                  recordTestResult("3d","unreal_test",0);
+               else     -- gplayTrace
+                 unreal_count = unreal_count + 1;	--second time unreal test run
+                 end_unreal_frm0 = 0;     -- signal to end unreal test 
+                 end_unreal_frm1 = 0;     -- signal to end unreal test 
+                 gplayTrace("unreal",1,2,
+                  function(frm)
+                      grSstIdle();
+                      gt.didrun = 1;
+                      gt.my_status = gt.fb_check("unreal_frm"..tostring(frm),"unrl"..tostring(frm))
+                          and gt.my_status;
+                  end)
+                 unreal_count = unreal_count + 1;	--third time unreal test run
+                 if ((good_crc_count == 2) and (good_crc_count_1 == 2)) then
+                  sleep(1);
+                  grGlideShutdown();
+                 else   -- end_unreal
+                    end_unreal_frm0 = 0;     -- signal to end unreal test 
+                    end_unreal_frm1 = 0;     -- signal to end unreal test 
+                    gplayTrace("unreal",1,2,
+                     function(frm)
+                        grSstIdle();
+                        gt.didrun = 1;
+                        gt.my_status = gt.fb_check("unreal_frm"..tostring(frm),"unrl"..tostring(frm))
+                          and gt.my_status;
+                     end)
+                    sleep(1);
+                    grGlideShutdown();
+                  end   -- end_unreal
+                end; -- gplayTrace
+
+               lstatus = gt.my_status and gt.didrun and lstatus;
+
+            end   -- end unreal
+
+
+	     repititions = repititions - 1;
+           end;         -- end while
+
+	  -- interactive tests
+
+	  if (run_test_list.color) then
+	     sectionBanner(2,"interactive color gun check");
+	     a_test_status = nil; -- make sure we fail if the mode dosn't run
+	     textOutputEnable(1);
+	     set_vga_mode(273); 
+	     
+	     print("Below you should see three color bars. ");
+	     print("Press 'Y' if they are present and correct, Press 'N' if not.");
+	     print("\n\n");
+	     print("   RED                      GREEN                      BLUE");
+	     textOutputEnable(nil);
+	     local rect = { 
+			dstX = 20, 
+			dstY = 100, 
+			colorFore = 4660, 
+			dstSizeX = 150, 
+			dstSizeY = 200, 
+			blitType = 5  -- flat color rectangle
+		    };
+	     rect.colorFore = 63488;
+	     blit2d(rect);
+	     rect.dstX = 220;
+	     rect.colorFore = 2016;
+	     blit2d(rect);
+	     rect.dstX = 440;
+	     rect.colorFore = X("0xFF");
+	     blit2d(rect);
+	     recordTestResult("video","color",get_yes_no());
+
+	  end;
+
+           if (run_test_list.pal) then
+	      sectionBanner(2,"PAL output check");
+             tvOutputEnable(2,composite);		--tv_out.pal);
+             set_vga_mode(3);
+	      textOutputEnable(1);
+             print("\n\n\n\n\n   *************************************");
+             print("\n                    PAL");
+             print("\n\n\n   *************************************");
+
+             print("\n\n Press 'Y' if this is displayed on the tv, or 'N' if not");
+	      textOutputEnable(nil);
+	      recordTestResult("video","pal",get_yes_no());
+--             tvOutputEnable(0,composite);		--tv_out.none);
+           end
+
+           if (run_test_list.palm) then
+	      sectionBanner(2,"PALm output check");
+             tvOutputEnable(3,composite);		--tv_out.pal);
+             set_vga_mode(3);
+	      textOutputEnable(1);
+             print("\n\n\n\n\n   *************************************");
+             print("\n                    PALm");
+             print("\n\n\n   *************************************");
+
+             print("\n\n Press 'Y' if this is displayed on the tv, or 'N' if not");
+	      textOutputEnable(nil);
+	      recordTestResult("video","palm",get_yes_no());
+          end
+
+          if (run_test_list.paln) then
+	      sectionBanner(2,"PALn output check");
+             tvOutputEnable(4,composite);		--tv_out.pal);
+             set_vga_mode(3);
+	      textOutputEnable(1);
+             print("\n\n\n\n\n   *************************************");
+             print("\n                    PALn");
+             print("\n\n\n   *************************************");
+
+             print("\n\n Press 'Y' if this is displayed on the tv, or 'N' if not");
+	      textOutputEnable(nil);
+	      recordTestResult("video","paln",get_yes_no());
+          end
+
+          if (run_test_list.palnc) then
+	      sectionBanner(2,"PALnc output check");
+             tvOutputEnable(5,composite);
+             set_vga_mode(3);
+	      textOutputEnable(1);
+             print("\n\n\n\n\n   *************************************");
+             print("\n                    PALnc");
+             print("\n\n\n   *************************************");
+
+             print("\n\n Press 'Y' if this is displayed on the tv, or 'N' if not");
+	      textOutputEnable(nil);
+	      recordTestResult("video","palnc",get_yes_no());
+--             tvOutputEnable(0,composite);		--tv_out.none);
+          end
+
+          if (run_test_list.ntsc) then
+	      sectionBanner(2,"ntsc output check");
+             tvOutputEnable(1,composite);		--tv_out.ntsc);
+             set_vga_mode(3);
+	      textOutputEnable(1);
+       
+             print("\n\n\n\n\n   *************************************");
+             print("\n                    NTSC");
+             print("\n\n\n   *************************************");
+
+             print("\n\n Press 'Y' if this is displayed on the tv, or 'N' if not");
+	      textOutputEnable(nil);
+	      recordTestResult("video","ntsc",get_yes_no());
+--             tvOutputEnable(0,composite);		--tv_out.none);
+          end
+
+          if (run_test_list.crt) then
+	      sectionBanner(2,"CRT output check");
+             tvOutputEnable(0,composite);		--tv_out.ntsc);
+             set_vga_mode(3);
+	      textOutputEnable(1);
+       
+             print("\n\n\n\n\n   *************************************");
+             print("\n                    CRT");
+             print("\n\n\n   *************************************");
+
+             print("\n\n Press 'Y' if this is displayed on the CRT, or 'N' if not");
+	      textOutputEnable(nil);
+	      recordTestResult("video","crt",get_yes_no());
+--             tvOutputEnable(0,composite);		--tv_out.none);
+          end
+
+          if (run_test_list.lcd) then
+	      sectionBanner(2,"LCD output check");
+             tvOutputEnable(1,composite);		--tv_out.ntsc);
+             set_vga_mode(3);
+             tvOutputEnable(6,composite);
+             set_vga_mode(3);
+	      textOutputEnable(1);
+             print("\n\n\n\n\n   *************************************");
+             print("\n                    LCD");
+             print("\n\n\n   *************************************");
+
+             print("\n\n Press 'Y' if this is displayed on the LCD, or 'N' if not");
+	      textOutputEnable(nil);
+	      recordTestResult("video","lcd",get_yes_no());
+--             tvOutputEnable(0,composite);		--tv_out.none);
+          end
+
+	   if (run_test_list.interactive) then
+	     sectionBanner(2,"interactive DAC check");
+
+	     a_test_status = nil; -- make sure we fail if the mode dosn't run
+
+	     video_test(
+
+		function(number)
+			local key;
+
+			print("video:dac_check, mode = ".. 
+				tostring(number));
+			 a_test_status = get_yes_no();
+		end, allmodes, run_test_list.interactive_mode);
+
+	       recordTestResult("video","dac_check",a_test_status);
+	  end
+	  -- global_status = global_status and lstatus;
+	  mdc_summary();
+    else
+	restoreText(); -- get the video back to text!
+	textOutputEnable(1); -- turn on output
+	printPciInfo();
+	print("\nERROR: No compatible board could be found for testing!\n");
+	exit(1);
+    end;
+end;
+
+
+
+-- default case!
+if (print_usage) then
+   if ( getCfgVar("memerr","full_report")) then
+      print("ERROR: You must use /fullmem with a test request. ");
+      print("       For example, try:");
+      print("                            mdc /basic /fullmem");
+      print("                 or try:    mdc /all /fullmem");
+
+   else
+     printUsage();
+   end
+end
+
+
+-- print("*** ARGS ****");
+-- printTable(_args);
+ 
