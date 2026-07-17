@@ -1,5 +1,15 @@
 # 3dfx-driver-optimized — optimization queue (audit 2026-07-17)
 
+> **★ PROFILING VERDICT (2026-07-17) — READ FIRST.** RDTSC frame profiling proved
+> the Voodoo5+P3-1GHz workload is **present/GPU-fixed-cost + engine bound, NOT
+> driver-CPU bound**: `grBufferSwap` = ~55% of frame (necessary GPU/SLI sync —
+> swap0/85Hz/triple-buffer all made it WORSE or broke it), T&L submission flush =
+> 0.1%. **Items 1-11 below target <1% of the frame and cannot raise fps** (which
+> is why 0.1.1-0.1.3 were flat). The only driver-side fps lever is item 12
+> (multitexture, reduce GPU passes, ~+6% ceiling). Shift effort to QUALITY.
+> Details: optimized/PROFILING-FINDINGS.md.
+
+
 Ranked per-commit optimizations for the Voodoo5/.143 pure-3dfx stack. Baseline 0.1.0 = 81.2 fps @640.
 Done: 0.1.1 = /G5->/G6 (items 1-2, glide3x + ICD scheduling).
 

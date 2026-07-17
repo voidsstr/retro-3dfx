@@ -460,7 +460,71 @@
  /************************************************************************/
  
  static void CheckViewport(__GLcontext *gc)
-@@ -384,7 +387,10 @@
+@@ -333,10 +336,29 @@
+ 
+ /************************************************************************/
+ 
++/* --- RDTSC frame profiling (logging only -> C:\3dfxprof.log). Answers the
++ * core question the resolution sweep can't: of each frame's wall-clock, how much
++ * is the deferred Glide FIFO flush (procs.flush = T&L submission) vs grBufferSwap
++ * (present/vsync wait) vs "other" (engine + inline GL). rdtsc via _emit for
++ * MSVC6-safety. No render change. Enabled at runtime by env RETRO3DFX_PROF=1. */
++static unsigned __int64 __prof_rdtsc(void)
++{
++    unsigned int __lo, __hi;
++    __asm { _emit 0x0F __asm _emit 0x31 __asm mov __lo, eax __asm mov __hi, edx }
++    return ((unsigned __int64)__hi << 32) | __lo;
++}
++static unsigned __int64 __prof_lastSwap = 0, __prof_frameAcc = 0,
++                        __prof_flushAcc = 0, __prof_swapAcc = 0;
++static int             __prof_frames = 0;
++
+ static void SwapBuffers(__GLcontext *gc)
+ {
+     extern unsigned long tacoHackGlideInit;
++    unsigned __int64 t0, t1, ts0, ts1;
++
++    t0 = __prof_rdtsc();
+     gc->procs.flush(gc);
++    t1 = __prof_rdtsc();
+ 
+     if (!gc->modes.doubleBufferMode) {
+         return;
+@@ -347,8 +369,32 @@
+     }
+ #endif
+ 
++    ts0 = __prof_rdtsc();
+     if ( tacoHackGlideInit ) {
+-        grBufferSwap(1);
++        grBufferSwap(1);   /* swapInterval 1 required — grBufferSwap(0) breaks
++                              rendering on the Voodoo5 SLI (hard sync needed) */
++    }
++    ts1 = __prof_rdtsc();
++
++    __prof_flushAcc += (t1 - t0);
++    __prof_swapAcc  += (ts1 - ts0);
++    if (__prof_lastSwap) { __prof_frameAcc += (ts1 - __prof_lastSwap); __prof_frames++; }
++    __prof_lastSwap = ts1;
++    if (__prof_frames >= 100) {
++        FILE *f = fopen("C:\\3dfxprof.log", "a");
++        if (f) {
++            double fr = (double)__prof_frameAcc;
++            fprintf(f, "frames=%d avgFrameKc=%u flushKc=%u swapKc=%u flush%%=%.1f swap%%=%.1f other%%=%.1f\n",
++                __prof_frames,
++                (unsigned)((__prof_frameAcc / __prof_frames) / 1000),
++                (unsigned)((__prof_flushAcc / __prof_frames) / 1000),
++                (unsigned)((__prof_swapAcc  / __prof_frames) / 1000),
++                fr > 0 ? 100.0 * (double)__prof_flushAcc / fr : 0.0,
++                fr > 0 ? 100.0 * (double)__prof_swapAcc  / fr : 0.0,
++                fr > 0 ? 100.0 * (double)(__prof_frameAcc - __prof_flushAcc - __prof_swapAcc) / fr : 0.0);
++            fclose(f);
++        }
++        __prof_frames = 0; __prof_frameAcc = 0; __prof_flushAcc = 0; __prof_swapAcc = 0;
+     }
+ }
+ 
+@@ -384,7 +430,10 @@
      if (gc->renderMode != GL_RENDER || __gl_beginMode == __GL_IN_BEGIN)
          return GL_FALSE;
  
@@ -471,7 +535,7 @@
      tacoHackGlideInit = 0;
  
      __glLoseCurrentBuffers( gc, ((__GLDDcontext *)gc)->displayBank );
-@@ -573,7 +579,10 @@
+@@ -573,7 +622,10 @@
      gc->currentDispatchState = __glSSTImmedState;
      gc->listCompState = __glSSTListCompState;
  
@@ -482,7 +546,7 @@
  
  #ifdef __GL_BUILD_TRACE
      if (getenv("SST_TRACEGL")) {
-@@ -604,6 +613,10 @@
+@@ -604,6 +656,10 @@
      res      = SST_640x480;
      windowable = 0;
  
@@ -493,7 +557,7 @@
      if ( !strcmp( grGetString( GR_HARDWARE ), "Voodoo2" ) ) {
          platform = SST_VOODOOII;
      } else if ( !strcmp( grGetString( GR_HARDWARE ), "Voodoo" ) ) {
-@@ -668,14 +681,24 @@
+@@ -668,14 +724,26 @@
          }
      }
  
@@ -510,7 +574,10 @@
                                             GR_REFRESH_60Hz,
                                             GR_COLORFORMAT_ARGB,
                                             GR_ORIGIN_UPPER_LEFT,
-                                            2,1 )) ) {
+-                                           2,1 )) ) {
++                                           2,1 )) ) {         /* double-buffer 60Hz = optimal;
++                                              triple-buffer(3,1) -> 55.8fps and 85Hz destabilized
++                                              (the swap does necessary GPU/SLI sync, not idle wait) */
 +        OGLLOG( "MakeCurrent: ** grSstWinOpen FAILED (returned 0) **" );
          return GL_FALSE;
      }
@@ -519,7 +586,7 @@
      tacoHackGlideInit = 1;
  
      if ( !gc->modes.doubleBufferMode || getenv( "SST_SINGLEBUFFER" ) ) {
-@@ -717,6 +740,9 @@
+@@ -717,6 +785,9 @@
                   GR_COMBINE_FUNCTION_LOCAL,
                   GR_COMBINE_FACTOR_NONE,
                   FXFALSE, FXFALSE);
@@ -529,7 +596,7 @@
  
      gc->texture.hwMinMag[0] = ~0;
      gc->texture.hwMinMag[1] = ~0;
-@@ -779,6 +805,15 @@
+@@ -779,6 +850,15 @@
  
          /* XXXTaco This init is a hack */
          if ( gc->grNTexelFx == 2 ) {
@@ -545,7 +612,7 @@
              static char mtexString[] = "GL_SGIS_multitexture ";
              if ( !strstr( gc->constants.extensions, mtexString ) ) {
                  char *extString;
-@@ -852,6 +887,7 @@
+@@ -852,6 +932,7 @@
      gc->gcState |= __GL_INIT_HW | __GL_HW_MODE;
      gc->gcState &= ~__GL_PIXMAP_MODE;
  
