@@ -52,3 +52,30 @@ gate isn't being cleared between validate and draw (check the __glSSTSetCDRSText
 SOME point, but maybe not when the draw's vertices are built). All plumbing is in
 place; this is purely an injection-point / gate-lifetime problem.
 Shipped/correct = 0.1.3 (ICD md5 0d8c9a5a). 4 dark experimental DLLs preserved here.
+
+## Glide->GDI teardown / stuck-mode / garble — DIAGNOSED (2026-07-17 morning)
+Symptom: after Quake III exits the Voodoo5 is stuck in 640x480 Glide mode; forcing
+a GDI mode change (setmode/ChangeDisplaySettings) then garbles the screen (Glide
+FB + GDI intertwined), self-heals as the desktop repaints.
+
+Root cause (confirmed with grSstWinClose logging -> C:\glide3x.log):
+- CLEAN Q3 exit (+quit): grSstWinClose runs fully, *lostContext==0, WILL restore
+  video, hwcRestoreVideo OK -> **desktop restores to 1024x768, NO garble.** Works.
+- CRASH / taskkill exit: grSstWinClose is NEVER CALLED (process died) -> board left
+  in Glide mode -> stuck 640x480 -> garble when GDI reclaims. The 0.1.0 dummy
+  lostContext is NOT the cause (its value is 0, so the early-return skip never fires).
+So the driver teardown is CORRECT; the stuck/garble is purely the abnormal-exit case
+where the app can't clean up.
+
+Fix options:
+1. Workaround (shipped): play_q3.bat = start /wait quake3 ... then setmode 1024 768
+   32 85. Clean exit: redundant (grSstWinClose already restored). Crash: setmode
+   restores GDI (brief self-healing garble).
+2. Proper driver fix (needs display-driver rebuild + reboot; logging is BUILT):
+   display driver DrvAssertMode(enable) on GDI reclaim after a dead Glide app must
+   fully reinit/clear the framebuffer so there's no garble. Instrumented in
+   3dfxv5d.dll (ENABLE.C DrvAssertMode/DrvEnableSurface, HWCEXT.C lifecycle escapes,
+   EngDebugPrint '3DFXV5D:') + miniport writes 'LastMode' REG_BINARY (readable via
+   REGREAD at HKLM\System\CurrentControlSet\Services\<3dfxv5m>\Device0\LastMode).
+Logging builds in dist/: glide3x 21c7422e (grSstWinClose trace, DEPLOYED, no-reboot),
+3dfxv5d.dll e4e1ed2a + 3dfxv5m.sys 2fb49957 (need reboot to deploy).

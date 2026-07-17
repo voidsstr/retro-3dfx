@@ -3166,21 +3166,50 @@ GR_ENTRY(grSstWinClose, FxBool, (GrContext_t context))
   GrGC* gc = (GrGC*)context;
   GDBG_INFO(80, FN_NAME"(0x%X)\n", context);
 
-  if (!gc)
+  /* ---- TEARDOWN TRACE (Voodoo5/XP "stuck 640x480 after Q3 exit") ---- */
+  _gsstLog("grSstWinClose ENTER context=0x%x gc=0x%x is_opengl=%d",
+           (unsigned)context, (unsigned)gc,
+           (int)(_GlideRoot.environment.is_opengl == FXTRUE));
+
+  if (!gc) {
+        _gsstLog("grSstWinClose EXIT-EARLY: gc==NULL (no teardown, video NOT restored)");
         return 0;
+  }
+
+  _gsstLog("grSstWinClose state: open=%d rez=%d refresh=%d lostContextPtr=0x%x lostContextVal=0x%x bInfo=0x%x osNT=%d",
+           (int)gc->open, (int)gc->grSstRez, (int)gc->grSstRefresh,
+           (unsigned)gc->lostContext,
+           (unsigned)(gc->lostContext ? *gc->lostContext : 0xBADF00D),
+           (unsigned)gc->bInfo,
+           (int)(gc->bInfo ? gc->bInfo->osNT : -1));
 
   /* If we are OpenGL, we need to release Exclusive mode so other
   ** OpenGL fullscreen apps can run.  If not, we will cause a lot
   ** of problems.
   */
   if (_GlideRoot.environment.is_opengl == FXTRUE) {
+    _gsstLog("grSstWinClose step[OGL-EXCL]: is_opengl -> hwcRestoreVideo(bInfo=0x%x) to release exclusive mode",
+             (unsigned)gc->bInfo);
     hwcRestoreVideo(gc->bInfo);
+    _gsstLog("grSstWinClose step[OGL-EXCL]: hwcRestoreVideo returned (exclusive released, desktop mode should be restored here)");
+  } else {
+    _gsstLog("grSstWinClose step[OGL-EXCL]: NOT opengl -> skipping the early exclusive-mode hwcRestoreVideo");
   }
 
 #ifndef	__linux__
   if (gc->lostContext) {
-    if (*gc->lostContext)
+    if (*gc->lostContext) {
+      /* ABNORMAL-TEARDOWN SKIP: lost-context flag is set, so the whole
+       * video-restore / unmap block below is BYPASSED and the board is
+       * left in the Glide (640x480) mode.  This is the prime suspect for
+       * the "stuck 640x480 / garbled desktop" bug on abnormal Q3 exit. */
+      _gsstLog("grSstWinClose EXIT-EARLY: *lostContext=0x%x is SET -> SKIPPING video-restore+unmap (board LEFT in Glide mode, desktop NOT restored)",
+               (unsigned)*gc->lostContext);
       return 0;
+    }
+    _gsstLog("grSstWinClose check: lostContext present but *lostContext==0 -> proceeding with full teardown");
+  } else {
+    _gsstLog("grSstWinClose check: lostContext ptr is NULL -> proceeding (lost-context detection disabled by 0.1.0 fix)");
   }
 #endif	/* defined(__linux__) */
 
@@ -3229,11 +3258,16 @@ GR_ENTRY(grSstWinClose, FxBool, (GrContext_t context))
        * safe everywhere.
        */
       GDBG_INFO(gc->myLevel, "  Restore Video");
+      _gsstLog("grSstWinClose step[VIDEO-RESTORE]: entering main restore block (open path)");
 #ifndef	__linux__
       if (!*gc->lostContext) {
+        _gsstLog("grSstWinClose step[VIDEO-RESTORE]: *lostContext==0 -> WILL restore video (disable SLI/AA, then hwcRestoreVideo)");
       /* disable SLI and AA */
 #ifdef FX_GLIDE_NAPALM
         if (IS_NAPALM(gc->bInfo->pciInfo.deviceID)) {
+          _gsstLog("grSstWinClose step[VIDEO-RESTORE]: NAPALM path deviceID=0x%x chipCount=%d sliCount=%d pixelSample=%d -> chipmask/tex2ppc/aa/sli teardown",
+                   (unsigned)gc->bInfo->pciInfo.deviceID, (int)gc->chipCount,
+                   (int)gc->sliCount, (int)gc->grPixelSample);
           _grChipMask( SST_CHIP_MASK_ALL_CHIPS );
           _grTex2ppc(FXFALSE);
           if (gc->grPixelSample > 1) {
@@ -3246,8 +3280,14 @@ GR_ENTRY(grSstWinClose, FxBool, (GrContext_t context))
           /* Idle the 3D pipe. */
           grFinish();
         }
-#endif            
+#endif
+        _gsstLog("grSstWinClose step[VIDEO-RESTORE]: calling hwcRestoreVideo(bInfo=0x%x) -> ExtEscape to display driver, restore prior GDI/desktop mode",
+                 (unsigned)gc->bInfo);
         hwcRestoreVideo(gc->bInfo);
+        _gsstLog("grSstWinClose step[VIDEO-RESTORE]: hwcRestoreVideo returned OK (board released, desktop mode restore requested)");
+      } else {
+        _gsstLog("grSstWinClose step[VIDEO-RESTORE]: *lostContext=0x%x SET -> SKIPPING hwcRestoreVideo (board LEFT in Glide mode!)",
+                 (unsigned)*gc->lostContext);
       }
 #endif	/* defined(__linux__) */
 #endif /* !GLIDE_INIT_HAL */
@@ -3274,14 +3314,19 @@ GR_ENTRY(grSstWinClose, FxBool, (GrContext_t context))
     gc->grSstRefresh = GR_REFRESH_NONE;
   }
   _GlideRoot.windowsInit--;
-    
+
 #if (GLIDE_OS & GLIDE_OS_WIN32)
-  if ( gc->bInfo->osNT )
+  if ( gc->bInfo->osNT ) {
+    _gsstLog("grSstWinClose step[UNMAP]: osNT -> hwcUnmapMemory() (release board mapping)");
     hwcUnmapMemory();
-  else
+  } else {
+    _gsstLog("grSstWinClose step[UNMAP]: 9x -> hwcUnmapMemory9x(bInfo=0x%x)", (unsigned)gc->bInfo);
     hwcUnmapMemory9x ( gc->bInfo );
+  }
 #endif
 
+  _gsstLog("grSstWinClose EXIT: full teardown complete, returning TRUE (windowsInit now=%d)",
+           (int)_GlideRoot.windowsInit);
   return FXTRUE;
 #undef FN_NAME
 } /* grSstWinClose */
