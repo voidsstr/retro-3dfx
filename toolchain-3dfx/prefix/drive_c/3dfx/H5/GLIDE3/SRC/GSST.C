@@ -935,6 +935,22 @@ assertDefaultState( void )
   /* Just set this once. */
   gc->state.shadow.fbzColorPath = SST_PARMADJUST;
 
+  /* OPT 0.1.2 state-dedup: force-invalidate every register group covered
+  ** by the deduplicated state setters in distate.c.  The setters early-out
+  ** when the incoming args equal the stored stateArgs; if a default call
+  ** below happens to match leftover/zero-initialized stateArgs it would
+  ** otherwise skip its INVALIDATE and the group might never be pushed to
+  ** hardware.  With the groups pre-invalidated here, the first
+  ** _grValidateState() always programs them from the stored args, which
+  ** are correct in either case (a skip only happens on equality). */
+  INVALIDATE(fbzColorPath);
+  INVALIDATE(tmuConfig);
+  INVALIDATE(alphaMode);
+  INVALIDATE(fbzMode);
+  INVALIDATE(chromaKey);
+  INVALIDATE(c0c1);
+  INVALIDATE(fogMode);
+
   grDisable(GR_ALLOW_MIPMAP_DITHER);
   grSstOrigin(gc->state.origin);
   grAlphaBlendFunction(GR_BLEND_ONE , GR_BLEND_ZERO, 
