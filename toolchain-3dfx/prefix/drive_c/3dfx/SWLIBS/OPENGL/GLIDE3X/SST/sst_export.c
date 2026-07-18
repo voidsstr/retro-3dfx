@@ -32,6 +32,15 @@
 #include "sst_globals.h"
 #include "sst_imfncs.h"
 
+/* grSstWinOpenExt is a glide3x EXTENSION entry (not a static export) -- like
+ * grColorCombineExt it must be fetched via grGetProcAddress (see SST_TEX.C).
+ * (Do NOT #include <g3ext.h> -- it forces a link-time ref to the symbol.) */
+#ifndef GR_PIXFMT_ARGB_8888
+#define GR_PIXFMT_ARGB_8888 0x0005          /* from G3EXT.H */
+#endif
+typedef GrContext_t (FX_CALL *__pfnWinOpenExt)(FxU32, GrScreenResolution_t,
+        GrScreenRefresh_t, GrColorFormat_t, GrOriginLocation_t, int /*GrPixelFormat_t*/, int, int);
+
 /* crash-robust debug logging to C:\3dfxogl.log (defined in wgl/wglcmds.c) */
 extern void OGLLOG( const char *fmt, ... );
 
@@ -731,14 +740,32 @@ static GLboolean MakeCurrent(__GLcontext *gc)
             gc->constants.maxViewportWidth, gc->constants.maxViewportHeight,
             (unsigned)tacoHackHWND, resolution );
 
-    if ( !(tacoHackContext = grSstWinOpen( tacoHackHWND,
+    /* RETRO3DFX EXPERIMENT (env RETRO3DFX_32BPP): open the hw color buffer in
+     * true-color ARGB_8888 instead of the default RGB565. Must stay in lockstep
+     * with __wglGlideGetDisplayMasks/LockBuffer (WGLGLIDE.C) so the ICD's
+     * software buffer depth matches the hw. Env-unset = the original 565 path. */
+    if ( getenv("RETRO3DFX_32BPP") ) {
+        __pfnWinOpenExt pfnExt = (__pfnWinOpenExt) grGetProcAddress( "grSstWinOpenExt" );
+        OGLLOG( "MakeCurrent: RETRO3DFX_32BPP -> grSstWinOpenExt=0x%x (GR_PIXFMT_ARGB_8888)",
+                (unsigned)pfnExt );
+        if ( pfnExt )
+            tacoHackContext = (*pfnExt)( tacoHackHWND, resolution, GR_REFRESH_60Hz,
+                                         GR_COLORFORMAT_ARGB, GR_ORIGIN_UPPER_LEFT,
+                                         GR_PIXFMT_ARGB_8888, 2, 1 );
+        else                          /* fallback to 16bpp if the ext isn't resolvable */
+            tacoHackContext = grSstWinOpen( tacoHackHWND, resolution, GR_REFRESH_60Hz,
+                                            GR_COLORFORMAT_ARGB, GR_ORIGIN_UPPER_LEFT, 2, 1 );
+    } else {
+        tacoHackContext = grSstWinOpen( tacoHackHWND,
                                            resolution,
                                            GR_REFRESH_60Hz,
                                            GR_COLORFORMAT_ARGB,
                                            GR_ORIGIN_UPPER_LEFT,
-                                           2,1 )) ) {         /* double-buffer 60Hz = optimal;
+                                           2,1 );         /* double-buffer 60Hz = optimal;
                                               triple-buffer(3,1) -> 55.8fps and 85Hz destabilized
                                               (the swap does necessary GPU/SLI sync, not idle wait) */
+    }
+    if ( !tacoHackContext ) {
         OGLLOG( "MakeCurrent: ** grSstWinOpen FAILED (returned 0) **" );
         return GL_FALSE;
     }

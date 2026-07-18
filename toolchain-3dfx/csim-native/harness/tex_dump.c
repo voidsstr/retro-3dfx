@@ -45,7 +45,7 @@ int main(int argc, char **argv)
     /* aperture writes MUST go through the sim's store intercept (SET = halStore32),
      * NOT a direct pointer store. Write 32-bit words = 2 RGB565 texels each.
      * vertical stripes: even column red (0xF800), odd column green (0x07E0). */
-    {
+    if(0){ /* upload OFF */
         volatile FxU32 *texap32 = (volatile FxU32 *)(SST_BASE_ADDRESS(hw) + SST_TEX0_OFFSET);
         (void)texap;
         for (v = 0; v < TH; v++)
