@@ -139,6 +139,40 @@ were disproved by reading the detection paths; see Phase 0 log below):
   >32 MB addressing limits in hwcAllocBuffers and Glide texture download.
 - Soak + benchmark; if stable, make 256 MB the default documented config.
 
+## Benchmark-stack readiness (added 2026-07-18, works on 5500 today)
+
+Goal: benchmark OpenGL games, Glide games, D3D games, and 3DMark. Per-API
+state after the glide2x build:
+
+| API | Component | State |
+|---|---|---|
+| OpenGL | `3dfxogl.dll` ICD (ours, 0.2.0) | Built, benchmarked (Q3). Now INF-registered: `voodoo5-6k.inf` ships it + writes the vintage `OpenGLdrivers\3dfx` registry keys. |
+| Glide 3.x | `glide3x.dll` | Built, verified (96 exports), shipped. |
+| Glide 2.x | `glide2x.dll` | **NEW: built** from `H5/GLIDE/SRC` (133 exports, Napalm packet-FIFO config, minihwc-linked). Most Glide games (Unreal/UT, NFS, Diablo II…) need this, not glide3x. Shipped + INF CopyFiles. |
+| Direct3D | D3D HAL inside `3dfxv5d.dll` | Compiled in (d3/d6/d7 HAL + SIMD T&L asm objs verified in objfre). DX6/DX7-class caps; DX8 DDI negotiates but reports DX7 caps (hardware has no shaders). Untested on real hardware — first verify item. |
+| DirectDraw | `3dfxv5d.dll` | Working (it's the desktop path on .143). |
+
+3DMark expectations: 3DMark99/2000 (DX6/DX7) should run fully; 3DMark2001
+runs the non-shader subset (no HW T&L, no pixel/vertex shader tests —
+that's authentic VSA-100 behavior, same as period reviews). Nature test
+will be absent. Glide benchmarking: UT '99 Glide mode or NFS:Porsche;
+`FX_GLIDE_*` env vars work for AA/SLI experiments.
+
+Build notes (learned): Glide2 and Glide3 stage *different* `glide.h` into
+`H5\include` — the include dir is per-API state. To rebuild glide2x:
+overlay `GLIDE/SRC/{GLIDE,GLIDESYS,GLIDEUTL}.H` into `H5/INCLUDE`, nmake
+in `GLIDE/SRC` with the glide3 env but `FX_HW_PROJECTS=glide`, then
+restore the Glide3 headers (backup pattern in the 2026-07-18 session).
+Splash: glide2x is built `GLIDE_SPLASH` but we don't ship `3dfxSpl2.dll`;
+Glide2 LoadLibrary's it and continues without — verify no-splash startup
+on hardware.
+
+Remaining to verify on .143 (5500, before the 6000 arrives):
+1. Install the updated package; confirm ICD registry keys land and
+   GL_RENDERER reports our ICD after reboot.
+2. Run a D3D title / 3DMark2000 — first real exercise of the D3D HAL.
+3. Run a Glide2 game or `test05`-style diag against glide2x.dll.
+
 ## Phase 4 — productize
 
 - `dist/3dfx-napalm-xp-*` package: add voodoo5-6k.inf + docs; update the
