@@ -99,3 +99,15 @@ these for the Glide/ICD side.
 Phase 0: run 3DMark 99 Max on the retail driver now (no risk), record the score +
 "no crash", and that becomes the target for our driver. Everything past Phase 1 is
 supervised (kernel risk), so it waits for a user-present session.
+
+## Phase 0 RESULT (2026-07-18) — retail D3D driver CRASHES under 3DMark2000
+Ran 3DMark2000 v1.1 (DX7) default benchmark on the **retail** `3dfxvs` display
+driver, 1024×768×16. It ran the game/fill/poly scenes for ~5 minutes with no app
+crash, then **the display driver TDR'd**: "Windows — Display Driver Stopped
+Responding … The 3dfxvs display driver has stopped working normally … reboot".
+The desktop dropped to VGA fallback (640×480×4) but **recovered via a mode-set**
+(no reboot needed), and the **OpenGL/Glide path was unaffected** — Q3 ran at 58.6
+fps immediately after. So: 3DMark2000 itself is fine on XP+Voodoo3; the **retail
+D3D HAL is what's unstable under sustained load.** This is the concrete motivation
+for Phases 1–5: our own H5-built D3D HAL (`D7D3D.C`) is ours to stabilize/optimize.
+(3DMark99 separately can't even launch on XP — needs DX6.1.)
