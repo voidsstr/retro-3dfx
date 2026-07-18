@@ -40,6 +40,29 @@ RISK: LOW-ish — miniport (the BSOD risk) is unchanged & already proven; a fail
 => VGA fallback, recoverable remotely by flipping the registry back (agent still runs).
 ROLLBACK: REGWRITE InstalledDisplayDrivers back to 3dfxvs + reboot.
 
+## ★★ ROOT-CAUSE #2 (2026-07-18): ICD never honored GL texture filters -> 0.2.0
+The ICD called grTexFilterMode(GR_TMU0, POINT_SAMPLED, BILINEAR) ONCE at context
+init (sst_export.c:794) and NEVER updated it from glTexParameter. Result: every
+MINIFIED texture (minFilter != GL_LINEAR) was POINT-sampled in hw -> grainy
+'software-renderer' shimmer on distant/minified surfaces + chunky scaled 2D text.
+Also the init only set TMU0, but single-texture binds land on TMU1 (proven by the
+FILT dump: tmu=1). FIX (0.2.0): __glSSTApplyGrFilter(tex) at all 7 grTexSource
+bind sites, maps GL min/mag -> Glide POINT/BILINEAR, applied to BOTH TMUs.
+Verified via instrumentation: menu font 256x32/128x16 now bind min=mag=BILINEAR.
+Framebuffer CAPTURE of the menu is ~unchanged (2D glyphs draw ~1:1 texel:pixel so
+point==bilinear there) -> the *capture* slicing is NOT a filter issue; but 3D
+minified surfaces DO improve. Monitor verification pending (user).
+
+## Efficient A/B loop (the process, now proven this session)
+Per driver change (ICD, the SAFE lane): edit source -> build_ogl.bat (guards) ->
+release/opengl.dll -> stage to scratchpad -> deploy (UPLOAD + copy to game dir +
+system32, no reboot) -> capture menu+q3dm1 via +screenshot -> compare PNGs (+ zoom
+crops) + run_bench for fps. Each build ~1-2 min. Instrument-first for any
+'why' question (renderTriangle/DrawElements/filter/texsetup dumps via OGLLOG ->
+C:dfxogl.log), then fix at the confirmed site, then revert instrumentation for
+ship. Monitor-only bugs (scanout/dither) need the user; capture-visible bugs
+(filtering, texcoord, color) are fully autonomous.
+
 ## Postfilter test (2026-07-18) — glide3x vidMaxRGBDelta has NO visible effect
 Widened the video postfilter in glide3x MINIHWC (vidMaxRGBDelta 0x100810 -> 0x303030,
 all 4 MINIHWC.C sites), rebuilt glide3x (build_glide_g6.bat, user-mode SAFE), deployed,
