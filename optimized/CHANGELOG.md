@@ -19,4 +19,30 @@ Deploy/bench harness: `tools/deploy_bench.py`. Q3 timedemo `four`, r_mode/colorb
 | 0.1.4-exp | GL_ARB_multitexture single-pass world rendering (2 TMU) + DrvGetProcAddress fix (was NULL -> blocked ALL extensions under XP opengl32) | (this commit, EXPERIMENTAL) | 640x480: **84.5 (+5-6%)** but render TOO DARK | **NOT SHIPPED.** Real +6% single-pass win + the DrvGetProcAddress fix are both valuable. But single-pass is ~half brightness: Q3 sends identityLight=0.5 expecting a 2x overbright the 2-pass path got free from the lightmap blend (GL_SRC_COLOR/GL_DST_COLOR). Added 2x via grColorCombineExt shift=1 — log confirms the branch engages (ext_active=1, texEnv 0x2100x2) but the Napalm output-shift does NOT double on hardware. NEXT: apply the 2x by a different mechanism (double the iterated color, or grConstantColorValue factor, or grTexCombine scale) — the ext output-shift is a dead end here. dist/ + .143 kept at correct-rendering 0.1.3. |
 | 0.2.0 | honor GL min/mag texture filters in hardware at every grTexSource bind (was set once at init = POINT_SAMPLED, so every minified texture point-sampled → shimmer) | 131e430 | 640x480: 76.5 (no regression) | `__glSSTApplyGrFilter` at 7 grTexSource sites, both TMUs. User confirmed "somewhat better" on monitor. GL_RENDERER [retro3dfx 0.2.0]. |
 | 0.2.1 | GLCORE `__glCookSubTexture` OOB fix: sub-image row origin used `w*y+x` not `lp->width*y+x`, srcSkip missing `*bpp` — walked out of bounds on any partial update. Only affects the generic (non-SST) cook path. | (this commit) | n/a (correctness) | Necessary but NOT the UT crash (the SST hw path is separate — see 0.2.2). Kept: correct for the generic path. |
-| **0.2.2** | **UT glTexSubImage2D crash FIX**: `__glsstim_TexSubImage2D` (SST_TEX.C:3427) deref'd `cache->addr` with a NULL hw-cache pointer on non-resident partial texture updates (UT's create-empty-then-subimage lightmap pattern) → GPF loop → Double fault. Guard the partial download with `if (cache)`. + `element_size` default in `__glSSTShadowTexSubImage`. | (this commit) | Q3 76.5 / Q2 178-183 / CS 67.7 (all no-regression) | **★ ALL 4 GAMES STABLE.** UT loads CityIntro + runs 0 criticals (was crashing in seconds). Root cause proven by instrumentation: pre-download 6241 vs post-download 5754, Δ=487 == exactly the 487 `cache=0` calls. Additive guard (cache!=NULL path byte-identical) → can't regress Q3/Q2/CS. GL_RENDERER [retro3dfx 0.2.2], md5 6b8182dd. |
+| **0.2.2** | **UT glTexSubImage2D crash FIX**: `__glsstim_TexSubImage2D` (SST_TEX.C:3427) deref'd `cache->addr` with a NULL hw-cache pointer on non-resident partial texture updates (UT's create-empty-then-subimage lightmap pattern) → GPF loop → Double fault. Guard the partial download with `if (cache)`. + `element_size` default in `__glSSTShadowTexSubImage`. | 2c3b912 | Q3 76.5 / Q2 178-183 / CS 67.7 (all no-regression) | **★ ALL 4 GAMES STABLE.** UT loads CityIntro + runs 0 criticals (was crashing in seconds). Root cause proven by instrumentation: pre-download 6241 vs post-download 5754, Δ=487 == exactly the 487 `cache=0` calls. Additive guard (cache!=NULL path byte-identical) → can't regress Q3/Q2/CS. GL_RENDERER [retro3dfx 0.2.2], md5 6b8182dd. |
+
+## Quality campaign (present-bound ⇒ fill is ~free)
+
+Profiling proved Q3/Q2/CS are present/engine-bound on the V5 5500 + P3 — fps is
+capped, so image quality is nearly free. Measured on ICD 0.2.2:
+
+| quality | Q3 640 fps | vs baseline | notes |
+|---------|-----------|-------------|-------|
+| default (picmip 1, bilinear, 16-bit) | 76.5 | — | |
+| **max** (picmip 0, trilinear `GL_LINEAR_MIPMAP_LINEAR`, 16-bit) | **72.0** | **−5.9%** | Full texture detail + trilinear for 6% — in-game render clean+detailed (see benchmarks/quality_q3dm1.png), still >60fps. Menu proportional font readable in capture, minor slicing (postfilter = supervised display-driver fix). |
+| **max + 32-bit request** (r_colorbits 32) | 70.9-71.7 | ≈ same (present-bound) | Q3 asked for 32-bit (`GLW_ChoosePFD(32,24,8)`) but the ICD could only offer `PIXELFORMAT 3 = color(16-bits)` → render bit-identical to 16-bit (distinct colors 3633 vs 3637, same mean-lum). **The ICD's PFD table has no 32-bit color entry.** Added `--colorbits 32` to the bench skill (default 16). |
+
+### ★ Next V5 quality lever discovered: true-color (32-bit) rendering
+
+The VSA-100/Napalm renders 32-bit ARGB internally, but our ICD only advertises
+16-bit color PFDs, so every app is stuck at 16-bit (RGB565) with dither banding.
+The Voodoo3 lane physically can't do 32-bit; the V5 can — this is a V5-specific
+quality win that costs ~0 fps (present-bound). **Implementation (scoped, not yet
+done):** (1) add 32-bit color entries to the ICD PFD table (WGLCMDS.C ~1249,
+GLICD.C ~578); (2) `grSstWinOpen(...GR_COLORFORMAT_ARGB...)` (sst_export.c:734)
+defaults to 16-bit RGB565 — a 32-bit PFD must open via `grSstWinOpenExt` with
+`GR_PIXFMT_ARGB_8888`; (3) verify the ICD color-buffer read/clear/LFB paths
+handle 32bpp. Objective verification metric: q3dm1 capture distinct-color count
+jumps from ~3637 (16-bit) toward tens of thousands (true-color), banding in the
+sky gradient disappears. Render-changing ⇒ develop as an experimental A/B build,
+on-monitor sign-off before shipping (per HARD LESSONS).
