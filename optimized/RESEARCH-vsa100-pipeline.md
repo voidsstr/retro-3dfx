@@ -56,3 +56,12 @@ behavior for the column-drop bug. This is the next major build step.
   real driver's wait-for-idle doesn't hang on the 4-chip 6000.
 - chipMask must equal the real chip count (6000 = 4 = 0xf).
 - Texture allocator must respect the 2 MB texture-bank boundary on 256 MB.
+
+## ★★ glide-on-sim is SCAFFOLDED (feasibility confirmed)
+`GLIDE3/SRC/makefile.linux` exists with `-DFX_GLIDE_NAPALM=1 -DFX_GLIDE_H5_CSIM=1`,
+`HAL_CSIM=1`, a C trisetup (`GLIDE_USE_C_TRISETUP`, no x86 asm), a `fxgasm` codegen
+step, and `-I$(FX_GLIDE_HW)/csim`. Header says "Not yet ported correctly for Linux"
+but the whole CSIM scaffolding is present -> glide-on-sim is a real, intended build,
+the correct next major step (not hand-driving TREX registers). Probe: a glide core
+file mostly compiles for -m32 CSIM; one C++-header/multilib snag to resolve. Build
+glide3x via makefile.linux -> link libcsim.a -> tiny Glide textured-triangle program.
