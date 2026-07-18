@@ -62,3 +62,21 @@ env). With it, `build.sh` produces a runnable `-m32` `tri_dump` → then:
 2. Render the SAME primitive on .143 (tiny Glide exe, or a controlled Q3 scene).
 3. Compare pixel-for-pixel — if the sim reproduces the real-hw 2D column-drop,
    the toolchain is VALIDATED and rasterizer/texcoord fixes iterate locally.
+
+
+## ★ RUNS NATIVELY (2026-07-18, after gcc-multilib) — sim inits + produces a framebuffer
+`build.sh` now builds a **runnable -m32 `tri_dump`** and it EXECUTES: initializes
+the simulated VSA-100 (fxHalInitRegisters/Gamma/Video all succeed) and writes a
+640x480 PPM. THE fix that made it run: the stock `fxHalMapBoard` only calls
+`csimInit()` under `#ifdef WINNT`, so a native-linux CSIM build never wired
+`halInfo.boardInfo[].sstCSIM` and `csimLoad32` NULL-derefed during register init.
+`build.sh` now patches that guard to `#if defined(WINNT) || defined(HAL_CSIM)`.
+
+**Next (fast, all-local now):** the framebuffer comes back blank — the draw
+commands (`sBeginTriCMD`/`fastfillCMD` written to the fake-address registers)
+aren't yet triggering the sim's rasterizer (no `put_pixel` trace fires at
+`GDBG_LEVEL=150`). Likely a command-fifo/trigger detail (DRIVER.C drives 2D via
+`fxHalInitCmdFifo` + a PKT fifo, not bare register writes). Once a triangle
+rasterizes + reads back, do the sim-vs-.143 pixel validation, THEN use the sim
+(GDBG_LEVEL=150 shows exactly which destination columns are written) to nail the
+2D column-drop locally in seconds.

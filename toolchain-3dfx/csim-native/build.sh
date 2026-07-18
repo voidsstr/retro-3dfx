@@ -12,6 +12,7 @@ set -e
 SRC="$(cd "$(dirname "$0")/../../3dfx Driver Code/H5" && pwd)"
 D="$(cd "$(dirname "$0")" && pwd)"
 mkdir -p "$D/inc" "$D/src" "$D/obj"
+M32=""; if echo 'int main(){return 0;}' | gcc -m32 -x c - -o /dev/null 2>/dev/null; then M32="-m32"; fi
 # lowercase symlink headers (Linux is case-sensitive; the 2000 code #includes lowercase)
 for dir in "$SRC/INCLUDE" "$SRC/INCSRC" "$SRC/CSIM" "$SRC/HAL" "$SRC/../SWLIBS/INCLUDE" "$SRC/GLIDE3/SRC"; do
   [ -d "$dir" ] || continue
@@ -30,9 +31,9 @@ cp "$SRC/CSIM/SETUP.C" "$D/src/setup.c"; sed -i 's/\bround\b/csim_round/g' "$D/s
 # (3) lowercase-symlink the remaining .C sources
 for f in "$SRC/CSIM"/*.C; do b="$(basename "$f" .C | tr 'A-Z' 'a-z')"; [ "$b" = setup ] && continue; ln -sf "$f" "$D/src/$b.c"; done
 # generate h3asm.h (a host tool emits a hex table header)
-gcc -w -I"$D/inc" -o "$D/obj/h3asm" "$D/src/h3asm.c"; "$D/obj/h3asm" -hex > "$D/inc/h3asm.h"
+gcc -w -I"$D/inc" -o "$D/obj/h3asm" "$D/src/h3asm.c"; "$D/obj/h3asm" -hex > "$D/inc/h3asm.h"   # host tool: native, not -m32
 # compile the sim (CSIM only, not HSIM -> no tstbench.h / no PC-hw deps)
-CFLAGS="-c -O1 -DH4 -DBUILD_HAL -DHAL_CSIM -DGDBG_INFO_ON -w -I$D/inc"
+CFLAGS="-c -O1 $M32 -DH4 -DBUILD_HAL -DHAL_CSIM -DGDBG_INFO_ON -w -I$D/inc"
 objs=""
 for f in "$D"/src/*.c; do b="$(basename "$f" .c)"; [ "$b" = h3asm ] && continue
   gcc $CFLAGS "$f" -o "$D/obj/$b.o"; objs="$objs $D/obj/$b.o"; done
@@ -47,9 +48,14 @@ echo "OK: libcsim.a ($(ar t "$D/libcsim.a" | wc -l) objects). Link a harness (se
 M32=""; if echo 'int main(){return 0;}' | gcc -m32 -x c - -o /dev/null 2>/dev/null; then M32="-m32"; echo "multilib present -> building $M32 (correct pointer width)"; else echo "NO multilib -> 64-bit build links+runs but crashes in sim (pointer trunc); install gcc-multilib"; fi
 SRC5="$SRC"; SWLIBS="$(cd "$SRC/../SWLIBS" && pwd)"
 # HAL sources (2 need edits: gdebug lazy-init, halio include path)
-for f in "$SRC/HAL"/*.C; do b=$(basename "$f" .C|tr 'A-Z' 'a-z'); [ "$b" = gdebug -o "$b" = halio ] && continue; ln -sf "$f" "$D/src/hal_$b.c"; done
+for f in "$SRC/HAL"/*.C; do b=$(basename "$f" .C|tr 'A-Z' 'a-z'); [ "$b" = gdebug -o "$b" = halio -o "$b" = fxhal ] && continue; ln -sf "$f" "$D/src/hal_$b.c"; done
 cp "$SRC/HAL/GDEBUG.C" "$D/src/hal_gdebug.c"; sed -i 's/= stdout;/= 0;/;s/= stderr;/= 0;/' "$D/src/hal_gdebug.c"
 cp "$SRC/HAL/HALIO.C" "$D/src/hal_halio.c";  sed -i 's#../../swlibs/newpci/pcilib/pcilib.h#pcilib.h#' "$D/src/hal_halio.c"
+# fxhal: enable csimInit under HAL_CSIM (stock guards it #ifdef WINNT only, so a
+# native-linux CSIM build never wires halInfo.boardInfo[].sstCSIM -> csimLoad32
+# NULL-derefs during fxHalInitRegisters). This is THE fix that makes the sim run.
+cp "$SRC/HAL/FXHAL.C" "$D/src/hal_fxhal.c"
+perl -0pi -e 's/#ifdef WINNT\n\t  halInfo\.boardInfo\[bn\]\.sstCSIM = csimInit\( bn \);/#if defined(WINNT) || defined(HAL_CSIM)\n\t  halInfo.boardInfo[bn].sstCSIM = csimInit( bn );/' "$D/src/hal_fxhal.c"
 # pcilib + newpci headers
 mkdir -p "$D/csim"; for f in "$SRC/CSIM"/*.[Hh]; do b=$(basename "$f"|tr 'A-Z' 'a-z'); [ -e "$D/csim/$b" ]||ln -s "$f" "$D/csim/$b"; done
 rm -f "$D/csim/csim.h"; cp "$D/inc/csim.h" "$D/csim/csim.h"
