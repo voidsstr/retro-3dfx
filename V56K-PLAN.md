@@ -25,41 +25,82 @@ our Wine/VC6-DDK toolchain provably ships working XP drivers
 (`3dfxv5m.sys`/`3dfxv5d.dll`/`glide3x.dll`/`3dfxogl.dll`) on the 5500 fleet
 box.
 
-**Known code gaps for 4-chip (file:line, from the 2026-07-18 deep survey):**
+**Code-gap list — REVISED 2026-07-18 after deep verification** (items struck
+were disproved by reading the detection paths; see Phase 0 log below):
 
-1. W2K miniport `DetectNumUnits` uses the single-device function-space walk;
-   the multi-bus walk needed behind the HiNT bridge is `#if 0`-disabled —
-   `H5/W2K/Src/Video/Miniport/H5/SLIAA.C:480-578`.
-2. No HiNT-specific handling anywhere; bridges only generically classified
-   (`SWLIBS/NEWPCI/PCILIB/FXINFO.C:82`).
-3. 32 MB-per-chip aperture constants hardcoded: `H5/MINIHWC/MINIHWC.C:1650,
-   1681`, `H5/MINIHWC/DOS_MODE.C:256,282` — blocks 256 MB (64 MB/chip) mode.
-   Memory *probe* itself is fine (`H5/CINIT/H3CINIT.C:344` handles up to
-   128 Mbit parts; `H3.C:2058` total = per-chip × numUnits, uncapped).
-4. External clock (required when `dwChips==4`) confirmed only in the Win9x
-   MiniVDD — verify/port into the W2K miniport.
-5. Glide3 `sliCount = 4; /* doesn't work yet */` branch — `GSST.C:1820`.
-6. No 6000 HWID in any INF (6000 has no unique PCI ID; it's `DEV_0009` +
-   chip-count detection; subsystem ID of the Strange God TBD on arrival).
-7. 3dfx Tools don't run on XP → AA/SLI config via registry
+1. ~~`DetectNumUnits` multi-bus walk needed~~ — WRONG. On real 5500/6000
+   boards the slave VSA-100s answer as PCI *functions 1–3 of the master's
+   device* (hidden from the OS enumerator — Glide proves it: the "Evilness"
+   probe at `H5/MINIHWC/MINIHWC.C:1503-1522` reads chip 1 then chip 3
+   vendor/device config regs to detect 2- vs 4-chip boards). The existing
+   function-space walk (`W2K/.../SLIAA.C DetectNumUnits`) should therefore
+   work as-is on the 6000. A defensive HiNT-gated same-bus device sweep was
+   added anyway (see Phase 0 log) in case the Strange God straps differently.
+2. **External clock — REAL GAP, NOW PORTED.** The 6000's graphics clock
+   comes from an external serial synthesizer bit-banged through GPIO pins
+   on the HiNT HB1-SE66 bridge (PCI id 3388h:0021h), config reg C4h —
+   Win9x-only code (`Win9x/DX/MINIVDD/GPIO.C`, called at `SLIAA.C:1760-1762`
+   when `dwChips==4`). Ported to the W2K miniport in Phase 0.
+3. ~~32 MB aperture constants block 256 MB mode~~ — PARTLY WRONG. The
+   `MEMBASE0` 32 MB spacing/decodes (`W2K/.../SLIAA.C:91-96`) are the fixed
+   per-chip *register* aperture — correct for any memory size. The frame
+   buffer BAR (`MEMBASE1`) decode is already `2*AdapterMemorySize`, and the
+   probe handles 64 MB/chip (`H3.C:1953-1995`: 4 parts × 128 Mbit = 64 MB;
+   total = per-chip × numUnits, uncapped). **Remaining real item:** Glide's
+   `hwcMapBoard` maps BARs with a hardcoded 32 MB length on Napalm
+   (`H5/MINIHWC/MINIHWC.C:1681`) — must scale for 64 MB/chip in 256 MB BIOS
+   mode (Phase 3; file currently carries another session's in-flight ICD
+   edits, so deferred deliberately).
+4. Glide3 `sliCount = 4; /* doesn't work yet */` branch — `GSST.C:1820`
+   (hardware-debug phase).
+5. No 6000 HWID in any INF (6000 shares `DEV_0009`; chip count is detected
+   at runtime). → `voodoo5-6k.inf` added in Phase 0; exact Strange God
+   subsystem ID to be filled in at Phase 1.
+6. 3dfx Tools don't run on XP → AA/SLI config via registry
    `SSTH3_SLI_AA_CONFIGURATION` tweak values 0,5,6,7,8 (enum at
    `GPCI.C:1420` — 5=4-way SLI, 6=4-way+2xAA, 7=2-way+4xAA, 8=8xAA).
+7. Good news found on the way: the W2K miniport build already defines
+   `GRAPHICS_CLOCK=166` and builds with `AFIFO=0` (AGP command FIFO not
+   compiled in), removing the AGP-FIFO-behind-a-bridge concern.
 
 ## Phase 0 — before the card arrives (no hardware needed)
 
-- **CSIM 4-chip harness:** Glide's CSIM detect path already fakes a 4-chip
-  board via `FX_GLIDE_NUM_CHIPS=4` (`GPCI.C:786-840`). Extend csim-native to
+### Done 2026-07-18 (branch `v56k-6000`)
+
+- **External clock ported to the W2K/XP miniport** (`W2K/.../SLIAA.C`,
+  `v56k` section): HiNT-bridge finder (3388h:0021h matched by secondary bus
+  number), GPIO bit-bang over bridge config reg C4h, and the ICS synthesizer
+  PLL search re-implemented in integer 64-bit math (NT kernel code must not
+  touch the FPU bare; ntoskrnl's _allmul/_aulldiv are linked). Called from
+  `EnableSLIAA` when `dwChips==4`, mirroring the Win9x driver. Failure path
+  logs and leaves the clock alone instead of the Win9x `int 3`.
+- **Defensive chip-detection fallback** in `DetectNumUnits`: if fewer than
+  4 chips found by the stock function walk AND the bus hangs off a HiNT
+  bridge, sweep the rest of the secondary bus for VSA-100s (guards against
+  the replica strapping chips as separate devices; can never trigger on a
+  5500/single-board system).
+- **Verified no-regression for the 5500 path:** sweep is HiNT-gated, clock
+  call is `dwChips==4`-gated — both no-ops on the 2-chip board.
+- **Built clean** through the Wine W2K-DDK flow (`/W3 /WX`, build.err empty,
+  PE checksums valid): `3dfxvsm.sys` and `3dfxv5m.sys` (198 544 bytes,
+  +2.6 KB over stock). Dist package updated: new `3dfxv5m.sys` +
+  `voodoo5-6k.inf` staged into `dist/3dfx-napalm-xp-20260716/` and the zip.
+  (Note: `package_driver.sh` does NOT know about the hand-added
+  `3dfxv5m/3dfxv5d/voodoo5-wfp/6k` files — rerunning it wipes them; update
+  the script before the next full repackage.)
+- **`voodoo5-6k.inf`** added (voodoo5-wfp pattern, `3dfxv5m`/`3dfxv5d` pair,
+  `DriverVer=07/18/2026`): generic `PCI\VEN_121A&DEV_0009` row for manual
+  updrv install; replace with the exact HWID after Phase 1 capture.
+
+### Remaining Phase 0 (optional, pre-arrival)
+
+- **CSIM 4-chip harness:** Glide's CSIM detect path fakes a 4-chip board via
+  `FX_GLIDE_NUM_CHIPS=4` (`GPCI.C:786-840`). Extend csim-native to
   instantiate multi-chip SLI so band-interleave / AA-sample logic can be
-  exercised on Linux before touching the real card.
-- **Desk-fix the miniport:** enable + correct the multi-bus `DetectNumUnits`
-  path; add master/slave instance policy (bind display stack to master chip
-  only); audit W2K SLIAA for the external-clock equivalent and port from
-  `GPIO.C:352` if absent.
-- **Parameterize the 32 MB/chip constants** off the probed per-chip size.
-- **INF skeleton** `voodoo5-6k.inf` on the voodoo5-wfp.inf pattern
-  (3dfxv5m/3dfxv5d pair), HWID placeholder pending the real subsystem ID.
+  exercised on Linux first. (csim-native just reached full-triangle render,
+  so this is now plausible.)
 - Bench prep: verify host box has 3.3 V or 1.5 V AGP slot + spare 6-pin PCIe
-  power + airflow over the bridge heatsink.
+  power + airflow over the bridge heatsink (HB1-SE66 runs hot).
 
 ## Phase 1 — arrival: characterize before changing anything
 
