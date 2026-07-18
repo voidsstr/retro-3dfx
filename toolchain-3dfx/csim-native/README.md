@@ -42,3 +42,23 @@ register harness but tests the real code path.
 ## Artifacts
 `inc/`, `src/`, `obj/`, `libcsim.a` are generated — gitignored. Only `build.sh` +
 this README are tracked.
+
+## Harness state (2026-07-18) — builds, links, RUNS; needs -m32 to render
+`harness/tri_dump.c` (+ `harness/csim_stubs.c`, CSIM-mode pci/img stubs) renders a
+Gouraud triangle via the register API (adapted from `DIAGS/CSIMTEST/TRIS.C`) and
+dumps the color buffer to PPM via `csimReadPixel`. `build.sh` builds it end-to-end
+(CSIM + HAL + stubs → `obj/tri_dump`).
+
+**It links and RUNS**, but on a 64-bit build segfaults in `csimLoad32` during
+`fxHalInitRegisters`: the sim stashes host pointers in **32-bit hardware-register-
+map fields** (`h3regs.h` `unused0`/`reservedD` — `unused0` is `FxU32` at a fixed
+PCI config offset, so it CANNOT be widened without breaking the register layout).
+So the simulator **must be built `-m32`**. `build.sh` auto-detects multilib and
+uses `-m32` when present.
+
+**ONE thing needed to finish:** `sudo apt install gcc-multilib` (no sudo in this
+env). With it, `build.sh` produces a runnable `-m32` `tri_dump` → then:
+1. Render a triangle/textured-quad in the sim → PPM.
+2. Render the SAME primitive on .143 (tiny Glide exe, or a controlled Q3 scene).
+3. Compare pixel-for-pixel — if the sim reproduces the real-hw 2D column-drop,
+   the toolchain is VALIDATED and rasterizer/texcoord fixes iterate locally.

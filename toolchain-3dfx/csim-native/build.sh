@@ -13,7 +13,7 @@ SRC="$(cd "$(dirname "$0")/../../3dfx Driver Code/H5" && pwd)"
 D="$(cd "$(dirname "$0")" && pwd)"
 mkdir -p "$D/inc" "$D/src" "$D/obj"
 # lowercase symlink headers (Linux is case-sensitive; the 2000 code #includes lowercase)
-for dir in "$SRC/INCLUDE" "$SRC/INCSRC" "$SRC/CSIM" "$SRC/../SWLIBS/INCLUDE" "$SRC/GLIDE3/SRC"; do
+for dir in "$SRC/INCLUDE" "$SRC/INCSRC" "$SRC/CSIM" "$SRC/HAL" "$SRC/../SWLIBS/INCLUDE" "$SRC/GLIDE3/SRC"; do
   [ -d "$dir" ] || continue
   for f in "$dir"/*.[Hh]; do [ -e "$f" ] || continue
     b="$(basename "$f" | tr 'A-Z' 'a-z')"; [ -e "$D/inc/$b" ] || ln -s "$f" "$D/inc/$b"; done
@@ -38,3 +38,26 @@ for f in "$D"/src/*.c; do b="$(basename "$f" .c)"; [ "$b" = h3asm ] && continue
   gcc $CFLAGS "$f" -o "$D/obj/$b.o"; objs="$objs $D/obj/$b.o"; done
 ar rcs "$D/libcsim.a" $objs
 echo "OK: libcsim.a ($(ar t "$D/libcsim.a" | wc -l) objects). Link a harness (see harness/ TODO) to drive triangles + dump LFB."
+
+# ---- HAL + harness (validation tool) ----
+# The sim stashes pointers in 32-bit hardware-register-map fields (h3regs.h
+# unused0=FxU32 at a fixed PCI offset -> can't widen). So it must run -m32.
+# 64-bit links + RUNS but segfaults in csimLoad32 (pointer truncation). Install
+# gcc-multilib (`sudo apt install gcc-multilib`) to get a correct -m32 build.
+M32=""; if echo 'int main(){return 0;}' | gcc -m32 -x c - -o /dev/null 2>/dev/null; then M32="-m32"; echo "multilib present -> building $M32 (correct pointer width)"; else echo "NO multilib -> 64-bit build links+runs but crashes in sim (pointer trunc); install gcc-multilib"; fi
+SRC5="$SRC"; SWLIBS="$(cd "$SRC/../SWLIBS" && pwd)"
+# HAL sources (2 need edits: gdebug lazy-init, halio include path)
+for f in "$SRC/HAL"/*.C; do b=$(basename "$f" .C|tr 'A-Z' 'a-z'); [ "$b" = gdebug -o "$b" = halio ] && continue; ln -sf "$f" "$D/src/hal_$b.c"; done
+cp "$SRC/HAL/GDEBUG.C" "$D/src/hal_gdebug.c"; sed -i 's/= stdout;/= 0;/;s/= stderr;/= 0;/' "$D/src/hal_gdebug.c"
+cp "$SRC/HAL/HALIO.C" "$D/src/hal_halio.c";  sed -i 's#../../swlibs/newpci/pcilib/pcilib.h#pcilib.h#' "$D/src/hal_halio.c"
+# pcilib + newpci headers
+mkdir -p "$D/csim"; for f in "$SRC/CSIM"/*.[Hh]; do b=$(basename "$f"|tr 'A-Z' 'a-z'); [ -e "$D/csim/$b" ]||ln -s "$f" "$D/csim/$b"; done
+rm -f "$D/csim/csim.h"; cp "$D/inc/csim.h" "$D/csim/csim.h"
+for f in "$SWLIBS/NEWPCI/PCILIB"/*.[Hh] "$SWLIBS/FXPCI/PCILIB"/PCILIB.H; do [ -e "$f" ]||continue; b=$(basename "$f"|tr 'A-Z' 'a-z'); [ -e "$D/inc/$b" ]||ln -s "$f" "$D/inc/$b"; done
+PCIH="$SWLIBS/FXPCI/PCILIB/PCILIB.H"; ln -sf "$PCIH" "$D/inc/pcilib.h"
+CF="-c -O1 $M32 -DH4 -DBUILD_HAL -DHAL_CSIM -DGDBG_INFO_ON -w -I$D/inc -I$D"
+for f in "$D"/src/hal_*.c; do b=$(basename "$f" .c); gcc $CF "$f" -o "$D/obj/$b.o" || echo "  (HAL $b failed)"; done
+ar rcs "$D/libcsim.a" "$D"/obj/*.o
+gcc -O1 $M32 -DH4 -DBUILD_HAL -DHAL_CSIM -DGDBG_INFO_ON -w -fcommon -I"$D/inc" -I"$D" \
+    "$D/harness/tri_dump.c" "$D/harness/csim_stubs.c" "$D"/obj/*.o -lm -o "$D/obj/tri_dump" \
+  && echo "OK: obj/tri_dump built ($([ -n "$M32" ] && echo 'runnable -m32' || echo 'links; needs -m32 to run'))"
