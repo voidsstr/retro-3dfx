@@ -79,8 +79,17 @@ were disproved by reading the detection paths; see Phase 0 log below):
   bridge, sweep the rest of the secondary bus for VSA-100s (guards against
   the replica strapping chips as separate devices; can never trigger on a
   5500/single-board system).
-- **Verified no-regression for the 5500 path:** sweep is HiNT-gated, clock
-  call is `dwChips==4`-gated — both no-ops on the 2-chip board.
+- **Verified no-regression for the 5500 and Voodoo3 paths:** the clock call
+  is `dwChips==4`-gated (5500 SLI enables with dwChips==2 → skipped), and
+  the detection sweep requires `IS_NAPALM` AND a HiNT bridge AND fewer than
+  4 chips found — no-op on the 5500 (no bridge) and impossible on a Voodoo3
+  (IS_NAPALM false, added after realizing the vintage slave-BAR loop is not
+  Napalm-gated). One unified miniport/display binary serves all three
+  boards via runtime `IS_NAPALM`/`IS_VOODOO3` branches (`H3.H:319-320`);
+  V3 boxes install via `voodoo3.inf` (3dfxvs/3dfxvsm names, fleet .124
+  flow), V5 boxes via `voodoo5-wfp.inf`/`voodoo5-6k.inf` (3dfxv5d/3dfxv5m
+  names) — same code, different service identity, so a future package
+  carries 6000 support to every board from one build.
 - **Built clean** through the Wine W2K-DDK flow (`/W3 /WX`, build.err empty,
   PE checksums valid): `3dfxvsm.sys` and `3dfxv5m.sys` (198 544 bytes,
   +2.6 KB over stock). Dist package updated: new `3dfxv5m.sys` +
