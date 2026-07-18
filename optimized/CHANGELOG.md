@@ -46,3 +46,29 @@ handle 32bpp. Objective verification metric: q3dm1 capture distinct-color count
 jumps from ~3637 (16-bit) toward tens of thousands (true-color), banding in the
 sky gradient disappears. Render-changing ⇒ develop as an experimental A/B build,
 on-monitor sign-off before shipping (per HARD LESSONS).
+
+#### exp32 build result (0.2.3-exp32, env-gated RETRO3DFX_32BPP) — feasible + stable, marginal gain
+
+Implemented an env-gated true-color path (all changes no-op unless RETRO3DFX_32BPP
+set, so the deployed binary == 0.2.2 by default): WGLGLIDE.C `__wglGlideGetDisplayMasks`
+→ 8/8/8 masks + return 32; color LFB `GR_LFBWRITEMODE_565` → `_8888`; sst_export.c
+`grSstWinOpen` → `grSstWinOpenExt(GR_PIXFMT_ARGB_8888)` resolved via `grGetProcAddress`
+(it is NOT a static export — DIGET.C:1097; direct-link fails with LNK2001). Build
+gotcha: a stale `sst.lib` retained the old obj — must delete `release/sst.lib` +
+`SST/release/sst.lib` for the recompile to take.
+
+RESULT on Q3 (env set, r_colorbits 32): **the hardware opened ARGB_8888 fine** (ICD
+log: `grSstWinOpenExt=0x... grSstWinOpen OK`), **stable, clean render, ~same fps
+(72-73)**. BUT: (1) q3dm1 distinct-color count barely moved (3637 → 3743) and the
+render looks identical — because **VSA-100 TEXTURES are 16-bit** (TMU samples
+RGB565/ARGB4444), so texture-dominated scenes stay 16-bit-ish; 32bpp only helps
+gradients/alpha/fog/multi-pass accumulation. (2) Q3 still selected a 16-bit PFD
+(`PIXELFORMAT 3 = color(16-bits)`) — the getDisplayMasks→32 change did NOT reach the
+PFD-selection path, so the ICD software buffer stayed 16bpp = latent hw-32/sw-16
+mismatch (rendered fine anyway since in-game paths are GPU-side). **Disposition: 32bpp
+is PROVEN feasible + stable + free on the V5, but the visible quality payoff is modest
+(texture precision is the real 16-bit limiter, hardware-fixed). Not shipped; box kept
+on 0.2.2. To finish: fix PFD selection to actually pick 32-bit (updatePixelFormats/
+getDisplayMasks ordering — figure out why the Glide getDisplayMasks isn't authoritative
+at ChoosePixelFormat time) so sw matches hw; then verify on-monitor a gradient-heavy
+scene (sky/fog) for the real banding-reduction win.**
