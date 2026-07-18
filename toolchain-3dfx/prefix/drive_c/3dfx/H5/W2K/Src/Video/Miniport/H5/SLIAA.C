@@ -864,8 +864,11 @@ DetectNumUnits(PHW_DEVICE_EXTENSION HwDeviceExtension)
   // functions 1-3 of the master's device (found above), but if a rebuilt
   // board straps them as separate devices behind the HiNT bridge, sweep
   // the rest of this (secondary) bus too.  Gated on the HiNT bridge so a
-  // second Voodoo board in the system is never mistaken for slave chips.
-  if ((HwDeviceExtension->numUnits < 4) &&
+  // second Voodoo board in the system is never mistaken for slave chips,
+  // and on IS_NAPALM so a Voodoo3 (single chip, no SLI) can never grow
+  // phantom slaves even on a bridged backplane.
+  if (IS_NAPALM &&
+      (HwDeviceExtension->numUnits < 4) &&
       V56KFindHintBridge(HwDeviceExtension->BusNumber, NULL, NULL))
   {
     ULONG deviceNumber;
