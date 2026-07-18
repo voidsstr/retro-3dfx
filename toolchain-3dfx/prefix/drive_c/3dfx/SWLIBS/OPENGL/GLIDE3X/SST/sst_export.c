@@ -336,10 +336,29 @@ static void InitBuffers(__GLcontext *gc)
 
 /************************************************************************/
 
+/* --- RDTSC frame profiling (logging only -> C:\3dfxprof.log). Answers the
+ * core question the resolution sweep can't: of each frame's wall-clock, how much
+ * is the deferred Glide FIFO flush (procs.flush = T&L submission) vs grBufferSwap
+ * (present/vsync wait) vs "other" (engine + inline GL). rdtsc via _emit for
+ * MSVC6-safety. No render change. Enabled at runtime by env RETRO3DFX_PROF=1. */
+static unsigned __int64 __prof_rdtsc(void)
+{
+    unsigned int __lo, __hi;
+    __asm { _emit 0x0F __asm _emit 0x31 __asm mov __lo, eax __asm mov __hi, edx }
+    return ((unsigned __int64)__hi << 32) | __lo;
+}
+static unsigned __int64 __prof_lastSwap = 0, __prof_frameAcc = 0,
+                        __prof_flushAcc = 0, __prof_swapAcc = 0;
+static int             __prof_frames = 0;
+
 static void SwapBuffers(__GLcontext *gc)
 {
     extern unsigned long tacoHackGlideInit;
+    unsigned __int64 t0, t1, ts0, ts1;
+
+    t0 = __prof_rdtsc();
     gc->procs.flush(gc);
+    t1 = __prof_rdtsc();
 
     if (!gc->modes.doubleBufferMode) {
         return;
@@ -350,8 +369,32 @@ static void SwapBuffers(__GLcontext *gc)
     }
 #endif
 
+    ts0 = __prof_rdtsc();
     if ( tacoHackGlideInit ) {
-        grBufferSwap(1);
+        grBufferSwap(1);   /* swapInterval 1 required — grBufferSwap(0) breaks
+                              rendering on the Voodoo5 SLI (hard sync needed) */
+    }
+    ts1 = __prof_rdtsc();
+
+    __prof_flushAcc += (t1 - t0);
+    __prof_swapAcc  += (ts1 - ts0);
+    if (__prof_lastSwap) { __prof_frameAcc += (ts1 - __prof_lastSwap); __prof_frames++; }
+    __prof_lastSwap = ts1;
+    if (__prof_frames >= 100) {
+        FILE *f = fopen("C:\\3dfxprof.log", "a");
+        if (f) {
+            double fr = (double)__prof_frameAcc;
+            fprintf(f, "frames=%d avgFrameKc=%u flushKc=%u swapKc=%u flush%%=%.1f swap%%=%.1f other%%=%.1f\n",
+                __prof_frames,
+                (unsigned)((__prof_frameAcc / __prof_frames) / 1000),
+                (unsigned)((__prof_flushAcc / __prof_frames) / 1000),
+                (unsigned)((__prof_swapAcc  / __prof_frames) / 1000),
+                fr > 0 ? 100.0 * (double)__prof_flushAcc / fr : 0.0,
+                fr > 0 ? 100.0 * (double)__prof_swapAcc  / fr : 0.0,
+                fr > 0 ? 100.0 * (double)(__prof_frameAcc - __prof_flushAcc - __prof_swapAcc) / fr : 0.0);
+            fclose(f);
+        }
+        __prof_frames = 0; __prof_frameAcc = 0; __prof_flushAcc = 0; __prof_swapAcc = 0;
     }
 }
 
@@ -693,7 +736,9 @@ static GLboolean MakeCurrent(__GLcontext *gc)
                                            GR_REFRESH_60Hz,
                                            GR_COLORFORMAT_ARGB,
                                            GR_ORIGIN_UPPER_LEFT,
-                                           2,1 )) ) {
+                                           2,1 )) ) {         /* double-buffer 60Hz = optimal;
+                                              triple-buffer(3,1) -> 55.8fps and 85Hz destabilized
+                                              (the swap does necessary GPU/SLI sync, not idle wait) */
         OGLLOG( "MakeCurrent: ** grSstWinOpen FAILED (returned 0) **" );
         return GL_FALSE;
     }
@@ -805,9 +850,16 @@ static GLboolean MakeCurrent(__GLcontext *gc)
 
         /* XXXTaco This init is a hack */
         if ( gc->grNTexelFx == 2 ) {
-            /* OPT 0.1.4: advertise ARB_multitexture (2 units) alongside the
-            ** legacy SGIS variant -- Q3 keys off GL_ARB_multitexture. */
-            static char mtexString[] = "GL_ARB_multitexture GL_SGIS_multitexture ";
+            /* QUALITY FIX menu-text (baseline): do NOT advertise
+            ** GL_ARB_multitexture.  That was the unshipped OPT 0.1.4-0.1.6
+            ** single-pass/overbright experiment (world lighting collapse +
+            ** vertex-color doubling) which never validated clean on the live
+            ** Voodoo5 and is not in the kept 0.1.0/0.1.1/0.1.3 set.  With ARB
+            ** unadvertised, Q3 falls back to its classic two-pass world path
+            ** (identical to shipped 0.1.3 -- in-game q3dm1 stays clean) while
+            ** all the dormant multitexture plumbing compiles but never fires.
+            ** Reverted to the legacy SGIS-only advertisement. */
+            static char mtexString[] = "GL_SGIS_multitexture ";
             if ( !strstr( gc->constants.extensions, mtexString ) ) {
                 char *extString;
                 extString = (void*)(gc->imports.calloc)( 0, 1, strlen( gc->constants.extensions ) + strlen( mtexString ) + 1 );

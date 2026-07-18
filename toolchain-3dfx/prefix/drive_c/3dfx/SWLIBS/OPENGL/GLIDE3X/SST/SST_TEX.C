@@ -428,6 +428,37 @@ void __glSSTFreeTextureState(__GLcontext *gc)
 void __glSSTFreeTextureMemory(__GLcontext *gc, __GLtexture *tex);
 void __glSSTAllocateTextureMemory(__GLcontext *gc, __GLtexture *tex, int len);
 
+
+/* ================= RETRO3DFX FILTER FIX (0.2.0) ========================
+   Honor the GL min/mag filters in hardware.  The ICD set
+   grTexFilterMode(GR_TMU0, POINT_SAMPLED, BILINEAR) once at context init
+   (sst_export.c) and NEVER updated it from glTexParameter, so every
+   MINIFIED texture was point-sampled: sliced/garbled scaled text (Q3 menu
+   proportional font, CS HUD text) and software-renderer-like pixel shimmer
+   on distant/minified surfaces.  Called at every grTexSource bind since the
+   hw filter is per-TMU state while GL's is per-texture. */
+static void __glSSTApplyGrFilter(GrChipID_t tmu, __GLtexture *tex)
+{
+    GrTextureFilterMode_t minf, magf;
+    switch (tex->params.minFilter) {
+    case GL_NEAREST:
+    case GL_NEAREST_MIPMAP_NEAREST:
+    case GL_NEAREST_MIPMAP_LINEAR:
+        minf = GR_TEXTUREFILTER_POINT_SAMPLED; break;
+    default:                       /* GL_LINEAR / GL_LINEAR_MIPMAP_* */
+        minf = GR_TEXTUREFILTER_BILINEAR; break;
+    }
+    magf = (tex->params.magFilter == GL_NEAREST)
+         ? GR_TEXTUREFILTER_POINT_SAMPLED : GR_TEXTUREFILTER_BILINEAR;
+    /* single-texture lane: cover BOTH TMUs (binds land on tmu=1 while the
+       init default set only TMU0 - the sampling TMU must get the filter).
+       Refine to per-unit when ARB multitexture ships. */
+    grTexFilterMode(GR_TMU0, minf, magf);
+    grTexFilterMode(GR_TMU1, minf, magf);
+    (void)tmu;
+}
+/* =============== end RETRO3DFX FILTER FIX ============================= */
+
 static void applyTexParameter(__GLcontext *gc, __GLtexture *tex)
 {
     GrTexInfo grTex;
@@ -486,6 +517,7 @@ static void applyTexParameter(__GLcontext *gc, __GLtexture *tex)
                             (FxU32)tex->sst.texUnit[txu].cache->addr,
                             GR_MIPMAPLEVELMASK_BOTH,
                             &grTex);
+                __glSSTApplyGrFilter(gc->texture.sst.currentTMU, tex);
                 gc->validateTexture = 1;
             } else {
                 gc->validateTexture = 1;
@@ -533,6 +565,7 @@ static void applyTexParameter(__GLcontext *gc, __GLtexture *tex)
                         (FxU32)tex->sst.texUnit[txu].cache->addr,
                         GR_MIPMAPLEVELMASK_BOTH,
                         &grTex);
+                __glSSTApplyGrFilter(gc->texture.sst.currentTMU, tex);
             gc->validateTexture = 1;
         } else {
             /* do nothing */
@@ -884,6 +917,10 @@ void __glSSTEnableTexturing(__GLcontext *gc)
     enable = 0;
     maxTxu = gc->grNTexelFx;
     for( txu = 0; txu < maxTxu; txu++ ) {
+        /* QUALITY FIX menu-text: default this unit's texel-center bias to 0
+        ** (the mipmapped / no-texture case -- 3D stays bit-exact). */
+        __glSSTHalfTexelS[txu] = 0.0f;
+        __glSSTHalfTexelT[txu] = 0.0f;
         enableState = gc->state.enables.texture[txu];
         if ( enableState & __GL_TEXTURE_2D_ENABLE ) {
             ptm = gc->texture.texture[txu][__GL_TEXTURE_INDEX_2D];
@@ -895,6 +932,19 @@ void __glSSTEnableTexturing(__GLcontext *gc)
                     /* not mipmapping, verify presence of lvl 1 */
                     if ( tex->sst.texUnit[txu].cache && tex->level[0].width && tex->level[0].height ) {
                         enable = 1;
+                        /* QUALITY FIX menu-text: non-mipmapped 2D atlas --
+                        ** apply the OpenGL +0.5-texel texel-center offset in
+                        ** normalized coord space so tightly-packed glyph
+                        ** sub-rects (Q3 UI proportional font) sample texel
+                        ** centers instead of corner-blending the neighbour
+                        ** column.  width2/height2 are the real POT texel
+                        ** dims (SST_TEX.C:2135-2138). */
+                        if ( tex->level[0].width2 > 0 )
+                            __glSSTHalfTexelS[txu] =
+                                0.5f / (__GLfloat) tex->level[0].width2;
+                        if ( tex->level[0].height2 > 0 )
+                            __glSSTHalfTexelT[txu] =
+                                0.5f / (__GLfloat) tex->level[0].height2;
                     }
                 } else if ( cachemask != 0 ) {
                     /* mipmapping, verify presence of all mipmap levels */
@@ -951,6 +1001,11 @@ static unsigned long s_ACWord  = ~0;
 static unsigned long s_CCWord  = ~0;
 static unsigned long s_TC0Word = ~0;
 static unsigned long s_TC1Word = ~0;
+
+/* QUALITY FIX menu-text: definition of the per-unit normalized texel-center
+** bias declared in texture.h.  Set by __glSSTEnableTexturing below. */
+__GLfloat __glSSTHalfTexelS[__GL_MAX_TEX_UNITS] = { 0 };
+__GLfloat __glSSTHalfTexelT[__GL_MAX_TEX_UNITS] = { 0 };
 
 /* OPT 0.1.4 overbright: Quake3-style world lighting draws base*lightmap in
 ** TWO passes at baseline, and the lightmap pass's framebuffer blend
@@ -3091,6 +3146,7 @@ void __glSSTTexImage2D(GLenum target, GLint lod, GLint components,
                             (FxU32)tex->sst.texUnit[txu].cache->addr,
                             GR_MIPMAPLEVELMASK_BOTH,
                             &grTex);
+                __glSSTApplyGrFilter(gc->texture.sst.currentTMU, tex);
                 gc->validateTexture = 1;
             } else {
                 gc->validateTexture = 1;
@@ -3118,6 +3174,7 @@ void __glSSTTexImage2D(GLenum target, GLint lod, GLint components,
                                     (FxU32)tex->sst.texUnit[txu].cache->addr,
                                     GR_MIPMAPLEVELMASK_BOTH,
                                     &grTex);
+                __glSSTApplyGrFilter(gc->texture.sst.currentTMU, tex);
                         gc->validateTexture = 1;
                     }
                 } else {
@@ -3169,6 +3226,7 @@ void __glSSTTexImage2D(GLenum target, GLint lod, GLint components,
                         (FxU32)tex->sst.texUnit[txu].cache->addr,
                         GR_MIPMAPLEVELMASK_BOTH,
                         &grTex);
+                __glSSTApplyGrFilter(gc->texture.sst.currentTMU, tex);
             gc->validateTexture = 1;
         } else {
             /* do nothing; nothing needs to be cached */
@@ -3317,8 +3375,11 @@ void __glSSTShadowTexSubImage(__GLcontext *gc, __GLtexture *tex, GLint lod, GLin
     case GL_RGBA:
         element_size = 4;
         break;
+    default:
+        element_size = 4;   /* defensive: never leave it uninitialized */
+        break;
     }
-  
+
     skipPixels = gc->state.pixel.unpackModes.skipPixels * element_size;
     skipLines = gc->state.pixel.unpackModes.skipLines;
     rowLength = gc->state.pixel.unpackModes.lineLength ? gc->state.pixel.unpackModes.lineLength : w;
@@ -3388,17 +3449,29 @@ void APIENTRY __glsstim_TexSubImage2D(GLenum target, GLint lod,
         return;
     }
 
+    /* Always update the software shadow copy of the texture first. */
     __glSSTShadowTexSubImage(gc, tex, lod, xoffset, yoffset, w, h, format, type, buf);
-    grTexDownloadMipMapLevelPartial(gc->texture.sst.currentTMU, 
+
+    /* SUB-IMAGE CRASH FIX (UT / glTexSubImage2D GPF): only push a *partial*
+     * download to the hardware texture cache when this texture actually HAS a
+     * resident cache entry. When the texture is not resident (cache == NULL),
+     * the original code dereferenced cache->addr -> NULL pointer GPF (this is
+     * exactly UT's create-empty-then-glTexSubImage2D pattern for lightmaps).
+     * Skipping the partial download is safe and correct: the shadow buffer now
+     * holds the updated texels, and the whole level is downloaded when the
+     * texture is next made resident at bind/validate time. */
+    if (tex->sst.texUnit[gc->texture.currentTexUnit].cache) {
+        grTexDownloadMipMapLevelPartial(gc->texture.sst.currentTMU,
                                     (FxU32) tex->sst.texUnit[gc->texture.currentTexUnit].cache->addr,
-                                    tex->sst.lod - lod, 
-                                    tex->sst.lod, 
-                                    tex->sst.aspect, 
-                                    tex->sst.grformat, 
-                                    GR_MIPMAPLEVELMASK_BOTH, 
+                                    tex->sst.lod - lod,
+                                    tex->sst.lod,
+                                    tex->sst.aspect,
+                                    tex->sst.grformat,
+                                    GR_MIPMAPLEVELMASK_BOTH,
                                     tex->level[lod].buffer + tex->level[lod].width * yoffset * tex->level[lod].texelSize,
-                                    yoffset, 
+                                    yoffset,
                                     yoffset + h - 1);
+    }
 }
 
 void __glsstlei_TexSubImage2D(__GLcontext *gc, GLenum target, GLint lod, 
@@ -3744,6 +3817,7 @@ void __glSSTBindTexture(__GLcontext *gc, GLuint targetIndex, GLuint texture,
                                 (FxU32)tex->sst.texUnit[txu].cache->addr,
                                 GR_MIPMAPLEVELMASK_BOTH,
                                 &grTex);
+                __glSSTApplyGrFilter(tmu, tex);
                     gc->validateTexture = 1;
                 } else {
                     gc->validateTexture = 1;
@@ -3775,6 +3849,7 @@ void __glSSTBindTexture(__GLcontext *gc, GLuint targetIndex, GLuint texture,
                             (FxU32)tex->sst.texUnit[txu].cache->addr,
                             GR_MIPMAPLEVELMASK_BOTH,
                             &grTex);
+                __glSSTApplyGrFilter(tmu, tex);
                 gc->validateTexture = 1;
             } else {
                 gc->validateTexture = 1;

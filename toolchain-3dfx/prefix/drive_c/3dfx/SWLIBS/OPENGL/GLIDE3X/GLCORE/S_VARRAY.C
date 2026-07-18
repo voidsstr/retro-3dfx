@@ -314,7 +314,13 @@ static void __fastcall CopyTexCoord2i(__GLcontext *gc, const GLint *tp, __GLvert
 }
 static void __fastcall CopyTexCoord2f(__GLcontext *gc, const GLfloat *tp, __GLvertex *v)
 {
-    v->texture[0].x = tp[0]; v->texture[0].y = tp[1]; v->texture[0].z = 0.0F; v->texture[0].w = 1.0F;
+    /* QUALITY FIX menu-text: +0.5-texel texel-center bias (0 unless a
+    ** non-mipmapped 2D atlas is bound on unit 0 -- see SST_TEX.C).  Covers
+    ** the compiled vertex-array route in case it (rather than the immediate
+    ** __glim_TexCoord2fv route) services a 2D StretchPic draw. */
+    v->texture[0].x = tp[0] + __glSSTHalfTexelS[0];
+    v->texture[0].y = tp[1] + __glSSTHalfTexelT[0];
+    v->texture[0].z = 0.0F; v->texture[0].w = 1.0F;
 }
 static void __fastcall CopyTexCoord2d(__GLcontext *gc, const GLdouble *tp, __GLvertex *v)
 {
