@@ -64,12 +64,12 @@ int main(int argc, char **argv)
     /* --- texture registers: RGB565, point-sample, LOD for 64x64 (log2=6), 1x1 --- */
     SET(hw->texBaseAddr, 0);                        /* texture at tex-mem offset 0 (not tiled) */
     SET(hw->tLOD, SST_TLOD_MINMAX_INT(6, 6));       /* single LOD level 6 = 64 */
-    SET(hw->textureMode, SST_RGB565);               /* format; point sample (no filter bits) */
+    SET(hw->textureMode, SST_RGB565 | SST_TC_ZERO_OTHER | SST_TC_ADD_CLOCAL); /* RGB565 + decal (out=texel) */
     SET(hw->tDetail, 0);
 
     /* FBI color path: take color from the TMU (texture) output */
     SET(hw->fbzMode, SST_RGBWRMASK);
-    SET(hw->fbzColorPath, SST_PARMADJUST | SST_RGBSEL_TMUOUT);  /* texture color path */
+    SET(hw->fbzColorPath, SST_PARMADJUST | SST_RGBSEL_TREXOUT | SST_ENTEXTUREMAP);  /* texture color path + ENABLE */
 
     /* --- two triangles = a magnified quad (64x64 tex -> 256x256 screen = 4x) --- */
     /* TODO texturing: SST_RGBSEL_TMUOUT above + SST_SETUP_ST0|W0 here + texcoords
