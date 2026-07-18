@@ -24,6 +24,16 @@ surface doesn't take over the monitor (DirectDraw exclusive / mode handoff).
 Likely files: H5/GLIDE3 mode-set, H5/W2K/.../Displays/H5/DDINIT.C + DDFLIP.C,
 Miniport/H5/h3modeset.c.
 
+## Postfilter test (2026-07-18) — glide3x vidMaxRGBDelta has NO visible effect
+Widened the video postfilter in glide3x MINIHWC (vidMaxRGBDelta 0x100810 -> 0x303030,
+all 4 MINIHWC.C sites), rebuilt glide3x (build_glide_g6.bat, user-mode SAFE), deployed,
+launched Q3 q3dm1. USER on monitor: **NO CHANGE AT ALL**. => the fullscreen scanout
+filter is NOT controlled by glide3x's vidMaxRGBDelta here (minivdd/miniport likely owns
++resets it), OR the 'pixelated/software-like' look is not dither. glide3x build works:
+env in build cmd; output H5/BIN/glide3x.dll (348160). Box backup: glide3x-backup-box.dll.
+NEXT: get precise nature of the pixelation (grain vs blocky vs jagged vs upscaled) before
+more builds; consider LCD-upscaling-of-640x480 and running at native res.
+
 ## Display / mode / garble facts
 - After a Glide app exits abnormally (crash/taskkill) the board is left in 640×480
   Glide mode; forcing a GDI mode change (setmode) then garbles until GDI repaints.
