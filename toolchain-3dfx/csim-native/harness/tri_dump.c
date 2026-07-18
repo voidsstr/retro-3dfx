@@ -29,7 +29,7 @@ int main(int argc, char **argv)
      * fxHalMapBoard (csimInitHwAddress). Skipping the memory step leaves the sim's
      * RAM NULL and csimLoad32 segfaults, which is what the fxHalInit-only path did. */
     hw = (SstRegs *)(0x10000000 + SST_3D_OFFSET);
-    csimInitDriver(16 * 1024 * 1024, (volatile FxU32 *)malloc(16 * 1024 * 1024),
+    csimInitDriver(16 * 1024 * 1024, (volatile FxU32 *)calloc(16 * 1024 * 1024, 1),
                    (volatile FxU32 *)SST_BASE_ADDRESS(hw));
     if (!fxHalInitRegisters(hw)) { printf("initRegisters FAILED\n"); return 1; }
     if (!fxHalInitGamma(hw, 1.0F)) { printf("initGamma FAILED\n"); return 1; }

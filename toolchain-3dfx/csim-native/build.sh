@@ -55,7 +55,11 @@ cp "$SRC/HAL/HALIO.C" "$D/src/hal_halio.c";  sed -i 's#../../swlibs/newpci/pcili
 # native-linux CSIM build never wires halInfo.boardInfo[].sstCSIM -> csimLoad32
 # NULL-derefs during fxHalInitRegisters). This is THE fix that makes the sim run.
 cp "$SRC/HAL/FXHAL.C" "$D/src/hal_fxhal.c"
-perl -0pi -e 's/#ifdef WINNT\n\t  halInfo\.boardInfo\[bn\]\.sstCSIM = csimInit\( bn \);/#if defined(WINNT) || defined(HAL_CSIM)\n\t  halInfo.boardInfo[bn].sstCSIM = csimInit( bn );/' "$D/src/hal_fxhal.c"
+# enable the csimInit line (the one immediately above "sstCSIM = csimInit") by
+# flipping its guarding "#ifdef WINNT" to also fire under HAL_CSIM:
+awk '/sstCSIM = csimInit/{print "#if defined(WINNT) || defined(HAL_CSIM)" > "/dev/stderr"} {print}' "$D/src/hal_fxhal.c" >/dev/null 2>&1; \
+line=$(grep -n "sstCSIM = csimInit( bn );" "$D/src/hal_fxhal.c" | head -1 | cut -d: -f1); \
+if [ -n "$line" ]; then sed -i "$((line-1))s/#ifdef WINNT/#if defined(WINNT) || defined(HAL_CSIM)/" "$D/src/hal_fxhal.c"; fi
 # pcilib + newpci headers
 mkdir -p "$D/csim"; for f in "$SRC/CSIM"/*.[Hh]; do b=$(basename "$f"|tr 'A-Z' 'a-z'); [ -e "$D/csim/$b" ]||ln -s "$f" "$D/csim/$b"; done
 rm -f "$D/csim/csim.h"; cp "$D/inc/csim.h" "$D/csim/csim.h"

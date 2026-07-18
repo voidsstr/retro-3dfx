@@ -23,7 +23,7 @@ int main(int argc, char **argv)
     int px, py;
 
     sst = (SstRegs *)(0x10000000 + SST_3D_OFFSET);
-    csimInitDriver(4096 * 1024, malloc(4096 * 1024),
+    csimInitDriver(4096 * 1024, calloc(4096 * 1024, 1),
                    (volatile FxU32 *)SST_BASE_ADDRESS(sst));
 
     /* 2D GUI setup (exactly DRIVER.C): 32bpp dest, stride 640*4, fore color */
