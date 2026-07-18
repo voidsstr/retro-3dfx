@@ -24,6 +24,22 @@ surface doesn't take over the monitor (DirectDraw exclusive / mode handoff).
 Likely files: H5/GLIDE3 mode-set, H5/W2K/.../Displays/H5/DDINIT.C + DDFLIP.C,
 Miniport/H5/h3modeset.c.
 
+## ★★★ ROOT CAUSE FOUND (2026-07-18): FRANKEN-STACK — in-box display driver + our miniport
+Registry audit on .143: `Services\3dfxvs ImagePath = 3dfxv5m.sys` (OURS, loaded, desktop
+1024x768x32@85 works on it) BUT `Device0 InstalledDisplayDrivers = "3dfxvs"` = the IN-BOX
+XP 2001 3dfxvs.dll (689,216, 08/17/2001). Our 3dfxv5d.dll (595,644, Jul 17) sits in system32
+UNUSED. Cause: active INF oem10.inf is the STOCK 3dfxvs2k.inf — its
+[3dfxvs_SoftwareDeviceSettings] writes InstalledDisplayDrivers=3dfxvs on every PnP (re)install,
+clobbering the WFP-rename plan. So every 'display driver deployed' conclusion before now ran
+with the display DLL NEVER ACTIVE (consistent: no miniport LastMode reg values).
+EXPLAINS: HWCEXT escape returning NULL dwordOffset (2001 display DLL doesn't speak our H5
+escape protocol -> 0.1.0 dummyContextDWORD bandaid), scanout/mode weirdness, monitor garble,
+and why glide3x video-register changes (postfilter) had no visible effect.
+FIX: set InstalledDisplayDrivers=3dfxv5d (matched pair with our miniport) + reboot.
+RISK: LOW-ish — miniport (the BSOD risk) is unchanged & already proven; a failing display DLL
+=> VGA fallback, recoverable remotely by flipping the registry back (agent still runs).
+ROLLBACK: REGWRITE InstalledDisplayDrivers back to 3dfxvs + reboot.
+
 ## Postfilter test (2026-07-18) — glide3x vidMaxRGBDelta has NO visible effect
 Widened the video postfilter in glide3x MINIHWC (vidMaxRGBDelta 0x100810 -> 0x303030,
 all 4 MINIHWC.C sites), rebuilt glide3x (build_glide_g6.bat, user-mode SAFE), deployed,
