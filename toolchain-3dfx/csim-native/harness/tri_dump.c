@@ -28,8 +28,9 @@ int main(int argc, char **argv)
      * csimInitDriver() = allocate board memory (csimInitMemory) THEN fxHalInit +
      * fxHalMapBoard (csimInitHwAddress). Skipping the memory step leaves the sim's
      * RAM NULL and csimLoad32 segfaults, which is what the fxHalInit-only path did. */
+    volatile unsigned char *board = (volatile unsigned char *)calloc(16 * 1024 * 1024, 1);
     hw = (SstRegs *)(0x10000000 + SST_3D_OFFSET);
-    csimInitDriver(16 * 1024 * 1024, (volatile FxU32 *)calloc(16 * 1024 * 1024, 1),
+    csimInitDriver(16 * 1024 * 1024, (volatile FxU32 *)board,
                    (volatile FxU32 *)SST_BASE_ADDRESS(hw));
     if (!fxHalInitRegisters(hw)) { printf("initRegisters FAILED\n"); return 1; }
     if (!fxHalInitGamma(hw, 1.0F)) { printf("initGamma FAILED\n"); return 1; }
@@ -37,33 +38,54 @@ int main(int argc, char **argv)
         printf("initVideo FAILED\n"); return 1;
     }
 
+    SET(hw->chipMask, 0x1);   /* single simulated chip */
     SET(hw->fbzMode, SST_RGBWRMASK);
     SET(hw->fbzColorPath, SST_PARMADJUST);
-    SET(hw->sSetupMode, SST_SETUP_RGB);
 
-    /* clear the back buffer to mid-blue first (fastfill), so a black readback
-     * means "readback broken" and a blue field means "readback works, triangle
-     * didn't draw" — disambiguates render vs readback. */
-    SET(hw->c1, (0x0000ffUL));         /* fastfill color (fbiColor1) */
-    SET(hw->clipLeftRight, (0UL<<16) | W);
-    SET(hw->clipBottomTop, (0UL<<16) | H);
+    /* clear the buffer to mid-blue first (fastfill) so we can tell render from
+     * readback: black = readback broken, blue = readback ok + triangle missed. */
+    SET(hw->c1, 0x000000ffUL);         /* fastfill color */
+    SET(hw->clipLeftRight, (0UL << 16) | W);
+    SET(hw->clipBottomTop, (0UL << 16) | H);
     SET(hw->fastfillCMD, 0);
     fxHalIdleNoNop(hw);
 
-    /* one Gouraud triangle, big enough to sample many pixels */
-    vtx(hw, 120.0F, 100.0F, 255.0F,   0.0F,   0.0F); SET(hw->sBeginTriCMD, 0);
-    vtx(hw, 520.0F, 140.0F,   0.0F, 255.0F,   0.0F); SET(hw->sDrawTriCMD, 0);
-    vtx(hw, 300.0F, 400.0F,   0.0F,   0.0F, 255.0F); SET(hw->sDrawTriCMD, 0);
-    fxHalIdleNoNop(hw);    /* flush the command fifo so the triangle executes */
+    /* Triangle via the FLOAT SETUP unit (sstTriangleSetup): write float vertices
+     * to the s* setup registers with sSetupMode, then sBeginTriCMD / sDrawTriCMD
+     * (cmdCodes SST_SBEGINTRICMD / SST_SDRAWTRICMD -> the setup unit computes the
+     * gradients + edges, then rasterizes). This is the robust path (what glide /
+     * the real driver use); hand-setting iterated gradients hung the span walker. */
+    SET(hw->sSetupMode, SST_SETUP_RGB);
+    vtx(hw, 120.0F, 100.0F, 255.0F,  40.0F,  40.0F); SET(hw->sBeginTriCMD, 0);
+    vtx(hw, 520.0F, 140.0F, 255.0F,  40.0F,  40.0F); SET(hw->sDrawTriCMD, 0);
+    vtx(hw, 300.0F, 400.0F, 255.0F,  40.0F,  40.0F); SET(hw->sDrawTriCMD, 0);
+    /* NO idle: it spins (triangle leaves FBI_BUSY); triangle renders synchronously */
 
-    /* dump the color buffer to PPM (read 565, expand to 888). Read the BACK
-     * buffer (we drew there); if the sim ignores buffer id, front == back. */
+    /* DIRECT board-memory scan: find where the render landed (bypass the slow/
+     * hanging csimReadPixel). Scan 16MB as 16bpp words; report nonzero runs +
+     * histogram of distinct values (fastfill blue 0x001F, triangle red ~0xF808). */
+    {
+        volatile unsigned short *fb = (volatile unsigned short *)board;
+        long n = (16 * 1024 * 1024) / 2, i, nz = 0, blue = 0, red = 0, firstnz = -1;
+        for (i = 0; i < n; i++) {
+            unsigned short v = fb[i];
+            if (v) { nz++; if (firstnz < 0) firstnz = i; }
+            if (v == 0x001F) blue++;
+            if ((v & 0xF800) && ((v & 0x07E0) < 0x0300) && ((v & 0x001F) < 0x08)) red++;
+        }
+        printf("board scan: nonzero16=%ld  blue(001F)=%ld  reddish=%ld  firstNZ_word=%ld\n",
+               nz, blue, red, firstnz);
+        fflush(stdout);
+        return 0;
+    }
+
+    /* dump the color buffer to PPM (read 565, expand to 888). */
     f = fopen(out, "wb");
     if (!f) { printf("cannot open %s\n", out); return 1; }
     fprintf(f, "P6\n%d %d\n255\n", W, H);
     for (y = 0; y < H; y++)
         for (x = 0; x < W; x++) {
-            FxU32 p = csimReadPixel(hw, CSIM_BUF_3D_BACK, x, y);   /* 565 */
+            FxU32 p = csimReadPixel(hw, CSIM_BUF_3D_FRONT, x, y);   /* 565 */
             unsigned char rgb[3];
             rgb[0] = (unsigned char)(((p >> 11) & 0x1F) << 3);
             rgb[1] = (unsigned char)(((p >>  5) & 0x3F) << 2);
