@@ -39,14 +39,19 @@ int main(int argc, char **argv)
     }
 
     SET(hw->chipMask, 0x1);   /* single simulated chip */
+    /* fxHalInitVideo skipped the video-register init (trace warning), so the 3D
+     * color buffer stride was 0 -> every row collapsed onto y=0. Set it like
+     * VIDEO.C:182-183: base 0, linear stride = width*2 bytes (16bpp). */
+    SET(hw->colBufferAddr, 0);
+    SET(hw->colBufferStride, W * 2);
     SET(hw->fbzMode, SST_RGBWRMASK);
     SET(hw->fbzColorPath, SST_PARMADJUST);
 
     /* clear the buffer to mid-blue first (fastfill) so we can tell render from
      * readback: black = readback broken, blue = readback ok + triangle missed. */
     SET(hw->c1, 0x000000ffUL);         /* fastfill color */
-    SET(hw->clipLeftRight, (0UL << 16) | W);
-    SET(hw->clipBottomTop, (0UL << 16) | H);
+    SET(hw->clipLeftRight, (0UL << 16) | W);   /* xmin=0 (hi), xmax=W (lo) */
+    SET(hw->clipBottomTop, (H << 16) | 0UL);   /* ymax=H (hi), ymin=0 (lo) */
     SET(hw->fastfillCMD, 0);
     fxHalIdleNoNop(hw);
 
@@ -61,38 +66,28 @@ int main(int argc, char **argv)
     vtx(hw, 300.0F, 400.0F, 255.0F,  40.0F,  40.0F); SET(hw->sDrawTriCMD, 0);
     /* NO idle: it spins (triangle leaves FBI_BUSY); triangle renders synchronously */
 
-    /* DIRECT board-memory scan: find where the render landed (bypass the slow/
-     * hanging csimReadPixel). Scan 16MB as 16bpp words; report nonzero runs +
-     * histogram of distinct values (fastfill blue 0x001F, triangle red ~0xF808). */
+    /* DIRECT board-memory dump: the color buffer is at board offset 0 (16bpp 565,
+     * stride W). csimReadPixel is pathologically slow post-render, so read the
+     * malloc'd board RAM directly -> 640x480 PPM. Fast + reliable. */
     {
         volatile unsigned short *fb = (volatile unsigned short *)board;
-        long n = (16 * 1024 * 1024) / 2, i, nz = 0, blue = 0, red = 0, firstnz = -1;
-        for (i = 0; i < n; i++) {
-            unsigned short v = fb[i];
-            if (v) { nz++; if (firstnz < 0) firstnz = i; }
-            if (v == 0x001F) blue++;
-            if ((v & 0xF800) && ((v & 0x07E0) < 0x0300) && ((v & 0x001F) < 0x08)) red++;
-        }
-        printf("board scan: nonzero16=%ld  blue(001F)=%ld  reddish=%ld  firstNZ_word=%ld\n",
-               nz, blue, red, firstnz);
-        fflush(stdout);
-        return 0;
+        long nz = 0, i;
+        for (i = 0; i < (long)W * H; i++) if (fb[i]) nz++;
+        printf("framebuffer nonzero pixels: %ld / %d\n", nz, W * H);
+        f = fopen(out, "wb");
+        if (!f) { printf("cannot open %s\n", out); return 1; }
+        fprintf(f, "P6\n%d %d\n255\n", W, H);
+        for (y = 0; y < H; y++)
+            for (x = 0; x < W; x++) {
+                unsigned short p = fb[y * W + x];    /* 565 */
+                unsigned char rgb[3];
+                rgb[0] = (unsigned char)(((p >> 11) & 0x1F) << 3);
+                rgb[1] = (unsigned char)(((p >>  5) & 0x3F) << 2);
+                rgb[2] = (unsigned char)(( p        & 0x1F) << 3);
+                fwrite(rgb, 1, 3, f);
+            }
+        fclose(f);
+        printf("wrote %s (%dx%d)\n", out, W, H);
     }
-
-    /* dump the color buffer to PPM (read 565, expand to 888). */
-    f = fopen(out, "wb");
-    if (!f) { printf("cannot open %s\n", out); return 1; }
-    fprintf(f, "P6\n%d %d\n255\n", W, H);
-    for (y = 0; y < H; y++)
-        for (x = 0; x < W; x++) {
-            FxU32 p = csimReadPixel(hw, CSIM_BUF_3D_FRONT, x, y);   /* 565 */
-            unsigned char rgb[3];
-            rgb[0] = (unsigned char)(((p >> 11) & 0x1F) << 3);
-            rgb[1] = (unsigned char)(((p >>  5) & 0x3F) << 2);
-            rgb[2] = (unsigned char)(( p        & 0x1F) << 3);
-            fwrite(rgb, 1, 3, f);
-        }
-    fclose(f);
-    printf("wrote %s (%dx%d)\n", out, W, H);
     return 0;
 }
