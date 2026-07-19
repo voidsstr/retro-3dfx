@@ -679,6 +679,47 @@ int main(void)
             glColor4f(1,1,1,1);
             glDisable(GL_BLEND);
             dump_case(25);
+
+            /* 26: real font, 1:1, via glDrawElements (VERTEX ARRAY path = what
+             * Q3's menu uses). Same geometry as the CLEAN immediate case 22.
+             * If THIS slices, the bug is the VA/compiled texcoord path. */
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glBindTexture(GL_TEXTURE_2D, ft);
+            glEnableClientState(GL_VERTEX_ARRAY);
+            glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+            glEnableClientState(GL_COLOR_ARRAY);
+            glVertexPointer(3, GL_FLOAT, 16, xyzw);
+            glTexCoordPointer(2, GL_FLOAT, 0, st);
+            glColorPointer(4, GL_UNSIGNED_BYTE, 0, rgba);
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glClear(GL_COLOR_BUFFER_BIT);
+            {
+                float px = 120.0f;
+                nq = 0;
+                for (k = 0; k < 12 && nq < 40; k++) {
+                    float gx = 2.0f + k * 19.0f;
+                    float s0 = gx/256.0f, s1 = (gx+19.0f)/256.0f;
+                    float t0 = 2.0f/256.0f, t1 = 29.0f/256.0f;
+                    int b = nq * 4;
+                    xyzw[b+0][0]=px;       xyzw[b+0][1]=250;    xyzw[b+0][2]=0;
+                    xyzw[b+1][0]=px+19.0f; xyzw[b+1][1]=250;    xyzw[b+1][2]=0;
+                    xyzw[b+2][0]=px+19.0f; xyzw[b+2][1]=250+27; xyzw[b+2][2]=0;
+                    xyzw[b+3][0]=px;       xyzw[b+3][1]=250+27; xyzw[b+3][2]=0;
+                    st[b+0][0]=s0; st[b+0][1]=t0;  st[b+1][0]=s1; st[b+1][1]=t0;
+                    st[b+2][0]=s1; st[b+2][1]=t1;  st[b+3][0]=s0; st[b+3][1]=t1;
+                    for (x = 0; x < 4; x++) { rgba[b+x][0]=220; rgba[b+x][1]=40;
+                                              rgba[b+x][2]=40; rgba[b+x][3]=255; }
+                    idx[nq*6+0]=b; idx[nq*6+1]=b+1; idx[nq*6+2]=b+2;
+                    idx[nq*6+3]=b; idx[nq*6+4]=b+2; idx[nq*6+5]=b+3;
+                    px += 19.0f + 2.0f;
+                    nq++;
+                }
+                glDrawElements(GL_TRIANGLES, nq*6, GL_UNSIGNED_INT, idx);
+            }
+            glDisable(GL_BLEND);
+            dump_case(26);
         }
 
         /* 16: same string, scale 1.0 (rebuild positions at 1:1) */

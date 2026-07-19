@@ -38,7 +38,27 @@ drawn ≈1:1 so they're clean (matches the long-standing "only font1_prop" sympt
   (cases 17/18/19 clean), **vertex texcoords** (traced final GrVertex stream:
   correct positions/texcoords).
 
-## The fix (minification filtering) — NEXT
+## ⚠️ UPDATE (later same session): minification DISPROVEN as the live cause
+Implemented the mip fix below (box-filtered chain + GR_MIPMAP_NEAREST_DITHER,
+env RETRO3DFX_FONTMIP; confirmed engaged: the 256² ARGB_4444 font gets
+mipWords=87381). **The live Q3 menu was UNCHANGED** — still sliced, identical.
+That means the hardware samples LOD 0 (the font is NOT minified in the live
+menu), so the case-21 0.74× slice was a *different* phenomenon that merely looks
+similar. Further isolation:
+- case 26: real font, **1:1, via glDrawElements (VA path = what Q3 uses)** = CLEAN
+- so immediate (22), VA (26), and dropshadow (24) are ALL clean at 1:1.
+
+**Current standing contradiction:** every isolated render at 1:1 is CLEAN, yet the
+live menu (vertex trace says ~1:1: glyph x=222..245=23px from s=230..253=23 texels)
+SLICES. The trigger is something in Q3's *actual* per-glyph state not yet
+replicated — prime remaining suspects: **fractional screen positions** combined
+with **real variable-width glyph sub-rect texcoords** and the full atlas (the exact
+`UI_DrawProportionalString` recipe; the case-20 full replication crashed and needs
+redoing). NOT filter, NOT mips/minification, NOT dropshadow, NOT VA-vs-immediate,
+NOT asm-vs-C, NOT texel-center. Box left on shipped 0.2.2; the env-gated mip code
+is harmless (off by default) and kept for the eventual real-minification cases.
+
+## The (candidate, now deprioritized) minification fix — for reference
 The font atlas is a single-LOD (non-mipmapped, GL_LINEAR) 256² texture; VSA-100
 has nothing to down-filter with at minification. Options, in order of preference:
 1. **Driver-side mip generation + LOD blend**: build a box-filtered mip chain for
