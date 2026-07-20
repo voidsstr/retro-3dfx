@@ -109,6 +109,7 @@ void __glSSTColorTableEXT(__GLcontext *gc, GLenum target, GLenum internalformat,
            pal[i][2] = src[i*stride + rOfs];
            pal[i][3] = (aOfs >= 0) ? src[i*stride + aOfs] : 255;
         }
+        { extern long __r3d_cTableDl; __r3d_cTableDl++; }
         grTexDownloadTable( GR_TEXTABLE_PALETTE, (void*)pal );
 #else
         /* malloc table if it needs it */

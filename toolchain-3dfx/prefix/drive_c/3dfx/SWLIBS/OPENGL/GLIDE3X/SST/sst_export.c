@@ -360,6 +360,48 @@ static unsigned __int64 __prof_lastSwap = 0, __prof_frameAcc = 0,
                         __prof_flushAcc = 0, __prof_swapAcc = 0;
 static int             __prof_frames = 0;
 
+/* RETRO3DFX_PERFLOG: per-100-frame counter dump -> C:\icd_perf.log (raw
+** Win32 I/O; GoldSrc low-fps hunt).  Counters incremented at the texture
+** download / palette / allocator hot spots.  windows.h cannot be included
+** here (its SwapBuffers(HDC) clashes with the local static SwapBuffers),
+** so the few Win32 imports are declared by hand. */
+void * __stdcall CreateFileA(const char*, unsigned long, unsigned long,
+                             void*, unsigned long, unsigned long, void*);
+int    __stdcall WriteFile(void*, const void*, unsigned long, unsigned long*, void*);
+int    __stdcall FlushFileBuffers(void*);
+unsigned long __stdcall GetTickCount(void);
+int    __cdecl   wsprintfA(char*, const char*, ...);
+#define __R3D_INVALID_HANDLE ((void*)(long)-1)
+
+long __r3d_cTexDl = 0, __r3d_cTexDlPart = 0, __r3d_cTableDl = 0, __r3d_cTexAlloc = 0;
+static void __r3dPerfDump(void)
+{
+    static int en = -1;
+    static void *h = 0;
+    static unsigned long lastTick = 0;
+    static int frames = 0;
+    unsigned long now, wr, dt;
+    char buf[200]; int n, fps10;
+    if (en < 0) en = getenv("RETRO3DFX_PERFLOG") ? 1 : 0;
+    if (!en) return;
+    frames++;
+    if (frames < 100) return;
+    now = GetTickCount();
+    if (!h) {
+        h = CreateFileA("C:\\icd_perf.log", 0x40000000L /*GENERIC_WRITE*/,
+                        1 /*FILE_SHARE_READ*/, 0, 2 /*CREATE_ALWAYS*/, 0, 0);
+    } else if (h != __R3D_INVALID_HANDLE && lastTick) {
+        dt = now - lastTick;
+        fps10 = dt ? (int)(1000L * frames * 10 / dt) : 0;
+        n = wsprintfA(buf, "f=%d dt=%lums fps10=%d texDl=%ld texDlPart=%ld tableDl=%ld alloc=%ld\r\n",
+                      frames, dt, fps10,
+                      __r3d_cTexDl, __r3d_cTexDlPart, __r3d_cTableDl, __r3d_cTexAlloc);
+        WriteFile(h, buf, (unsigned long)n, &wr, 0); FlushFileBuffers(h);
+    }
+    lastTick = now; frames = 0;
+    __r3d_cTexDl = __r3d_cTexDlPart = __r3d_cTableDl = __r3d_cTexAlloc = 0;
+}
+
 static void SwapBuffers(__GLcontext *gc)
 {
     extern unsigned long tacoHackGlideInit;
@@ -384,6 +426,8 @@ static void SwapBuffers(__GLcontext *gc)
                               rendering on the Voodoo5 SLI (hard sync needed) */
     }
     ts1 = __prof_rdtsc();
+
+    __r3dPerfDump();
 
     __prof_flushAcc += (t1 - t0);
     __prof_swapAcc  += (ts1 - ts0);

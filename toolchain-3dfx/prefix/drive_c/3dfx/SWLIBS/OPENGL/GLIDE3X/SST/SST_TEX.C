@@ -33,6 +33,15 @@
 #include <string.h>
 #include "sst_globals.h"
 
+/* RETRO3DFX_PERFLOG counters (defined in sst_export.c, dumped each 100
+** frames).  Self-referential macros: the inner name is not re-expanded, so
+** every grTexDownload* call site in this file is counted transparently. */
+extern long __r3d_cTexDl, __r3d_cTexDlPart;
+#define grTexDownloadMipMapLevel(a,b,c,d,e,f,g,h) \
+        (__r3d_cTexDl++, grTexDownloadMipMapLevel(a,b,c,d,e,f,g,h))
+#define grTexDownloadMipMapLevelPartial(a,b,c,d,e,f,g,h,i,j) \
+        (__r3d_cTexDlPart++, grTexDownloadMipMapLevelPartial(a,b,c,d,e,f,g,h,i,j))
+
 /* crash-robust append logger to C:\3dfxogl.log (defined in WGL/WGLCMDS.C);
 ** declared early for the FILT@ instrumentation of grTexFilterMode sites. */
 extern void OGLLOG( const char *fmt, ... );
@@ -2621,6 +2630,8 @@ void __glSSTAllocateTextureMemory(__GLcontext *gc, __GLtexture *tex, int len)
     ** lengths that are only 8-aligned (e.g. small ALPHA_8 strips), which
     ** would knock all subsequent nodes onto +8 addresses. */
     len = (len + 15) & ~15;
+
+    { extern long __r3d_cTexAlloc; __r3d_cTexAlloc++; }
 
     txu = gc->texture.currentTexUnit;
 
