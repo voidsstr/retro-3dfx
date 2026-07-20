@@ -193,6 +193,18 @@ int main(void){
       dump("C:\\gfix_I.raw");
     }
   }
+  /* J: swap-loop meter validation. 220 SwapBuffers frames; with
+   * RETRO3DFX_PERFLOG=1 the ICD must emit >=2 lines to C:\icd_perf.log
+   * (db=1). Validates the perf meter under a known double-buffered
+   * context - if CS then still logs nothing, CS's context is
+   * single-buffered (wgl swap wrapper early-returns). */
+  { int fr;
+    for(fr=0;fr<220;fr++){
+      glClearColor((fr&1)?0.2f:0.0f,0,0,1); glClear(GL_COLOR_BUFFER_BIT);
+      SwapBuffers(dc);
+    }
+    fprintf(lg,"swaploop done\n"); fflush(lg);
+  }
   fprintf(lg,"done\n"); fclose(lg);
   wglMakeCurrent(0,0); wglDeleteContext(rc); ReleaseDC(hwnd,dc); DestroyWindow(hwnd);
   return 0;

@@ -374,6 +374,7 @@ int    __cdecl   wsprintfA(char*, const char*, ...);
 #define __R3D_INVALID_HANDLE ((void*)(long)-1)
 
 long __r3d_cTexDl = 0, __r3d_cTexDlPart = 0, __r3d_cTableDl = 0, __r3d_cTexAlloc = 0;
+static int __r3d_dbMode = -1;   /* doubleBufferMode as seen at swap time */
 static void __r3dPerfDump(void)
 {
     static int en = -1;
@@ -393,8 +394,8 @@ static void __r3dPerfDump(void)
     } else if (h != __R3D_INVALID_HANDLE && lastTick) {
         dt = now - lastTick;
         fps10 = dt ? (int)(1000L * frames * 10 / dt) : 0;
-        n = wsprintfA(buf, "f=%d dt=%lums fps10=%d texDl=%ld texDlPart=%ld tableDl=%ld alloc=%ld\r\n",
-                      frames, dt, fps10,
+        n = wsprintfA(buf, "f=%d dt=%lums fps10=%d db=%d texDl=%ld texDlPart=%ld tableDl=%ld alloc=%ld\r\n",
+                      frames, dt, fps10, __r3d_dbMode,
                       __r3d_cTexDl, __r3d_cTexDlPart, __r3d_cTableDl, __r3d_cTexAlloc);
         WriteFile(h, buf, (unsigned long)n, &wr, 0); FlushFileBuffers(h);
     }
@@ -411,6 +412,12 @@ static void SwapBuffers(__GLcontext *gc)
     gc->procs.flush(gc);
     t1 = __prof_rdtsc();
 
+    /* perf dump BEFORE the single-buffer early-return: a single-buffered
+    ** context (front-buffer rendering) still counts as a "frame" for the
+    ** GoldSrc fps hunt, and db= in the log tells us which mode we're in. */
+    __r3d_dbMode = gc->modes.doubleBufferMode ? 1 : 0;
+    __r3dPerfDump();
+
     if (!gc->modes.doubleBufferMode) {
         return;
     }
@@ -426,8 +433,6 @@ static void SwapBuffers(__GLcontext *gc)
                               rendering on the Voodoo5 SLI (hard sync needed) */
     }
     ts1 = __prof_rdtsc();
-
-    __r3dPerfDump();
 
     __prof_flushAcc += (t1 - t0);
     __prof_swapAcc  += (ts1 - ts0);
@@ -453,9 +458,29 @@ static void SwapBuffers(__GLcontext *gc)
 
 /************************************************************************/
 
+static GrContext_t tacoHackContext;
+/* RETRO3DFX Glide-context reuse bookkeeping (see MakeCurrent): the window and
+** resolution the current Glide context was opened on. */
+long __r3d_openHwnd = 0;
+long __r3d_openRes  = -1;
+
 static GLboolean DestroyContext(__GLcontext *gc)
 {
-    /* 
+    extern unsigned long tacoHackGlideInit;
+
+    /* RETRO3DFX: the deferred Glide close (LoseCurrent no longer closes).
+    ** If a multi-context app destroys a secondary context mid-run, the next
+    ** MakeCurrent simply reopens -- one hiccup, still correct. */
+    if (tacoHackGlideInit && tacoHackContext) {
+        OGLLOG( "DestroyContext: grSstWinClose(ctx=0x%x)",
+                (unsigned)tacoHackContext );
+        grSstWinClose( tacoHackContext );
+        tacoHackGlideInit = 0;
+        __r3d_openHwnd = 0;
+        __r3d_openRes = -1;
+    }
+
+    /*
     ** Free ancillary buffer related data.  Note that these calls do
     ** *not* free software ancillary buffers, just any related data
     ** stored in them.
@@ -471,23 +496,23 @@ static GLboolean DestroyContext(__GLcontext *gc)
     return GL_TRUE;
 }
 
-static GrContext_t tacoHackContext;
-
 static GLboolean LoseCurrent(__GLcontext *gc)
 {
     extern unsigned long tacoHackGlideInit;
-    /* 
-    ** Illegal to makeCurrent when the current context is in selection or 
+    /*
+    ** Illegal to makeCurrent when the current context is in selection or
     ** feedback mode.
     */
     if (gc->renderMode != GL_RENDER || __gl_beginMode == __GL_IN_BEGIN)
         return GL_FALSE;
 
-    OGLLOG( "LoseCurrent: calling grSstWinClose(ctx=0x%x)",
+    /* RETRO3DFX: do NOT grSstWinClose here.  GoldSrc switches GL contexts on
+    ** the same window constantly; closing on every LoseCurrent forced a full
+    ** fullscreen re-open in the next MakeCurrent (70-600ms each = the CS
+    ** "very low fps").  The Glide context now stays open; it is closed by
+    ** MakeCurrent on a window/res change and by DestroyContext. */
+    OGLLOG( "LoseCurrent: keeping Glide ctx=0x%x open (deferred close)",
             (unsigned)tacoHackContext );
-    grSstWinClose( tacoHackContext );
-    OGLLOG( "LoseCurrent: grSstWinClose returned" );
-    tacoHackGlideInit = 0;
 
     __glLoseCurrentBuffers( gc, ((__GLDDcontext *)gc)->displayBank );
 
@@ -777,6 +802,32 @@ static GLboolean MakeCurrent(__GLcontext *gc)
         }
     }
 
+    /* RETRO3DFX Glide-context REUSE (GoldSrc/CS fps fix): GoldSrc switches
+    ** between several GL contexts on the SAME window every few frames, and
+    ** each MakeCurrent used to do a full grSstWinClose+grSstWinOpen round
+    ** trip (70-600ms of fullscreen mode-set EACH) -> seconds per frame.
+    ** LoseCurrent no longer closes; here we reuse the open Glide context
+    ** when the target window is unchanged and only re-apply state.  A
+    ** different window (or resolution request) still closes + reopens. */
+    { extern long __r3d_openHwnd;
+      extern long __r3d_openRes;
+      if ( tacoHackGlideInit && tacoHackContext &&
+           __r3d_openHwnd == (long)tacoHackHWND &&
+           __r3d_openRes == (long)resolution ) {
+          OGLLOG( "MakeCurrent: REUSE Glide ctx=0x%x (same hwnd/res, no WinOpen)",
+                  (unsigned)tacoHackContext );
+          goto __r3d_glide_ready;
+      }
+      if ( tacoHackGlideInit && tacoHackContext ) {
+          OGLLOG( "MakeCurrent: hwnd/res changed -> grSstWinClose(0x%x)",
+                  (unsigned)tacoHackContext );
+          grSstWinClose( tacoHackContext );
+          tacoHackGlideInit = 0;
+      }
+      __r3d_openHwnd = (long)tacoHackHWND;
+      __r3d_openRes  = (long)resolution;
+    }
+
     OGLLOG( "MakeCurrent: fbmem=%dMB res idx=%d -> maxvp %dx%d, calling "
             "grSstWinOpen(hwnd=0x%x res=%d refresh=GR_REFRESH_60Hz "
             "fmt=ARGB origin=UL nCol=2 nAux=1)",
@@ -817,8 +868,13 @@ static GLboolean MakeCurrent(__GLcontext *gc)
             (unsigned)tacoHackContext );
     tacoHackGlideInit = 1;
 
+__r3d_glide_ready:
     if ( !gc->modes.doubleBufferMode || getenv( "SST_SINGLEBUFFER" ) ) {
         grRenderBuffer( GR_BUFFER_FRONTBUFFER );
+    } else {
+        /* explicit: a reused context may have been left on FRONT by a
+        ** single-buffered sibling context */
+        grRenderBuffer( GR_BUFFER_BACKBUFFER );
     }
 
     /* XXXshui glide initialization; may need to be moved to the place */
