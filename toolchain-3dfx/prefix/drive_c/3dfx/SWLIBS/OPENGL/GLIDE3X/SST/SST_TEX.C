@@ -45,6 +45,7 @@ extern long __r3d_cTexDl, __r3d_cTexDlPart;
 /* crash-robust append logger to C:\3dfxogl.log (defined in WGL/WGLCMDS.C);
 ** declared early for the FILT@ instrumentation of grTexFilterMode sites. */
 extern void OGLLOG( const char *fmt, ... );
+extern void OGLLOGV( const char *fmt, ... );
 
 #define __GL_TEXTURE_INDEX_1D 0
 #define __GL_TEXTURE_INDEX_2D 1
@@ -466,9 +467,9 @@ static void __glSSTApplyGrFilter(GrChipID_t tmu, __GLtexture *tex)
     /* single-texture lane: cover BOTH TMUs (binds land on tmu=1 while the
        init default set only TMU0 - the sampling TMU must get the filter).
        Refine to per-unit when ARB multitexture ships. */
-    OGLLOG( "FILT@456 tmu/min/mag= %d %d %d", (int)(GR_TMU0), (int)(minf), (int)(magf) );
+    OGLLOGV( "FILT@456 tmu/min/mag= %d %d %d", (int)(GR_TMU0), (int)(minf), (int)(magf) );
     grTexFilterMode(GR_TMU0, minf, magf);
-    OGLLOG( "FILT@457 tmu/min/mag= %d %d %d", (int)(GR_TMU1), (int)(minf), (int)(magf) );
+    OGLLOGV( "FILT@457 tmu/min/mag= %d %d %d", (int)(GR_TMU1), (int)(minf), (int)(magf) );
     grTexFilterMode(GR_TMU1, minf, magf);
     (void)tmu;
 }
@@ -787,7 +788,7 @@ void APIENTRY __glsstim_TexParameterfv(GLenum target, GLenum pname, const GLfloa
 
         tmp = ( ( tex->sst.min << 8 ) | ( tex->sst.mag ) );
         if ( gc->texture.hwMinMag[txu] != tmp ) {
-            OGLLOG( "FILT@676 tmu/min/mag= %d %d %d", (int)(gc->texture.sst.texUnits[txu]), (int)(tex->sst.min), (int)(tex->sst.mag) );
+            OGLLOGV( "FILT@676 tmu/min/mag= %d %d %d", (int)(gc->texture.sst.texUnits[txu]), (int)(tex->sst.min), (int)(tex->sst.mag) );
             grTexFilterMode(gc->texture.sst.texUnits[txu], tex->sst.min, tex->sst.mag); 
             gc->texture.hwMinMag[txu] = tmp;
         }
@@ -813,7 +814,7 @@ void APIENTRY __glsstim_TexParameterfv(GLenum target, GLenum pname, const GLfloa
         }
         tmp = ( ( tex->sst.min << 8 ) | ( tex->sst.mag ) );
         if ( gc->texture.hwMinMag[txu] != tmp ) {
-            OGLLOG( "FILT@701 tmu/min/mag= %d %d %d", (int)(gc->texture.sst.texUnits[txu]), (int)(tex->sst.min), (int)(tex->sst.mag) );
+            OGLLOGV( "FILT@701 tmu/min/mag= %d %d %d", (int)(gc->texture.sst.texUnits[txu]), (int)(tex->sst.min), (int)(tex->sst.mag) );
             grTexFilterMode(gc->texture.sst.texUnits[txu], tex->sst.min, tex->sst.mag); 
             gc->texture.hwMinMag[txu] = tmp;
         }
@@ -955,7 +956,7 @@ void APIENTRY __glsstim_TexParameteriv(GLenum target, GLenum pname, const GLint 
         }
         tmp = ( ( tex->sst.min << 8 ) | ( tex->sst.mag ) );
         if ( gc->texture.hwMinMag[txu] != tmp ) {
-            OGLLOG( "FILT@842 tmu/min/mag= %d %d %d", (int)(gc->texture.sst.texUnits[txu]), (int)(tex->sst.min), (int)(tex->sst.mag) );
+            OGLLOGV( "FILT@842 tmu/min/mag= %d %d %d", (int)(gc->texture.sst.texUnits[txu]), (int)(tex->sst.min), (int)(tex->sst.mag) );
             grTexFilterMode(gc->texture.sst.texUnits[txu], tex->sst.min, tex->sst.mag); 
             gc->texture.hwMinMag[txu] = tmp;
         }
@@ -980,7 +981,7 @@ void APIENTRY __glsstim_TexParameteriv(GLenum target, GLenum pname, const GLint 
         }
         tmp = ( ( tex->sst.min << 8 ) | ( tex->sst.mag ) );
         if ( gc->texture.hwMinMag[txu] != tmp ) {
-            OGLLOG( "FILT@866 tmu/min/mag= %d %d %d", (int)(gc->texture.sst.texUnits[txu]), (int)(tex->sst.min), (int)(tex->sst.mag) );
+            OGLLOGV( "FILT@866 tmu/min/mag= %d %d %d", (int)(gc->texture.sst.texUnits[txu]), (int)(tex->sst.min), (int)(tex->sst.mag) );
             grTexFilterMode(gc->texture.sst.texUnits[txu], tex->sst.min, tex->sst.mag); 
             gc->texture.hwMinMag[txu] = tmp;
         }
@@ -3957,7 +3958,7 @@ void __glSSTBindTexture(__GLcontext *gc, GLuint targetIndex, GLuint texture,
         }
         tmp = ( ( texobj->texture.map.sst.min << 8 ) | ( texobj->texture.map.sst.mag ) );
         if ( gc->texture.hwMinMag[txu] != tmp ) {
-            OGLLOG( "FILT@3767 tmu/min/mag= %d %d %d", (int)(tmu), (int)(texobj->texture.map.sst.min), (int)(texobj->texture.map.sst.mag) );
+            OGLLOGV( "FILT@3767 tmu/min/mag= %d %d %d", (int)(tmu), (int)(texobj->texture.map.sst.min), (int)(texobj->texture.map.sst.mag) );
             grTexFilterMode(tmu, texobj->texture.map.sst.min, texobj->texture.map.sst.mag); 
             gc->texture.hwMinMag[txu] = tmp;
         }

@@ -383,7 +383,16 @@ static void __r3dPerfDump(void)
     static int frames = 0;
     unsigned long now, wr, dt;
     char buf[200]; int n, fps10;
-    if (en < 0) en = getenv("RETRO3DFX_PERFLOG") ? 1 : 0;
+    if (en < 0) {
+        /* gate on C:\icd_perf.on (file marker, not env: getenv proved
+        ** unreliable under GoldSrc's process even though it works under
+        ** gfix.exe) */
+        void *g = CreateFileA("C:\\icd_perf.on", 0x80000000L /*GENERIC_READ*/,
+                              3 /*share rw*/, 0, 3 /*OPEN_EXISTING*/, 0, 0);
+        en = (g != __R3D_INVALID_HANDLE) ? 1 : 0;
+        if (en) { extern int __stdcall CloseHandle(void*); CloseHandle(g); }
+        if (!en && getenv("RETRO3DFX_PERFLOG")) en = 1;
+    }
     if (!en) return;
     frames++;
     if (frames < 100) return;
@@ -439,7 +448,20 @@ static void SwapBuffers(__GLcontext *gc)
     if (__prof_lastSwap) { __prof_frameAcc += (ts1 - __prof_lastSwap); __prof_frames++; }
     __prof_lastSwap = ts1;
     if (__prof_frames >= 100) {
-        FILE *f = fopen("C:\\3dfxprof.log", "a");
+        /* RETRO3DFX: gated on C:\icd_prof.on (was unconditional despite the
+        ** "env-gated" comment - every game appended 3dfxprof.log forever). */
+        static int profEn = -1;
+        FILE *f;
+        if (profEn < 0) {
+            void *g = CreateFileA("C:\\icd_prof.on", 0x80000000L, 3, 0, 3, 0, 0);
+            profEn = (g != __R3D_INVALID_HANDLE) ? 1 : 0;
+            if (profEn) { extern int __stdcall CloseHandle(void*); CloseHandle(g); }
+        }
+        if (!profEn) {
+            __prof_frames = 0; __prof_frameAcc = 0; __prof_flushAcc = 0; __prof_swapAcc = 0;
+            return;
+        }
+        f = fopen("C:\\3dfxprof.log", "a");
         if (f) {
             double fr = (double)__prof_frameAcc;
             fprintf(f, "frames=%d avgFrameKc=%u flushKc=%u swapKc=%u flush%%=%.1f swap%%=%.1f other%%=%.1f\n",
