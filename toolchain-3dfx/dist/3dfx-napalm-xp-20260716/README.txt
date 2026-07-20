@@ -27,7 +27,7 @@ CONTENTS
                   the 6000 same-bus chip-detection fallback).
     glide2x.dll   Glide2 runtime (133 exports) — most Glide GAMES need this
                   (Unreal/UT'99, NFS, Diablo II, …), not glide3x.
-    3dfxogl.dll   OpenGL ICD [retro3dfx 0.3.1] (16-byte Napalm texture-heap alignment fix: solves 2D sliced-text garble). Honors GL texture filters in
+    3dfxogl.dll   OpenGL ICD [retro3dfx 0.3.2] (0.3.1: 16-byte Napalm texture-heap alignment, solves 2D sliced-text garble; 0.3.2: EXT_paletted_texture RGBA table stride fix, solves GoldSrc green-world colors). Honors GL texture filters in
                   hardware; fixes the UT glTexSubImage2D NULL-cache GPF. Stable
                   across Quake III, Quake II, CS 1.6, Unreal Tournament on the
                   Voodoo5. Registered by voodoo5-6k.inf / voodoo5-wfp.inf.

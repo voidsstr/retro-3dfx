@@ -138,6 +138,61 @@ int main(void){
     quad(64,340,576,380, 0.f,0.f, 256.f/256, 1.f);
   }
   dump("C:\\gfix_G.raw");
+  /* H: GoldSrc-style COLOR CHANNEL probe. HL passes legacy numeric
+   * internalformat 3 (world tex) / 4 (alpha tex) with GL_RGBA source data.
+   * Upload solid-color 8x8 textures - red, green, blue, tan - via
+   * internalformat 3 (row y=60) and 4 (row y=120), draw 40px quads,
+   * modulate white, no blend. Readback tells the exact channel transform
+   * (CS de_dust renders tan world as GREEN => suspect R lost/remapped in
+   * the ifmt-3 RGBA->565 conversion). */
+  { static unsigned char sc[8][8][4]; GLuint ht; int ci,fi,sx,sy;
+    static const unsigned char cols[4][3]={{255,0,0},{0,255,0},{0,0,255},{210,180,140}};
+    glGenTextures(1,&ht); glBindTexture(GL_TEXTURE_2D,ht);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+    glDisable(GL_BLEND); glColor4ub(255,255,255,255);
+    glClear(GL_COLOR_BUFFER_BIT);
+    for(fi=0;fi<2;fi++){
+      for(ci=0;ci<4;ci++){
+        for(sy=0;sy<8;sy++)for(sx=0;sx<8;sx++){
+          sc[sy][sx][0]=cols[ci][0];sc[sy][sx][1]=cols[ci][1];
+          sc[sy][sx][2]=cols[ci][2];sc[sy][sx][3]=255;}
+        glTexImage2D(GL_TEXTURE_2D,0,fi?4:3,8,8,0,GL_RGBA,GL_UNSIGNED_BYTE,sc);
+        quad(40.f+ci*60,60.f+fi*60,80.f+ci*60,100.f+fi*60,0,0,1,1);
+      }
+    }
+  }
+  dump("C:\\gfix_H.raw");
+  /* I: PALETTED TEXTURE probe (GL_EXT_paletted_texture, the path GoldSrc/HL
+   * uses for world textures when advertised - GDI Generic lacks it, skip).
+   * glColorTableEXT 256xRGBA palette, then COLOR_INDEX8 upload; indices
+   * 1=red 2=green 3=blue 4=tan. If these swatches come out wrong while
+   * case H (plain RGBA upload) was correct, the CS green-world bug is the
+   * palette path. */
+  { typedef void (APIENTRY *PFNCT)(GLenum,GLenum,GLsizei,GLenum,GLenum,const GLvoid*);
+    PFNCT pCT=(PFNCT)wglGetProcAddress("glColorTableEXT");
+    fprintf(lg,"glColorTableEXT=%p\n",(void*)pCT); fflush(lg);
+    if(pCT){
+      static unsigned char pal[256][4]; static unsigned char idx[8][8];
+      static const unsigned char cols[4][3]={{255,0,0},{0,255,0},{0,0,255},{210,180,140}};
+      GLuint pt; int ci,sx,sy;
+      for(ci=0;ci<256;ci++){pal[ci][0]=pal[ci][1]=pal[ci][2]=0;pal[ci][3]=255;}
+      for(ci=0;ci<4;ci++){pal[ci+1][0]=cols[ci][0];pal[ci+1][1]=cols[ci][1];pal[ci+1][2]=cols[ci][2];pal[ci+1][3]=255;}
+      glGenTextures(1,&pt); glBindTexture(GL_TEXTURE_2D,pt);
+      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+      glDisable(GL_BLEND); glColor4ub(255,255,255,255);
+      glClear(GL_COLOR_BUFFER_BIT);
+      for(ci=0;ci<4;ci++){
+        for(sy=0;sy<8;sy++)for(sx=0;sx<8;sx++) idx[sy][sx]=(unsigned char)(ci+1);
+        pCT(GL_TEXTURE_2D,GL_RGBA8,256,GL_RGBA,GL_UNSIGNED_BYTE,pal);
+        glTexImage2D(GL_TEXTURE_2D,0,0x80E5/*COLOR_INDEX8_EXT*/,8,8,0,
+                     0x1900/*GL_COLOR_INDEX*/,GL_UNSIGNED_BYTE,idx);
+        quad(40.f+ci*60,200.f,80.f+ci*60,240.f,0,0,1,1);
+      }
+      dump("C:\\gfix_I.raw");
+    }
+  }
   fprintf(lg,"done\n"); fclose(lg);
   wglMakeCurrent(0,0); wglDeleteContext(rc); ReleaseDC(hwnd,dc); DestroyWindow(hwnd);
   return 0;
