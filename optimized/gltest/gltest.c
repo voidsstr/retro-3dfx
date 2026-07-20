@@ -860,6 +860,38 @@ int main(void)
                 glDisable(GL_BLEND);
                 dump_case(29);
 
+                /* 40: exact quads, but the atlas ALPHA (and RGB) pre-quantized to
+                 * 4 bits — simulates our ARGB_4444 storage. Run on GDI: if GDI
+                 * then thins/slices like our driver, the cause is the 4-bit
+                 * texture format (VSA-100 has no 8-bit-alpha RGBA texture). */
+                {
+                    static unsigned char fa4[256][256][4];
+                    int yy4, xx4, cc4;
+                    for (yy4 = 0; yy4 < 256; yy4++)
+                        for (xx4 = 0; xx4 < 256; xx4++)
+                            for (cc4 = 0; cc4 < 4; cc4++)
+                                fa4[yy4][xx4][cc4] = (unsigned char)((fa[yy4][xx4][cc4] >> 4) * 17);
+                    glBindTexture(GL_TEXTURE_2D, ft);
+                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 256, 256, 0,
+                                 GL_RGBA, GL_UNSIGNED_BYTE, fa4);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                    glEnable(GL_BLEND);
+                    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                    glClear(GL_COLOR_BUFFER_BIT);
+                    glColor4ub(220, 40, 40, 255);
+                    for (qi = 0; qi < 11; qi++) {
+                        const float *q = Q3Q[qi];
+                        quad(q[0], q[1], q[2], q[3],
+                             q[4]/256.0f, q[5]/256.0f, q[6]/256.0f, q[7]/256.0f, 1);
+                    }
+                    glColor4f(1,1,1,1); glDisable(GL_BLEND);
+                    /* restore 8-bit atlas for later cases */
+                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 256, 256, 0,
+                                 GL_RGBA, GL_UNSIGNED_BYTE, fa);
+                    dump_case(40);
+                }
+
                 /* 30: same exact quads but INTEGER y (169.937 -> 170). Isolates
                  * fractional vertical position. */
                 glClear(GL_COLOR_BUFFER_BIT);
@@ -956,6 +988,95 @@ int main(void)
                 }
                 glColor4f(1,1,1,1); glDisable(GL_BLEND);
                 dump_case(35);
+
+                /* 36/37: PRECISION TEST. 256-wide 1px-column checker, sampled at
+                 * 1:1 (23px<-23texels) from the LOW-s region (s=0..23, case 36)
+                 * vs the HIGH-s region (s=230..253, case 37). If 37 drops columns
+                 * but 36 is clean -> large-texcoord fixed-point precision in the
+                 * VSA-100 texel address (the glyph-garble mechanism). */
+                {
+                    static unsigned char chk256[256][256][4];
+                    GLuint ck;
+                    int cy, cx;
+                    for (cy = 0; cy < 256; cy++)
+                        for (cx = 0; cx < 256; cx++) {
+                            unsigned char v = (cx & 1) ? 255 : 0;
+                            chk256[cy][cx][0]=chk256[cy][cx][1]=chk256[cy][cx][2]=v;
+                            chk256[cy][cx][3]=255;
+                        }
+                    glGenTextures(1, &ck);
+                    glBindTexture(GL_TEXTURE_2D, ck);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 256, 256, 0,
+                                 GL_RGBA, GL_UNSIGNED_BYTE, chk256);
+                    glDisable(GL_BLEND);
+                    glClear(GL_COLOR_BUFFER_BIT);
+                    quad(120, 170, 143, 197,  0.0f/256, 0, 23.0f/256, 1, 1);  /* low-s */
+                    dump_case(36);
+                    glClear(GL_COLOR_BUFFER_BIT);
+                    quad(120, 170, 143, 197, 230.0f/256, 0, 253.0f/256, 1, 1); /* high-s */
+                    dump_case(37);
+
+                    /* 38: THIN-QUAD COVERAGE. Solid opaque quads of width 1..14px
+                     * at integer x, gap 6px. Compare ours vs GDI: which widths
+                     * does our fill rule under-cover? (the thin-glyph drop). */
+                    glDisable(GL_TEXTURE_2D);
+                    glColor4ub(230, 40, 40, 255);
+                    glClear(GL_COLOR_BUFFER_BIT);
+                    {
+                        float px = 60.0f;
+                        int wq;
+                        for (wq = 1; wq <= 14; wq++) {
+                            quad(px, 170, px + (float)wq, 197, 0,0,0,0, 0);
+                            px += wq + 6.0f;
+                        }
+                    }
+                    glEnable(GL_TEXTURE_2D);
+                    glColor4f(1,1,1,1);
+                    dump_case(38);
+
+                    /* 39: TEXTURE DDA STEPPING. 256-wide 4px-period column pattern
+                     * (2 bright/2 dark), NEAREST filter, sampled 1:1 from high-s
+                     * (230..254 -> 24px). If our texture DDA skips/repeats texels,
+                     * the 2-2 pattern distorts vs GDI. NEAREST makes skips crisp. */
+                    glBindTexture(GL_TEXTURE_2D, ck);
+                    for (cy = 0; cy < 256; cy++)
+                        for (cx = 0; cx < 256; cx++) {
+                            unsigned char v = ((cx & 2) ? 255 : 0);
+                            chk256[cy][cx][0]=chk256[cy][cx][1]=chk256[cy][cx][2]=v;
+                            chk256[cy][cx][3]=255;
+                        }
+                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 256, 256, 0,
+                                 GL_RGBA, GL_UNSIGNED_BYTE, chk256);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+                    glDisable(GL_BLEND);
+                    glColor4f(1,1,1,1);
+                    glClear(GL_COLOR_BUFFER_BIT);
+                    quad(120, 170, 144, 197, 230.0f/256, 0, 254.0f/256, 1, 1);
+                    dump_case(39);
+
+                    /* 41: ALPHA-CHANNEL sampling (glyph shape lives in alpha!).
+                     * RGB solid white, ALPHA = 2px-period columns. Modulate red,
+                     * SRC_ALPHA blend over black, NEAREST, 1:1 high-s. If the
+                     * alpha pattern drops columns (vs GDI), the bug is the ALPHA
+                     * sample/combine path — the glyph-slice mechanism. */
+                    for (cy = 0; cy < 256; cy++)
+                        for (cx = 0; cx < 256; cx++) {
+                            chk256[cy][cx][0]=chk256[cy][cx][1]=chk256[cy][cx][2]=255;
+                            chk256[cy][cx][3]=((cx & 2) ? 255 : 0);
+                        }
+                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 256, 256, 0,
+                                 GL_RGBA, GL_UNSIGNED_BYTE, chk256);
+                    glEnable(GL_BLEND);
+                    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                    glColor4ub(230, 40, 40, 255);
+                    glClear(GL_COLOR_BUFFER_BIT);
+                    quad(120, 170, 144, 197, 230.0f/256, 0, 254.0f/256, 1, 1);
+                    glColor4f(1,1,1,1); glDisable(GL_BLEND);
+                    dump_case(41);
+                }
             }
         }
 
