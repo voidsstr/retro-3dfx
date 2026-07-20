@@ -720,6 +720,243 @@ int main(void)
             }
             glDisable(GL_BLEND);
             dump_case(26);
+
+            /* 27: real font, 1:1, via glArrayElement TRIANGLE STRIPS — the EXACT
+             * path Q3's menu uses (R_DrawStripElements; glDrawElements state-log
+             * fired 0x in the live menu => it's this path). Single red pass. */
+            glBindTexture(GL_TEXTURE_2D, ft);
+            glVertexPointer(3, GL_FLOAT, 16, xyzw);
+            glTexCoordPointer(2, GL_FLOAT, 0, st);
+            glColorPointer(4, GL_UNSIGNED_BYTE, 0, rgba);
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glClear(GL_COLOR_BUFFER_BIT);
+            {
+                float px = 120.0f;
+                int numIndexes, ii;
+                unsigned int last[3]; int even;
+                nq = 0;
+                for (k = 0; k < 12 && nq < 40; k++) {
+                    float gx = 2.0f + k * 19.0f;
+                    float s0 = gx/256.0f, s1 = (gx+19.0f)/256.0f;
+                    float t0 = 2.0f/256.0f, t1 = 29.0f/256.0f;
+                    int b = nq * 4;
+                    xyzw[b+0][0]=px;       xyzw[b+0][1]=250;    xyzw[b+0][2]=0;
+                    xyzw[b+1][0]=px+19.0f; xyzw[b+1][1]=250;    xyzw[b+1][2]=0;
+                    xyzw[b+2][0]=px+19.0f; xyzw[b+2][1]=250+27; xyzw[b+2][2]=0;
+                    xyzw[b+3][0]=px;       xyzw[b+3][1]=250+27; xyzw[b+3][2]=0;
+                    st[b+0][0]=s0; st[b+0][1]=t0;  st[b+1][0]=s1; st[b+1][1]=t0;
+                    st[b+2][0]=s1; st[b+2][1]=t1;  st[b+3][0]=s0; st[b+3][1]=t1;
+                    for (x = 0; x < 4; x++) { rgba[b+x][0]=220; rgba[b+x][1]=40;
+                                              rgba[b+x][2]=40; rgba[b+x][3]=255; }
+                    /* Q3 tess quad stamp: 3 0 1 / 3 1 2 (tr_shade RB_StageIterator) */
+                    idx[nq*6+0]=b+3; idx[nq*6+1]=b+0; idx[nq*6+2]=b+1;
+                    idx[nq*6+3]=b+3; idx[nq*6+4]=b+1; idx[nq*6+5]=b+2;
+                    px += 19.0f + 2.0f;
+                    nq++;
+                }
+                numIndexes = nq * 6;
+                glBegin(GL_TRIANGLE_STRIP);
+                glArrayElement(idx[0]); glArrayElement(idx[1]); glArrayElement(idx[2]);
+                last[0]=idx[0]; last[1]=idx[1]; last[2]=idx[2]; even = 0;
+                for (ii = 3; ii < numIndexes; ii += 3) {
+                    if (!even && (idx[ii+0]==last[2]) && (idx[ii+1]==last[1])) {
+                        glArrayElement(idx[ii+2]); even = 1;
+                    } else if (even && (idx[ii+0]==last[2]) && (idx[ii+1]==last[0])) {
+                        glArrayElement(idx[ii+2]); even = 0;
+                    } else {
+                        glEnd(); glBegin(GL_TRIANGLE_STRIP);
+                        glArrayElement(idx[ii+0]); glArrayElement(idx[ii+1]); glArrayElement(idx[ii+2]);
+                        even = 0;
+                    }
+                    last[0]=idx[ii+0]; last[1]=idx[ii+1]; last[2]=idx[ii+2];
+                }
+                glEnd();
+            }
+            glDisable(GL_BLEND);
+            dump_case(27);
+
+            /* 28: TEXTURE-MEMORY PRESSURE + font draw. In isolation the font is
+             * resident and clean; in Q3 dozens of textures churn the small
+             * VSA-100 texture memory, so the font is evicted+re-downloaded. Fill
+             * texmem with many textures, re-bind + draw the font (immediate 1:1),
+             * and see if eviction/reload corrupts it. */
+            {
+                static unsigned char filler[128][128][4];
+                GLuint ftmp[64];
+                int fi, fx, fy;
+                for (fy = 0; fy < 128; fy++)
+                    for (fx = 0; fx < 128; fx++) {
+                        filler[fy][fx][0] = (unsigned char)(fx ^ fy);
+                        filler[fy][fx][1] = (unsigned char)(fx + fy);
+                        filler[fy][fx][2] = (unsigned char)(fx * fy);
+                        filler[fy][fx][3] = 255;
+                    }
+                glGenTextures(64, ftmp);
+                for (fi = 0; fi < 64; fi++) {
+                    glBindTexture(GL_TEXTURE_2D, ftmp[fi]);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 128, 128, 0,
+                                 GL_RGBA, GL_UNSIGNED_BYTE, filler);
+                    /* draw each so it becomes resident (forces cache churn) */
+                    glBindTexture(GL_TEXTURE_2D, ftmp[fi]);
+                    quad(10, 10, 30, 30, 0, 0, 1, 1, 1);
+                }
+                /* now draw the FONT again — it was likely evicted */
+                glBindTexture(GL_TEXTURE_2D, ft);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glEnable(GL_BLEND);
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                glClear(GL_COLOR_BUFFER_BIT);
+                glColor4ub(220, 40, 40, 255);
+                {
+                    float px = 120.0f;
+                    for (k = 0; k < 12; k++) {
+                        float gx = 2.0f + k * 19.0f;
+                        float s0 = gx/256.0f, s1 = (gx+19.0f)/256.0f;
+                        float t0 = 2.0f/256.0f, t1 = 29.0f/256.0f;
+                        quad(px, 250.0f, px + 19.0f, 250.0f + 27.0f, s0, t0, s1, t1, 1);
+                        px += 19.0f + 2.0f;
+                    }
+                }
+                glColor4f(1,1,1,1);
+                glDisable(GL_BLEND);
+                dump_case(28);
+            }
+
+            /* 29: THE EXACT LIVE MENU QUADS - real screen positions (note the
+             * FRACTIONAL y=169.937) + real texel-space texcoords from the live
+             * vertex trace, real font, 1:1. Most faithful possible isolation. */
+            {
+                static const float Q3Q[][8] = {
+                  {222.000f,169.937f,245.000f,196.937f, 230.000f,4.000f,253.000f,31.000f},
+                  {248.000f,169.937f,266.000f,196.937f, 146.000f,34.000f,164.000f,61.000f},
+                  {269.000f,169.937f,281.000f,196.937f, 216.000f,4.000f,228.000f,31.000f},
+                  {284.000f,169.937f,298.000f,196.937f, 130.000f,34.000f,144.000f,61.000f},
+                  {301.000f,169.937f,309.000f,196.937f, 164.000f,4.000f,172.000f,31.000f},
+                  {312.000f,169.937f,330.000f,196.937f, 48.000f,34.000f,66.000f,61.000f},
+                  {333.000f,169.937f,345.000f,196.937f, 216.000f,4.000f,228.000f,31.000f},
+                  {348.000f,169.937f,366.000f,196.937f, 5.000f,4.000f,23.000f,31.000f},
+                  {369.000f,169.937f,387.000f,196.937f, 234.000f,34.000f,252.000f,61.000f},
+                  {390.000f,169.937f,403.000f,196.937f, 90.000f,4.000f,103.000f,31.000f},
+                  {406.000f,169.937f,423.000f,196.937f, 90.000f,34.000f,107.000f,61.000f},
+                };
+                int qi;
+                glBindTexture(GL_TEXTURE_2D, ft);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                glEnable(GL_BLEND);
+                glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                glClear(GL_COLOR_BUFFER_BIT);
+                glColor4ub(220, 40, 40, 255);
+                for (qi = 0; qi < 11; qi++) {
+                    const float *q = Q3Q[qi];
+                    quad(q[0], q[1], q[2], q[3],
+                         q[4]/256.0f, q[5]/256.0f, q[6]/256.0f, q[7]/256.0f, 1);
+                }
+                glColor4f(1,1,1,1);
+                glDisable(GL_BLEND);
+                dump_case(29);
+
+                /* 30: same exact quads but INTEGER y (169.937 -> 170). Isolates
+                 * fractional vertical position. */
+                glClear(GL_COLOR_BUFFER_BIT);
+                glEnable(GL_BLEND);
+                glColor4ub(220, 40, 40, 255);
+                for (qi = 0; qi < 11; qi++) {
+                    const float *q = Q3Q[qi];
+                    quad(q[0], 170.0f, q[2], 197.0f,
+                         q[4]/256.0f, q[5]/256.0f, q[6]/256.0f, q[7]/256.0f, 1);
+                }
+                glColor4f(1,1,1,1); glDisable(GL_BLEND);
+                dump_case(30);
+
+                /* 31: exact texcoords + integer y, but CONTIGUOUS integer x (my
+                 * clean layout). Isolates whether the specific x positions matter. */
+                glClear(GL_COLOR_BUFFER_BIT);
+                glEnable(GL_BLEND);
+                glColor4ub(220, 40, 40, 255);
+                {
+                    float px = 120.0f;
+                    for (qi = 0; qi < 11; qi++) {
+                        const float *q = Q3Q[qi];
+                        float w = q[2]-q[0];
+                        quad(px, 170.0f, px+w, 197.0f,
+                             q[4]/256.0f, q[5]/256.0f, q[6]/256.0f, q[7]/256.0f, 1);
+                        px += w + 2.0f;
+                    }
+                }
+                glColor4f(1,1,1,1); glDisable(GL_BLEND);
+                dump_case(31);
+
+                /* 32: exact S texcoords, but CLEAN t (2..29 for all). Isolate S. */
+                glClear(GL_COLOR_BUFFER_BIT); glEnable(GL_BLEND);
+                glColor4ub(220, 40, 40, 255);
+                {
+                    float px = 120.0f;
+                    for (qi = 0; qi < 11; qi++) {
+                        const float *q = Q3Q[qi];
+                        float w = q[2]-q[0];
+                        quad(px, 170.0f, px+w, 197.0f,
+                             q[4]/256.0f, 2.0f/256.0f, q[6]/256.0f, 29.0f/256.0f, 1);
+                        px += w + 2.0f;
+                    }
+                }
+                glColor4f(1,1,1,1); glDisable(GL_BLEND);
+                dump_case(32);
+
+                /* 33: CLEAN s (2+k*19), but exact T texcoords. Isolate T. */
+                glClear(GL_COLOR_BUFFER_BIT); glEnable(GL_BLEND);
+                glColor4ub(220, 40, 40, 255);
+                {
+                    float px = 120.0f;
+                    for (qi = 0; qi < 11; qi++) {
+                        const float *q = Q3Q[qi];
+                        float gx = 2.0f + qi * 19.0f;
+                        quad(px, 170.0f, px+19.0f, 197.0f,
+                             gx/256.0f, q[5]/256.0f, (gx+19.0f)/256.0f, q[7]/256.0f, 1);
+                        px += 21.0f;
+                    }
+                }
+                glColor4f(1,1,1,1); glDisable(GL_BLEND);
+                dump_case(33);
+
+                /* 34: ONLY row-1 glyphs (t0=4), exact matched coords, packed. */
+                glClear(GL_COLOR_BUFFER_BIT); glEnable(GL_BLEND);
+                glColor4ub(220, 40, 40, 255);
+                {
+                    float px = 120.0f;
+                    for (qi = 0; qi < 11; qi++) {
+                        const float *q = Q3Q[qi];
+                        float w = q[2]-q[0];
+                        if (q[5] > 20.0f) continue;      /* skip row-2 */
+                        quad(px, 170.0f, px+w, 197.0f,
+                             q[4]/256.0f, q[5]/256.0f, q[6]/256.0f, q[7]/256.0f, 1);
+                        px += w + 3.0f;
+                    }
+                }
+                glColor4f(1,1,1,1); glDisable(GL_BLEND);
+                dump_case(34);
+
+                /* 35: ONLY row-2 glyphs (t0=34), exact matched coords, packed. */
+                glClear(GL_COLOR_BUFFER_BIT); glEnable(GL_BLEND);
+                glColor4ub(220, 40, 40, 255);
+                {
+                    float px = 120.0f;
+                    for (qi = 0; qi < 11; qi++) {
+                        const float *q = Q3Q[qi];
+                        float w = q[2]-q[0];
+                        if (q[5] < 20.0f) continue;      /* skip row-1 */
+                        quad(px, 170.0f, px+w, 197.0f,
+                             q[4]/256.0f, q[5]/256.0f, q[6]/256.0f, q[7]/256.0f, 1);
+                        px += w + 3.0f;
+                    }
+                }
+                glColor4f(1,1,1,1); glDisable(GL_BLEND);
+                dump_case(35);
+            }
         }
 
         /* 16: same string, scale 1.0 (rebuild positions at 1:1) */

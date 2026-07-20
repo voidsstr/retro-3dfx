@@ -78,3 +78,27 @@ vs 22 (must stay clean) are the regression gate; then re-capture the live Q3 men
 
 Box left on shipped ICD 0.2.2 (6b8182dd). Cross-ref: RESEARCH-2D-TEXT-vs-MESA.md
 (earlier screen-space-rasterizer hypothesis — now superseded by this isolation).
+
+## ✅ REPRODUCED + REFERENCE ORACLE (breakthrough, same session)
+Feeding the ICD the EXACT live menu quads (real screen xy + real texel-space
+texcoords extracted from the grDrawTriangle vertex trace, gltest **case 29**)
+reproduces the garble in isolation — while my earlier synthetic glyph cases were
+clean. The difference from the clean cases is the **exact sub-rect texcoords +
+varying glyph widths** (bisected: integer-y case 30 still slices, contiguous-x
+case 31 still slices → it's the texcoords/widths, not position).
+
+**Reference oracle:** running the SAME gltest through Microsoft's **GDI Generic**
+software GL (rename our opengl32 out of the exe dir → loads system32) renders the
+identical quads **SOLID**; our ICD renders them **column-dropped/thinned** — 19.2%
+of pixels differ (evidence: gltest/evidence/REPRO_ours_vs_GDI_reference.png,
+top=ours sliced, bottom=GDI solid). So it IS a framebuffer-level driver bug (not
+scanout), our ICD drops texture columns rasterizing glyph sub-rect quads.
+(MesaFX/retrogl can't be the on-box oracle — it fails at GL-context creation on
+the Voodoo5; GDI Generic is the working reference.)
+
+Vertices are exact (traced sow = integer texels; gradient (s1-s0)/(x1-x0)=1.0),
+so the drop is in the **trisetup DDA / sub-pixel texel stepping** for thin
+sub-rect quads — matches RESEARCH-2D-TEXT-vs-MESA.md's subpixel-fill hypothesis,
+NOW with a fast repro + oracle to fix against. Iteration loop: edit driver ->
+build_ogl.bat -> run gltest case 29 on .143 -> pixel-diff vs GDI case 29 (must
+converge to <2%). This is the verification harness the fix needs.
