@@ -2528,6 +2528,9 @@ wglSwapLayerBuffers(HDC hDC, UINT fuPlanes)
 ****************************************************************************/
 
 unsigned long tacoHackGlideInit = 0;
+/* RETRO3DFX: when set (env RETRO3DFX_NODITHER), keep VSA-100 ordered dither
+** off so flat-color 2D UI text renders solid (see sst_export.c MakeCurrent). */
+int __r3d_nodither = 0;
 
 LRESULT CALLBACK
 __wglMonitorWindowChanges(int code, WPARAM wParam, LPARAM lParam)

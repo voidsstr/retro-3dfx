@@ -20,6 +20,42 @@
 #include <glide.h>
 #include "sst_globals.h"
 
+/* RETRO3DFX diag (text-garble): gated dump of final GrVertex submissions.
+ * Gate file C:\icd_trace; output C:\icd_tri.log; first 400 triangles only.
+ * Floats logged in milli-units (x1000, truncated) - wsprintfA has no %f. */
+static HANDLE __r3dth = (HANDLE)-2;
+static int __r3dtn = 0;
+static void __r3dTriLog(GrVertex *a, GrVertex *b, GrVertex *c)
+{
+    DWORD wr;
+    char buf[320];
+    GrVertex *v[3];
+    int i, n;
+    if (__r3dth == (HANDLE)-2) {
+        HANDLE g = CreateFileA("C:\\icd_trace", GENERIC_READ,
+                               FILE_SHARE_READ | FILE_SHARE_WRITE, 0,
+                               OPEN_EXISTING, 0, 0);
+        if (g != INVALID_HANDLE_VALUE) {
+            CloseHandle(g);
+            __r3dth = CreateFileA("C:\\icd_tri.log", GENERIC_WRITE,
+                                  FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
+        } else __r3dth = INVALID_HANDLE_VALUE;
+    }
+    if (__r3dth == INVALID_HANDLE_VALUE || __r3dtn >= 400) return;
+    __r3dtn++;
+    v[0] = a; v[1] = b; v[2] = c;
+    n = wsprintfA(buf, "T%d", __r3dtn);
+    for (i = 0; i < 3; i++) {
+        n += wsprintfA(buf + n, " | %ld %ld %ld %ld",
+                       (long)(v[i]->x * 1000.0f), (long)(v[i]->y * 1000.0f),
+                       (long)(v[i]->tmuvtx[0].sow * 1000.0f),
+                       (long)(v[i]->tmuvtx[0].tow * 1000.0f));
+    }
+    n += wsprintfA(buf + n, "\r\n");
+    WriteFile(__r3dth, buf, (DWORD)n, &wr, 0);
+    FlushFileBuffers(__r3dth);
+}
+
 /* OPT 0.1.5 overbright (vertex-double mechanism): gate published by
 ** __glSSTLoadCombineFunction (SST/SST_TEX.C) when the collapsed Q3 world
 ** path -- two TMUs, texEnv0==GL_MODULATE && texEnv1==GL_MODULATE -- is
@@ -153,6 +189,10 @@ void __glSSTRenderTriangle(__GLcontext *gc, __GLvertex *a, __GLvertex *b,
               c->sst.g = c->color->g;
               c->sst.b = c->color->b;
               c->sst.a = c->color->a;
+              /* RETRO3DFX diag: gated dump of the FINAL GrVertex data handed to
+               * glide (text-garble hunt). Raw Win32 file I/O - the ICD has no
+               * CRT startup so fopen silently no-ops. Gate: C:\icd_trace. */
+              __r3dTriLog((GrVertex *)&a->sst, (GrVertex *)&b->sst, (GrVertex *)&c->sst);
               grDrawTriangle((GrVertex *)&a->sst, (GrVertex *)&b->sst, (GrVertex *)&c->sst);
 #else
               GrVertex vtxA, vtxB, vtxC;

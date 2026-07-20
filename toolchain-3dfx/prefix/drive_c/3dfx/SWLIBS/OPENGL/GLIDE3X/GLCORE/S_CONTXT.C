@@ -392,7 +392,7 @@ void __glSoftResetContext(__GLcontext *gc)
     /* Setup generic values for get strings */
     /* XXXshui since this is dev dep, we may make a sst version of this routine */    
     gc->constants.vendor = "3Dfx Interactive Inc.";
-    gc->constants.renderer = "3Dfx [retro3dfx 0.2.2]";
+    gc->constants.renderer = "3Dfx [retro3dfx 0.3.1]";
     gc->constants.version = "1.1.0 3Dfx Beta 3.00";
     /*
     ** Put new extension names in alphabetical order; make sure to include

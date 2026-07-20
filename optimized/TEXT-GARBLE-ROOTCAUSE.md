@@ -1,4 +1,50 @@
-# 2D text garble — ROOT CAUSE FOUND (2026-07-19)
+# 2D text garble — SOLVED 2026-07-20 (see final section; earlier analysis kept for the record)
+
+## ✅ FINAL ROOT CAUSE + FIX (2026-07-20, ICD 0.3.1)
+
+**Texture-heap misalignment vs the Napalm texBaseAddr register.** The ICD's
+texture allocator (`SST_TEX.C __glSSTInitTextureManager`) started the TMU0 heap
+at `grTexMinAddress + 8` (8 bytes reserved for the cdrs/aa ramp texture). Legal
+on SST1/Voodoo2 whose texBaseAddr register has 8-byte granularity — but the
+**Napalm/VSA-100 register drops address bits [3:0]** (16-byte granularity, see
+`SST_TEXTURE_MUNGE_ADDRESS` in H3DEFS.H). Every texture therefore landed at an
+address ≡ 8 (mod 16): `grTexDownload*` wrote the texels at base+8 while the
+sampler register truncated to base, so the hardware **read 8 bytes = 4 texels
+below the downloaded data**. All texture content appeared shifted +4 texels in
+S (with row-end wrap-around at the left edge).
+
+Why it looked like "garbled/sliced text" and nothing else: 3D world textures
+shifted 4 texels are imperceptible; but UI glyphs are drawn as per-glyph
+sub-rect quads at 1:1, so each quad clipped the shifted content — left stroke
+columns fell into the transparent inter-glyph gap → sliced/doubled glyphs
+(Q3 `font1_prop` menu, CS 1.6 VGUI menus/HUD). All the earlier "clean" control
+cases are explained too: the alpha-checker probes had period 4 (invariant
+under a 4-texel shift), and whole-atlas draws just shift uniformly.
+
+**Proof chain (gfix.c cases, .143 V5500, GDI Generic as reference oracle):**
+1. Case A (exact live menu quads): ours 36.3% pixel-diff vs GDI; NEAREST the
+   same → not filter. Every glyph showed the same +4px content shift.
+2. Texel ruler (case G): white lines at texels 32/96/160/224 landed at
+   screen +4 at 1:1 **and +8 at 2× magnification** → texel-space bias, not
+   screen-space.
+3. Edge decode: texels 0-3 green / 252-255 magenta; the left 4 screen columns
+   showed **magenta (row-end wrap)**, not clamped green → memory/base-address
+   offset, not an S-DDA bug.
+4. Fix (heap start +16, all allocation lengths rounded to 16): ruler offsets
+   all 0, case A/C **0.0% diff vs GDI**, live Q3 menu clean (in-engine
+   screenshot).
+
+**The fix (SST_TEX.C):** `first->addr += 16` (was `+= 8`), cdrs download at
+`addr - 16`, and `__glSSTAllocateTextureMemory` rounds every length to 16 so
+odd-size textures can't knock successors off alignment.
+
+Bonus: `RETRO3DFX_NODITHER=1` (sst_export.c/sst_attrib.c/WGLCMDS.C) forces
+`GR_DITHER_DISABLE` for A/B — the 4×4 ordered dither mottles flat-color 2D
+fills; default stays dithered (normal VSA-100 3D look).
+
+---
+
+# (superseded) 2D text garble — ROOT CAUSE FOUND (2026-07-19)
 
 The Q3 menu (and CS 1.6 HUD/console) "garbled text" — regular **vertical slices
 through glyph strokes** on the proportional UI font — is **minification aliasing

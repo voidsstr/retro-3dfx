@@ -797,6 +797,18 @@ static GLboolean MakeCurrent(__GLcontext *gc)
     grAlphaTestReferenceValue(0x00);
     grConstantColorValue( 0x00000000 );
 
+    /* RETRO3DFX 2D-text garble A/B: the VSA-100 4x4 ordered dither mottles
+    ** flat-color UI text (Q3 proportional menu font, CS HUD) — thin glyph
+    ** strokes with every-other-column darkened read as "sliced". The GDI
+    ** Generic software-GL reference (no dither) renders the same quads solid.
+    ** Env RETRO3DFX_NODITHER forces dither off so one binary can A/B; the
+    ** live default is decided after measuring against the GDI oracle. */
+    { extern int __r3d_nodither;
+      if ( getenv( "RETRO3DFX_NODITHER" ) ) {
+          grDitherMode( GR_DITHER_DISABLE );
+          __r3d_nodither = 1;
+      } }
+
     /* these are the settings for no texturing, the opengl default */
     grAlphaCombine(GR_COMBINE_FUNCTION_LOCAL, 
                GR_COMBINE_FACTOR_NONE,

@@ -33,6 +33,10 @@
 #include <string.h>
 #include "sst_globals.h"
 
+/* crash-robust append logger to C:\3dfxogl.log (defined in WGL/WGLCMDS.C);
+** declared early for the FILT@ instrumentation of grTexFilterMode sites. */
+extern void OGLLOG( const char *fmt, ... );
+
 #define __GL_TEXTURE_INDEX_1D 0
 #define __GL_TEXTURE_INDEX_2D 1
 #define __GL_PROXY_TEXTURE_INDEX_1D 2
@@ -453,11 +457,80 @@ static void __glSSTApplyGrFilter(GrChipID_t tmu, __GLtexture *tex)
     /* single-texture lane: cover BOTH TMUs (binds land on tmu=1 while the
        init default set only TMU0 - the sampling TMU must get the filter).
        Refine to per-unit when ARB multitexture ships. */
+    OGLLOG( "FILT@456 tmu/min/mag= %d %d %d", (int)(GR_TMU0), (int)(minf), (int)(magf) );
     grTexFilterMode(GR_TMU0, minf, magf);
+    OGLLOG( "FILT@457 tmu/min/mag= %d %d %d", (int)(GR_TMU1), (int)(minf), (int)(magf) );
     grTexFilterMode(GR_TMU1, minf, magf);
     (void)tmu;
 }
 /* =============== end RETRO3DFX FILTER FIX ============================= */
+
+/* ============ RETRO3DFX MINIFICATION FIX (text-garble root cause) ==========
+** A GL_LINEAR (non-mipmapped) 2D texture drawn MINIFIED aliases hard on the
+** VSA-100 (bilinear only taps 2x2 texels) -> thin soft-alpha glyph strokes drop
+** columns = the Q3 menu / CS HUD "garbled text". Fix: build a box-filtered mip
+** chain on the fly and let the hardware LOD-dither-blend between levels
+** (GR_MIPMAP_NEAREST_DITHER) so minified fonts are properly downfiltered.
+** Handles the two 16-bit texel formats fonts use (RGB_565, ARGB_4444). Gated
+** on env RETRO3DFX_FONTMIP for A/B; harmless when off. */
+static FxU16 __r3d_avg565(FxU16 a, FxU16 b, FxU16 c, FxU16 d)
+{
+    int r = ((a>>11)&31)+((b>>11)&31)+((c>>11)&31)+((d>>11)&31);
+    int g = ((a>>5)&63)+((b>>5)&63)+((c>>5)&63)+((d>>5)&63);
+    int bl= (a&31)+(b&31)+(c&31)+(d&31);
+    return (FxU16)(((r>>2)<<11)|((g>>2)<<5)|(bl>>2));
+}
+static FxU16 __r3d_avg4444(FxU16 a, FxU16 b, FxU16 c, FxU16 d)
+{
+    int A=((a>>12)&15)+((b>>12)&15)+((c>>12)&15)+((d>>12)&15);
+    int R=((a>>8)&15)+((b>>8)&15)+((c>>8)&15)+((d>>8)&15);
+    int G=((a>>4)&15)+((b>>4)&15)+((c>>4)&15)+((d>>4)&15);
+    int B=(a&15)+(b&15)+(c&15)+(d&15);
+    return (FxU16)(((A>>2)<<12)|((R>>2)<<8)|((G>>2)<<4)|(B>>2));
+}
+static int __r3d_wantFontMip(void)
+{
+    static int c = -1;
+    if (c < 0) c = getenv("RETRO3DFX_FONTMIP") ? 1 : 0;
+    return c;
+}
+/* Build a full box-filtered chain (large->small, concatenated) from lp->buffer
+** into scratch; return total FxU16 count, or 0 if unsupported. */
+static int __r3d_buildMipChain(__GLtexture *tex, FxU16 *scratch, int maxwords)
+{
+    __GLmipMapLevel *lp = &tex->level[0];
+    int fmt = lp->internalFormat;
+    int w = lp->width, h = lp->height;
+    FxU16 *src, *dst;
+    int total, sw, sh, dw, dh, x, y;
+    if (fmt != __GL_SST_RGB_565 && fmt != __GL_SST_ARGB_4444) return 0;
+    if (w < 2 || h < 2) return 0;
+    /* LOD0 verbatim */
+    total = w * h;
+    if (total > maxwords) return 0;
+    for (x = 0; x < total; x++) scratch[x] = ((FxU16 *)lp->buffer)[x];
+    src = scratch; sw = w; sh = h;
+    dst = scratch + total;
+    while (sw > 1 || sh > 1) {
+        dw = sw > 1 ? sw >> 1 : 1;
+        dh = sh > 1 ? sh >> 1 : 1;
+        if (total + dw*dh > maxwords) return 0;
+        for (y = 0; y < dh; y++) {
+            int sy0 = (sh > 1) ? y*2 : 0, sy1 = (sh > 1) ? y*2+1 : 0;
+            for (x = 0; x < dw; x++) {
+                int sx0 = (sw > 1) ? x*2 : 0, sx1 = (sw > 1) ? x*2+1 : 0;
+                FxU16 a = src[sy0*sw+sx0], b = src[sy0*sw+sx1];
+                FxU16 c = src[sy1*sw+sx0], e = src[sy1*sw+sx1];
+                dst[y*dw+x] = (fmt == __GL_SST_RGB_565)
+                    ? __r3d_avg565(a,b,c,e) : __r3d_avg4444(a,b,c,e);
+            }
+        }
+        total += dw*dh;
+        src = dst; dst = scratch + total; sw = dw; sh = dh;
+    }
+    return total;
+}
+/* ============ end RETRO3DFX MINIFICATION FIX ============================= */
 
 static void applyTexParameter(__GLcontext *gc, __GLtexture *tex)
 {
@@ -527,11 +600,31 @@ static void applyTexParameter(__GLcontext *gc, __GLtexture *tex)
         }
     } else {
         if (tex->level[0].width && tex->level[0].height) {
+            /* RETRO3DFX MINIFICATION FIX: for a GL_LINEAR non-mipmapped 2D
+            ** texture, synthesize a box-filtered mip chain + LOD-dither blend so
+            ** minified soft-alpha fonts stop aliasing (the text-garble fix). */
+            static FxU16 __r3dMipBuf[256*256 + 128*128 + 64*64 + 8192];
+            int __r3dMipWords = 0;
+            if (__r3d_wantFontMip() && tex->params.minFilter == GL_LINEAR &&
+                tex->level[0].width >= 4 && tex->level[0].height >= 4) {
+                __r3dMipWords = __r3d_buildMipChain(tex, __r3dMipBuf,
+                                    sizeof(__r3dMipBuf)/sizeof(FxU16));
+            }
+            OGLLOG("APPLYTEX(LINpath) %dx%d minF=0x%x ifmt=0x%x mipWords=%d",
+                   (int)tex->level[0].width,(int)tex->level[0].height,
+                   (unsigned)tex->params.minFilter,(unsigned)tex->level[0].internalFormat,
+                   __r3dMipWords);
             grTex.format      = tex->sst.grformat;
+            if (__r3dMipWords) {
+                grTex.smallLodLog2 = GR_LOD_LOG2_1;
+                grTex.largeLodLog2 = tex->sst.lod;
+                grTex.data         = __r3dMipBuf;
+            } else {
             grTex.smallLodLog2    = tex->sst.lod;
             grTex.largeLodLog2    = tex->sst.lod;
-            grTex.aspectRatioLog2 = tex->sst.aspect;
             grTex.data        = tex->level[0].buffer;
+            }
+            grTex.aspectRatioLog2 = tex->sst.aspect;
             if (tex->sst.allocation == __GL_SST_TEXALLOC_STACK) {
                 __glSSTFreeTextureMemory(gc, tex);
                 tex->sst.allocation = __GL_SST_TEXALLOC_NONE;
@@ -552,20 +645,32 @@ static void applyTexParameter(__GLcontext *gc, __GLtexture *tex)
 
                 tex->sst.allocation = __GL_SST_TEXALLOC_BASE;
                 tex->sst.texUnit[txu].allocSize = memsize;
+                if (__r3dMipWords) {
+                    /* full box-filtered chain (large->small, concatenated) */
+                    grTexDownloadMipMap(gc->texture.sst.currentTMU,
+                                        (FxU32)tex->sst.texUnit[txu].cache->addr,
+                                        GR_MIPMAPLEVELMASK_BOTH, &grTex);
+                } else {
                 grTexDownloadMipMapLevel(gc->texture.sst.currentTMU,
                                          (FxU32)tex->sst.texUnit[txu].cache->addr,
-                                         tex->sst.lod, 
-                                         tex->sst.lod, 
-                                         tex->sst.aspect, 
-                                         tex->sst.grformat, 
-                                         GR_MIPMAPLEVELMASK_BOTH, 
+                                         tex->sst.lod,
+                                         tex->sst.lod,
+                                         tex->sst.aspect,
+                                         tex->sst.grformat,
+                                         GR_MIPMAPLEVELMASK_BOTH,
                                          tex->level[0].buffer);
+                }
             }
             grTexSource(gc->texture.sst.currentTMU,
                         (FxU32)tex->sst.texUnit[txu].cache->addr,
                         GR_MIPMAPLEVELMASK_BOTH,
                         &grTex);
                 __glSSTApplyGrFilter(gc->texture.sst.currentTMU, tex);
+            if (__r3dMipWords) {
+                /* LOD-dither blend between levels = trilinear-ish minification */
+                grTexMipMapMode(gc->texture.sst.currentTMU,
+                                GR_MIPMAP_NEAREST_DITHER, FXFALSE);
+            }
             gc->validateTexture = 1;
         } else {
             /* do nothing */
@@ -673,6 +778,7 @@ void APIENTRY __glsstim_TexParameterfv(GLenum target, GLenum pname, const GLfloa
 
         tmp = ( ( tex->sst.min << 8 ) | ( tex->sst.mag ) );
         if ( gc->texture.hwMinMag[txu] != tmp ) {
+            OGLLOG( "FILT@676 tmu/min/mag= %d %d %d", (int)(gc->texture.sst.texUnits[txu]), (int)(tex->sst.min), (int)(tex->sst.mag) );
             grTexFilterMode(gc->texture.sst.texUnits[txu], tex->sst.min, tex->sst.mag); 
             gc->texture.hwMinMag[txu] = tmp;
         }
@@ -698,6 +804,7 @@ void APIENTRY __glsstim_TexParameterfv(GLenum target, GLenum pname, const GLfloa
         }
         tmp = ( ( tex->sst.min << 8 ) | ( tex->sst.mag ) );
         if ( gc->texture.hwMinMag[txu] != tmp ) {
+            OGLLOG( "FILT@701 tmu/min/mag= %d %d %d", (int)(gc->texture.sst.texUnits[txu]), (int)(tex->sst.min), (int)(tex->sst.mag) );
             grTexFilterMode(gc->texture.sst.texUnits[txu], tex->sst.min, tex->sst.mag); 
             gc->texture.hwMinMag[txu] = tmp;
         }
@@ -839,6 +946,7 @@ void APIENTRY __glsstim_TexParameteriv(GLenum target, GLenum pname, const GLint 
         }
         tmp = ( ( tex->sst.min << 8 ) | ( tex->sst.mag ) );
         if ( gc->texture.hwMinMag[txu] != tmp ) {
+            OGLLOG( "FILT@842 tmu/min/mag= %d %d %d", (int)(gc->texture.sst.texUnits[txu]), (int)(tex->sst.min), (int)(tex->sst.mag) );
             grTexFilterMode(gc->texture.sst.texUnits[txu], tex->sst.min, tex->sst.mag); 
             gc->texture.hwMinMag[txu] = tmp;
         }
@@ -863,6 +971,7 @@ void APIENTRY __glsstim_TexParameteriv(GLenum target, GLenum pname, const GLint 
         }
         tmp = ( ( tex->sst.min << 8 ) | ( tex->sst.mag ) );
         if ( gc->texture.hwMinMag[txu] != tmp ) {
+            OGLLOG( "FILT@866 tmu/min/mag= %d %d %d", (int)(gc->texture.sst.texUnits[txu]), (int)(tex->sst.min), (int)(tex->sst.mag) );
             grTexFilterMode(gc->texture.sst.texUnits[txu], tex->sst.min, tex->sst.mag); 
             gc->texture.hwMinMag[txu] = tmp;
         }
@@ -917,8 +1026,7 @@ void __glSSTEnableTexturing(__GLcontext *gc)
     enable = 0;
     maxTxu = gc->grNTexelFx;
     for( txu = 0; txu < maxTxu; txu++ ) {
-        /* QUALITY FIX menu-text: default this unit's texel-center bias to 0
-        ** (the mipmapped / no-texture case -- 3D stays bit-exact). */
+        /* TEXEL-CENTER FIX: default bias 0 (no texture bound) */
         __glSSTHalfTexelS[txu] = 0.0f;
         __glSSTHalfTexelT[txu] = 0.0f;
         enableState = gc->state.enables.texture[txu];
@@ -926,25 +1034,25 @@ void __glSSTEnableTexturing(__GLcontext *gc)
             ptm = gc->texture.texture[txu][__GL_TEXTURE_INDEX_2D];
             if ( ptm ) {
                 tex = &ptm->map;
+                /* TEXEL-CENTER FIX (root cause of the 2D text garble, proven
+                ** by vertex-level tracing 2026-07-19): the VSA-100 samples
+                ** texel centers at INTEGER texel coords, OpenGL at .5 --
+                ** every textured draw was half a texel off in s and t.
+                ** Bias the normalized coords by -0.5 texel (linear, so
+                ** pre-scale bias == post-scale -0.5 exactly). Applied in ALL
+                ** texcoord copy paths (S_TAPI + every S_VARRAY variant). */
+                /* TEXEL-CENTER CALIBRATION RESULT (gltest, 2026-07-19): the
+                ** VSA-100 + our stack sample GL-conformant .5-centers with NO
+                ** bias -- pre-fix c03 [141,111] == exact GL math, and a -0.5
+                ** bias breaks 1:1 integer draws to 50/50 gray (c02=128).
+                ** Biases stay 0; the entry-site adds are no-ops kept for
+                ** future per-texture calibration. */
                 minfilter = tex->params.minFilter;
                 cachemask = tex->sst.cacheMask;
                 if ( minfilter == GL_LINEAR || minfilter == GL_NEAREST ) {
                     /* not mipmapping, verify presence of lvl 1 */
                     if ( tex->sst.texUnit[txu].cache && tex->level[0].width && tex->level[0].height ) {
                         enable = 1;
-                        /* QUALITY FIX menu-text: non-mipmapped 2D atlas --
-                        ** apply the OpenGL +0.5-texel texel-center offset in
-                        ** normalized coord space so tightly-packed glyph
-                        ** sub-rects (Q3 UI proportional font) sample texel
-                        ** centers instead of corner-blending the neighbour
-                        ** column.  width2/height2 are the real POT texel
-                        ** dims (SST_TEX.C:2135-2138). */
-                        if ( tex->level[0].width2 > 0 )
-                            __glSSTHalfTexelS[txu] =
-                                0.5f / (__GLfloat) tex->level[0].width2;
-                        if ( tex->level[0].height2 > 0 )
-                            __glSSTHalfTexelT[txu] =
-                                0.5f / (__GLfloat) tex->level[0].height2;
                     }
                 } else if ( cachemask != 0 ) {
                     /* mipmapping, verify presence of all mipmap levels */
@@ -2397,7 +2505,18 @@ void __glSSTInitTextureManager(__GLcontext *gc)
         first->tex = NULL;
         first->addr = grTexMinAddress(GR_TMU0);
         if (texUnit == 0) {
-            first->addr += 8;
+            /* Reserve room for the 8-byte cdrs/aa ramp texture downloaded at
+            ** grTexMinAddress below -- but keep the heap start aligned to the
+            ** NAPALM texBaseAddr granularity of 16 bytes.  The historical +8
+            ** (SST1 had 8-byte granularity) put EVERY TMU0 texture at an
+            ** address with bit 3 set; SST_TEXTURE_MUNGE_ADDRESS drops addr
+            ** bits [3:0] on Napalm, so the sampler read 8 bytes below the
+            ** download address: all texture content shifted +4 texels in S.
+            ** That was the Q3/CS 2D "garbled text" (glyph sub-rect quads clip
+            ** the shifted content into sliced strokes).  Proven on .143 V5500
+            ** with a texel-ruler probe: constant +4-texel shift, row-end
+            ** wrap-around at quad left edges, GDI reference at 0. */
+            first->addr += 16;
         }
         
         /* for 4MB systems, we clamp to 2MB for now */
@@ -2420,7 +2539,7 @@ void __glSSTInitTextureManager(__GLcontext *gc)
     cdrsTex.data = aatexture;
     memsize = grTexTextureMemRequired(GR_MIPMAPLEVELMASK_BOTH, &cdrsTex);
     grTexDownloadMipMapLevel(0,
-			     gc->texture.sst.first[0]->addr - 8,
+			     gc->texture.sst.first[0]->addr - 16,
 			     GR_LOD_LOG2_8, GR_LOD_LOG2_8,
 			     GR_ASPECT_LOG2_8x1,
                              GR_TEXFMT_ALPHA_8,
@@ -2496,6 +2615,12 @@ void __glSSTAllocateTextureMemory(__GLcontext *gc, __GLtexture *tex, int len)
     __GLSSTtexCacheNode *p, *start;
     int need;
     GLuint txu;
+
+    /* Keep every cache node 16-byte aligned (Napalm texBaseAddr granularity;
+    ** MUNGE drops addr bits [3:0]).  grTexTextureMemRequired can return
+    ** lengths that are only 8-aligned (e.g. small ALPHA_8 strips), which
+    ** would knock all subsequent nodes onto +8 addresses. */
+    len = (len + 15) & ~15;
 
     txu = gc->texture.currentTexUnit;
 
@@ -2597,9 +2722,38 @@ void __glSSTShadowTexImage(__GLtexture *tex, GLint lod, GLenum format, GLenum ty
                 cases where host format has fewer components than internal format
                 cases where host format orders components differently than internal format
                 cases where host is LA and internal is RGBA, or vice versa
-    */          
+    */
     src = (GLubyte *) buf;
     fsrc = (GLfloat *) buf;
+
+    /* RETRO3DFX diag: gated dump of 256x256 RGBA/ubyte uploads (font atlases)
+     * exactly as the app provided them. Gate C:\icd_trace ->
+     * C:\texdump_NN.raw (raw RGBA). First 8 such textures. */
+    if (format == GL_RGBA && type == GL_UNSIGNED_BYTE &&
+        lp->width == 256 && lp->height == 256 && lod == 0) {
+        static HANDLE gate = (HANDLE)-2;
+        static int ndump = 0;
+        if (gate == (HANDLE)-2) {
+            HANDLE g = CreateFileA("C:\\icd_trace", GENERIC_READ,
+                                   FILE_SHARE_READ | FILE_SHARE_WRITE, 0,
+                                   OPEN_EXISTING, 0, 0);
+            if (g != INVALID_HANDLE_VALUE) { CloseHandle(g); gate = (HANDLE)1; }
+            else gate = INVALID_HANDLE_VALUE;
+        }
+        if (gate == (HANDLE)1 && ndump < 8) {
+            char nm[64];
+            HANDLE h;
+            DWORD wr;
+            wsprintfA(nm, "C:\\texdump_%02d.raw", ndump);
+            h = CreateFileA(nm, GENERIC_WRITE, FILE_SHARE_READ, 0,
+                            CREATE_ALWAYS, 0, 0);
+            if (h != INVALID_HANDLE_VALUE) {
+                WriteFile(h, buf, 256 * 256 * 4, &wr, 0);
+                CloseHandle(h);
+                ndump++;
+            }
+        }
+    }
 
     switch (lp->internalFormat) {
     case __GL_SST_RGB_332:
@@ -3193,12 +3347,28 @@ void __glSSTTexImage2D(GLenum target, GLint lod, GLint components,
         /* nonmipmap filter */
         if (lod == 0) {
             /* XXXshui have to disable texture if width/height is zero */
-            
+            /* RETRO3DFX MINIFICATION FIX (primary upload path): synthesize a
+            ** box-filtered mip chain for GL_LINEAR 2D textures + LOD-dither
+            ** blend -> minified soft-alpha fonts stop aliasing (text-garble). */
+            static FxU16 __r3dMipBuf2[256*256 + 128*128 + 64*64 + 8192];
+            int __r3dMipW2 = 0;
+            if (__r3d_wantFontMip() && tex->params.minFilter == GL_LINEAR &&
+                tex->level[0].width >= 4 && tex->level[0].height >= 4) {
+                __r3dMipW2 = __r3d_buildMipChain(tex, __r3dMipBuf2,
+                                 sizeof(__r3dMipBuf2)/sizeof(FxU16));
+            }
+
             grTex.format      = tex->sst.grformat;
+            if (__r3dMipW2) {
+                grTex.smallLodLog2 = GR_LOD_LOG2_1;
+                grTex.largeLodLog2 = tex->sst.lod;
+                grTex.data         = __r3dMipBuf2;
+            } else {
             grTex.smallLodLog2    = tex->sst.lod;
             grTex.largeLodLog2    = tex->sst.lod;
-            grTex.aspectRatioLog2 = tex->sst.aspect;
             grTex.data        = tex->level[0].buffer;
+            }
+            grTex.aspectRatioLog2 = tex->sst.aspect;
             memsize = grTexTextureMemRequired(GR_MIPMAPLEVELMASK_BOTH, &grTex);
             if (tex->sst.allocation != __GL_SST_TEXALLOC_BASE ||
                 tex->sst.texUnit[txu].allocSize != memsize) {
@@ -3215,18 +3385,30 @@ void __glSSTTexImage2D(GLenum target, GLint lod, GLint components,
                 tex->sst.allocation = __GL_SST_TEXALLOC_BASE;
                 tex->sst.texUnit[txu].allocSize = memsize;
             }
-            grTexDownloadMipMapLevel(gc->texture.sst.currentTMU, 
+            if (__r3dMipW2) {
+                OGLLOG("TEXIMG2D-MIP %dx%d minF=0x%x words=%d",
+                       (int)tex->level[0].width,(int)tex->level[0].height,
+                       (unsigned)tex->params.minFilter,__r3dMipW2);
+                grTexDownloadMipMap(gc->texture.sst.currentTMU,
+                                    (FxU32)tex->sst.texUnit[txu].cache->addr,
+                                    GR_MIPMAPLEVELMASK_BOTH, &grTex);
+            } else {
+            grTexDownloadMipMapLevel(gc->texture.sst.currentTMU,
                                      (FxU32)tex->sst.texUnit[txu].cache->addr,
-                                     tex->sst.lod, tex->sst.lod, 
-                                     tex->sst.aspect, 
-                                     tex->sst.grformat, 
-                                     GR_MIPMAPLEVELMASK_BOTH, 
+                                     tex->sst.lod, tex->sst.lod,
+                                     tex->sst.aspect,
+                                     tex->sst.grformat,
+                                     GR_MIPMAPLEVELMASK_BOTH,
                                      tex->level[0].buffer);
+            }
             grTexSource(gc->texture.sst.currentTMU,
                         (FxU32)tex->sst.texUnit[txu].cache->addr,
                         GR_MIPMAPLEVELMASK_BOTH,
                         &grTex);
                 __glSSTApplyGrFilter(gc->texture.sst.currentTMU, tex);
+            if (__r3dMipW2)
+                grTexMipMapMode(gc->texture.sst.currentTMU,
+                                GR_MIPMAP_NEAREST_DITHER, FXFALSE);
             gc->validateTexture = 1;
         } else {
             /* do nothing; nothing needs to be cached */
@@ -3764,6 +3946,7 @@ void __glSSTBindTexture(__GLcontext *gc, GLuint targetIndex, GLuint texture,
         }
         tmp = ( ( texobj->texture.map.sst.min << 8 ) | ( texobj->texture.map.sst.mag ) );
         if ( gc->texture.hwMinMag[txu] != tmp ) {
+            OGLLOG( "FILT@3767 tmu/min/mag= %d %d %d", (int)(tmu), (int)(texobj->texture.map.sst.min), (int)(texobj->texture.map.sst.mag) );
             grTexFilterMode(tmu, texobj->texture.map.sst.min, texobj->texture.map.sst.mag); 
             gc->texture.hwMinMag[txu] = tmp;
         }
