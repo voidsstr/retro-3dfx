@@ -45,8 +45,15 @@ static void __r3dLogTexSource(int tmu, unsigned long addr, void *info);
 ** frames).  Self-referential macros: the inner name is not re-expanded, so
 ** every grTexDownload* call site in this file is counted transparently. */
 extern long __r3d_cTexDl, __r3d_cTexDlPart;
+/* download-address logger (memory-overlap hunt): logs tmu/addr/thisLod/
+** largeLod/format for the first ~250 downloads so overlaps between a decal
+** (single-level, BASE) and a world texture's LOD 0 (STACK) on GR_TMU1 can
+** be spotted offline.  Gated by C:\icd_verbose.on via OGLLOGV. */
+static void __r3dLogDownload(int tmu, unsigned long addr, int thisLod,
+                            int largeLod, int fmt);
 #define grTexDownloadMipMapLevel(a,b,c,d,e,f,g,h) \
-        (__r3d_cTexDl++, grTexDownloadMipMapLevel(a,b,c,d,e,f,g,h))
+        (__r3d_cTexDl++, __r3dLogDownload((int)(a),(unsigned long)(b),(int)(c),(int)(d),(int)(f)), \
+         grTexDownloadMipMapLevel(a,b,c,d,e,f,g,h))
 #define grTexDownloadMipMapLevelPartial(a,b,c,d,e,f,g,h,i,j) \
         (__r3d_cTexDlPart++, grTexDownloadMipMapLevelPartial(a,b,c,d,e,f,g,h,i,j))
 
@@ -57,6 +64,21 @@ extern void OGLLOGV( const char *fmt, ... );
 
 /* body for the grTexSource wrapper macro above (GrTexInfo layout: smallLod,
 ** largeLod, aspect, format at offsets 0/4/8/12). */
+/* last Glide texture format sourced to each TMU (== the HW textureMode format
+** field the chip will sample with).  Read at draw time to catch a clobber. */
+long __r3d_lastFmt[2] = { -1, -1 };
+long __r3d_lastSize[2] = { 0, 0 };
+static void __r3dLogDownload(int tmu, unsigned long addr, int thisLod,
+                            int largeLod, int fmt)
+{
+    static int dn = 0;
+    if (dn >= 300) return;
+    dn++;
+    /* largeLod is a GR_LOD_LOG2_* enum; log raw so we can compute the
+    ** texture's byte span offline and find decal-over-world overlaps. */
+    OGLLOGV("DL tmu=%d addr=0x%lx thisLod=%d largeLod=%d fmt=0x%x",
+            tmu, addr, thisLod, largeLod, (unsigned)fmt);
+}
 static void __r3dLogTexSource(int tmu, unsigned long addr, void *info)
 {
     /* tmu=0 sources are the rare interesting ones (unit-1/lightmap TMU on
@@ -64,6 +86,10 @@ static void __r3dLogTexSource(int tmu, unsigned long addr, void *info)
     ** every 500th as a heartbeat so the in-map era is still visible. */
     static int logged0 = 0; static long n1 = 0;
     unsigned long *gi = (unsigned long *)info;
+    if (tmu >= 0 && tmu < 2 && gi) {
+        __r3d_lastFmt[tmu]  = (long)gi[3];   /* GrTexInfo.format  */
+        __r3d_lastSize[tmu] = (long)gi[1];   /* largeLodLog2      */
+    }
     if (tmu == 0) {
         if (logged0 >= 100) return;
         logged0++;
@@ -2709,6 +2735,20 @@ void __glSSTAllocateTextureMemory(__GLcontext *gc, __GLtexture *tex, int len)
       if ( !heap8 ) len = (len + 15) & ~15;
     }
 
+    /* A/B: C:\icd_bigalloc.on over-reserves each texture (4x) to test the
+    ** "textures packed too tight, phantom-256 footprint overlaps the
+    ** neighbour's LOD0" hypothesis.  If the green clears with this on, the
+    ** bug is an allocation-size/overlap underestimate. */
+    { static int big = -1;
+      if ( big < 0 ) {
+          HANDLE g = CreateFileA( "C:\\icd_bigalloc.on", GENERIC_READ,
+                                  FILE_SHARE_READ|FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0 );
+          big = ( g != INVALID_HANDLE_VALUE ) ? 1 : 0;
+          if ( big ) CloseHandle( g );
+      }
+      if ( big ) len = (len * 4 + 15) & ~15;
+    }
+
     { extern long __r3d_cTexAlloc; __r3d_cTexAlloc++; }
 
     txu = gc->texture.currentTexUnit;
@@ -3152,16 +3192,14 @@ void __glSSTTexImage2D(GLenum target, GLint lod, GLint components,
     ** shape through the LIVE SST path (__glim_/GLCORE variants are NOT on
     ** the dispatch - earlier probes there logged nothing). */
     { static int logged = 0;
-      /* width>=64 filters out the 16x16 font-glyph spam that exhausted the
-      ** budget before the map's world textures ever uploaded. */
-      if (logged < 400 && width >= 64 && lod == 0) {
-          const unsigned char *p = (const unsigned char *)buf;
+      /* PER-LEVEL format capture (research: mixed-format mip chain = the bug).
+      ** Log EVERY level (all lods) of large textures so we can see whether a
+      ** texture's levels have differing internalformat/components/type. */
+      if (logged < 250 && width >= 16) {
           logged++;
-          OGLLOG("SSTTexImage2D: ifmt=0x%x %dx%d fmt=0x%x type=0x%x lod=%d bytes=%02x %02x %02x %02x %02x %02x %02x %02x",
-                 (unsigned)components, (int)width, (int)height, (unsigned)format,
-                 (unsigned)type, (int)lod,
-                 p?p[0]:0, p?p[1]:0, p?p[2]:0, p?p[3]:0,
-                 p?p[4]:0, p?p[5]:0, p?p[6]:0, p?p[7]:0);
+          OGLLOGV("TEXLVL: obj-lod=%d %dx%d ifmt=0x%x fmt=0x%x type=0x%x",
+                  (int)lod, (int)width, (int)height,
+                  (unsigned)components, (unsigned)format, (unsigned)type);
       } }
 
     txu = gc->texture.currentTexUnit;

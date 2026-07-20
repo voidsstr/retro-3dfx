@@ -549,6 +549,73 @@ int main(void){
     glDeleteTextures(300,rid);
   }
   /* case S (non-mip->mip transition crash) removed from harness; tracked separately */
+  /* T: DUAL-TMU + PRESSURE repro (the untested combination). CS uses
+   * simultaneous multitexture (world on TMU1, lightmap on TMU0) with
+   * HUNDREDS of textures; Q3 uses single-texture only. My multitex probes
+   * had no pressure; my pressure probe (R) was single-texture. Combine:
+   * upload 120 world (565) + 120 lightmap (565) textures, do a multitex
+   * draw with EACH pair (fills both TMU memories), then re-draw pair 0 and
+   * check. tan pair 0 = OK; green = dual-TMU-under-pressure bug found. */
+  { typedef void (APIENTRY *PFNAT)(unsigned int);
+    typedef void (APIENTRY *PFNMT)(unsigned int,float,float);
+    PFNAT pAT=(PFNAT)wglGetProcAddress("glActiveTextureARB");
+    PFNMT pMT=(PFNMT)wglGetProcAddress("glMultiTexCoord2fARB");
+    static unsigned char tw[128][128][4];
+    GLuint wid[120], lid[120]; int ti,lv,sz,rk;
+    if(pAT&&pMT){
+      glClear(GL_COLOR_BUFFER_BIT);
+      glDisable(GL_BLEND); glColor4ub(255,255,255,255);
+      glGenTextures(120,wid); glGenTextures(120,lid);
+      /* create all world (tan-ish, idx-varied) + lightmap (gray) textures */
+      for(ti=0;ti<120;ti++){
+        unsigned char c0=(ti==0)?210:(unsigned char)(80+ti);
+        unsigned char c1=(ti==0)?180:(unsigned char)(60+ti);
+        unsigned char c2=(ti==0)?140:(unsigned char)(40+ti);
+        for(rk=0;rk<128*128;rk++){tw[0][rk][0]=c0;tw[0][rk][1]=c1;tw[0][rk][2]=c2;tw[0][rk][3]=255;}
+        glBindTexture(GL_TEXTURE_2D,wid[ti]);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,0x2701);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+        for(lv=0,sz=128;sz>=1;lv++,sz>>=1)
+          glTexImage2D(GL_TEXTURE_2D,lv,3,sz,sz,0,GL_RGBA,GL_UNSIGNED_BYTE,tw);
+        for(rk=0;rk<128*128;rk++){tw[0][rk][0]=tw[0][rk][1]=tw[0][rk][2]=0x46;tw[0][rk][3]=255;}
+        glBindTexture(GL_TEXTURE_2D,lid[ti]);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+        /* lightmap ifmt 0x8056 = GL_RGBA4 -> 4444 (matches live CS; a 565
+        ** lightmap would hide any overwrite of the 565 world's LOD0). */
+        glTexImage2D(GL_TEXTURE_2D,0,0x8056,128,128,0,GL_RGBA,GL_UNSIGNED_BYTE,tw);
+      }
+      glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
+      pAT(0x84C1); glEnable(GL_TEXTURE_2D);
+      glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
+      pAT(0x84C0);
+      /* multitex draw with EACH pair -> sources both TMUs 120 times */
+      for(ti=0;ti<120;ti++){
+        pAT(0x84C0); glBindTexture(GL_TEXTURE_2D,wid[ti]);
+        pAT(0x84C1); glBindTexture(GL_TEXTURE_2D,lid[ti]);
+        pAT(0x84C0);
+        glBegin(GL_POLYGON);
+        pMT(0x84C0,0,0); pMT(0x84C1,0,0); glVertex2f(500,20);
+        pMT(0x84C0,1,0); pMT(0x84C1,1,0); glVertex2f(560,20);
+        pMT(0x84C0,1,1); pMT(0x84C1,1,1); glVertex2f(560,60);
+        pMT(0x84C0,0,1); pMT(0x84C1,0,1); glVertex2f(500,60);
+        glEnd();
+      }
+      /* now re-draw PAIR 0 (long-evicted) large and check */
+      pAT(0x84C0); glBindTexture(GL_TEXTURE_2D,wid[0]);
+      pAT(0x84C1); glBindTexture(GL_TEXTURE_2D,lid[0]);
+      pAT(0x84C0);
+      glBegin(GL_POLYGON);
+      pMT(0x84C0,0,0); pMT(0x84C1,0,0); glVertex2f(200,150);
+      pMT(0x84C0,1,0); pMT(0x84C1,1,0); glVertex2f(360,150);
+      pMT(0x84C0,1,1); pMT(0x84C1,1,1); glVertex2f(360,310);
+      pMT(0x84C0,0,1); pMT(0x84C1,0,1); glVertex2f(200,310);
+      glEnd();
+      pAT(0x84C1); glDisable(GL_TEXTURE_2D); pAT(0x84C0);
+      dump("C:\\gfix_T.raw");
+      glDeleteTextures(120,wid); glDeleteTextures(120,lid);
+    } else { dump("C:\\gfix_T.raw"); }
+  }
   /* J: swap-loop meter validation. 220 SwapBuffers frames; with
    * RETRO3DFX_PERFLOG=1 the ICD must emit >=2 lines to C:\icd_perf.log
    * (db=1). Validates the perf meter under a known double-buffered

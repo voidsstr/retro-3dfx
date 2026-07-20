@@ -55,20 +55,18 @@ static void __r3dTriLog(GrVertex *a, GrVertex *b, GrVertex *c)
     /* draw-time STATE (GoldSrc color hunt): vertex-0 iterated RGBA + the
     ** live GL state the probes must replicate exactly. */
     { __GLcontext *gc = __gl_context;
+      extern long __r3d_lastFmt[2], __r3d_lastSize[2];
       if (gc) {
           __GLtexture *t0 = gc->texture.currentTexture[0];
           __GLtexture *t1 = gc->texture.currentTexture[1];
           n += wsprintfA(buf + n,
-              " || rgba=%d,%d,%d,%d env0=0x%x env1=0x%x gr0=0x%x gr1=0x%x blend=%d bf=0x%x,0x%x fog=%d",
-              (int)a->r, (int)a->g, (int)a->b, (int)a->a,
-              (unsigned)gc->state.texture[0].env[0].mode,
-              (unsigned)gc->state.texture[1].env[0].mode,
+              " || gr0=0x%x gr1=0x%x  HWfmt[T0]=0x%x[sz%ld] HWfmt[T1]=0x%x[sz%ld]  env0=0x%x env1=0x%x",
               t0 ? (unsigned)t0->sst.grformat : 0xdead,
               t1 ? (unsigned)t1->sst.grformat : 0xdead,
-              (gc->state.enables.general & __GL_BLEND_ENABLE) ? 1 : 0,
-              (unsigned)gc->state.raster.blendSrc,
-              (unsigned)gc->state.raster.blendDst,
-              (gc->state.enables.general & __GL_FOG_ENABLE) ? 1 : 0);
+              (unsigned)__r3d_lastFmt[0], __r3d_lastSize[0],
+              (unsigned)__r3d_lastFmt[1], __r3d_lastSize[1],
+              (unsigned)gc->state.texture[0].env[0].mode,
+              (unsigned)gc->state.texture[1].env[0].mode);
       } }
     n += wsprintfA(buf + n, "\r\n");
     WriteFile(__r3dth, buf, (DWORD)n, &wr, 0);

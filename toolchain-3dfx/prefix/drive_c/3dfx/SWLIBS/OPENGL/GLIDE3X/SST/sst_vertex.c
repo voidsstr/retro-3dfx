@@ -105,24 +105,25 @@ __glSSTBegin(__GLcontext *gc, GLenum mode) {
     ** glBegin, log the state signature of what is about to be drawn. */
     { static long nb = 0; static int logged = 0;
       extern void OGLLOG(const char*, ...);
+      extern long __r3d_lastFmt[2];
       nb++;
-      if (logged < 200 && (nb % 200) == 0) {
+      if (logged < 200 && (nb % 120) == 0) {
           __GLtexture *t0 = gc->texture.currentTexture[0];
           __GLtexture *t1 = gc->texture.currentTexture[1];
+          /* world = GL unit0 -> GR_TMU1.  gr0 = its INTENDED format;
+          ** HWfmt[T1] = last format actually sourced to GR_TMU1 = what the
+          ** chip samples with.  gr0=0xa (565) but HWfmt[T1]=0xc (4444) ==
+          ** the format-register clobber.  Both equal == register is fine
+          ** and the green is a memory-content bug. */
           logged++;
-          OGLLOG("BEGIN%ld m=%d t0=%dx%d gr0=0x%x t1=%dx%d gr1=0x%x env0=0x%x env1=0x%x bl=%d bf=0x%x,0x%x fog=%d col=%d,%d,%d",
+          OGLLOG("BEGIN%ld m=%d gr0=0x%x gr1=0x%x  HWfmt[T0]=0x%x HWfmt[T1]=0x%x  env0=0x%x env1=0x%x bl=%d",
               nb, (int)mode,
-              t0 ? (int)t0->level[0].width : -1, t0 ? (int)t0->level[0].height : -1,
               t0 ? (unsigned)t0->sst.grformat : 0xdd,
-              t1 ? (int)t1->level[0].width : -1, t1 ? (int)t1->level[0].height : -1,
               t1 ? (unsigned)t1->sst.grformat : 0xdd,
+              (unsigned)__r3d_lastFmt[0], (unsigned)__r3d_lastFmt[1],
               (unsigned)gc->state.texture[0].env[0].mode,
               (unsigned)gc->state.texture[1].env[0].mode,
-              (gc->state.enables.general & __GL_BLEND_ENABLE) ? 1 : 0,
-              (unsigned)gc->state.raster.blendSrc, (unsigned)gc->state.raster.blendDst,
-              (gc->state.enables.general & __GL_FOG_ENABLE) ? 1 : 0,
-              (int)(gc->state.current.color.r), (int)(gc->state.current.color.g),
-              (int)(gc->state.current.color.b));
+              (gc->state.enables.general & __GL_BLEND_ENABLE) ? 1 : 0);
       } }
     if ( mode == GL_LINES || mode == GL_LINE_STRIP ) {
         gc->primState.vA = &gc->primState.vBuf[0];
