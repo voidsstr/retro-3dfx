@@ -99,6 +99,19 @@ void __glSSTColorTableEXT(__GLcontext *gc, GLenum target, GLenum internalformat,
           default:
             stride = 4; aOfs = 3; break;
         }
+        /* one-shot diagnostics: log EXACTLY what the app passes (GoldSrc's
+        ** live palette call shape vs what the gfix probe replicates). */
+        { static int logged = 0;
+          extern void OGLLOG(const char*, ...);
+          if (logged < 4) {
+              logged++;
+              OGLLOG("ColorTableEXT: target=0x%x ifmt=0x%x width=%d format=0x%x type=0x%x "
+                     "bytes[0..11]=%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
+                     (unsigned)target, (unsigned)internalformat, (int)width,
+                     (unsigned)format, (unsigned)type,
+                     src[0],src[1],src[2],src[3],src[4],src[5],
+                     src[6],src[7],src[8],src[9],src[10],src[11]);
+          } }
         n = (width > 0 && width < 256) ? (unsigned long)width : 256;
         for( i = 0; i < 256; i++ ) {
            pal[i][0] = pal[i][1] = pal[i][2] = 0; pal[i][3] = 255;

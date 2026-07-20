@@ -17,6 +17,28 @@ only by env silently never fires in Half-Life/CS.
 | RDTSC profiler | `C:\icd_prof.on` | `C:\3dfxprof.log` | Per-100-frame flush/swap/other %% split (where frame time goes: T&L submit vs present vs engine). |
 | tri-trace | `C:\icd_trace` | `C:\icd_tri.log` | First 400 triangles' final GrVertex data (x, y, sow, tow ×1000) at the grDrawTriangle boundary. For geometry/texcoord bugs. |
 
+## FBDUMP — self-service "what is actually on screen" (no human needed)
+
+| Channel | Gate | Output | Contents |
+|---|---|---|---|
+| FBDUMP | `C:\icd_fbdump.on` | `C:\fbdump_NN.raw` (+ `FBDUMP n -> WxH` line in 3dfxogl.log) | The REAL hardware front buffer, read at swap time via `grLfbReadRegion` in 16-line strips, raw RGB565. Frame 5 then every 100th swap, 10 dumps max per process. |
+
+This is the ground truth for rendered output. GDI `SCREENSHOT` cannot see a
+fullscreen Glide surface (interlaced garbage), in-game screenshots need game
+cooperation, and phone photos of the monitor need a human. FBDUMP needs none
+of those: drop the marker, run the game, pull `C:\fbdump_*.raw`, convert
+565→PNG locally (`(v>>11)&31 → R`, `(v>>5)&63 → G`, `v&31 → B`), and inspect
+pixels digitally — diff against expected values, sample regions, measure.
+
+Standard loop for any "looks wrong on screen" report:
+1. `echo x > C:\icd_fbdump.on`, delete old `C:\fbdump_*.raw`.
+2. Run the game ~2 min (the every-100th cadence spans menu into gameplay).
+3. `DOWNLOAD` the dumps, convert, view — the LAST dumps are deepest in-game.
+4. Delete the marker (dumps cost a 600KB LFB read each — never leave on for
+   benchmarks).
+Implementation: `__r3dFbDump` in `SST/sst_export.c`, called right after
+`grBufferSwap`.
+
 ## glide3x.dll
 
 | Channel | Gate | Output | Contents |

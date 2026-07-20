@@ -1948,6 +1948,16 @@ static __GLtexture *CheckTexImageArgs(__GLcontext *gc, GLenum target, GLint lod,
 {
     __GLtexture *tex = __glLookUpTexture(gc, target, gc->texture.currentTexUnit );
 
+    /* one-shot diagnostics: the first 14 TexImage calls' exact shape --
+    ** which internalformat/format/type combos the live app really uses
+    ** (GoldSrc color hunt: probes only covered format=GL_RGBA). */
+    { static int logged = 0;
+      if (logged < 14) {
+          logged++;
+          OGLLOG("TexImage: ifmt=0x%x fmt=0x%x type=0x%x dim=%d",
+                  (unsigned)components, (unsigned)format, (unsigned)type, dim);
+      } }
+
     if (!tex || (tex->dim != dim)) {
       bad_enum:
         __glSetError(GL_INVALID_ENUM);
@@ -3071,6 +3081,22 @@ void __glSSTTexImage2D(GLenum target, GLint lod, GLint components,
     __GL_SETUP_NOT_IN_BEGIN();
     __GL_API_STATE();
 
+    /* one-shot diagnostics (GoldSrc color hunt): first 16 uploads' exact
+    ** shape through the LIVE SST path (__glim_/GLCORE variants are NOT on
+    ** the dispatch - earlier probes there logged nothing). */
+    { static int logged = 0;
+      /* width>=64 filters out the 16x16 font-glyph spam that exhausted the
+      ** budget before the map's world textures ever uploaded. */
+      if (logged < 400 && width >= 64 && lod == 0) {
+          const unsigned char *p = (const unsigned char *)buf;
+          logged++;
+          OGLLOG("SSTTexImage2D: ifmt=0x%x %dx%d fmt=0x%x type=0x%x lod=%d bytes=%02x %02x %02x %02x %02x %02x %02x %02x",
+                 (unsigned)components, (int)width, (int)height, (unsigned)format,
+                 (unsigned)type, (int)lod,
+                 p?p[0]:0, p?p[1]:0, p?p[2]:0, p?p[3]:0,
+                 p?p[4]:0, p?p[5]:0, p?p[6]:0, p?p[7]:0);
+      } }
+
     txu = gc->texture.currentTexUnit;
 
     /* intensity formats are not supported by sst1 and are nops */
@@ -3635,6 +3661,19 @@ void APIENTRY __glsstim_TexSubImage2D(GLenum target, GLint lod,
     */
     __GL_SETUP_NOT_IN_BEGIN();
     __GL_API_STATE();
+
+    /* one-shot diagnostics (GoldSrc color hunt): lightmap updates come
+    ** through here. */
+    { static int logged = 0;
+      if (logged < 16) {
+          const unsigned char *p = (const unsigned char *)buf;
+          logged++;
+          OGLLOG("SSTTexSubImage2D: %d,%d %dx%d fmt=0x%x type=0x%x bytes=%02x %02x %02x %02x %02x %02x %02x %02x",
+                 (int)xoffset, (int)yoffset, (int)w, (int)h,
+                 (unsigned)format, (unsigned)type,
+                 p?p[0]:0, p?p[1]:0, p?p[2]:0, p?p[3]:0,
+                 p?p[4]:0, p?p[5]:0, p?p[6]:0, p?p[7]:0);
+      } }
 
     /* Check arguments and get the right texture level being changed */
     tex = __glCheckTexSubImage2DArgs(gc, target, lod, xoffset, yoffset, w, h,

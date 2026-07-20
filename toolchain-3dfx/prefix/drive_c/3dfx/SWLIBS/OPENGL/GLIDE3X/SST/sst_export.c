@@ -375,6 +375,50 @@ int    __cdecl   wsprintfA(char*, const char*, ...);
 
 long __r3d_cTexDl = 0, __r3d_cTexDlPart = 0, __r3d_cTableDl = 0, __r3d_cTexAlloc = 0;
 static int __r3d_dbMode = -1;   /* doubleBufferMode as seen at swap time */
+
+/* RETRO3DFX FBDUMP: self-service "what is actually on screen" capture.
+** Gate: file marker C:\icd_fbdump.on.  Every 100th swap (up to 10 dumps)
+** the REAL hardware front buffer is read back via grLfbReadRegion in
+** 16-line strips and written raw-565 to C:\fbdump_NN.raw (WxH recorded in
+** 3dfxogl.log).  This is the exact scanout content - no GDI capture, no
+** game cooperation, no human eyeballing a monitor needed. */
+static void __r3dFbDump(__GLcontext *gc)
+{
+    static int en = -1, swaps = 0, ndump = 0;
+    static unsigned short strip[640 * 16];
+    char nm[64], msg[96];
+    void *h; unsigned long wr;
+    int w, hgt, y, lines, n;
+    extern void OGLLOG(const char*, ...);
+
+    if (en < 0) {
+        void *g = CreateFileA("C:\\icd_fbdump.on", 0x80000000L, 3, 0, 3, 0, 0);
+        en = (g != __R3D_INVALID_HANDLE) ? 1 : 0;
+        if (en) { extern int __stdcall CloseHandle(void*); CloseHandle(g); }
+    }
+    if (!en || ndump >= 10) return;
+    swaps++;
+    if (swaps != 5 && (swaps % 100) != 0) return;   /* frame 5, 100, 200, ... */
+
+    w = gc->constants.maxViewportWidth;
+    hgt = gc->constants.maxViewportHeight;
+    if (w > 640) w = 640;
+    wsprintfA(nm, "C:\\fbdump_%02d.raw", ndump);
+    h = CreateFileA(nm, 0x40000000L, 1, 0, 2 /*CREATE_ALWAYS*/, 0, 0);
+    if (h == __R3D_INVALID_HANDLE) return;
+    for (y = 0; y < hgt; y += 16) {
+        lines = (hgt - y < 16) ? (hgt - y) : 16;
+        if (!grLfbReadRegion(GR_BUFFER_FRONTBUFFER, 0, y, w, lines,
+                             w * 2, strip))
+            break;
+        WriteFile(h, strip, (unsigned long)(w * 2 * lines), &wr, 0);
+    }
+    { extern int __stdcall CloseHandle(void*); CloseHandle(h); }
+    n = wsprintfA(msg, "FBDUMP %d -> %dx%d 565 (swap %d)", ndump, w, hgt, swaps);
+    (void)n;
+    OGLLOG("%s", msg);
+    ndump++;
+}
 static void __r3dPerfDump(void)
 {
     static int en = -1;
@@ -440,6 +484,7 @@ static void SwapBuffers(__GLcontext *gc)
     if ( tacoHackGlideInit ) {
         grBufferSwap(1);   /* swapInterval 1 required — grBufferSwap(0) breaks
                               rendering on the Voodoo5 SLI (hard sync needed) */
+        __r3dFbDump(gc);
     }
     ts1 = __prof_rdtsc();
 

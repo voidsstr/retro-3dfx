@@ -2564,6 +2564,20 @@ void APIENTRY __glim_TexImage2D(GLenum target, GLint lod, GLint components,
     __GL_SETUP_NOT_IN_BEGIN_VALIDATE();
     __GL_API_STATE();
 
+    /* one-shot diagnostics (GoldSrc color hunt): the first 16 TexImage2D
+    ** calls' exact shape + first bytes of the payload. */
+    { static int logged = 0;
+      extern void OGLLOG(const char*, ...);
+      if (logged < 16) {
+          const unsigned char *p = (const unsigned char *)buf;
+          logged++;
+          OGLLOG("TexImage2D: ifmt=0x%x %dx%d fmt=0x%x type=0x%x lod=%d bytes=%02x %02x %02x %02x %02x %02x %02x %02x",
+                 (unsigned)components, (int)w, (int)h, (unsigned)format,
+                 (unsigned)type, (int)lod,
+                 p?p[0]:0, p?p[1]:0, p?p[2]:0, p?p[3]:0,
+                 p?p[4]:0, p?p[5]:0, p?p[6]:0, p?p[7]:0);
+      } }
+
     /* Check arguments and get the right texture being changed */
     tex = __glCheckTexImage2DArgs(gc, target, lod, components, w, h,
                                   border, format, type);
