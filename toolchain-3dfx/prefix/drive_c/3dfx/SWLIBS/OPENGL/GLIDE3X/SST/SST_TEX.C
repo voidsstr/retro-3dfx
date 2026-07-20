@@ -33,6 +33,14 @@
 #include <string.h>
 #include "sst_globals.h"
 
+/* RETRO3DFX grTexSource logging (GoldSrc color hunt): every source op with
+** tmu/addr/format for the first 300 calls after the marker-created log
+** engages -- shows exactly what each TMU samples at draw time.  Wrapped
+** via self-referential macro like the download counters below. */
+static void __r3dLogTexSource(int tmu, unsigned long addr, void *info);
+#define grTexSource(a,b,c,d) (__r3dLogTexSource((int)(a),(unsigned long)(b),(void*)(d)), \
+                              grTexSource(a,b,c,d))
+
 /* RETRO3DFX_PERFLOG counters (defined in sst_export.c, dumped each 100
 ** frames).  Self-referential macros: the inner name is not re-expanded, so
 ** every grTexDownload* call site in this file is counted transparently. */
@@ -46,6 +54,28 @@ extern long __r3d_cTexDl, __r3d_cTexDlPart;
 ** declared early for the FILT@ instrumentation of grTexFilterMode sites. */
 extern void OGLLOG( const char *fmt, ... );
 extern void OGLLOGV( const char *fmt, ... );
+
+/* body for the grTexSource wrapper macro above (GrTexInfo layout: smallLod,
+** largeLod, aspect, format at offsets 0/4/8/12). */
+static void __r3dLogTexSource(int tmu, unsigned long addr, void *info)
+{
+    /* tmu=0 sources are the rare interesting ones (unit-1/lightmap TMU on
+    ** the inverted mapping) -- log them all (cap 100).  tmu=1 floods, log
+    ** every 500th as a heartbeat so the in-map era is still visible. */
+    static int logged0 = 0; static long n1 = 0;
+    unsigned long *gi = (unsigned long *)info;
+    if (tmu == 0) {
+        if (logged0 >= 100) return;
+        logged0++;
+        OGLLOGV("TEXSRC tmu=0 addr=0x%lx lodS=%lu lodL=%lu asp=%lu fmt=0x%lx",
+                addr, gi ? gi[0] : 0, gi ? gi[1] : 0, gi ? gi[2] : 0, gi ? gi[3] : 0);
+    } else {
+        n1++;
+        if (n1 % 500) return;
+        OGLLOGV("TEXSRC tmu=1 (heartbeat %ld) addr=0x%lx fmt=0x%lx",
+                n1, addr, gi ? gi[3] : 0);
+    }
+}
 
 #define __GL_TEXTURE_INDEX_1D 0
 #define __GL_TEXTURE_INDEX_2D 1
@@ -786,10 +816,24 @@ void APIENTRY __glsstim_TexParameterfv(GLenum target, GLenum pname, const GLfloa
             goto bad_enum;
         }
 
+        /* RETRO3DFX diagnostic (CS green-world): file marker C:\icd_nomip.on
+        ** forces GR_MIPMAP_DISABLE so the HW samples only the base LOD.  If
+        ** the world then renders tan, the corruption is in the mip chain
+        ** (sub-level address/alloc); if still green, the base LOD itself. */
+        { static int nomip = -1;
+          if ( nomip < 0 ) {
+              HANDLE g = CreateFileA( "C:\\icd_nomip.on", GENERIC_READ,
+                                      FILE_SHARE_READ|FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0 );
+              nomip = ( g != INVALID_HANDLE_VALUE ) ? 1 : 0;
+              if ( nomip ) CloseHandle( g );
+          }
+          if ( nomip ) tex->sst.mip = GR_MIPMAP_DISABLE;
+        }
+
         tmp = ( ( tex->sst.min << 8 ) | ( tex->sst.mag ) );
         if ( gc->texture.hwMinMag[txu] != tmp ) {
             OGLLOGV( "FILT@676 tmu/min/mag= %d %d %d", (int)(gc->texture.sst.texUnits[txu]), (int)(tex->sst.min), (int)(tex->sst.mag) );
-            grTexFilterMode(gc->texture.sst.texUnits[txu], tex->sst.min, tex->sst.mag); 
+            grTexFilterMode(gc->texture.sst.texUnits[txu], tex->sst.min, tex->sst.mag);
             gc->texture.hwMinMag[txu] = tmp;
         }
 
@@ -1348,9 +1392,23 @@ void __glSSTLoadCombineFunction( __GLcontext *gc ) {
     enTex0  = gc->state.enables.texture[0] & 
               ( __GL_TEXTURE_2D_ENABLE | 
                 __GL_TEXTURE_1D_ENABLE );
-    enTex1  = gc->state.enables.texture[1] & 
-              ( __GL_TEXTURE_2D_ENABLE | 
+    enTex1  = gc->state.enables.texture[1] &
+              ( __GL_TEXTURE_2D_ENABLE |
                 __GL_TEXTURE_1D_ENABLE );
+
+    /* RETRO3DFX diagnostic (CS green-world): file marker C:\icd_nomt.on
+    ** forces single-texture (drop TMU1/lightmap).  If the live world then
+    ** renders correct-tan, the bug is in the 2-TMU combine path; if it
+    ** stays green, it is base-texture sampling.  Checked once. */
+    { static int nomt = -1;
+      if ( nomt < 0 ) {
+          HANDLE g = CreateFileA( "C:\\icd_nomt.on", GENERIC_READ,
+                                  FILE_SHARE_READ|FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0 );
+          nomt = ( g != INVALID_HANDLE_VALUE ) ? 1 : 0;
+          if ( nomt ) CloseHandle( g );
+      }
+      if ( nomt ) enTex1 = 0;
+    }
     /* XXXTaco the format is not properly considered for 
        texture-texture combination at this time */
     format  = GL_RGBA;
@@ -2639,8 +2697,17 @@ void __glSSTAllocateTextureMemory(__GLcontext *gc, __GLtexture *tex, int len)
     /* Keep every cache node 16-byte aligned (Napalm texBaseAddr granularity;
     ** MUNGE drops addr bits [3:0]).  grTexTextureMemRequired can return
     ** lengths that are only 8-aligned (e.g. small ALPHA_8 strips), which
-    ** would knock all subsequent nodes onto +8 addresses. */
-    len = (len + 15) & ~15;
+    ** would knock all subsequent nodes onto +8 addresses.
+    ** A/B: C:\icd_heap8.on reverts to the pre-0.3.1 unrounded len. */
+    { static int heap8 = -1;
+      if ( heap8 < 0 ) {
+          HANDLE g = CreateFileA( "C:\\icd_heap8.on", GENERIC_READ,
+                                  FILE_SHARE_READ|FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0 );
+          heap8 = ( g != INVALID_HANDLE_VALUE ) ? 1 : 0;
+          if ( heap8 ) CloseHandle( g );
+      }
+      if ( !heap8 ) len = (len + 15) & ~15;
+    }
 
     { extern long __r3d_cTexAlloc; __r3d_cTexAlloc++; }
 
@@ -3324,11 +3391,24 @@ void __glSSTTexImage2D(GLenum target, GLint lod, GLint components,
                     (tex->level[n].height == tex->sst.allocHeight[n]) &&
                     (tex->level[n].requestedFormat == tex->level[0].requestedFormat)) {
                     tex->sst.cacheMask |= (1L << n);
-                    grTexDownloadMipMapLevel(gc->texture.sst.currentTMU, 
+                    /* one-shot: dump the 565 shadow words we hand the HW for
+                    ** large base levels (CS green-world: is our data green?) */
+                    { static int dl = 0;
+                      if (n == 0 && dl < 30 && tex->sst.grformat == GR_TEXFMT_RGB_565
+                          && tex->level[0].width >= 64) {
+                          unsigned short *sw = (unsigned short *)tex->level[0].buffer;
+                          dl++;
+                          OGLLOGV("SHADOW565 %dx%d asp=%d 565[0..5]=%04x %04x %04x %04x %04x %04x",
+                                  (int)tex->level[0].width, (int)tex->level[0].height,
+                                  (int)tex->sst.aspect,
+                                  sw?sw[0]:0, sw?sw[1]:0, sw?sw[2]:0,
+                                  sw?sw[3]:0, sw?sw[4]:0, sw?sw[5]:0);
+                      } }
+                    grTexDownloadMipMapLevel(gc->texture.sst.currentTMU,
                                              (FxU32)tex->sst.texUnit[txu].cache->addr,
-                                             tex->sst.lod - n, tex->sst.lod, 
-                                             tex->sst.aspect, 
-                                             grTex.format, 
+                                             tex->sst.lod - n, tex->sst.lod,
+                                             tex->sst.aspect,
+                                             grTex.format,
                                              GR_MIPMAPLEVELMASK_BOTH,
                                              tex->level[n].buffer);
                 }

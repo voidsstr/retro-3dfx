@@ -193,6 +193,391 @@ int main(void){
       dump("C:\\gfix_I.raw");
     }
   }
+  /* K: GoldSrc-exact world draw replication (CS green-world hunt).
+   * HL uploads ifmt=GL_RGBA4(0x8057) fmt=GL_RGBA ubyte and draws the world
+   * as GL_POLYGON with ARB multitexture MODULATE(world) x MODULATE(lightmap).
+   * K1 y=300: single-tex GL_POLYGON, tan tex          -> expect tan
+   * K2 y=360: multitex GL_POLYGON, tan x 50%-gray LM  -> expect half-tan
+   * K3 y=420: multitex GL_TRIANGLES (path compare)    -> expect half-tan */
+  { typedef void (APIENTRY *PFNAT)(unsigned int);
+    typedef void (APIENTRY *PFNMT)(unsigned int,float,float);
+    PFNAT pAT=(PFNAT)wglGetProcAddress("glActiveTextureARB");
+    PFNAT pCAT=(PFNAT)wglGetProcAddress("glClientActiveTextureARB");
+    PFNMT pMT=(PFNMT)wglGetProcAddress("glMultiTexCoord2fARB");
+    static unsigned char tanw[16][16][4], gray[16][16][4];
+    GLuint tw,tl; int kx,ky;
+    fprintf(lg,"ARB mt: AT=%p MT=%p\n",(void*)pAT,(void*)pMT); fflush(lg);
+    for(ky=0;ky<16;ky++)for(kx=0;kx<16;kx++){
+      tanw[ky][kx][0]=210;tanw[ky][kx][1]=180;tanw[ky][kx][2]=140;tanw[ky][kx][3]=255;
+      gray[ky][kx][0]=gray[ky][kx][1]=gray[ky][kx][2]=128;gray[ky][kx][3]=255;}
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDisable(GL_BLEND); glColor4ub(255,255,255,255);
+    glGenTextures(1,&tw); glBindTexture(GL_TEXTURE_2D,tw);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D,0,0x8057/*GL_RGBA4*/,16,16,0,GL_RGBA,GL_UNSIGNED_BYTE,tanw);
+    glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
+    /* K1: single-tex GL_POLYGON */
+    glBegin(GL_POLYGON);
+    glTexCoord2f(0,0); glVertex2f(60,300);
+    glTexCoord2f(1,0); glVertex2f(140,300);
+    glTexCoord2f(1,1); glVertex2f(140,340);
+    glTexCoord2f(0,1); glVertex2f(60,340);
+    glEnd();
+    if(pAT&&pMT){
+      pAT(0x84C1/*TEXTURE1*/); glEnable(GL_TEXTURE_2D);
+      glGenTextures(1,&tl); glBindTexture(GL_TEXTURE_2D,tl);
+      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+      glTexImage2D(GL_TEXTURE_2D,0,0x8057,16,16,0,GL_RGBA,GL_UNSIGNED_BYTE,gray);
+      glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
+      pAT(0x84C0/*TEXTURE0*/);
+      /* K2: multitex GL_POLYGON */
+      glBegin(GL_POLYGON);
+      pMT(0x84C0,0,0); pMT(0x84C1,0,0); glVertex2f(60,360);
+      pMT(0x84C0,1,0); pMT(0x84C1,1,0); glVertex2f(140,360);
+      pMT(0x84C0,1,1); pMT(0x84C1,1,1); glVertex2f(140,400);
+      pMT(0x84C0,0,1); pMT(0x84C1,0,1); glVertex2f(60,400);
+      glEnd();
+      /* K3: multitex GL_TRIANGLES */
+      glBegin(GL_TRIANGLES);
+      pMT(0x84C0,0,0); pMT(0x84C1,0,0); glVertex2f(60,420);
+      pMT(0x84C0,1,0); pMT(0x84C1,1,0); glVertex2f(140,420);
+      pMT(0x84C0,1,1); pMT(0x84C1,1,1); glVertex2f(140,460);
+      pMT(0x84C0,0,0); pMT(0x84C1,0,0); glVertex2f(60,420);
+      pMT(0x84C0,1,1); pMT(0x84C1,1,1); glVertex2f(140,460);
+      pMT(0x84C0,0,1); pMT(0x84C1,0,1); glVertex2f(60,460);
+      glEnd();
+      pAT(0x84C1); glDisable(GL_TEXTURE_2D); pAT(0x84C0);
+    }
+    dump("C:\\gfix_K.raw");
+  }
+  /* L: CS-exact world recipe. From live capture: world tex = ifmt 3
+   * (565) 128x128 WITH FULL MIP CHAIN (HL uploads lods itself),
+   * LINEAR_MIPMAP_NEAREST; lightmap = ifmt GL_RGB5_A1(0x8056) 128x128,
+   * gray 0x46 with ALPHA=0, LINEAR; multitex MODULATE x MODULATE,
+   * GL_POLYGON. Expect tan*0x46/255 ~ (58,50,39). Green here = repro. */
+  { typedef void (APIENTRY *PFNAT)(unsigned int);
+    typedef void (APIENTRY *PFNMT)(unsigned int,float,float);
+    PFNAT pAT=(PFNAT)wglGetProcAddress("glActiveTextureARB");
+    PFNMT pMT=(PFNMT)wglGetProcAddress("glMultiTexCoord2fARB");
+    static unsigned char wtx[128][128][4], ltx[128][128][4];
+    GLuint tw,tl; int kx,ky,lv,sz;
+    for(ky=0;ky<128;ky++)for(kx=0;kx<128;kx++){
+      wtx[ky][kx][0]=210;wtx[ky][kx][1]=180;wtx[ky][kx][2]=140;wtx[ky][kx][3]=255;
+      ltx[ky][kx][0]=ltx[ky][kx][1]=ltx[ky][kx][2]=0x46;ltx[ky][kx][3]=0;}
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDisable(GL_BLEND); glColor4ub(255,255,255,255);
+    glGenTextures(1,&tw); glBindTexture(GL_TEXTURE_2D,tw);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,0x2701/*LINEAR_MIPMAP_NEAREST*/);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    for(lv=0,sz=128;sz>=1;lv++,sz>>=1)
+      glTexImage2D(GL_TEXTURE_2D,lv,3,sz,sz,0,GL_RGBA,GL_UNSIGNED_BYTE,wtx);
+    glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
+    if(pAT&&pMT){
+      pAT(0x84C1); glEnable(GL_TEXTURE_2D);
+      glGenTextures(1,&tl); glBindTexture(GL_TEXTURE_2D,tl);
+      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+      glTexImage2D(GL_TEXTURE_2D,0,0x8056/*GL_RGB5_A1*/,128,128,0,GL_RGBA,GL_UNSIGNED_BYTE,ltx);
+      glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
+      pAT(0x84C0);
+      glBegin(GL_POLYGON);
+      pMT(0x84C0,0,0); pMT(0x84C1,0,0); glVertex2f(200,300);
+      pMT(0x84C0,1,0); pMT(0x84C1,1,0); glVertex2f(328,300);
+      pMT(0x84C0,1,1); pMT(0x84C1,1,1); glVertex2f(328,428);
+      pMT(0x84C0,0,1); pMT(0x84C1,0,1); glVertex2f(200,428);
+      glEnd();
+      pAT(0x84C1); glDisable(GL_TEXTURE_2D); pAT(0x84C0);
+    }
+    /* also single-tex control of the mipped 565 world texture alone */
+    glBegin(GL_POLYGON);
+    glTexCoord2f(0,0); glVertex2f(40,300);
+    glTexCoord2f(1,0); glVertex2f(168,300);
+    glTexCoord2f(1,1); glVertex2f(168,428);
+    glTexCoord2f(0,1); glVertex2f(40,428);
+    glEnd();
+    dump("C:\\gfix_L.raw");
+  }
+  /* M: two-pass lightmap BLEND probe (GoldSrc gl_texsort path).
+   * M1 x=40 : tan base, then gray-0x46 tex with Blend(GL_ZERO,GL_SRC_COLOR)
+   *           -> dst*src, expect ~(58,50,39)
+   * M2 x=180: tan base, then gray tex with Blend(GL_DST_COLOR,GL_ZERO)
+   *           -> src*dst, expect same
+   * M3 x=320: tan base, then gray tex with Blend(GL_DST_COLOR,GL_SRC_COLOR)
+   *           -> 2*src*dst (Q3 overbright), expect ~(115,99,77)
+   * Wrong hues here = broken color-factor blend on Napalm. */
+  { static unsigned char tanb[16][16][4], grayb[16][16][4];
+    GLuint tb,gb; int kx,ky,mi;
+    static const float MX[3]={40,180,320};
+    static const unsigned int BF[3][2]={{0/*ZERO*/,0x0300/*SRC_COLOR*/},
+                                        {0x0306/*DST_COLOR*/,0/*ZERO*/},
+                                        {0x0306,0x0300}};
+    for(ky=0;ky<16;ky++)for(kx=0;kx<16;kx++){
+      tanb[ky][kx][0]=210;tanb[ky][kx][1]=180;tanb[ky][kx][2]=140;tanb[ky][kx][3]=255;
+      grayb[ky][kx][0]=grayb[ky][kx][1]=grayb[ky][kx][2]=0x46;grayb[ky][kx][3]=255;}
+    glClear(GL_COLOR_BUFFER_BIT);
+    glColor4ub(255,255,255,255);
+    glGenTextures(1,&tb); glBindTexture(GL_TEXTURE_2D,tb);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D,0,3,16,16,0,GL_RGBA,GL_UNSIGNED_BYTE,tanb);
+    glGenTextures(1,&gb); glBindTexture(GL_TEXTURE_2D,gb);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D,0,0x8056,16,16,0,GL_RGBA,GL_UNSIGNED_BYTE,grayb);
+    glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
+    for(mi=0;mi<3;mi++){
+      glDisable(GL_BLEND);
+      glBindTexture(GL_TEXTURE_2D,tb);
+      glBegin(GL_POLYGON);
+      glTexCoord2f(0,0); glVertex2f(MX[mi],120);
+      glTexCoord2f(1,0); glVertex2f(MX[mi]+96,120);
+      glTexCoord2f(1,1); glVertex2f(MX[mi]+96,216);
+      glTexCoord2f(0,1); glVertex2f(MX[mi],216);
+      glEnd();
+      glEnable(GL_BLEND); glBlendFunc(BF[mi][0]?BF[mi][0]:GL_ZERO, BF[mi][1]?BF[mi][1]:GL_ZERO);
+      glBindTexture(GL_TEXTURE_2D,gb);
+      glBegin(GL_POLYGON);
+      glTexCoord2f(0,0); glVertex2f(MX[mi],120);
+      glTexCoord2f(1,0); glVertex2f(MX[mi]+96,120);
+      glTexCoord2f(1,1); glVertex2f(MX[mi]+96,216);
+      glTexCoord2f(0,1); glVertex2f(MX[mi],216);
+      glEnd();
+      glDisable(GL_BLEND);
+    }
+    dump("C:\\gfix_M.raw");
+  }
+  /* N: LOD/aspect color probe (CS green-LOD0 hunt). Textures ifmt=3
+   * (565) with a DISTINCT color per mip level: L0=tan L1=red L2=blue
+   * L3+=magenta. N1: 128x128 square. N2: 128x32 non-square (HL wall
+   * shape). Drawn 1:1 (shows L0) and quarter-size (shows ~L2).
+   * LINEAR_MIPMAP_NEAREST like HL. Expected 1:1 = TAN; wrong hue or
+   * pure-green here reproduces the live CS corruption. */
+  { static unsigned char nbuf[128][128][4];
+    static const unsigned char lc[4][3]={{210,180,140},{255,0,0},{0,0,255},{255,0,255}};
+    GLuint tn; int kx,ky,lv,w2,h2,ci;
+    int shapes[2][2]={{128,128},{128,32}};
+    float bx;
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDisable(GL_BLEND); glColor4ub(255,255,255,255);
+    glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
+    for(ci=0;ci<2;ci++){
+      glGenTextures(1,&tn); glBindTexture(GL_TEXTURE_2D,tn);
+      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,0x2701);
+      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+      w2=shapes[ci][0]; h2=shapes[ci][1];
+      for(lv=0; w2||h2; lv++){
+        int lw=w2?w2:1, lh=h2?h2:1;
+        const unsigned char *c=lc[lv<3?lv:3];
+        for(ky=0;ky<lh;ky++)for(kx=0;kx<lw;kx++){
+          nbuf[ky][kx][0]=c[0];nbuf[ky][kx][1]=c[1];nbuf[ky][kx][2]=c[2];nbuf[ky][kx][3]=255;}
+        glTexImage2D(GL_TEXTURE_2D,lv,3,lw,lh,0,GL_RGBA,GL_UNSIGNED_BYTE,nbuf);
+        w2>>=1; h2>>=1;
+      }
+      bx = 40.f + ci*300;
+      /* 1:1 -> LOD0 (must be TAN) */
+      quad(bx,60, bx+shapes[ci][0], 60.f+shapes[ci][1], 0,0,1,1);
+      /* quarter-size -> ~LOD2 (must be BLUE) */
+      quad(bx,240, bx+shapes[ci][0]/4.f, 240.f+shapes[ci][1]/4.f, 0,0,1,1);
+    }
+    dump("C:\\gfix_N.raw");
+  }
+  /* O: STALE-FORMAT REBIND probe. HL rebinds textures of different
+   * grformats constantly; if the bind path only re-sources the TMU on
+   * address change, the format goes stale. texA=565 tan, texB=4444
+   * white/50%. Draw A (must be tan), draw B, REBIND A draw again (must
+   * still be tan; green/wrong = stale-format repro). Multitex variant
+   * with a 4444 lightmap on TMU1 mirrors the live CS state. */
+  { typedef void (APIENTRY *PFNAT)(unsigned int);
+    typedef void (APIENTRY *PFNMT)(unsigned int,float,float);
+    PFNAT pAT=(PFNAT)wglGetProcAddress("glActiveTextureARB");
+    PFNMT pMT=(PFNMT)wglGetProcAddress("glMultiTexCoord2fARB");
+    static unsigned char ta[64][64][4], tb[64][64][4], tl2[128][128][4];
+    GLuint hA,hB,hL; int kx,ky,lv,sz;
+    for(ky=0;ky<64;ky++)for(kx=0;kx<64;kx++){
+      ta[ky][kx][0]=210;ta[ky][kx][1]=180;ta[ky][kx][2]=140;ta[ky][kx][3]=255;
+      tb[ky][kx][0]=tb[ky][kx][1]=tb[ky][kx][2]=200;tb[ky][kx][3]=128;}
+    for(ky=0;ky<128;ky++)for(kx=0;kx<128;kx++){
+      tl2[ky][kx][0]=tl2[ky][kx][1]=tl2[ky][kx][2]=0x80;tl2[ky][kx][3]=0;}
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDisable(GL_BLEND); glColor4ub(255,255,255,255);
+    glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
+    glGenTextures(1,&hA); glBindTexture(GL_TEXTURE_2D,hA);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,0x2701);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    for(lv=0,sz=64;sz>=1;lv++,sz>>=1)
+      glTexImage2D(GL_TEXTURE_2D,lv,3,sz,sz,0,GL_RGBA,GL_UNSIGNED_BYTE,ta);
+    glGenTextures(1,&hB); glBindTexture(GL_TEXTURE_2D,hB);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D,0,0x8057,64,64,0,GL_RGBA,GL_UNSIGNED_BYTE,tb);
+    /* enable TMU1 lightmap (4444, alpha 0) like live CS */
+    if(pAT&&pMT){
+      pAT(0x84C1); glEnable(GL_TEXTURE_2D);
+      glGenTextures(1,&hL); glBindTexture(GL_TEXTURE_2D,hL);
+      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+      glTexImage2D(GL_TEXTURE_2D,0,0x8056,128,128,0,GL_RGBA,GL_UNSIGNED_BYTE,tl2);
+      glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
+      pAT(0x84C0);
+    }
+    #define OQUAD(X) do{ glBegin(GL_POLYGON); \
+      pMT(0x84C0,0,0); pMT(0x84C1,0,0); glVertex2f((float)(X),60); \
+      pMT(0x84C0,1,0); pMT(0x84C1,1,0); glVertex2f((float)(X)+64,60); \
+      pMT(0x84C0,1,1); pMT(0x84C1,1,1); glVertex2f((float)(X)+64,124); \
+      pMT(0x84C0,0,1); pMT(0x84C1,0,1); glVertex2f((float)(X),124); glEnd(); }while(0)
+    if(pAT&&pMT){
+      glBindTexture(GL_TEXTURE_2D,hA); OQUAD(40);    /* A first: tan*0.5 */
+      glBindTexture(GL_TEXTURE_2D,hB); OQUAD(140);   /* B: gray*0.5 */
+      glBindTexture(GL_TEXTURE_2D,hA); OQUAD(240);   /* A REBOUND: must equal draw 1 */
+      glBindTexture(GL_TEXTURE_2D,hB); OQUAD(340);
+      glBindTexture(GL_TEXTURE_2D,hA); OQUAD(440);   /* third A */
+    }
+    dump("C:\\gfix_O.raw");
+  }
+  /* P: CROSS-ROUTED multitex coords probe (the CS green-world killer).
+   * unit0 = 64x64 solid TAN (565). unit1 = 128x128 lightmap: GREEN
+   * everywhere except a WHITE patch at texel [32..40]^2 (565 via ifmt 3).
+   * Quad drawn with unit0 coords 0..1 but unit1 coords pinned INSIDE the
+   * white patch (0.26..0.30). Correct = tan x white = TAN.
+   * If unit coords/textures are cross-routed between TMUs, the lightmap
+   * gets sampled over the full quad (mostly GREEN) -> GREEN = live CS bug. */
+  { typedef void (APIENTRY *PFNAT)(unsigned int);
+    typedef void (APIENTRY *PFNMT)(unsigned int,float,float);
+    PFNAT pAT=(PFNAT)wglGetProcAddress("glActiveTextureARB");
+    PFNMT pMT=(PFNMT)wglGetProcAddress("glMultiTexCoord2fARB");
+    static unsigned char w0[64][64][4], l1[128][128][4];
+    GLuint h0,h1; int kx,ky;
+    for(ky=0;ky<64;ky++)for(kx=0;kx<64;kx++){
+      w0[ky][kx][0]=210;w0[ky][kx][1]=180;w0[ky][kx][2]=140;w0[ky][kx][3]=255;}
+    for(ky=0;ky<128;ky++)for(kx=0;kx<128;kx++){
+      int inpatch=(kx>=32&&kx<40&&ky>=32&&ky<40);
+      l1[ky][kx][0]=inpatch?255:0; l1[ky][kx][1]=255; l1[ky][kx][2]=inpatch?255:0;
+      l1[ky][kx][3]=255;}
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDisable(GL_BLEND); glColor4ub(255,255,255,255);
+    glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
+    glGenTextures(1,&h0); glBindTexture(GL_TEXTURE_2D,h0);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D,0,3,64,64,0,GL_RGBA,GL_UNSIGNED_BYTE,w0);
+    if(pAT&&pMT){
+      pAT(0x84C1); glEnable(GL_TEXTURE_2D);
+      glGenTextures(1,&h1); glBindTexture(GL_TEXTURE_2D,h1);
+      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+      glTexImage2D(GL_TEXTURE_2D,0,3,128,128,0,GL_RGBA,GL_UNSIGNED_BYTE,l1);
+      glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
+      pAT(0x84C0);
+      glBegin(GL_POLYGON);
+      pMT(0x84C0,0,0); pMT(0x84C1,0.26f,0.26f); glVertex2f(200,150);
+      pMT(0x84C0,1,0); pMT(0x84C1,0.30f,0.26f); glVertex2f(360,150);
+      pMT(0x84C0,1,1); pMT(0x84C1,0.30f,0.30f); glVertex2f(360,310);
+      pMT(0x84C0,0,1); pMT(0x84C1,0.26f,0.30f); glVertex2f(200,310);
+      glEnd();
+      pAT(0x84C1); glDisable(GL_TEXTURE_2D); pAT(0x84C0);
+    }
+    dump("C:\\gfix_P.raw");
+  }
+  /* Q: EXACT live CS world formats - world 565 x lightmap 565 (both
+   * gr=0xa per the begin-state capture), MODULATE x MODULATE, 128x128,
+   * GL_POLYGON. Every prior multitex probe used a 4444 lightmap; the live
+   * lightmap is 565. World=tan, lightmap=gray 0x46. Expect ~(58,50,39).
+   * GREEN here = the live CS bug finally reproduced. */
+  { typedef void (APIENTRY *PFNAT)(unsigned int);
+    typedef void (APIENTRY *PFNMT)(unsigned int,float,float);
+    PFNAT pAT=(PFNAT)wglGetProcAddress("glActiveTextureARB");
+    PFNMT pMT=(PFNMT)wglGetProcAddress("glMultiTexCoord2fARB");
+    static unsigned char wq[128][128][4], lq[128][128][4];
+    GLuint hw,hl; int kx,ky;
+    for(ky=0;ky<128;ky++)for(kx=0;kx<128;kx++){
+      wq[ky][kx][0]=210;wq[ky][kx][1]=180;wq[ky][kx][2]=140;wq[ky][kx][3]=255;
+      lq[ky][kx][0]=lq[ky][kx][1]=lq[ky][kx][2]=0x46;lq[ky][kx][3]=255;}
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDisable(GL_BLEND); glColor4ub(255,255,255,255);
+    glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
+    /* world on unit0: ifmt 3 => 565 */
+    glGenTextures(1,&hw); glBindTexture(GL_TEXTURE_2D,hw);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D,0,3,128,128,0,GL_RGBA,GL_UNSIGNED_BYTE,wq);
+    if(pAT&&pMT){
+      pAT(0x84C1); glEnable(GL_TEXTURE_2D);
+      glGenTextures(1,&hl); glBindTexture(GL_TEXTURE_2D,hl);
+      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+      glTexImage2D(GL_TEXTURE_2D,0,3,128,128,0,GL_RGBA,GL_UNSIGNED_BYTE,lq); /* 565! */
+      glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
+      pAT(0x84C0);
+      glBegin(GL_POLYGON);
+      pMT(0x84C0,0,0); pMT(0x84C1,0,0); glVertex2f(200,150);
+      pMT(0x84C0,1,0); pMT(0x84C1,1,0); glVertex2f(360,150);
+      pMT(0x84C0,1,1); pMT(0x84C1,1,1); glVertex2f(360,310);
+      pMT(0x84C0,0,1); pMT(0x84C1,0,1); glVertex2f(200,310);
+      glEnd();
+      pAT(0x84C1); glDisable(GL_TEXTURE_2D); pAT(0x84C0);
+    }
+    dump("C:\\gfix_Q.raw");
+  }
+  /* R: MEMORY-PRESSURE eviction repro (the missing axis). Upload 300
+   * distinct 128x128 565 MIPMAPPED textures (~12MB > TMU RAM) to force
+   * eviction, re-bind + draw texture #0 (tan), read its color. Live CS
+   * has hundreds of textures -> eviction + re-download; my earlier probes
+   * had 1-2 (no pressure). GREEN here = eviction/re-download bug repro. */
+  { static unsigned char rt[128][128][4]; GLuint rid[300]; int ri,lv,sz,rk;
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDisable(GL_BLEND); glColor4ub(255,255,255,255);
+    glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
+    glGenTextures(300,rid);
+    for(ri=0;ri<300;ri++){
+      /* tex 0 = pure tan; others = a per-index color so they occupy RAM */
+      unsigned char cr=(ri==0)?210:(unsigned char)(ri*7);
+      unsigned char cg=(ri==0)?180:(unsigned char)(ri*3);
+      unsigned char cb=(ri==0)?140:(unsigned char)(ri*5);
+      for(rk=0;rk<128*128;rk++){ rt[0][rk][0]=cr;rt[0][rk][1]=cg;rt[0][rk][2]=cb;rt[0][rk][3]=255; }
+      glBindTexture(GL_TEXTURE_2D,rid[ri]);
+      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,0x2701/*LINEAR_MIPMAP_NEAREST*/);
+      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+      for(lv=0,sz=128;sz>=1;lv++,sz>>=1)
+        glTexImage2D(GL_TEXTURE_2D,lv,3,sz,sz,0,GL_RGBA,GL_UNSIGNED_BYTE,rt);
+    }
+    /* now re-bind + draw tex 0 (long-evicted) 1:1 -> forces re-download */
+    glBindTexture(GL_TEXTURE_2D,rid[0]);
+    quad(100,100,228,228,0,0,1,1);
+    dump("C:\\gfix_R.raw");
+    glDeleteTextures(300,rid);
+  }
+  /* S: non-mip -> mip TRANSITION repro. Bind, MIN_FILTER=LINEAR, upload
+   * level 0 (tan 565), DRAW (allocates as non-mip BASE). Then switch
+   * MIN_FILTER=LINEAR_MIPMAP_NEAREST, upload levels 1..7, DRAW again
+   * (forces TEXALLOC_BASE->STACK realloc). If LOD 0 (base) goes green
+   * after the transition -> found it. GoldSrc uploads world textures this
+   * way (image first, mip params after). */
+  { static unsigned char st[128][128][4]; GLuint sh; int sk,lv,sz;
+    for(sk=0;sk<128*128;sk++){ st[0][sk][0]=210;st[0][sk][1]=180;st[0][sk][2]=140;st[0][sk][3]=255; }
+    glClear(GL_COLOR_BUFFER_BIT);
+    glDisable(GL_BLEND); glColor4ub(255,255,255,255);
+    glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
+    glGenTextures(1,&sh); glBindTexture(GL_TEXTURE_2D,sh);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D,0,3,128,128,0,GL_RGBA,GL_UNSIGNED_BYTE,st);
+    fprintf(lg,"S: uploaded L0 non-mip\n"); fflush(lg);
+    quad(40,60,168,188,0,0,1,1);        /* draw as NON-MIP base */
+    fprintf(lg,"S: drew non-mip\n"); fflush(lg);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,0x2701/*LINEAR_MIPMAP_NEAREST*/);
+    fprintf(lg,"S: switched to mipmap filter\n"); fflush(lg);
+    for(lv=1,sz=64;sz>=1;lv++,sz>>=1){
+      glTexImage2D(GL_TEXTURE_2D,lv,3,sz,sz,0,GL_RGBA,GL_UNSIGNED_BYTE,st);
+      fprintf(lg,"S: uploaded L%d (%d)\n",lv,sz); fflush(lg);
+    }
+    quad(200,60,328,188,0,0,1,1);        /* draw AFTER transition (LOD 0) */
+    fprintf(lg,"S: drew post-transition\n"); fflush(lg);
+    dump("C:\\gfix_S.raw");
+    glDeleteTextures(1,&sh);
+    fprintf(lg,"S: done\n"); fflush(lg);
+  }
   /* J: swap-loop meter validation. 220 SwapBuffers frames; with
    * RETRO3DFX_PERFLOG=1 the ICD must emit >=2 lines to C:\icd_perf.log
    * (db=1). Validates the perf meter under a known double-buffered

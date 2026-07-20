@@ -396,9 +396,10 @@ static void __r3dFbDump(__GLcontext *gc)
         en = (g != __R3D_INVALID_HANDLE) ? 1 : 0;
         if (en) { extern int __stdcall CloseHandle(void*); CloseHandle(g); }
     }
-    if (!en || ndump >= 10) return;
+    if (!en) return;
     swaps++;
     if (swaps != 5 && (swaps % 100) != 0) return;   /* frame 5, 100, 200, ... */
+    ndump = ndump % 10;   /* ROLLING: slots 0-9 overwrite, last 10 dumps kept */
 
     w = gc->constants.maxViewportWidth;
     hgt = gc->constants.maxViewportHeight;
