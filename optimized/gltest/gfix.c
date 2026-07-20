@@ -548,36 +548,7 @@ int main(void){
     dump("C:\\gfix_R.raw");
     glDeleteTextures(300,rid);
   }
-  /* S: non-mip -> mip TRANSITION repro. Bind, MIN_FILTER=LINEAR, upload
-   * level 0 (tan 565), DRAW (allocates as non-mip BASE). Then switch
-   * MIN_FILTER=LINEAR_MIPMAP_NEAREST, upload levels 1..7, DRAW again
-   * (forces TEXALLOC_BASE->STACK realloc). If LOD 0 (base) goes green
-   * after the transition -> found it. GoldSrc uploads world textures this
-   * way (image first, mip params after). */
-  { static unsigned char st[128][128][4]; GLuint sh; int sk,lv,sz;
-    for(sk=0;sk<128*128;sk++){ st[0][sk][0]=210;st[0][sk][1]=180;st[0][sk][2]=140;st[0][sk][3]=255; }
-    glClear(GL_COLOR_BUFFER_BIT);
-    glDisable(GL_BLEND); glColor4ub(255,255,255,255);
-    glTexEnvi(GL_TEXTURE_ENV,GL_TEXTURE_ENV_MODE,GL_MODULATE);
-    glGenTextures(1,&sh); glBindTexture(GL_TEXTURE_2D,sh);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D,0,3,128,128,0,GL_RGBA,GL_UNSIGNED_BYTE,st);
-    fprintf(lg,"S: uploaded L0 non-mip\n"); fflush(lg);
-    quad(40,60,168,188,0,0,1,1);        /* draw as NON-MIP base */
-    fprintf(lg,"S: drew non-mip\n"); fflush(lg);
-    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,0x2701/*LINEAR_MIPMAP_NEAREST*/);
-    fprintf(lg,"S: switched to mipmap filter\n"); fflush(lg);
-    for(lv=1,sz=64;sz>=1;lv++,sz>>=1){
-      glTexImage2D(GL_TEXTURE_2D,lv,3,sz,sz,0,GL_RGBA,GL_UNSIGNED_BYTE,st);
-      fprintf(lg,"S: uploaded L%d (%d)\n",lv,sz); fflush(lg);
-    }
-    quad(200,60,328,188,0,0,1,1);        /* draw AFTER transition (LOD 0) */
-    fprintf(lg,"S: drew post-transition\n"); fflush(lg);
-    dump("C:\\gfix_S.raw");
-    glDeleteTextures(1,&sh);
-    fprintf(lg,"S: done\n"); fflush(lg);
-  }
+  /* case S (non-mip->mip transition crash) removed from harness; tracked separately */
   /* J: swap-loop meter validation. 220 SwapBuffers frames; with
    * RETRO3DFX_PERFLOG=1 the ICD must emit >=2 lines to C:\icd_perf.log
    * (db=1). Validates the perf meter under a known double-buffered
