@@ -3820,10 +3820,11 @@ void Compute_SLIAA_Config(NT9XDEVICEDATA * ppdev, FxU32 numBuffers)
   }
 
 #if ENABLE_LOG_FILE
-  retroLogForce(ppdev, "retro3dfx COMPUTE-SLIAA: cfg=%ld numBufs=%ld -> aaReq=%ld aaSmp=%ld sliReq=%ld sliWays=%ld analog=%ld\r\n",
+  retroLogForce(ppdev, "retro3dfx COMPUTE-SLIAA: cfg=%ld numBufs=%ld -> aaReq=%ld aaSmp=%ld sliReq=%ld sliWays=%ld analog=%ld 3dCnt=%ld\r\n",
                 _DD(ddSLIAAConfiguration), numBuffers,
                 _DD(ddAAModeRequested), _DD(ddAANumberSamples),
-                _DD(ddSLIModeRequested), _DD(ddSLINumberWays), _DD(ddSLIAAAnalog));
+                _DD(ddSLIModeRequested), _DD(ddSLINumberWays), _DD(ddSLIAAAnalog),
+                _FF(dd3DSurfaceCount));
 #endif
 } // Compute_SLIAA_Config
 #endif

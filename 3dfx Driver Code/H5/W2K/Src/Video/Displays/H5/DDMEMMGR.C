@@ -426,7 +426,17 @@ memMgr_allocSurface(PDEV        *ppdev,
   }
 
   if (0 == ddPtr)
+  {
+#if ENABLE_LOG_FILE
+    /* retro3dfx: surface-allocation failure is the silent way a 3DMark test
+       "fails instantly" (no DP2 activity, no error in the ring) — record the
+       request so warm-rerun degradation (leak/fragmentation) becomes visible. */
+    retroLogForce(ppdev, "retro3dfx memMgr ALLOC-FAIL: type=%08lXh w=%ld h=%ld tw=%ld th=%ld heaps=%ld 3dCnt=%ld\r\n",
+                  type, width, height, tWidth, tHeight,
+                  numberHeaps, _FF(dd3DSurfaceCount));
+#endif
     return DDERR_OUTOFVIDEOMEMORY;
+  }
 
   if (DDSCAPS_3DDEVICE & type)
   {

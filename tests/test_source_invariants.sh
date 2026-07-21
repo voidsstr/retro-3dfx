@@ -63,7 +63,7 @@ else
 fi
 
 echo "== repo tree vs build tree sync (fixed files must match) =="
-for f in D3TXTR.C DDFLIP.C D6DP2.C DDFXNT.C CFIFO.C LOGFILE.C LOGFILE.H DEBUG.C ENABLE.C; do
+for f in D3TXTR.C DDFLIP.C D6DP2.C DDFXNT.C CFIFO.C LOGFILE.C LOGFILE.H DEBUG.C ENABLE.C DDMEMMGR.C D3CONTXT.C; do
   if cmp -s "$H5DISP/$f" "$PREFIX/Displays/H5/$f"; then
     echo "PASS  sync $f"
   else

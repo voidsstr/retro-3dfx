@@ -56,6 +56,9 @@ static char   h3_buf[256];
 #define RETRO_LOG_CHUNK    1000
 ULONG g_retroLogSeq = 0;
 
+/* retro3dfx: D3D context create/destroy balance (warm-rerun leak hunt) */
+LONG g_retroCtxLive = 0;
+
 /****************************************************************************
 *
 * FUNCTION:     FlushLogFileBuffer()

@@ -4,6 +4,26 @@ Building the original 3dfx Voodoo 3/4/5 drivers for Windows XP from the
 leaked H5/Napalm source tree, on Linux, under Wine — plus the packaging and
 deployment tooling for the retro fleet.
 
+**This is the vintage-source stack.** The open-source stack (MesaFX ICD /
+open Glide3) lives in `retro3dfx-gl` and `retro-agent/scripts/3dfx/` — don't
+mix them up. The full stack map (deployed files ↔ source locations, build
+commands, deploy flow, test order, instrumentation, box facts) is in
+[`CLAUDE.md`](CLAUDE.md); read it before touching driver code.
+
+## Stack at a glance
+
+| Deployed on XP box | Source | Build output |
+|---|---|---|
+| `3dfxv5d.dll` (display + D3D HAL) | `3dfx Driver Code/H5/W2K/Src/Video/Displays/H5/` | `objfre/i386/3dfxvs.dll` (renamed) |
+| `3dfxv5m.sys` (miniport, SLI/AA) | `.../Miniport/H5/` | `objfre/i386/3dfxvsm.sys` (renamed) |
+| `glide2x.dll` / `glide3x.dll` | `H5/GLIDE2`, `H5/GLIDE3`, `MINIHWC` | per Glide build recipes |
+| `d3dlab.exe` (test lab) | `tests/d3dlab/` | MinGW |
+
+Builds run under Wine (`toolchain-3dfx/`, VC6 + W2K DDK) and compile the
+**`toolchain-3dfx/prefix/drive_c/3dfx/` build tree** — repo-tree edits must be
+copied there first (the test suite enforces sync). `3dfx Driver Code/H5/Win9x/`
+is the working-reference Win9x driver used for differential debugging.
+
 ## Layout
 
 - **`3dfx Driver Code/`** — the vintage 3dfx H5/Napalm driver source drop,
