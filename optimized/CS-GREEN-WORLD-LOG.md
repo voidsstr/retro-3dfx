@@ -10,6 +10,23 @@ correct). Quake 3 on the identical driver is perfect.
 
 ---
 
+## ⚠ 0.3.4d REGRESSED Q3 → superseded by 0.3.5 (2026-07-21)
+
+0.3.4d fixed CS but **broke Q3** (user-caught on the monitor): white menu text +
+green-tinted logo + black world at 1024×768. Cause: the swap hook was gated only
+on `__r3d_blitValid`, and **Q3 latches it too** — on the 2-TMU config the ICD maps
+texture unit 0 → GR_TMU1, so Q3's world textures are "large 565 on TMU1" exactly
+like CS's. The per-frame combine override then killed vertex-color modulate
+(white text), and after a 640→1024 mode change the latched texture address was
+stale (black world). **0.3.5** fixes all three: hook gated on `__r3d_sawTMU0`
+(GR_TMU0 = lightmap unit sourced this frame = genuine dual-texture; idTech
+single-texture never sources TMU0), `__r3d_blitValid` cleared at grSstWinClose,
+and a words-only combine-cache invalidation after the re-issue so the app's next
+combine restores its own state (NOT the full reset that broke attempts 2/3).
+Capture lesson: my "verified" 0.3.4d Q3 menu fbdump showed WHITE text and I
+called it correct — stock Q3 menu text is RED. Check color fidelity, not just
+structure; trust the user's eyes.
+
 ## ✅✅✅ FIXED — SHIPPED (2026-07-20, ICD 0.3.4d)
 
 **Result: green 0/4, de_dust renders perfect tan sandstone** (samples
