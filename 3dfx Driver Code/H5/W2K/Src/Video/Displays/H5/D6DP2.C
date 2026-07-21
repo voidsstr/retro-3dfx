@@ -1272,6 +1272,21 @@ DWORD __stdcall ddiDrawPrimitives2( LPD3DHAL_DRAWPRIMITIVES2DATA lpdp2d )
 
   UPDATE_HW_STATE( SC_BUFFERS );
 
+#if ENABLE_LOG_FILE
+  /* retro3dfx: mark the first DP2 batch per context — if a context is
+     destroyed WITHOUT this line, the runtime aborted before any drawing
+     reached the driver (device-init stage failure). */
+  {
+    static DWORD g_retroLastDp2Ctx = 0;
+    if (lpdp2d->dwhContext != g_retroLastDp2Ctx)
+    {
+      g_retroLastDp2Ctx = lpdp2d->dwhContext;
+      retroLogForce(ppdev, "retro3dfx DP2-FIRST: ctx=%08lXh cmdLen=%ld\r\n",
+                    lpdp2d->dwhContext, lpdp2d->dwCommandLength);
+    }
+  }
+#endif
+
   // Always disable zeroing the jitter values at the start of this for loop
   // and let the special case code enable it, if appropriate.
   pRc->dwZeroJitter = 0;

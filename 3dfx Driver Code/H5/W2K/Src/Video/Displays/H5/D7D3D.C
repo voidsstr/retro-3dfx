@@ -340,6 +340,10 @@ ddiCreateSurfaceEx( LPDDHAL_CREATESURFACEEXDATA pcsxd )
     {
       D3DPRINT(0,"ddiCreateSurfaceEx got 0 dwSurfaceHandle, dwCaps=%08lXh",
                pDDSLcl->ddsCaps.dwCaps);
+#if ENABLE_LOG_FILE
+      retroLogForce(ppdev, "retro3dfx CSEX-ZEROHANDLE: caps=%08lXh\r\n",
+                    pDDSLcl->ddsCaps.dwCaps);
+#endif
       break;
     }
 
@@ -561,6 +565,16 @@ WORKAROUND_W2K_ATTACHED_SURFACE_LIST_ANOMALY:
 #endif
 
   D3DPRINT(ENTRY_EXIT_DBG_LEVEL,"<< ddiCreateSurfaceEx");
+
+#if ENABLE_LOG_FILE
+  /* retro3dfx: a CreateSurfaceEx failure kills DX8 device creation silently
+     (runtime destroys the fresh context and the app aborts its test). */
+  if (DD_OK != pcsxd->ddRVal)
+    retroLogForce(ppdev, "retro3dfx CSEX-FAIL: ddRVal=%08lXh caps=%08lXh hSurf=%ld\r\n",
+                  (DWORD)pcsxd->ddRVal,
+                  pcsxd->lpDDSLcl ? pcsxd->lpDDSLcl->ddsCaps.dwCaps : 0,
+                  pcsxd->lpDDSLcl ? pcsxd->lpDDSLcl->lpSurfMore->dwSurfaceHandle : 0);
+#endif
 
   return DDHAL_DRIVER_HANDLED;
 } // ddiCreateSurfaceEx
