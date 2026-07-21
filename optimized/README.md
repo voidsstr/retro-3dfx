@@ -68,4 +68,13 @@ the deploy skill is `retro-agent/.claude/skills/deploy-3dfx-driver`.
    (0.3.4d/0.3.5/0.3.7) · modern-board res-cap bypass (0.3.6) · UT NULL-cache
    guard (0.2.2) · hw texture filters (0.2.0) · cook OOB fix (0.2.1).
    glide3x: NT lostContext fallback (0.1.0).
-   Display: H3MakeRoom spin-breaker + registry-ring flight recorder (2026-07-21).
+   Display: H3MakeRoom spin-breaker + registry-ring flight recorder (2026-07-21)
+   · D3TXTR per-LOD mip-download addr restore, commit 08fd889 (2026-07-21) ·
+   DdFlip pending-swap spin-breaker · DP2/SLIAA ring instrumentation.
+6. **Regression tests gate every deploy** (`tests/` at repo root). Run
+   `tests/predeploy.sh` before copying any driver binary to a box (source
+   invariants + build-tree sync + built-artifact/stale-obj checks), and
+   `tests/run_target_tests.py` + the OpenGL golden gate after deploy+reboot.
+   **When a fix is verified on hardware, add its regression test (source
+   assertion, and a d3dlab mode/golden or equivalent target test) in the same
+   commit as the fix — before the next deploy.** See `tests/README.md`.
