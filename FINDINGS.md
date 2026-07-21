@@ -124,6 +124,19 @@ ring in write order.
 
 ## D3D / 3DMark
 
+- **★ .143 (V5 5500): 3DMark2001 SE HARD-FREEZES the box** (2× on 2026-07-21:
+  first run crashed mid-suite ["Safety Precaution" abort dialog after ~15 min],
+  second run froze the machine solid — 100% ping loss, NIC dead, physical reboot
+  required). PowerStrip autostart was disabled for run 2 ⇒ NOT PowerStrip; it's
+  the **D3D HAL path of our 3dfxv5d.dll wedging** (CMD-FIFO spin class). Key gap:
+  .143's deployed `3dfxv5d.dll` is the **2026-07-17 build (595,644 B) WITHOUT the
+  `H3MakeRoom` CFIFO spin-breaker** that the .124 lane added for exactly this
+  wedge (present in the current CFIFO.C). Post-reboot plan: (1) isolate the
+  wedge test by running a reduced 3DMark selection; (2) SUPERVISED: rebuild
+  3dfxv5d for V5 from current CFIFO.C (mind the other session's in-flight
+  DEBUG.C/ENABLE.C logging edits in the same tree) and deploy with user standing
+  by. The OpenGL/game stack is unaffected (ICD path, not D3D).
+
 - Our H5 D3D HAL is the display driver `3dfxvs.dll` (D7D3D.C etc. compiled in). Via
   the WFP-free rename path, 32MB texture tests + full 3DMark2000 COMPLETE on our
   clean rebuild, the original dist 595180, AND retail 689216 — **nothing wedges when
