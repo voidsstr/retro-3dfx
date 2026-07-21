@@ -54,6 +54,24 @@ re-flushes it → fixed.
 *(Bisecting whether grTexSource alone is the fix; a web research agent is
 studying the exact mode2ppc register-write path for the precise line + fix.)*
 
+### STRONGEST candidate fix (found in source, GTEX.C `_grTex2ppc`, line 958)
+`_grTex2ppc(enable)` toggles 2PPC. It invalidates the TMU texture registers
+**only when DISABLING** 2PPC (lines 988-995):
+```c
+if(!enable) {                                   /* <-- only on EXIT */
+    INVALIDATE_TMU(GR_TMU0, textureMode); INVALIDATE_TMU(GR_TMU0, texBaseAddr); ...
+    INVALIDATE_TMU(GR_TMU1, textureMode); INVALIDATE_TMU(GR_TMU1, texBaseAddr); ...
+}
+```
+When **ENTERING** 2PPC the TMU texture registers are NOT invalidated/refreshed,
+so a chip's world-TMU `textureMode`/`texBaseAddr` keeps a stale value from
+before the mode switch → wrong colorpath → `(0,G,0)` green. Q3 never toggles
+2PPC (single-texture only), so it's never stale.
+**Candidate fix:** invalidate the TMU texture registers on 2PPC **enable** too
+(make the `if(!enable)` block run on both transitions), forcing a clean
+re-flush of both chips' TMU registers when multitexture begins. Matches: the
+per-frame grTexSource re-issue (blit) works by re-dirtying the same registers.
+
 ---
 
 ## What was RULED OUT (each with an isolated on-hardware test)
@@ -93,8 +111,18 @@ pipeline *state*, which the read-back experiment confirmed.
   default. Full map in `optimized/DIAGNOSTICS.md`.
 - Research: `optimized/research/` (MesaFX fxddtex.c/fxsetup.c reference).
 
+## Bisect progress (which of the 4 re-issued calls fixes it)
+- Full set (grTexSource+grTexCombine+grColorCombine+grAlphaBlend): **fixes** ✅
+- State-only, no draw: **fixes** ✅ (it's the state, not the draw)
+- grTexSource ALONE: **does NOT fix** (still green) → not (just) the texture register
+- grColorCombine+grTexCombine (combines only): *testing…*
+→ Points at the **combine** (color/tex) being the stale 2PPC state, matching
+the `(0,G,0)` "green channel only" = a wrong colorpath on one chip.
+
 ## Next
-1. Narrow to the exact state call (grTexSource vs combine) — bisect running.
+1. Confirm combine is the fixer (bisect running); if so, the fix is in the 2PPC
+   combine broadcast (`_grTex2ppc` / grColorCombine / grTexCombine two-chip
+   programming), not grTexSource.
 2. Implement the proper fix in GTEX.C's mode2ppc path (write both chips'
    TMU registers, or force the deferred flush to cover both) — NOT the
    per-frame blit hack.
