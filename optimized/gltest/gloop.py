@@ -28,6 +28,8 @@ TARGETS=[
  r'C:\Program Files\Bcs16 Romania\Counter-Strike 1.6\opengl32.dll',
  r'C:\Program Files\Counter-strike\opengl32.dll',
  r'C:\Quake III Arena\Quake3\opengl32.dll', r'C:\Quake III Arena\Quake3\3dfxogl.dll',
+ r'C:\GOG Games\Return to Castle Wolfenstein\opengl32.dll',
+ r'C:\Program Files\EA GAMES\MOHAA\opengl32.dll',
  r'C:\WINDOWS\system32\3dfxogl.dll', r'C:\RETRO_AGENT\3dfx-driver\3dfxogl.dll',
  r'C:\RETRO_AGENT\gltest\opengl32.dll',
 ]
