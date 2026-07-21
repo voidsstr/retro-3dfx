@@ -45,6 +45,36 @@ static IDirect3DTexture8 *mktex2(IDirect3DDevice8 *dev, int size, int levels, DW
 static IDirect3DTexture8 *mktex(IDirect3DDevice8 *dev, DWORD c0, DWORD c1)
 { return mktex2(dev,64,1,c0,c1); }
 
+/* DXT1 checker texture: 4x4-pixel blocks, each block a solid color (both
+ * endpoints equal, indices 0). Alternating blocks = c0/c1 checker. This
+ * exercises the Napalm-only compressed-texture download path (the historical
+ * hard-freeze suspect; only advertised when IS_NAPALM). size must be mult of 4. */
+static unsigned short to565(DWORD c)
+{ return (unsigned short)((((c>>16&0xFF)>>3)<<11)|(((c>>8&0xFF)>>2)<<5)|((c&0xFF)>>3)); }
+static IDirect3DTexture8 *mkdxt1(IDirect3DDevice8 *dev, int size, DWORD c0, DWORD c1)
+{
+    IDirect3DTexture8 *t=NULL; D3DLOCKED_RECT lr; int bx,by; int blocks=size/4;
+    if(FAILED(IDirect3DDevice8_CreateTexture(dev,size,size,1,0,D3DFMT_DXT1,D3DPOOL_MANAGED,&t)))
+        return NULL;
+    if(SUCCEEDED(IDirect3DTexture8_LockRect(t,0,&lr,NULL,0))){
+        /* DXT1 block = 8 bytes: [c0:16][c1:16][indices:32]. Pitch is bytes/row-of-blocks. */
+        for(by=0;by<blocks;by++){
+            unsigned char *row=(unsigned char*)lr.pBits + by*lr.Pitch;
+            for(bx=0;bx<blocks;bx++){
+                unsigned char *blk=row+bx*8;
+                DWORD c=((bx+by)&1)?c1:c0;
+                unsigned short e=to565(c);
+                /* both endpoints equal + all-zero indices -> solid color e.
+                 * Keep e0>=e1 (equal is fine) so it's opaque 4-color mode. */
+                blk[0]=e&0xFF; blk[1]=e>>8; blk[2]=e&0xFF; blk[3]=e>>8;
+                blk[4]=blk[5]=blk[6]=blk[7]=0;
+            }
+        }
+        IDirect3DTexture8_UnlockRect(t,0);
+    }
+    return t;
+}
+
 int main(int argc,char**argv)
 {
     const char *mode = argc>1?argv[1]:"sel1";
@@ -83,7 +113,17 @@ int main(int argc,char**argv)
     IDirect3DDevice8_SetTextureStageState(dev,0,D3DTSS_MINFILTER,D3DTEXF_POINT);
     IDirect3DDevice8_SetTextureStageState(dev,0,D3DTSS_MAGFILTER,D3DTEXF_POINT);
 
-    if(!strcmp(mode,"mippoint")||!strcmp(mode,"miplinear")||!strcmp(mode,"mipfar")){
+    if(!strcmp(mode,"dxt1")||!strcmp(mode,"dxt1big")){
+        IDirect3DTexture8 *td=mkdxt1(dev,!strcmp(mode,"dxt1big")?256:64,0x00FF4040,0x0040FF40);
+        if(td){
+            IDirect3DDevice8_SetTexture(dev,0,(IDirect3DBaseTexture8*)td);
+            IDirect3DDevice8_SetTextureStageState(dev,0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);
+            IDirect3DDevice8_SetTextureStageState(dev,0,D3DTSS_COLORARG1,D3DTA_TEXTURE);
+        } else {
+            /* DXT1 unsupported/creation failed: leave stage default so the quad
+             * shows the clear color (distinct from a correct red/green checker). */
+        }
+    } else if(!strcmp(mode,"mippoint")||!strcmp(mode,"miplinear")||!strcmp(mode,"mipfar")){
         IDirect3DTexture8 *tm=mktex2(dev,64,0,0x00FF4040,0x0040FF40);
         IDirect3DDevice8_SetTexture(dev,0,(IDirect3DBaseTexture8*)tm);
         IDirect3DDevice8_SetTextureStageState(dev,0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);
