@@ -68,6 +68,12 @@ extern void OGLLOGV( const char *fmt, ... );
 ** field the chip will sample with).  Read at draw time to catch a clobber. */
 long __r3d_lastFmt[2] = { -1, -1 };
 long __r3d_lastSize[2] = { 0, 0 };
+/* read-back: save the last large 565 world texture (addr + GrTexInfo copy) so
+** SwapBuffers can blit it to a screen corner -> fbdump reveals whether TMU
+** memory holds tan (correct) or green (corrupt). */
+unsigned long __r3d_blitAddr = 0;
+long __r3d_blitInfo[5] = {0,0,0,0,0};   /* smallLod,largeLod,aspect,format,data */
+int  __r3d_blitValid = 0;
 static void __r3dLogDownload(int tmu, unsigned long addr, int thisLod,
                             int largeLod, int fmt)
 {
@@ -89,6 +95,14 @@ static void __r3dLogTexSource(int tmu, unsigned long addr, void *info)
     if (tmu >= 0 && tmu < 2 && gi) {
         __r3d_lastFmt[tmu]  = (long)gi[3];   /* GrTexInfo.format  */
         __r3d_lastSize[tmu] = (long)gi[1];   /* largeLodLog2      */
+    }
+    /* save a large 565 world texture (TMU1) for the swap-time read-back blit */
+    if (tmu == 1 && gi && gi[3] == 0xa && gi[1] >= 6 && !__r3d_blitValid) {
+        __r3d_blitAddr = addr;
+        __r3d_blitInfo[0]=(long)gi[0]; __r3d_blitInfo[1]=(long)gi[1];
+        __r3d_blitInfo[2]=(long)gi[2]; __r3d_blitInfo[3]=(long)gi[3];
+        __r3d_blitInfo[4]=(long)gi[4];
+        __r3d_blitValid = 1;
     }
     if (tmu == 0) {
         if (logged0 >= 100) return;
@@ -1435,7 +1449,8 @@ void __glSSTLoadCombineFunction( __GLcontext *gc ) {
       }
       if ( nomt ) enTex1 = 0;
     }
-    /* XXXTaco the format is not properly considered for 
+
+    /* XXXTaco the format is not properly considered for
        texture-texture combination at this time */
     format  = GL_RGBA;
 

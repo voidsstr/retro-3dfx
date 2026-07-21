@@ -10,7 +10,93 @@ correct). Quake 3 on the identical driver is perfect.
 
 ---
 
-## ✅ ROOT CAUSE (found 2026-07-20): stale Glide pipeline state in the 2-TMU (2PPC) path
+## ✅✅✅ FIXED — SHIPPED (2026-07-20, ICD 0.3.4d)
+
+**Result: green 0/4, de_dust renders perfect tan sandstone** (samples
+`(180,149,106) (205,165,123) (197,157,90) (180,153,123)`, screenshot
+`/tmp/gloop_cs.png` — correct walls/ground/sky/crates, no green, no garble).
+
+**The fix (SwapBuffers, `sst_export.c`):** once per frame, re-issue the FULL
+TMU1 pipeline state so the next world draw forces a complete TMU re-validation
+(which re-runs `_grTex2ppc` and clears the stale bit-29):
+```c
+grTexSource( GR_TMU1, <last-565-world-tex>, GR_MIPMAPLEVELMASK_BOTH, &ti );
+grTexCombine( GR_TMU1, LOCAL, NONE, LOCAL, NONE, F, F );
+grColorCombine( SCALE_OTHER, ONE, LOCAL_NONE, OTHER_TEXTURE, F );
+grAlphaBlendFunction( ONE, ZERO, ONE, ZERO );
+```
+Gated on `__r3d_blitValid` (the first large 565 TMU1 texture, latched in
+`__r3dLogTexSource`, `SST_TEX.C:100`). **No `__glSSTResetCombineCache()`** — that
+call (attempts 2 & 3) wipes the ext-combine/overbright state every frame and
+reintroduces green (4/6). The grTexSource address is only used to *dirty* the
+TMU1 registers; GoldSrc re-binds its own texture/combine per surface before the
+world draw, so lighting/texture are preserved. Q3 (single-texture) never latches
+`__r3d_blitValid`, so the block is a no-op there — zero regression.
+
+**Bisect ledger (what actually gated it):**
+| set re-issued at swap | green |
+|---|---|
+| grTexSource ALONE | still green |
+| combines ALONE (grTexCombine+grColorCombine) | 4/6 |
+| combines + `__glSSTResetCombineCache()` (0.3.4c) | 4/6 |
+| **grTexSource + combines + grAlphaBlend (0.3.4d)** | **0/4 ✅** |
+| full state, no draw (diagnostic 0.3.4) | 0/4 ✅ |
+
+grTexSource invalidates `textureMode`/`texBaseAddr`; the combines invalidate
+`combineMode`/`tmuConfig`. Neither alone forces the 2PPC re-eval — both are
+needed so validation runs end-to-end on the next world draw.
+
+---
+
+## ✅✅ CONFIRMED ROOT CAUSE + FIX (2026-07-20, ICD 0.3.4)
+
+**2PPC ("2 pixels per clock") is Glide's SINGLE-texture optimization** (both
+VSA-100 chips gang up on one pixel; the two TMU register sets are forced
+identical and "any write to one TMU is mirrored to both"). It is ON for
+single-texture draws (Q3 the whole time; GoldSrc HUD/sprites) and MUST be OFF
+for a genuine dual-texture world+lightmap draw. My earlier framing had this
+backwards — that inversion hid the bug.
+
+**The bug:** Glide re-evaluates 2PPC only inside TMU *validation*, and the draw
+path skips validation when `gc->state.invalid == 0` (`GR_FLUSH_STATE()`,
+fxglide.h). GoldSrc alternates single-texture (HUD, 2PPC ON) and dual-texture
+(world, 2PPC must be OFF) each frame. Our ICD caches the combine words
+(`s_TC0/s_TC1/s_CC/s_AC`); when the world's combine matches the previous
+frame's world combine, we **skip `grTexCombine`/`grColorCombine`**, so
+`tmuConfig` is never invalidated, so validation is skipped, so **stale 2PPC
+bit-29 (`SST_CM_ENABLE_TWO_PIXELS_PER_CLOCK`) leaks into the dual-texture world
+draw** → the two TMUs' independent world+lightmap programmings mirror together
+→ the `(0,G,0)` "green channel only" world. (Format bits are a separate field,
+which is why the format register reads correct.) Q3 never flips topology, so it
+never desyncs. Web research pinned it in the H5 Glide source: `_grTex2ppc`
+(gtex.c) is the only bit-29 writer and runs only from `_grValidateTMUState`.
+
+**Bisect that proved it:** re-issuing the COMBINE once per frame fixes it
+(0/4 green); re-issuing grTexSource ALONE does NOT (grTexSource invalidates
+`textureMode` but not `tmuConfig`, so it doesn't force 2PPC re-eval).
+
+**Fix attempt 1 (FAILED):** reset the combine cache on active-TMU *count*
+change in `__glSSTLoadCombineFunction`. Still green — GoldSrc keeps both units
+enabled and only changes the combine, so the count never flips; the detection
+never fired.
+
+**Refined mechanism (why the blit worked):** GoldSrc DOES call the combine
+setup every frame (proven: the blit's passthrough combine was overridden by the
+game's real combine + lighting the next frame). But our `s_*Word` cache SKIPS
+the actual `grColorCombine`/`grTexCombine` Glide call when the words are
+unchanged frame-to-frame — so bit-29 is never re-cleared. The blit worked by
+*changing* the cached words (passthrough), forcing the game's next combine to
+genuinely re-issue.
+
+**Fix attempt 2 (SwapBuffers):** call `__glSSTResetCombineCache()` once per
+frame at swap. This clears `s_*Word`, so the app's per-frame combine call
+actually re-issues to Glide, invalidating `tmuConfig` → forcing `_grTex2ppc`
+re-eval → 2PPC OFF for the world draw. Once-per-frame, cheap, Q3 unaffected.
+*(Testing…)*
+
+---
+
+## (superseded framing) stale Glide pipeline state in the 2-TMU (2PPC) path
 
 **The green is NOT a texture data or format bug.** It is a **stale Glide
 hardware state** that is wrong for GoldSrc's simultaneous dual-TMU

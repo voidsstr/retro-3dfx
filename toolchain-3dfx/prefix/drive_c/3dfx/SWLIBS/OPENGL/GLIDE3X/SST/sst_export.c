@@ -462,6 +462,42 @@ static void SwapBuffers(__GLcontext *gc)
     extern unsigned long tacoHackGlideInit;
     unsigned __int64 t0, t1, ts0, ts1;
 
+    /* RETRO3DFX 2PPC-STALE FIX (CS green world, ICD 0.3.4).  2PPC ("2 pixels
+    ** per clock") is Glide's SINGLE-texture optimization; it must be OFF for a
+    ** genuine dual-texture (world+lightmap) draw.  GoldSrc alternates single
+    ** (HUD/sprites, 2PPC ON) and dual (world, 2PPC OFF) every frame, but our
+    ** combine-word cache skips the Glide re-issue when words are unchanged, so
+    ** stale 2PPC bit-29 leaks into the world draw -> (0,G,0) green world.
+    ** Re-issue the FULL TMU1 state once per frame: grTexSource (dirties
+    ** textureMode/texBaseAddr/tLOD) + grTexCombine + grColorCombine (dirty
+    ** combineMode + tmuConfig) + grAlphaBlendFunction.  Together they force a
+    ** full TMU re-validation on the next world draw, so Glide re-runs
+    ** _grTex2ppc and clears the stale bit-29.  Bisect-proven set (0/4 green):
+    ** grTexSource ALONE does NOT fix, combines ALONE do NOT fix (4/6), but the
+    ** four together DO.  No cache reset (that wipes ext/overbright state and
+    ** reintroduces green).  GoldSrc draws the world first each frame and
+    ** re-binds its own texture/combine per surface, so lighting is preserved.
+    ** Q3 (single-texture) never has __r3d_blitValid set -> unaffected. */
+    {
+        extern unsigned long __r3d_blitAddr; extern long __r3d_blitInfo[5];
+        extern int __r3d_blitValid;
+        if ( tacoHackGlideInit && __r3d_blitValid ) {
+            GrTexInfo ti;
+            ti.smallLodLog2     = (GrLOD_t)__r3d_blitInfo[0];
+            ti.largeLodLog2     = (GrLOD_t)__r3d_blitInfo[1];
+            ti.aspectRatioLog2  = (GrAspectRatio_t)__r3d_blitInfo[2];
+            ti.format           = (GrTextureFormat_t)__r3d_blitInfo[3];
+            ti.data             = (void *)__r3d_blitInfo[4];
+            grTexSource( GR_TMU1, __r3d_blitAddr, GR_MIPMAPLEVELMASK_BOTH, &ti );
+            grTexCombine( GR_TMU1, GR_COMBINE_FUNCTION_LOCAL, GR_COMBINE_FACTOR_NONE,
+                          GR_COMBINE_FUNCTION_LOCAL, GR_COMBINE_FACTOR_NONE, FXFALSE, FXFALSE );
+            grColorCombine( GR_COMBINE_FUNCTION_SCALE_OTHER, GR_COMBINE_FACTOR_ONE,
+                            GR_COMBINE_LOCAL_NONE, GR_COMBINE_OTHER_TEXTURE, FXFALSE );
+            grAlphaBlendFunction( GR_BLEND_ONE, GR_BLEND_ZERO,
+                                  GR_BLEND_ONE, GR_BLEND_ZERO );
+        }
+    }
+
     t0 = __prof_rdtsc();
     gc->procs.flush(gc);
     t1 = __prof_rdtsc();
@@ -480,6 +516,32 @@ static void SwapBuffers(__GLcontext *gc)
         __gldb_CollectFrameStats();
     }
 #endif
+
+    /* RETRO3DFX read-back blit (C:\icd_texblit.on): before the swap, draw the
+    ** saved large-565 world texture to the top-left corner point-sampled, white
+    ** modulate, so fbdump captures its ACTUAL sampled texels.  Green corner =
+    ** TMU memory is corrupt; tan corner = memory is fine (bug is elsewhere). */
+    { static int tb = -1;
+      extern unsigned long __r3d_blitAddr; extern long __r3d_blitInfo[5];
+      extern int __r3d_blitValid;
+      if ( tb < 0 ) {
+          void *g = CreateFileA("C:\\icd_texblit.on", 0x80000000L, 3, 0, 3, 0, 0);
+          tb = (g != __R3D_INVALID_HANDLE) ? 1 : 0;
+          if (tb) { extern int __stdcall CloseHandle(void*); CloseHandle(g); }
+      }
+      /* NOTE: this swap-time combine re-issue was the DIAGNOSTIC that proved
+      ** the green is stale 2PPC combine state.  The PROPER fix now lives in
+      ** __glSSTLoadCombineFunction (SST_TEX.C): invalidate the combine cache on
+      ** an active-TMU topology change so the combine is re-issued and Glide
+      ** re-evaluates 2PPC.  This blit is left inert (marker off by default);
+      ** it stays only as the read-back tool (draw disabled). */
+      if ( tb && tacoHackGlideInit && __r3d_blitValid ) {
+          grTexCombine( GR_TMU1, GR_COMBINE_FUNCTION_LOCAL, GR_COMBINE_FACTOR_NONE,
+                        GR_COMBINE_FUNCTION_LOCAL, GR_COMBINE_FACTOR_NONE, FXFALSE, FXFALSE );
+          grColorCombine( GR_COMBINE_FUNCTION_SCALE_OTHER, GR_COMBINE_FACTOR_ONE,
+                          GR_COMBINE_LOCAL_NONE, GR_COMBINE_OTHER_TEXTURE, FXFALSE );
+      }
+    }
 
     ts0 = __prof_rdtsc();
     if ( tacoHackGlideInit ) {
