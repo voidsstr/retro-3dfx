@@ -11,6 +11,55 @@ Win98 FAT volume. Agent 1.14.0. Autologs in as voidsstr/password.
 
 ---
 
+## Benchmark matrix + game gotchas (2026-07-21, our WFP driver, ICD 0.1.31)
+
+Recorded to specpicks (retro_benchmark_runs, machine .124):
+| game | 640×480 | 800×600 | 1024×768 |
+|---|---|---|---|
+| Quake II (`q2-timedemo`) | 96.7 | — | 46.9 |
+| Quake III (`q3-timedemo-four`) | 58.4 | 58.1 | 51.0 |
+| RtCW (`rtcw-wolfbench`) | ~56 | (fn hardcodes 640) | — |
+| Unreal Tournament (`ut-timedemo`) | ~30 | (needs .ini res set) | — |
+
+**UT failure root cause (FIXED):** UT was returning None fps because the per-run
+`taskkill /f` of each fullscreen game spawned a Windows Error Reporting
+("X has encountered a problem") dialog; across a multi-game sweep these ACCUMULATED
+and BLOCKED UT's Recovery-Mode launch dialog → UT never reached the menu → no
+timedemo. Fix: **disable WER/Dr Watson** (`PCHealth\ErrorReporting DoReport=0
+ShowUI=0`, `AeDebug\Auto=0`) — now baked into `run_bench.py preflight()`. Also
+`ut_ensure_binds` now **auto-stages UTbench.dem** (was a silent missing-file fail).
+
+**Sweep timeout gotcha:** a per-game `timeout` that kills run_bench mid-batch loses
+ALL of that game's rows (the DB insert is at the end). Run one game+one mode+2 runs
+per call (~4 min) so each COMMITS. RtCW's fn hardcodes r_mode 3 (640); UT ignores
+`--modes` (resolution is in UnrealTournament.ini) — both need a small code change
+for a real resolution sweep.
+
+**MOHAA — CD-mount SOLVED (2026-07-21):** ISO is on the share at
+`Z:\Games\Windows XP\Medal of Honor Allied Assault (2002) - Disc 1.iso` (+ Disc 2).
+**Automated ISO mount** via `scripts/mount_iso.py <ip> "<space-free-iso>"` (also
+`mount_iso()` in run_bench). DaemonTools 3.47 gotchas: (1) two D-Tools installs —
+only the one on the ACTIVE Windows volume (**D:**) is registered; the C: daemon.exe
+throws "Product not installed!". (2) daemon.exe is resident (tray) — launch DETACHED
+(`start "" /d <dtdir> daemon.exe -mount 0,<iso>`); EXECW tree-kills it. (3) the
+d347bus virtual-SCSI driver is already installed+running (creates the virtual CD
+drives, F:/G:). (4) path must be SPACE-FREE (staged the ISO to `D:\ISO\MOHAA_CD1.iso`;
+the share path has spaces). Verified: mounts to G: = MOHAA_DISK1, MOHAA's CD check
+passes, MOHAA **renders the game** (7 threads, past the launcher). Only reads the CD
+for verification (not during play), so no local copy strictly needed if a space-free
+path is used.
+**MOHAA fps STILL open:** MOHAA.exe is a launcher front-end (crash-recovery dialog →
+"Play in Normal Mode" click, handled in the bench). The game uses **DirectInput**
+(injected keys don't reach it) and **`+exec <cfg>` does NOT run** (verified: a
+wait+quit cfg didn't quit) — Ritual's build has a non-standard config/console
+mechanism. So a timedemo needs its config-exec path figured out OR a `.dm_` demo
+obtained (MOHAA ships none; recording needs the console). `--game mohaa` mounts the
+CD + launches + validates render; fps is the remaining bounded step.
+
+**Carmageddon 2** uses **nGlide** (Glide→D3D wrapper), not our OpenGL ICD — would
+test our D3D HAL path, not the ICD; and it's a racing game with no timedemo. Not a
+clean ICD-benchmark add.
+
 ## ✅ SOLVED: voodoo3-wfp.inf loads our driver durably AND runs games (2026-07-21)
 
 The **voodoo3-wfp.inf** (rename-files INF, PnP-installable) is the master unblock:
@@ -267,3 +316,69 @@ stack, which the current box state does not have.
   ok while VIDEODIAG hangs); reboot restores full res. NOT a hard box-down.
 - Daemon (retro-chat) claims .124 but connects on-demand — direct RetroConnection
   works fine; keep sessions short.
+
+## Benchmark collection games (2026-07-21) — findings + per-game reality
+Downloaded the Internet Archive "Benchmark Collection" (Benchmarks_v1.iso, 695 MB,
+Coleslav) — ~20 games with built-in benchmarks + per-resolution shortcuts, Inno
+Setup (silent-installable /VERYSILENT). Extracted installers staged at
+~/staging/benchmarks-collection/installers, served on 192.168.1.132:8891.
+- **Sin** (idTech2): runs on our driver; **our MesaFX ICD (retrogl) is INCOMPATIBLE
+  with Sin's demo playback** — `+demomap cole.dm2` sticks at GL init with our ICD,
+  but plays with the bundled **3dfx MiniGL**. Via MiniGL: **29.5 fps @640** (1893
+  frames/64.2s). Recorded (sin-timedemo). Command: `sin.exe +set logfile 2 +timedemo
+  1 +demomap cole.dm2`; fps in base\qconsole.log; demo takes ~65s (wait >=85s).
+- **Incoming** (1998, Glide2x): **HARD-CRASHES our driver** (box unreachable ~2 min,
+  then TDR-recovered). We provide Glide3x; Glide2x-era games are a crash risk. SKIP.
+- **Hexen II** (GLQuake engine, glh2.exe): runs on our driver via its bundled MiniGL
+  opengl32.dll (no crash), per-res benchmark shortcuts (`glh2.exe -width W -height H
+  -bpp 16 +timedemo coleslav`), but the GLQuake timedemo fps did NOT reach
+  qconsole.log even with -condebug + 75s — console-only output, headless capture
+  unsolved.
+- **Pattern:** each collection game needs per-game reverse-engineering (exact demo
+  command from the .lnk unicode args, fps-output format/location, long waits) AND
+  carries crash risk (Glide2x). Autonomous completion is impractical without the
+  user present to recover a hard crash (box isn't physically accessible). Best done
+  supervised, per-game.
+- **Driver-quality signal for the ICD campaign:** our MesaFX ICD has compat gaps
+  with older idTech2 games (Sin) where the 3dfx reference MiniGL works — a concrete
+  target for ICD improvement.
+
+## Benchmark matrix (our driver, ICD 0.1.31) — recorded in specpicks
+| game | 640 | 800 | 1024 |
+|---|---|---|---|
+| Quake II       | 96.6 | 69.2 | 47.0 |
+| Quake III      | 58.6 | 58.1 | 50.9 |
+| RtCW wolfbench | 55.9 | 48.0 | 31.9 |
+| Unreal Tournmt | 30.0 | 31.0 | 27.4 |
+| SiN (MiniGL)   | 29.5 |  -   |  -   |
+Context: period P3-850 + Voodoo3 3000 did ~60 fps Q3 @800 (ours 58.1) — competitive.
+
+## D3D / 3DMark2001 SE isolation matrix (2026-07-21, .143 V5 5500, instrumented v5d)
+
+First-ever COMPLETED 3DMark2001 run on the self-built XP driver:
+**1636 3D marks** @ 640x480, 16-bit color/textures/Z, D3D Software T&L
+(recorded in optimized/benchmarks/3dmark2001se-640x480x16-sli2.json).
+
+| config | result | rendering |
+|---|---|---|
+| 16-bit, SLI_AA_CONFIGURATION default(2=2-way SLI) | full suite completes, score 1636, ring clean (no FIFO stalls) | **band-corrupted**: alternating good/garbage horizontal bands in ALL tests AND 2D loading screens (user CRT photos IMG_2062-64 + GDI grab) |
+| 16-bit, SLI_AA_CONFIGURATION=0 (single chip) | renders CORRECTLY (clean mid-run grabs) | dies mid-suite `swapBuffer:Present : D3DERR_DRIVERINTERNALERROR`; timing varies (~45s fresh process, ~3.5min warm) — NOT a same-session state leak |
+| 32-bit / compressed (Jul 17-21 history) | hard freeze or instant Present error | (pre-instrumentation) |
+
+**SLI banding analysis:** slave VSA-100's bands are unrendered memory ⇒ slave never
+executes the D3D command stream. Miniport SLI programming (H3_SETUP_SLI_AA) is
+IDENTICAL code for the working Glide/OpenGL path (HWCEXT_SLI_AA_REQUEST → same
+IOCTL; Q3 @1024 = 71.7 fps proves GL 2-way SLI works). v56k SLIAA.C changes are
+pure gated additions (diff-verified, 0 vintage lines touched) ⇒ vintage bug in the
+never-shipped XP D3D display-side SLI path (promote/CMDFIFO-vidmem/snoop interplay),
+NOT our regression. Overlay promotion is REQUIRED for SLI (DDFXNT.C:2463 comment).
+
+**DdFlip freeze vector found:** DDFLIP.C:342 `while (READSWAPCOUNT() > swapsQueued);`
+unbounded spin — if hw stops retiring swaps this loops forever at raised IRQL =
+the 3DMark hard-freeze signature. Now bounded @50M with ring log (instr2 build).
+
+**Instrumentation added (3dfxv5d instr2, 952,120 B, deployed 2026-07-21 14:15):**
+DP2-PARSE-ERR / DP2-EXIT-ERR (hr + failing opcode + offset at every
+DrawPrimitives2 error exit), PROMOTE-SLIAA / PROMOTE-SLIAA OK / DEMOTE-SLIAA /
+COMPUTE-SLIAA (full multi-chip request + primary hwPtr), DdFlip WEDGE-BREAK@50M.
+Next repro of the Present error will name the failing D3D op in RLog.

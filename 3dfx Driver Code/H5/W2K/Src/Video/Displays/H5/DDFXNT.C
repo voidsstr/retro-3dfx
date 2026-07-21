@@ -2983,6 +2983,18 @@ DWORD Promote_DeviceToSLIAA(NT9XDEVICEDATA * ppdev)
     Sli_AA_Request.MemInfo.dwaaSecondaryDepthBufEnd   = _DD(ddAAZbufferStart) + _FF(gdiDesktopSize) - 1;
     Sli_AA_Request.MemInfo.dwBpp                      = ppdev->cBitsPerPel;
 
+#if ENABLE_LOG_FILE
+    /* retro3dfx: flight-record the exact multi-chip request (D3D SLI banding
+       investigation) — compare against the known-good Glide escape path. */
+    retroLogForce(ppdev, "retro3dfx PROMOTE-SLIAA: cfg=%ld sliEn=%ld aaEn=%ld smpHi=%ld analog=%ld nlines=%ld chips=%ld tileMark=%08lXh bpp=%ld scr=%ldx%ld\r\n",
+                  _DD(ddSLIAAConfiguration),
+                  Sli_AA_Request.ChipInfo.dwsliEn, Sli_AA_Request.ChipInfo.dwaaEn,
+                  Sli_AA_Request.ChipInfo.dwaaSampleHigh, Sli_AA_Request.ChipInfo.dwsliAaAnalog,
+                  Sli_AA_Request.ChipInfo.dwsli_nlines, Sli_AA_Request.ChipInfo.dwChips,
+                  Sli_AA_Request.MemInfo.dwTileMark, Sli_AA_Request.MemInfo.dwBpp,
+                  (LONG)ppdev->cxScreen, (LONG)ppdev->cyScreen);
+#endif
+
     // call the miniport
     if (EngDeviceIoControl(ppdev->hDriver,
                            IOCTL_3DFX_SLI_AA_ENABLE,
@@ -3091,6 +3103,11 @@ DWORD Promote_DeviceToSLIAA(NT9XDEVICEDATA * ppdev)
       _FF(ddPrimarySurfaceData).hwPtr |= SSTG_IS_TILED;
       _FF(gdiDesktopStart) = _FF(ddPrimarySurfaceData).hwPtr;
       DISPDBG((0, "  Promote_ToSLIAA -> primary HwPtr=%8lXh", _FF(ddPrimarySurfaceData)));
+#if ENABLE_LOG_FILE
+      retroLogForce(ppdev, "retro3dfx PROMOTE-SLIAA OK: primary lfb=%08lXh hwPtr=%08lXh maxH=%ld maxLinH=%ld\r\n",
+                    _FF(ddPrimarySurfaceData).lfbPtr, _FF(ddPrimarySurfaceData).hwPtr,
+                    _DD(dwMaxHeight), _DD(dwMaxLinearHeight));
+#endif
 
 #ifdef RD_ABORT_ERROR
       _FF(dwSLIMode) = DISABLE_SLI_READ;
@@ -3111,6 +3128,12 @@ DWORD Demote_DeviceFromSLIAA(NT9XDEVICEDATA * ppdev)
 {
   SLI_AA_REQUEST  Sli_AA_Request;
   DWORD           numBytes;
+
+#if ENABLE_LOG_FILE
+  retroLogForce(ppdev, "retro3dfx DEMOTE-SLIAA: aaEn=%ld sliEn=%ld smp=%ld cfg=%ld\r\n",
+                _DD(ddAAModeEnabled), _DD(ddSLIModeEnabled),
+                _DD(ddAANumberSamples), _DD(ddSLIAAConfiguration));
+#endif
 
   if (_DD(ddAAModeEnabled) || _DD(ddSLIModeEnabled) || _DD(ddAANumberSamples))
   {
@@ -3795,6 +3818,13 @@ void Compute_SLIAA_Config(NT9XDEVICEDATA * ppdev, FxU32 numBuffers)
                                          _DD(ddSLIAAAnalog) = 1;
                                          break;
   }
+
+#if ENABLE_LOG_FILE
+  retroLogForce(ppdev, "retro3dfx COMPUTE-SLIAA: cfg=%ld numBufs=%ld -> aaReq=%ld aaSmp=%ld sliReq=%ld sliWays=%ld analog=%ld\r\n",
+                _DD(ddSLIAAConfiguration), numBuffers,
+                _DD(ddAAModeRequested), _DD(ddAANumberSamples),
+                _DD(ddSLIModeRequested), _DD(ddSLINumberWays), _DD(ddSLIAAAnalog));
+#endif
 } // Compute_SLIAA_Config
 #endif
 

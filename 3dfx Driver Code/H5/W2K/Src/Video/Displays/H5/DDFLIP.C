@@ -339,7 +339,26 @@ DdFlip( LPDDHAL_FLIPDATA pfd )
     }
 #endif // #ifdef MAXPENDINGBUFFERS
 
-    while (READSWAPCOUNT() > swapsQueued);
+    /* retro3dfx: bounded spin (was unbounded) — if the hardware stops
+       retiring swaps this loop was the D3D hard-freeze vector.  50M
+       iterations is multiple seconds; a healthy queue drains in <1 vsync.
+       On breach, flight-record and press on (worst case is a torn frame,
+       recoverable; a wedged spin is not). */
+    {
+      ULONG retroFlipSpin = 0;
+
+      while (READSWAPCOUNT() > swapsQueued)
+      {
+        if (++retroFlipSpin >= 50000000UL)
+        {
+#if ENABLE_LOG_FILE
+          retroLogForce(ppdev, "retro3dfx DdFlip WEDGE-BREAK@50M: swapCount=%ld queued=%ld\r\n",
+                        (LONG)READSWAPCOUNT(), (LONG)swapsQueued);
+#endif
+          break;
+        }
+      }
+    }
   }
 #endif // #if defined(CMDFIFO) || defined(H3_FIFO)
 

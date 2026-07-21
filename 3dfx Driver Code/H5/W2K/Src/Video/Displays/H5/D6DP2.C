@@ -808,9 +808,24 @@ extern VOID    _D3D_OP_PixelShader_SetConst(RC *pRc, DWORD dwRegister, DWORD dwC
 #define ENABLE_ERROR_CHECKING   1
 
 #if defined(WINNT) && ENABLE_ERROR_CHECKING
+/* retro3dfx: flight-record every DP2 parse error (op + hr + offset) so a
+   D3DERR_DRIVERINTERNALERROR seen by the runtime can be traced to the
+   failing command without a checked build.  ppdev is in scope at every
+   expansion site (SETUP_PPDEV in ddiDrawPrimitives2). */
+#if ENABLE_LOG_FILE
+#define RETRO_DP2_ERRLOG(pDP2Data, pIns, pStartIns, ddrvalue)               \
+    retroLogForce(ppdev, "retro3dfx DP2-PARSE-ERR: hr=%08lXh op=%d off=%ld cmdLen=%ld\r\n", \
+                  (DWORD)(ddrvalue),                                        \
+                  (int)((LPD3DHAL_DP2COMMAND)(pIns))->bCommand,             \
+                  (LONG)((LPBYTE)(pIns)-(LPBYTE)(pStartIns)),               \
+                  (pDP2Data)->dwCommandLength)
+#else
+#define RETRO_DP2_ERRLOG(pDP2Data, pIns, pStartIns, ddrvalue)
+#endif
 #define PARSE_ERROR_AND_EXIT(pDP2Data, pIns, pStartIns, ddrvalue)      \
   {                                                                    \
     D3DPRINT(0, "  returning error code %08lX", ddrvalue);             \
+    RETRO_DP2_ERRLOG(pDP2Data, pIns, pStartIns, ddrvalue);             \
     pDP2Data->dwErrorOffset = (DWORD)((LPBYTE)pIns-(LPBYTE)pStartIns); \
     pDP2Data->ddrval = ddrvalue;                                       \
     goto Exit_DrawPrimitives2;                                         \
@@ -4910,6 +4925,13 @@ DWORD __stdcall ddiDrawPrimitives2( LPD3DHAL_DRAWPRIMITIVES2DATA lpdp2d )
   }
 
   lpdp2d->ddrval = hr;
+
+#if ENABLE_LOG_FILE
+  /* retro3dfx: record non-parse DP2 failures (unknown-command callback etc.) */
+  if (D3D_OK != hr)
+    retroLogForce(ppdev, "retro3dfx DP2-EXIT-ERR: hr=%08lXh lastOp=%d errOff=%ld\r\n",
+                  (DWORD)hr, (int)lpCmd->bCommand, lpdp2d->dwErrorOffset);
+#endif
 
 #if defined(WINNT) && ENABLE_ERROR_CHECKING
 Exit_DrawPrimitives2:
