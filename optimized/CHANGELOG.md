@@ -20,6 +20,31 @@ Deploy/bench harness: `tools/deploy_bench.py`. Q3 timedemo `four`, r_mode/colorb
 | 0.2.0 | honor GL min/mag texture filters in hardware at every grTexSource bind (was set once at init = POINT_SAMPLED, so every minified texture point-sampled → shimmer) | 131e430 | 640x480: 76.5 (no regression) | `__glSSTApplyGrFilter` at 7 grTexSource sites, both TMUs. User confirmed "somewhat better" on monitor. GL_RENDERER [retro3dfx 0.2.0]. |
 | 0.2.1 | GLCORE `__glCookSubTexture` OOB fix: sub-image row origin used `w*y+x` not `lp->width*y+x`, srcSkip missing `*bpp` — walked out of bounds on any partial update. Only affects the generic (non-SST) cook path. | (this commit) | n/a (correctness) | Necessary but NOT the UT crash (the SST hw path is separate — see 0.2.2). Kept: correct for the generic path. |
 | **0.2.2** | **UT glTexSubImage2D crash FIX**: `__glsstim_TexSubImage2D` (SST_TEX.C:3427) deref'd `cache->addr` with a NULL hw-cache pointer on non-resident partial texture updates (UT's create-empty-then-subimage lightmap pattern) → GPF loop → Double fault. Guard the partial download with `if (cache)`. + `element_size` default in `__glSSTShadowTexSubImage`. | 2c3b912 | Q3 76.5 / Q2 178-183 / CS 67.7 (all no-regression) | **★ ALL 4 GAMES STABLE.** UT loads CityIntro + runs 0 criticals (was crashing in seconds). Root cause proven by instrumentation: pre-download 6241 vs post-download 5754, Δ=487 == exactly the 487 `cache=0` calls. Additive guard (cache!=NULL path byte-identical) → can't regress Q3/Q2/CS. GL_RENDERER [retro3dfx 0.2.2], md5 6b8182dd. |
+| **0.3.1** | **★ 2D TEXT GARBLE SOLVED (Q3 menu font1_prop + CS VGUI)** — Napalm 16-byte texture-heap alignment. `__glSSTInitTextureManager` started the TMU0 heap at `grTexMinAddress + 8` (SST1 granularity); VSA-100's texBaseAddr drops bits [3:0] (16-byte `SST_TEXTURE_MUNGE_ADDRESS`) → every texture sampled 8 B = 4 texels below its download address → +4-texel S-shift → per-glyph sub-rect quads clipped the shifted strokes = "sliced" text. Fix: heap start +16, cdrs ramp at addr−16, all alloc lengths rounded to 16. + optional `RETRO3DFX_NODITHER`. | 09ef1e1 | n/a (quality) | gfix case A: **0.0% diff vs GDI-Generic oracle** (was 36.3%); live Q3 menu clean on monitor. Ends the multi-session garble hunt — it was never texcoords/filtering/postfilter; it was the heap base. Also exposed the **game-local stale-DLL deploy trap**: games load `<gamedir>\opengl32.dll` before system32 — every deploy must sweep ALL game-local copies. |
+| **0.3.2** | **CS palette colors fixed** — `sst_ctable.c __glSSTColorTableEXT` read the GL_RGBA palette with stride 3 → `GR_TEXTABLE_PALETTE` entries shifted 1 byte/index. Only GoldSrc uses EXT_paletted_texture (Q3 doesn't) — why only CS was wrong. | (post-09ef1e1) | n/a (quality) | CS world went black→rendered (the "black world" had been the stale game-local ICD). gfix case I = palette regression gate; cases G/H archived. |
+| **0.3.3** | **CS fps 3× fix** — GoldSrc re-MakeCurrents constantly; each LoseCurrent did `grSstWinClose` + full `grSstWinOpen` on the next MakeCurrent (70-600 ms fullscreen mode-set per switch). Fix: defer the close, reuse the Glide context on same hwnd+res (close only on window change/DestroyContext); made all 4 exposed PFDs double-buffered (single-buffer pick made wglSwapBuffers early-return → front-buffer rendering). | (committed 2026-07-20) | CS de_dust: ~33 → **99.9 fps steady** | Zero texture churn after. The all-double-buffered PFD change is also what makes fbdump work for every game. |
+| **0.3.4d** | **★ CS GREEN WORLD SOLVED** — stale **2PPC** (2-px/clock, Glide's SINGLE-texture opt; `combineMode` bit-29 `SST_CM_ENABLE_TWO_PIXELS_PER_CLOCK`). GoldSrc alternates single-tex (HUD, 2PPC ON) and dual-tex (world+lightmap, 2PPC must be OFF) per frame; our combine-word cache skipped the Glide combine re-issue when words were unchanged → `tmuConfig` never invalidated → `_grValidateTMUState`/`_grTex2ppc` never re-ran → both VSA-100 chips mirrored one TMU program → only the RGB565 green field survived: `(0,G,0)` world, distance-dependent. Fix (sst_export.c SwapBuffers): once/frame re-issue the FULL TMU1 state — grTexSource(latched first large-565 TMU1 texture) + grTexCombine + grColorCombine + grAlphaBlendFunction — forcing complete TMU re-validation on the next world draw. | 71db1e3 | CS de_dust **green 0/4**, perfect render; Q3 68.5-73.6 (no regression) | Bisect ledger: grTexSource alone=green; combines alone=4/6; combines+`__glSSTResetCombineCache()`=4/6 (the reset WIPES ext/overbright state — do NOT use at swap); all four together=**0/4 ✅**. Q3 never latches the dual-tex capture → no-op there. Failed attempts (documented in CS-GREEN-WORLD-LOG.md): topology-count cache reset (GoldSrc never flips the enabled-unit count), swap-time cache reset alone. |
+
+## Overnight verification matrix (2026-07-20/21, ICD 0.3.4d)
+
+Captured via **FBDUMP** (`C:\icd_fbdump.on` → grLfbReadRegion), the only truthful
+capture — GDI SCREENSHOT of fullscreen Glide is always scanline-garbled (cannot
+BitBlt the Voodoo surface; garbled GDI ⇒ game IS on the hardware path).
+
+| game | result | evidence |
+|------|--------|----------|
+| Quake 3 | ✅ 68.5 fps timedemo four, menu crisp | /tmp/overnight/q3.png |
+| Quake 2 | ✅ 135.6 fps demo1, console crisp, GL_RENDERER 0.3.4d visible | /tmp/overnight/q2.png |
+| CS 1.6 | ✅ de_dust perfect tan — **green gone** | /tmp/overnight/cs.png |
+| UT GOTY | ✅ renders via OpenGLDrv=our ICD (city intro correct) | /tmp/overnight/ut.png |
+| RTCW | ✅ menu renders on hw (single-buffered ctx ⇒ no fbdump — capture limitation only) | rtcw_final_gdi.png |
+| MOHAA | ❌ SafeDisc "Cannot locate the CD-ROM" modal pre-render — DRM, not driver; needs owned disc image | mohaa_gdi.png |
+
+Operational gotchas hit: UT/RTCW detect unclean exits (`taskkill /f`) and block the
+next launch (UT "Recovery Mode" dialog — click through; RTCW stalls pre-GL); RTCW
+crashed once in glide3x (NULL deref) under kill/relaunch cycling; **PowerStrip
+autostart popped a "Trial Expiration" modal that aborted the first 3DMark2001
+fullscreen run** — Run-key value renamed to `PowerStrip.disabled-for-benchmarks`.
 
 ## Quality campaign (present-bound ⇒ fill is ~free)
 
