@@ -19,8 +19,15 @@
  */
 #include "../munit.h"
 
-/* Hardware behaviour: VSA-100 texBaseAddr drops the low 4 bits. */
-static uint32_t munge_hw(uint32_t addr) { return addr & ~0xFu; }
+/* Hardware behaviour we depend on: VSA-100 texBaseAddr (SST_TEXTURE_MUNGE_ADDRESS,
+ * H3DEFS.H) DROPS the low 4 address bits — full macro is
+ *   (((addr)&BIT(25))>>24) | ((addr)&(SST_MASK(21)<<4))
+ * i.e. a tiled swizzle of bit 25 PLUS masking off bits [3:0]. The only property
+ * the alignment fix relies on is the low-nibble drop, so we model just that here
+ * (all test addresses keep bit 25 clear, where the swizzle is a no-op). The point
+ * of the fix is to never HAND the hardware a base with a non-zero low nibble. */
+static uint32_t munge_low_nibble_drop(uint32_t addr) { return addr & ~0xFu; }
+#define munge_hw munge_low_nibble_drop
 
 /* The fix's alignment helper (round up to 16). */
 static uint32_t align16(uint32_t x) { return (x + 15u) & ~0xFu; }
