@@ -11,6 +11,38 @@ Win98 FAT volume. Agent 1.14.0. Autologs in as voidsstr/password.
 
 ---
 
+## ✅ SOLVED: voodoo3-wfp.inf loads our driver durably AND runs games (2026-07-21)
+
+The **voodoo3-wfp.inf** (rename-files INF, PnP-installable) is the master unblock:
+- Built from voodoo3.inf by renaming display→`3dfxv3d.dll`, miniport→`3dfxv3m.sys`
+  (names not in any WFP catalog), dropping glide3x + CatalogFile, repointing
+  ServiceBinary/InstalledDisplayDrivers. Lives in
+  `toolchain-3dfx/dist/3dfx-voodoo3-wfp-20260721/`.
+- PnP-install: `updrv.exe voodoo3-wfp.inf "PCI\VEN_121A&DEV_0005"`. Rebuilds the
+  class-key config cleanly (InfPath=oem13.inf, Device0.IDD=3dfxv3d,
+  ImagePath=3dfxv3m.sys) — NO corruption, NO WFP revert. (Gotcha: PnP defers the
+  file copy to "reboot required" but leaves OLD files; copy our new
+  3dfxv3d.dll/3dfxv3m.sys over the targets directly before reboot — they're
+  rename-named so not WFP-tracked.)
+- Result: **our driver loads** (VIDEODIAG drv_ver=`unknown`, not the in-box
+  5.1.2001.0) AND **games run**: RtCW timedemo **54.4 fps** on our WFP-installed
+  driver. The rename-NAME does NOT break Glide/games (my earlier "rename breaks
+  games" was WRONG — those hangs were the in-box driver loaded + clobbered
+  game-local ICD files, not the rename).
+- ⇒ This is THE deploy method for our driver on a games box. Supersedes the
+  "rename breaks games" caveat below.
+
+Corollary (corrected): the earlier Q2/Q3 "hangs at GL context creation" were the
+IN-BOX display driver, NOT clobbered game files. On our WFP-installed driver ALL
+games work and match the morning numbers:
+- Q2 96.6 fps @640 / 47.1 @1024 (exact morning match)
+- Q3 58.6 @640 / 50.8 @1024
+- RtCW 54.4-55.9 (wolfbench)
+- MOHAA renders (needs CD1 ISO mounted via DaemonTools; no-CD patch optional)
+⇒ The single root cause of the whole "games broken" saga was: our display driver
+was not loaded (in-box was, via the config corruption + WFP). voodoo3-wfp.inf fixes
+it. game-local ICD files were fine.
+
 ## Deployment & WFP (critical)
 
 - **WFP silently reverts `D:\WINDOWS\system32\3dfxvs.dll` to the 2001 retail driver
@@ -44,7 +76,34 @@ Win98 FAT volume. Agent 1.14.0. Autologs in as voidsstr/password.
   survived) → "primary display adapter not configured properly", 800×600. Recovery =
   clean PnP reinstall (rebuilds those values). **Prefer PnP installs over raw swaps.**
 
-## Driver logging (comprehensive-logging effort)
+## ✅ SOLVED: comprehensive driver logging via registry-ring sink (2026-07-21)
+
+Working end-to-end. The log sink is a **registry ring** (NOT the file IOCTL, which
+was unreliable): the display driver flushes log text as REG_SZ chunks
+`RLog00..RLog31` (32 × ~1000 B) under `HKLM\SYSTEM\CCS\Services\3dfxvs\Device0`,
+with `RLogSeq` (total chunks; newest slot = (RLogSeq-1)&31), via the PROVEN
+`SetRegSZ` (IOCTL_3DFX_SET_REGISTRY_VALUE, 0xfd6) — the same channel the driver
+uses for all its settings. Agent reads via REGREAD (values are REG_BINARY UTF-16LE;
+decode with `utf-16-le`). Helper: `scratchpad/rlog.py` `readlog(c)` reassembles the
+ring in write order.
+- **Coverage (all agent-readable):** V5DLog display lifecycle
+  (DrvEnableSurface/DisableSurface/AssertMode with res/bpp + the Glide
+  fullscreen-switch hwcExt escapes), CFIFO flight recorder (H3MakeRoom FIRST-CALL
+  positive control + STALL>=100K + WEDGE-BREAK@50M), D3D texture-OOM (the 3DMark
+  overcommit path). Verified: RtCW run produced RLogSeq=29 with the full
+  fullscreen mode-switch trace.
+- **V5DLog is UNCONDITIONAL** (infrequent lifecycle events, always captured — the
+  registry-read gate `Retro3dfxLog` via ddgetenv proved unreliable, so don't rely
+  on it). Per-op verbose `h3printf` stays gated (rarely needed; would flood).
+- **Build:** `LF=1` in both Displays/H5 and Miniport/H5 SOURCES. Ships in our
+  driver (the WFP-safe `3dfxv3d.dll`/`3dfxv3m.sys`). The miniport just needs its
+  normal SET_REGISTRY handler (no LF needed for the registry sink).
+- **Why the old file sink failed:** WRITE_LOG_FILE IOCTL (0xfd7) didn't reliably
+  reach the miniport (build/videoprt artifact); SET_REGISTRY (0xfd6, adjacent) is
+  used everywhere and works. Also EngDebugPrint is a no-op on free XP. So the
+  registry ring is the reliable sink.
+
+## Driver logging (comprehensive-logging effort) — historical notes below
 
 - **`EngDebugPrint` is a NO-OP on free/retail XP** — never reaches DebugView (a
   kernel `DbgPrint` from watchdog.sys DID show, so DebugView itself works). A prior
@@ -131,6 +190,24 @@ stack, which the current box state does not have.
 
 ## Games / ICD
 
+- **★★ ICD NEVER OPENED >640×480 until 0.3.6 (2026-07-21, .143).** MakeCurrent's
+  resolution walk consults a Voodoo1/2-era cap table; V3/V5 hardware strings fall
+  through to platform=Voodoo1 + mem=2MB (GR_MEMORY_FB byte-scale value matches no
+  case) → best db+Z = 640×480 → every 800/1024 request silently opened a 640×480
+  Glide context under an 800/1024 game viewport → BLACK WORLD on the monitor.
+  Engine-side timedemo fps still measured "fine", so all pre-0.3.6 "800/1024"
+  benchmark labels on the 3dfx-optimized stack are really 640×480 — re-baseline.
+  Fix: platform=-1 sentinel for modern boards bypasses the cap gate (0.3.6).
+  Corollary: the old "Q3 640/800/1024 flat fps ⇒ engine-bound" evidence is
+  partially VOID (flat because identical 640 rendering). Re-test the fill-bound
+  question at REAL 1024 before trusting the present-bound conclusions at high res.
+- **0.3.4d swap-hook regression (fixed in 0.3.5):** the `__r3d_blitValid` latch is
+  NOT GoldSrc-specific — on the 2-TMU config the ICD maps GL unit 0 → GR_TMU1, so
+  Q3 latches too and the per-frame combine override killed vertex-color modulate
+  (WHITE menu text; stock Q3 menu text is RED — check capture COLOR fidelity, not
+  just structure). 0.3.5 gates the hook on `__r3d_sawTMU0` (real dual-texture
+  frames only) + clears the latch at grSstWinClose + words-only combine-cache
+  invalidation (`__glSSTInvalidateCombineWords`, NOT the full reset).
 - **★ CS/GoldSrc GREEN WORLD = stale 2PPC — FIXED (.143 ICD 0.3.4d, 2026-07-20).**
   2PPC (2-px/clock, `combineMode` bit-29) is Glide's SINGLE-texture opt; must be OFF
   for dual-texture world+lightmap. Our ICD's combine-word cache skipped the Glide
