@@ -527,3 +527,22 @@ CREATESURF-FAIL/CSEX-FAIL/ALLOC-FAIL/DP2-ERR/WEDGE lines; DP2-FIRST fires =
 first frame drawn) and by the random (not monotonic) pass/fail pattern.
 **Benchmark protocol: one fresh 3DMark process per run** (dm_freshproc.py /
 dm_wrap.exit-wrapper). Real-world launch-and-run is unaffected. NOT a driver bug.
+
+## RESOLVED: D3D "2-way SLI banding" was the mip bug too (2026-07-21 evening)
+Re-tested D3D 3DMark2001 on 2-way SLI (SSTH3_SLI_AA_CONFIGURATION default=2 on
+5500) with the mip-fix driver: **Car Chase renders perfectly, zero banding**
+(sli_midrun.png). Ring confirms SLI genuinely active: PROMOTE-SLIAA
+`sliEn=1 aaEn=0 nlines=16 chips=2` + PROMOTE-SLIAA OK. The earlier "alternating
+good/garbage horizontal bands" (CRT photos IMG_2062-64) were NOT a slave-chip
+command-stream fault — they were the rev-40 mip-download bug's garbage texture
+memory being scanned out through the SLI band-interleave, which mimicked SLI
+banding. The mip fix (08fd889) closed this open item. D3D 2-way SLI works.
+Lesson: don't attribute a display-interleave-shaped artifact to the SLI path
+before ruling out texture/framebuffer content corruption.
+
+## Benchmark rerun 2026-07-21 evening (all fixes verified in place)
+Predeploy gate PASS (40 checks); on-target D3D suite 17/17; OpenGL golden gate
+PASS (Q3 1024 world non-black nb=84 gr=0, CS de_dust 0-green). Q3 timedemo
+(2-way SLI, ICD as deployed): 640=68.2, 800=72.9, 1024=70.6 fps (vs prior
+72.8/73.0/71.7 — within run variance, no regression). D3D single-chip 3DMark
+1601; 2-way SLI run pending.
