@@ -522,6 +522,45 @@ DrvGetDirectDrawInfo(DHPDEV       dhpdev,
 
 
 /*----------------------------------------------------------------------
+retro3dfx: logging shims around the surface-creation callbacks. Every
+CreateSurface/CanCreateSurface failure (any DDERR, from any of the ~15 exit
+sites) gets one ring line — this is the last silent way a D3D app's resource
+loading can abort with clean driver state (the warm-rerun degradation).
+----------------------------------------------------------------------*/
+#if ENABLE_LOG_FILE
+static DWORD __stdcall retroDdCreateSurfaceLogged(LPDDHAL_CREATESURFACEDATA pcsd)
+{
+  DWORD ret = DdCreateSurface(pcsd);
+  if (DD_OK != pcsd->ddRVal)
+  {
+    PDEV *ppdev = (PDEV *)pcsd->lpDD->dhpdev;
+    retroLogForce(ppdev, "retro3dfx CREATESURF-FAIL: ddRVal=%08lXh caps=%08lXh %ldx%ld cnt=%ld\r\n",
+                  (DWORD)pcsd->ddRVal,
+                  pcsd->lpDDSurfaceDesc ? pcsd->lpDDSurfaceDesc->ddsCaps.dwCaps : 0,
+                  pcsd->lpDDSurfaceDesc ? (LONG)pcsd->lpDDSurfaceDesc->dwWidth : 0,
+                  pcsd->lpDDSurfaceDesc ? (LONG)pcsd->lpDDSurfaceDesc->dwHeight : 0,
+                  (LONG)pcsd->dwSCnt);
+  }
+  return ret;
+}
+static DWORD __stdcall retroDdCanCreateSurfaceLogged(LPDDHAL_CANCREATESURFACEDATA pccsd)
+{
+  DWORD ret = DdCanCreateSurface(pccsd);
+  if (DD_OK != pccsd->ddRVal)
+  {
+    PDEV *ppdev = (PDEV *)pccsd->lpDD->dhpdev;
+    retroLogForce(ppdev, "retro3dfx CANCREATE-FAIL: ddRVal=%08lXh caps=%08lXh\r\n",
+                  (DWORD)pccsd->ddRVal,
+                  pccsd->lpDDSurfaceDesc ? pccsd->lpDDSurfaceDesc->ddsCaps.dwCaps : 0);
+  }
+  return ret;
+}
+#else
+#define retroDdCreateSurfaceLogged    DdCreateSurface
+#define retroDdCanCreateSurfaceLogged DdCanCreateSurface
+#endif
+
+/*----------------------------------------------------------------------
 Function name:  DrvEnableDirectDraw
 
 Description:    Initialize DirectDraw callbacks (Windows NT style).
@@ -573,9 +612,9 @@ DrvEnableDirectDraw(DHPDEV                    dhpdev,
 #endif
 #endif
 
-  pCallBacks->CreateSurface        = DdCreateSurface;
+  pCallBacks->CreateSurface        = retroDdCreateSurfaceLogged;
   pCallBacks->WaitForVerticalBlank = DdWaitForVerticalBlank;
-  pCallBacks->CanCreateSurface     = DdCanCreateSurface;
+  pCallBacks->CanCreateSurface     = retroDdCanCreateSurfaceLogged;
 #if ENABLE_PALETTE_CAPS
   pCallBacks->CreatePalette        = DdCreatePalette;
 #endif
