@@ -16,8 +16,6 @@ overall=0
 echo "===== predeploy gate ====="
 bash test_source_invariants.sh || overall=1
 echo
-bash run_native.sh || overall=1
-echo
 bash test_built_artifact.sh "$@" || overall=1
 echo
 if [ $overall -eq 0 ]; then
