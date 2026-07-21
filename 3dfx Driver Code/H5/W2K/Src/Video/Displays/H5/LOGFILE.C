@@ -46,39 +46,61 @@ static DWORD  dwBufCnt = 0;
 static char   *pCurrBufPos = Buf;
 static char   h3_buf[256];
 
+/* retro3dfx: registry-ring log sink. The WRITE_LOG_FILE IOCTL proved unreliable
+   (videoprt/build issues), but SetRegSZ (IOCTL_3DFX_SET_REGISTRY_VALUE) is used
+   throughout the driver and provably reaches the miniport. So the log is flushed
+   as a ring of REG_SZ values RLog00..RLog31 (32 x <=1000 bytes = ~32 KB flight
+   recorder) under the miniport's Device0 key; RLogSeq (DWORD) = total chunks
+   written (newest slot = (RLogSeq-1) & 31). Agent reads via REGREAD. */
+#define RETRO_LOG_RING     32
+#define RETRO_LOG_CHUNK    1000
+ULONG g_retroLogSeq = 0;
+
 /****************************************************************************
 *
 * FUNCTION:     FlushLogFileBuffer()
 *
-* DESCRIPTION:
+* DESCRIPTION:  Flush the accumulated log buffer to the registry ring (proven
+*               SetRegSZ channel) AND attempt the legacy file IOCTL (harmless if
+*               it no-ops).
 *
 ****************************************************************************/
 
 VOID
 FlushLogFileBuffer ( PDEV *ppdev )
 {
-  // if there's any data in buffer, flush it to disk
   if (0 < dwBufCnt)
   {
     DWORD numBytes;
-    DWORD retval;
+    ULONG outBuf = 0;
+    DWORD off;
+    char  chunk[RETRO_LOG_CHUNK + 1];
+    char  name[8];
 
+    /* legacy file sink attempt (kept; harmless if the IOCTL no-ops) */
+    EngDeviceIoControl(ppdev->hDriver, IOCTL_3DFX_WRITE_LOG_FILE,
+                       Buf, dwBufCnt, &outBuf, sizeof(outBuf), &numBytes);
 
-    // call ioctl to have miniport write data to a file
-    retval = EngDeviceIoControl(ppdev->hDriver,
-                                IOCTL_3DFX_WRITE_LOG_FILE,
-                                Buf,
-                                dwBufCnt,
-                                NULL,
-                                0,
-                                &numBytes);
-    if (retval)
+    /* registry-ring sink (primary, proven) */
+    for (off = 0; off < dwBufCnt; )
     {
-      DISPDBG((0, "FlushLogFileBuffer ioctl failed, returned %08lXh", retval));
+      DWORD n = dwBufCnt - off;
+      ULONG slot;
+      if (n > RETRO_LOG_CHUNK) n = RETRO_LOG_CHUNK;
+      memcpy(chunk, Buf + off, n);
+      chunk[n] = '\0';
+      slot = g_retroLogSeq % RETRO_LOG_RING;
+      name[0]='R'; name[1]='L'; name[2]='o'; name[3]='g';
+      name[4]=(char)('0' + (slot / 10));
+      name[5]=(char)('0' + (slot % 10));
+      name[6]='\0';
+      SetRegSZ(ppdev, name, chunk);
+      g_retroLogSeq++;
+      SetRegDWORD(ppdev, "RLogSeq", g_retroLogSeq);
+      off += n;
     }
   }
 
-  // re-initialize vars
   dwBufCnt = 0;
   pCurrBufPos = Buf;
 }
@@ -111,9 +133,41 @@ WriteLogFile ( PDEV *ppdev, LPVOID pBuffer, DWORD BytesToWrite )
 
 /****************************************************************************
 *
+* FUNCTION:     retroLogInit()  (retro3dfx)
+*
+* DESCRIPTION:  Lazy one-time read of the runtime log gate from the registry
+*               (HKLM\SYSTEM\CCS\Services\3dfxvs\Device0\Retro3dfxLog, REG_SZ).
+*               0/absent = logging off (default, zero benchmark impact),
+*               1 = on, >=2 = verbose (adds hot-path heartbeats).
+*
+****************************************************************************/
+
+// -1 = uninitialized; 0 = off (default); 1 = on; >=2 = verbose
+LONG g_retroLogLevel = -1;
+
+// stashed at DrvEnablePDEV so ppdev-less loggers (V5DLog) can reach the file sink
+PDEV *g_retroLogPpdev = NULL;
+
+static VOID
+retroLogInit ( PDEV *ppdev )
+{
+  extern int __cdecl atoi(const char *);
+  char *pEnvStr;
+
+  if (0 > g_retroLogLevel)
+  {
+    pEnvStr = ddgetenv(ppdev, "Retro3dfxLog");
+    g_retroLogLevel = (NULL == pEnvStr) ? 0 : atoi(pEnvStr);
+  }
+}
+
+/****************************************************************************
+*
 * FUNCTION:     h3printf()
 *
-* DESCRIPTION:
+* DESCRIPTION:  retro3dfx: now runtime-gated on g_retroLogLevel so the fully
+*               instrumented (LF=1) driver logs nothing unless enabled via
+*               the Retro3dfxLog registry value.
 *
 ****************************************************************************/
 
@@ -121,7 +175,51 @@ VOID
 h3printf ( PDEV *ppdev, LPSTR szFormat, ... )
 {
   extern int _cdecl vsprintf(char *, const char *, va_list);
+  retroLogInit(ppdev);
+  if (0 >= g_retroLogLevel)
+    return;
   WriteLogFile(ppdev, h3_buf, vsprintf(h3_buf, szFormat, (LPVOID)(&szFormat+1)));
+}
+
+/****************************************************************************
+*
+* FUNCTION:     retroLogForce()  (retro3dfx)
+*
+* DESCRIPTION:  Always logs (bypasses the runtime gate) and flushes so the
+*               tail survives a hang/wedge. For rare flight-recorder lines
+*               only (first-call announce, FIFO stalls, wedge breaks).
+*
+****************************************************************************/
+
+VOID
+retroLogForce ( PDEV *ppdev, LPSTR szFormat, ... )
+{
+  extern int _cdecl vsprintf(char *, const char *, va_list);
+  retroLogInit(ppdev);
+  WriteLogFile(ppdev, h3_buf, vsprintf(h3_buf, szFormat, (LPVOID)(&szFormat+1)));
+  FlushLogFileBuffer(ppdev);
+}
+
+/****************************************************************************
+*
+* FUNCTION:     retroLogRaw()  (retro3dfx)
+*
+* DESCRIPTION:  Write an already-formatted buffer to the log and flush.
+*               Used by V5DLog (which has already vsprintf'd its message).
+*               retro3dfx: UNCONDITIONAL (not gated) — V5DLog marks infrequent,
+*               diagnostically-important lifecycle events (mode set / surface
+*               enable/disable / assert-mode / D3D+texture milestones), so it is
+*               always captured. The registry-read gate proved unreliable for
+*               enabling logging, and these events are rare enough that always-on
+*               costs nothing. Per-op verbose logging (h3printf) stays gated.
+*
+****************************************************************************/
+
+VOID
+retroLogRaw ( PDEV *ppdev, LPVOID pBuffer, DWORD BytesToWrite )
+{
+  WriteLogFile(ppdev, pBuffer, BytesToWrite);
+  FlushLogFileBuffer(ppdev);
 }
 
 #endif // ENABLE_LOG_FILE

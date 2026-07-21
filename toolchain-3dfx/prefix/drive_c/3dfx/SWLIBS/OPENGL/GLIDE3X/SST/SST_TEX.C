@@ -74,6 +74,11 @@ long __r3d_lastSize[2] = { 0, 0 };
 unsigned long __r3d_blitAddr = 0;
 long __r3d_blitInfo[5] = {0,0,0,0,0};   /* smallLod,largeLod,aspect,format,data */
 int  __r3d_blitValid = 0;
+/* RETRO3DFX 0.3.5: set when GR_TMU0 (the lightmap unit on the inverted 2-TMU
+** mapping) is sourced -- i.e. this frame REALLY used dual-texture.  The swap
+** hook only re-issues TMU state on such frames and clears the flag each swap.
+** Q3/idTech (single-texture, t1 never sourced) never sets it -> hook inert. */
+int  __r3d_sawTMU0 = 0;
 static void __r3dLogDownload(int tmu, unsigned long addr, int thisLod,
                             int largeLod, int fmt)
 {
@@ -96,6 +101,7 @@ static void __r3dLogTexSource(int tmu, unsigned long addr, void *info)
         __r3d_lastFmt[tmu]  = (long)gi[3];   /* GrTexInfo.format  */
         __r3d_lastSize[tmu] = (long)gi[1];   /* largeLodLog2      */
     }
+    if (tmu == 0) __r3d_sawTMU0 = 1;         /* dual-texture frame marker */
     /* save a large 565 world texture (TMU1) for the swap-time read-back blit */
     if (tmu == 1 && gi && gi[3] == 0xa && gi[1] >= 6 && !__r3d_blitValid) {
         __r3d_blitAddr = addr;
@@ -1351,6 +1357,18 @@ void __glSSTResetCombineCache( void ) {
     s_pfnColorCombineExt = 0;
     s_pfnAlphaCombineExt = 0;
     __glSSTOverbright2xVtx = 0; /* OPT 0.1.5 overbright vertex-double gate */
+}
+
+/* RETRO3DFX 0.3.5 (CS green world): invalidate ONLY the combine-word dedup
+** cache so the app's next grColorCombine/grTexCombine genuinely re-issues to
+** Glide.  Unlike __glSSTResetCombineCache this does NOT touch the ext-combine
+** probe state or the overbright gates -- resetting those every frame is what
+** broke fix attempts 2/3 (re-introduced the green + killed overbright). */
+void __glSSTInvalidateCombineWords( void ) {
+    s_ACWord  = ~0;
+    s_CCWord  = ~0;
+    s_TC0Word = ~0;
+    s_TC1Word = ~0;
 }
 
 static GrTexInfo cdrsTex;

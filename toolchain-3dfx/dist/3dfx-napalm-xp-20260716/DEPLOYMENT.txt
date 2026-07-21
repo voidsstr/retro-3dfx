@@ -56,3 +56,31 @@ HISTORY (why versions matter)
          drops addr bits [3:0] on VSA-100; heap started at min+8)
   0.3.2  EXT_paletted_texture RGBA table stride — fixed GoldSrc world
          textures rendering green/blue (palette read as 3-byte RGB)
+  0.3.3  GoldSrc fps 3x: reuse the Glide context across MakeCurrent
+         switches (was full WinClose+WinOpen each); all PFDs
+         double-buffered (CS ~33 -> ~100 fps)
+  0.3.4d CS green world: stale 2PPC (combineMode bit-29) cleared by a
+         full TMU1 state re-issue at SwapBuffers
+  0.3.5  gate that hook on REAL dual-texture frames (__r3d_sawTMU0) —
+         0.3.4d fired in Q3 too and broke menu colors
+  0.3.6  ** ICD NEVER OPENED >640x480 until here ** — the res walk used
+         a Voodoo1/2-era cap table; V3/V5 hardware strings fell through
+         to "Voodoo1 2MB" = clamp to 640x480 (black world at 800/1024
+         on the monitor). Modern boards now bypass the cap gate.
+  0.3.7  drop the 0.3.5 combine-cache invalidation (it re-broke CS).
+         SHIP BUILD, verified on .143 V5 5500: CS de_dust 0-green,
+         Q3 640/800/1024 = 72.8/73.0/71.7 fps at REAL resolutions,
+         Q2 135+, UT + RTCW render. md5 ee69a4b9c2e5fe535d27929544a6045e
+
+V5-SPECIFIC CAVEATS (as of 2026-07-21)
+--------------------------------------
+- 3DMark2001/D3D: the D3D HAL path can HARD-FREEZE a V5 box (no ping,
+  physical reboot) — suspect Napalm-only compressed-texture (DXT/FXT1)
+  path and/or 2-chip SLI FIFO; under investigation. Do NOT run 3DMark
+  with Texture Format=Compressed on a V5 until cleared. OpenGL games
+  are unaffected.
+- Deploy display+miniport under WFP-safe names (3dfxv5d.dll/3dfxv5m.sys,
+  voodoo5-wfp.inf) — standard names get silently reverted by WFP.
+- fbdump capture (C:\icd_fbdump.on) is the only truthful screenshot of
+  fullscreen GL; GDI SCREENSHOT garbles (that garble is NORMAL and means
+  the hw path is active).

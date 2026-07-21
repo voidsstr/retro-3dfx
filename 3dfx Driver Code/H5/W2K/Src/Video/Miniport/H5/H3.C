@@ -3612,6 +3612,32 @@ Return Value:
 
 		status = H3WriteLogFile(RequestPacket->InputBuffer,
 								RequestPacket->InputBufferLength);
+
+		/* retro3dfx observability: persist a counter + the last write status to
+		   the registry (IRQL-safe VideoPort API, unlike the file write) so we can
+		   read from usermode whether the WRITE_LOG_FILE IOCTL is reaching the
+		   miniport and whether ZwCreateFile/ZwWriteFile succeeded. */
+		{
+			static ULONG retroLogIoctlCount = 0;
+			ULONG retroStatus = (ULONG)status;
+			retroLogIoctlCount++;
+			VideoPortSetRegistryParameters(HwDeviceExtension,
+										   L"Retro3dfxLogIoctlCount",
+										   &retroLogIoctlCount,
+										   sizeof(retroLogIoctlCount));
+			VideoPortSetRegistryParameters(HwDeviceExtension,
+										   L"Retro3dfxLogLastStatus",
+										   &retroStatus,
+										   sizeof(retroStatus));
+		}
+
+		/* retro3dfx: satisfy videoprt's output-buffer contract so the IOCTL is
+		   actually forwarded to this handler. */
+		if (RequestPacket->OutputBufferLength >= sizeof(ULONG))
+		{
+			*(ULONG *)RequestPacket->OutputBuffer = (ULONG)status;
+			RequestPacket->StatusBlock->Information = sizeof(ULONG);
+		}
 		break;
 #endif
 

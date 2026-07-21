@@ -62,6 +62,12 @@ typedef struct _PDEV PDEV;      // Handy forward declaration
 
 extern VOID FlushLogFileBuffer ( PDEV * );
 extern VOID h3printf(PDEV *, LPSTR pszFormat, ...);
+
+// retro3dfx: runtime log gate (0=off default, 1=on, >=2 verbose) + force-logger
+extern LONG g_retroLogLevel;
+extern PDEV *g_retroLogPpdev;
+extern VOID retroLogForce(PDEV *, LPSTR pszFormat, ...);
+extern VOID retroLogRaw(PDEV *, LPVOID pBuffer, DWORD BytesToWrite);
 #endif
 
 #endif /* _LOGFILE_H_ */

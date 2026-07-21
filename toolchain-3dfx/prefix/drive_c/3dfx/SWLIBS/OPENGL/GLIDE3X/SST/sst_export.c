@@ -468,20 +468,28 @@ static void SwapBuffers(__GLcontext *gc)
     ** (HUD/sprites, 2PPC ON) and dual (world, 2PPC OFF) every frame, but our
     ** combine-word cache skips the Glide re-issue when words are unchanged, so
     ** stale 2PPC bit-29 leaks into the world draw -> (0,G,0) green world.
-    ** Re-issue the FULL TMU1 state once per frame: grTexSource (dirties
-    ** textureMode/texBaseAddr/tLOD) + grTexCombine + grColorCombine (dirty
-    ** combineMode + tmuConfig) + grAlphaBlendFunction.  Together they force a
-    ** full TMU re-validation on the next world draw, so Glide re-runs
-    ** _grTex2ppc and clears the stale bit-29.  Bisect-proven set (0/4 green):
-    ** grTexSource ALONE does NOT fix, combines ALONE do NOT fix (4/6), but the
-    ** four together DO.  No cache reset (that wipes ext/overbright state and
-    ** reintroduces green).  GoldSrc draws the world first each frame and
-    ** re-binds its own texture/combine per surface, so lighting is preserved.
-    ** Q3 (single-texture) never has __r3d_blitValid set -> unaffected. */
+    ** 0.3.5: fire ONLY on frames that really used dual-texture (__r3d_sawTMU0
+    ** = the lightmap unit GR_TMU0 was sourced this frame).  Q3/idTech is
+    ** single-texture (never sources TMU0) -> hook inert there.  0.3.4d fired
+    ** in Q3 too (Q3's one unit maps to GR_TMU1, so __r3d_blitValid latched)
+    ** and the per-frame combine override killed vertex-color modulate (white
+    ** menu text) and went stale across mode changes (black 1024 world).
+    ** Re-issue the FULL TMU1 state: grTexSource (dirties textureMode/
+    ** texBaseAddr/tLOD) + grTexCombine + grColorCombine (dirty combineMode +
+    ** tmuConfig) + grAlphaBlendFunction.  Together they force a full TMU
+    ** re-validation on the next world draw, so Glide re-runs _grTex2ppc and
+    ** clears the stale bit-29.  Bisect-proven set (0/4 green): grTexSource
+    ** ALONE does NOT fix, combines ALONE do NOT fix (4/6), the four together
+    ** DO.  Then invalidate ONLY the combine-word dedup cache so the app's
+    ** next combine call genuinely re-issues (restores its own state) -- NOT
+    ** __glSSTResetCombineCache(), which wipes ext/overbright and broke
+    ** attempts 2/3. */
     {
         extern unsigned long __r3d_blitAddr; extern long __r3d_blitInfo[5];
         extern int __r3d_blitValid;
-        if ( tacoHackGlideInit && __r3d_blitValid ) {
+        extern int __r3d_sawTMU0;
+        extern void __glSSTInvalidateCombineWords(void);
+        if ( tacoHackGlideInit && __r3d_blitValid && __r3d_sawTMU0 ) {
             GrTexInfo ti;
             ti.smallLodLog2     = (GrLOD_t)__r3d_blitInfo[0];
             ti.largeLodLog2     = (GrLOD_t)__r3d_blitInfo[1];
@@ -495,7 +503,16 @@ static void SwapBuffers(__GLcontext *gc)
                             GR_COMBINE_LOCAL_NONE, GR_COMBINE_OTHER_TEXTURE, FXFALSE );
             grAlphaBlendFunction( GR_BLEND_ONE, GR_BLEND_ZERO,
                                   GR_BLEND_ONE, GR_BLEND_ZERO );
+            /* 0.3.7: do NOT invalidate the combine-word cache here.  Doing so
+            ** (0.3.5/0.3.6) made the game's combine re-issue every frame and
+            ** the green/rainbow chaos returned (27/49) -- same failure class
+            ** as ResetCombineCache in attempts 2/3.  The PROVEN-good state is
+            ** exactly this override with the cache left alone (0.3.4d: 0/4
+            ** green, correct-looking de_dust).  The dedup cache then skips
+            ** the game's identical combine words and the world draws through
+            ** the freshly-validated TMU state. */
         }
+        __r3d_sawTMU0 = 0;   /* per-frame marker */
     }
 
     t0 = __prof_rdtsc();
@@ -608,6 +625,8 @@ static GLboolean DestroyContext(__GLcontext *gc)
         tacoHackGlideInit = 0;
         __r3d_openHwnd = 0;
         __r3d_openRes = -1;
+        /* 0.3.5: the latched world-texture address dies with the context */
+        { extern int __r3d_blitValid; __r3d_blitValid = 0; }
     }
 
     /*
@@ -877,6 +896,20 @@ static GLboolean MakeCurrent(__GLcontext *gc)
         if ( getenv( "OGL_ENABLE_RUSH_WINDOWING" ) ) {
             windowable = 1;
         }
+    } else {
+        /* RETRO3DFX 0.3.6 (Q3 black world at 800/1024, user-caught): any
+        ** OTHER hardware string ("Voodoo3 (tm)", "Voodoo5 (tm)", Banshee...)
+        ** fell through with platform=SST_VOODOO and, because GR_MEMORY_FB on
+        ** Glide3/Napalm returns a byte-scale value that matches no case
+        ** below, mem=SST_2M -- i.e. the res walk consulted the VOODOO1-2MB
+        ** capability row, whose best double-buffered+Z mode is 640x480.  An
+        ** 800x600/1024x768 window therefore opened a 640x480 Glide context
+        ** under a game rendering an 800/1024 viewport -> black world (only
+        ** ever visible on the monitor; timedemo fps still measured fine, so
+        ** every "800/1024" benchmark before this fix really ran at 640).
+        ** Modern boards (V3 and up) do 1024x768x16 db+Z trivially: skip the
+        ** legacy cap-table gate entirely. */
+        platform = -1;   /* sentinel: modern board, cap table bypassed */
     }
 
     /* XXX Taco - Need a query mechanism for SLI from Glide 3 */
@@ -893,29 +926,34 @@ static GLboolean MakeCurrent(__GLcontext *gc)
     
     /* walk up the list until width/height match */
     /* walk down the list until supported */
+    /* RETRO3DFX 0.3.6: platform<0 = modern board (V3+), every table res is
+    ** supported db+Z -- bypass the Voodoo1/2-era capability gate (see the
+    ** platform detection above for why the old default clamped to 640x480). */
+#define __SST_RES_OK(p,s,m,r) \
+    ( (p) < 0 || ( ( __sstResCapTable[(p)][(s)][(m)][(r)] & SST_DBZ ) == SST_DBZ ) )
     step = 1;
     for( res = 0; ( ( res < SST_RESOLUTIONS ) && ( res >= 0 ) ); res += step ) {
         flags = 0;
-        if ( width <= __sstResTable[res][0] ) 
+        if ( width <= __sstResTable[res][0] )
             flags++;
-        if ( height <= __sstResTable[res][1] ) 
+        if ( height <= __sstResTable[res][1] )
             flags++;
         if ( step == 1 ) {
             if ( flags == 2 ) { /* we have a match */
-                if ( ( __sstResCapTable[platform][sli][mem][res] & SST_DBZ ) == SST_DBZ ) {
+                if ( __SST_RES_OK( platform, sli, mem, res ) ) {
                     break;
                 } else {
                     step = -1;
                 }
             } else if ( res == SST_1024x768 ) { /* out of resolutions */
-                if ( ( __sstResCapTable[platform][sli][mem][res] & SST_DBZ ) == SST_DBZ ) {
+                if ( __SST_RES_OK( platform, sli, mem, res ) ) {
                     break;
                 } else {
                     step = -1;
                 }
             }
         } else { /* step == -1 */
-            if ( ( __sstResCapTable[platform][sli][mem][res] & SST_DBZ ) == SST_DBZ ) {
+            if ( __SST_RES_OK( platform, sli, mem, res ) ) {
                 break;
             }
         }
@@ -953,6 +991,8 @@ static GLboolean MakeCurrent(__GLcontext *gc)
                   (unsigned)tacoHackContext );
           grSstWinClose( tacoHackContext );
           tacoHackGlideInit = 0;
+          /* 0.3.5: latched world texture is context-lifetime */
+          { extern int __r3d_blitValid; __r3d_blitValid = 0; }
       }
       __r3d_openHwnd = (long)tacoHackHWND;
       __r3d_openRes  = (long)resolution;

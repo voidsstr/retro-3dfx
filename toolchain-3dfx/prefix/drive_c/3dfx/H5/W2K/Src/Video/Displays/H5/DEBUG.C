@@ -30,7 +30,21 @@ V5DLog(
     va_list ap;
 
     va_start(ap, DebugMessage);
+    /* retro3dfx: EngDebugPrint is a no-op on free/retail XP (verified — never
+       reaches DebugView). Keep it for a kernel-debugger session, but ALSO route
+       to the file logger so these already-rich V5DLog call sites land in
+       D:\3dfxvs.log when Retro3dfxLog>=1. V5DLog has no ppdev, so use the global
+       stashed at DrvEnablePDEV time. */
     EngDebugPrint("3DFXV5D: ", DebugMessage, ap);
+#if ENABLE_LOG_FILE
+    if (NULL != g_retroLogPpdev)
+    {
+        extern int _cdecl vsprintf(char *, const char *, va_list);
+        static char v5buf[256];
+        int n = vsprintf(v5buf, DebugMessage, ap);
+        retroLogRaw(g_retroLogPpdev, v5buf, n);
+    }
+#endif
     va_end(ap);
 }
 

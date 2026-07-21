@@ -2245,6 +2245,7 @@ DWORD __stdcall TEXTURESURFACECREATE(NT9XDEVICEDATA * ppdev, LPDDRAWI_DDRAWSURFA
       else  // out of memory
       {
          D3DPRINT( 0, "TEXTURESURFACECREATE: Warning: VidMemAlloc Failed:out of texture memory" );
+         V5DLog("D3D TextureSurfaceCreate OUT-OF-TEXTURE-MEMORY memReq=%ld (texture overcommit -> DDERR_OUTOFVIDEOMEMORY; the 3DMark 16/32MB-texture path)\n", (long)memRequired);
          FREETEXTUREDESC(ppdev, txtrID);
 #if defined(WINNT)
          D3DFREE(surfGCL->dwReserved1);
