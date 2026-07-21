@@ -483,3 +483,21 @@ The 8% gap resolves cleanly — **I was optimizing the wrong source tree.**
   (`C:\Quake III Arena\Quake3`) has a game-local `retrogl.dll`; run_bench launches
   from there so game-local SHADOWS system32. A/B the ICD by neutralizing the
   game-local copy OR deploying to system32 AND every game-local path.
+
+## ROOT CAUSE FOUND+FIXED: black/garbage mipmapped textures in D3D (2026-07-21)
+
+**Symptom:** all mipmapped D3D content black (3DMark trucks/dragons) or garbage-
+striped; un-mipped content (HUD, skybox, 2D) perfect. GL/Glide unaffected.
+**Repro:** minimal windowed D3D8 lab (`toolchain scratchpad d3dlab.exe`, staged
+C:\RETRO_AGENT\d3dlab.exe): `big512mip` = solid black, `mippoint` = garbage
+stripes, any no-mip mode = perfect. Deterministic in 5 s — no benchmark needed.
+**Root cause:** W2K `D3TXTR.C` rev 40 (10/25/00, days before 3dfx shut down,
+"no longer use surface local pointers") deleted the per-LOD board-offset line in
+TEXTURELOAD's mipmapped path, leaving `addr` stale for every mip-level download:
+`addr = psurfDst->mmData[nDstLOD].fpVidMem - _FX(textureHeapStart[tmuCnt]);`
+(Win9x rev 35 has the line; the dangling "// board address offset" comment
+made the deletion visible.) Texels landed at stale offsets; the TMU sampled
+unwritten memory.
+**Fix:** restored the line (commented). Verified on .143: all d3dlab mip modes
+correct (marker-color mips sample at right LODs), mippoint garbage → perfect
+checker.

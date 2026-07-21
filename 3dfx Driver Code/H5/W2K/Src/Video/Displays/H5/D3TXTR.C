@@ -2595,6 +2595,13 @@ DWORD __stdcall TEXTURELOAD(
                   ++tlog;
 
                // board address offset
+               // retro3dfx: restore the line rev 40 (10/25/00 "no longer use
+               // surface local pointers") dropped — without it `addr` is stale
+               // for every per-LOD download of a mipmapped texture, so mip
+               // texels land at the wrong board offset and sampling reads
+               // unwritten memory (black/garbage textures in all mipmapped
+               // D3D content; Win9x rev 35 has this line and works).
+               addr = psurfDst->mmData[nDstLOD].fpVidMem - _FX(textureHeapStart[tmuCnt]);
             }
             else
             {
