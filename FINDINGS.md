@@ -514,3 +514,16 @@ activity" reports. Ring showed no DP2/WEDGE errors -> the failure path returns
 clean errors to the runtime or dies in the runtime. Next: instrument
 D3CONTXT create/destroy + heap stats into the ring, run N warm reruns, watch
 for monotonic drift (fresh boot needed between reliability experiments).
+
+## RESOLVED: warm-rerun "degradation" is 3DMark2001, not the driver (2026-07-21)
+Decisive test: 4 COLD-process runs (kill+relaunch 3DMark each time, NO reboot,
+same instr7 driver) = **['ok','ok','ok','ok']** — every fresh-process run
+completes the full suite. WARM reruns (Benchmark again in the same process)
+failed randomly ~2/3. Conclusion: 3DMark2001SE corrupts its own D3D state on
+re-benchmark within one process; a fresh process clears it. Corroborated by
+the driver being provably clean across every warm-rerun failure (instr4-7 ring:
+CTX create/destroy balance returns to 0, dd3DSurfaceCount flat, ZERO
+CREATESURF-FAIL/CSEX-FAIL/ALLOC-FAIL/DP2-ERR/WEDGE lines; DP2-FIRST fires =
+first frame drawn) and by the random (not monotonic) pass/fail pattern.
+**Benchmark protocol: one fresh 3DMark process per run** (dm_freshproc.py /
+dm_wrap.exit-wrapper). Real-world launch-and-run is unaffected. NOT a driver bug.
