@@ -546,3 +546,22 @@ PASS (Q3 1024 world non-black nb=84 gr=0, CS de_dust 0-green). Q3 timedemo
 (2-way SLI, ICD as deployed): 640=68.2, 800=72.9, 1024=70.6 fps (vs prior
 72.8/73.0/71.7 — within run variance, no regression). D3D single-chip 3DMark
 1601; 2-way SLI run pending.
+
+## OPEN (new, 2026-07-21 night): D3D device-cycle accumulation → display wedge after ~12 cycles/boot
+Distinct from the 3DMark warm-rerun app issue (that was one process; this is
+fresh processes). Running d3dlab (each a fresh D3D device create/destroy) in
+sequence: the first ~12 device cycles per boot render fine, the ~13th wedges
+the display (SCREENSHOT hangs, box starves ~60-90s then self-recovers — NOT a
+hard freeze, the wedge-breakers hold). Evidence: on-target d3dlab suite passes
+12 modes then hangs on the 13th (dxt1); dxt1 run FIRST (standalone) passes, so
+it's the cycle COUNT not the mode. Cold 4-process 3DMark passed (4 < 12).
+Implies a driver-side per-device resource not fully freed on device/process
+teardown (kernel-side display-driver allocation; CTX create/destroy ring
+balance returns to 0, so it's NOT the D3D context — suspect a heap/handle-list
+or exclusive-mode artifact in DDMEMMGR/DdCreateSurface/HNDLLIST). Real-world
+impact: low (needs 12+ D3D app launches without reboot) but a genuine leak.
+Mitigation in place: on-target suite runs a curated 9-mode set (under
+threshold); full 14-mode matrix via RETRO_D3DLAB_MODES=all on a fresh boot.
+NEXT: instrument per-device heap free counts + HNDLLIST alloc/free balance
+across N cycles; find the unfreed allocation. Deferred — driver is otherwise
+stable and this needs careful measurement, not a blind fix.
