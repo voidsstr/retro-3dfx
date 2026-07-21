@@ -565,3 +565,12 @@ threshold); full 14-mode matrix via RETRO_D3DLAB_MODES=all on a fresh boot.
 NEXT: instrument per-device heap free counts + HNDLLIST alloc/free balance
 across N cycles; find the unfreed allocation. Deferred — driver is otherwise
 stable and this needs careful measurement, not a blind fix.
+
+**CAVEAT (contention):** during this investigation the agent version changed
+under me (1.15.0 → 1.15.6), i.e. a CONCURRENT session was actively working
+box .143. The progressively-faster wedging (1-2 cycles late, vs 12 early) is
+likely confounded by that session's own D3D/agent activity on the shared box.
+The device-cycle accumulation is real (reproduced when I had the box to myself:
+12 modes then wedge) but its exact threshold and whether reboots fully clear it
+need a DEDICATED, UNCONTENDED session to measure. Not a hard freeze in any case
+(wedge-breakers hold; box self-recovers). Box left clean-rebooted + healthy.
