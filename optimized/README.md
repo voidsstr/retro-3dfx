@@ -40,3 +40,32 @@ under XP. Start here.
 
 Machine/deploy specifics live in the memory files + `FINDINGS.md` at the repo root;
 the deploy skill is `retro-agent/.claude/skills/deploy-3dfx-driver`.
+
+## Change policy (REQUIRED for every driver change)
+
+1. **Never regress a shipped fix.** Every change is verified against the golden
+   gate before it ships: CS de_dust fbdump (green must be 0), Q3 menu (text RED)
+   + q3dm1 at 640/800/1024 (world renders, correct res in ICD log), Q3 timedemo
+   fps vs current baseline, Q2 timedemo, UT launch (0 criticals). `gloop.py cs`
+   + the verify scripts automate this. A change that passes its own test but
+   fails the gate does not ship (this caught 0.3.4d and 0.3.6 regressions).
+2. **API paths stay isolated.** OpenGL fixes go in the ICD (3dfxogl), Glide fixes
+   in glide2x/glide3x, D3D fixes in the display HAL (D7D3D/DD paths of 3dfxv5d).
+   Never "fix" one API by changing another's path. The display driver's Glide
+   escape path (HWCEXT) is shared by the ICD — changes there need the OpenGL
+   gate too.
+3. **Risky behavior must be gated, default-safe.** Prefer behavior-keyed gates
+   (e.g. the 2PPC hook fires only on real dual-texture frames) over global
+   changes; diagnostics behind file markers / registry values (inert unless
+   enabled); experimental paths behind env/registry (RETRO3DFX_32BPP pattern).
+   Per-game splits, if ever needed, key off measured behavior first, exe name
+   (GetModuleFileNameA) only as a last resort — and document them here.
+4. **Version every build** (renderer string + VERSION + CHANGELOG row) and keep
+   the previous binary as a .pre/.old backup at every deploy site.
+5. **Fix ledger** (must remain true after any change):
+   ICD: 16-byte tex-heap alignment (0.3.1) · palette stride (0.3.2) · Glide ctx
+   reuse + all-DB PFDs (0.3.3) · 2PPC swap hook, dual-tex-gated, NO cache reset
+   (0.3.4d/0.3.5/0.3.7) · modern-board res-cap bypass (0.3.6) · UT NULL-cache
+   guard (0.2.2) · hw texture filters (0.2.0) · cook OOB fix (0.2.1).
+   glide3x: NT lostContext fallback (0.1.0).
+   Display: H3MakeRoom spin-breaker + registry-ring flight recorder (2026-07-21).
