@@ -479,3 +479,39 @@ output-buffer hypothesis above, one more rebuild), the whole comprehensive log �
 V5DLog mode/enable/teardown trace + CFIFO flight recorder + any H3PRINTF site —
 lands in D:\3dfxvs.log, downloadable by the agent, gated by Retro3dfxLog. Box
 restored to the clean non-logging 595180 driver via the rename path for benchmarks.
+
+---
+
+## CURRENT STATUS — V5 5500 D3D on .143 (2026-07-21, updated)
+
+The comprehensive-logging BLOCKER above (WRITE_LOG_FILE IOCTL never reaching the
+miniport) was SOLVED by switching the log sink to the **registry ring**
+(LOGFILE.C: SetRegSZ → RLog00..31 + RLogSeq under the miniport Device0 key,
+UTF-16LE, survives reboots). The IOCTL file-log path is left in as a harmless
+no-op. The full flight recorder now lands in the registry and is read by
+`/tmp/ring_read.py`.
+
+**D3D on the V5 5500 now works** (single-chip AND 2-way SLI), verified end-to-end:
+
+- **Black/garbage textures — FIXED** (commit 08fd889). Root cause: W2K
+  D3TXTR.C rev 40 (3dfx's last change, 10/25/00) deleted the per-LOD
+  board-offset line in TEXTURELOAD's mipmapped path; every mip level
+  downloaded to a stale offset → the TMU sampled unwritten memory. One line
+  restored. This was the dominant D3D defect and ALSO the cause of the apparent
+  "2-way SLI banding" (garbage texture memory scanned out through the SLI
+  band-interleave looked like alternating bands).
+- **2-way SLI D3D — WORKS.** 3DMark2001 Car Chase renders fully textured with
+  no banding on active SLI (ring: PROMOTE-SLIAA sliEn=1 chips=2 nlines=16).
+- **Hard-freeze vectors — CLOSED.** All four unbounded accelerator busy-spins
+  (H3MakeRoom, DdFlip pending-swap, FXBUSYWAIT, H3_GP_WAIT) are bounded with
+  ring-logged wedge-breakers.
+- **"Warm-rerun instability" — NOT a driver bug.** 3DMark2001 corrupts its own
+  D3D state when re-benchmarked within one process; 4/4 cold-process runs pass.
+- **First correct D3D scores:** single-chip 1601 @640×480×16; 2-way SLI pending.
+
+**Regression-locked:** `retro-3dfx/tests/` (predeploy gate + on-target D3D
+matrix via d3dlab). Deployed driver: 3dfxv5d.dll instr7 (~957 KB).
+
+**Remaining D3D work (lower priority, driver is stable):** bisect up to
+compressed textures + 32-bit color (single-chip); real D3D game validation;
+feed the verified 2-way SLI path into V5 6000 4-way (branch v56k-6000).
