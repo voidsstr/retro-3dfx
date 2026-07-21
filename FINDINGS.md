@@ -409,3 +409,77 @@ Next repro of the Present error will name the failing D3D op in RLog.
   until the D3D HAL is hardened. All our working benchmarks are the OpenGL-ICD
   and Glide paths. (This is why supervised: an unsupervised 3DMark run would have
   left the box in the TDR dialog.)
+
+## ICD compiler-flag opt lane on .124 (2026-07-21) — /Ob2 verified-neutral
+`.124` = ~845 MHz P3 + Voodoo3. Q3 timedemo flat ~58 fps at BOTH 640 and 800 ⇒
+**CPU-bound at ≤800** on this box (contrast the GPU-bound Voodoo5 .143). A/B of
+OGL.MAK item 1 **/Ob2** (add to release `/O2 /G6`; ICD 704512→729088 B, more
+inlining): baseline 56.8/58.6/58.3 (avg 57.9, cold first run) → /Ob2
+58.6/58.9/58.5 (avg 58.67). = +1.3% raw / ~neutral trimmed, zero regression,
+byte-identical codegen semantics. **KEPT** (safe, non-negative). Corroborates the
+.143 finding that C-codegen flags (/G6) are ~INERT: even CPU-bound, the hot cost
+is the x87 hand-asm T&L + per-triangle Glide submit (`__GL_USE_INTEL_ASM`), not
+the C the flag touches. ⇒ pure-flag ceiling is low; real wins are the C/asm
+restructures (queue items 4-9, esp. #8 vertex-dedup ~10-25%). Next flag with
+actual reach: /QIfist (item 3) — kills __ftol fldcw serialization in hot C
+float→int casts.
+
+## ICD flag A/B CORRECTED + 2.7MB-build discrepancy (2026-07-21)
+**The earlier "/Ob2 = 58.67" was CONFOUNDED by the game-local deploy trap.** run_bench
+launches quake3.exe from `C:\Quake III Arena\Quake3`, which had a game-local
+`retrogl.dll` = the **2,742,298-byte** deployed build. Game-local shadows system32,
+so my system32-only /Ob2 deploy was never loaded; the run measured the 2.7MB build
+(~58 fps). The qconsole "LoadLibrary system32" line I trusted was STALE (from a
+manual launch out of `C:\q3home`, which has no game-local copy). LESSON (re-confirmed,
+matches [[text-garble-solved-alignment]]): trust NOTHING but a fresh qconsole; when
+A/B-ing the ICD, NEUTRALIZE the game-local copy (rename it) so only the build under
+test loads — or deploy to BOTH system32 AND every game-local path.
+
+**Clean 3-way A/B (game-local renamed aside, all loaded from system32, confirmed):**
+| build | flags | Q3@640 avg (3 runs) | vs base |
+|---|---|---|---|
+| base   | /O2 /G6 (704,512 B)        | 53.53 | — |
+| /Ob2   | +/Ob2 (729,088 B)          | 53.80 | +0.5% (noise, non-neg) |
+| /QIfist| +/Ob2 /QIfist (729,088 B)  | 52.73 | **−1.5% → REJECTED** |
+/QIfist REJECTED: net regression on this box (the __ftol removal doesn't offset;
+and it's a semantic chop→nearest change — reject a regressing semantic change).
+/Ob2 kept (safe, marginally positive). Confirms the pure-flag ceiling here is ±1%.
+
+**THE REAL FINDING: the deployed 2.7MB ICD (~58 fps) is ~8% FASTER than a clean
+release rebuild from `v56k-6000` source (base = 53.5 fps).** The compiler flags are
+±1% noise next to this ~4-fps source-level gap. The fast deployed driver
+(3dfxvgl.dll, 2,742,298 B) was built from a config/branch that v56k-6000 does NOT
+reproduce. ⇒ before more flag tuning, must identify + rebuild from the source that
+produces the fast 2.7MB build (investigation in progress). Optimizing on the slower
+v56k-6000 base would ship a regression vs what's already deployed.
+
+## RESOLVED: the fast ICD is a DIFFERENT tree; compiler+math lane already exhausted (2026-07-21)
+The 8% gap resolves cleanly — **I was optimizing the wrong source tree.**
+- **Fast deployed ICD (2,742,298 B, ~58 fps)** = the **`retro3dfx-gl` GitHub fork**
+  (MesaFX 6.2.2), cross-built with **mingw gcc-13** via
+  `retro-agent/retro3dfx/build-mesafx-retail.sh`. Its compiler+math flags
+  (`Makefile.mgw:74`): `-O2 -ffast-math -march=pentium3 -mtune=pentium3
+  -mfpmath=sse -DNDEBUG`. THIS is the driver on .124. Rebuild via that script
+  (needs `build-stack.sh` once first).
+- **The 704 KB `opengl.dll`** I A/B'd today = the **retro-3dfx SWLIBS MSVC6/Wine**
+  tree (`v56k-6000`) — a SEPARATE, slower lineage NOT deployed to .124. My
+  /Ob2(+0.5%)//QIfist(−1.5%) results are real but on the wrong tree ⇒ irrelevant
+  to the deployed driver. `icd-opt-ob2` branch keeps the /Ob2 experiment; NOT
+  merged (inert + wrong tree).
+- **The gcc compiler+math lane on the CORRECT fork was ALREADY RUN & EXHAUSTED
+  2026-07-17** (retro-agent/retro3dfx/CHANGELOG.md 0.1.7–0.1.11): `0.1.7 opt/lto`
+  **-O3 -funroll-loops = 58.7 INERT** ("hot path already SSE; -O can't remove
+  algorithmic cost"); SSE cliptest intrinsics **REGRESSED** (Vanderhoof x86 asm
+  wins); SSE emit INERT. Only `0.1.11` lod-bias (quality) merged. **Verdict:
+  MesaFX/V3 vertex path is near-optimal; it already beats AmigaMerlin + era 3dfx
+  ICD.** ⇒ No meaningful compiler+math headroom remains. Today's MSVC-tree A/B
+  independently reached the same conclusion (flags ±1%, cost is in the asm).
+- **Remaining ICD levers are NOT compiler/math:** quality knobs (lod-bias done;
+  gamma/dither done), higher-effort compat/features (texture_env_combine on V3,
+  ARB pixelformat, S3TC — 0.1.30 review open items), or accept the V3 hardware
+  ceiling (fillrate at high-res + single-TMU). PGO was deferred (needs on-target
+  instrumented run) but is low-EV given -O3 was inert.
+- **DEPLOY DISCIPLINE (cost me a confounded run today):** .124's Q3 dir
+  (`C:\Quake III Arena\Quake3`) has a game-local `retrogl.dll`; run_bench launches
+  from there so game-local SHADOWS system32. A/B the ICD by neutralizing the
+  game-local copy OR deploying to system32 AND every game-local path.
