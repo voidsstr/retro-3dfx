@@ -1493,6 +1493,10 @@ DdSetExclusiveMode ( PDD_SETEXCLUSIVEMODEDATA psemd )
   if (psemd->dwEnterExcl)
   {
     DISPDBG((DEBUG_APIENTRY, "DdSetExclusiveMode (entering)"));
+#if ENABLE_LOG_FILE
+    retroLogForce(ppdev, "retro3dfx EXCL-ENTER: tiledHeapSz=%ld primInTile=%ld 3dCnt=%ld\r\n",
+                  _FF(ddTiledHeapSize), (LONG)_DS(ddPrimaryInTile), _FF(dd3DSurfaceCount));
+#endif
     _DS(ddExclusiveMode) = TRUE;
     hwcSetContextDWORD();
     // remove all GDI device bitmaps from video memory here
@@ -1501,6 +1505,9 @@ DdSetExclusiveMode ( PDD_SETEXCLUSIVEMODEDATA psemd )
   else
   {
     DISPDBG((DEBUG_APIENTRY, "DdSetExclusiveMode (leaving)"));
+#if ENABLE_LOG_FILE
+    retroLogForce(ppdev, "retro3dfx EXCL-LEAVE: 3dCnt=%ld\r\n", _FF(dd3DSurfaceCount));
+#endif
     _DS(ddExclusiveMode) = FALSE;
   }
 
@@ -2326,6 +2333,13 @@ Return:        DD_OK
 
 DWORD Enter_3DApplication(NT9XDEVICEDATA * ppdev)
 {
+#if ENABLE_LOG_FILE
+  retroLogForce(ppdev, "retro3dfx ENTER-3DAPP: scr=%ldx%ldx%ld primInTile=%ld tiledHeapSz=%ld\r\n",
+                (LONG)ppdev->cxScreen, (LONG)ppdev->cyScreen,
+                (LONG)(ppdev->cjPelSize * 8), (LONG)_DS(ddPrimaryInTile),
+                _FF(ddTiledHeapSize));
+#endif
+
   /* Disable video display. */
   if (IS_NAPALM)
   {
@@ -2401,6 +2415,10 @@ Return:        DD_OK
 
 DWORD Exit_3DApplication(NT9XDEVICEDATA * ppdev)
 {
+#if ENABLE_LOG_FILE
+  retroLogForce(ppdev, "retro3dfx EXIT-3DAPP: 3dCnt=%ld\r\n", _FF(dd3DSurfaceCount));
+#endif
+
   /* Disable video display. */
   if (IS_NAPALM)
   {
