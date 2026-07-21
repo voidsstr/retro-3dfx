@@ -180,8 +180,23 @@ __inline BOOL H3_GP_BUSY(PDEV* ppdev, BYTE* pjBase)
 
 #else
 
+/* retro3dfx: bounded (was unbounded) — see FXBUSYWAIT note in DDGLOBAL.H. */
+#if ENABLE_LOG_FILE
+    #define H3_GP_WAIT(ppdev, pjBase)                                          \
+        do {                                                                   \
+          ULONG _retroGpSpin = 0;                                              \
+          while (H3_GP_BUSY(ppdev, pjBase)) {                                  \
+            if (++_retroGpSpin >= 100000000UL) {                               \
+              retroLogForce((PDEV *)(ppdev),                                   \
+                            "retro3dfx H3GpWait WEDGE-BREAK@100M\r\n");        \
+              break;                                                           \
+            }                                                                  \
+          }                                                                    \
+        } while (0)
+#else
     #define H3_GP_WAIT(ppdev, pjBase)                     \
         do {;} while (H3_GP_BUSY(ppdev, pjBase))
+#endif
 
 #endif
 

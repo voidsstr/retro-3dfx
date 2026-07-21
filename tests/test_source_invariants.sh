@@ -45,6 +45,14 @@ chk "DDFXNT promote-SLIAA ring logging" \
     "$H5DISP/DDFXNT.C" \
     "retro3dfx PROMOTE-SLIAA"
 
+# 5b. FXBUSYWAIT / H3_GP_WAIT bounded busy-spins (remaining freeze vectors).
+chk "DDGLOBAL FXBUSYWAIT wedge-breaker" \
+    "$H5DISP/DDGLOBAL.H" \
+    "retro3dfx FXBUSYWAIT WEDGE-BREAK@100M"
+chk "HW.H H3_GP_WAIT wedge-breaker" \
+    "$H5DISP/HW.H" \
+    "retro3dfx H3GpWait WEDGE-BREAK@100M"
+
 # 6. Registry-ring log sink (all of the above depend on it).
 chk "LOGFILE registry-ring sink" \
     "$H5DISP/LOGFILE.C" \
@@ -63,7 +71,7 @@ else
 fi
 
 echo "== repo tree vs build tree sync (fixed files must match) =="
-for f in D3TXTR.C DDFLIP.C D6DP2.C DDFXNT.C CFIFO.C LOGFILE.C LOGFILE.H DEBUG.C ENABLE.C DDMEMMGR.C D3CONTXT.C; do
+for f in D3TXTR.C DDFLIP.C D6DP2.C DDFXNT.C CFIFO.C LOGFILE.C LOGFILE.H DEBUG.C ENABLE.C DDMEMMGR.C D3CONTXT.C DDGLOBAL.H HW.H; do
   if cmp -s "$H5DISP/$f" "$PREFIX/Displays/H5/$f"; then
     echo "PASS  sync $f"
   else

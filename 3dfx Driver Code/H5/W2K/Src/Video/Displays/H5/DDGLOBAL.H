@@ -407,7 +407,26 @@ typedef struct _DDGLOBAL
   #define _DS(Field) (ppdev->Field)
   #endif // winnt
 
+  /* retro3dfx: bounded (was unbounded do/while) — a wedged accelerator made
+     this spin forever in win32k context, the remaining hard-freeze vector
+     after the H3MakeRoom/DdFlip breakers. 100M status reads ≈ 100 s: never
+     reached in healthy operation; on breach, flight-record and press on so
+     the box stays reachable for diagnosis. */
+#if ENABLE_LOG_FILE
+  #define FXBUSYWAIT(ppdev)                                                    \
+      do {                                                                     \
+        ULONG _retroBusySpin = 0;                                              \
+        while (FXGETBUSYSTATUS(ppdev) != DD_OK) {                              \
+          if (++_retroBusySpin >= 100000000UL) {                               \
+            retroLogForce((PDEV *)(ppdev),                                     \
+                          "retro3dfx FXBUSYWAIT WEDGE-BREAK@100M\r\n");        \
+            break;                                                             \
+          }                                                                    \
+        }                                                                      \
+      } while (0)
+#else
   #define FXBUSYWAIT(ppdev)           do{;}while(FXGETBUSYSTATUS(ppdev)!=DD_OK)
+#endif
 
   #define BLTFMT(stride, pixFmt, bltDstFormat)                                   \
               (bltDstFormat) =    (pixFmt) |                                     \
