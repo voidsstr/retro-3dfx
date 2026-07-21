@@ -382,3 +382,30 @@ DP2-PARSE-ERR / DP2-EXIT-ERR (hr + failing opcode + offset at every
 DrawPrimitives2 error exit), PROMOTE-SLIAA / PROMOTE-SLIAA OK / DEMOTE-SLIAA /
 COMPUTE-SLIAA (full multi-chip request + primary hwPtr), DdFlip WEDGE-BREAK@50M.
 Next repro of the Present error will name the failing D3D op in RLog.
+
+## Supervised titles round 2 (2026-07-21) — Hexen II + 3DMark2000
+- **Hexen II (glh2.exe, GLQuake engine)** — installed as `D:\Games\Heretic2`
+  (mislabeled dir; it IS Hexen II). Its bundled 1997 `opengl32.dll` (MiniGL,
+  126,464 B) **CRASHES at GL-context creation** under our WFP display driver
+  (log stops at `640x480x16`, process exits). **OUR ICD runs it** — stage
+  `retrogl.dll`→`opengl32.dll` + `glide3x.dll` (from `C:\Games\Quake2`), and it
+  initializes (`GL_RENDERER: Mesa Glide v0.62 Voodoo3 [retro3dfx 0.1.31]`) and
+  plays. **Our ICD: 109.9 fps @640 (5414f/49.3s), 48.7 fps @1024 (5414f/111.3s).**
+  Recorded to specpicks (hexen2-timedemo). This is a POSITIVE ICD data point that
+  contrasts SiN (where our ICD fails but MiniGL works) — our ICD's GLQuake-engine
+  compat is title-specific.
+  - **fps-capture SOLVED** (was "unsolved" in round 1): `glh2.exe -condebug
+    -width W -height H -bpp 16 +timedemo coleslav`; the fps line lands in
+    `data1\qconsole.log` as `NNNN frames  S seconds  F fps`. The round-1 "no
+    capture" was really the MiniGL crashing before playback. **Wait scales with
+    res**: 5414 frames at ~49 fps @1024 = ~111 s wall — poll to ~130 s, don't
+    time out at 90 s.
+- **3DMark2000 (D3D)** — installed `D:\Program Files\MadOnion.com\3DMark2000`.
+  Launches to a clean GUI (detects our card), but **"Run Default Benchmark"
+  (1024×768×16 D3D) CRASHES our display driver**: TDR dialog "The 3dfxv3d display
+  driver has stopped working normally." Driver auto-recovered (VIDEODIAG still
+  ours, desktop intact, no reboot needed). ⇒ **Our WFP build's Direct3D HAL is
+  unstable/incomplete** — D3D-path benchmarking (3DMark2000/2001) is NOT viable
+  until the D3D HAL is hardened. All our working benchmarks are the OpenGL-ICD
+  and Glide paths. (This is why supervised: an unsupervised 3DMark run would have
+  left the box in the TDR dialog.)
