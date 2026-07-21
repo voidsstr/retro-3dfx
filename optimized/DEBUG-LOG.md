@@ -3,6 +3,25 @@
 Running log of hard-won debugging facts for the Voodoo5/.143 driver. Newest
 insight at top of each section. Grep this before re-investigating anything.
 
+## ★★★ 0.3.x ERA (2026-07-20/21) — every remaining render bug root-caused. READ FIRST.
+All four long-standing bugs fell in one campaign; full ledger in `CHANGELOG.md`,
+green-fix narrative in `CS-GREEN-WORLD-LOG.md`. One-liners for grep:
+- **TEXT GARBLE (Q3 menu + CS VGUI) = Napalm 16-byte tex-heap alignment** (0.3.1,
+  09ef1e1). Heap started at `+8` (SST1 granularity); VSA-100 texBaseAddr drops
+  bits[3:0] → +4-texel S-shift → sliced glyphs. NOT texcoords/filter/postfilter/
+  scanout — the 07-18 "display/scanout" reframe below is SUPERSEDED for this bug.
+- **CS palette colors = EXT_paletted_texture RGBA stride 3** (0.3.2, sst_ctable.c).
+- **CS ~33fps = grSstWinClose/Open per MakeCurrent switch** (0.3.3: reuse Glide ctx
+  on same hwnd+res; all PFDs double-buffered) → 99.9fps.
+- **CS GREEN WORLD = stale 2PPC bit-29** (0.3.4d, 71db1e3): combine-word cache
+  skipped re-issue → tmuConfig never invalidated → `_grTex2ppc` never re-ran on
+  single↔dual-texture flips → chips mirror → (0,G,0). Fix = full TMU1 state
+  re-issue at SwapBuffers. `__glSSTResetCombineCache()` at swap REINTRODUCES green.
+- **Capture truth**: fbdump (`C:\icd_fbdump.on`, grLfbReadRegion) is the only
+  honest capture; GDI SCREENSHOT garbles fullscreen Glide surfaces, always.
+- **Deploy truth**: games load `<gamedir>\opengl32.dll` first — sweep ALL
+  game-local copies on every deploy (gloop.py TARGETS is the canonical list).
+
 ## ★★ BIGGEST REFRAME (2026-07-18): the DISPLAY/SCANOUT is broken, not rendering
 **Symptom:** user launches Q3 → the monitor switches to 640×480 but shows the
 **DESKTOP, not the game** ("game is not even visible"); earlier the games showed
