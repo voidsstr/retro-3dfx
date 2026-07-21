@@ -27,9 +27,6 @@ no hardware. These cover the ICD (MesaFX) pure-logic fixes the source-invariant
 greps can't reach (the ICD lives in the external `retro3dfx-gl` fork):
 
 - `test_texheap_align.c` — 0.3.1 garble: 16-byte texture-heap base + alloc rounding
-- `test_palette_stride.c` — 0.3.2 CS palette: EXT_paletted RGBA stride-4
-- `test_cook_subtexture.c` — 0.2.1 subimage: full-width row stride + `srcSkip*bpp`
-- `test_res_cap.c` — 0.3.6 black-world: modern-platform `-1` sentinel bypasses the Voodoo1 cap gate
 - `test_mip_download_addr.c` — 08fd889 D3D black textures: per-LOD download
   offset must match the chain layout for every mip level (rev-40 stale-addr
   bug asserted as the counterexample)
