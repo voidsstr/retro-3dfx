@@ -501,3 +501,16 @@ unwritten memory.
 **Fix:** restored the line (commented). Verified on .143: all d3dlab mip modes
 correct (marker-color mips sample at right LODs), mippoint garbage → perfect
 checker.
+
+## Warm-rerun D3D degradation (2026-07-21, post-mip-fix) — NEXT INVESTIGATION
+3-run warm-rerun loop (same 3DMark process, 640x480x16, single-chip, mip-fix
+driver): run0 ended ~4min no score, run1 bounced fullscreen/desktop and ended
+~70s no score, run2 produced a score window after only ~44s (tests failing
+progressively faster). Fresh-boot runs complete the full ~6min suite cleanly
+(1601 marks). Pattern = driver state degrades across repeated D3D device
+create/destroy cycles in one boot (leak: texture handles / heap fragmentation /
+D3 context state). Matches the historic "errors INSTANTLY after previous
+activity" reports. Ring showed no DP2/WEDGE errors -> the failure path returns
+clean errors to the runtime or dies in the runtime. Next: instrument
+D3CONTXT create/destroy + heap stats into the ring, run N warm reruns, watch
+for monotonic drift (fresh boot needed between reliability experiments).
