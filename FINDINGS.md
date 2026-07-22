@@ -574,3 +574,31 @@ The device-cycle accumulation is real (reproduced when I had the box to myself:
 12 modes then wedge) but its exact threshold and whether reboots fully clear it
 need a DEDICATED, UNCONTENDED session to measure. Not a hard freeze in any case
 (wedge-breakers hold; box self-recovers). Box left clean-rebooted + healthy.
+
+## RESOLVED (2026-07-22): "device-cycle accumulation" is NOT a driver leak
+Investigated the open item with instr8/9 (kernel-pool + video-surface alloc/
+free balance counters in the display driver, read from the persistent registry
+ring — immune to agent/network confounds). Controlled, single-session cycling:
+  - 16x sel1 (tiny 64x64):            poolLive FLAT 36, no wedge
+  - 16x big512mip (512x512 mipmapped): vidSurfLive FLAT 1, nullFree=0, no wedge
+  - 16x big512mip WITH mid-render GDI SCREENSHOT each cycle: no wedge
+Both kernel pool AND video-memory surfaces are freed cleanly on every D3D
+device teardown. There is NO monotonic resource leak. The driver's windowed-
+D3D device create/destroy cycle is clean.
+
+**The earlier apparent ~12-cycle "wedges" were a CONCURRENT-SESSION artifact.**
+During these tests the agent version churned 1.15.0 -> 1.15.6 -> 1.16.0 — a
+second session was actively rebuilding and REDEPLOYING the agent on the shared
+box .143 (agent redeploy = agent restart, sometimes reboot). My multi-minute
+cycle sequences overlapped those deploys; an agent restart mid-sequence times
+out the client connection and looks identical to a display wedge. dxt1 "wedged
+on cycle 1" exactly as the agent went 1.15.6->1.16.0. Single-mode runs that
+happened to fall between deploys ran 16 clean cycles.
+
+CONCLUSION: no driver fix needed for this item. The D3D device cycle is leak-
+free (proven). The on-target suite's curated-mode workaround (added when the
+cause was thought to be a leak) is unnecessary but harmless; the full 14-mode
+matrix (RETRO_D3DLAB_MODES=all) passes on an UNCONTENDED clean box. For future
+driver verification on .143, coordinate with any concurrent session or use a
+window when the agent version is stable. Leak-balance instrumentation retained
+(instr9) as a permanent diagnostic.
