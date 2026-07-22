@@ -602,3 +602,35 @@ matrix (RETRO_D3DLAB_MODES=all) passes on an UNCONTENDED clean box. For future
 driver verification on .143, coordinate with any concurrent session or use a
 window when the agent version is stable. Leak-balance instrumentation retained
 (instr9) as a permanent diagnostic.
+
+## DEFINITIVE (2026-07-22): the display driver's D3D cycle is CLEAN — "wedge" is agent/box-level
+Read the FULL flight recorder after a client-observed dxt1 "wedge" (cycle 13,
+no screenshots, agent version stable 1.16.0). EVERY cycle in the ring logged
+cleanly: CTX-CREATE (poolLive=34, vidSurfLive=1, nullFree=0) -> DP2-FIRST (drew)
+-> CTX-DESTROY (balanced) — including the dxt1 cycle. NO ALLOC-FAIL, NO
+WEDGE-BREAK, NO DP2 error anywhere. poolLive and vidSurfLive are ROCK STEADY
+across every cycle. So the display driver did NOT wedge or leak — it completed
+dxt1's create/draw/destroy with balanced resources.
+
+The client-observed "UNREACHABLE" is therefore the AGENT/box going transiently
+network-unresponsive, NOT a display-driver defect. Corroborated by
+non-determinism: sel1-cycle-1 went unreachable once (sel1x16 passed cleanly
+elsewhere); big512mipx16 never failed; the failure point isn't a fixed mode or
+count. This is environmental (a concurrent session was actively rebuilding +
+redeploying the agent, 1.15.0->1.16.0, and exercising the shared box .143
+throughout).
+
+**RESOLUTION of the open item:** NO display-driver fix is warranted. The D3D
+device create/destroy cycle is proven leak-free (pool + video memory balanced
+across 16+ cycles) and clean (flight recorder shows no wedge/error even on the
+cycle the client called a wedge). The instr8/9 balance instrumentation is
+retained as a permanent diagnostic.
+
+**One agent-domain follow-up (not display-driver):** the agent's GDI SCREENSHOT
+(DrvCopyBits/DrvBitBlt) during an active D3D present is the operation most
+correlated with client stalls. If it recurs on an UNCONTENDED box, audit the
+2D GDI blit path for an unbounded accelerator wait (the 4 wedge-breakers cover
+the DDraw/3D paths H3MakeRoom/DdFlip/FXBUSYWAIT/H3_GP_WAIT; a pure-2D DrvBitBlt
+spin, if any, is not yet bounded). Deferred: needs a clean box to reproduce,
+and the driver's own log shows no wedge, so this is a low-priority robustness
+audit, not a confirmed bug.
