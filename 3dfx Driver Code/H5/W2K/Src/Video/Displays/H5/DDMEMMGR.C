@@ -443,6 +443,18 @@ memMgr_allocSurface(PDEV        *ppdev,
     _FF(dd3DSurfaceCount)++;
   }
 
+#if ENABLE_LOG_FILE
+  /* retro3dfx: video-memory surface balance (device-cycle leak hunt). Struct
+     allocations (pool) are freed cleanly; this tracks the actual VidMem-backed
+     surfaces. If g_retroVidSurfLive climbs across D3D device cycles, a surface's
+     video memory is not being VidMemFree'd on teardown. */
+  {
+    extern LONG g_retroVidSurfLive, g_retroVidSurfEver;
+    g_retroVidSurfLive++;
+    g_retroVidSurfEver++;
+  }
+#endif
+
   if ((MEM_IN_LINEAR == *tileFlag))
   {
     *hwVidMem =
@@ -687,7 +699,22 @@ memMgr_freeSurface(PDEV        *ppdev,
     DISPDBG((2, "Freeing ddraw surface at fpVidMem = %08lXh", fpVidMem));
 
     VidMemFree(pvmHeap->lpHeap, fpVidMem);
+#if ENABLE_LOG_FILE
+    {
+      extern LONG g_retroVidSurfLive;
+      g_retroVidSurfLive--;
+    }
+#endif
   }
+#if ENABLE_LOG_FILE
+  else
+  {
+    /* pvmHeap==NULL: surface's video memory is NOT freed here (SLI special
+       cases / externally-managed). If these accumulate, that's the leak. */
+    extern LONG g_retroVidSurfNullFree;
+    g_retroVidSurfNullFree++;
+  }
+#endif
 }
 
 #if ENABLE_NAPALM_SLI_EXTRA_LINEAR_HEAP

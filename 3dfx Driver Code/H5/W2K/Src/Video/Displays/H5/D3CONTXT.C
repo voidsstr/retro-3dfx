@@ -379,8 +379,10 @@ DWORD __stdcall ddiContextCreate(LPD3DHAL_CONTEXTCREATEDATA pccd)
     /* retro3dfx: running create/destroy balance for the warm-rerun leak hunt */
     extern LONG g_retroCtxLive;
     g_retroCtxLive++;
-    retroLogForce(ppdev, "retro3dfx CTX-CREATE: h=%08lXh live=%ld 3dCnt=%ld\r\n",
-                  pccd->dwhContext, g_retroCtxLive, _FF(dd3DSurfaceCount));
+    retroLogForce(ppdev, "retro3dfx CTX-CREATE: h=%08lXh live=%ld 3dCnt=%ld poolLive=%ld vidSurfLive=%ld vidSurfEver=%ld nullFree=%ld\r\n",
+                  pccd->dwhContext, g_retroCtxLive, _FF(dd3DSurfaceCount),
+                  g_retroPoolLive, g_retroVidSurfLive, g_retroVidSurfEver,
+                  g_retroVidSurfNullFree);
   }
 #endif
 
@@ -650,8 +652,9 @@ DWORD __stdcall ddiContextDestroy(LPD3DHAL_CONTEXTDESTROYDATA pcdd)
   {
     extern LONG g_retroCtxLive;
     g_retroCtxLive--;
-    retroLogForce(ppdev, "retro3dfx CTX-DESTROY: h=%08lXh live=%ld 3dCnt=%ld\r\n",
-                  pcdd->dwhContext, g_retroCtxLive, _FF(dd3DSurfaceCount));
+    retroLogForce(ppdev, "retro3dfx CTX-DESTROY: h=%08lXh live=%ld 3dCnt=%ld poolLive=%ld\r\n",
+                  pcdd->dwhContext, g_retroCtxLive, _FF(dd3DSurfaceCount),
+                  g_retroPoolLive);
   }
 #endif
 

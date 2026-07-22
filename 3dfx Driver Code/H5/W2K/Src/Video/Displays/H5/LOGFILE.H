@@ -68,6 +68,17 @@ extern LONG g_retroLogLevel;
 extern PDEV *g_retroLogPpdev;
 extern VOID retroLogForce(PDEV *, LPSTR pszFormat, ...);
 extern VOID retroLogRaw(PDEV *, LPVOID pBuffer, DWORD BytesToWrite);
+
+// retro3dfx: kernel-pool alloc/free balance (device-cycle leak hunt).
+extern LONG  g_retroPoolLive;       // outstanding allocations (alloc - free)
+extern LONG  g_retroPoolEverAlloc;  // total allocations ever
+extern PVOID retroEngAllocMem(ULONG fl, ULONG cj, ULONG tag);
+extern VOID  retroEngFreeMem(PVOID p);
+
+// retro3dfx: video-memory surface balance (device-cycle leak hunt).
+extern LONG  g_retroVidSurfLive;      // outstanding VidMem-backed surfaces
+extern LONG  g_retroVidSurfEver;      // total VidMem surfaces ever allocated
+extern LONG  g_retroVidSurfNullFree;  // frees with pvmHeap==NULL (no VidMemFree)
 #endif
 
 #endif /* _LOGFILE_H_ */

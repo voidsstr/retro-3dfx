@@ -59,6 +59,39 @@ ULONG g_retroLogSeq = 0;
 /* retro3dfx: D3D context create/destroy balance (warm-rerun leak hunt) */
 LONG g_retroCtxLive = 0;
 
+/* retro3dfx: kernel-pool alloc/free balance for the device-cycle leak hunt.
+   Every driver EngAllocMem/EngFreeMem routes through these (see MEMCHECK.H
+   non-MEMCHECK path). g_retroPoolLive = outstanding allocations; if it climbs
+   monotonically across D3D device create/destroy cycles, a per-device pool
+   allocation is not being freed on teardown. */
+LONG g_retroPoolLive = 0;
+LONG g_retroPoolEverAlloc = 0;
+
+/* retro3dfx: video-memory surface balance (device-cycle leak hunt). */
+LONG g_retroVidSurfLive = 0;
+LONG g_retroVidSurfEver = 0;
+LONG g_retroVidSurfNullFree = 0;
+
+PVOID
+retroEngAllocMem(ULONG fl, ULONG cj, ULONG tag)
+{
+  PVOID p = EngAllocMem(fl, cj, tag);
+  if (NULL != p)
+  {
+    g_retroPoolLive++;
+    g_retroPoolEverAlloc++;
+  }
+  return p;
+}
+
+VOID
+retroEngFreeMem(PVOID p)
+{
+  if (NULL != p)
+    g_retroPoolLive--;
+  EngFreeMem(p);
+}
+
 /****************************************************************************
 *
 * FUNCTION:     FlushLogFileBuffer()
