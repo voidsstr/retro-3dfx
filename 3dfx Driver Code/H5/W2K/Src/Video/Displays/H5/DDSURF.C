@@ -1571,8 +1571,7 @@ DdLock( LPDDHAL_LOCKDATA pld )
     // or the texture is also a render target
     if ((BltToTxtrInFifo & txtr->flags) || (DDSCAPS_3DDEVICE & dwCaps))
     {
-      while (FXGETBUSYSTATUS(ppdev))
-        ;
+      FXBUSYWAIT(ppdev);  /* retro3dfx: bounded (was raw spin) */
       txtr->flags &= ~BltToTxtrInFifo;
     }
 
@@ -1709,7 +1708,7 @@ DdLock( LPDDHAL_LOCKDATA pld )
 
     if (pld->dwFlags & DDLOCK_WAIT)
     {
-      while (FXGETBUSYSTATUS(ppdev));
+      FXBUSYWAIT(ppdev);  /* retro3dfx: bounded */
     }
     else if (FXGETBUSYSTATUS(ppdev))
     {
@@ -1724,7 +1723,7 @@ DdLock( LPDDHAL_LOCKDATA pld )
     /* There may be a better place to put this but we need   */
     /* it now to fix WHQL so here it is.                     */
 
-    while (FXGETBUSYSTATUS(ppdev));
+    FXBUSYWAIT(ppdev);  /* retro3dfx: bounded */
 #endif
 
     /* Avoid pipeline flush when surface is locked, if the   */
@@ -1743,7 +1742,19 @@ DdLock( LPDDHAL_LOCKDATA pld )
 
       if (pld->dwFlags & DDLOCK_WAIT)
       {
+#if ENABLE_LOG_FILE
+        /* retro3dfx: bounded (was raw spin). A wedged flip must not hang a
+           DDLOCK_WAIT surface lock (would hang the locking app and any GDI). */
+        { ULONG _rs = 0;
+          while (FXGETFLIPSTATUS(ppdev)) {
+            if (++_rs >= 100000000UL) {
+              retroLogForce(ppdev, "retro3dfx DdLock-FlipWait WEDGE-BREAK@100M\r\n");
+              break;
+            }
+          } }
+#else
         while (FXGETFLIPSTATUS(ppdev));
+#endif
       }
       else if (FXGETFLIPSTATUS(ppdev))
       {

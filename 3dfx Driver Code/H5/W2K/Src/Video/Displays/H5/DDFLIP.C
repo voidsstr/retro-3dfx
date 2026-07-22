@@ -210,7 +210,18 @@ DdFlip( LPDDHAL_FLIPDATA pfd )
   {
     if (pfd->dwFlags & DDFLIP_WAIT)
     {
+#if ENABLE_LOG_FILE
+      /* retro3dfx: bounded (was raw spin) - a wedged flip must not hang DdFlip. */
+      { ULONG _rs = 0;
+        while (FXGETFLIPSTATUS(ppdev)) {
+          if (++_rs >= 100000000UL) {
+            retroLogForce(ppdev, "retro3dfx DdFlip-FlipWait WEDGE-BREAK@100M\r\n");
+            break;
+          }
+        } }
+#else
       while (FXGETFLIPSTATUS(ppdev));
+#endif
     }
     else if (FXGETFLIPSTATUS(ppdev))
     {

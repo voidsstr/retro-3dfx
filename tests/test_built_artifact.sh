@@ -27,6 +27,8 @@ chk "SLIAA promote logging"     "retro3dfx PROMOTE-SLIAA"
 chk "SLIAA compute logging"     "retro3dfx COMPUTE-SLIAA"
 chk "FXBUSYWAIT breaker"        "retro3dfx FXBUSYWAIT WEDGE-BREAK@100M"
 chk "H3GpWait breaker"          "retro3dfx H3GpWait WEDGE-BREAK@100M"
+chk "DdLock flip-wait breaker"  "retro3dfx DdLock-FlipWait WEDGE-BREAK@100M"
+chk "DdFlip flip-wait breaker"  "retro3dfx DdFlip-FlipWait WEDGE-BREAK@100M"
 
 echo "== stale-object check (every fixed source older than its .obj) =="
 for src in d3txtr ddflip d6dp2 ddfxnt cfifo logfile; do

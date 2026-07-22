@@ -1815,7 +1815,7 @@ VOID UnlockOverlaySurface(NT9XDEVICEDATA *ppdev,LPDDHAL_UNLOCKDATA puld)
           &&(surfaceData->overlayShrinkFlag == TRUE)
           &&(GET_HW_ADDR(puld->lpDDSurface) == _FF(ddVisibleOverlaySurf)))
         {
-        while (FXGETBUSYSTATUS(ppdev));
+        FXBUSYWAIT(ppdev);  /* retro3dfx: bounded */
         ShrinkOverlaySurface(ppdev, puld->lpDDSurface);
         surfaceData->doShrink = FALSE;
         }
@@ -2444,7 +2444,7 @@ void shrinkTexture(NT9XDEVICEDATA  *ppdev, DWORD srcAddr, DWORD dstAddr,
   srcAddr += addrOffset;
   srcAddr = (srcAddr & 0x1FFFFFF) + ((srcAddr & 0x2000000) >> 24);
 
-  while (FXGETBUSYSTATUS(ppdev));   //wait for blt done
+  FXBUSYWAIT(ppdev);  /* retro3dfx: bounded */   //wait for blt done
 
   CMDFIFO_CHECKROOM( cmdFifo, PH3_SIZE + 20 + 7 * PH1_SIZE + 12 + 3 * ( PH4_SIZE +3));
   // Reset the clipping registers

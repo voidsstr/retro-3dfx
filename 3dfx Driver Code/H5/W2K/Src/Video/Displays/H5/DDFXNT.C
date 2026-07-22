@@ -417,7 +417,7 @@ PDD_MAPMEMORYDATA lpMapMemory)
             
             // spin down the command FIFO to ensure that all of the command FIFOS owned by GLIDE are
             // processed and not pending processing
-            while(H3_GP_BUSY(ppdev, ppdev->pjH3Base));
+            RETRO_GP_SPIN(ppdev);  /* retro3dfx: bounded FIFO spin-down */
         }
         else
         {

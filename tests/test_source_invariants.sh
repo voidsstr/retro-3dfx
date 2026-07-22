@@ -52,6 +52,12 @@ chk "DDGLOBAL FXBUSYWAIT wedge-breaker" \
 chk "HW.H H3_GP_WAIT wedge-breaker" \
     "$H5DISP/HW.H" \
     "retro3dfx H3GpWait WEDGE-BREAK@100M"
+chk "HW.H 2D BitBlt spin-breaker (RETRO_GP_SPIN)" \
+    "$H5DISP/HW.H" \
+    "retro3dfx BitBlt-GPSpin WEDGE-BREAK@100M"
+chk "BITBLT.C uses bounded RETRO_GP_SPIN" \
+    "$H5DISP/BITBLT.C" \
+    "RETRO_GP_SPIN(ppdev)"
 
 # 6. Registry-ring log sink (all of the above depend on it).
 chk "LOGFILE registry-ring sink" \
@@ -71,7 +77,7 @@ else
 fi
 
 echo "== repo tree vs build tree sync (fixed files must match) =="
-for f in D3TXTR.C DDFLIP.C D6DP2.C DDFXNT.C CFIFO.C LOGFILE.C LOGFILE.H DEBUG.C ENABLE.C DDMEMMGR.C D3CONTXT.C DDGLOBAL.H HW.H D7D3D.C DDINIT.C MEMCHECK.H; do
+for f in D3TXTR.C DDFLIP.C D6DP2.C DDFXNT.C CFIFO.C LOGFILE.C LOGFILE.H DEBUG.C ENABLE.C DDMEMMGR.C D3CONTXT.C DDGLOBAL.H HW.H D7D3D.C DDINIT.C MEMCHECK.H BITBLT.C DDSURF.C DDOVL32.C; do
   if cmp -s "$H5DISP/$f" "$PREFIX/Displays/H5/$f"; then
     echo "PASS  sync $f"
   else

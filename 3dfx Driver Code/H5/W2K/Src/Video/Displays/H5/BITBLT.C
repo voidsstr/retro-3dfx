@@ -1993,8 +1993,7 @@ POINTL*   pptlSrc)
 
 		    // S3DBCIWait(pMmBase);
 //			S3DBCIWait(ppdev);			// STB-GVB: parameter has changed
-			while(H3_GP_BUSY(ppdev, ppdev->pjH3Base))
-				;
+			RETRO_GP_SPIN(ppdev);  /* retro3dfx: bounded 2D BitBlt engine wait */
 
 			// Translate and save bits
 			while (ulXferPix--)
@@ -2025,8 +2024,7 @@ POINTL*   pptlSrc)
 
 			    // S3DBCIWait(pMmBase);
 //				S3DBCIWait(ppdev);		// STB-GVB: parameter has changed
-				while(H3_GP_BUSY(ppdev, ppdev->pjH3Base))
-					;
+				RETRO_GP_SPIN(ppdev);  /* retro3dfx: bounded 2D BitBlt engine wait */
 
 				// Translate and save bits
 				while (ulXferPix--)
@@ -2569,8 +2567,7 @@ XLATEOBJ*	pxlo)			// Contains translation table
 
     // S3DBCIWait(pMmBase);
 //	S3DBCIWait(ppdev);			// STB-GVB: parameter has changed
-	while(H3_GP_BUSY(ppdev, ppdev->pjH3Base))
-		;
+	RETRO_GP_SPIN(ppdev);  /* retro3dfx: bounded 2D BitBlt engine wait */
 
 	// Translate and save bits
 	// Transfer the first unaligned pixel if one exists.
@@ -2688,8 +2685,7 @@ XLATEOBJ*	pxlo)			// Contains translation table
 
 //	if(ulEngineWaitFlag)
 //		DrvSynchronize(ppdev, prclDst);
-	while(H3_GP_BUSY(ppdev, ppdev->pjH3Base))
-		;
+	RETRO_GP_SPIN(ppdev);  /* retro3dfx: bounded 2D BitBlt engine wait */
 
 	// Translate and save bits
 		
