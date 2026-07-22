@@ -634,3 +634,23 @@ the DDraw/3D paths H3MakeRoom/DdFlip/FXBUSYWAIT/H3_GP_WAIT; a pure-2D DrvBitBlt
 spin, if any, is not yet bounded). Deferred: needs a clean box to reproduce,
 and the driver's own log shows no wedge, so this is a low-priority robustness
 audit, not a confirmed bug.
+
+## FOLLOW-UP COMPLETE (2026-07-22): all accelerator waits bounded; screenshot path was already safe
+Executed the deferred 2D-path audit. Result: the LIVE GDI screenshot readback
+path — DrvCopyBits -> START_DIRECT_ACCESS_H3 (H3G.H) -> H3_GP_WAIT — was ALREADY
+bounded by the H3_GP_WAIT wedge-breaker added during stabilization (fc8e313).
+That is exactly why the display driver never actually wedged (flight recorder
+stayed clean through every "wedge"): the screenshot's own engine wait was
+already protected. So the earlier client "unreachable" events were agent/box
+transients, not this path.
+
+Completed the coverage anyway (every accelerator wait now bounded):
+- LIVE DDraw surface-lock busy spins: DDSURF.C x3, DDOVL32.C x2 -> FXBUSYWAIT
+  (already bounded). LIVE flip-status waits: DDSURF.C DdLock + DDFLIP.C DdFlip
+  -> new DdLock-FlipWait / DdFlip-FlipWait breakers.
+- Dead-code blit spins (BITBLT.C x4 under PERF_COPY_BITS_OPT, DDFXNT.C x1 under
+  ENABLE_V3_W2K_GLIDE_CHANGES — both #ifdefs off) bounded defensively.
+Deployed instr10, verified NO regression: D3D 5 key modes render correct
+(sel1/dxt1/big512mip/tex2/mod2x match goldens), OpenGL golden gate PASS (Q3
+1024 world nb=84 gr=0, CS de_dust 0-green). Predeploy gate + source/binary
+assertions updated. The stabilization follow-up is closed.
