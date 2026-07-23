@@ -3341,6 +3341,17 @@ GR_ENTRY(grFlush, void, (void))
 /*---------------------------------------------------------------------------
 ** grSstIdle/grFinish
 */
+
+/* retro3dfx: bound hardware-wait spins so a wedged chip (e.g. after a
+   color-depth / mode change that stops swaps completing or leaves the SST
+   busy) breaks out after ~3s wall-clock instead of hanging the game forever.
+   Reads the clock only every 64K iterations to keep the spin cheap. */
+#define RETRO_BOUNDED_SPIN(cond) \
+  do { FxU32 _sc=0; unsigned long _st=0; \
+       while (cond) { if (!((++_sc) & 0xFFFFUL)) { \
+         if (!_st) { _st = GetTickCount(); } \
+         else if (GetTickCount() - _st >= 3000UL) break; } } } while(0)
+
 GR_ENTRY(grFinish, void, (void))
 #define FN_NAME "grFinish"
 {
@@ -3366,12 +3377,14 @@ GR_ENTRY(grFinish, void, (void))
      * Napalm should be read as idle three times
      * before we believe it.
      */
+    { unsigned long _rfStart = GetTickCount();
     do {
       if(_grSstStatus() & SST_BUSY)
         i = 0; /* Reset counter */
       else
         i++;
-    } while(i < 3);
+    } while(i < 3 && (GetTickCount() - _rfStart < 3000UL)); /* retro3dfx: bounded */
+    }
 /*
     while (_grSstStatus() & SST_BUSY) ;
     while (((_grSstStatus() & SST_BUSY) == 0) &&

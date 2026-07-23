@@ -656,6 +656,17 @@
 #endif
 
 #include "rcver.h"
+
+/* retro3dfx: bound hardware-wait spins so a wedged chip (e.g. after a
+   color-depth / mode change that stops swaps completing or leaves the SST
+   busy) breaks out after ~3s wall-clock instead of hanging the game forever.
+   Reads the clock only every 64K iterations to keep the spin cheap. */
+#define RETRO_BOUNDED_SPIN(cond) \
+  do { FxU32 _sc=0; unsigned long _st=0; \
+       while (cond) { if (!((++_sc) & 0xFFFFUL)) { \
+         if (!_st) { _st = GetTickCount(); } \
+         else if (GetTickCount() - _st >= 3000UL) break; } } } while(0)
+
 static char glideIdent[] = "@#%" VERSIONSTR ;
 
 #if GLIDE_HW_TRI_SETUP
@@ -2512,6 +2523,7 @@ GR_ENTRY(grBufferSwap, void, (FxU32 swapInterval))
 {
 #define FN_NAME "grBufferSwap"
   GR_BEGIN_NOFIFOCHECK(FN_NAME,86);
+
   GDBG_INFO_MORE(gc->myLevel,"(%d)\n",swapInterval);
 
 #ifdef FX_GLIDE_NAPALM
@@ -2605,7 +2617,7 @@ GR_ENTRY(grBufferSwap, void, (FxU32 swapInterval))
       swapInterval = ((swapInterval - 1) << 1) | 1; /* Format for hw */
   }
   
-  while(_grBufferNumPending() > _GlideRoot.environment.swapPendingCount);
+  RETRO_BOUNDED_SPIN(_grBufferNumPending() > _GlideRoot.environment.swapPendingCount);
 
 #ifndef HAL_CSIM
   /* Cycle the buffer indices */
@@ -2782,7 +2794,7 @@ GR_ENTRY(grDRIBufferSwap, void, (FxU32 swapInterval))
       swapInterval = ((swapInterval - 1) << 1) | 1; /* Format for hw */
   }
   
-  while(_grBufferNumPending() > 3);
+  RETRO_BOUNDED_SPIN(_grBufferNumPending() > 3);
 
 #if USE_PACKET_FIFO
   {

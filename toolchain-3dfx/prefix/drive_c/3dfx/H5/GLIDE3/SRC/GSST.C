@@ -816,46 +816,6 @@
 #include <windows.h>
 #endif
 
-/* ====================================================================== */
-/* CRASH-TRACE LOGGER (instrumentation for the Voodoo5/XP grSstWinOpen    */
-/* crash).  Appends one line per call to C:\glide3x.log.  Crash-proof:    */
-/* open/seek-end/write/flush/close on every line so the file survives an  */
-/* access violation on the very next instruction.  Uses only user32/      */
-/* kernel32 (wsprintfA/wvsprintfA - no floats; log float bits as %x).     */
-/* Remove this block (and all _gsstLog call sites) when done debugging.   */
-/* ====================================================================== */
-#if (GLIDE_PLATFORM & GLIDE_OS_WIN32)
-#include <stdarg.h>
-static void _gsstLog(const char* fmt, ...)
-{
-  char logBuf[600];
-  int logLen;
-  HANDLE logH;
-  DWORD logWr;
-  va_list logAp;
-  logLen = wsprintfA(logBuf, "[%lu] ", (unsigned long)GetTickCount());
-  va_start(logAp, fmt);
-  logLen += wvsprintfA(logBuf + logLen, fmt, logAp);
-  va_end(logAp);
-  logBuf[logLen++] = '\r';
-  logBuf[logLen++] = '\n';
-  logH = CreateFileA("C:\\glide3x.log", GENERIC_WRITE,
-                     FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
-                     OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-  if (logH == INVALID_HANDLE_VALUE) return;
-  SetFilePointer(logH, 0, NULL, FILE_END);
-  WriteFile(logH, logBuf, (DWORD)logLen, &logWr, NULL);
-  FlushFileBuffers(logH);
-  CloseHandle(logH);
-}
-#else
-static void _gsstLog(const char* fmt, ...) { (void)fmt; }
-#endif
-/* CANDIDATE FIX: safe landing pad if the display driver never gives us a
- * lost-context pointer (see hwcShareContextData NT branch in MINIHWC.C). */
-static FxU32 _gsstDummyLostContext = 0;
-/* ================== end CRASH-TRACE LOGGER ============================ */
-
 #if (GLIDE_PLATFORM & GLIDE_OS_MACOS)
 #define __MACERRORS__
 #include <DriverServices.h>
@@ -934,22 +894,6 @@ assertDefaultState( void )
 #endif
   /* Just set this once. */
   gc->state.shadow.fbzColorPath = SST_PARMADJUST;
-
-  /* OPT 0.1.2 state-dedup: force-invalidate every register group covered
-  ** by the deduplicated state setters in distate.c.  The setters early-out
-  ** when the incoming args equal the stored stateArgs; if a default call
-  ** below happens to match leftover/zero-initialized stateArgs it would
-  ** otherwise skip its INVALIDATE and the group might never be pushed to
-  ** hardware.  With the groups pre-invalidated here, the first
-  ** _grValidateState() always programs them from the stored args, which
-  ** are correct in either case (a skip only happens on equality). */
-  INVALIDATE(fbzColorPath);
-  INVALIDATE(tmuConfig);
-  INVALIDATE(alphaMode);
-  INVALIDATE(fbzMode);
-  INVALIDATE(chromaKey);
-  INVALIDATE(c0c1);
-  INVALIDATE(fogMode);
 
   grDisable(GR_ALLOW_MIPMAP_DITHER);
   grSstOrigin(gc->state.origin);
@@ -1426,11 +1370,8 @@ GR_ENTRY(grSstWinOpen, GrContext_t, ( FxU32                   hWnd,
 #endif /* defined ( GLIDE_INIT_HAL ) */
   
   struct cmdTransportInfo *gcFifo = 0;
-  GrContext_t retVal = 0;
+  GrContext_t retVal = 0;  
 
-  /* CRASH-TRACE */
-  _gsstLog("grSstWinOpen ENTER hwnd=0x%x res=%d refresh=%d cfmt=%d org=%d ncol=%d naux=%d",
-           hWnd, resolution, refresh, format, origin, nColBuffers, nAuxBuffers);
 
 #ifndef		__linux__
   if (!hWnd)
@@ -1493,13 +1434,11 @@ GR_ENTRY(grSstWinOpen, GrContext_t, ( FxU32                   hWnd,
       }
 #endif
 
-      /* CRASH-TRACE */
-      _gsstLog("grSstWinOpen -> grSstWinOpenExt (napalm path) pixfmt=%d", thePixelFormat);
       return ( grSstWinOpenExt(hWnd,
-                               resolution,
-                               refresh,
-                               format,
-                               origin,
+                               resolution, 
+                               refresh, 
+                               format, 
+                               origin, 
                                thePixelFormat,
                                nColBuffers,
                                nAuxBuffers) );
@@ -1507,13 +1446,11 @@ GR_ENTRY(grSstWinOpen, GrContext_t, ( FxU32                   hWnd,
 
 #endif
 
-    /* CRASH-TRACE */
-    _gsstLog("grSstWinOpen -> grSstWinOpenExt (non-napalm path)");
     return ( grSstWinOpenExt(hWnd,
-                           resolution,
-                           refresh,
-                           format,
-                           origin,
+                           resolution, 
+                           refresh, 
+                           format, 
+                           origin, 
                            GR_PIXFMT_RGB_565,
                            nColBuffers,
                            nAuxBuffers) );
@@ -1594,10 +1531,6 @@ GR_EXT_ENTRY(grSstWinOpenExt, GrContext_t, ( FxU32                   hWnd,
   GrContext_t retVal = 0;
   FxU32 tramShift, tmu1Offset;
 
-  /* CRASH-TRACE */
-  _gsstLog("grSstWinOpenExt ENTER hwnd=0x%x res=%d refresh=%d cfmt=%d org=%d pixfmt=%d ncol=%d naux=%d",
-           hWnd, resolution, refresh, format, origin, pixelformat, nColBuffers, nAuxBuffers);
-
 #ifndef	__linux__
   if (!hWnd)
     GrErrorCallback("grSstWinOpen: need to use a valid window handle",
@@ -1651,12 +1584,9 @@ GR_EXT_ENTRY(grSstWinOpenExt, GrContext_t, ( FxU32                   hWnd,
     }
 #endif	/* defined(__linux__) */
 
-    /* CRASH-TRACE */
-    _gsstLog("phase1 resolution mapped: res=%d w=%d h=%d vidTimings=0x%x",
-             resolution, gc->state.screen_width, gc->state.screen_height, gc->vidTimings);
-
+    
     /* this is a stupid hack but... */
-    gc->chipCount = 1;
+    gc->chipCount = 1;    
     
     if (IS_NAPALM(gc->bInfo->pciInfo.deviceID)) 
     {
@@ -2120,14 +2050,9 @@ GR_EXT_ENTRY(grSstWinOpenExt, GrContext_t, ( FxU32                   hWnd,
     }
 
 //enable analog for 8xaa 4 chip cards
-	if( gc->chipCount == 4 )
+	if( gc->chipCount == 4 ) 
 		gc->bInfo->h3analogSli = 1 ;
-
-    /* CRASH-TRACE: pixel format / SLI / AA config resolved */
-    _gsstLog("phase2 sli/aa config: pixfmt=%d chipCount=%d sliCount=%d samplesPerChip=%d pixelSize=%d pixelSample=%d sliBandHeightLog2=%d do2ppc=%d",
-             pixelformat, gc->chipCount, gc->sliCount, gc->grSamplesPerChip,
-             gc->grPixelSize, gc->grPixelSample, gc->sliBandHeight, gc->do2ppc);
-
+      
     /* compute tile dimensions */
     gc->strideInTiles  = ( gc->state.screen_width * (gc->grPixelSize >> 1)  + ( TILE_WIDTH_PXLS - 1 ) ) / TILE_WIDTH_PXLS;
     GDBG_INFO(80, "%s: strideInTiles = 0X%x\n", FN_NAME, gc->strideInTiles);
@@ -2139,11 +2064,7 @@ GR_EXT_ENTRY(grSstWinOpenExt, GrContext_t, ( FxU32                   hWnd,
     GDBG_INFO(80, "%s: bufSizeInTiles = 0x%x\n", FN_NAME, gc->bufSizeInTiles);
     gc->bufSize = gc->bufSizeInTiles * TILE_WIDTH_PXLS * TILE_HEIGHT_PXLS * BYTES_PER_PIXEL;
     GDBG_INFO(80, "%s: bufSize = 0x%x\n", FN_NAME, gc->bufSize);
-
-    /* CRASH-TRACE */
-    _gsstLog("phase3 tile calc done: strideInTiles=0x%x heightInTiles=0x%x bufferStride=0x%x bufSize=0x%x fbStride=0x%x",
-             gc->strideInTiles, gc->heightInTiles, gc->bufferStride, gc->bufSize, gc->fbStride);
-
+  
     /* Check for enough memory */
 #ifdef GLIDE_INIT_HWC
 #ifdef FX_GLIDE_NAPALM
@@ -2158,14 +2079,10 @@ GR_EXT_ENTRY(grSstWinOpenExt, GrContext_t, ( FxU32                   hWnd,
                  
 //        chipScreenHeight = gc->state.screen_height >> (gc->sliCount - 1);
 
-        /* CRASH-TRACE: log divisor BEFORE dividing */
-        _gsstLog("phase3b SLI band recompute: screen_h=%d divisor sliCount=%d sliBandHeightLog2=%d",
-                 gc->state.screen_height, gc->sliCount, gc->sliBandHeight);
-
         chipScreenHeight = gc->state.screen_height/gc->sliCount;
 
 
-        /* Find the biggest value that's still
+        /* Find the biggest value that's still 
          * divisible by a power of two.  The check
          * for a non-zero chipScreenHeight is just 
          * in case something bad happens and it starts         
@@ -2200,25 +2117,14 @@ GR_EXT_ENTRY(grSstWinOpenExt, GrContext_t, ( FxU32                   hWnd,
     }
 #endif
     
-    /* CRASH-TRACE: fb memory sanity (h3Mem is MB, derived from fbRam bytes >> 20 in MINIHWC.C) */
-    _gsstLog("phase4 memory check: h3Mem=%dMB (=0x%x bytes) need=0x%x (bufSize=0x%x colBuf=%d auxBuf=%d samplesPerChip=%d)",
-             gc->bInfo->h3Mem, gc->bInfo->h3Mem << 20,
-#ifdef FX_GLIDE_NAPALM
-             gc->grSamplesPerChip *
-#endif
-             gc->bufSize * ( gc->grColBuf + gc->grAuxBuf ) + MIN_TEXTURE_STORE + MIN_FIFO_SIZE,
-             gc->bufSize, gc->grColBuf, gc->grAuxBuf, gc->grSamplesPerChip);
-
-    if ( (
+    if ( ( 
     /* If we are doing 2 or 4 sample AA, then each chip needs twice as many buffers */
-#ifdef FX_GLIDE_NAPALM
-            gc->grSamplesPerChip *
-#endif
+#ifdef FX_GLIDE_NAPALM            
+            gc->grSamplesPerChip * 
+#endif                    
             gc->bufSize * ( gc->grColBuf + gc->grAuxBuf ) + MIN_TEXTURE_STORE + MIN_FIFO_SIZE) >
          ( gc->bInfo->h3Mem << 20 ) ) {
       GDBG_INFO( gc->myLevel, "Failed to open for insufficient memory\n" );
-      /* CRASH-TRACE */
-      _gsstLog("phase4 FAIL: not enough fb memory - returning 0");
       GrErrorCallback( "grSstWinOpen: not enough memory for requested buffers", FXFALSE );
       return 0;
     }
@@ -2238,18 +2144,13 @@ GR_EXT_ENTRY(grSstWinOpenExt, GrContext_t, ( FxU32                   hWnd,
      * systems that actually support this) so we need to re-map the
      * board and re-cache our hw pointers.  
      */
-    /* CRASH-TRACE */
-    _gsstLog("phase5 board map: isMapped=%d", gc->bInfo->isMapped);
-
     if (!gc->bInfo->isMapped) {
-      _gsstLog("phase5a calling hwcMapBoard");
       if (!hwcMapBoard(bInfo, HWC_BASE_ADDR_MASK)) {
         GDBG_INFO( gc->myLevel, "Failed to re-map the hw.\n" );
         GrErrorCallback( FN_NAME": Failed to re-map the hw.", FXFALSE );
         GR_RETURN( FXFALSE );
       }
 
-      _gsstLog("phase5b hwcMapBoard OK, calling hwcInitRegisters");
       if (!hwcInitRegisters(bInfo)) {
         GDBG_INFO( gc->myLevel, "Failed to re-initialize the hw.\n" );
         GrErrorCallback( FN_NAME": Failed to re-initialize the hw.", FXFALSE );
@@ -2298,22 +2199,11 @@ GR_EXT_ENTRY(grSstWinOpenExt, GrContext_t, ( FxU32                   hWnd,
 
     gc->colTiled = gc->auxTiled = FXTRUE ; /* AJB- grBufferClear needs to know this */
 
-    /* CRASH-TRACE */
-    _gsstLog("phase6 calling hwcAllocBuffers: xRes=%d yRes=%d refresh=%d pixelSize=%d nwaySli=%d sliBandHeightPix=%d ncol=%d naux=%d regBase=0x%x lfbBase=0x%x",
-             vInfo->xRes, vInfo->yRes, vInfo->refresh, bInfo->h3pixelSize,
-             bInfo->h3nwaySli, bInfo->h3sliBandHeight, nColBuffers, nAuxBuffers,
-             bInfo->regInfo.sstBase, bInfo->regInfo.lfbBase);
-
     if ( hwcAllocBuffers( bInfo, nColBuffers, nAuxBuffers ) == FXFALSE ) {
       GDBG_INFO( gc->myLevel, "hwcAllocBuffers failed\n" );
-      /* CRASH-TRACE */
-      _gsstLog("phase6 FAIL: hwcAllocBuffers returned FXFALSE");
       GrErrorCallback(hwcGetErrorString(), FXFALSE);
       return 0;
     }
-    /* CRASH-TRACE */
-    _gsstLog("phase6 hwcAllocBuffers OK: fbOffset=0x%x tramOffset=0x%x tramSize=0x%x",
-             bInfo->fbOffset, bInfo->tramOffset, bInfo->tramSize);
   
     for (buffer = 0; buffer < nColBuffers; buffer++) {
       gc->buffers0[buffer] = bufInfo->colBuffStart0[buffer];
@@ -2337,21 +2227,12 @@ GR_EXT_ENTRY(grSstWinOpenExt, GrContext_t, ( FxU32                   hWnd,
     vInfo->hWnd     = gc->grHwnd;
     vInfo->sRes     = gc->grSstRez;
     vInfo->vRefresh = gc->grSstRefresh;
-
-    /* CRASH-TRACE: hwcInitVideo does the video-timing/pixel-clock/refresh FP math */
-    _gsstLog("phase7 calling hwcInitVideo: xRes=%d yRes=%d refresh(enum)=%d hwPixFmt=0x%x vidTimings=0x%x tiled=%d",
-             vInfo->xRes, vInfo->yRes, vInfo->vRefresh, hwPixelFormat,
-             gc->vidTimings, vInfo->tiled);
-
+  
     if ( hwcInitVideo( bInfo, FXTRUE, gc->vidTimings, hwPixelFormat, FXTRUE ) == FXFALSE ) {
-      /* CRASH-TRACE */
-      _gsstLog("phase7 FAIL: hwcInitVideo returned FXFALSE");
       GrErrorCallback(hwcGetErrorString(), FXFALSE);
       GDBG_INFO( gc->myLevel, "hwcInitVideo failed\n" );
       return 0;
     }
-    /* CRASH-TRACE */
-    _gsstLog("phase7 hwcInitVideo OK");
 
     /* Restore the function specializations if the user is trying to
      * recover. This only resets the non-null environment. The actual
@@ -2377,45 +2258,16 @@ GR_EXT_ENTRY(grSstWinOpenExt, GrContext_t, ( FxU32                   hWnd,
 #ifndef		__linux__
     /* CSR - Set up flag for display driver to tell us that context was lost */
     if ( !gc->open )  /* If we already have a context open, then lets not
-                         re-initialize the pointers                          */
+                         re-initialize the pointers                          */                                             
     {
-      /* CRASH-TRACE: this is the +0x37400 callee from the Dr Watson dump */
-      _gsstLog("phase8 calling hwcShareContextData (ctx-share escape) bInfo=0x%x prev lostContext=0x%x",
-               gc->bInfo, gc->lostContext);
       hwcShareContextData(gc->bInfo, &(gc->lostContext));
-      /* CRASH-TRACE */
-      _gsstLog("phase8 hwcShareContextData returned: lostContext ptr=0x%x", gc->lostContext);
       gc->cmdTransportInfo.ptrLostContext = &(gc->lostContext);
     }
-
+    
     /* This actually gets taken in hwcInitVideo */
     gc->contextP = FXTRUE;
-
-    /* CANDIDATE FIX: on XP the display driver's HWCEXT_CONTEXT_DWORD_NT
-     * escape can fail (or the HWCEXT protocol handshake never happened),
-     * leaving gc->lostContext NULL or garbage-from-stack; the write below
-     * (GSST.C original line 2269, grSstWinOpen+0xabc) then access-violates.
-     * Guard: fall back to a process-local dummy DWORD, exactly like the
-     * Win9x branch of hwcShareContextData does.  Cost: lost-context
-     * (alt-tab) detection is disabled -- harmless for fullscreen Q3. */
-    if (!gc->lostContext) {
-      _gsstLog("phase8 CANDIDATE FIX ENGAGED: lostContext was NULL, using dummy");
-      gc->lostContext = &_gsstDummyLostContext;
-    }
-
-    /* CRASH-TRACE: original crash site: write through gc->lostContext */
-    _gsstLog("phase9 writing *lostContext (prior crash site) ptr=0x%x", gc->lostContext);
     *gc->lostContext = FXFALSE;
-    /* CRASH-TRACE */
-    _gsstLog("phase9 *lostContext write OK");
 #endif	/* defined(__linux__) */
-
-    /* CRASH-TRACE: env-gamma float compares (the fld/fcomp/jpo seen in the
-     * disasm) + hwcGammaRGB call; floats logged as raw IEEE bits */
-    _gsstLog("phase10 gamma: gammaR bits=0x%x gammaG bits=0x%x gammaB bits=0x%x",
-             *(FxU32*)&_GlideRoot.environment.gammaR,
-             *(FxU32*)&_GlideRoot.environment.gammaG,
-             *(FxU32*)&_GlideRoot.environment.gammaB);
 
     if (_GlideRoot.environment.gammaR != -1.f &&
         _GlideRoot.environment.gammaG != -1.f &&
@@ -2427,8 +2279,6 @@ GR_EXT_ENTRY(grSstWinOpenExt, GrContext_t, ( FxU32                   hWnd,
     } else {
       hwcGammaRGB(gc->bInfo, 1.3f, 1.3f, 1.3f);
     }
-    /* CRASH-TRACE */
-    _gsstLog("phase10 gamma OK");
 
     /* Setup memory configuration */
     gc->fbOffset = bInfo->fbOffset;
@@ -2484,17 +2334,10 @@ GR_EXT_ENTRY(grSstWinOpenExt, GrContext_t, ( FxU32                   hWnd,
     gc->tBuffer.bufBPP = 0xffffffff; /* Don't matter to me */
 
     GDBG_INFO(1, "autoBump: 0x%x\n", _GlideRoot.environment.autoBump);
-
-    /* CRASH-TRACE */
-    _gsstLog("phase11 tmu/tram layout done (numTmu=%d tramSize=0x%x tramOffset=0x%x), init fifo: autoBump=%d",
-             gc->num_tmu, bInfo->tramSize, bInfo->tramOffset, _GlideRoot.environment.autoBump);
-
     /* The logic for this is hosed for PowerPC, where we disable auto-bump even
        on PCI. */
     if (gc->cmdTransportInfo.autoBump = _GlideRoot.environment.autoBump) {
       if (!hwcInitFifo( bInfo, gc->cmdTransportInfo.autoBump)) {
-        /* CRASH-TRACE */
-        _gsstLog("phase11 FAIL: hwcInitFifo returned FXFALSE");
         hwcRestoreVideo(bInfo);
         GrErrorCallback(hwcGetErrorString(), FXFALSE);
         GDBG_INFO(gc->myLevel, "hwcInitFifo failed\n");
@@ -2525,10 +2368,6 @@ GR_EXT_ENTRY(grSstWinOpenExt, GrContext_t, ( FxU32                   hWnd,
     /* Establish physical bounds of cmd fifo from HWC calculation */
     gcFifo->fifoOffset = fInfo->fifoStart;
     gcFifo->fifoSize   = fInfo->fifoLength;
-
-    /* CRASH-TRACE */
-    _gsstLog("phase11 fifo init OK: fifoOffset=0x%x fifoSize=0x%x agpFifo=%d",
-             gcFifo->fifoOffset, gcFifo->fifoSize, bInfo->fifoInfo.agpFifo);
 #elif defined( GLIDE_INIT_HAL ) 
 #if 0
     gc->fbOffset               = 0x200000;
@@ -2858,9 +2697,6 @@ GR_EXT_ENTRY(grSstWinOpenExt, GrContext_t, ( FxU32                   hWnd,
 #ifdef GLIDE_INIT_HWC
       hwcRestoreVideo( bInfo );
 #endif
-      /* CRASH-TRACE */
-      _gsstLog("phase12 FAIL: initial fifo state incorrect fifoPtr=0x%x fifoRead=0x%x",
-               gcFifo->fifoPtr, gcFifo->fifoRead);
       GDBG_INFO( gc->myLevel, "Initial fifo state is incorrect\n" );
       return 0;
     }
@@ -2917,10 +2753,6 @@ GR_EXT_ENTRY(grSstWinOpenExt, GrContext_t, ( FxU32                   hWnd,
      */
     gc->open = FXTRUE;
 
-    /* CRASH-TRACE */
-    _gsstLog("phase12 fifo extents mapped, gc->open=TRUE: fifoStart=0x%x fifoEnd=0x%x fifoPtr=0x%x",
-             gcFifo->fifoStart, gcFifo->fifoEnd, gcFifo->fifoPtr);
-
     /* Setup the procs that we can do w/o any mode knowledge */
     gc->archDispatchProcs.texDownloadProcs  = _GlideRoot.deviceArchProcs.curTexProcs;
     gc->archDispatchProcs.drawTrianglesProc = _GlideRoot.deviceArchProcs.curDrawTrisProc;
@@ -2933,11 +2765,7 @@ GR_EXT_ENTRY(grSstWinOpenExt, GrContext_t, ( FxU32                   hWnd,
       GC Init
       ------------------------------------------------------*/
     GDBG_INFO(gc->myLevel, "  GC Init\n");
-    /* CRASH-TRACE */
-    _gsstLog("phase13 initGC");
     initGC( gc );
-    /* CRASH-TRACE */
-    _gsstLog("phase13 initGC OK, starting 3D state init (first hw register writes)");
     
     gc->orgSW = gc->state.screen_width;
     gc->orgSH = gc->state.screen_height;
@@ -3088,11 +2916,7 @@ GR_EXT_ENTRY(grSstWinOpenExt, GrContext_t, ( FxU32                   hWnd,
     }
 
     GDBG_INFO( gc->myLevel, "  Setting all Glide state\n" );
-    /* CRASH-TRACE */
-    _gsstLog("phase14 renderMode set, calling assertDefaultState");
     assertDefaultState();
-    /* CRASH-TRACE */
-    _gsstLog("phase14 assertDefaultState OK");
 #ifdef __linux__
     if (nColBuffers>1)
 	grRenderBuffer(GR_BUFFER_BACKBUFFER);
@@ -3100,17 +2924,13 @@ GR_EXT_ENTRY(grSstWinOpenExt, GrContext_t, ( FxU32                   hWnd,
 	grRenderBuffer(GR_BUFFER_FRONTBUFFER);
     grClipWindow(0, 0, gc->state.screen_width, gc->state.screen_height);
 #else	/* defined(__linux__) */
-    /* CRASH-TRACE */
-    _gsstLog("phase15 clearBuffers");
     clearBuffers( gc );
 #endif	/* defined(__linux__) */
     gc->state.color_format = format;
-
+    
     /* --------------------------------------------------------
        Splash Screen
        --------------------------------------------------------*/
-    /* CRASH-TRACE */
-    _gsstLog("phase16 doSplash");
     doSplash();
 
     gc->windowed = FXFALSE;
@@ -3120,10 +2940,7 @@ GR_EXT_ENTRY(grSstWinOpenExt, GrContext_t, ( FxU32                   hWnd,
 
     GR_END();
   }
-
-  /* CRASH-TRACE */
-  _gsstLog("grSstWinOpenExt EXIT retVal=0x%x", retVal);
-
+  
   return retVal;
 #undef FN_NAME
 } /* grSstWinOpenExt */
@@ -3166,50 +2983,21 @@ GR_ENTRY(grSstWinClose, FxBool, (GrContext_t context))
   GrGC* gc = (GrGC*)context;
   GDBG_INFO(80, FN_NAME"(0x%X)\n", context);
 
-  /* ---- TEARDOWN TRACE (Voodoo5/XP "stuck 640x480 after Q3 exit") ---- */
-  _gsstLog("grSstWinClose ENTER context=0x%x gc=0x%x is_opengl=%d",
-           (unsigned)context, (unsigned)gc,
-           (int)(_GlideRoot.environment.is_opengl == FXTRUE));
-
-  if (!gc) {
-        _gsstLog("grSstWinClose EXIT-EARLY: gc==NULL (no teardown, video NOT restored)");
+  if (!gc)
         return 0;
-  }
-
-  _gsstLog("grSstWinClose state: open=%d rez=%d refresh=%d lostContextPtr=0x%x lostContextVal=0x%x bInfo=0x%x osNT=%d",
-           (int)gc->open, (int)gc->grSstRez, (int)gc->grSstRefresh,
-           (unsigned)gc->lostContext,
-           (unsigned)(gc->lostContext ? *gc->lostContext : 0xBADF00D),
-           (unsigned)gc->bInfo,
-           (int)(gc->bInfo ? gc->bInfo->osNT : -1));
 
   /* If we are OpenGL, we need to release Exclusive mode so other
   ** OpenGL fullscreen apps can run.  If not, we will cause a lot
   ** of problems.
   */
   if (_GlideRoot.environment.is_opengl == FXTRUE) {
-    _gsstLog("grSstWinClose step[OGL-EXCL]: is_opengl -> hwcRestoreVideo(bInfo=0x%x) to release exclusive mode",
-             (unsigned)gc->bInfo);
     hwcRestoreVideo(gc->bInfo);
-    _gsstLog("grSstWinClose step[OGL-EXCL]: hwcRestoreVideo returned (exclusive released, desktop mode should be restored here)");
-  } else {
-    _gsstLog("grSstWinClose step[OGL-EXCL]: NOT opengl -> skipping the early exclusive-mode hwcRestoreVideo");
   }
 
 #ifndef	__linux__
   if (gc->lostContext) {
-    if (*gc->lostContext) {
-      /* ABNORMAL-TEARDOWN SKIP: lost-context flag is set, so the whole
-       * video-restore / unmap block below is BYPASSED and the board is
-       * left in the Glide (640x480) mode.  This is the prime suspect for
-       * the "stuck 640x480 / garbled desktop" bug on abnormal Q3 exit. */
-      _gsstLog("grSstWinClose EXIT-EARLY: *lostContext=0x%x is SET -> SKIPPING video-restore+unmap (board LEFT in Glide mode, desktop NOT restored)",
-               (unsigned)*gc->lostContext);
+    if (*gc->lostContext)
       return 0;
-    }
-    _gsstLog("grSstWinClose check: lostContext present but *lostContext==0 -> proceeding with full teardown");
-  } else {
-    _gsstLog("grSstWinClose check: lostContext ptr is NULL -> proceeding (lost-context detection disabled by 0.1.0 fix)");
   }
 #endif	/* defined(__linux__) */
 
@@ -3258,16 +3046,11 @@ GR_ENTRY(grSstWinClose, FxBool, (GrContext_t context))
        * safe everywhere.
        */
       GDBG_INFO(gc->myLevel, "  Restore Video");
-      _gsstLog("grSstWinClose step[VIDEO-RESTORE]: entering main restore block (open path)");
 #ifndef	__linux__
       if (!*gc->lostContext) {
-        _gsstLog("grSstWinClose step[VIDEO-RESTORE]: *lostContext==0 -> WILL restore video (disable SLI/AA, then hwcRestoreVideo)");
       /* disable SLI and AA */
 #ifdef FX_GLIDE_NAPALM
         if (IS_NAPALM(gc->bInfo->pciInfo.deviceID)) {
-          _gsstLog("grSstWinClose step[VIDEO-RESTORE]: NAPALM path deviceID=0x%x chipCount=%d sliCount=%d pixelSample=%d -> chipmask/tex2ppc/aa/sli teardown",
-                   (unsigned)gc->bInfo->pciInfo.deviceID, (int)gc->chipCount,
-                   (int)gc->sliCount, (int)gc->grPixelSample);
           _grChipMask( SST_CHIP_MASK_ALL_CHIPS );
           _grTex2ppc(FXFALSE);
           if (gc->grPixelSample > 1) {
@@ -3280,14 +3063,8 @@ GR_ENTRY(grSstWinClose, FxBool, (GrContext_t context))
           /* Idle the 3D pipe. */
           grFinish();
         }
-#endif
-        _gsstLog("grSstWinClose step[VIDEO-RESTORE]: calling hwcRestoreVideo(bInfo=0x%x) -> ExtEscape to display driver, restore prior GDI/desktop mode",
-                 (unsigned)gc->bInfo);
+#endif            
         hwcRestoreVideo(gc->bInfo);
-        _gsstLog("grSstWinClose step[VIDEO-RESTORE]: hwcRestoreVideo returned OK (board released, desktop mode restore requested)");
-      } else {
-        _gsstLog("grSstWinClose step[VIDEO-RESTORE]: *lostContext=0x%x SET -> SKIPPING hwcRestoreVideo (board LEFT in Glide mode!)",
-                 (unsigned)*gc->lostContext);
       }
 #endif	/* defined(__linux__) */
 #endif /* !GLIDE_INIT_HAL */
@@ -3314,19 +3091,14 @@ GR_ENTRY(grSstWinClose, FxBool, (GrContext_t context))
     gc->grSstRefresh = GR_REFRESH_NONE;
   }
   _GlideRoot.windowsInit--;
-
+    
 #if (GLIDE_OS & GLIDE_OS_WIN32)
-  if ( gc->bInfo->osNT ) {
-    _gsstLog("grSstWinClose step[UNMAP]: osNT -> hwcUnmapMemory() (release board mapping)");
+  if ( gc->bInfo->osNT )
     hwcUnmapMemory();
-  } else {
-    _gsstLog("grSstWinClose step[UNMAP]: 9x -> hwcUnmapMemory9x(bInfo=0x%x)", (unsigned)gc->bInfo);
+  else
     hwcUnmapMemory9x ( gc->bInfo );
-  }
 #endif
 
-  _gsstLog("grSstWinClose EXIT: full teardown complete, returning TRUE (windowsInit now=%d)",
-           (int)_GlideRoot.windowsInit);
   return FXTRUE;
 #undef FN_NAME
 } /* grSstWinClose */
@@ -3569,6 +3341,17 @@ GR_ENTRY(grFlush, void, (void))
 /*---------------------------------------------------------------------------
 ** grSstIdle/grFinish
 */
+
+/* retro3dfx: bound hardware-wait spins so a wedged chip (e.g. after a
+   color-depth / mode change that stops swaps completing or leaves the SST
+   busy) breaks out after ~3s wall-clock instead of hanging the game forever.
+   Reads the clock only every 64K iterations to keep the spin cheap. */
+#define RETRO_BOUNDED_SPIN(cond) \
+  do { FxU32 _sc=0; unsigned long _st=0; \
+       while (cond) { if (!((++_sc) & 0xFFFFUL)) { \
+         if (!_st) { _st = GetTickCount(); } \
+         else if (GetTickCount() - _st >= 3000UL) break; } } } while(0)
+
 GR_ENTRY(grFinish, void, (void))
 #define FN_NAME "grFinish"
 {
@@ -3594,12 +3377,14 @@ GR_ENTRY(grFinish, void, (void))
      * Napalm should be read as idle three times
      * before we believe it.
      */
+    { unsigned long _rfStart = GetTickCount();
     do {
       if(_grSstStatus() & SST_BUSY)
         i = 0; /* Reset counter */
       else
         i++;
-    } while(i < 3);
+    } while(i < 3 && (GetTickCount() - _rfStart < 3000UL)); /* retro3dfx: bounded */
+    }
 /*
     while (_grSstStatus() & SST_BUSY) ;
     while (((_grSstStatus() & SST_BUSY) == 0) &&

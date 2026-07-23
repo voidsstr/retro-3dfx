@@ -11,6 +11,7 @@
 cd "$(dirname "$0")/.." || exit 2
 H5DISP="3dfx Driver Code/H5/W2K/Src/Video/Displays/H5"
 H5MINI="3dfx Driver Code/H5/W2K/Src/Video/Miniport/H5"
+H5GLIDE="3dfx Driver Code/H5/GLIDE3/SRC"
 PREFIX="toolchain-3dfx/prefix/drive_c/3dfx/H5/W2K/Src/Video"
 fail=0
 chk() { # chk <desc> <file> <pattern>
@@ -91,6 +92,36 @@ if [ "$removed" -eq 0 ]; then
 else
   echo "FAIL  v56k SLIAA.C removed/changed $removed vintage lines"; fail=1
 fi
+
+# 8. glide3x unbounded-spin breakers (CS color-depth-change 25s hang -> crash fix).
+#    grBufferSwap/grDRIBufferSwap swap-pending spins + grFinish SST_BUSY do-while
+#    must be time-bounded so a wedged chip breaks out instead of hanging forever.
+chk "GGLIDE bounded-spin macro defined" \
+    "$H5GLIDE/GGLIDE.C" \
+    "define RETRO_BOUNDED_SPIN"
+chk "GGLIDE grBufferSwap swap-pending spin bounded" \
+    "$H5GLIDE/GGLIDE.C" \
+    "RETRO_BOUNDED_SPIN(_grBufferNumPending() > _GlideRoot.environment.swapPendingCount);"
+if grep -q -a -- "	while(_grBufferNumPending() >" "$H5GLIDE/GGLIDE.C"; then
+  echo "FAIL  GGLIDE still has an unbounded while(_grBufferNumPending()) spin"; fail=1
+else
+  echo "PASS  GGLIDE no unbounded _grBufferNumPending spin"
+fi
+chk "GSST grFinish idle-wait time-bounded" \
+    "$H5GLIDE/GSST.C" \
+    "while(i < 3 && (GetTickCount() - _rfStart < 3000UL));"
+
+# 9. Miniport refresh-force: use highest monitor-safe refresh per resolution
+#    (EDID-validated cap so a GTF rate beyond the CRT is never selected).
+chk "H3MODES refresh-force safety caps defined" \
+    "$H5MINI/H3MODES.C" \
+    "define RETRO_MAX_VREFRESH"
+chk "H3MODES refresh-force horizontal-freq cap defined" \
+    "$H5MINI/H3MODES.C" \
+    "define RETRO_MAX_HFREQ_HZ"
+chk "H3MODES mode-set upgrades to highest safe refresh" \
+    "$H5MINI/H3MODES.C" \
+    "bestEntry = scanEntry;"
 
 echo "== repo tree vs build tree sync (fixed files must match) =="
 for f in D3TXTR.C DDFLIP.C D6DP2.C DDFXNT.C CFIFO.C LOGFILE.C LOGFILE.H DEBUG.C ENABLE.C DDMEMMGR.C D3CONTXT.C DDGLOBAL.H HW.H D7D3D.C DDINIT.C MEMCHECK.H BITBLT.C DDSURF.C DDOVL32.C DDBLT32.C FNPROTO.H; do

@@ -727,3 +727,45 @@ Consistent ~78–94% of retail glide speed → the clean-room glide's render/FIF
 path is the optimization target (vertex/ICD path already tuned in the ICD campaign).
 Deploy: OUR glide3x.dll next to each game exe (LoadLibrary search order); Q2 also
 needs gl_bitdepth 16 + gl_mode 3.
+
+## 2026-07-23 — CS 1.6 / GoldSrc "display mode not working" on .124 Voodoo3: FIXED (OpenGL), D3D not viable
+
+**Symptom:** CS 1.6 launched from the desktop failed with "display mode not
+working" / "Video mode change failure".
+
+**Root causes (two, both fixed):**
+1. **PowerStrip** (a display-mode-hooking tuning util) auto-started (HKLM\...\Run
+   `PowerStrip=d:\program files\powerstrip\pstrip.exe`), had crashed, and its
+   "Safety Precaution" recovery dialog blocked startup AND it hooks
+   ChangeDisplaySettings — breaking games' fullscreen mode switches. FIX: removed
+   its autostart + killed it. (This is the "Safety Precaution" dialog seen on
+   base HL too — it's PowerStrip, not the game.)
+2. **Broken GoldSrc video config**: `HKCU\Software\Valve\Half-Life\Settings`
+   `EngineDLL=sw.dll` (software) + ScreenWidth/Height **swapped** (480×640). FIX:
+   `EngineDLL=hw.dll`, ScreenWidth=640, ScreenHeight=480, ScreenBPP=16.
+
+**OpenGL — WORKS via our clean-room stack (CS menu + de_dust render):**
+- Deploy OUR **retrogl ICD AS `gldrv\3dfxgl.dll`** (GoldSrc's `EngineGLDriver=3dfxgl.dll`
+  loads it as the "3Dfx OpenGL" driver). Our retrogl uses **Glide-exclusive
+  fullscreen** (grSstWinOpen, like Q3) which **bypasses the GDI ChangeDisplaySettings
+  mode-switch** that fails with the stock 3dfx MiniGL ("Video mode change failure").
+- Pair with OUR **clean-room glide3x** — it exports `grAADrawTriangle@24`, which our
+  retrogl imports but the **retail AmigaMerlin glide3x does NOT export** (→ "Entry
+  Point Not Found: grAADrawTriangle@24 in glide3x.dll" if paired with retail glide).
+- system32\glide3x is **WFP-protected** → seed `dllcache\glide3x.dll` with ours
+  FIRST, then system32 (WFP escape), so ours persists.
+- `FX_NO_PALETTED_TEXTURE=1` (CS paletted textures).
+- **GOTCHA — opengl32 is a KnownDLL:** a game-local `opengl32.dll` (retrogl) is
+  IGNORED (Windows loads system32's). Deploy retrogl **as `gldrv\3dfxgl.dll`**, not
+  as game-local opengl32.
+- **GOTCHA — BCShield** (BC Romania build anti-cheat) kills `hl.exe` if launched
+  directly; launch via `Counter-Strike.exe`. (The menu is stable; the earlier
+  `+map` "exits" were BCShield, not the driver — de_dust rendered fine first.)
+
+**Direct3D — NOT viable for GoldSrc on the Voodoo3:** `-d3d` → "Video mode change
+failure: the specified video mode is not supported → software mode", at every
+resolution. D3D on .124 goes through the **vintage H5 D3D HAL (3dfxv3d.dll), NOT
+our clean-room stack** (which has no D3D HAL); the H5 HAL doesn't enumerate the
+DirectDraw/D3D fullscreen mode GoldSrc's (deprecated) D3D renderer wants. No
+Glide-fullscreen bypass exists for D3D (it must use DDraw mode enumeration).
+OpenGL is the correct GoldSrc path on 3dfx (as it always was).
