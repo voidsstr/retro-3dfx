@@ -2614,6 +2614,11 @@ TryItAgain:
 
     // flag the primary is in tiled mode
     _FF(ddPrimaryInTile) = TRUE;
+#if ENABLE_LOG_FILE
+    retroLogForce(ppdev, "retro3dfx PRIMARY-TILED: scrOff=%08lXh %ldx%ldx%ld\r\n",
+                  ppdev->ulScreenOffset, (LONG)ppdev->cxScreen,
+                  (LONG)ppdev->cyScreen, (LONG)(ppdev->cjPelSize * 8));
+#endif
   }
   else
 #endif
@@ -2701,6 +2706,14 @@ LinearSetup:
 
     // flag the primary is in linear mode
     _FF(ddPrimaryInTile) = FALSE;
+#if ENABLE_LOG_FILE
+    /* retro3dfx: a LINEAR primary in a 3D-capable mode disables the whole
+       exclusive-fullscreen 3D setup path (DDSURF.C ~414) — if this fires on
+       warm reruns where the first run was TILED, that's the degradation. */
+    retroLogForce(ppdev, "retro3dfx PRIMARY-LINEAR: scrOff=%08lXh %ldx%ldx%ld\r\n",
+                  ppdev->ulScreenOffset, (LONG)ppdev->cxScreen,
+                  (LONG)ppdev->cyScreen, (LONG)(ppdev->cjPelSize * 8));
+#endif
   }
 
   // Clear desktop surface with rect. fill.
