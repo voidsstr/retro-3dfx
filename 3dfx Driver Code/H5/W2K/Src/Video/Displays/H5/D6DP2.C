@@ -777,6 +777,7 @@
 #include "d6global.h"
 #include "d3contxt.h"
 extern DWORD __stdcall Blt32_CopyFourCC(NT9XDEVICEDATA *,LPDDRAWI_DDRAWSURFACE_LCL,RECTL*,LPDDRAWI_DDRAWSURFACE_LCL,RECTL*);
+extern DWORD __stdcall Blt32_TexBltCopyFourCC(NT9XDEVICEDATA *,TXTRHNDL *,RECTL*,int,TXTRHNDL *,RECTL*,int);
 #endif
 
 #if( DX >= 8 )
@@ -3803,7 +3804,12 @@ DWORD __stdcall ddiDrawPrimitives2( LPD3DHAL_DRAWPRIMITIVES2DATA lpdp2d )
           if ((DDPF_FOURCC & pDstSurf->dwFlags) &&
               (DDPF_FOURCC & pSrcSurf->dwFlags))
           {
-            pfnTexBlt = (PTEXBLTFUNC)Blt32_CopyFourCC;
+            // retro3dfx: Blt32_TexBltCopyFourCC is the 7-argument
+            // TEXBLT-signature adapter for Blt32_CopyFourCC.  Casting
+            // the 5-argument Blt32_CopyFourCC itself to PTEXBLTFUNC
+            // put nSrcLOD in its pDDDstSurf parameter -> bugcheck 8E
+            // on the first managed DXTn texture blt (UT2004).
+            pfnTexBlt = (PTEXBLTFUNC)Blt32_TexBltCopyFourCC;
           }
           else
           {
@@ -3832,7 +3838,7 @@ DWORD __stdcall ddiDrawPrimitives2( LPD3DHAL_DRAWPRIMITIVES2DATA lpdp2d )
             // the DX7 runtime appears to munge the width and height of system memory DXTn
             // surfaces
             if ((DDSCAPS_SYSTEMMEMORY & pSrcSurf->dwCaps) &&
-                (pfnTexBlt == (PTEXBLTFUNC)Blt32_CopyFourCC) &&
+                (pfnTexBlt == (PTEXBLTFUNC)Blt32_TexBltCopyFourCC) &&
                 ((FOURCC_DXT1 == pDstSurf->dwFourCC) ||
                  (FOURCC_DXT2 == pDstSurf->dwFourCC) ||
                  (FOURCC_DXT3 == pDstSurf->dwFourCC) ||

@@ -75,6 +75,40 @@ static IDirect3DTexture8 *mkdxt1(IDirect3DDevice8 *dev, int size, DWORD c0, DWOR
     return t;
 }
 
+/* Mip-capable DXT1 builder in an arbitrary pool. levels=0 -> full chain.
+ * Lockable pools get every level filled: level 0 = c0/c1 checker, deeper
+ * levels solid (yellow/cyan/magenta) like mktex2. POOL_DEFAULT is left
+ * unfilled (not lockable) - fill a SYSTEMMEM twin and UpdateTexture it. */
+static IDirect3DTexture8 *mkdxt1p(IDirect3DDevice8 *dev,int size,int levels,D3DPOOL pool,DWORD c0,DWORD c1)
+{
+    IDirect3DTexture8 *t=NULL; D3DLOCKED_RECT lr; int bx,by,lev; DWORD nlev; int sz;
+    if(FAILED(IDirect3DDevice8_CreateTexture(dev,size,size,levels,0,D3DFMT_DXT1,pool,&t)))
+        return NULL;
+    if(pool==D3DPOOL_DEFAULT) return t;
+    nlev=IDirect3DTexture8_GetLevelCount(t);
+    sz=size;
+    for(lev=0;lev<(int)nlev;lev++){
+        int blocks=(sz+3)/4;
+        if(SUCCEEDED(IDirect3DTexture8_LockRect(t,lev,&lr,NULL,0))){
+            for(by=0;by<blocks;by++){
+                unsigned char *row=(unsigned char*)lr.pBits+by*lr.Pitch;
+                for(bx=0;bx<blocks;bx++){
+                    unsigned char *blk=row+bx*8;
+                    DWORD c=((bx+by)&1)?c1:c0;
+                    unsigned short e;
+                    if(lev==1)c=0x00FFFF00; if(lev==2)c=0x0000FFFF; if(lev>=3)c=0x00FF00FF;
+                    e=to565(c);
+                    blk[0]=e&0xFF; blk[1]=e>>8; blk[2]=e&0xFF; blk[3]=e>>8;
+                    blk[4]=blk[5]=blk[6]=blk[7]=0;
+                }
+            }
+            IDirect3DTexture8_UnlockRect(t,lev);
+        }
+        if(sz>1)sz>>=1;
+    }
+    return t;
+}
+
 int main(int argc,char**argv)
 {
     const char *mode = argc>1?argv[1]:"sel1";
@@ -113,7 +147,23 @@ int main(int argc,char**argv)
     IDirect3DDevice8_SetTextureStageState(dev,0,D3DTSS_MINFILTER,D3DTEXF_POINT);
     IDirect3DDevice8_SetTextureStageState(dev,0,D3DTSS_MAGFILTER,D3DTEXF_POINT);
 
-    if(!strcmp(mode,"dxt1")||!strcmp(mode,"dxt1big")){
+    if(!strcmp(mode,"dxt1up")){
+        /* Regression for the D3DDP2OP_TEXBLT FourCC crash (bugcheck 8E in
+         * Blt32_CopyFourCC called through the 7-arg PTEXBLTFUNC cast):
+         * UpdateTexture from a SYSTEMMEM mipped DXT1 chain to a
+         * POOL_DEFAULT one forces the runtime to emit TEXBLT per level,
+         * including the tiny-LOD DXT1 paths. Pre-fix this bugchecks the
+         * box; post-fix it renders the same checker as dxt1. */
+        IDirect3DTexture8 *ts=mkdxt1p(dev,64,0,D3DPOOL_SYSTEMMEM,0x00FF4040,0x0040FF40);
+        IDirect3DTexture8 *td=mkdxt1p(dev,64,0,D3DPOOL_DEFAULT,0,0);
+        if(ts&&td&&SUCCEEDED(IDirect3DDevice8_UpdateTexture(dev,
+                (IDirect3DBaseTexture8*)ts,(IDirect3DBaseTexture8*)td))){
+            IDirect3DDevice8_SetTexture(dev,0,(IDirect3DBaseTexture8*)td);
+            IDirect3DDevice8_SetTextureStageState(dev,0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);
+            IDirect3DDevice8_SetTextureStageState(dev,0,D3DTSS_COLORARG1,D3DTA_TEXTURE);
+        }
+        /* on any failure the quad keeps the clear color -> golden mismatch */
+    } else if(!strcmp(mode,"dxt1")||!strcmp(mode,"dxt1big")){
         IDirect3DTexture8 *td=mkdxt1(dev,!strcmp(mode,"dxt1big")?256:64,0x00FF4040,0x0040FF40);
         if(td){
             IDirect3DDevice8_SetTexture(dev,0,(IDirect3DBaseTexture8*)td);

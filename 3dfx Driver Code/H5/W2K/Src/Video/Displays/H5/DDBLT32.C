@@ -2203,3 +2203,149 @@ Blt32_CopyFourCC(NT9XDEVICEDATA             *ppdev,
   return DD_OK;
 } // Blt32_CopyFourCC
 
+
+#if ENABLE_3D && (DIRECT3D_VERSION >= 0x0700) && (DX >= 7)
+/*----------------------------------------------------------------------
+Function name:  Blt32_TexBltCopyFourCC()
+
+Description:    retro3dfx: 7-argument adapter so the D3DDP2OP_TEXBLT
+                handler can invoke Blt32_CopyFourCC through the same
+                PTEXBLTFUNC signature as textureLoad().
+
+                The vintage code cast the 5-argument __stdcall
+                Blt32_CopyFourCC directly to the 7-argument PTEXBLTFUNC
+                and called it with (ppdev, TXTRHNDL*, RECTL*, int LOD,
+                TXTRHNDL*, RECTL*, int LOD).  Argument 4 (nSrcLOD, an
+                integer, normally 0) therefore arrived in
+                Blt32_CopyFourCC's pDDDstSurf parameter and was
+                dereferenced as a surface pointer -> bugcheck 1000008E
+                on the first managed FourCC (DXTn) texture blt (seen
+                with UT2004's D3D renderer).  The callee also popped
+                0x14 bytes while the caller pushed 0x1c.
+
+                This wrapper rebuilds the DDRAWI surface views that
+                Blt32_CopyFourCC expects from the TXTRHNDL's per-LOD
+                mipmap data (populated in D7D3D.C when the runtime
+                associates the surface with its handle) and calls it
+                with the correct arity.  The rectangles passed down are
+                the full LOD level, per the DDK contract for FourCC
+                copies (no stretching, no sub-rectangles); prSrc/prDest
+                from the DP2 stream are ignored because the TEXBLT
+                mip-loop halves them from the runtime-munged system
+                memory dimensions, which do not survive reinterpretation
+                through the DXT bits-per-pixel math in Blt32_CopyFourCC.
+
+Return:         DD_OK or DDERR_*
+----------------------------------------------------------------------*/
+
+DWORD __stdcall
+Blt32_TexBltCopyFourCC(NT9XDEVICEDATA  *ppdev,
+                       TXTRHNDL        *pSrcSurf,
+                       RECTL           *prSrc,
+                       int              nSrcLOD,
+                       TXTRHNDL        *pDstSurf,
+                       RECTL           *prDest,
+                       int              nDstLOD)
+{
+  DD_SURFACE_GLOBAL         gblSrc, gblDst;
+  DD_SURFACE_LOCAL          lclSrc, lclDst;
+  DD_SURFACE_MORE           moreSrc, moreDst;
+  RECTL                     rSrcFull, rDstFull;
+  MIPMAPDATA                mmSrc, mmDst;
+  DWORD                     retval;
+
+  prSrc;   // unreferenced, see above
+  prDest;  // unreferenced, see above
+
+  if ((NULL == pSrcSurf) || (NULL == pDstSurf))
+    return DDERR_INVALIDPARAMS;
+
+  // Pick the per-LOD source/dest data.  mmData[0] is valid for any
+  // texture surface (the population loop in D7D3D.C always runs at
+  // least once); fall back to the top-level fields for LOD 0 of a
+  // TXTRHNDL without mipmap data.
+
+  if ((nSrcLOD >= 0) && (nSrcLOD < pSrcSurf->nLevels))
+    mmSrc = pSrcSurf->mmData[nSrcLOD];
+  else if (0 == nSrcLOD)
+  {
+    mmSrc.wWidth   = pSrcSurf->wWidth;
+    mmSrc.wHeight  = pSrcSurf->wHeight;
+    mmSrc.lPitch   = pSrcSurf->lPitch;
+    mmSrc.fpVidMem = pSrcSurf->fpVidMem;
+  }
+  else
+    return DDERR_INVALIDPARAMS;
+
+  if ((nDstLOD >= 0) && (nDstLOD < pDstSurf->nLevels))
+    mmDst = pDstSurf->mmData[nDstLOD];
+  else if (0 == nDstLOD)
+  {
+    mmDst.wWidth   = pDstSurf->wWidth;
+    mmDst.wHeight  = pDstSurf->wHeight;
+    mmDst.lPitch   = pDstSurf->lPitch;
+    mmDst.fpVidMem = pDstSurf->fpVidMem;
+  }
+  else
+    return DDERR_INVALIDPARAMS;
+
+  memset(&gblSrc,  0, sizeof(gblSrc));
+  memset(&gblDst,  0, sizeof(gblDst));
+  memset(&lclSrc,  0, sizeof(lclSrc));
+  memset(&lclDst,  0, sizeof(lclDst));
+  memset(&moreSrc, 0, sizeof(moreSrc));
+  memset(&moreDst, 0, sizeof(moreDst));
+
+  // dwReserved1 of the GBL views stays 0 so Blt32_CopyFourCC addresses
+  // through fpVidMem (the per-LOD address) rather than the
+  // surface-wide FXSURFACEDATA hwPtr.
+
+  gblSrc.fpVidMem                  = (FLATPTR)mmSrc.fpVidMem;
+  gblSrc.lPitch                    = mmSrc.lPitch;
+  gblSrc.wWidth                    = mmSrc.wWidth;
+  gblSrc.wHeight                   = mmSrc.wHeight;
+  gblSrc.ddpfSurface.dwSize        = sizeof(gblSrc.ddpfSurface);
+  gblSrc.ddpfSurface.dwFlags       = pSrcSurf->dwFlags;
+  gblSrc.ddpfSurface.dwFourCC      = pSrcSurf->dwFourCC;
+  gblSrc.ddpfSurface.dwRGBBitCount = pSrcSurf->dwBitCnt;
+
+  lclSrc.lpGbl          = &gblSrc;
+  lclSrc.ddsCaps.dwCaps = pSrcSurf->dwCaps;
+  lclSrc.dwReserved1    = pSrcSurf->txtrID;
+  lclSrc.lpSurfMore     = &moreSrc;
+
+  gblDst.fpVidMem                  = (FLATPTR)mmDst.fpVidMem;
+  gblDst.lPitch                    = mmDst.lPitch;
+  gblDst.wWidth                    = mmDst.wWidth;
+  gblDst.wHeight                   = mmDst.wHeight;
+  gblDst.ddpfSurface.dwSize        = sizeof(gblDst.ddpfSurface);
+  gblDst.ddpfSurface.dwFlags       = pDstSurf->dwFlags;
+  gblDst.ddpfSurface.dwFourCC      = pDstSurf->dwFourCC;
+  gblDst.ddpfSurface.dwRGBBitCount = pDstSurf->dwBitCnt;
+
+  lclDst.lpGbl          = &gblDst;
+  lclDst.ddsCaps.dwCaps = pDstSurf->dwCaps;
+  lclDst.dwReserved1    = pDstSurf->txtrID;   // TXTRDESC handle for the
+                                              // DXT1 stretch/pad fixups
+  lclDst.lpSurfMore     = &moreDst;
+
+  rSrcFull.left = rSrcFull.top = 0;
+  rSrcFull.right  = (LONG)mmSrc.wWidth;
+  rSrcFull.bottom = (LONG)mmSrc.wHeight;
+
+  rDstFull.left = rDstFull.top = 0;
+  rDstFull.right  = (LONG)mmDst.wWidth;
+  rDstFull.bottom = (LONG)mmDst.wHeight;
+
+  retval = Blt32_CopyFourCC(ppdev, &lclSrc, &rSrcFull, &lclDst, &rDstFull);
+
+#if ENABLE_LOG_FILE
+  if (DD_OK != retval)
+    retroLogForce(ppdev, "retro3dfx TEXBLT-4CC-ERR: hr=%08lXh fourcc=%08lXh lod=%d/%d dst=%ldx%ld\r\n",
+                  retval, pDstSurf->dwFourCC, nSrcLOD, nDstLOD,
+                  (LONG)mmDst.wWidth, (LONG)mmDst.wHeight);
+#endif
+
+  return retval;
+} // Blt32_TexBltCopyFourCC
+#endif // ENABLE_3D && DX7

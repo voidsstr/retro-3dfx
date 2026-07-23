@@ -59,6 +59,22 @@ chk "BITBLT.C uses bounded RETRO_GP_SPIN" \
     "$H5DISP/BITBLT.C" \
     "RETRO_GP_SPIN(ppdev)"
 
+# 5c. TEXBLT FourCC arity fix (UT2004 bugcheck 1000008E): the DP2 TEXBLT
+#     handler must call the 7-argument adapter, never cast the 5-argument
+#     Blt32_CopyFourCC to PTEXBLTFUNC (that put nSrcLOD in pDDDstSurf and
+#     dereferenced it -> kernel AV in session space).
+chk "DDBLT32 TEXBLT FourCC 7-arg adapter defined" \
+    "$H5DISP/DDBLT32.C" \
+    "Blt32_TexBltCopyFourCC(NT9XDEVICEDATA  \*ppdev,"
+chk "D6DP2 TEXBLT uses the FourCC adapter" \
+    "$H5DISP/D6DP2.C" \
+    "pfnTexBlt = (PTEXBLTFUNC)Blt32_TexBltCopyFourCC;"
+if grep -q -a -- "pfnTexBlt = (PTEXBLTFUNC)Blt32_CopyFourCC;" "$H5DISP/D6DP2.C"; then
+  echo "FAIL  D6DP2 still casts 5-arg Blt32_CopyFourCC to PTEXBLTFUNC"; fail=1
+else
+  echo "PASS  D6DP2 no raw Blt32_CopyFourCC PTEXBLTFUNC cast"
+fi
+
 # 6. Registry-ring log sink (all of the above depend on it).
 chk "LOGFILE registry-ring sink" \
     "$H5DISP/LOGFILE.C" \
@@ -77,7 +93,7 @@ else
 fi
 
 echo "== repo tree vs build tree sync (fixed files must match) =="
-for f in D3TXTR.C DDFLIP.C D6DP2.C DDFXNT.C CFIFO.C LOGFILE.C LOGFILE.H DEBUG.C ENABLE.C DDMEMMGR.C D3CONTXT.C DDGLOBAL.H HW.H D7D3D.C DDINIT.C MEMCHECK.H BITBLT.C DDSURF.C DDOVL32.C; do
+for f in D3TXTR.C DDFLIP.C D6DP2.C DDFXNT.C CFIFO.C LOGFILE.C LOGFILE.H DEBUG.C ENABLE.C DDMEMMGR.C D3CONTXT.C DDGLOBAL.H HW.H D7D3D.C DDINIT.C MEMCHECK.H BITBLT.C DDSURF.C DDOVL32.C DDBLT32.C FNPROTO.H; do
   if cmp -s "$H5DISP/$f" "$PREFIX/Displays/H5/$f"; then
     echo "PASS  sync $f"
   else

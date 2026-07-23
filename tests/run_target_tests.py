@@ -70,7 +70,9 @@ async def main():
     # big512mip = mip-download fix 08fd889) before any device-cycle accumulation,
     # then combine + LOD. Capped at 6, under the wedge threshold. Run on a FRESH
     # boot. RETRO_D3DLAB_MODES=all for the full 14-mode matrix (fresh boot only).
-    CURATED = ['sel1', 'dxt1', 'big512mip', 'mod2x', 'tex2', 'mipfar']
+    # dxt1up = TEXBLT FourCC arity fix (UT2004 bugcheck): UpdateTexture of a
+    # mipped DXT1 chain drives D3DDP2OP_TEXBLT through Blt32_TexBltCopyFourCC.
+    CURATED = ['sel1', 'dxt1', 'dxt1up', 'big512mip', 'mod2x', 'tex2', 'mipfar']
     if os.environ.get('RETRO_D3DLAB_MODES') == 'all':
         run_modes = list(GOLDEN['modes'].keys())
     else:
