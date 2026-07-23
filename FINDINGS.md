@@ -716,3 +716,14 @@ render/FIFO/LFB path, not the vertex path which the ICD campaign already tuned).
 Stability is solid. NOTE: a ghost "quake3.exe - Application Error" dialog (no
 owning process, survives taskkill + UICLICK) lingers from an earlier crashed run;
 cosmetic — does NOT block rendering (sweep ran with it present) — cleared by reboot.
+
+### clean-room glide multi-engine validation (2026-07-22, .124 Voodoo3)
+The clean-room glide renders BOTH engines via the full open-source stack
+(our glide3x + our retrogl/MesaFX ICD), each completing a full timedemo:
+  Q3 (id Tech 3)  640×480  46.0 fps  (retail 58.8)
+  Q2 (id Tech 2 / ref_gl)  640×480×16  88.4 fps  (retail 93.6)
+     GL_RENDERER: "Mesa Glide v0.62 Voodoo3 (tm) [retro3dfx 0.1.31]", clean ShutdownGame.
+Consistent ~78–94% of retail glide speed → the clean-room glide's render/FIFO/LFB
+path is the optimization target (vertex/ICD path already tuned in the ICD campaign).
+Deploy: OUR glide3x.dll next to each game exe (LoadLibrary search order); Q2 also
+needs gl_bitdepth 16 + gl_mode 3.
