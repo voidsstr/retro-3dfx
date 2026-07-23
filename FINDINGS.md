@@ -654,3 +654,54 @@ Deployed instr10, verified NO regression: D3D 5 key modes render correct
 (sel1/dxt1/big512mip/tex2/mod2x match goldens), OpenGL golden gate PASS (Q3
 1024 world nb=84 gr=0, CS de_dust 0-green). Predeploy gate + source/binary
 assertions updated. The stabilization follow-up is closed.
+
+## 2026-07-22 — clean-room glide (Voodoo3) bring-up: TLS accessor crash (getThreadValueFast)
+
+**Symptom:** clean-room `glide3x.dll` (voodoo-cleanroom, MesaFX ICD path) crashed
+Q3 at `GLW_ChoosePFD` with `instruction at 0x06f5a22d referenced memory at
+0x0000001c` (NULL+0x1c read). Same MesaFX ICD works fine on retail glide.
+
+**Root cause:** `getThreadValueFast()` (glide3/src/fxglide.h) reads the TLS slot
+straight out of the TEB via `%fs:` + `_GlideRoot.tlsOffset`. Our mingw/gcc-13
+build's inline-asm variant faulted inside `grGetString`'s `GR_DCL_GC` — the first
+glide entry to actually *read* TLS (detect/select only *write* via
+`setThreadValue`/`TlsSetValue`). Fix: use the ABI-correct `TlsGetValue(tlsIndex)`
+instead of the raw TEB read. (tlsIndex measured =18, OSWin95=0, so the classic
+high-index/OS-mismatch theories were NOT the cause — the raw `%fs:` read itself
+was the problem under our toolchain.)
+
+**Deadly-trap corollary — stale objects on header change:** the era Makefiles do
+NOT track header dependencies. Editing `fxglide.h` (where `getThreadValueFast` is
+an inline) did NOT recompile `diget.o` et al — the old `%fs:` asm stayed in the
+DLL and the crash persisted through a "successful" rebuild. Always
+`find glide3 minihwc -name '*.o' -delete` before rebuilding after a HEADER edit.
+
+**Result:** after the fix, `grGetString(GR_HARDWARE)` returns "Voodoo3 (tm)",
+Q3 gets "3 PFDs found / hardware acceleration found / PIXELFORMAT 2 selected",
+and **grSstWinOpen is reached** (was never reached before). Crash moved deep
+into `hwcInitVideo` (next layer). Layers solved so far: base-mapping,
+MMIO-read (dramInit1=0x40530031 real HW), detect+bInfo, grGlideInit, TLS.
+
+## 2026-07-22 — clean-room glide RENDERS Q3 (lost-context NULL deref fixed)
+
+After the TLS fix (above), grSstWinOpen reached `hwcShareContextData` →
+`*gc->lostContext = FXFALSE` and crashed: gc->lostContext == NULL. Root cause:
+`hwcShareContextData` NT/CONTEXT_DWORD_NT branch (minihwc.c) stored the driver's
+`dwordOffset` with NO fallback, while the SHARE_CONTEXT_DWORD (non-NT) and linux
+branches fall back to `&dummyContextDWORD`. Our display driver maps no
+lost-context dword → NULL. Fix: mirror the `&dummyContextDWORD` guard in the NT
+branch. **Result: Quake 3 renders correctly** on the clean-room open-source stack
+(retro3dfx-glide + MesaFX retrogl ICD) on .124 Voodoo3 — full HUD, textures,
+lighting, in-world text, player models (verified via windowed LFB->GDI capture;
+fullscreen Glide output isn't GDI-capturable on 3dfx).
+
+Full layer sequence solved this session (all in the clean-room glide bring-up):
+base-map (GETLINEARADDR-before-ALLOCCONTEXT) → MMIO read (dramInit1=0x40530031
+real HW) → detect+bInfo → grGlideInit → **TLS accessor (TlsGetValue)** →
+**lost-context NULL fallback** → hwcInitVideo → render. Fork commit a71eb3f
+(voidsstr/retro3dfx-glide @ glide-devel-sezero).
+
+OPEN: intermittent crash under FULLSCREEN (r_fullscreen 1) — windowed renders
+clean; fullscreen sometimes stops at GLW_ChoosePFD (possibly a stale crash
+dialog stealing the DDraw exclusive mode switch). Next: broader game/res sweep +
+fullscreen stability.
