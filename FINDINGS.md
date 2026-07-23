@@ -705,3 +705,14 @@ OPEN: intermittent crash under FULLSCREEN (r_fullscreen 1) — windowed renders
 clean; fullscreen sometimes stops at GLW_ChoosePFD (possibly a stale crash
 dialog stealing the DDraw exclusive mode switch). Next: broader game/res sweep +
 fullscreen stability.
+
+### clean-room glide Q3 fullscreen resolution sweep (2026-07-22, .124 Voodoo3)
+All 1260-frame timedemos COMPLETED — stable across resolutions, no crashes:
+  640×480  46.0 fps   (retail ref 58.8)
+  800×600  44.3 fps   (retail ref 58.4)
+  1024×768 39.2 fps   (retail ref 51.2)
+Clean-room glide is ~78–80% of retail glide speed → optimization target (the
+render/FIFO/LFB path, not the vertex path which the ICD campaign already tuned).
+Stability is solid. NOTE: a ghost "quake3.exe - Application Error" dialog (no
+owning process, survives taskkill + UICLICK) lingers from an earlier crashed run;
+cosmetic — does NOT block rendering (sweep ran with it present) — cleared by reboot.
