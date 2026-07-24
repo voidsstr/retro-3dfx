@@ -167,8 +167,48 @@ chk "goldsrc_bench timedemo harness present" \
     "optimized/gltest/goldsrc_bench.py" \
     "build_listenserver_cfg"
 
+# 12. Desktop gamma-persist hardening (washed-out Windows desktop after a game
+#     exits/crashes). A full-screen Glide/OpenGL app (Quake3 r_overBrightBits
+#     doubles the ramp -> out=min(255,2*in)) sets gamma via DrvIcmSetDeviceGammaRamp;
+#     the vintage code wrote EVERY ramp into the persistent desktop GammaTable and
+#     saved it to the registry, so a game (or a crash) left the desktop washed out
+#     permanently. Three guards must be present in PALETTE.C:
+#     (a) DrvIcmSetDeviceGammaRamp routes an app ramp to TRANSIENT (no persist)
+#         when a full-screen app owns the hw (!bEnabled) or the ramp is overbright;
+#     (b) vAssertModePalette re-applies GAMMA_DESKTOP on return-to-desktop (runs
+#         from DrvAssertMode ENABLE, so the desktop recovers even after a crash);
+#     (c) bInitializePalette rejects a degenerate persisted GammaTable -> identity.
+chk "PALETTE DrvIcm case-A full-screen app -> transient (no desktop persist)" \
+    "$H5DISP/PALETTE.C" \
+    "if (! ppdev->bEnabled)"
+chk "PALETTE DrvIcm case-A routes app ramp to GAMMA_TRANSIENT" \
+    "$H5DISP/PALETTE.C" \
+    "ppdev->TransientGammaTable\[i\] = ((pGammaRamp->Red\[i\]"
+chk "PALETTE DrvIcm case-B rejects overbright desktop push (re-assert GAMMA_DESKTOP)" \
+    "$H5DISP/PALETTE.C" \
+    "if (((ULONG)(pGammaRamp->Green\[128\] >> 8) & 0xFF) >= 0xE0)"
+chk "PALETTE vAssertModePalette restores GAMMA_DESKTOP on desktop re-enable" \
+    "$H5DISP/PALETTE.C" \
+    "if (bEnable && (ppdev->iBitmapFormat != BMF_8BPP))"
+chk "PALETTE bInitializePalette degenerate-gamma self-heal" \
+    "$H5DISP/PALETTE.C" \
+    "(((ppdev->GammaTable\[128\] >> 8) & 0xFF) >= 0xE0)"
+
+# 13. Vsync default ON (driver-level). The vintage Voodoo5 INF shipped
+#     FX_GLIDE_SWAPINTERVAL="0", which overrode the ICD's grBufferSwap(1) request
+#     -> no vblank wait (200+fps tearing/beat). The INF must ship "1" (vsync on)
+#     and the "Vertical Sync" tweak must default to Enable.
+chk "INF ships FX_GLIDE_SWAPINTERVAL=1 (vsync on by default)" \
+    "3dfx Driver Code/H5/W2K/Src/Video/Inf/Voodoo5/3DFXVS2K.INF" \
+    "HKR,Glide,FX_GLIDE_SWAPINTERVAL,,\"1\""
+if grep -q -a -- "HKR,Glide,FX_GLIDE_SWAPINTERVAL,,\"0\"" "3dfx Driver Code/H5/W2K/Src/Video/Inf/Voodoo5/3DFXVS2K.INF"; then
+  echo "FAIL  Voodoo5 INF still forces FX_GLIDE_SWAPINTERVAL=0 (vsync off)"; fail=1
+else
+  echo "PASS  Voodoo5 INF no longer forces vsync off"
+fi
+
 echo "== repo tree vs build tree sync (fixed files must match) =="
-for f in D3TXTR.C DDFLIP.C D6DP2.C DDFXNT.C CFIFO.C LOGFILE.C LOGFILE.H DEBUG.C ENABLE.C DDMEMMGR.C D3CONTXT.C DDGLOBAL.H HW.H D7D3D.C DDINIT.C MEMCHECK.H BITBLT.C DDSURF.C DDOVL32.C DDBLT32.C FNPROTO.H; do
+for f in D3TXTR.C DDFLIP.C D6DP2.C DDFXNT.C CFIFO.C LOGFILE.C LOGFILE.H DEBUG.C ENABLE.C DDMEMMGR.C D3CONTXT.C DDGLOBAL.H HW.H D7D3D.C DDINIT.C MEMCHECK.H BITBLT.C DDSURF.C DDOVL32.C DDBLT32.C FNPROTO.H PALETTE.C; do
   if cmp -s "$H5DISP/$f" "$PREFIX/Displays/H5/$f"; then
     echo "PASS  sync $f"
   else

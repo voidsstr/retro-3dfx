@@ -94,6 +94,27 @@ DEVINFO* pdi)
 
 		for (ulLoop = 0; ulLoop < 256; ulLoop++)
 			ppdev->GammaTable[ulLoop] = tmp[ulLoop];
+
+		/* retro3dfx: reject a degenerate/overbright persisted desktop ramp --
+		   the blown out=2*in curve a crashed Glide/overbright app used to
+		   leave in the registry maps mid-gray to near-white.  Fall back to
+		   identity and re-persist so a box that already has a corrupt
+		   GammaTable self-heals on the next boot instead of coming up washed
+		   out.  A sane desktop ramp keeps mid-gray near mid-gray. */
+		if ((((ppdev->GammaTable[128] >> 8) & 0xFF) >= 0xE0))
+		{
+			for (ulLoop = 0; ulLoop < 256; ulLoop++)
+				ppdev->GammaTable[ulLoop] = (ulLoop << 16) | (ulLoop << 8) | ulLoop;
+
+			setValueInfo.DataLength = (256 * sizeof(ULONG));
+			strcpy(setValueInfo.ValueName, "GammaTable");
+			setValueInfo.ValueNameLength = strlen("GammaTable") + 1;
+			setValueInfo.Type = REG_BINARY;
+			memcpy(setValueInfo.Data, ppdev->GammaTable, (256 * sizeof(ULONG)));
+			EngDeviceIoControl(ppdev->hDriver,
+				IOCTL_3DFX_SET_REGISTRY_VALUE,
+				&setValueInfo, sizeof(setValueInfo), NULL, 0, &ulReturnedDataLength);
+		}
 	}
 	else
 	{
@@ -342,7 +363,18 @@ BOOL    bEnable)
 {
     // USER immediately calls DrvSetPalette after switching out of
     // full-screen, so we don't have to worry about resetting the
-    // palette here.
+    // 8bpp palette here.
+    //
+    // retro3dfx: BUT for a truecolor (16/24/32bpp) desktop USER does NOT
+    // call DrvSetPalette (there is no indexed palette), so nothing used to
+    // re-program the DAC gamma bank when returning from a full-screen Glide/
+    // OpenGL app -- the desktop was left on the app's gamma ramp (e.g. Quake3
+    // overbright) and stayed washed out.  Re-apply the persistent desktop
+    // gamma here.  This runs from DrvAssertMode(ENABLE), which the OS calls
+    // whenever the GDI desktop is reprogrammed -- including after a game
+    // CRASHES -- so the desktop gamma is always restored.
+    if (bEnable && (ppdev->iBitmapFormat != BMF_8BPP))
+        HWSetPalette(ppdev, 0, 256, NULL, GAMMA_DESKTOP);
 }
 
 /******************************Public*Routine******************************\
@@ -457,6 +489,40 @@ PVOID   lpRamp)
 
   if (iFormat == IGRF_RGB_256WORDS)
   {
+    /* retro3dfx gamma-persist guard.  A full-screen Glide/OpenGL app sets its
+       gamma through this GDI entry point too (Quake3 with r_overBrightBits
+       doubles the ramp -> out = min(255,2*in), a blown 2x-clip curve).  The
+       vintage code wrote EVERY such ramp into the persistent desktop
+       GammaTable AND saved it to the registry, so once a game exited (or
+       crashed) the Windows desktop was left washed out -- permanently, across
+       reboots.  Three cases: */
+
+    /* (A) A full-screen app owns the hardware (!bEnabled): apply its ramp live
+       as TRANSIENT so in-game gamma works, but never touch the persistent
+       desktop GammaTable and never save it.  vAssertModePalette re-asserts
+       GAMMA_DESKTOP when the desktop returns (even after a crash). */
+    if (! ppdev->bEnabled)
+    {
+      for (i = 0; i < 256; i++)
+      {
+        ppdev->TransientGammaTable[i] = ((pGammaRamp->Red[i]   & 0xFF00) << 8) |
+                                         (pGammaRamp->Green[i] & 0xFF00)       |
+                                        ((pGammaRamp->Blue[i]  & 0xFF00) >> 8);
+      }
+      return HWSetPalette(ppdev, 0, 256, (PVIDEO_CLUTDATA)ppdev->pPal, GAMMA_TRANSIENT);
+    }
+
+    /* (B) On the GDI desktop, but a blown/overbright ramp (mid-gray maps to
+       near-white) is being pushed -- e.g. the OS re-applying a crashed game's
+       cached global gamma ramp.  REJECT it: re-assert the clean persistent
+       desktop gamma so the desktop can never be washed out, and do not save
+       the bad ramp.  A sane desktop ramp keeps mid-gray near mid-gray. */
+    if (((ULONG)(pGammaRamp->Green[128] >> 8) & 0xFF) >= 0xE0)
+    {
+      return HWSetPalette(ppdev, 0, 256, (PVIDEO_CLUTDATA)ppdev->pPal, GAMMA_DESKTOP);
+    }
+
+    /* (C) A sane desktop gamma change: apply it and persist it (normal). */
     for (i = 0; i < 256; i++)
     {
       ppdev->GammaTable[i] = ((pGammaRamp->Red[i]   & 0xFF00) << 8) |
