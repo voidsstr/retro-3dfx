@@ -60,6 +60,18 @@ chk "BITBLT.C uses bounded RETRO_GP_SPIN" \
     "$H5DISP/BITBLT.C" \
     "RETRO_GP_SPIN(ppdev)"
 
+# 5d. DrvBitBlt/DrvCopyBits NULL-guard (Q3 1024->1280 mode-change bugcheck
+#     1000008E @ 3dfxv5d+0x346). The ENABLE_LOG_FILE block in DrvBitBlt used to
+#     deref psoSrc unconditionally; psoSrc is NULL for solid/pattern blts and,
+#     while a mode change leaves the primary as a DIB, the psoDst branch fails
+#     and the next solid fill faulted. The psoSrc branch MUST be null-guarded.
+chk "BITBLT DrvBitBlt psoSrc log-block null-guard" \
+    "$H5DISP/BITBLT.C" \
+    "else if ((psoSrc != NULL) && (psoSrc->dhsurf != NULL) && (! (((DSURF \*)psoSrc->dhsurf)->dt & DT_DIB)))"
+chk "BITBLT DrvCopyBits psoDst log-block null-guard" \
+    "$H5DISP/BITBLT.C" \
+    "if ((psoDst != NULL) && (psoDst->dhsurf != NULL))"
+
 # 5c. TEXBLT FourCC arity fix (UT2004 bugcheck 1000008E): the DP2 TEXBLT
 #     handler must call the 7-argument adapter, never cast the 5-argument
 #     Blt32_CopyFourCC to PTEXBLTFUNC (that put nSrcLOD in pDDDstSurf and
@@ -140,6 +152,20 @@ if [ "$n038" -ge 8 ]; then
 else
   echo "FAIL  ICD _B color-store fix markers missing (found $n038, want >=8)"; fail=1
 fi
+
+# 11. ICD 0.3.9 worst-single-frame (maxFrame) perf instrumentation: __r3dPerfDump
+#     must track and log the worst inter-swap time per window so a periodic
+#     hitch (the ~1s GoldSrc walking stutter) is visible in the automated
+#     goldsrc_bench even when average fps looks fine.
+chk "ICD __r3dPerfDump maxFrame hitch tracking" \
+    "$ICDSST/sst_export.c" \
+    "maxFrame=%lums"
+chk "ICD renderer string bumped to 0.3.9" \
+    "toolchain-3dfx/prefix/drive_c/3dfx/SWLIBS/OPENGL/GLIDE3X/GLCORE/S_CONTXT.C" \
+    "retro3dfx 0.3.9"
+chk "goldsrc_bench timedemo harness present" \
+    "optimized/gltest/goldsrc_bench.py" \
+    "build_listenserver_cfg"
 
 echo "== repo tree vs build tree sync (fixed files must match) =="
 for f in D3TXTR.C DDFLIP.C D6DP2.C DDFXNT.C CFIFO.C LOGFILE.C LOGFILE.H DEBUG.C ENABLE.C DDMEMMGR.C D3CONTXT.C DDGLOBAL.H HW.H D7D3D.C DDINIT.C MEMCHECK.H BITBLT.C DDSURF.C DDOVL32.C DDBLT32.C FNPROTO.H; do

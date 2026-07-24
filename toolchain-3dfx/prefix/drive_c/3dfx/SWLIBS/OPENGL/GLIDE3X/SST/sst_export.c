@@ -426,8 +426,9 @@ static void __r3dPerfDump(void)
     static void *h = 0;
     static unsigned long lastTick = 0;
     static int frames = 0;
-    unsigned long now, wr, dt;
-    char buf[200]; int n, fps10;
+    static unsigned long lastFrameTick = 0, maxFrameDt = 0;  /* retro3dfx 0.3.9: per-frame hitch */
+    unsigned long now, wr, dt, fdt;
+    char buf[220]; int n, fps10;
     if (en < 0) {
         /* gate on C:\icd_perf.on (file marker, not env: getenv proved
         ** unreliable under GoldSrc's process even though it works under
@@ -440,20 +441,24 @@ static void __r3dPerfDump(void)
     }
     if (!en) return;
     frames++;
-    if (frames < 100) return;
     now = GetTickCount();
+    /* retro3dfx 0.3.9: track the worst single-frame time in the window so a
+    ** periodic hitch (e.g. the ~1s GoldSrc stutter) shows up as maxFrame. */
+    if (lastFrameTick) { fdt = now - lastFrameTick; if (fdt > maxFrameDt) maxFrameDt = fdt; }
+    lastFrameTick = now;
+    if (frames < 30) return;   /* ~0.2-0.3s windows: fine enough to see a hitch */
     if (!h) {
         h = CreateFileA("C:\\icd_perf.log", 0x40000000L /*GENERIC_WRITE*/,
                         1 /*FILE_SHARE_READ*/, 0, 2 /*CREATE_ALWAYS*/, 0, 0);
     } else if (h != __R3D_INVALID_HANDLE && lastTick) {
         dt = now - lastTick;
         fps10 = dt ? (int)(1000L * frames * 10 / dt) : 0;
-        n = wsprintfA(buf, "f=%d dt=%lums fps10=%d db=%d texDl=%ld texDlPart=%ld tableDl=%ld alloc=%ld\r\n",
-                      frames, dt, fps10, __r3d_dbMode,
+        n = wsprintfA(buf, "f=%d dt=%lums fps10=%d maxFrame=%lums db=%d texDl=%ld texDlPart=%ld tableDl=%ld alloc=%ld\r\n",
+                      frames, dt, fps10, maxFrameDt, __r3d_dbMode,
                       __r3d_cTexDl, __r3d_cTexDlPart, __r3d_cTableDl, __r3d_cTexAlloc);
         WriteFile(h, buf, (unsigned long)n, &wr, 0); FlushFileBuffers(h);
     }
-    lastTick = now; frames = 0;
+    lastTick = now; frames = 0; maxFrameDt = 0;
     __r3d_cTexDl = __r3d_cTexDlPart = __r3d_cTableDl = __r3d_cTexAlloc = 0;
 }
 

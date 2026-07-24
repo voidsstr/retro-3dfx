@@ -1,3 +1,27 @@
+## 0.3.9 (2026-07-24) — GoldSrc timedemo automation + worst-frame (stutter) instrumentation
+
+Tooling + diagnostics build, no rendering change. Adds the automated GoldSrc
+"timedemo" the user asked for and the instrumentation to see the ~1s CS walking
+stutter in an automated form.
+
+* **`optimized/gltest/goldsrc_bench.py`** — one-command automated benchmark for
+  Half-Life / Counter-Strike on the V5 box, driven entirely through the ICD's
+  own instrumentation so it works UNDER CS's BCShield anti-cheat (which blocks
+  `-condebug`/`qconsole.log`). A generated `<gamedir>/listenserver.cfg` runs a
+  deterministic `noclip` fly-through the moment a listen-server map loads (a
+  repeatable timedemo-equivalent), the ICD perf log is parsed for fps + worst
+  single frame, and the front buffer is dumped for render correctness. The cfg
+  is auto-removed after every run so normal play is never hijacked. `nofb` mode
+  disables the fbdump readback (which injects its own hitch) for truthful
+  stutter timing.
+* **`__r3dPerfDump` maxFrame** (`SST/sst_export.c`) — each perf window now logs
+  `maxFrame=<ms>`, the worst single inter-swap time in the window (30-frame
+  windows). A periodic hitch like the ~1s GoldSrc stutter shows up as a maxFrame
+  spike even when average fps looks fine; `texDl` in the same line stays 0 in
+  steady state, which DISPROVES texture streaming as the stutter cause (textures
+  are resident on de_dust — the hitch is elsewhere, correlates with 60Hz vs the
+  85Hz forced case). GL_RENDERER bumped to `[retro3dfx 0.3.9]`.
+
 ## 0.3.8 (2026-07-24) — CS green/rainbow world ROOT CAUSE fixed (vertex colors)
 
 The real mechanism behind every "CS green world" symptom since 0.3.4: the
