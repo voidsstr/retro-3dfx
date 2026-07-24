@@ -123,6 +123,24 @@ chk "H3MODES mode-set upgrades to highest safe refresh" \
     "$H5MINI/H3MODES.C" \
     "bestEntry = scanEntry;"
 
+# 10. ICD 0.3.8 dual-texture vertex-color fix (CS green/rainbow world root cause):
+#     the _B vertex procs and Intersect_B MUST write/carry iterated colors — the
+#     vintage "taco - don't bother since no it color" skip modulated GoldSrc's
+#     world by stale ring colors (green walls) and uninitialized stack floats
+#     (rainbow clip shards) once the 0.1.4 combine used ITERATED x TEXTURE.
+ICDSST="toolchain-3dfx/prefix/drive_c/3dfx/SWLIBS/OPENGL/GLIDE3X/SST"
+if grep -q -a -- "taco - don" "$ICDSST/sst_vertex.c"; then
+  echo "FAIL  ICD sst_vertex.c still contains the vintage no-color skip (taco)"; fail=1
+else
+  echo "PASS  ICD sst_vertex.c vintage no-color skip removed"
+fi
+n038=$(grep -a -c "RETRO3DFX 0.3.8" "$ICDSST/sst_vertex.c")
+if [ "$n038" -ge 8 ]; then
+  echo "PASS  ICD _B color-store fix markers present ($n038 sites)"
+else
+  echo "FAIL  ICD _B color-store fix markers missing (found $n038, want >=8)"; fail=1
+fi
+
 echo "== repo tree vs build tree sync (fixed files must match) =="
 for f in D3TXTR.C DDFLIP.C D6DP2.C DDFXNT.C CFIFO.C LOGFILE.C LOGFILE.H DEBUG.C ENABLE.C DDMEMMGR.C D3CONTXT.C DDGLOBAL.H HW.H D7D3D.C DDINIT.C MEMCHECK.H BITBLT.C DDSURF.C DDOVL32.C DDBLT32.C FNPROTO.H; do
   if cmp -s "$H5DISP/$f" "$PREFIX/Displays/H5/$f"; then

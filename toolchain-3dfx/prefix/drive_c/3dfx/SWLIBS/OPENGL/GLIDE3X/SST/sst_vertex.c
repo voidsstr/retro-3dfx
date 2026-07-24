@@ -1114,13 +1114,14 @@ void APIENTRY __glsstim_Vertex2fv_B(const GLfloat *v) {
     s->flags      = f;
 
     /* Copy colors, scale and clamp to 0..255 */
-#if 0
-    /* taco - don't bother since no it color */
+    /* RETRO3DFX 0.3.8 (CS rainbow/green world): dual-texture (_B) path must
+    ** write iterated colors: the 0.1.4/0.1.5 combine is ITERATED x TEXTURE,
+    ** so the vintage 'no it color' shortcut modulates the world by stale
+    ** ring colors (green walls) / stack garbage (rainbow clip shards). */
     s->r   = gc->state.current.color.r;
     s->g   = gc->state.current.color.g;
     s->b   = gc->state.current.color.b;
     s->a   = gc->state.current.color.a;
-#endif
 
     /* Copy scaled texture coords */
     GL_UINTCAST(s->t0_sow) = GL_UINTCAST(gc->state.current.texture[1].x) + gc->primState.tc[1].sBias;
@@ -1210,13 +1211,14 @@ void APIENTRY __glsstim_Vertex3fv_B(const GLfloat *v) {
     s->flags      = f;
 
     /* Copy colors, scale and clamp to 0..255 */
-#if 0
-    /* taco - don't bother since no it color */
+    /* RETRO3DFX 0.3.8 (CS rainbow/green world): dual-texture (_B) path must
+    ** write iterated colors: the 0.1.4/0.1.5 combine is ITERATED x TEXTURE,
+    ** so the vintage 'no it color' shortcut modulates the world by stale
+    ** ring colors (green walls) / stack garbage (rainbow clip shards). */
     s->r   = gc->state.current.color.r;
     s->g   = gc->state.current.color.g;
     s->b   = gc->state.current.color.b;
     s->a   = gc->state.current.color.a;
-#endif
 
     /* Copy scaled texture coords */
     GL_UINTCAST(s->t0_sow) = GL_UINTCAST(gc->state.current.texture[1].x) + gc->primState.tc[1].sBias;
@@ -1306,13 +1308,14 @@ void APIENTRY __glsstim_Vertex4fv_B(const GLfloat *v) {
     s->flags      = f;
 
     /* Copy colors, scale and clamp to 0..255 */
-#if 0
-    /* taco - don't bother since no it color */
+    /* RETRO3DFX 0.3.8 (CS rainbow/green world): dual-texture (_B) path must
+    ** write iterated colors: the 0.1.4/0.1.5 combine is ITERATED x TEXTURE,
+    ** so the vintage 'no it color' shortcut modulates the world by stale
+    ** ring colors (green walls) / stack garbage (rainbow clip shards). */
     s->r   = gc->state.current.color.r;
     s->g   = gc->state.current.color.g;
     s->b   = gc->state.current.color.b;
     s->a   = gc->state.current.color.a;
-#endif
 
     /* Copy scaled texture coords */
     GL_UINTCAST(s->t0_sow) = GL_UINTCAST(gc->state.current.texture[1].x) + gc->primState.tc[1].sBias;
@@ -1479,6 +1482,20 @@ __glSSTIntersect_B(  IVert *in,  IVert *out,  IVert *mid, unsigned plane)
     mid->t1_sow = t * out->t1_sow * ow + omt * in->t1_sow * iw; // * in->W;
     mid->t1_tow = t * out->t1_tow * ow + omt * in->t1_tow * iw; // * in->W;
     mid->t1_oow = t * out->t1_oow * ow + omt * in->t1_oow * iw; // * in->W;
+
+    /* RETRO3DFX 0.3.8 (CS rainbow/green world): dual-texture (_B) path must
+    ** carry colors: previously left uninitialized here. */
+    if (gc->state.light.shadingModel == GL_SMOOTH) {
+        mid->r   = t * out->r   + omt * in->r;
+        mid->g   = t * out->g   + omt * in->g;
+        mid->b   = t * out->b   + omt * in->b;
+        mid->a   = t * out->a   + omt * in->a;
+    } else {
+        mid->r   = in->r;
+        mid->g   = in->g;
+        mid->b   = in->b;
+        mid->a   = in->a;
+    }
 
     mid->flags = 0;
 
@@ -3429,6 +3446,16 @@ void APIENTRY __glsstim_Vertex2fv_B(const GLfloat *v) {
         and     code, iy
         nop
 AfterClip:
+; RETRO3DFX 0.3.8: write iterated colors (see C twin comment). Same 8-store
+; block as the single-texture procs; eax-edx are scratch here, code=esi safe.
+        mov     eax, __GLcontext.state.current.color.r[_gc_]
+        mov     ebx, __GLcontext.state.current.color.g[_gc_]
+        mov     ecx, __GLcontext.state.current.color.b[_gc_]
+        mov     edx, __GLcontext.state.current.color.a[_gc_]
+        mov     IVert.r[vo], eax
+        mov     IVert.g[vo], ebx
+        mov     IVert.b[vo], ecx
+        mov     IVert.a[vo], edx
         mov     eax, (ps.tc[0].sBias+16)[_gc_]
         mov     ebx, (ps.tc[0].tBias+16)[_gc_]
         mov     ecx, (__GLcontext.state.current.texture[0].w+16)[_gc_]
@@ -3703,6 +3730,16 @@ void APIENTRY __glsstim_Vertex3fv_B(const GLfloat *v) {
         and     code, iy
         nop
 AfterClip:
+; RETRO3DFX 0.3.8: write iterated colors (see C twin comment). Same 8-store
+; block as the single-texture procs; eax-edx are scratch here, code=esi safe.
+        mov     eax, __GLcontext.state.current.color.r[_gc_]
+        mov     ebx, __GLcontext.state.current.color.g[_gc_]
+        mov     ecx, __GLcontext.state.current.color.b[_gc_]
+        mov     edx, __GLcontext.state.current.color.a[_gc_]
+        mov     IVert.r[vo], eax
+        mov     IVert.g[vo], ebx
+        mov     IVert.b[vo], ecx
+        mov     IVert.a[vo], edx
         mov     eax, (ps.tc[0].sBias+16)[_gc_]
         mov     ebx, (ps.tc[0].tBias+16)[_gc_]
         mov     ecx, (__GLcontext.state.current.texture[0].w+16)[_gc_]
@@ -3981,6 +4018,16 @@ void APIENTRY __glsstim_Vertex4fv_B(const GLfloat *v) {
         and     code, iy
         nop
 AfterClip:
+; RETRO3DFX 0.3.8: write iterated colors (see C twin comment). Same 8-store
+; block as the single-texture procs; eax-edx are scratch here, code=esi safe.
+        mov     eax, __GLcontext.state.current.color.r[_gc_]
+        mov     ebx, __GLcontext.state.current.color.g[_gc_]
+        mov     ecx, __GLcontext.state.current.color.b[_gc_]
+        mov     edx, __GLcontext.state.current.color.a[_gc_]
+        mov     IVert.r[vo], eax
+        mov     IVert.g[vo], ebx
+        mov     IVert.b[vo], ecx
+        mov     IVert.a[vo], edx
         mov     eax, (ps.tc[0].sBias+16)[_gc_]
         mov     ebx, (ps.tc[0].tBias+16)[_gc_]
         mov     ecx, (__GLcontext.state.current.texture[0].w+16)[_gc_]
@@ -4597,6 +4644,19 @@ plane_sync:
     push    ebp
 
     mov     vm   , _vm$[esp]              ; clipped vertex
+;
+;   RETRO3DFX 0.3.8: always copy colors (this dual-texture Intersect left mid
+;   colors uninitialized -> rainbow clip shards). ebx/ecx/esi/edi are free;
+;   ecx (plane) is reloaded right after, mirroring the single-tex Intersect.
+;
+    mov     ebx  , IVert.r[vi]
+    mov     ecx  , IVert.g[vi]
+    mov     esi  , IVert.b[vi]
+    mov     edi  , IVert.a[vi]
+    mov     IVert.r[vm], ebx
+    mov     IVert.g[vm], ecx
+    mov     IVert.b[vm], esi
+    mov     IVert.a[vm], edi
     mov     ecx, _plane$[esp]
 
 ;

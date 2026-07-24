@@ -1,3 +1,21 @@
+## 0.3.8 (2026-07-24) — CS green/rainbow world ROOT CAUSE fixed (vertex colors)
+
+The real mechanism behind every "CS green world" symptom since 0.3.4: the
+dual-texture (_B) immediate-mode vertex procs never wrote iterated r/g/b/a
+(vintage `#if 0` "taco - don't bother since no it color"), and Intersect_B /
+ClipAndDraw_B left clip-vertex colors uninitialized stack floats. Valid for the
+vintage LOCAL_NONE dual-tex combine; broken ever since 0.1.4/0.1.5 programmed
+ITERATED x TEXTURE — the world modulated by stale ring colors (green walls,
+striped floors) and stack garbage (rainbow clip shards at screen edges). Fix:
+8-store color block added to all three ASM _B procs + ASM Intersect_B (and the
+C twins re-enabled). Verified on .143 V5 5500: de_dust perfect tan at 640+1024,
+single-chip AND 2-way SLI; Q3/CS golden + D3D matrix all pass. Forensics that
+pinned it: framebuffer stripe analysis (mod-256 iterated-color wraps, no mod-32
+SLI phase), exact (0,G,0) walls with intact texture in G, shard gradients =
+Gouraud planes. The 0.3.4d/0.3.7 swap hook is now understood as a partial MASK
+(its LOCAL_NONE combine override suppressed iterated color once per frame) —
+candidate for retirement in a future build after a hook-off A/B.
+
 # 3dfx-driver-optimized — CHANGELOG
 
 Our self-built 3dfx Voodoo driver stack (miniport `3dfxv5m.sys`, display `3dfxv5d.dll`,
