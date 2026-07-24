@@ -1,3 +1,31 @@
+## 0.4.0 (2026-07-24) — ICD 1280x1024 support + highest-safe per-resolution refresh
+
+The OpenGL ICD (`SST/sst_export.c`) had two hardcodes that broke high-res and
+capped the in-game refresh at 60Hz:
+* **Resolution table topped out at 1024x768.** A 1280x1024 window (Quake3
+  r_mode 8) opened a **1024x768** Glide context under a 1280x1024 primary
+  surface, so Glide reprogrammed the CRTC/tile-stride for 1024x768 -> tile/
+  scanout mismatch -> hardware WEDGE (black screen, display drops to VGA). Fix:
+  added `SST_1280x1024` to the resolution enum + a `{1280,1024,
+  GR_RESOLUTION_1280x1024, ...}` row to `__sstResTable`, and moved the
+  "out of resolutions" sentinel to the new top entry. Glide's `_resTable`
+  (GSST.C) already supports 0xD=1280x1024 and the V5's memory fits db+Z; the
+  cap table auto-sizes (zero-fills SST_NC for legacy boards; the V5 takes the
+  platform<0 bypass).
+* **grSstWinOpen was hardcoded to GR_REFRESH_60Hz** (60Hz in every fullscreen
+  Glide/GL game). Added a 4th column to `__sstResTable` = the highest CRT-safe
+  refresh per resolution and pass it: **85Hz at <=1024x768, 75Hz at 1280x1024**
+  (the ViewSonic A90's ~86kHz Hmax makes 1280x1024@85 (~91kHz) out of range, so
+  it's capped at 75Hz). The refresh flows grSstWinOpen -> MINIHWC setVideoMode.
+  NOTE: a `FX_GLIDE_REFRESH` registry/env value overrides this per-resolution
+  choice with a single flat value for ALL resolutions -- it must be UNSET for
+  the per-res refresh (and its 1280x1024 safety) to apply.
+
+Verified offline by a 6-dimension adversarial workflow (compile, mode-walk,
+cap-table bounds, refresh honor+safety, viewport/buffer limits, glide/V5
+memory) -- all SAFE -- and a clean Wine build (`build_ogl.bat`, NMAKE exit 0).
+GL_RENDERER -> `[retro3dfx 0.4.0]`.
+
 ## 0.3.9 (2026-07-24) — GoldSrc timedemo automation + worst-frame (stutter) instrumentation
 
 Tooling + diagnostics build, no rendering change. Adds the automated GoldSrc

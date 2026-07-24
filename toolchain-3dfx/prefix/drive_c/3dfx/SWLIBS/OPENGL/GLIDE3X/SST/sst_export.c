@@ -705,6 +705,9 @@ typedef enum SST_RESOLUTION {
     SST_640x480,
     SST_800x600,
     SST_1024x768,
+    SST_1280x1024,   /* RETRO3DFX: added so a 1280x1024 window opens a matching
+                     ** Glide context instead of clamping to 1024x768 (which put
+                     ** a 1024x768 CRTC under a 1280x1024 surface -> HW wedge). */
     SST_RESOLUTIONS
 };
 
@@ -810,11 +813,17 @@ static const int __sstResCapTable[SST_PLATFORMS][SST_SLICONFIGS][SST_MEMCONFIGS]
     }  
 };
 
-static const int __sstResTable[SST_RESOLUTIONS][3] = {
-    {  512,  384, GR_RESOLUTION_512x384  },
-    {  640,  480, GR_RESOLUTION_640x480  },
-    {  800,  600, GR_RESOLUTION_800x600  },
-    { 1024,  768, GR_RESOLUTION_1024x768 }
+/* RETRO3DFX: 4th column = the highest CRT-safe refresh for this resolution.
+** The vintage code hardcoded GR_REFRESH_60Hz in grSstWinOpen (60Hz in-game).
+** On the .143 ViewSonic A90 (Hmax ~86kHz) 85Hz is safe through 1024x768, but
+** 1280x1024@85 needs ~91kHz -> out of range, so cap it at 75Hz there. Lower
+** resolutions are far under the horizontal-frequency limit at 85Hz. */
+static const int __sstResTable[SST_RESOLUTIONS][4] = {
+    {  512,  384, GR_RESOLUTION_512x384,   GR_REFRESH_85Hz },
+    {  640,  480, GR_RESOLUTION_640x480,   GR_REFRESH_85Hz },
+    {  800,  600, GR_RESOLUTION_800x600,   GR_REFRESH_85Hz },
+    { 1024,  768, GR_RESOLUTION_1024x768,  GR_REFRESH_85Hz },
+    { 1280, 1024, GR_RESOLUTION_1280x1024, GR_REFRESH_75Hz }
 };
 
 /*
@@ -950,7 +959,7 @@ static GLboolean MakeCurrent(__GLcontext *gc)
                 } else {
                     step = -1;
                 }
-            } else if ( res == SST_1024x768 ) { /* out of resolutions */
+            } else if ( res == SST_1280x1024 ) { /* out of resolutions (top entry) */
                 if ( __SST_RES_OK( platform, sli, mem, res ) ) {
                     break;
                 } else {
@@ -1004,11 +1013,11 @@ static GLboolean MakeCurrent(__GLcontext *gc)
     }
 
     OGLLOG( "MakeCurrent: fbmem=%dMB res idx=%d -> maxvp %dx%d, calling "
-            "grSstWinOpen(hwnd=0x%x res=%d refresh=GR_REFRESH_60Hz "
+            "grSstWinOpen(hwnd=0x%x res=%d refresh=%d "
             "fmt=ARGB origin=UL nCol=2 nAux=1)",
             grGetInteger( GR_MEMORY_FB ), res,
             gc->constants.maxViewportWidth, gc->constants.maxViewportHeight,
-            (unsigned)tacoHackHWND, resolution );
+            (unsigned)tacoHackHWND, resolution, __sstResTable[res][3] );
 
     /* RETRO3DFX EXPERIMENT (env RETRO3DFX_32BPP): open the hw color buffer in
      * true-color ARGB_8888 instead of the default RGB565. Must stay in lockstep
@@ -1019,21 +1028,23 @@ static GLboolean MakeCurrent(__GLcontext *gc)
         OGLLOG( "MakeCurrent: RETRO3DFX_32BPP -> grSstWinOpenExt=0x%x (GR_PIXFMT_ARGB_8888)",
                 (unsigned)pfnExt );
         if ( pfnExt )
-            tacoHackContext = (*pfnExt)( tacoHackHWND, resolution, GR_REFRESH_60Hz,
+            tacoHackContext = (*pfnExt)( tacoHackHWND, resolution, __sstResTable[res][3],
                                          GR_COLORFORMAT_ARGB, GR_ORIGIN_UPPER_LEFT,
                                          GR_PIXFMT_ARGB_8888, 2, 1 );
         else                          /* fallback to 16bpp if the ext isn't resolvable */
-            tacoHackContext = grSstWinOpen( tacoHackHWND, resolution, GR_REFRESH_60Hz,
+            tacoHackContext = grSstWinOpen( tacoHackHWND, resolution, __sstResTable[res][3],
                                             GR_COLORFORMAT_ARGB, GR_ORIGIN_UPPER_LEFT, 2, 1 );
     } else {
         tacoHackContext = grSstWinOpen( tacoHackHWND,
                                            resolution,
-                                           GR_REFRESH_60Hz,
+                                           __sstResTable[res][3],   /* RETRO3DFX: highest CRT-safe
+                                              refresh for this res (85Hz <=1024x768, 75Hz@1280x1024),
+                                              was hardcoded GR_REFRESH_60Hz. Double-buffer (2,1); the
+                                              old "85Hz destabilized" note was the triple-buffer(3,1)
+                                              path, not this one. */
                                            GR_COLORFORMAT_ARGB,
                                            GR_ORIGIN_UPPER_LEFT,
-                                           2,1 );         /* double-buffer 60Hz = optimal;
-                                              triple-buffer(3,1) -> 55.8fps and 85Hz destabilized
-                                              (the swap does necessary GPU/SLI sync, not idle wait) */
+                                           2,1 );
     }
     if ( !tacoHackContext ) {
         OGLLOG( "MakeCurrent: ** grSstWinOpen FAILED (returned 0) **" );

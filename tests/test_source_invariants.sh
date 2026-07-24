@@ -160,9 +160,9 @@ fi
 chk "ICD __r3dPerfDump maxFrame hitch tracking" \
     "$ICDSST/sst_export.c" \
     "maxFrame=%lums"
-chk "ICD renderer string bumped to 0.3.9" \
+chk "ICD renderer string current (>=0.4.0)" \
     "toolchain-3dfx/prefix/drive_c/3dfx/SWLIBS/OPENGL/GLIDE3X/GLCORE/S_CONTXT.C" \
-    "retro3dfx 0.3.9"
+    "retro3dfx 0.4.0"
 chk "goldsrc_bench timedemo harness present" \
     "optimized/gltest/goldsrc_bench.py" \
     "build_listenserver_cfg"
@@ -205,6 +205,32 @@ if grep -q -a -- "HKR,Glide,FX_GLIDE_SWAPINTERVAL,,\"0\"" "3dfx Driver Code/H5/W
   echo "FAIL  Voodoo5 INF still forces FX_GLIDE_SWAPINTERVAL=0 (vsync off)"; fail=1
 else
   echo "PASS  Voodoo5 INF no longer forces vsync off"
+fi
+
+# 14. ICD 0.4.0: 1280x1024 support + highest-safe per-resolution refresh. The
+#     resolution table must include the 1280x1024 row and carry a refresh
+#     column, the "out of resolutions" sentinel must be the new top entry, and
+#     grSstWinOpen must pass the per-resolution refresh (NOT a hardcoded 60Hz),
+#     else a 1280x1024 window wedges the hardware / the game is stuck at 60Hz.
+chk "ICD SST_RESOLUTION enum includes 1280x1024" \
+    "$ICDSST/sst_export.c" \
+    "SST_1280x1024,"
+chk "ICD __sstResTable has the 1280x1024 row (GR_RESOLUTION_1280x1024)" \
+    "$ICDSST/sst_export.c" \
+    "{ 1280, 1024, GR_RESOLUTION_1280x1024, GR_REFRESH_75Hz }"
+chk "ICD __sstResTable carries a refresh column ([4])" \
+    "$ICDSST/sst_export.c" \
+    "__sstResTable\[SST_RESOLUTIONS\]\[4\]"
+chk "ICD mode-walk sentinel moved to SST_1280x1024" \
+    "$ICDSST/sst_export.c" \
+    "res == SST_1280x1024 )"
+chk "ICD grSstWinOpen uses per-resolution refresh (not hardcoded 60Hz)" \
+    "$ICDSST/sst_export.c" \
+    "resolution, __sstResTable\[res\]\[3\],"
+if grep -q -a -- "resolution, GR_REFRESH_60Hz," "$ICDSST/sst_export.c"; then
+  echo "FAIL  ICD still calls grSstWinOpen with a hardcoded GR_REFRESH_60Hz"; fail=1
+else
+  echo "PASS  ICD no hardcoded GR_REFRESH_60Hz in grSstWinOpen"
 fi
 
 echo "== repo tree vs build tree sync (fixed files must match) =="
