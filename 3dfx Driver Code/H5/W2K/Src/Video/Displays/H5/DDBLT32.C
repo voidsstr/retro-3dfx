@@ -152,6 +152,9 @@ DdBlt( LPDDHAL_BLTDATA pbd )
 #ifndef WINNT
   DWORD                dwDestSurfFlags, dwSrcSurfFlags;
 #endif
+#if defined(WINNT) && (DIRECT3D_VERSION >= 0x0700) && (DX >= 7)
+  DWORD                dwSrcTxHndl, dwDstTxHndl;
+#endif
   RC                   *pRc;
 
   DD_ENTRY_SETUP(pbd->lpDD);
@@ -518,11 +521,82 @@ DdBlt( LPDDHAL_BLTDATA pbd )
       return DDHAL_DRIVER_HANDLED ;
     }
 
-    #ifndef WINNT
+    // retro3dfx: resolve the texture-download handle table CONTEXT-INDEPENDENTLY.
+    //
+    // The original code resolved both surface handles with TXTRHNDL_PTR(), which on
+    // DX7/NT expands to  pRc->pHndlList->ppTxtrHndlList[h]  where pRc = _D3(lastContext).
+    // That crashed GoldSrc's Direct3D renderer: _D3(lastContext) is set ONLY inside the
+    // DrawPrimitives2 draw path and is ZEROED by textureLoad() itself, so a texture
+    // upload -- which precedes the first draw, or follows a prior upload in the same
+    // batch -- legitimately runs with lastContext == NULL, and pRc->pHndlList then
+    // dereferenced [NULL+0x510] -> kernel AV (bugcheck 0x8E, DdBlt+0x32C).
+    //
+    // On W2K/NT a surface carries no owning DirectDraw-local, so we can't key the
+    // handle list off the surface.  But the app's render context is already linked
+    // into g_pContexts at device-create time (ddiContextCreate) -- long before the
+    // first draw sets lastContext -- and it holds the pHndlList that owns these
+    // handles.  So walk g_pContexts for the RC whose handle list validly resolves
+    // BOTH handles (the same walk textureLoad's surface-delete path uses,
+    // D3TXTR.C:1211; a surface belongs to one RC) and load through its TXTRHNDLs.
+    // textureLoad() needs only ppdev + the two TXTRHNDLs (its body reads no context
+    // state), so this both removes the NULL-pRc AV *and* lets uploads actually
+    // succeed with no *current* context -- a plain guard (goto unsupported) would
+    // instead force a DDraw software copy of linear bytes into a hardware-tiled
+    // texture, i.e. a garbled/black world.  goto unsupported only when no RC
+    // resolves the handles (worst case == the old guard-only behaviour, never a fault).
+#if defined(WINNT) && (DIRECT3D_VERSION >= 0x0700) && (DX >= 7)
+    {
+      RC       *pTxRc;
+      HNDLLIST *pTxHndlList = NULL;
+      TXTRHNDL  *pSrcTxtr = NULL, *pDstTxtr = NULL;
+
+      if ( !pbd->lpDDSrcSurface->lpSurfMore || !pbd->lpDDDestSurface->lpSurfMore )
+      {
+        DDPRINT(DDDBGLVL, "Blt32 - texture download skipped: surface has no lpSurfMore");
+        goto unsupported;
+      }
+      dwSrcTxHndl = pbd->lpDDSrcSurface->lpSurfMore->dwSurfaceHandle;
+      dwDstTxHndl = pbd->lpDDDestSurface->lpSurfMore->dwSurfaceHandle;
+      if ( (0 == dwSrcTxHndl) || (0 == dwDstTxHndl) )
+      {
+        DDPRINT(DDDBGLVL, "Blt32 - texture download skipped: zero surface handle");
+        goto unsupported;
+      }
+
+      for ( pTxRc = g_pContexts; NULL != pTxRc; pTxRc = pTxRc->pNext )
+      {
+        HNDLLIST *pHL = pTxRc->pHndlList;
+
+        // valid list, both handles in range (ppTxtrHndlList[0] holds the count,
+        // handle <= count -- matches D3TXTR.C:1218), and both registered.
+        if ( (NULL == pHL) || (NULL == pHL->ppTxtrHndlList) )
+          continue;
+        if ( (dwSrcTxHndl > (DWORD)pHL->ppTxtrHndlList[0]) ||
+             (dwDstTxHndl > (DWORD)pHL->ppTxtrHndlList[0]) )
+          continue;
+        if ( (NULL != pHL->ppTxtrHndlList[dwSrcTxHndl]) &&
+             (NULL != pHL->ppTxtrHndlList[dwDstTxHndl]) )
+        {
+          pTxHndlList = pHL;
+          pSrcTxtr    = pHL->ppTxtrHndlList[dwSrcTxHndl];
+          pDstTxtr    = pHL->ppTxtrHndlList[dwDstTxHndl];
+          break;
+        }
+      }
+
+      if ( NULL == pTxHndlList )
+      {
+        DDPRINT(DDDBGLVL, "Blt32 - texture download skipped: no context resolves handles (src=%ld dst=%ld)",
+                dwSrcTxHndl, dwDstTxHndl);
+        goto unsupported;
+      }
+
+      DDPRINT(DDDBGLVL, "Blt32 - Texture download (ctx-independent)");
+      pbd->ddRVal = TEXTURELOAD(ppdev, pSrcTxtr, &pbd->rSrc, 0, pDstTxtr, &pbd->rDest, 0);
+      return DDHAL_DRIVER_HANDLED;
+    }
+#else
     DISPDBG((ppdev, DEBUG_DDDETAILS,"Blt32 - Texture download"));
-    #else
-    DDPRINT(DDDBGLVL, "Blt32 - Texture download");
-    #endif
     pbd->ddRVal = TEXTURELOAD(ppdev,
                               TXTRHNDL_PTR(pbd->lpDDSrcSurface->lpSurfMore->dwSurfaceHandle),
                               &pbd->rSrc, 0,
@@ -530,6 +604,7 @@ DdBlt( LPDDHAL_BLTDATA pbd )
                               &pbd->rDest, 0);
 
     return DDHAL_DRIVER_HANDLED;
+#endif
   }
 #endif
 

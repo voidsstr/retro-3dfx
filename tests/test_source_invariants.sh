@@ -88,6 +88,27 @@ else
   echo "PASS  D6DP2 no raw Blt32_CopyFourCC PTEXBLTFUNC cast"
 fi
 
+# 5f. DdBlt texture-download context-independent handle resolution (GoldSrc
+#     Direct3D bugcheck 1000008E @ 3dfxv5d DdBlt+0x32C, AND garbled textures).
+#     The system->video texture-download path used TXTRHNDL_PTR = pRc->pHndlList->
+#     ppTxtrHndlList[h] with pRc=_D3(lastContext); GoldSrc uploads textures with NO
+#     current context (lastContext is set only in the draw path and zeroed by
+#     textureLoad itself) -> pRc==NULL -> [NULL+0x510] kernel AV. On W2K a surface
+#     has no owning DD-local, but the app's RC is already in g_pContexts from device
+#     create, so walk g_pContexts for the RC whose handle list resolves BOTH handles
+#     (mirrors textureLoad's own walk at D3TXTR.C:1211) and TEXTURELOAD through its
+#     TXTRHNDLs -- removes the AV AND lets uploads succeed (a mere guard would force
+#     a garbled software fallback). textureLoad() reads no context state, so safe.
+chk "DDBLT32 texture-download walks g_pContexts (context-independent, not lastContext)" \
+    "$H5DISP/DDBLT32.C" \
+    "for ( pTxRc = g_pContexts; NULL != pTxRc; pTxRc = pTxRc->pNext )"
+chk "DDBLT32 texture-download resolves both TXTRHNDLs from the RC handle list" \
+    "$H5DISP/DDBLT32.C" \
+    "pSrcTxtr    = pHL->ppTxtrHndlList"
+chk "DDBLT32 texture-download calls TEXTURELOAD with resolved TXTRHNDLs (not pRc)" \
+    "$H5DISP/DDBLT32.C" \
+    "TEXTURELOAD(ppdev, pSrcTxtr, &pbd->rSrc, 0, pDstTxtr, &pbd->rDest, 0)"
+
 # 6. Registry-ring log sink (all of the above depend on it).
 chk "LOGFILE registry-ring sink" \
     "$H5DISP/LOGFILE.C" \
