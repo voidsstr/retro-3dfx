@@ -9,5 +9,9 @@ rem    mp_decals 30   - fewer bullet/blood decals (CPU + overdraw)
 rem    cl_himodels 0  - low-detail player models (fewer verts to transform on CPU)
 rem    fps_max 100    - stable frame pacing (uncapped just burns CPU re-rendering)
 set FX_GLIDE_SWAPINTERVAL=0
+rem Force OpenGL: GoldSrc's Direct3D renderer NULL-derefs the Voodoo5 D3D HAL and
+rem bugchecks the OS (0x8E), and offers no benefit (CS is CPU-bound). Reset the
+rem engine's saved D3D flag AND pass -gl so a stray "Direct3D" pick can't crash.
+reg add "HKCU\Software\Valve\Half-Life\Settings" /v EngineD3D /t REG_DWORD /d 0 /f >nul 2>&1
 cd /d "C:\Program Files\Bcs16 Romania\Counter-Strike 1.6"
 start "" hl.exe -game cstrike -gl -w 1024 -h 768 -full -noipx -nojoy +exec userconfig.cfg +r_dynamic 0 +mp_decals 30 +cl_himodels 0 +fps_max 100 %*
