@@ -95,9 +95,13 @@ instrumented builds.
 
 ## Current state / open bugs
 
-See `FINDINGS.md` (isolation matrices, root causes) and the memory file
-`d3d-3dmark-state`. Headlines: mipmapped-texture download FIXED (`08fd889`);
-open: D3D 2-way SLI banding (slave chip never executes D3D command stream),
-warm-rerun D3D degradation (leak hunt in progress — instr4 build logs
-ALLOC-FAIL/CTX balance), one unexplained hard freeze (FXBUSYWAIT suspect).
-V5 6000 (4-chip) prep: branch `v56k-6000`, plan in `V56K-PLAN.md`.
+**`VINTAGE-FIXES.md` is the definitive ledger of every fix to the vintage
+codebase** (which bugs were 3dfx's, which are ours, commits, regression
+tests). `FINDINGS.md` has the investigation matrices; memory file
+`d3d-3dmark-state` the session state. Headlines — ALL FIXED: mip downloads
+(`08fd889`), UT2004 TEXBLT FourCC arity (`7ddda02`), GoldSrc Direct3D crash
+(`8de09a3`) + white world / mip-sublevel downloads (`cf3ab3e` — CS D3D now
+renders and benches FASTER than GL: 33.5 vs 30.6 fps @1024), desktop gamma
+washout (`07424b8`), all six unbounded accelerator spins bounded. SLI banding
+and warm-rerun "degradation" were resolved as non-bugs (the mip bug / 3DMark
+itself). V5 6000 (4-chip) prep: branch `v56k-6000`, plan in `V56K-PLAN.md`.
