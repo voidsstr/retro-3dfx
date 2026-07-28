@@ -11,6 +11,522 @@ Win98 FAT volume. Agent 1.14.0. Autologs in as voidsstr/password.
 
 ---
 
+## BSOD 0x8E in vintage 3dfxv3d.dll — ROOT-CAUSED + FIXED (both == already-fixed bugs; .124 ran a STALE binary) (2026-07-28)
+
+Five XP small memory dumps off .124 (Voodoo3, Win on D:), all bugcheck
+**0x1000008E KMODE_EXCEPTION_NOT_HANDLED**, exc **0xC0000005**, faulting module
+**3dfxv3d.dll**. Two DETERMINISTIC crash EIPs. Dump-derived facts (parse the XP
+`DUMP_HEADER32`: bugcheck @0x28, then exc/EIP/ctxptr/0; `_TRIAGE_DUMP` @0x1000
+gives ContextOffset/DriverList — DllBase is in the driver record whose name
+field points into the string pool):
+
+- **3dfxv3d.dll DllBase = `0xBF012000`** (dxg.sys sits at 0xBF000000; SizeOfImage
+  0xC8500). The DLL is linked `/ALIGN:0x40` (SectionAlignment==FileAlignment==0x40,
+  VA==RawPtr) so **RVA == file offset** — objdump VMA = 0x10000 + RVA.
+- **EIP 0xBF04E4AC → RVA 0x3C4AC → `DdBlt@4`+0x5EC** (3 dumps: 07-25 ×2, 07-27;
+  trigger = D3D-fullscreen: CS `-d3d`, UT D3DDrv). Faulting insn
+  `mov 0x510(%edx),%eax`; **EDX=0 in all 3 dumps**. `edx=[esp+0x1c]`, set once in
+  the prologue from `*(ppdev+0x784)->[0xdc]` = `_D3(lastContext)` = `pRc`.
+  Root cause: the **system→video texture-download** path resolved both surface
+  handles with `TXTRHNDL_PTR(h)` = `pRc->pHndlList->ppTxtrHndlList[h]`, but
+  `pRc` (`lastContext`) is **NULL** in the context-less upload window (set only
+  in the DP2 draw path, and `textureLoad()` itself zeroes it) → `pRc->pHndlList`
+  = **[NULL+0x510]** → AV.
+- **EIP 0xBF012346 → RVA 0x346 → `DrvBitBlt@44`+0x48** (1 dump: 07-28; trigger =
+  Descent 3, DirectDraw fullscreen surface → a source-less fill). Faulting insn
+  `mov (%edi),%eax`; **EDI=0** (=`psoSrc`, arg2). Root cause: the
+  `#if ENABLE_LOG_FILE` debug block dereferenced `psoSrc->dhsurf` with **no NULL
+  check**; `psoSrc` is legitimately NULL for solid/pattern blts. (This is the
+  same offset as the .143 `3dfxv5d+0x346` Q3 vid_restart crash.)
+
+**Both are ALREADY FIXED + committed + regression-tested in the H5 source** — the
+.124 box was simply running a **stale, pre-fix 3dfxvs.dll** (deployed
+`3dfxv3d.dll` 957456 B, no fix; fresh build 962724 B, fixed):
+- DdBlt fix — `DDBLT32.C` resolves the TXTRHNDLs by walking the GLOBAL
+  `g_pHndlList` chain (context-independent), never `pRc->pHndlList` (commits
+  8de09a3, cf3ab3e). Only compiles under `DIRECT3D_VERSION>=0x0700 && DX>=7`;
+  `PRECOMP.H` sets 0x0800 and `SOURCES` DX=7 → it does.
+- DrvBitBlt fix — `BITBLT.C` null-guards BOTH psoDst and psoSrc in the
+  ENABLE_LOG_FILE block, mirroring the SLI_AA block (commit a03a9fe).
+
+**Verified against the fresh build (objdump):** DdBlt now loads `g_pHndlList`
+(0xcdabc) and walks `ppTxtrHndlList[0]` count-compare (source lines 602-619) with
+**zero** naked `mov 0x510` derefs; DrvBitBlt at +0x4A does `test %edi,%edi; je`
+before `mov (%edi),%eax`. The OLD/crashing binary has NEITHER. So a rebuild +
+redeploy of 3dfxv3d.dll fixes .124 (deploy left to the operator).
+
+**Clean-room parallel:** fxd3ddd `Dd_Blt` (retro-agent `scripts/3dfx/driver/nt/
+enable.c:1076,1109,1132`) already guards this class — null-checks `dst`/`dst->lpGbl`
+and requires `src && src->lpGbl` before any source deref, returning NOTHANDLED on
+a fill with no source (the M4c-2 hardening).
+
+**Regression (new):** `tests/codegen_8e_guards.py` disassembles the linked DLL and
+asserts BOTH fixes are in the CODEGEN (DdBlt refs g_pHndlList; DrvBitBlt tests edi
+before deref) — catches a stale-obj link OR a DX<7/LF=0 preprocessor regression
+that leaves source "fixed" but the binary crashing (exactly the .124 mode). Wired
+into `test_built_artifact.sh` (+ bitblt/ddblt32 stale-obj checks). Validated:
+PASS on the fresh build, FAIL on the crashing binary. Source-invariant asserts
+for both already existed (`test_source_invariants.sh` #5d, #5f).
+
+**Gotcha:** an XP "small memory dump" is NOT a user-mode minidump — DllBase lives
+in the `_TRIAGE_DUMP` driver list (76-byte records, name field = a FILE-OFFSET
+into the string pool, not a VA). And with `/ALIGN:0x40` the whole image maps 1:1
+(RVA==file offset), so you can objdump the on-disk DLL directly at the RVA.
+
+## DOS Game Manager built + verified in DOSBox-X (2026-07-28)
+
+New `retro-agent/scripts/dosgames/`: DOSGAME.EXE (Open Watcom 16-bit TUI) +
+host-side catalog/HTTP-bridge/tile tooling. Verified end-to-end headlessly
+(DOSBox-X mingw under Wine on private Xvfb :77 — dosbox-staging Linux builds
+hard-require GLX and abort on Xvfb). Full LAN install proven in emulation:
+NE2000+slirp → Crynwr packet driver → mTCP DHCP → HTGET zip from
+serve_dosgames.py (port 8181, systemd user service) → UNZIP → playable.
+Deployed to share `…\Retro Automation\dosgame\`; install queued for .243.
+Hard-won: (1) Watcom large-model **>64K static array silently wraps the data
+segment** — no warning, corrupt entries past ~#420; (2) share zips have long
+filenames → DOS 8.3 mangling breaks drive-letter copies, HTTP fetch is the
+only reliable path; (3) DOSBox-X AUTOTYPE delivers enter/tab/chars but NOT
+esc/F-keys — automate tests by timeout + file assertions. Survey of all 3,795
+share DOS archives: install.exe/setup.exe/install.bat at zip root covers 96%
+of installer archives; 2,893 zips are flat-root ready-to-extract.
+
+## Share deploy trap: exe launched FROM the share locks its own update (2026-07-28)
+
+Publishing retro_chat v0.14.0, the latest pointer `…\Retro Automation\retro_chat.exe`
+was un-overwritable/un-renamable/un-READABLE (Access denied even as `admin`),
+and gvfs showed the dentry as `??????????` / EINVAL. Root cause: **someone had
+launched `retro_chat.exe` directly from `Z:\` on .145** — the running image
+holds the share file open, and an earlier delete had put it into Samba
+delete-pending, which blocks ALL new opens of that name until the last handle
+closes. Diagnosis path that worked: per-box `net use Z: /delete` — the box that
+refuses with "device is being accessed by an active process" is the holder; then
+`wmic process … get ExecutablePath` found `Z:\…\retro_chat.exe`, PROCKILL freed
+it (the pending delete then completed and the name freed up). Lessons:
+- never run fleet exes from the share; copy local first (autoupdate does this).
+- curl smb:// with the keyring creds (admin) is the reliable publish path when
+  gvfs misbehaves; verify by md5 round-trip download.
+- chat auto-update compares SIZE only (not .ver), so a temporarily mismatched
+  `.ver` sidecar can't loop the fleet.
+
+Also this session: retro_chat **v0.14.0** — Pentium-1 CPU fix (spinner was a
+full erase+redraw every 150ms; now one WriteConsoleOutputCharacter cell per
+500ms at below-normal priority) + startup now WAITS for the agent ("Waiting for
+the retro agent to start...") instead of exiting when the chat wins the boot
+race. Guard tests: `retro-agent/tests/python/test_retro_chat_p1_behavior.py`.
+
+## fxD3D gbkernel: M4d bring-up-ladder tool built — fxdbg.exe (2026-07-27)
+
+The clean-room fxD3D kernel Glide backend (retro-agent `scripts/3dfx/driver/nt/`,
+gbkernel + escape ladder) had the kernel-side `FXDBG_*` DrvEscape handler
+(`gbkdebug.c/.h`) but NO user-mode driver for it — M4d couldn't be run even with
+a driver on-card. **Built `driver/nt/fxdbg/fxdbg.c`**: `CreateDC("DISPLAY")` +
+`ExtEscape` over the shared `gbkdebug.h` ABI, one subcommand per rung
+(`support|probe|clear|tri|tex|readback|ladder`), `readback` writes a 24bpp BMP
+from the 16bpp-565 rect. Compile-verified (mingw, PE32). Added `selftest.c`
+built `-m32` so `unsigned long` is 4 bytes (the i386 driver ABI) — pins opcodes,
+magic, and every wire-struct size/offset so a `gbkdebug.h` field edit fails the
+build, not the box. Wired into `make -C scripts/3dfx test` (all green).
+
+- **Gotcha:** the host default `unsigned long` is 64-bit (LP64) — an ABI guard
+  for an ILP32 driver struct MUST build `-m32`, or every `sizeof` is doubled.
+- **M4d is now gated only on hardware:** deploying `fxd3ddd.dll` to .124 is a
+  physical-recovery risk (experimental kernel display driver) — needs explicit
+  operator go-ahead before flashing + running `fxdbg ladder`.
+
+## CS menu cursor invisible in fullscreen GL — SOLVED: vgui_emulatemouse (2026-07-25)
+
+**GoldSrc's menu cursor is the Windows OS cursor by default**, and in exclusive
+fullscreen 3dfx GL the OS cursor overlay is never composited over the 3D scanout
+→ menu renders, cursor invisible. **Fix: `vgui_emulatemouse "1"`** (in
+`cstrike\userconfig.cfg` — WON auto-execs it and, unlike config.cfg, doesn't
+overwrite it) makes the engine draw its OWN software cursor into the GL frame.
+Verified at **1024×768×16 OpenGL** on our retrogl: glReadPixels `snapshot`
+capture shows the white arrow in-frame (framebuffer captures never contain the
+OS cursor, so an arrow in the capture IS the software cursor — clean proof).
+
+- **Self-capture trick for BCShield builds** (UIKEY + GDI both useless in
+  fullscreen Glide): a `wait`-chain + `snapshot` in **userconfig.cfg** fires a
+  few hundred frames after startup → `cstrike\Snapshot0000.bmp` of the live menu.
+  (My earlier attempt via `cstrike\autoexec.cfg` did NOT run — this build execs
+  userconfig.cfg, not autoexec.cfg.)
+- CS at 1024×768: registry ScreenWidth/Height + `-w 1024 -h 768`; retrogl.log
+  confirms `res enum 12 (1024x768)` + context SUCCESS.
+- **CS `-d3d` at 1024×768 WORKS — but ONLY with a settled 16bpp desktop.**
+  On a 32bpp desktop it fails clean ("video mode not supported → software
+  mode") — Voodoo3 D3D is 16-bit-only. Sequencing matters: setmode to
+  1024×768×16 must complete BEFORE launching hl (`setmode` then launch in the
+  same batch works; a racy setmode+launch from separate connections produced a
+  false sw.dll revert). Verified: EngineDLL stayed `hw.dll` through a full
+  bounded run + qconsole shows the engine past video init into sound init.
+- **-d3d fullscreen WEDGES .124's network for minutes while running** (vintage
+  HAL trait; recovers when hl.exe dies). Fine for local play; hostile to remote
+  automation. ALWAYS use a fully self-contained on-box batch for -d3d tests
+  (16bpp setmode → launch → ping-wait → taskkill → setmode 32bpp back), and
+  queue a `taskkill` via the daemon task queue as the recovery net. Note the
+  final setmode-32 needs a few seconds' wait after the kill or it doesn't take.
+
+---
+
+## MOHAA CD-lock SOLVED + RA2 renders on Voodoo3 (2026-07-24)
+
+**MOHAA now launches + renders** on our OpenGL stack. Three stacked fixes:
+1. **CD copy-protection (SafeDisc):** mount the owned disc image via DAEMON Tools
+   — but `.124` is **dual-boot with Windows on D:**, so ONLY
+   `D:\Program Files\D-Tools\daemon.exe` is the registered DT; the **C:\ copy
+   throws "Product not installed!"** on every `-mount` (this wasted a long
+   detour). DT 3.47 has **no CLI mount syntax difference** issue — it was purely
+   the wrong (C:) binary. Mount: `start "" /d "<D:\...\D-Tools>" daemon.exe
+   -mount 0,<image>` → G: shows `MOHAA_DISK1`; the plain mount satisfies MOHAA's
+   SafeDisc check (no separate emulation toggle needed). Disc staged `D:\d1.iso`
+   (from `Z:\Games\Windows XP\...Disc 1.iso`).
+2. **"0 files in pk3 files":** the launch working-dir must be the real path —
+   the 8.3 short name for `EA GAMES` is **`EAGAME~1`**, NOT `EAGAMES`; a wrong
+   short path set fs_basepath to `D:\` → 0 pk3s → "couldn't load default.cfg".
+   Launch with the full quoted path: `start "" /d "D:\Program Files\EA GAMES\
+   MOHAA" MOHAA.exe` (NO `+set` cvars — the Ritual build crashes on cmdline
+   r_mode/logfile/gldriver).
+3. **GL:** deploy our retrogl as game-local **`opengl32.dll`** (same KnownDLL
+   trick as CS — MOHAA's engine imports opengl32). Verified: retrogl.log shows
+   `grSstWinOpen: returned <nonzero>` + `wglCreateContext: SUCCESS` for MOHAA.exe,
+   fullscreen 640×480×16, proc → 32MB (game data loaded).
+
+**Red Alert 2 runs + renders on the Voodoo3** (`C:\Games\...Red Alert 2...V2\RA2`):
+the "Win10 Fixed" repack bundles the **aqrit ddraw wrapper** (`ForceDirectDrawEmulation=1`,
+`SingleProcAffinity=1` — good for the single-core P3). Verified end-to-end:
+main menu → Single Player → Skirmish setup → mission load → **live in-game
+render** (iso terrain, Soviet units, fog, sidebar) at 800×600. No crash — the
+known SSE2-`wsock32.dll` P1/P3 hazard (local 22528-B copy) did not trigger on
+this repack. RA2 is 2D DirectDraw, not 3D — it uses the Voodoo3's 2D path.
+
+---
+
+## CS/GoldSrc OpenGL SOLVED — game-local opengl32.dll (2026-07-24)
+
+**CS 1.6 (GoldSrc 1.1.2.5) now runs OpenGL on our retrogl.** GoldSrc does NOT use
+the gldrv/3dfxgl.dll MiniGL LoadLibrary path (proven: our DllMain never fired for
+`3dfxgl.dll` under either the Steam-emu 1.1.2.5 OR a WON 2001 build). Its `hw.dll`
+uses the **statically-imported `opengl32.dll`**. The unlock: **`opengl32` is NOT
+in .124's KnownDLLs list** (`HKLM\SYSTEM\CCS\Control\Session Manager\KnownDLLs`
+has no `opengl32` value), so a **game-local `opengl32.dll` DOES load** (game dir
+before system32). Deploy our retrogl AS `<CS>\opengl32.dll` (back up the original
+first) → GoldSrc loads OUR opengl32 → `grSstWinOpen` succeeds →
+`wglCreateContext: SUCCESS` for `hl.exe`, and **EngineDLL stays `hw.dll`** (GoldSrc
+reverts it to `sw.dll` on ANY GL failure — non-revert is the GoldSrc-side success
+signal). Config: `EngineDLL=hw.dll`, `EngineGLDriver=opengl32.dll`, `EngineType=2`,
+Screen 640×480×16, launch `hl.exe -game cstrike -gl`. Needs the **787KB glide** in
+the CS dir too (the 920KB build hangs — see below).
+
+- This is why "CS doesn't work in OpenGL" persisted: the game-local `opengl32.dll`
+  was MS's/software (or a stale build), and instrumenting via `wglGetProcAddress`
+  was a red herring — GoldSrc resolves via kernel32 GetProcAddress, invisible to a
+  per-call tracer. The **DllMain PROCESS_ATTACH** line (retrogl 0.1.33) is what
+  finally distinguished "never loaded" from "loaded but failed".
+- Q3/Q2/RtCW load our retrogl by an explicit **non-opengl32 name** (`retrogl.dll`,
+  `3dfxgl.dll`, `gl/openglv5.dll`) via their own `r_glDriver`/`gl_driver` cvar;
+  GoldSrc has no such cvar so it needs the `opengl32.dll` name. Two different
+  load mechanisms, same retrogl DLL.
+- **MOHAA** renders on our stack too (qconsole.log: our Mesa/3dfx extensions,
+  `GL_MAX_TEXTURE_SIZE 256`, dual-TMU, `MODE 6 1024x768`) but the current disc is
+  **CD-locked** ("Cannot locate the CD-ROM") — a no-CD/provisioning gate, not a
+  driver problem. WON Half-Life is likewise gated on a **CD-Key** dialog.
+
+---
+
+## Games-OpenGL-broken ROOT CAUSE: wrong glide3x build (2026-07-24) — SOLVED
+
+**REGRESSION ROOT-CAUSED (2026-07-25): the 920,157-byte DLL is NOT a source
+regression and NOT a debug build — it is the `FX_GLIDE_HW=h5` (Voodoo4/5
+Napalm) glide3x.** `voodoo-cleanroom/build-stack.sh` builds h5 FIRST and names
+it **`out/glide3x.dll`** (the deploy-expected name); the Voodoo3 build is
+`out/glide3x_h3.dll` (Makefile.mingw's default HW is also h5). Both were built
+Jul 23 10:12 (h5 :22, h3 :27 — PE timestamps). Evidence: 920 KB build contains
+Napalm-only strings (`FX_GLIDE_2PPC`, `FX_GLIDE_AA2/4/8_OFFSET_*`, Voodoo4/5500/
+6000 board table, `Services\3dfxvs`); .text 0x43084 vs h3's 0x2b1a4; identical
+393-export surface (why it drop-in loaded). It hangs/crashes in grGlideInit
+because **all four verified bring-up fixes were committed to the h3 tree only**
+(a71eb3f TLS `%fs:`→TlsGetValue + lost-context fallback, 8b6eb5f GETLINEARADDR
+prime, 2387787 zero-base guard, a73a159) — h5's `fxglide.h` still has the raw
+`%fs:` TLS read and h5's minihwc still ALLOCCONTEXTs unmapped → NULL base. The
+glide clone (`glide-devel-sezero` @ a71eb3f) is clean; a from-scratch h3 rebuild
+via the build-stack.sh recipe reproduces the good DLL **byte-identically except
+8 link-timestamp/checksum bytes** (787,186 B, same 393 exports incl. dual-ABI
+`_gr*` aliases) → `out/glide3x_rebuilt_fixed.dll`. Rule: **deploy glide3x_h3 to
+Voodoo3 boxes; never ship the h5-named `out/glide3x.dll` artifact to .124**
+(port the h3 fixes to the h5 tree before any Voodoo5 use of our glide).
+
+**Every "OpenGL doesn't work" symptom on .124 traced to the WRONG glide3x, not
+the retrogl ICD.** `voodoo-cleanroom/out/glide3x.dll` had been rebuilt to a
+**920,157-byte** build whose **`grGlideInit()` hangs/crashes on the Voodoo3**.
+The retrogl (MesaFX ICD) calls `grGlideInit` inside `fxQueryHardware()` on the
+FIRST `wglDescribePixelFormat` (via `pfd_tablen`→`fxMesaSelectCurrentBoard`), so
+the game dies at GL-init with the ICD's attach-banner logged and nothing after —
+looked exactly like an ICD bug. It is NOT: with the **787,186-byte** production
+glide the SAME retrogl runs clean through `grSstWinOpen` → `wglCreateContext:
+SUCCESS`. **Q3 CONFIRMED: `GL_RENDERER: Mesa Glide v0.62 Voodoo3 (tm)
+[voodoo-cleanroom 0.1.32]`, map+cgame rendered.**
+
+- **Ship the 787,186-byte glide.** `out/glide3x.dll` is now that build (md5
+  f42b0b49710bb5ef8b052abce5d4fb6e); the 920 KB one is quarantined as
+  `out/glide3x_920157_debug_HANGS_grglideinit.dll`. There is a **regression in
+  our clean-room glide between the 787 KB and 920 KB builds** (grGlideInit) —
+  investigate separately; do NOT deploy the 920 KB build to any box.
+- **Diagnostic path that cracked it:** instrument the retrogl (`fxrlog.h` →
+  `C:\retrogl.log`), run a Q3-engine game (standard WGL path logs every step),
+  read where it stops. GoldSrc's engine bypasses the ICD's WGL entry points so
+  it logs nothing — use a Q3-engine game to exercise/verify the ICD.
+- **GDI SCREENSHOT of Voodoo3 glide-fullscreen = garbage** (reads desktop FB, not
+  the 3D overlay). Prove rendering with the in-game `GL_RENDERER` / a timedemo,
+  never a screenshot.
+- **Every game dir needs the 787 KB glide** (glide3x is NOT a KnownDLL, so the
+  game-local copy wins) — fleet had mixed builds scattered everywhere.
+
+---
+
+## fxD3D M4d bring-up attempt #1 — deployed, NOT yet activating (2026-07-24)
+
+`fxd3ddd.dll` (33 KB native PE, exports DrvEnableDriver) deployed to .124 but did
+NOT become the active display driver over two reboots. Box stayed HEALTHY (no
+BSOD) + fully recovered — the chassis review held. Hard-won mechanism notes:
+
+- **Active display-DLL key = `HKLM\SYSTEM\CurrentControlSet\Control\Video\
+  {B9F859EE-ACEA-46E1-B07C-6334E6BF65AB}\0000\InstalledDisplayDrivers`**
+  (REG_MULTI_SZ) — the ACTIVE video device. NOT `Services\3dfxvs\Device0`
+  (separate copy; \Device\Video0→it but editing it alone did nothing). Set BOTH.
+  Swap+recover both ways: `reg add "<key>" /v InstalledDisplayDrivers
+  /t REG_MULTI_SZ /d "fxd3ddd|3dfxv3d" /f` (no reboot to set; reboot to apply).
+- **Two reboots keys=fxd3ddd → `QUERYESCSUPPORT`=0** (ExtEscape on DISPLAY DC, via
+  `D:\fxdbg.exe probe` → `C:\fxdbg.txt`): fxd3ddd's DrvEscape not reached ⇒ fxd3ddd
+  NOT active. DrvEscape IS in the DRVFN table (chassis.c:595). Box healthy 1024×768×32.
+- **Rename-based file-lock test is USELESS** — Windows allows renaming an in-use
+  file (only DELETE is blocked). Could not confirm load-vs-init-fail this way.
+- **Recovery PROVEN**: restore both keys→`3dfxv3d` + REBOOT → vintage back,
+  accelerated, agent alive. .124 survived 3 reboots clean. Autologon intact
+  (voidsstr/password) so the agent always returns even on a black screen.
+- **NEXT to unblock:** (1) add init-progress instrumentation to fxd3ddd
+  (registry-marker writes at DrvEnableDriver entry + each PDEV/EnableSurface step
+  — the H5 "RLog" pattern) so a deploy shows IF it loads + WHERE it fails; (2)
+  check `iDriverVersion` in DrvEnableDriver (NT4 0x20000 vs an NT5 value XP SP3 may
+  demand); (3) likely need a real SetupAPI/PnP install (deploy-3dfx-driver skill /
+  updrv.exe) — the vintage 3dfxv3d was probably PnP-installed, not a bare reg-swap.
+  Staged on .124: `D:\WINDOWS\system32\fxd3ddd.dll`, `D:\fxdbg.exe`, `C:\fxdbg.txt`.
+
+## fxD3D M4c-1: backend wired to the card + on-card bring-up ladder (2026-07-24)
+
+`fxd3ddd.dll` now brings the Voodoo3 up from the chassis and ships the
+escape-driven ladder that will validate the kernel backend on-card at M4d
+(before D3D drives it). All 15 compiles `EXIT=0`, `LINKEXIT=0`
+(`scratchpad/build_fxd3d.sh`); `make -C scripts/3dfx test` all-PASS. Hard-won
+points:
+- **BAR0 comes from `IOCTL_VIDEO_QUERY_PUBLIC_ACCESS_RANGES`, VRAM from the FB
+  map.** `chassis.c DrvEnableSurface` → `fxchassis_attach_backend`: pick the
+  first memory-space public range (`MappedInIoSpace==0`, non-null VA) as BAR0;
+  `vramBytes = ppdev->vmi.VideoRamLength` (already filled by
+  IOCTL_VIDEO_MAP_VIDEO_MEMORY — no separate VRAM query needed). Attach is
+  **non-fatal**: on failure log + keep a 2D-only surface, never fail the enable.
+  `DrvDisableSurface` detaches then `IOCTL_VIDEO_FREE_PUBLIC_ACCESS_RANGES`.
+- **BAR1 non-cached is a MINIPORT CONTRACT, not something the display DLL can
+  set.** `IOCTL_VIDEO_MAP_VIDEO_MEMORY` exposes no cache attribute; the chassis
+  documents + relies on the paired `3dfxvsm.sys` mapping BAR1 non-cached
+  (gbk_mmio.h hard requirement — GBK_WMB is a no-op fence valid only there).
+  Confirm on-card at M4d via `FXDBG_PROBE`+`FXDBG_CLEAR`; if write-combining,
+  grow `GBK_WMB` an `sfence`.
+- **Desktop stride ≠ 3D stride.** `gbkernel_attach` gained a `desktopStride`
+  param; `gb_swap`'s blit-present **dst** uses `lDeltaScreen` (desktop pitch),
+  not the 16bpp color-buffer stride (M4b-2 minor #2). 32bpp dst-pixfmt convert
+  is `TODO(fxd3d M4c-2)`.
+- **DrvEscape bring-up ladder (`gbkdebug.c`, opcodes `0x3DF0..`), NONE needs
+  D3D:** PROBE (status+cmdFifo regs+layout, no draw) → CLEAR (FASTFILL+swap) →
+  TRI (gouraud PKT3) → TEX (PKT5 checker + textured quad) → READBACK (copy a
+  BAR1 rect back so the agent verifies pixels without a GDI screenshot). Wired
+  `INDEX_DrvEscape`; driven from user mode by `ExtEscape` on the display DC.
+- **FP bracket at the DDI/ladder entry (M4b-2 minor #9):** `d3d_DrawPrimitives2`
+  wraps `fxd_dp2_execute_real_cb` in one `EngSave/RestoreFloatingPointState`
+  region; TRI/TEX rungs bracket their `(float)` casts + textured ST in
+  `gbk_fpu_enter/leave`. `gb_tex_bind` is FPU-free (raw-bit ST scales) so it's
+  covered without a bracket; the outer + gbkernel's internal per-batch brackets
+  nest cleanly.
+- **`gbstub.c` (no-hw fallback) had to gain `gbkernel_attach/detach` +
+  `gbkernel_dbg_*` stubs** now that chassis.c/gbkdebug.c reference them, else the
+  documented no-hardware smoke link breaks. Stubbed attach returns -1 (→ chassis
+  degrades to 2D-only, same as a real attach failure). C89-clean under mingw.
+
+## fxD3D M4b-2: kernel MMIO transport landed — full driver LINKS with the REAL backend (2026-07-24)
+
+`gbstub.c` retired from the default build; `fxd3ddd.dll` now links
+`driver/nt/gbkernel.c` + the four verified `gbk/gbk_*.c` (all compiles EXIT=0,
+LINKEXIT=0 via `scratchpad/build_fxd3d.sh`; `make -C scripts/3dfx test` still
+all-PASS). New: `gbk/gbk_mmio.h` (`GBK_WR32`/`GBK_RD32` volatile + `GBK_WMB`
+fence hook), `gbkernel.c` (transport + full `gb_*`), `gbkernel.h`
+(`gbkernel_attach`/`detach` for M4c). Hard-won points:
+- **IO/CMDAGP registers are DIRECT PIO, never FIFO-routed.** The 10-store
+  CMDFIFO init and `miscInit0` Y-origin go straight to BAR0; ONLY 2D/3D
+  register + memory writes ride the ring. Routing the FIFO-arm through the
+  FIFO would deadlock (it isn't live yet).
+- **Every FIFO/status poll MUST be bounded, and a too-big single packet must
+  fail — not just STALL.** `gbk_fifo_make_room` faults if `nBytes` exceeds one
+  usable lap (else NEED_WRAP recurs forever without ever hitting the stall
+  cap — it doesn't increment the stall counter). Cap-hit → `gbk_fault()`
+  disables the FIFO (`baseSize=0`) and latches `faulted` so no further MMIO
+  is issued; a wedged card can't hang win32k (design risk #1).
+- **Untextured draw path is FPU-free.** Vertex colors come from an
+  integer-built IEEE-754 bit table (`gbk_ub_to_f32bits`), x/y/ooz/oow are raw
+  dword copies (`*(h3u32*)&f`). The lone float arithmetic is textured
+  perspective-ST (`s*texW*oow`), bracketed per design risk #4.
+- **VC6 warns C4146 at h3hw.h:358/379** — that's the *intended*
+  `H3HW_MASK_IS_UNSIGNED` compile-assert (`-(unsigned) stays >0`), pre-existing
+  and harmless; the new files are warning-clean.
+- **Twice-stable readptr:** `gbk_hw_readptr` samples `readPtrL`, reads `status`
+  between the two samples (as `_grHwFifoPtr` fifo.c:1082-1086), and returns the
+  RAW register value — exactly what `gbk_fifo_update_read` subtracts
+  `fifoOffset` from. Don't pre-normalize it.
+
+## fxD3D M4b-1: gbkernel pure-logic core implemented — glide-source corrections vs the design doc (2026-07-24)
+
+Implemented + exact-value host tests all green (`make -C
+retro-agent/scripts/3dfx/driver/nt/gbkernel-test` → 4/4 PASS; mutation-probed:
+dropping the FIFO −4 margin or the color-buffer parity adjust fails the suite).
+Three places the open glide source differs from a naive reading of the design
+doc — trust these, they'd have been hardware hangs:
+- **`hwcInitFifo` is 10 ordered stores, not "9 writes"** (minihwc.c:1634-1663):
+  baseSize=0 (disable) FIRST, then baseAddrL(=start>>12), readPtrL, readPtrH,
+  aMin, aMax (both start−4), depth, holeCount, cmdFifoThresh, and baseSize-arm
+  LAST (`((len>>12)-1)|SST_EN_CMDFIFO`, holes ON). The design's "9" counts
+  aMin=aMax as one item.
+- **Linear `calcBufferSize` is NOT page-rounded** (minihwc.c:3725-3745:
+  `bufSize = (xres<<1)*yres` exactly). Buffers get bit-12 page-PARITY
+  adjustment during the top-down carve (color even / aux odd, :1449-1492) —
+  start addresses are NOT otherwise 4K-aligned (e.g. 800x600 col0 =
+  0xD3FE00-style values are normal and hardware-correct).
+- **`kSetupCullPositive == 0x00`** (fxcmd.h:544-551): CW/positive cull is
+  `kSetupCullEnable` (0x02) alone; CCW/negative adds 0x04; cull-off is
+  `kSetupPingPongDisable` (0x08) alone (_grUpdateTriPacketHdr
+  gglide.c:2717-2726). Also: glide's GLIDE_TRI_CULLING clears hw-cull for
+  independent tris (sw cull instead) — deliberately NOT lifted; kernel uses
+  hw culling per design §2.
+- **FIFO wrap accounting conservation** (why it's exact): at a writer wrap
+  `roomToReadPtr -= roomToEnd` over-charges by (C−w), and when the reader
+  later takes the same JMP the update credits a full lap C instead of w
+  (fifo.c:944) — the two errors cancel exactly. Verified by a 20k-op
+  randomized reader-model test (byte-exact overwrite detection).
+
+## fxD3D M4b-1: gbkernel pure-logic scaffold; h3 headers NOT vendorable verbatim (2026-07-24)
+
+The gbkernel design's "vendor h3regs.h/h3defs.h/h3gdefs.h verbatim" idea fails
+self-containedness: `h3regs.h` uses glide's `FxU32` (only typedef'd there under
+`#ifdef _H2INC`, h3regs.h:42-44) and expresses registers as volatile structs
+(no byte offsets), and `h3gdefs.h` does `#include "cmddefs.h"` which exists
+only in the glide tree's **h5** dir, not h3. Extracted instead into
+`retro-agent/scripts/3dfx/driver/nt/hw/h3hw.h` — self-contained, every define
+cited file:line, byte offsets computed from the all-FxU32 struct walks and
+cross-checked against the design doc's §0 list (all matched). Host-test
+scaffold: `driver/nt/gbk/` (gbk_packet/layout/state/fifo.c + gbk.h) +
+`driver/nt/gbkernel-test/` (`make` = build+run, PASS/FAIL per module). Module
+objects compile with `-std=c89 -pedantic -Werror -nostdinc` (no-CRT enforced
+on host) and cross-compile clean under `i686-w64-mingw32-gcc`. Make gotcha:
+a phony target named `build` collides with a `build/` output dir — renamed dir
+to `obj/`.
+
+## fxD3D M4a: REAL DX7 DP2 stream translator in-tree, tested, linked (2026-07-24)
+
+`d3dhal/d3dhal_dp2real.c` + `include/fxd3d_dp2.h` (`fxd_dp2_execute_real`) now
+parse the runtime's ACTUAL `D3DHAL_DP2COMMAND` stream (4-byte packed headers,
+separate FVF vertex buffer) straight into `fxd_set_renderstate/fxd_set_tss/
+fxd_draw` — the simplified `fxd_dp2_execute`/`fxd2_hdr` path stays intact for
+the legacy tests. Wired into `driver/nt/enable.c` `d3d_DrawPrimitives2` with
+the NT-correct surface deref (`lpDDCommands`→`PDD_SURFACE_LOCAL`→`lpGbl->
+fpVidMem`; `lpVertices` raw only under `D3DHALDP2_USERMEMVERTICES`), the
+`D3DERR_COMMAND_UNPARSED`+`dwErrorOffset` protocol, `lpdwRStates` mirroring
+(<768), and a `GUID_D3DParseUnknownCommandCallback` stash in `DdGetDriverInfo`.
+Host test `test/test_dp2real.c` covers the happy path (all tri forms + lines +
+points, FVF 0x1C4 and a 28-byte 0x144 stride) plus malformed-input hardening
+(truncated header/operands, VB overrun, bad index, unknown op err_off, NULL/
+zero-len, bad FVF). `make test` green (3 host tests), mingw winobj green, Wine
+DDK `clfxd3d.bat` all EXIT=0 + LINKEXIT=0, zero warnings.
+
+- **Comment gotcha that broke the build:** writing `D3DHAL_DP2*/D3DDP2OP_*` in
+  a C block comment — the `*/` in the wildcard TERMINATES the comment and the
+  rest of the header parses as garbage (cascaded into bogus `FxU8` errors from
+  glide.h). Never put `*/` glob patterns inside `/* */` comments.
+- DP2 walk safety pattern that satisfied gcc -Wextra AND VC6 /W3 at once:
+  byte-composed LE reads (no casts, no alignment assumptions), per-command
+  `need > avail` checks, contiguous-run precheck `vrange_ok` for non-indexed
+  prims, per-index `vfetch` bound for indexed, walk always advances ≥4 bytes.
+
+## fxD3D NT display driver `fxd3ddd.dll` now LINKS — clean-room chassis written (2026-07-24)
+
+The clean-room fxD3D NT/2000/XP display driver (`scripts/3dfx/`, the open
+Glide-GPL+public-DDK experimental tree — NOT the vintage H5 lane) now links a
+complete `fxd3ddd.dll` under the Wine W2K+DX7 DDK. Build loop:
+`scratchpad/build_fxd3d.sh` → `clfxd3d.bat` (VC6 `cl`/`link`), LINKEXIT=0.
+
+- **`DrvEnableDriver` was the sole reported unresolved** only because the linker
+  builds the `.def` exports file FIRST and aborts (LNK1141) before resolving
+  body symbols. Providing `DrvEnableDriver` uncovered **21 more** pre-existing
+  unresolveds (the d3dhal core's `gb_*` Glide-backend calls + CRT `malloc/calloc/
+  free`). A one-unresolved link is not necessarily one-away from linking.
+- **New clean-room files (`driver/nt/`):** `chassis.c` = the framebuffer 2D/PDEV/
+  modeset half + the `gadrvfn[]` DRVFN table + `DrvEnableDriver/DrvDisableDriver`
+  (unaccelerated DDK "framebuf" pattern, hooks nothing → GDI draws into the
+  miniport-mapped linear FB). DDraw enable pair + `Dd*` stubs + `DdGetDriverInfo`
+  (answers `GUID_D3DCallbacks3` with `DrawPrimitives2`) added to `enable.c`.
+- **`/Gz` gotcha:** the DDK build defaults to `__stdcall` (`-Gz`), so backend
+  symbols decorate as `_gb_*@N`; CRT names stay `__cdecl` (`_malloc`). Any shim
+  must match the decoration (backend stubs compiled with the same flags;
+  `crtshim.c` declares `__cdecl` explicitly).
+- **CRT shim:** native `-nodefaultlib` driver has no CRT → `crtshim.c` maps
+  `malloc/calloc/free` onto `EngAllocMem/EngFreeMem` (declared locally to avoid
+  pulling `<windows.h>`'s CRT prototypes and colliding).
+- **`ntddvdeo.h` is NOT on the default DDK INCLUDE** — it lives in
+  `w2kddk/src/video/inc`; added that dir to `clfxd3d.bat` INCLUDE. It also needs
+  `<devioctl.h>` included first (CTL_CODE / FILE_DEVICE_VIDEO / METHOD_BUFFERED).
+- **Genuine blocker / next milestone (M4):** the real driver-side Glide backend
+  (Glide minihwc/cinit compiled in) and real DDraw/D3D bodies. `gbstub.c` is a
+  link-time PLACEHOLDER (all `gb_*` no-ops, `gb_tex_create`→NULL); the existing
+  `d3dhal/glidebackend.c` is user-mode-only (opens a GDI window + glide3x) and is
+  NOT linkable into a subsystem:native driver. Every stub is `TODO(fxd3d M4)`.
+- Host unit tests (`make -C scripts/3dfx test`) stay green — all new code is under
+  `#ifdef HAVE_DDK`; no portable-core / `!HAVE_DDK` path touched.
+
+## Direct3D on the Voodoo3 — root cause of GoldSrc "video mode not supported" (2026-07-23)
+
+Diagnosed live on .124 + against the H5 source. The vintage H5 **D3D HAL WORKS**;
+the GoldSrc failure is a **hardware ceiling**, not a driver bug.
+
+- **DDraw mode enumeration is COMPLETE.** A live `IDirectDraw::EnumDisplayModes`
+  on .124 lists 640×480×16 (RGB **565**, Rmask 0xf800), 800×600×16, and the full
+  8/16/32-bpp matrix 320×200 … 1600×1200. The mode GoldSrc wants is present.
+- **The D3D HAL device creates fine — at 16-bit.** A DX7 probe
+  (`DirectDrawCreateEx` → `SetCooperativeLevel(EXCL|FS)` →
+  `SetDisplayMode(640,480,16)` → primary+flip+3DDEVICE surface → QI `IDirect3D7`
+  → `CreateDevice(IID_IDirect3DHALDevice)`) returns **DD_OK at every step** and
+  creates a HAL device. So the vintage H5 D3D HAL is functional.
+- **ROOT CAUSE = Voodoo3 is 16-bit-3D-only.** `BuildD3DCaps` sets
+  `dwDeviceRenderBitDepth = DDBD_16` **only** (H5 `D3INIT.C:3088`; `DDBD_32` is
+  gated behind `IS_NAPALM`/VSA-100 at `:3155`). XP desktop is 32bpp; GoldSrc's
+  D3D renderer matches the 32-bit primary and asks D3D for a **32-bit** render
+  target → no matching HAL device → "the specified video mode is not supported"
+  → software fallback. The Avenger core physically renders 16-bit (22-bit
+  post-filter → 16-bit buffer); there is **no 32-bit 3D path** — adding DDBD_32
+  would advertise silicon that doesn't exist. **Not driver-fixable.**
+- **FIX = 16-bit desktop.** `ChangeDisplaySettings` to ×16 succeeds live
+  (helper: build `setmode.c` with `-luser32 -lgdi32`). Then the D3D device's
+  DDBD_16 matches the primary. (No 5:5:5 mode exists — only 565 — so any app
+  demanding a 555 primary would also fail; GoldSrc uses 565, fine.)
+- **SEPARATE BLOCKER — CS `-d3d` FULLSCREEN WEDGES the box for ~2-3 min** (agent
+  unreachable, recovers when hl.exe dies), even at 16-bit. The DX7 probe (create
+  device, no frame render, RestoreDisplayMode, exit) did NOT wedge — so the hang
+  is in the **fullscreen D3D render/flip loop**, not device creation. Windowed
+  `-d3d` on the plain CS surfaced the HL Autorun (that install's hl.exe chains to
+  it) — inconclusive; multiple CS installs on the box (`Program Files\Counter-strike`,
+  `Bcs16 Romania\Counter-Strike 1.6`, `Sierra\Half-Life`) muddy game-specific tests.
+- **Bottom line:** on the Voodoo3, **OpenGL (our clean-room MesaFX+Glide) is the
+  correct 3D path** — it works, is fast, and renders CS. D3D is 16-bit-capped and
+  its fullscreen path hangs. The clean-room **fxD3D** HAL (`scripts/3dfx/d3dhal/`,
+  D3D→Glide) is the way to put D3D in our repo AND likely dodge the H5 fullscreen
+  wedge by reusing Glide's working fullscreen path — but it needs the loadable
+  display-driver chassis (2D+DDraw+modeset) written + DDK-built (M3), then a
+  risky display-driver swap. Core (M1/M2) + DDI glue done + host-tested.
+
 ## Benchmark matrix + game gotchas (2026-07-21, our WFP driver, ICD 0.1.31)
 
 Recorded to specpicks (retro_benchmark_runs, machine .124):

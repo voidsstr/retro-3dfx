@@ -31,7 +31,7 @@ chk "DdLock flip-wait breaker"  "retro3dfx DdLock-FlipWait WEDGE-BREAK@100M"
 chk "DdFlip flip-wait breaker"  "retro3dfx DdFlip-FlipWait WEDGE-BREAK@100M"
 
 echo "== stale-object check (every fixed source older than its .obj) =="
-for src in d3txtr ddflip d6dp2 ddfxnt cfifo logfile; do
+for src in d3txtr ddflip d6dp2 ddfxnt cfifo logfile bitblt ddblt32; do
   s=$(find "$SRCDIR" -maxdepth 1 -iname "$src.c" -printf '%T@' 2>/dev/null | cut -d. -f1)
   o=$(find "$OBJDIR" -maxdepth 1 -iname "$src.obj" -printf '%T@' 2>/dev/null | cut -d. -f1)
   if [ -z "$o" ]; then echo "FAIL  $src.obj missing"; fail=1; continue; fi
@@ -46,5 +46,15 @@ done
 newest_obj=$(find "$OBJDIR" -name '*.obj' -printf '%T@\n' | sort -n | tail -1 | cut -d. -f1)
 dll_t=$(date -r "$DLL" +%s)
 if [ "$dll_t" -ge "${newest_obj:-0}" ]; then echo "PASS  DLL newer than all objs"; else echo "FAIL  DLL older than newest obj"; fail=1; fi
+
+echo "== codegen guards for the two 0x1000008E crashes (DdBlt / DrvBitBlt) =="
+# Disassembles the linked DLL and asserts the two NULL-deref fixes are actually
+# in the machine code -- catches a stale-obj link OR a preprocessor/config
+# regression (DX<7, LF=0) that leaves the source "fixed" but the binary crashing
+# (the exact .124 failure mode). SKIP (rc 2) if objdump is unavailable.
+# NB: this script has cd'd to repo root above, so reference tests/ from there.
+python3 tests/codegen_8e_guards.py "$DLL"
+cg=$?
+if [ "$cg" -eq 1 ]; then fail=1; fi
 
 exit $fail

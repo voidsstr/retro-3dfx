@@ -10,7 +10,8 @@ before the next deploy** — see the policy section in the repo `README.md`.
 |---|---|---|
 | Source invariants | `test_source_invariants.sh` | pre-deploy (host, instant) — grep-based presence checks for each display-driver fix |
 | **Native logic tests** | **`run_native.sh`** | **pre-deploy (host, instant) — executable pure-logic tests of ICD/HAL fix invariants (`native/test_*.c`, via `munit.h`)** |
-| Built artifact | `test_built_artifact.sh [dll]` | pre-deploy (host, instant) |
+| Built artifact | `test_built_artifact.sh [dll]` | pre-deploy (host, instant) — instrumentation strings, stale-obj checks, **+ `codegen_8e_guards.py` codegen asserts** |
+| Codegen 0x8E guards | `codegen_8e_guards.py [dll]` | pre-deploy (host, instant) — objdump-asserts the two `0x1000008E` NULL-deref fixes (DdBlt g_pHndlList, DrvBitBlt psoSrc) are in the linked machine code, not just the source |
 | Pre-deploy gate | `predeploy.sh [dll]` | runs the three above; non-zero exit = do NOT deploy |
 | On-target D3D matrix | `run_target_tests.py [host]` | after deploy+reboot (~2 min on .143) |
 | OpenGL golden gate | `/tmp/post_instr_verify.py` (session tool; Q3 render + CS 0-green) | after any display-driver deploy |
