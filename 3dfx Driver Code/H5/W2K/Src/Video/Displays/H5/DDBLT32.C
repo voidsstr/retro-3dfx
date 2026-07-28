@@ -532,44 +532,78 @@ DdBlt( LPDDHAL_BLTDATA pbd )
     // dereferenced [NULL+0x510] -> kernel AV (bugcheck 0x8E, DdBlt+0x32C).
     //
     // On W2K/NT a surface carries no owning DirectDraw-local, so we can't key the
-    // handle list off the surface.  But the app's render context is already linked
-    // into g_pContexts at device-create time (ddiContextCreate) -- long before the
-    // first draw sets lastContext -- and it holds the pHndlList that owns these
-    // handles.  So walk g_pContexts for the RC whose handle list validly resolves
-    // BOTH handles (the same walk textureLoad's surface-delete path uses,
-    // D3TXTR.C:1211; a surface belongs to one RC) and load through its TXTRHNDLs.
-    // textureLoad() needs only ppdev + the two TXTRHNDLs (its body reads no context
-    // state), so this both removes the NULL-pRc AV *and* lets uploads actually
-    // succeed with no *current* context -- a plain guard (goto unsupported) would
-    // instead force a DDraw software copy of linear bytes into a hardware-tiled
-    // texture, i.e. a garbled/black world.  goto unsupported only when no RC
-    // resolves the handles (worst case == the old guard-only behaviour, never a fault).
+    // handle list off the surface.  Resolve through the GLOBAL per-DDLcl handle-list
+    // chain (g_pHndlList, D7D3D.C -- the list GetHndlListPtr iterates).  It is
+    // populated at ddiCreateSurfaceEx time and exists INDEPENDENT of any render
+    // context: GoldSrc restarts its video mode several times at startup, and
+    // uploads issued in the context-less windows between CTX-DESTROY and the next
+    // CTX-CREATE must still resolve (walking g_pContexts dropped those uploads --
+    // ring 'TEXDL-SKIP no-RC' -- leaving stale-white texture memory).  Find the
+    // HNDLLIST that validly resolves BOTH handles and load through its TXTRHNDLs.
+    // textureLoad() needs only ppdev + the two TXTRHNDLs (its body reads no
+    // context state).  goto unsupported only when no list resolves the handles
+    // (worst case == the old guard-only behaviour, never a fault).
 #if defined(WINNT) && (DIRECT3D_VERSION >= 0x0700) && (DX >= 7)
     {
-      RC       *pTxRc;
+      extern HNDLLIST *g_pHndlList;   // D7D3D.C: head of the per-DDLcl handle lists
+      HNDLLIST *pHL;
       HNDLLIST *pTxHndlList = NULL;
       TXTRHNDL  *pSrcTxtr = NULL, *pDstTxtr = NULL;
+      LPDDRAWI_DDRAWSURFACE_LCL pSrcRoot, pDstRoot;
+      int       nSrcLvl = 0, nDstLvl = 0, nHops;
 
       if ( !pbd->lpDDSrcSurface->lpSurfMore || !pbd->lpDDDestSurface->lpSurfMore )
       {
         DDPRINT(DDDBGLVL, "Blt32 - texture download skipped: surface has no lpSurfMore");
         goto unsupported;
       }
-      dwSrcTxHndl = pbd->lpDDSrcSurface->lpSurfMore->dwSurfaceHandle;
-      dwDstTxHndl = pbd->lpDDDestSurface->lpSurfMore->dwSurfaceHandle;
+
+      // Mip SUBLEVEL surfaces carry their own dwSurfaceHandle that
+      // ddiCreateSurfaceEx never registers (only the chain ROOT gets a
+      // TXTRHNDL, with the whole chain described in mmData[]).  GoldSrc blts
+      // every mip level as a separate surface; resolving the sublevel handle
+      // directly fails, which used to silently drop mips 1..n of every world
+      // texture (ring TEXDL-SKIP) -> the TMU minified into stale-white memory.
+      // Walk each surface UP the attach-from chain to its texture root and
+      // resolve THAT handle; the level index is recovered below by matching
+      // the blitted surface's dimensions against the root's mmData[] (the
+      // same idiom the DP2 TEXBLT mip-match loop uses).
+      pSrcRoot = pbd->lpDDSrcSurface;
+      for ( nHops = 0; nHops < MAX_MIPMAP_LEVELS; nHops++ )
+      {
+        if ( (NULL == pSrcRoot->lpAttachListFrom) ||
+             (NULL == pSrcRoot->lpAttachListFrom->lpAttached) ||
+             !(pSrcRoot->lpAttachListFrom->lpAttached->ddsCaps.dwCaps & DDSCAPS_TEXTURE) )
+          break;
+        pSrcRoot = pSrcRoot->lpAttachListFrom->lpAttached;
+      }
+      pDstRoot = pbd->lpDDDestSurface;
+      for ( nHops = 0; nHops < MAX_MIPMAP_LEVELS; nHops++ )
+      {
+        if ( (NULL == pDstRoot->lpAttachListFrom) ||
+             (NULL == pDstRoot->lpAttachListFrom->lpAttached) ||
+             !(pDstRoot->lpAttachListFrom->lpAttached->ddsCaps.dwCaps & DDSCAPS_TEXTURE) )
+          break;
+        pDstRoot = pDstRoot->lpAttachListFrom->lpAttached;
+      }
+      if ( !pSrcRoot->lpSurfMore || !pDstRoot->lpSurfMore )
+      {
+        DDPRINT(DDDBGLVL, "Blt32 - texture download skipped: root has no lpSurfMore");
+        goto unsupported;
+      }
+      dwSrcTxHndl = pSrcRoot->lpSurfMore->dwSurfaceHandle;
+      dwDstTxHndl = pDstRoot->lpSurfMore->dwSurfaceHandle;
       if ( (0 == dwSrcTxHndl) || (0 == dwDstTxHndl) )
       {
         DDPRINT(DDDBGLVL, "Blt32 - texture download skipped: zero surface handle");
         goto unsupported;
       }
 
-      for ( pTxRc = g_pContexts; NULL != pTxRc; pTxRc = pTxRc->pNext )
+      for ( pHL = g_pHndlList; NULL != pHL; pHL = pHL->pNext )
       {
-        HNDLLIST *pHL = pTxRc->pHndlList;
-
         // valid list, both handles in range (ppTxtrHndlList[0] holds the count,
         // handle <= count -- matches D3TXTR.C:1218), and both registered.
-        if ( (NULL == pHL) || (NULL == pHL->ppTxtrHndlList) )
+        if ( NULL == pHL->ppTxtrHndlList )
           continue;
         if ( (dwSrcTxHndl > (DWORD)pHL->ppTxtrHndlList[0]) ||
              (dwDstTxHndl > (DWORD)pHL->ppTxtrHndlList[0]) )
@@ -588,11 +622,72 @@ DdBlt( LPDDHAL_BLTDATA pbd )
       {
         DDPRINT(DDDBGLVL, "Blt32 - texture download skipped: no context resolves handles (src=%ld dst=%ld)",
                 dwSrcTxHndl, dwDstTxHndl);
+#if ENABLE_LOG_FILE
+        // white-texture hunt: a silent skip here means the app's upload fell back
+        // to a software copy into tiled vidmem. Bounded: first 4 only.
+        {
+          static DWORD _dlSkip = 0;
+          if (++_dlSkip <= 4)
+            retroLogForce(ppdev, "retro3dfx TEXDL-SKIP#%ld: no-HL src=%ld dst=%ld %ldx%ld\r\n",
+                          _dlSkip, dwSrcTxHndl, dwDstTxHndl,
+                          (LONG)pbd->lpDDSrcSurface->lpGbl->wWidth,
+                          (LONG)pbd->lpDDSrcSurface->lpGbl->wHeight);
+        }
+#endif
         goto unsupported;
       }
 
-      DDPRINT(DDDBGLVL, "Blt32 - Texture download (ctx-independent)");
-      pbd->ddRVal = TEXTURELOAD(ppdev, pSrcTxtr, &pbd->rSrc, 0, pDstTxtr, &pbd->rDest, 0);
+      // Recover the mip level being blitted: match the ORIGINAL surface's
+      // dimensions against the root TXTRHNDL's per-LOD mmData[].  A top-level
+      // blt (surface == its own root) is LOD 0 by definition.
+      if ( pSrcRoot != pbd->lpDDSrcSurface )
+      {
+        for ( nSrcLvl = 0; nSrcLvl < pSrcTxtr->nLevels; nSrcLvl++ )
+          if ( (pSrcTxtr->mmData[nSrcLvl].wWidth  == (DWORD)pbd->lpDDSrcSurface->lpGbl->wWidth) &&
+               (pSrcTxtr->mmData[nSrcLvl].wHeight == (DWORD)pbd->lpDDSrcSurface->lpGbl->wHeight) )
+            break;
+        if ( nSrcLvl >= pSrcTxtr->nLevels )
+        {
+          DDPRINT(DDDBGLVL, "Blt32 - texture download skipped: src sublevel not in mmData");
+          goto unsupported;
+        }
+      }
+      if ( pDstRoot != pbd->lpDDDestSurface )
+      {
+        for ( nDstLvl = 0; nDstLvl < pDstTxtr->nLevels; nDstLvl++ )
+          if ( (pDstTxtr->mmData[nDstLvl].wWidth  == (DWORD)pbd->lpDDDestSurface->lpGbl->wWidth) &&
+               (pDstTxtr->mmData[nDstLvl].wHeight == (DWORD)pbd->lpDDDestSurface->lpGbl->wHeight) )
+            break;
+        if ( nDstLvl >= pDstTxtr->nLevels )
+        {
+          DDPRINT(DDDBGLVL, "Blt32 - texture download skipped: dst sublevel not in mmData");
+          goto unsupported;
+        }
+      }
+
+      DDPRINT(DDDBGLVL, "Blt32 - Texture download (ctx-independent, lod %d->%d)", nSrcLvl, nDstLvl);
+      pbd->ddRVal = TEXTURELOAD(ppdev, pSrcTxtr, &pbd->rSrc, nSrcLvl, pDstTxtr, &pbd->rDest, nDstLvl);
+#if ENABLE_LOG_FILE
+      // white-texture hunt: log the first 3 downloads (+ every 256th) with the
+      // mip count and pixel format so we can see what GoldSrc actually uploads.
+      {
+        static DWORD _dlOk = 0;
+        ++_dlOk;
+        // first 2 + rare heartbeat only: the bind-side logs need the ring slots
+        // log the first few LOD-0 AND the first few sublevel downloads
+        {
+          static DWORD _dlSub = 0;
+          DWORD _isSub = (nSrcLvl | nDstLvl) ? 1 : 0;
+          if (_isSub) ++_dlSub;
+          if ((_dlOk <= 2) || (0 == (_dlOk & 8191)) || (_isSub && (_dlSub <= 3)))
+            retroLogForce(ppdev, "retro3dfx TEXDL#%ld: hr=%08lXh src=%ld dst=%ld %ldx%ld lod=%d/%d nlv=%d\r\n",
+                          _dlOk, pbd->ddRVal, dwSrcTxHndl, dwDstTxHndl,
+                          (LONG)pbd->lpDDSrcSurface->lpGbl->wWidth,
+                          (LONG)pbd->lpDDSrcSurface->lpGbl->wHeight,
+                          nSrcLvl, nDstLvl, pDstTxtr->nLevels);
+        }
+      }
+#endif
       return DDHAL_DRIVER_HANDLED;
     }
 #else

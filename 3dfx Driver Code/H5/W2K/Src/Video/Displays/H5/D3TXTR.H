@@ -222,6 +222,12 @@ signed int  __stdcall ALLOCTEXTUREDESC(NT9XDEVICEDATA * ppdev, TXTRDESC *txtrLis
 
   //cnt was incremented at the bottom of last loop, clear all flags
   TXTRDESC_PTR(cnt)->flags = InUse;
+#if (DIRECT3D_VERSION >= 0x0700) && (DX >= 7)
+  // retro3dfx: recycled slots kept the PRIOR texture's palette linkage --
+  // a fresh (non-palettized or not-yet-linked) texture on this slot would
+  // sample through a stale palette. Clear it with the other slot state.
+  TXTRDESC_PTR(cnt)->dwPaletteHandle = 0;
+#endif
 #ifdef DEFER_TXTR_DNLD
   TXTRDESC_PTR(cnt)->reload = 0;
   memset (TXTRDESC_PTR(cnt)->checksum, 0, 9 * sizeof(DWORD));

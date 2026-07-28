@@ -2589,8 +2589,11 @@ DWORD __stdcall TEXTURELOAD(
                       (slog < MAX_BIGTEXTURE_LOG))
                   ++slog;
 
+               // retro3dfx: tlog must come from the SOURCE level being read
+               // (mmData[nSrcLOD]), not the dest index -- vintage typo that was
+               // benign only while every caller passed nSrcLOD == nDstLOD.
                tlog = 0;
-               while (((psurfSrc->mmData[nDstLOD].wHeight - (0x01 << tlog)) != 0) &&
+               while (((psurfSrc->mmData[nSrcLOD].wHeight - (0x01 << tlog)) != 0) &&
                       (tlog < MAX_BIGTEXTURE_LOG))
                   ++tlog;
 

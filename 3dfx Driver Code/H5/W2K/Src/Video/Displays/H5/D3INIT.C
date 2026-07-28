@@ -521,7 +521,14 @@
 extern int __cdecl atoi(const char *);
 #define ATOI  atoi
 
-//#define DISABLE_PAL8_ON_NAPALM    1
+// retro3dfx: stop exporting palettized texture formats (P8 / D3DFMT_P8/A8P8).
+// The Napalm P8 palette pipeline never delivers the palette to the TMU -- P8
+// textures sample WHITE (GoldSrc Direct3D: white world, textured RGB sky; the
+// vintage devs fought the same fight: rev 24 "disable palettized texture",
+// rev 25 "reenable", the DCT-300 palette failures note, and the perma-disabled
+// A8P8 block below). With P8 unexported, apps negotiate RGB formats instead,
+// which render correctly. This is the vintage devs' own kill-switch, enabled.
+#define DISABLE_PAL8_ON_NAPALM    1
 #endif
 
 extern DWORD __stdcall ddiSceneCapture(LPD3DHAL_SCENECAPTUREDATA psc) ;

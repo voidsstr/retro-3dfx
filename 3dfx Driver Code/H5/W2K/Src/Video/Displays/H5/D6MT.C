@@ -4474,6 +4474,22 @@ void setupTexturing( RC* pRc )
       pRc->state          &= ~(STATE_REQUIRES_W_TMU0 | STATE_REQUIRES_ST_TMU0 | STATE_REQUIRES_ST_TMU1);
       pRc->sst.sSetupMode &= ~(SST_SETUP_W0 | SST_SETUP_ST0 | SST_SETUP_ST1);
 
+#if ENABLE_LOG_FILE
+      // retro3dfx white-world hunt: single-stage binds (menu/sky path).
+      // g bits = INRANGE/PTR/INUSE for TS[0]. Bounded: first 3 + samples.
+      {
+        static DWORD _mt1 = 0;
+        DWORD _n = ++_mt1;
+        if ((_n <= 3) || (256 == _n) || (2048 == _n))
+        {
+          DWORD _h0 = TS[0].textureHandle;
+          retroLogForce(ppdev, "retro3dfx MT1#%ld: h0=%ld g0=%d%d%d\r\n",
+              _n, _h0, TXTRHNDL_INRANGE(_h0) ? 1 : 0,
+              (TXTRHNDL_INRANGE(_h0) && TXTRHNDL_PTR(_h0)) ? 1 : 0,
+              (TXTRHNDL_INRANGE(_h0) && TXTRHNDL_PTR(_h0) && TXTRHNDL_INUSE(_h0)) ? 1 : 0);
+        }
+      }
+#endif
       setupSingleStage( pRc );
 
       // Set W State if either texture coordinate state is being used
@@ -4903,6 +4919,27 @@ void setupTexturing( RC* pRc )
       pRc->state          &= ~(STATE_REQUIRES_W_TMU0 | STATE_REQUIRES_ST_TMU0 | STATE_REQUIRES_ST_TMU1);
       pRc->sst.sSetupMode &= ~(SST_SETUP_W0 | SST_SETUP_ST0 | SST_SETUP_ST1);
 
+#if ENABLE_LOG_FILE
+      // retro3dfx white-world hunt: the two-stage path is the WORLD (base x
+      // lightmap). Log both handles + INRANGE/PTR/INUSE gate bits; a 110 or
+      // 100 pattern names the gate that silently disables the stage (white).
+      {
+        static DWORD _mt2 = 0;
+        DWORD _n = ++_mt2;
+        if ((_n <= 4) || (128 == _n) || (1024 == _n) || (8192 == _n))
+        {
+          DWORD _h0 = TS[0].textureHandle, _h1 = TS[1].textureHandle;
+          retroLogForce(ppdev, "retro3dfx MT2#%ld: h0=%ld g0=%d%d%d h1=%ld g1=%d%d%d\r\n",
+              _n,
+              _h0, TXTRHNDL_INRANGE(_h0) ? 1 : 0,
+              (TXTRHNDL_INRANGE(_h0) && TXTRHNDL_PTR(_h0)) ? 1 : 0,
+              (TXTRHNDL_INRANGE(_h0) && TXTRHNDL_PTR(_h0) && TXTRHNDL_INUSE(_h0)) ? 1 : 0,
+              _h1, TXTRHNDL_INRANGE(_h1) ? 1 : 0,
+              (TXTRHNDL_INRANGE(_h1) && TXTRHNDL_PTR(_h1)) ? 1 : 0,
+              (TXTRHNDL_INRANGE(_h1) && TXTRHNDL_PTR(_h1) && TXTRHNDL_INUSE(_h1)) ? 1 : 0);
+        }
+      }
+#endif
       // Remember Stage 0 is actually TMU1 ...
       setupTextureStage0( pRc );
 
@@ -5953,7 +5990,9 @@ DWORD setupTextureStage0( RC *pRc )
       }
       else if (TEXFMTFLG_ALPHA & txtr->formatFlags)
       {
-        pRc->sst.textureMode |= ( TEXFMT_ALPHA_P8_RGB << SST_TFORMAT_SHIFT );
+        // retro3dfx: this stage programs TMU1 -- the vintage code OR'd the
+        // ALPHA_P8 format into the single-texture register by copy-paste.
+        pRc->sst.textureModeT1 |= ( TEXFMT_ALPHA_P8_RGB << SST_TFORMAT_SHIFT );
         txtr->formatFlags &= ~TEXFMTFLG_PALETTIZED_ALPHA;
       }
       else
@@ -6133,7 +6172,8 @@ DWORD setupTextureStage1( RC *pRc )
       }
       else if (TEXFMTFLG_ALPHA & txtr->formatFlags)
       {
-        pRc->sst.textureMode |= ( TEXFMT_ALPHA_P8_RGB << SST_TFORMAT_SHIFT );
+        // retro3dfx: this stage programs TMU0 -- same copy-paste as above.
+        pRc->sst.textureModeT0 |= ( TEXFMT_ALPHA_P8_RGB << SST_TFORMAT_SHIFT );
         txtr->formatFlags &= ~TEXFMTFLG_PALETTIZED_ALPHA;
       }
       else

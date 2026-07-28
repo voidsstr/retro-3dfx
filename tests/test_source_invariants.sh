@@ -94,20 +94,50 @@ fi
 #     ppTxtrHndlList[h] with pRc=_D3(lastContext); GoldSrc uploads textures with NO
 #     current context (lastContext is set only in the draw path and zeroed by
 #     textureLoad itself) -> pRc==NULL -> [NULL+0x510] kernel AV. On W2K a surface
-#     has no owning DD-local, but the app's RC is already in g_pContexts from device
-#     create, so walk g_pContexts for the RC whose handle list resolves BOTH handles
-#     (mirrors textureLoad's own walk at D3TXTR.C:1211) and TEXTURELOAD through its
-#     TXTRHNDLs -- removes the AV AND lets uploads succeed (a mere guard would force
-#     a garbled software fallback). textureLoad() reads no context state, so safe.
-chk "DDBLT32 texture-download walks g_pContexts (context-independent, not lastContext)" \
+#     has no owning DD-local, and walking g_pContexts is NOT enough either: GoldSrc
+#     restarts video repeatedly at startup and uploads issued between CTX-DESTROY
+#     and the next CTX-CREATE were dropped (ring TEXDL-SKIP no-RC -> stale-white
+#     textures). Walk the GLOBAL per-DDLcl handle-list chain g_pHndlList (what
+#     GetHndlListPtr iterates; populated at CreateSurfaceEx, context-independent)
+#     for the list resolving BOTH handles, and TEXTURELOAD through its TXTRHNDLs --
+#     removes the AV AND lets uploads succeed in context-less windows.
+#     textureLoad() reads no context state, so safe.
+chk "DDBLT32 texture-download walks global g_pHndlList (context-independent)" \
     "$H5DISP/DDBLT32.C" \
-    "for ( pTxRc = g_pContexts; NULL != pTxRc; pTxRc = pTxRc->pNext )"
+    "for ( pHL = g_pHndlList; NULL != pHL; pHL = pHL->pNext )"
 chk "DDBLT32 texture-download resolves both TXTRHNDLs from the RC handle list" \
     "$H5DISP/DDBLT32.C" \
     "pSrcTxtr    = pHL->ppTxtrHndlList"
-chk "DDBLT32 texture-download calls TEXTURELOAD with resolved TXTRHNDLs (not pRc)" \
+# 5g. Mip SUBLEVEL blts (GoldSrc white-world): sublevel surfaces carry their own
+#     never-registered dwSurfaceHandle; the download path must walk UP the
+#     attach-from chain to the registered chain ROOT and recover the LOD index by
+#     matching the blitted surface's dims against the root TXTRHNDL's mmData[]
+#     (the DP2 TEXBLT mip-match idiom). Without this, mips 1..n of every world
+#     texture silently dropped -> TMU minified into stale-white memory.
+chk "DDBLT32 sublevel blts walk up lpAttachListFrom to the texture root" \
     "$H5DISP/DDBLT32.C" \
-    "TEXTURELOAD(ppdev, pSrcTxtr, &pbd->rSrc, 0, pDstTxtr, &pbd->rDest, 0)"
+    "pSrcRoot = pSrcRoot->lpAttachListFrom->lpAttached;"
+chk "DDBLT32 sublevel LOD recovered by mmData dimension match" \
+    "$H5DISP/DDBLT32.C" \
+    "(pSrcTxtr->mmData\[nSrcLvl\].wWidth  == (DWORD)pbd->lpDDSrcSurface->lpGbl->wWidth)"
+chk "DDBLT32 texture-download calls TEXTURELOAD with recovered LODs" \
+    "$H5DISP/DDBLT32.C" \
+    "TEXTURELOAD(ppdev, pSrcTxtr, &pbd->rSrc, nSrcLvl, pDstTxtr, &pbd->rDest, nDstLvl)"
+# 5h. TEXTURELOAD per-LOD tlog: source height log must index mmData[nSrcLOD]
+#     (vintage typo used nDstLOD; benign only while all callers passed 0,0 --
+#     load-bearing now that DdBlt passes real sublevel LODs).
+chk "D3TXTR TEXTURELOAD tlog uses source LOD (nSrcLOD)" \
+    "$H5DISP/D3TXTR.C" \
+    "while (((psurfSrc->mmData\[nSrcLOD\].wHeight - (0x01 << tlog)) != 0)"
+# 5i. ALPHA_P8 copy-paste (latent): the stage functions must OR the ALPHA_P8
+#     texture format into THEIR TMU's register (T1 for stage0, T0 for stage1),
+#     not the single-texture register.
+chk "D6MT stage0 ALPHA_P8 goes to textureModeT1" \
+    "$H5DISP/D6MT.C" \
+    "pRc->sst.textureModeT1 |= ( TEXFMT_ALPHA_P8_RGB << SST_TFORMAT_SHIFT );"
+chk "D6MT stage1 ALPHA_P8 goes to textureModeT0" \
+    "$H5DISP/D6MT.C" \
+    "pRc->sst.textureModeT0 |= ( TEXFMT_ALPHA_P8_RGB << SST_TFORMAT_SHIFT );"
 
 # 6. Registry-ring log sink (all of the above depend on it).
 chk "LOGFILE registry-ring sink" \

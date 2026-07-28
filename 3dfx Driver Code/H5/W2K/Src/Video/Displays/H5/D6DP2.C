@@ -1460,6 +1460,17 @@ DWORD __stdcall ddiDrawPrimitives2( LPD3DHAL_DRAWPRIMITIVES2DATA lpdp2d )
                       )
                     )
                 {
+#if ENABLE_LOG_FILE
+                    // retro3dfx white-world hunt: a NONZERO app texture handle
+                    // being silently forced to 0 here unbinds the stage (white).
+                    if (0 != data)
+                    {
+                      static DWORD _tssBad = 0;
+                      if (++_tssBad <= 4)
+                        retroLogForce(ppdev, "retro3dfx TSS-BADTEX#%ld: stg=%ld h=%ld\r\n",
+                                      _tssBad, stage, data);
+                    }
+#endif
                     data = 0;
                 }
 
@@ -3912,6 +3923,20 @@ DWORD __stdcall ddiDrawPrimitives2( LPD3DHAL_DRAWPRIMITIVES2DATA lpdp2d )
                  dstRect.right = dstRect.left + 1;
             }
 
+#if ENABLE_LOG_FILE
+            // retro3dfx: the vintage no-match diagnostic below is dead code
+            // (its else is unreachable inside the while) -- when no source
+            // level matches, this fell through downloading ZERO levels with
+            // hr=D3D_OK. Keep the skip semantics but make it visible.
+            if (nSrcLOD >= pSrcSurf->nLevels)
+            {
+              static DWORD _tbNoMatch = 0;
+              if (++_tbNoMatch <= 3)
+                retroLogForce(ppdev, "retro3dfx TEXBLT-NOMATCH#%ld: dst=%ldx%ld srcLvls=%d\r\n",
+                              _tbNoMatch, (LONG)dstWidthToMatch, (LONG)dstHeightToMatch,
+                              pSrcSurf->nLevels);
+            }
+#endif
             // loop until no more src or dst mipmaps
             while ((nSrcLOD < pSrcSurf->nLevels) && (nDstLOD < pDstSurf->nLevels))
             {
