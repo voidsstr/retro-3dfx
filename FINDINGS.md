@@ -11,6 +11,103 @@ Win98 FAT volume. Agent 1.14.0. Autologs in as voidsstr/password.
 
 ---
 
+## GoldSrc-D3D present path: Blt-present promoted to page flip (+7.5%), and the wedge that taught us tile parity (2026-08-03)
+
+D3D-vs-GL deficit hunt on .124 (CS 1.6, Voodoo3, 1024x768x16@100Hz). GL 40.9-43.4
+fps, D3D 31.9 — but **identical 40.4 at 640x480**, so the HAL triangle path is
+fine; the deficit only exists where fillrate matters.
+
+- **GoldSrc-D3D never calls DdFlip.** It presents with a full-screen SRCCOPY
+  `DdBlt` from its flip-chain back buffer into the primary — ~1.5 MB copied
+  every frame. Found via new present-path tracers (DdCreateSurface
+  TILED/LINEAR + primary-dest blt rects + flip/blt/lock counters -> RLog ring).
+- **Fix (commit 0666fdb): `retroFlipPresent`** — promote that blt to a real
+  overlay page flip (leftOverlayBuf + swapbufferCMD, the live scanout in
+  fullscreen 3D) and ping-pong the app's back-buffer surface with a
+  driver-allocated B2. **31.9 -> 34.3 fps.**
+- **HARD WEDGE #1:** v1 ping-ponged into the **GDI desktop buffer** — the chip
+  hard-hung (network dead; XP watchdog bugcheck auto-restarted the box ~5 min).
+  Cause: color/Z **tile parity** — render targets must come from the tiled
+  color slots whose even/odd layout matches the Z heap. B2 must be allocated
+  from **TILED_HEAP2** (the third-buffer slot). The BACKBUFFER heap search was
+  heap0-only -> DDERR_OUTOFVIDEOMEMORY; extended to include TILED_HEAP2.
+- **Registry `GETENV` reads through the miniport are unreliable on the deployed
+  box** (confirms the V5DLog finding) — `SSTH3_SWAPINTERVAL`, gate flags, all
+  silently unread. Ship features **default-on behind strict shape conditions**,
+  not behind registry reads.
+- **App ROP compare gotcha:** GoldSrc passes `dwROP=00CC0000h` — only the
+  HIWORD is the ROP. Compare `HIWORD(dwROP)==0xCC`, never the full SRCCOPY
+  constant.
+- **First D3D run after any reboot benches ~12 fps** (post-boot background
+  activity) — always discard a warmup run.
+- **GDI SCREENSHOT and GoldSrc `snapshot` are both blind in D3D fullscreen**
+  (overlay scanout / unimplemented) — visual verification needs eyes on the
+  monitor; timedemo correctness + 1-present-per-frame measurement are the
+  remote evidence.
+- Remaining D3D-vs-GL gap (34.3 vs ~41) is **not** the present path — next
+  candidate: DP2 scene cost profiling.
+- Rollback on .124: `system32\3dfxv3d.dll.bak9` (pre-flip-promotion tracer
+  build), `.bak10` (vsync'd promotion). `cstrike\bench.dem` was re-recorded
+  (365-frame) after a leftover `listenserver.cfg` fired; that cfg is deleted.
+
+---
+
+## CS 1.6 refresh + GL cursor: Glide fullscreen bypasses EVERYTHING GDI (2026-08-03)
+
+Session on .124 (Voodoo3, CS 1.6 "Bcs16 Romania" build, D:\Program Files\...):
+
+- **60Hz in GL was OUR ICD's hardcode, not XP's refresh bug.** MesaFX
+  `fxMesaCreateBestContext()` passed `GR_REFRESH_60Hz` unconditionally, and in
+  fullscreen **Glide programs the video timing itself** — GoldSrc `-freq`, the
+  `FX_GLIDE_REFRESH_RATE` env the old launch batches hopefully set, GDI mode
+  sets: all bypassed. Fixed in retro3dfx-gl **0.1.34** (`fxBestRefresh()`: env
+  override else monitor-max via EnumDisplaySettings, snap down to a GR_REFRESH_*
+  enum, retry at 60 if the open fails). Verified via retrogl.log: `grSstWinOpen
+  ref=6 (100Hz)`, open OK.
+- **D3D mode DOES honor GoldSrc `-freq 100`** (verified 100Hz all session via
+  DISPLAYCFG polling; without it D3D runs 60Hz). But **`Counter-Strike.exe` (the
+  repack launcher) does NOT forward args to hl.exe** — the desktop shortcut must
+  target `hl.exe -game cstrike -freq 100` directly.
+- **Invisible GL menu cursor = Glide scanout never composites the GDI/HW cursor
+  plane** (D3D mode shows it because GDI manages that primary). Fixed in
+  **0.1.35**: `fxDrawCursorOverlay()` stamps an arrow into the back buffer via
+  grLfbLock before each swap when `GetCursorInfo` says the cursor is showing.
+- **GDI SCREENSHOT under fullscreen Glide is BLACK** — useless for verification.
+  New ICD debug hook `FX_DUMP_FRONT=<path>` dumps the Voodoo front buffer (raw
+  565) every 64th swap; that's how the cursor fix was verified remotely.
+- **`C:\setmode.exe 1024 768 32` restores the desktop at 60Hz** (no refresh
+  arg) — after any test run, restore with the agent's `DISPLAYCFG set 1024 768
+  32 100` instead, or the desktop is left degraded.
+- CS 1.6 GL on our ICD **works fullscreen** now (the 07-18 "GoldSrc not
+  supported on our ICD" changelog note is obsolete — game-local opengl32.dll IS
+  ours since 07-24 and runs fine, menu + de_dust verified).
+
+---
+
+## DOS lane: CHAT dead-gate + DOSGAME "never marked installed" + COMMAND.COM missing-file errorlevel trap (2026-08-03)
+
+Three DOS-lane defects, all fixed in retro-agent (agent v1.24.0 + rebuilt DOSGAME.EXE):
+
+- **CHAT.BAT gated on `C:\DOSGAME\NET\PKT.OK` — but nothing ever wrote that file**,
+  so DOS chat could never start on first try even after a fully successful PLAY
+  network bring-up. Network setup now lives in `NETUP.BAT` (auto-called by BOTH
+  PLAY.BAT and CHAT.BAT), which writes PKT.OK on DHCP success and re-verifies a
+  pre-existing marker with a fast DHCP probe (marker persists across reboots; mTCP
+  fails instantly when no packet driver answers).
+- **COMMAND.COM does NOT set errorlevel for a missing command.** PLAY.BAT ran 8
+  packet-driver .COMs by absolute path with only NE2000.COM shipped: each missing
+  one printed "Bad command or file name" AND `if errorlevel 1` then thought the
+  absent driver *loaded*, writing a dead PACKETINT into MTCP.CFG. Every driver/tool
+  invocation is now `if exist`-guarded (NETUP.BAT + dosgame.c generated RUN.BAT).
+- **DOSGAME installed-detection stem mismatch:** `write_install()` names the target
+  dir with spaces/dots→`_` (`1_TO_NIL`) but `mark_installed()` compared the raw
+  stem (`"1 To Nil"`) — any title with a space in its first 8 chars never got the
+  installed star. One shared `zip_stem()` now; plus an `INSTLD.LST` receipt written
+  by the install batch so installer-run (kind 'I') games that install to their own
+  directory are still tracked. RUN.BAT also aborts with a clear message when the
+  zip fetch failed instead of "installing" an empty dir.
+  Tests: `tests/python/test_dosgame_install_detect.py` (retro-agent repo).
+
 ## BSOD 0x8E in vintage 3dfxv3d.dll — ROOT-CAUSED + FIXED (both == already-fixed bugs; .124 ran a STALE binary) (2026-07-28)
 
 Five XP small memory dumps off .124 (Voodoo3, Win on D:), all bugcheck
