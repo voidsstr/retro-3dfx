@@ -152,6 +152,22 @@ DdFlip( LPDDHAL_FLIPDATA pfd )
 
   waitOnVsync = _DD(WaitOnVsync);  // wait on VSYNC, unless registry overrides.
 
+  /* retro3dfx: present-path tracer (CS-D3D fillrate hunt). One line at the
+   * first flip and every 1024th after: proves the app presents by FLIP (not a
+   * primary-dest Blt) and shows the effective vsync mode. Rare -> negligible. */
+  {
+    extern VOID V5DLog(CHAR *, ...);
+    extern LONG g_retroFlipCount;
+    LONG n = ++g_retroFlipCount;
+    if ((1 == n) || (0 == (n & 1023)))
+    {
+      V5DLog("retro3dfx DdFlip #%ld waitOnVsync=%ld curr=%08lXh targ=%08lXh\n",
+             (long)n, (long)waitOnVsync,
+             (unsigned long)pfd->lpSurfCurr->lpGbl->fpVidMem,
+             (unsigned long)pfd->lpSurfTarg->lpGbl->fpVidMem);
+    }
+  }
+
 #ifdef STBPERF_USE_FLIPNOVSYNC
   if( pfd->dwFlags & DDFLIP_NOVSYNC )
   {
@@ -471,6 +487,183 @@ DdFlip( LPDDHAL_FLIPDATA pfd )
   return DDHAL_DRIVER_HANDLED;
 
 } // DdFlip
+
+/*----------------------------------------------------------------------
+Function name:  retroFlipPresent  (retro3dfx)
+
+Description:    Blt-present -> page-flip promotion. GoldSrc-D3D (CS 1.6)
+                presents by a full-screen SRCCOPY Blt from its back buffer
+                into the primary: ~5-7 ms/frame of pure copy on Voodoo3 at
+                1024x768x16 (GL 41 fps vs D3D 32). In fullscreen 3D the
+                primary is promoted to the overlay plane, so a queued
+                leftOverlayBuf + swapbufferCMD flip is live (DdFlip's own
+                3D path). We allocate a SECOND back buffer from the tiled
+                heap (three color slots exist by design; the heap's even/odd
+                layout keeps color/Z parity: the first version ping-ponged
+                into the GDI desktop buffer instead and hard-wedged the
+                chip) and ping-pong the app's back-buffer surface between B
+                and B2: flip scanout to the just-rendered buffer, point the
+                surface at the other. The primary surface is never touched;
+                the app's surface OBJECT (and its Z buffer) stay put.
+
+                On DdDestroySurface of the tracked surface (or a new 3D
+                session) the original backing is restored.
+
+Return:         1 = handled (pbd->ddRVal set), 0 = fall back to the blit
+----------------------------------------------------------------------*/
+
+/* generation counter bumped by Enter_3DApplication so per-session state
+   (B2 allocation, tracked surface) resets with each fullscreen 3D app */
+extern LONG g_retroFlipGen;
+
+static LONG                      retroFlipSeenGen  = -1;
+static LONG                      retroFlipDisabled = 0;
+static LONG                      retroFlipB2Valid  = 0;
+static DWORD                     retroFlipB2Lfb, retroFlipB2Hw, retroFlipB2Pitch;
+static FXSURFACEDATA            *retroFlipTracked  = NULL;
+static LPDDRAWI_DDRAWSURFACE_GBL retroFlipTrackedGbl = NULL;
+static DWORD                     retroFlipOrigHw, retroFlipOrigLfb;
+static FLATPTR                   retroFlipOrigFp;
+
+/* called from DdDestroySurface: if the dying surface is the tracked one,
+   restore its original backing so the runtime frees what it allocated */
+VOID
+retroFlipPresentSurfGone ( void *surfData )
+{
+  if ((NULL != surfData) && (surfData == (void *)retroFlipTracked))
+  {
+    retroFlipTracked->hwPtr  = retroFlipOrigHw;
+    retroFlipTracked->lfbPtr = retroFlipOrigLfb;
+    if (NULL != retroFlipTrackedGbl)
+      retroFlipTrackedGbl->fpVidMem = retroFlipOrigFp;
+    retroFlipTracked    = NULL;
+    retroFlipTrackedGbl = NULL;
+    /* B2 stays in the tiled heap until the mode change rebuilds the heaps */
+    retroFlipB2Valid = 0;
+  }
+}
+
+DWORD
+retroFlipPresent ( NT9XDEVICEDATA *ppdev, LPDDHAL_BLTDATA pbd )
+{
+  FXSURFACEDATA *srcData;
+  DWORD          swapToAddr;
+  CMDFIFO_PROLOG(hwPtr);
+
+  srcData = (FXSURFACEDATA *)pbd->lpDDSrcSurface->lpGbl->dwReserved1;
+  if (NULL == srcData)
+    return 0;
+
+  /* new fullscreen-3D session: reset per-session state */
+  if (retroFlipSeenGen != g_retroFlipGen)
+  {
+    retroFlipSeenGen  = g_retroFlipGen;
+    retroFlipDisabled = 0;
+    retroFlipB2Valid  = 0;
+    retroFlipTracked  = NULL;
+    retroFlipTrackedGbl = NULL;
+  }
+  if (retroFlipDisabled)
+    return 0;
+
+  /* first promoted present of the session: allocate B2 from the tiled heap
+     with the same shape the app's back buffer got (BACKBUFFER type = tiled
+     color-slot placement incl. the Z even/odd parity layout) */
+  if (!retroFlipB2Valid)
+  {
+    DWORD bWidth  = (DWORD)ppdev->cxScreen * GETPRIMARYBYTEDEPTH;
+    DWORD height  = (DWORD)ppdev->cyScreen;
+    DWORD tile    = 0, heapID = 0;
+    VIDEOMEMORY *pvmHeap = NULL;
+    HRESULT hr;
+
+    hr = memMgr_allocSurface(ppdev, DDSCAPS_BACKBUFFER,
+                             bWidth, height,
+                             (bWidth + 0x7F) >> 7, (height + 0x1F) >> 5,
+                             &retroFlipB2Lfb, &retroFlipB2Hw,
+                             &retroFlipB2Pitch, &tile, &heapID, &pvmHeap);
+    if ((DD_OK != hr) || (MEM_IN_TILED != tile) ||
+        !(srcData->hwPtr & SSTG_IS_TILED))
+    {
+#if ENABLE_LOG_FILE
+      retroLogForce(ppdev, "retro3dfx FlipPresent DISABLED: B2 alloc hr=%08lXh tile=%ld\r\n",
+                    (unsigned long)hr, (long)tile);
+#endif
+      retroFlipDisabled = 1;
+      return 0;
+    }
+    retroFlipB2Valid    = 1;
+    retroFlipTracked    = srcData;
+    retroFlipTrackedGbl = pbd->lpDDSrcSurface->lpGbl;
+    retroFlipOrigHw     = srcData->hwPtr;
+    retroFlipOrigLfb    = srcData->lfbPtr;
+    retroFlipOrigFp     = pbd->lpDDSrcSurface->lpGbl->fpVidMem;
+#if ENABLE_LOG_FILE
+    retroLogForce(ppdev, "retro3dfx FlipPresent B2=%08lXh (orig=%08lXh) pitch=%ld heap=%ld promotion live\r\n",
+                  (unsigned long)retroFlipB2Hw, (unsigned long)retroFlipOrigHw,
+                  (long)retroFlipB2Pitch, (long)heapID);
+#endif
+  }
+
+  /* only the surface we characterized gets promoted */
+  if (srcData != retroFlipTracked)
+    return 0;
+
+  swapToAddr = srcData->hwPtr & ~SSTG_IS_TILED;
+
+  /* pipelined swap-queue throttle (mirrors DdFlip's; bounded so a wedged
+     queue can't hang the box) */
+  {
+    ULONG spin = 0;
+    while (READSWAPCOUNT() > MAXPENDINGBUFFERS_TOAVOIDHANG)
+    {
+      if (++spin >= 50000000UL)
+      {
+#if ENABLE_LOG_FILE
+        retroLogForce(ppdev, "retro3dfx FlipPresent WEDGE-BREAK@50M\r\n");
+#endif
+        retroFlipDisabled = 1;
+        return 0;
+      }
+    }
+  }
+
+  INCSWAPCOUNT();
+  CMDFIFO_CHECKROOM(hwPtr, 4);
+  SETPH(hwPtr, CMDFIFO_BUILD_PK1(1, 0, leftOverlayBuf, 0xF ));
+  SETPD(hwPtr, ghw0->leftOverlayBuf, swapToAddr);
+  SETPH(hwPtr, CMDFIFO_BUILD_PK1(1, 0, swapbufferCMD, 0xF) );
+  /* swap without waiting on vsync — the fleet posture (same as our GL
+   * lane's swap-interval 0). _DD(WaitOnVsync) stays 1 here because the
+   * SSTH3_SWAPINTERVAL registry read is unreliable on deployed boxes, and
+   * a vsync'd promoted flip quantizes a ~29 ms frame to 3 retraces
+   * (33 fps) — measured 33.8 vs the blit path's 31.9: most of the win
+   * eaten. A Blt-present never synced to retrace either, so tear behavior
+   * matches what the app had. */
+  SETPD(hwPtr, ghw0->swapbufferCMD, 0);
+  BUMP(4);
+  CMDFIFO_EPILOG(hwPtr);
+
+  _FF(lastOverlayAddress) = swapToAddr & 0x00FFFFFF;
+
+  /* ping-pong the app's back-buffer surface between B and B2 */
+  if (srcData->hwPtr == retroFlipOrigHw)
+  {
+    srcData->hwPtr  = retroFlipB2Hw;
+    srcData->lfbPtr = retroFlipB2Lfb;
+    pbd->lpDDSrcSurface->lpGbl->fpVidMem = (FLATPTR)retroFlipB2Lfb;
+  }
+  else
+  {
+    srcData->hwPtr  = retroFlipOrigHw;
+    srcData->lfbPtr = retroFlipOrigLfb;
+    pbd->lpDDSrcSurface->lpGbl->fpVidMem = retroFlipOrigFp;
+  }
+
+  pbd->ddRVal = DD_OK;
+  return 1;
+} // retroFlipPresent
+
 
 /*----------------------------------------------------------------------
 Function name:  DdGetFlipStatus

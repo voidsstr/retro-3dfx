@@ -142,6 +142,10 @@
 // 1-256= swap buffer after this number of vertical retraces
 #define SWAPINTERVAL                       RK_PREFIX"SWAPINTERVAL"
 
+// retro3dfx: measurement experiment — "1" swallows full-screen blts into the
+// primary (Blt-present cost probe for GoldSrc-D3D). Absent/0 = normal.
+#define SKIPPRESENTBLT                     RK_PREFIX"SKIPPRESENTBLT"
+
 // 0=Disable automipmapping
 // 1=Automatically generate mipmaps
 #define AUTOMIPMAP                         RK_PREFIX"AUTOMIPMAP"

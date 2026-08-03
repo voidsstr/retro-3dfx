@@ -128,8 +128,12 @@ memMgr_allocSurface(PDEV        *ppdev,
       // backbuffers can only be created in fullscreen exclusive mode
       //
       // for fullscreen exclusive mode, limit allocations to tiled heap 0 when in tiled mode
-      numberHeaps = 1;
+      // retro3dfx: also search the third-buffer slot (TILED_HEAP2, "tiled TB")
+      // — a second BACKBUFFER request (an app's triple buffer, or the
+      // flip-present promotion's B2) belongs there; heap 0 holds one surface.
+      numberHeaps = 2;
       searchHeaps[0] = _DS(ddPrimaryInTile) ? TILED_HEAP0_ID : LINEAR_HEAP0_ID;
+      searchHeaps[1] = _DS(ddPrimaryInTile) ? TILED_HEAP2_ID : LINEAR_HEAP1_ID;
     }
   }
   else if (DDSCAPS_ZBUFFER & type)

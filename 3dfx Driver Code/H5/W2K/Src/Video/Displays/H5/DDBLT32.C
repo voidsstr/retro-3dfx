@@ -162,6 +162,133 @@ DdBlt( LPDDHAL_BLTDATA pbd )
   pRc = (RC *)_D3(lastContext);
   DDPRINT(DDDBGLVL, ">> DdBlt (dst=%08lXh, src=%08lXh", pbd->lpDDDestSurface, pbd->lpDDSrcSurface);
 
+  /* retro3dfx: present-path tracer (CS-D3D fillrate hunt). Counts blts and
+   * separately blts whose DEST is the primary/front (a Blt-present — the
+   * expensive way to show a frame). One log line at the first primary-dest
+   * blt and every 512th blt overall. */
+  {
+    extern VOID V5DLog(CHAR *, ...);
+    extern LONG g_retroBltCount, g_retroBltToPrimary;
+    LONG n = ++g_retroBltCount;
+    LONG toPrim = 0;
+    if (pbd->lpDDDestSurface &&
+        (pbd->lpDDDestSurface->ddsCaps.dwCaps &
+         (DDSCAPS_PRIMARYSURFACE | DDSCAPS_FRONTBUFFER)))
+      toPrim = ++g_retroBltToPrimary;
+    if ((0 < toPrim) && (14 >= toPrim))
+    {
+      V5DLog("retro3dfx BltToPrim #%ld dst=(%ld,%ld-%ld,%ld) src=(%ld,%ld-%ld,%ld) srcCaps=%08lXh flags=%08lXh\n",
+             (long)toPrim,
+             (long)pbd->rDest.left, (long)pbd->rDest.top,
+             (long)pbd->rDest.right, (long)pbd->rDest.bottom,
+             (long)pbd->rSrc.left, (long)pbd->rSrc.top,
+             (long)pbd->rSrc.right, (long)pbd->rSrc.bottom,
+             (unsigned long)(pbd->lpDDSrcSurface ? pbd->lpDDSrcSurface->ddsCaps.dwCaps : 0),
+             (unsigned long)pbd->dwFlags);
+    }
+    else if ((1 == n) || (0 == (n & 511)))
+    {
+      V5DLog("retro3dfx DdBlt #%ld toPrimary=%ld dstCaps=%08lXh flags=%08lXh\n",
+             (long)n, (long)g_retroBltToPrimary,
+             (unsigned long)(pbd->lpDDDestSurface ? pbd->lpDDDestSurface->ddsCaps.dwCaps : 0),
+             (unsigned long)pbd->dwFlags);
+    }
+  }
+
+  /* retro3dfx EXPERIMENT (SSTH3_SKIPPRESENTBLT REG_SZ "1", read once per
+   * driver load): swallow full-screen origin-anchored blts INTO the primary.
+   * The screen freezes on the last GDI frame during the run — this exists
+   * only to measure what the Blt-present path (copy + any completion sync)
+   * costs a Blt-presenting D3D app (GoldSrc CS). Absent/0 = normal blts. */
+  {
+    static LONG skipPresent = -1;
+    if (0 > skipPresent)
+    {
+      char *e = GETENV("SSTH3_SKIPPRESENTBLT");
+      skipPresent = ((NULL != e) && ('1' == e[0])) ? 1 : 0;
+      if (skipPresent)
+      {
+        extern VOID V5DLog(CHAR *, ...);
+        V5DLog("retro3dfx SKIPPRESENTBLT ACTIVE - primary-dest present blts are swallowed\n");
+      }
+    }
+    if ((0 < skipPresent) &&
+        pbd->lpDDDestSurface && pbd->lpDDSrcSurface &&
+        (pbd->lpDDDestSurface->ddsCaps.dwCaps & DDSCAPS_PRIMARYSURFACE) &&
+        (0 == pbd->rDest.top) && (0 == pbd->rDest.left))
+    {
+      pbd->ddRVal = DD_OK;
+      return DDHAL_DRIVER_HANDLED;
+    }
+  }
+
+  /* retro3dfx: Blt-present -> page-flip promotion. DEFAULT ON — the strict
+   * shape match below is the real gate (only the exact GoldSrc-D3D present
+   * shape promotes: fullscreen 3D app active, full-screen non-stretch
+   * SRCCOPY from a tiled vidmem surface into the tiled primary, no
+   * colorkey; everything else takes the normal blit). SSTH3_FLIPPRESENT
+   * REG_SZ "0" disables — best-effort only: registry READS through the
+   * miniport are unreliable on deployed boxes (see LOGFILE.C, the reason
+   * V5DLog went unconditional), which is why the default must be the
+   * useful behavior. See retroFlipPresent() in DDFLIP.C. */
+  {
+    static LONG flipPresent = -1;
+    if (0 > flipPresent)
+    {
+      char *e = GETENV("SSTH3_FLIPPRESENT");
+      flipPresent = ((NULL != e) && ('0' == e[0])) ? 0 : 1;
+      if (flipPresent)
+      {
+        extern VOID V5DLog(CHAR *, ...);
+        V5DLog("retro3dfx FLIPPRESENT ACTIVE - full-screen present blts promote to page flips\n");
+      }
+    }
+    /* condition probe: first 4 primary-dest blts explain the gate verdict */
+    {
+      extern LONG g_retroBltToPrimary;
+      if ((0 < flipPresent) && (4 >= g_retroBltToPrimary) &&
+          pbd->lpDDDestSurface && pbd->lpDDSrcSurface &&
+          (pbd->lpDDDestSurface->ddsCaps.dwCaps & DDSCAPS_PRIMARYSURFACE))
+      {
+        extern VOID V5DLog(CHAR *, ...);
+        V5DLog("retro3dfx FPcond 3d=%ld rop=%08lXh flags=%08lXh srcHw=%08lXh dstHw=%08lXh cx=%ld cy=%ld\n",
+               (long)_DD(dd3DInOverlay),
+               (unsigned long)((pbd->dwFlags & DDBLT_ROP) ? pbd->bltFX.dwROP : 0xFFFFFFFFul),
+               (unsigned long)pbd->dwFlags,
+               (unsigned long)GET_HW_ADDR(pbd->lpDDSrcSurface),
+               (unsigned long)GET_HW_ADDR(pbd->lpDDDestSurface),
+               (long)ppdev->cxScreen, (long)ppdev->cyScreen);
+      }
+    }
+    if ((0 < flipPresent) &&
+        _DD(dd3DInOverlay) &&
+#if defined(SLI_AA) && (!defined(WINNT) || (_WIN32_WINNT >= 0x0500))
+        !_DD(ddSLIModeEnabled) && !_DD(ddAAModeEnabled) && !_DD(ddAANumberSamples) &&
+#endif
+        pbd->lpDDDestSurface && pbd->lpDDSrcSurface &&
+        (pbd->lpDDDestSurface->ddsCaps.dwCaps & DDSCAPS_PRIMARYSURFACE) &&
+        (pbd->lpDDSrcSurface->ddsCaps.dwCaps & DDSCAPS_VIDEOMEMORY) &&
+        (0 == (pbd->dwFlags & (DDBLT_KEYSRCOVERRIDE | DDBLT_KEYDESTOVERRIDE |
+                               DDBLT_KEYSRC | DDBLT_KEYDEST))) &&
+        /* apps pass dwROP with only the HIWORD meaningful (GoldSrc sends
+         * 00CC0000h, not the full SRCCOPY constant) — compare like the
+         * dispatch below does */
+        ((0 == (pbd->dwFlags & DDBLT_ROP)) || (HIWORD(SRCCOPY) == HIWORD(pbd->bltFX.dwROP))) &&
+        (0 == pbd->rDest.top) && (0 == pbd->rDest.left) &&
+        (0 == pbd->rSrc.top) && (0 == pbd->rSrc.left) &&
+        ((DWORD)pbd->rDest.right  == (DWORD)ppdev->cxScreen) &&
+        ((DWORD)pbd->rDest.bottom == (DWORD)ppdev->cyScreen) &&
+        ((DWORD)pbd->rSrc.right   == (DWORD)ppdev->cxScreen) &&
+        ((DWORD)pbd->rSrc.bottom  == (DWORD)ppdev->cyScreen) &&
+        IS_TILED(GET_HW_ADDR(pbd->lpDDSrcSurface)) &&
+        IS_TILED(GET_HW_ADDR(pbd->lpDDDestSurface)))
+    {
+      extern DWORD retroFlipPresent(NT9XDEVICEDATA *, LPDDHAL_BLTDATA);
+      if (retroFlipPresent(ppdev, pbd))
+        return DDHAL_DRIVER_HANDLED;
+    }
+  }
+
   #ifdef FXTRACE
   DISPDBG((ppdev, DEBUG_APIENTRY, "Blt32" ));
   DUMP_BLTDATA(ppdev, DEBUG_DDGORY, pbd );

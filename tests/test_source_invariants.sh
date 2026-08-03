@@ -297,6 +297,35 @@ chk "glide2 fifo makeroom bounded stall (WEDGE-BREAK)" \
     "$G2SRC/FIFO.C" \
     "WEDGE-BREAK: force room"
 
+# 16. Blt-present -> page-flip promotion (CS-D3D fillrate fix, 2026-08-03):
+#     GoldSrc-D3D presents by full-screen Blt (never DdFlip); the promotion
+#     queues a real overlay flip and ping-pongs the app back buffer with a
+#     B2 from the third tiled slot. First version ping-ponged into the GDI
+#     desktop buffer and HARD-WEDGED the chip (color/Z tile parity) - B2
+#     MUST come from a tiled color slot, and the BACKBUFFER heap search
+#     MUST include TILED_HEAP2 (else B2 alloc fails OUTOFVIDEOMEMORY and
+#     the promotion silently disables).
+chk "flip-present promotion present in DDFLIP.C" \
+    "$H5DISP/DDFLIP.C" \
+    "retroFlipPresent ( NT9XDEVICEDATA"
+chk "flip-present restores backing on surface destroy" \
+    "$H5DISP/DDSURF.C" \
+    "retroFlipPresentSurfGone((void \*)psurf_gbl->dwReserved1)"
+chk "BACKBUFFER heap search includes the third tiled slot (B2)" \
+    "$H5DISP/DDMEMMGR.C" \
+    "TILED_HEAP2_ID : LINEAR_HEAP1_ID"
+chk "flip-present session generation bumped at 3D enter" \
+    "$H5DISP/DDFXNT.C" \
+    "g_retroFlipGen++"
+chk "promoted swaps do not wait on vsync (33.8 vs 34.3 fps measured)" \
+    "$H5DISP/DDFLIP.C" \
+    "SETPD(hwPtr, ghw0->swapbufferCMD, 0);"
+if grep -q -a "srcData->hwPtr  = dstData->hwPtr" "$H5DISP/DDFLIP.C"; then
+  echo "FAIL  flip-present still swaps with the PRIMARY surface (the desktop-buffer parity wedge)"; fail=1
+else
+  echo "PASS  flip-present never ping-pongs into the GDI desktop buffer"
+fi
+
 echo "== glide2 repo tree vs build tree sync =="
 for f in GSST.C FIFO.C; do
   if cmp -s "$G2SRC/$f" "$G2PREFIX/$f"; then

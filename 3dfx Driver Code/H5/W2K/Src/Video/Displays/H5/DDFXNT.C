@@ -2668,6 +2668,12 @@ DWORD Promote_PrimaryToOverlay(NT9XDEVICEDATA * ppdev)
   _FF(lastOverlayAddress) = INVALID_ADDRESS;
   _DD(dd3DInOverlay) = 1;
 
+  /* retro3dfx: new fullscreen-3D session — reset flip-present state */
+  {
+    extern LONG g_retroFlipGen;
+    g_retroFlipGen++;
+  }
+
   return DD_OK;
 
 } // Promote_PrimaryToOverlay

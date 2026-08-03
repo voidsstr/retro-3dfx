@@ -72,6 +72,16 @@ LONG g_retroVidSurfLive = 0;
 LONG g_retroVidSurfEver = 0;
 LONG g_retroVidSurfNullFree = 0;
 
+/* retro3dfx: present-path tracer counters (CS-D3D fillrate hunt — DDFLIP.C /
+   DDBLT32.C log the 1st + every Nth with these). */
+LONG g_retroFlipCount = 0;
+LONG g_retroBltCount = 0;
+LONG g_retroBltToPrimary = 0;
+
+/* retro3dfx: fullscreen-3D session generation (bumped by
+   Enter_3DApplication) — resets retroFlipPresent's per-session state. */
+LONG g_retroFlipGen = 0;
+
 PVOID
 retroEngAllocMem(ULONG fl, ULONG cj, ULONG tag)
 {
