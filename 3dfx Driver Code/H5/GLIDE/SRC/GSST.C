@@ -280,7 +280,7 @@
 ** default for Avenger to increase single texturing tri fillrate.
 ** 
 ** 181   12/03/98 11:27p Dow
-** Code 'cleanup' heç
+** Code 'cleanup' heï¿½
 ** 
 ** 180   12/03/98 10:37p Dow
 ** Removed bogus gamma setting in assertDefaultState\nRemoved protoected &
@@ -441,7 +441,7 @@
 ** LFB Fixes:  Round 1
 ** 
 ** 129   3/28/98 11:24a Dow
-** itwoç
+** itwoï¿½
 ** 
 ** 128   3/20/98 1:12p Dow
 ** Windows happiness
@@ -2797,12 +2797,23 @@ GR_ENTRY(grSstIdle, void, (void))
     status = grSstStatus();
   } while (status & SST_BUSY);*/
 
-    do {
-      if(grSstStatus() & SST_BUSY)
-        i = 0; /* Reset counter */
-      else
-        i++;
-    } while(i < 3);
+    /* retro3dfx: bounded idle wait. If the accelerator wedges with
+     * SST_BUSY stuck (hw never goes idle), the original loop spins
+     * forever; on the grSstWinClose path that hangs the app at exit
+     * and the desktop is never restored. ~4M status polls is seconds
+     * of continuous BUSY on real hw -- treat that as a wedge and
+     * proceed with shutdown anyway. */
+    {
+      FxU32 busyPolls = 0;
+      do {
+        if(grSstStatus() & SST_BUSY) {
+          i = 0; /* Reset counter */
+          if (++busyPolls > 4000000UL)
+            break; /* WEDGE-BREAK: hw stuck busy, give up idling */
+        } else
+          i++;
+      } while(i < 3);
+    }
 
 //    while (grSstStatus() & SST_BUSY) ;
 //    while (((grSstStatus() & SST_BUSY) == 0) &&

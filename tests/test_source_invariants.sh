@@ -284,6 +284,28 @@ else
   echo "PASS  ICD no hardcoded GR_REFRESH_60Hz in grSstWinOpen"
 fi
 
+# 15. glide2x shutdown wedge-breaks (UT99 exit hang: grSstWinClose spun
+#     forever at 98% CPU when the accelerator wedged with SST_BUSY stuck,
+#     so hwcRestoreVideo never ran and the desktop was never restored).
+#     Both user-mode spins on the WinClose path must be bounded.
+G2SRC="3dfx Driver Code/H5/GLIDE/SRC"
+G2PREFIX="toolchain-3dfx/prefix/drive_c/3dfx/H5/GLIDE/SRC"
+chk "glide2 grSstIdle bounded busy-poll (WEDGE-BREAK)" \
+    "$G2SRC/GSST.C" \
+    "WEDGE-BREAK: hw stuck busy"
+chk "glide2 fifo makeroom bounded stall (WEDGE-BREAK)" \
+    "$G2SRC/FIFO.C" \
+    "WEDGE-BREAK: force room"
+
+echo "== glide2 repo tree vs build tree sync =="
+for f in GSST.C FIFO.C; do
+  if cmp -s "$G2SRC/$f" "$G2PREFIX/$f"; then
+    echo "PASS  sync GLIDE/SRC/$f"
+  else
+    echo "FAIL  sync GLIDE/SRC/$f (repo tree != build tree — the build would not contain the repo fix)"; fail=1
+  fi
+done
+
 echo "== repo tree vs build tree sync (fixed files must match) =="
 for f in D3TXTR.C DDFLIP.C D6DP2.C DDFXNT.C CFIFO.C LOGFILE.C LOGFILE.H DEBUG.C ENABLE.C DDMEMMGR.C D3CONTXT.C DDGLOBAL.H HW.H D7D3D.C DDINIT.C MEMCHECK.H BITBLT.C DDSURF.C DDOVL32.C DDBLT32.C FNPROTO.H PALETTE.C; do
   if cmp -s "$H5DISP/$f" "$PREFIX/Displays/H5/$f"; then

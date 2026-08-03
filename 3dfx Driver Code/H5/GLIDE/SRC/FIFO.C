@@ -93,7 +93,7 @@
 ** Dos Glide Mods
 ** 
 ** 23    3/28/98 11:24a Dow
-** itwoç
+** itwoï¿½
 ** 
 ** 21    2/17/98 12:50p Dow
 ** Added conditional fifo id.
@@ -710,6 +710,7 @@ _grCommandTransportMakeRoom(const FxI32 blockSize, const char* fName, const int 
   {
     FxU32 lastHwRead = gc->cmdTransportInfo.fifoRead;
     FxI32 roomToReadPtr = gc->cmdTransportInfo.roomToReadPtr;
+    FxU32 stuckPolls = 0;
 
     while (roomToReadPtr < blockSize) {
       FxU32 curReadPtr = HW_FIFO_PTR(FXTRUE);
@@ -740,6 +741,21 @@ _grCommandTransportMakeRoom(const FxI32 blockSize, const char* fName, const int 
           }
         }
       }
+
+      /* retro3dfx: bounded fifo stall. If the accelerator wedges, the
+       * hw read pointer stops advancing and this loop spins forever
+       * (the checks>1000 diagnostic below is GDBG-only and just logs).
+       * ~4M no-progress polls is seconds of wall time on real hw --
+       * treat that as a wedge, pretend the fifo drained, and let the
+       * caller proceed (matches the display driver's H3MakeRoom
+       * WEDGE-BREAK behavior). */
+      if (curReadDist == 0) {
+        if (++stuckPolls > 4000000UL) {
+          roomToReadPtr = blockSize; /* WEDGE-BREAK: force room */
+          break;
+        }
+      } else
+        stuckPolls = 0;
 
       checks++;
 
