@@ -183,6 +183,34 @@ ring line on trip, in `ENABLE_LOG_FILE` builds:
 Verified no-regression after each (D3D matrix + GL golden, `2b39149`).
 Every accelerator wait in the display driver is now bounded.
 
+**glide2x had its own pair** (found 2026-08-03 via UT99):
+
+- **Symptom:** quitting UT99 (Glide) after a session left the screen
+  garbled — `UnrealTournament.exe` pinned at 98% CPU forever, desktop
+  never restored (looked like a crash, was actually a spin). Ring
+  signature: WinClose escapes + `EXCL-LEAVE 3dCnt=0`, then silence — no
+  `HWCRLSEXCLUSIVE`, no mode restore; UT log truncates right after
+  `Unbound to Render.dll`.
+- **Root cause (VINTAGE):** with the accelerator wedged (`SST_BUSY`
+  stuck), `grSstWinClose`'s two user-mode spins never terminate in
+  release builds: `grSstIdle`'s status busy-poll (`GSST.C`) and
+  `_grCommandTransportMakeRoom`'s read-pointer stall (`FIFO.C` — its
+  `checks > 1000` diagnostic is GDBG-only and just logs). So
+  `hwcRestoreVideo` never ran and the desktop was never re-asserted.
+- **Fix:** both loops bounded at ~4 M no-progress polls (seconds of
+  continuous BUSY / frozen read pointer), then shutdown proceeds — same
+  WEDGE-BREAK philosophy as the display-driver table above.
+- **Commit:** `2b3e832` · **Files:** `H5/GLIDE/SRC/GSST.C`, `FIFO.C`
+- **Verified:** UT99 launch → console `exit` → process gone in <3 s, ring
+  shows the full close sequence (`EXCL-LEAVE` → `HWCRLSEXCLUSIVE` → mode
+  restore 1024×768×32 → `UNMAP_MEMORY`), UT log runs to "Log file
+  closed", target D3D matrix still green.
+- **Regression:** source invariants #15 (markers + glide2 tree sync) +
+  `tests/native/test_glide2_shutdown_spins.c` (healthy/wedged/glacial
+  simulated hw). Glide2 build recipe reminder: overlay
+  `GLIDE/SRC/{GLIDE,GLIDESYS,GLIDEUTL}.H` into `H5/INCLUDE`, build
+  `build_glide2.bat`, restore the Glide3 headers.
+
 ## 3. Policy / behavior changes (deliberate, not bug fixes)
 
 - **Vsync ON by default at the driver level** (`FX_GLIDE_SWAPINTERVAL` via
