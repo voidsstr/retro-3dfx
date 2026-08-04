@@ -7,6 +7,33 @@ sessions work on. When in doubt which stack a file belongs to: everything under
 `3dfx Driver Code/` and `toolchain-3dfx/prefix/drive_c/3dfx/` here is the
 vintage stack.
 
+## RULE: the Voodoo 5 box runs THIS repo's drivers ONLY
+
+**Never build, deploy, copy, or otherwise use any driver binary from the
+`retro-agent` tree (or any other repo) on the Voodoo 5 box (.143).** That
+includes `retro-agent/voodoo-cleanroom/build/retro3dfx-gl` (a separate ~2.7 MB
+Mesa ICD, versioned `0.1.x`) and the staging copies under
+`C:\RETRO_AGENT\3dfx-driver\` on the box. They are a DIFFERENT driver lineage
+and mixing them silently regresses the V5.
+
+Every V5 driver binary must come from this repo:
+
+| On the box | Canonical source in THIS repo |
+|---|---|
+| `system32\3dfxv5d.dll` | `.../Displays/H5/objfre/i386/3dfxvs.dll` |
+| `system32\drivers\3dfxv5m.sys` | `.../Miniport/H5/objfre/i386/3dfxvsm.sys` |
+| `system32\glide2x.dll` | `H5/GLIDE/SRC/glide2x.dll` |
+| `system32\glide3x.dll` | `H5/GLIDE3/SRC/glide3x.dll` |
+| `system32\opengl32.dll` AND `3dfxogl.dll` (same file) | `SWLIBS/OPENGL/GLIDE3X/release/opengl.dll` (ICD `retro3dfx 0.4.0`) |
+
+Verify with hashes, never sizes/dates: **all ICD builds 0.3.7–0.4.0 are exactly
+704,512 bytes**. Read the embedded `retro3dfx 0.x.y` string. **`fc /b` returns
+EMPTY through the agent** (reports identical files as differing) — DOWNLOAD and
+md5 instead. Audit method + last sweep: memory `driver-version-audit`.
+
+Game dirs that ship their own `opengl32.dll`/`3dfxogl.dll`/`glide2x.dll`/
+`glide3x.dll` SHADOW system32 — re-audit after any game reinstall.
+
 ## The driver stack — what ships to the box
 
 | Deployed file (XP box) | Built from | What it is |
