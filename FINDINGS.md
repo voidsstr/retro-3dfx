@@ -36,6 +36,20 @@ The July "Glide2x-era games are a crash risk - SKIP" finding is RESOLVED.
   their teardown runs — TerminateProcess of a mid-frame glide2 app does not.)
 - Unreal Gold verified: fullscreen Glide **640x480x16 @100Hz, stable** (96s
   intro flyby, clean).
+- **CORRECTION (same day, after more runs): our glide2x is NOT stable under
+  sustained load at ANY resolution yet.** A 640x480 `-benchmark` run (map
+  loaded, real scene) wedged the box ~20s in — the same hard wedge as 800x600.
+  The one clean 96s run was the intro flyby only. So the honest status is:
+  **glide2x now INITIALIZES and RENDERS correctly (the bring-up fixes are
+  real and committed), but the render path wedges the chip under load.**
+  Do NOT leave a fleet box configured to launch a Glide2 game — set the game
+  to D3D/software until this is fixed. Next suspects (in order): the packet
+  FIFO path (`USE_PACKET_FIFO=1` + `GLIDE_PACKET3_TRI_SETUP`) which glide3x
+  exercises differently; missing WEDGE-BREAK bounds in glide2x's own
+  makeRoom/idle spins (the VINTAGE glide2 got those in 2b3e832 — our
+  clean-room glide2x never did); and tiled-heap/buffer-count math at
+  non-640 modes. Reproduce with the standalone `tst2x.exe` exerciser
+  extended to draw real triangles for N seconds — NOT with a game.
 - **800x600 fullscreen Glide WEDGES the Voodoo3** (2026-08-04, twice): first
   attempt fell back to VGA with "Display Driver Stopped Responding" (TDR, agent
   survived); after a clean reboot the second attempt hard-wedged the box (agent
