@@ -11,6 +11,35 @@ Win98 FAT volume. Agent 1.14.0. Autologs in as voidsstr/password.
 
 ---
 
+## Glide2x on .124 SOLVED: Unreal Gold 3dfx renderer works — nGlide was the wedge, our glide2x was two known fixes away (2026-08-04)
+
+The July "Glide2x-era games are a crash risk - SKIP" finding is RESOLVED.
+
+- **The wedge was nGlide, not Glide.** GOG's Unreal Gold ships nGlide (a
+  Glide->D3D wrapper, 1.3MB 2013 dll) as game-local `glide2x.dll`. On the XP
+  Voodoo3 its repeated failing grSstOpen attempts hard-froze the chip (no ping,
+  no watchdog — physical power cycle). system32 also had a stale 2003 94KB
+  glide2x. Neither was ours.
+- **Our clean-room glide2x needed exactly the glide3x XP bring-up fixes**
+  (never ported): GETLINEARADDR prime before ALLOCCONTEXT + zero-base guards
+  (fork 79ee51e), plus the dual-ABI `_grFoo@N` relink in build-stack.sh
+  (Glide2 games are MSVC-linked). GPF was hwcInitRegisters reading dramInit1
+  off base0=0.
+- **Debug loop that cracked it in minutes:** standalone `tst2x.exe` exerciser
+  (LoadLibrary + underscore GetProcAddress + SetUnhandledExceptionFilter dump)
+  + DEBUG glide2x build + addr2line on the DWARF = exact faulting line.
+  grSstWinOpen also needs a REAL HWND (hWnd=0 fails silently — DDraw FSEM).
+- **NEVER `taskkill /f` a fullscreen Glide2 game.** Kill mid-FIFO-packet =
+  chip parses garbage = bus-level hang beyond the display driver's bounded
+  waits (second power cycle of the day). Exit via the game's quit path. (The
+  same applies to any direct-FIFO renderer; GoldSrc/Q3 survived kills because
+  their teardown runs — TerminateProcess of a mid-frame glide2 app does not.)
+- Unreal Gold verified: fullscreen Glide 640x480x16 **@100Hz**, stable.
+  Carmageddon 2 (GOG) also carries a game-local nGlide glide2x — same swap
+  applies when wanted.
+
+---
+
 ## GoldSrc-D3D present path: Blt-present promoted to page flip (+7.5%), and the wedge that taught us tile parity (2026-08-03)
 
 D3D-vs-GL deficit hunt on .124 (CS 1.6, Voodoo3, 1024x768x16@100Hz). GL 40.9-43.4
