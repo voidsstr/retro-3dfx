@@ -11,6 +11,38 @@ Win98 FAT volume. Agent 1.14.0. Autologs in as voidsstr/password.
 
 ---
 
+## Fleet driver audit on .124: 19 stale game-local ICDs found (2026-08-04)
+
+Ran a full both-volume audit of every graphics DLL (`opengl32/3dfxgl/3dfxogl/
+retrogl/3dfxvgl/glide2x/glide3x`), classified by exact byte size against the
+`voodoo-cleanroom/out` artifacts, after the user asked whether all games run the
+verified driver.
+
+- **19 game-local ICD copies were STALE** — spread across 0.1.29/30/31, 0.1.32,
+  0.1.33 and one non-retail build: Q2, Q3(retrogl), RtCW, MOHAA, UT99, Half-Life
+  (x2 paths), CS (three separate installs), Heretic2, SiN, Descent3, and
+  `system32\3dfxvgl.dll`. **LoadLibrary prefers the game dir over system32**, so
+  every one of those games was running an OLD ICD while system32 had 0.1.35 —
+  the game-local shadow rule in the deploy skill, demonstrated at scale.
+- All updated from one staged upload with `.pre0135` backups; **verified by
+  renderer string** (`Q3 GL_RENDERER: Mesa Glide v0.62 Voodoo3 (tm)
+  [voodoo-cleanroom 0.1.35]`), never by file size.
+- **Deliberate exceptions kept:** SiN keeps its bundled 3dfx MiniGL (our ICD
+  can't play Sin's demos — earlier finding); the 344064 retail AmigaMerlin
+  glide3x copies (Heretic2/SiN/RtCW-gl) are the documented hybrid config.
+- **nGlide neutralized** (`.nglide-disabled`) in Unreal Gold and Carmageddon 2
+  (glide.dll/glide2x.dll/glide3x.dll, all >1MB). Carma2's `CARMA2_HW.EXE`
+  verified to still launch and run without it; Unreal is on D3D.
+- **Two `cmd` traps cost a cycle here:** `dir /s` output needs the AM/PM token in
+  the parse regex, and `if exist "x" (move ... & echo MOVED) else (...)` echoed
+  MOVED while silently NOT moving — use plain per-file `move /Y` and re-list to
+  confirm. Also `os.path.basename` on Windows paths is a no-op under Linux
+  (split on backslash).
+- Audit + fix scripts: session scratchpad `audit2.py` / `fix_drivers.py`; method
+  captured as fleetbook recipe "Fleet-wide driver audit".
+
+---
+
 ## Glide2x on .124 SOLVED: Unreal Gold 3dfx renderer works — nGlide was the wedge, our glide2x was two known fixes away (2026-08-04)
 
 The July "Glide2x-era games are a crash risk - SKIP" finding is RESOLVED.
