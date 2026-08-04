@@ -34,7 +34,17 @@ The July "Glide2x-era games are a crash risk - SKIP" finding is RESOLVED.
   waits (second power cycle of the day). Exit via the game's quit path. (The
   same applies to any direct-FIFO renderer; GoldSrc/Q3 survived kills because
   their teardown runs — TerminateProcess of a mid-frame glide2 app does not.)
-- Unreal Gold verified: fullscreen Glide 640x480x16 **@100Hz**, stable.
+- Unreal Gold verified: fullscreen Glide **640x480x16 @100Hz, stable** (96s
+  intro flyby, clean).
+- **800x600 fullscreen Glide WEDGES the Voodoo3** (2026-08-04, twice): first
+  attempt fell back to VGA with "Display Driver Stopped Responding" (TDR, agent
+  survived); after a clean reboot the second attempt hard-wedged the box (agent
+  died with Unreal running normally at 800x600x16 — no taskkill involved, so
+  this is the resolution itself, not the kill rule above). 640x480 is the only
+  verified-good Glide2 mode on .124 so far. NEXT STEP: sweep resolutions with
+  the standalone `tst2x.exe` exerciser (self-exiting, safe) rather than the
+  game, to find where WinOpen/heap setup breaks — suspect the tiled-heap /
+  buffer-count math at non-640 modes in glide2x's hwc path.
   Carmageddon 2 (GOG) also carries a game-local nGlide glide2x — same swap
   applies when wanted.
 
