@@ -1,27 +1,49 @@
 # retro-3dfx — Claude Code Instructions
 
-## Commit and Push at Every Stable Checkpoint (REQUIRED)
+## Work in a Worktree, Land on `master` at Every Checkpoint (REQUIRED)
 
-**Commit and push by default — do not ask first.** Verified work left sitting in
-the working tree helps nobody and is one lost machine away from gone.
+**Do the work in a worktree; when it is stable and tested, commit and push it to
+`master`. Do not ask first.** The worktree keeps parallel sessions off each
+other's toes, and the push to `master` stops verified driver work rotting on a
+branch nobody merges.
 
-- **When:** at every checkpoint where the codebase is stable — the change is
-  complete *and* tested at some level. "Tested at some level" is the bar:
-  `tests/predeploy.sh` green, the on-target `run_target_tests.py` matrix passing,
-  or at minimum the change verified once on the V5 box. A perfect suite isn't
-  required; an untested guess is not a checkpoint. Batch trivial follow-ups into
-  the next checkpoint, but **never end a session with verified work uncommitted.**
-- **Where:** the main branch (`master`) unless the session says otherwise. **This
-  repo is frequently checked out on a lane branch** (e.g. `v56k-6000`) that
-  belongs to Voodoo 5 work in flight — when it is, commit and push to *that*
-  branch and say so. **Never switch the checked-out branch** just to satisfy this
-  rule; that yanks the tree out from under the session that owns it.
-- **What:** only the paths belonging to the change you just made. If the working
-  tree already holds unrelated modifications you did not make, `git add <paths>`
-  explicitly. **Never `git add -A` over someone else's in-progress work**, and
-  never commit a whole-file line-ending (CRLF) churn — check with
+**1. Take a worktree before you start.**
+```bash
+git worktree list                                        # who else is live?
+git worktree add .worktrees/<topic> -b worktree-<topic> origin/master
+```
+Do all editing, building and testing there. *Exception:* a trivial one-file edit
+(a `FINDINGS.md` entry, a doc line) can go straight in the main tree if it's free.
+
+**2. Test in the worktree before you call it a checkpoint.** `tests/predeploy.sh`
+green (non-zero exit means do NOT deploy), the on-target `run_target_tests.py`
+matrix passing, or at minimum the change verified once on the V5 box. A perfect
+suite isn't required; an untested guess is not a checkpoint.
+
+**3. At each checkpoint, land it on `master` and push:**
+```bash
+git fetch origin
+git rebase origin/master        # keep it a fast-forward
+bash tests/run_native.sh        # re-verify AFTER the rebase
+git push origin HEAD:master     # land it - do not leave it on the topic branch
+```
+Then `git worktree remove .worktrees/<topic>` and `git branch -d worktree-<topic>`
+when the topic is done. **Never end a session with verified work uncommitted or
+unpushed** — a commit that isn't pushed is still only on one machine.
+
+> **This repo is frequently checked out on a long-running lane branch** (e.g.
+> `v56k-6000`) that belongs to Voodoo 5 work in flight. When the session you are
+> in *is* that lane, commit and push to that branch and say so — landing on
+> `master` is for work that is finished, not for interrupting a lane mid-flight.
+> **Never switch the checked-out branch** to satisfy this rule; that yanks the
+> tree out from under the session that owns it. Take a worktree instead.
+
+**Guardrails, all of which have bitten here:**
+- **Stage explicit paths.** `git add <paths>`, never `git add -A`.
+- **Never commit a whole-file line-ending (CRLF) churn** — check
   `git diff --ignore-cr-at-eol --stat` before staging a file you didn't rewrite.
-- **Then push.** A commit that isn't pushed is still only on one machine.
+- **If the push is rejected** as non-fast-forward, `git fetch && git rebase
+  origin/master` and re-run the tests before pushing again.
 
 The sibling repos (`retro-agent`, `nsc-assistant`) carry the same rule.
 
