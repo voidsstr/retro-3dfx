@@ -138,3 +138,44 @@ exports — both clean `/WX` builds, ABI unchanged. Rollback is a single file co
 programmed (`SLIAA.C` v56k section, HiNT bridge GPIO). Enabling analog SLI on chips
 whose clock was never set is the single highest hardware risk in this plan and is a
 credible cause of unattended resets on its own.
+
+---
+
+## 7. D3D "0K vram" — root cause and fix (built, NOT yet deployed)
+
+`DdGetAvailDriverMemory()` (`DDFXNT.C:1569`) initialised `dwTotal = dwFree = 0` and
+then returned **`DDHAL_DRIVER_HANDLED` unconditionally**:
+
+- The whole body is gated on `IS_NAPALM && bUseSliExtraLinearHeap`, and
+  `bUseSliExtraLinearHeap` comes from the registry value `UseSliExtraLinearHeap`
+  (`DDINIT.C:1296`), which defaults to 0 and **is absent on this box** — so the body
+  never runs and the function reports 0/0 as authoritative.
+- Even inside the body, the `DUAL_CHIP_SLI_2WAY_AA_DISABLED` /
+  `QUAD_CHIP_SLI_4WAY_AA_DISABLED` arm has **literally empty branches**
+  (`// don't do anything`), and the other arm sets `dwTotal` but has
+  `dwFree` **commented out**. Every path yields `dwFree = 0`.
+
+That is exactly what UT99 reports: `D3D Device 0K vram, 0K free`. DirectDraw
+therefore believes the board has no video memory and D3D keeps every texture in
+system memory — the reason UT-D3D manages ~24 fps on hardware that runs Q3 fine.
+
+**Fix (`V56K-VIDMEM`, `DDFXNT.C`):** only claim the call when there is genuinely
+something to hide (the SLI extra linear heap); otherwise return
+`DDHAL_DRIVER_NOTHANDLED` and let DirectDraw account the heaps the driver already
+gave it. Also sets `dwFree` in the arm where it was commented out, and logs
+`DDAVAILMEM: caps=… total=… free=…`. Builds clean (`3dfxvs.dll`, 964,256 B).
+
+### ⚠ Do not deploy the rebuilt display driver yet — it would REGRESS diagnostics
+
+The deployed `3dfxv5d.dll` (969,264 B) was built from the working tree that died with
+the OMEN NVMe, and contains **19 `retro3dfx` log strings that our source does not
+have** — listed in `optimized/v56k-sli-build-20260811/LOST-INSTRUMENTATION.txt`.
+They include the DirectDraw enable-path diagnostics we are actively relying on
+(`DDRAW-ENABLED: units=%ld cyMem=%ld slop=%ld ddHeap=%ld` — how we know all four
+chips are detected), the full heap dump (`HEAP%ld LIN/RECT`, `HEAPSUM`), the D3D HAL
+create-failure paths, and an SLI diagnostic
+(`SLICFG: degenerate denominator (units=%ld) -> non-optimal path`).
+
+**Order of work:** port that instrumentation back into `DDFXNT.C`/`DDINIT.C` first,
+then ship the vram fix together with it. Until then the D3D fix stays source-only;
+the Glide fixes (§5) are user-mode and ship independently with no such risk.

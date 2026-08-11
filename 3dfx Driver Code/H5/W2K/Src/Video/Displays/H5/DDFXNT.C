@@ -1576,6 +1576,20 @@ DdGetAvailDriverMemory(LPDDHAL_GETAVAILDRIVERMEMORYDATA pgadm)
   pgadm->dwTotal = 0;
   pgadm->dwFree  = 0;
 
+  /* V56K-VIDMEM: only answer this call when we genuinely have to hide the
+  ** SLI extra linear heap from DirectDraw.  Returning DDHAL_DRIVER_HANDLED
+  ** with dwTotal/dwFree still 0 -- which is what happened whenever
+  ** bUseSliExtraLinearHeap was off (its registry opt-in is absent by
+  ** default) -- tells DirectDraw the board has NO video memory at all, so
+  ** D3D keeps every texture in system memory.  That is the "D3D Device 0K
+  ** vram, 0K free" UT99 reports on the Voodoo5 6000.  Hand the question
+  ** back instead; DirectDraw accounts the heaps we already handed it. */
+  if (!((IS_NAPALM) && _FF(bUseSliExtraLinearHeap)))
+  {
+    pgadm->ddRVal = DD_OK;
+    return DDHAL_DRIVER_NOTHANDLED;
+  }
+
   if ((IS_NAPALM) && _FF(bUseSliExtraLinearHeap))
   {
     memMgr_checkHeapStatus(ppdev);
@@ -1595,13 +1609,11 @@ DdGetAvailDriverMemory(LPDDHAL_GETAVAILDRIVERMEMORYDATA pgadm)
       if ((DUAL_CHIP_SLI_2WAY_AA_DISABLED == _DD(ddSLIAAConfiguration)) ||
           (QUAD_CHIP_SLI_4WAY_AA_DISABLED == _DD(ddSLIAAConfiguration)))
       {
-        if (DDSCAPS_TEXTURE & pgadm->DDSCaps.dwCaps)
-        {
-          // don't do anything
-        }
-        else // this catches ((0 == DDSCap.dwCaps) || ((DDSCAPS_VIDEOMEMORY | DDSCAPS_LOCALVIDMEM) & pgadm->DDSCaps.dwCaps))
-        {
-        }
+        /* V56K-VIDMEM: nothing is reserved in this configuration, so there is
+        ** no adjustment to report -- returning 0/0 here claimed the board had
+        ** no memory.  Defer to DirectDraw. */
+        pgadm->ddRVal = DD_OK;
+        return DDHAL_DRIVER_NOTHANDLED;
   
         DDPRINT(DDDBGLVL, "  (in sli mode) returning dwTotal=%ld, dwFree=%ld", pgadm->dwTotal, pgadm->dwFree);
       }
@@ -1612,18 +1624,21 @@ DdGetAvailDriverMemory(LPDDHAL_GETAVAILDRIVERMEMORYDATA pgadm)
         if (DDSCAPS_TEXTURE & pgadm->DDSCaps.dwCaps)
         {
           pgadm->dwTotal = (unsigned long) -((long)(_FF(sliTileCompare) - _FF(ddTiledHeapStart)));
-          //pgadm->dwFree  = (unsigned long) -((long)(_FF(sliTileCompare) - _FF(ddTiledHeapStart)));
+          pgadm->dwFree  = pgadm->dwTotal;   /* V56K-VIDMEM: was commented out -> always 0 */
         }
         else // this catches ((0 == DDSCap.dwCaps) || ((DDSCAPS_VIDEOMEMORY | DDSCAPS_LOCALVIDMEM) & pgadm->DDSCaps.dwCaps))
         {
           pgadm->dwTotal = (unsigned long) -((long)(_FF(sliTileCompare) - _FF(ddTiledHeapStart)));
-          //pgadm->dwFree  = (unsigned long) -((long)(_FF(sliTileCompare) - _FF(ddTiledHeapStart)));
+          pgadm->dwFree  = pgadm->dwTotal;   /* V56K-VIDMEM: was commented out -> always 0 */
         }
   
         DDPRINT(DDDBGLVL, "  (not in sli mode) returning dwTotal=%ld, dwFree=%ld", pgadm->dwTotal, pgadm->dwFree);
       }
     }
   }
+
+  retroLogForce(ppdev, "retro3dfx DDAVAILMEM: caps=%08lXh total=%ld free=%ld\r\n",
+                pgadm->DDSCaps.dwCaps, pgadm->dwTotal, pgadm->dwFree);
 
   pgadm->ddRVal = DD_OK;
 
