@@ -1636,6 +1636,7 @@ _grAAOffsetValue(FxU32 *xOffset,
 
 void
 _grSliCtrl(void);
+void _grSliLog(const char *fmt, ...);
 
 #endif /* FX_GLIDE_NAPALM */
 

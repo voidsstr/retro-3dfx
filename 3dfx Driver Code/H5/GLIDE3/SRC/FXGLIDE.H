@@ -2434,6 +2434,7 @@ _grAAOffsetValue(FxU32 *xOffset,
 
 void
 _grEnableSliCtrl(void);
+void _grSliLog(const char *fmt, ...);
 
 void
 _grDisableSliCtrl(void);

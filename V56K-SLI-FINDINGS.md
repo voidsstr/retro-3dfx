@@ -1,0 +1,140 @@
+# Voodoo 5 6000 — multi-chip / 4-way SLI findings (2026-08-11)
+
+Box: **192.168.1.133 "P3-DUAL"** — dual Pentium III 700, 1 GB, XP SP3, Voodoo 5 6000
+(4× VSA-100 behind a HiNT HB1-SE66 bridge, 128 MB BIOS mode = 32 MB/chip).
+Stack: `3dfxv5m.sys` + `3dfxv5d.dll` + `glide3x.dll`/`glide2x.dll` + `3dfxogl.dll` (ICD 0.5.0).
+
+---
+
+## 1. Multi-chip IS working — but nothing configures SLI explicitly
+
+Measured with Quake 3 `timedemo four`, 16-bit, quiesced:
+
+| config | 640×480 | 1024×768 | 1280×1024 |
+|---|--:|--:|--:|
+| default (no SLI env/registry set) | 62.2 | 61.4 | 60.7 |
+| `FX_GLIDE_NUM_CHIPS=1` | — | 44.8 | 27.7 |
+
+Forcing a single chip costs **27 %** at 1024×768 and **54 %** at 1280×1024, so by
+default more than one chip is rasterising. The flat default curve is CPU/present
+bound on the 700 MHz P3, not a fill-rate limit.
+
+**But the configuration surface is empty.** On the live box:
+
+- `HKLM\SYSTEM\CurrentControlSet\Services\3dfxvs\Device0`
+  - `SSTH3_SLI_AA_CONFIGURATION` — **ABSENT**
+  - `SSTH3_SLI_BAND_HEIGHT`, `DISABLE_SLI`, `ENABLE_AA` — **ABSENT**
+  - `…\D3D\QuadChipAASLI`, `…\Glide\QuadChipAASLI` — **ABSENT**
+    (the miniport is supposed to write these from `switch(numUnits)`, `H3.C:276-490`,
+    `case 4:` at `H3.C:337`)
+- The display driver's flight-recorder ring contains **zero**
+  `COMPUTE-SLIAA` / `PROMOTE-SLIAA` / `DEMOTE-SLIAA` entries — only
+  `DDRAW-ENABLED: units=4`, i.e. detection happened, policy never ran.
+
+So the board is running on whatever the default path gives it, and the documented
+4-way analog configuration has never been requested. `09-INCOMPLETE-AND-GAPS.md:89`
+is explicit that 4-way SLI "is present but was never productized… the 2-chip paths
+are the hardened ones."
+
+### Config gotchas found while tracing this
+- The SLI/AA registry values are read as **`REG_SZ`** — a `REG_DWORD` is silently
+  ignored (`DDFXNT.C:1675`). Write `"5"`, not `5`.
+- `SSTH3_SLI_COMPATIBILITY_SETTINGS` default 0 **demotes to single chip** whenever
+  `SST_VIDEO_2X_MODE_EN` is set — precisely the 1280×1024 case (`DDFXNT.C:3642-3660`).
+  Set `"2"`.
+- The miniport's `H3ZwQueryRegistryValue` searches `<DevNode>\D3D` then `<DevNode>`
+  only, so it can **never** see a `Glide\SSTH3_*` value; that subkey is read by Glide.
+
+---
+
+## 2. `FX_GLIDE_NUM_CHIPS=2` hard-wedges the machine (reproducible)
+
+Running Q3 at 1280×1024 with `FX_GLIDE_NUM_CHIPS=2` on this 4-chip board killed the
+box outright: no ping, no agent, screen flickering, and it did not come back without
+a power cycle. `=1` is safe, `=4`/unset are safe. **Do not use `=2` on this board.**
+
+Mechanism: the env override only narrows *Glide's* view of the board and it does so
+**after** the slave chips have been mapped and their PCI config read
+(`MINIHWC.C:1534`, and the same pattern at `:1318`/`:1432`). The kernel keeps the
+board programmed for 4 units, and 4-way is forced *analog* combining while 2-way is
+digital (`MINIHWC.C:4278-4287`) — so the video/SLI path ends up half-programmed.
+On the kernel side `SLIAA.C:3480` walks `HwDeviceExtension->numUnits` (4) while the
+setup pass only handles `dwChips` (2), leaving units 2-3 touched but unconfigured.
+
+**Planned fix** (not yet applied — kernel side, needs a supervised reboot):
+clamp the slave-touch loop to `dwChips`, add an explicit safe-state pass for the
+leftover units (clear `SLICTRL`/`AACTRL`, clear the `CFG_INIT_ENABLE` snoop bits,
+`SST_POWERDOWN_DAC` so exactly one chip drives video), and — as an interim guard —
+refuse the enable when `dwChips != numUnits`, logging `SLIAA-MISMATCH`.
+Losing SLI is strictly better than a half-programmed board.
+
+---
+
+## 3. The glide2 machine reset (UT99 Glide) — root cause found
+
+UT99 on its Glide renderer reboots the box under load. glide2 initialises fine
+(`grSstOpen`, both TMUs, 16 MB each) and then dies once the demo streams.
+
+**Root cause: glide2 never re-cached the SLAVE MMIO pointers after a remap.**
+`GLIDE3/SRC/GSST.C` refreshes `gc->slaveSstRegs[]` / `gc->slaveCRegs[]` alongside the
+master registers whenever the board is re-mapped; `GLIDE/SRC/GSST.C` refreshed only
+the master set. glide2 sets the slave pointers exactly once (`GPCI.C:1228-1229`), so
+after any remap `_grHwFifoPtrSlave()` (`GLIDE/SRC/FIFO.C:960-975`) reads MMIO through
+**stale kernel addresses on every make-room** — which resets the machine rather than
+faulting. That function also dereferenced the slave pointers with no NULL/range check.
+
+## 4. Latent bug in both Glides: `_grSliCtrl` / `_grEnableSliCtrl`
+
+```c
+FxI32 sliChipCountDivisor;                 /* never initialised */
+if (gc->chipCount == 2) sliChipCountDivisor = (gc->grPixelSample == 4) ? 2 : 1;
+if (gc->chipCount == 4) sliChipCountDivisor = (gc->grPixelSample == 2) ? 2 : 1;
+...
+while ((0x1UL << log2chipCount) != (gc->chipCount / sliChipCountDivisor))
+  log2chipCount++;                         /* never terminates unless power of two */
+```
+For any chip count other than 2 or 4 the divisor is **stack garbage**; the loop then
+spins forever with the command FIFO open (and a divisor of 0 faults). The divisor was
+also derived from `grPixelSample` rather than the `sliCount` the buffers were actually
+laid out from, so in the 4-chip/2-sample case the hardware is masked 2-way while the
+buffers are laid out 4-way and chips render into each other's bands.
+(glide2 `GSST.C:3164`; glide3 `GSST.C:3778`, function `_grEnableSliCtrl`.)
+
+---
+
+## 5. What was changed (user-mode only, no reboot to deploy)
+
+All in `3dfx Driver Code/H5/`, built with the reconstructed Wine/VC6 toolchain:
+
+| fix | file | marker |
+|---|---|---|
+| re-cache slave MMIO pointers after a remap | `GLIDE/SRC/GSST.C` | `V56K-SLAVE-RECACHE` |
+| validate slave FIFO pointers before use | `GLIDE/SRC/FIFO.C` | `V56K-SLAVE-GUARD` |
+| divisor from `sliCount` + init + power-of-two guard | `GLIDE/SRC/GSST.C`, `GLIDE3/SRC/GSST.C` | `V56K-SLICTRL-GUARD` |
+| SLI state diagnostics | both `GSST.C` | `_grSliLog` |
+
+**Diagnostics are opt-in and free when unused:** set `FX_GLIDE_SLI_LOG=C:\sli.log`
+to capture `SLAVE-RECACHE`, `SLICTRL`, `SLICTRL-BAIL` and `SLAVE-UNMAPPED` lines.
+Unset, each call is a single pointer test.
+
+Artifacts: `glide2x.dll` 258,048 B / 133 exports · `glide3x.dll` 339,968 B / 96
+exports — both clean `/WX` builds, ABI unchanged. Rollback is a single file copy from
+`optimized/deployed-133-v56k-20260811/`.
+
+---
+
+## 6. Bring-up ladder (next, once the box is back)
+
+1. Deploy the two DLLs (user-mode, no reboot), `FX_GLIDE_SLI_LOG` on.
+2. Re-run Q3 at 1280×1024 → confirm no regression, capture `SLICTRL` (this tells us
+   the real `chipCount`/`sliCount`/band height for the first time).
+3. UT99 Glide under sustained load → the reboot should be gone. If it now *hangs*
+   cleanly instead, that is progress: read `SLAVE-UNMAPPED`/`SLICTRL-BAIL`.
+4. Only then the kernel side: registry `SSTH3_SLI_AA_CONFIGURATION="5"` (+
+   `SSTH3_SLI_COMPATIBILITY_SETTINGS="2"`), the `SLIAA.C` chip-count coherence fix,
+   and the `V56K-CLOCK` gate before any 4-way *analog* attempt.
+
+**Hard gate before 4-way analog:** the V5-6000 external clock synthesiser must be
+programmed (`SLIAA.C` v56k section, HiNT bridge GPIO). Enabling analog SLI on chips
+whose clock was never set is the single highest hardware risk in this plan and is a
+credible cause of unattended resets on its own.
