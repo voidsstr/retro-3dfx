@@ -1,5 +1,30 @@
 # retro-3dfx — Claude Code Instructions
 
+## Commit and Push at Every Stable Checkpoint (REQUIRED)
+
+**Commit and push by default — do not ask first.** Verified work left sitting in
+the working tree helps nobody and is one lost machine away from gone.
+
+- **When:** at every checkpoint where the codebase is stable — the change is
+  complete *and* tested at some level. "Tested at some level" is the bar:
+  `tests/predeploy.sh` green, the on-target `run_target_tests.py` matrix passing,
+  or at minimum the change verified once on the V5 box. A perfect suite isn't
+  required; an untested guess is not a checkpoint. Batch trivial follow-ups into
+  the next checkpoint, but **never end a session with verified work uncommitted.**
+- **Where:** the main branch (`master`) unless the session says otherwise. **This
+  repo is frequently checked out on a lane branch** (e.g. `v56k-6000`) that
+  belongs to Voodoo 5 work in flight — when it is, commit and push to *that*
+  branch and say so. **Never switch the checked-out branch** just to satisfy this
+  rule; that yanks the tree out from under the session that owns it.
+- **What:** only the paths belonging to the change you just made. If the working
+  tree already holds unrelated modifications you did not make, `git add <paths>`
+  explicitly. **Never `git add -A` over someone else's in-progress work**, and
+  never commit a whole-file line-ending (CRLF) churn — check with
+  `git diff --ignore-cr-at-eol --stat` before staging a file you didn't rewrite.
+- **Then push.** A commit that isn't pushed is still only on one machine.
+
+The sibling repos (`retro-agent`, `nsc-assistant`) carry the same rule.
+
 **This repo is the VINTAGE-SOURCE 3dfx driver stack** — the leaked H5/Napalm
 tree built for Windows XP under Wine. It is NOT the open-source stack (MesaFX
 ICD / open Glide3 in `retro3dfx-gl` and `retro-agent/scripts/3dfx/`) that other

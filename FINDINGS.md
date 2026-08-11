@@ -5,9 +5,113 @@ Append new findings as they're uncovered; keep newest-first within each section.
 Detailed narratives live in `D3D-DRIVER-PLAN.md`; this file is the quick index of
 "things that cost us time and we must not forget."
 
-Target box: **.124** = "ADMIN", XP SP3, Voodoo3 AGP
-`PCI\VEN_121A&DEV_0005&SUBSYS_1037121A&REV_01`, active Windows on **D:**, C: is a
-Win98 FAT volume. Agent 1.14.0. Autologs in as voidsstr/password.
+Target box: **.124** = "ADMIN", XP SP3, active Windows on **D:**, C: is a Win98
+FAT volume. Autologs in as voidsstr/password.
+**As of 2026-08-11 .124 holds an NVIDIA GeForce2 GTS, NOT a Voodoo3** — see the
+top entry. The Voodoo3 (`PCI\VEN_121A&DEV_0005&SUBSYS_1037121A&REV_01`) was
+physically removed and its whole stack purged; this lane has no hardware behind
+it until a Voodoo card goes back in.
+
+---
+
+## .124 is now a GeForce2 GTS — 3dfx stack fully purged, ForceWare 71.89 is the ONLY usable driver (2026-08-11)
+
+The user swapped the Voodoo3 out of **.124** for an **NVIDIA GeForce2 GTS**
+(`PCI\VEN_10DE&DEV_0150&SUBSYS_002E10DE&REV_A4` = NV15) and reported the box
+"in safe mode". Everything 3dfx was removed and the card put on ForceWare 71.89.
+Verified end state: one display adapter, `DriverVersion 7.1.8.9`, 1024x768x32
+@85Hz, `GL_RENDERER: GeForce2 GTS/AGP/SSE`, agent v1.25.1.
+
+- **NV11 != NV15 — 93.71 and 81.98 will NOT bind a GeForce2 GTS.** Verified by
+  grepping `DEV_0150` in each package's shipping `nv4_disp.inf`: present in
+  45.23 / 56.64 / 71.84 / 71.89, **absent from 81.98 and 93.71**, which carry
+  only GeForce2 **MX** (NV11). NVIDIA's own 93.71 page lists GTS/Pro/Ti/Ultra as
+  *unsupported* and redirects to Release 70. So **71.89 (the last Release 70
+  build) is the newest driver that can drive this card at all** — picking the
+  "newest available on the share" would have left a yellow-bang.
+- **71.84's English package contains no `nv4_disp.cat`** (zero catalog in the
+  whole 20.3MB payload) so it always trips the unsigned-driver dialog; **71.89
+  ships a real catalog**. Use 71.89, not the more famous 71.84.
+- 56.64 hides NV15 in **`nv4disp2.inf`**, not `nv4_disp.inf` — a Have-Disk
+  pointed at the usual INF reports "no compatible hardware".
+- **"Is it in Safe Mode?" — the only decisive test is `net start <svc>`**, which
+  answers *"This service cannot be started in Safe Mode."* Everything else lied:
+  the box ran `explorer`, the screensaver, WMI, Terminal Services and its
+  `HKLM\...\Run` entries, and `SCREENSHOT` showed a normal themed desktop. It
+  was Safe Mode **with Networking** the whole time.
+  `HKLM\SYSTEM\CurrentControlSet\Control\SafeBoot\Option\OptionValue` is also a
+  poor signal — it *persists* after a normal boot, so its presence proves
+  nothing; its **absence** does prove normal mode.
+- **Task Scheduler cannot run in Safe Mode, and a task created there is not
+  persisted** (`schtasks /create` warns, then the task is simply gone after the
+  reboot). All SYSTEM-privileged work — deleting ghost `Enum\PCI` devnodes,
+  which Administrator cannot touch — must be deferred to normal mode and the
+  task recreated then.
+- **Ghost devnode discriminator: a live devnode has a `Control` subkey, a ghost
+  does not.** Used it to prove all three leftovers were dead: the Voodoo3
+  (bus1:0.0), the Voodoo5 6000's VSA-100 (bus2:0.0) **and a HiNT
+  `VEN_3388&DEV_0021` PCI-PCI bridge** — the V5 6000's on-board bridge, which had
+  claimed the exact instance path (`4&415a68e&0&0008`) the GeForce2 now occupies.
+  Sweeping only `VEN_121A` would have left the bridge ghost behind.
+- **A global OpenGL ICD registration is the killer leftover.**
+  `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\OpenGLdrivers\3dfx`
+  (`DLL=3dfxOGL.dll`, installed by the 3dfx `oem9.inf`) makes *every* OpenGL app
+  try to load the 3dfx ICD regardless of which card is fitted. ForceWare replaced
+  it with `OpenGLdrivers\RIVATNT -> nvoglnt`.
+- **Renaming game-local DLLs is not enough — the per-game *config* points at
+  them by name.** After quarantining 35 game-local `opengl32/glide2x/glide3x/
+  3dfxgl` copies, three games were still wired to 3dfx: Q3's
+  `baseq3/q3config.cfg` had `seta r_glDriver "retrogl"`, UT99 had
+  `RenderDevice=GlideDrv.GlideRenderDevice` (x3 keys), and RtCW had
+  `r_glDriver "gl/openglv5.dll"` where `openglv5.dll` had been *replaced* by our
+  2.75MB MesaFX ICD (stock 352256 kept as `openglv5.stock`). Also sweep
+  `retrogl*.dll` — a filename sweep for `opengl32/glide*/3dfxgl` alone misses it.
+- **Four OEM INFs were 3dfx** (`oem9`, `oem12`, `oem13`, `oem14`) — identified by
+  `findstr /i "Provider=" oem*.inf` -> `Provider=%3dfx%`, not by guessing from
+  the display class's `InfPath` (which named only oem13/oem14). ForceWare then
+  reused the freed `oem9` slot.
+- `del /f /q system32\3dfx*.* system32\glide*.*` is safe to glob (nothing else
+  on an XP box uses those prefixes) — unlike `nv*`/`ati*`, which catch chipset
+  and storage drivers.
+- **The cmd paren trap bit again**, exactly as CLAUDE.md warns: a generated
+  batch doing `if exist "<path>" (echo OK <path>) else (echo FAILED <path>)`
+  died with `\System\glide3x.dll was unexpected at this time` because a game path
+  contained `Unreal Tournament (Installed)`. Never echo a path inside a `( ... )`
+  block; emit bare `ren` lines and verify with a separate re-listing sweep.
+
+---
+
+## Fleet auto-update was dead: the share rebuild deleted `Utility\Retro Automation` (2026-08-11)
+
+Found while updating .124's agent. Three separate faults, all fleet-wide:
+
+- **The rebuilt SMB share has no `Utility\Retro Automation\` directory.** Every
+  agent hardcodes `\\192.168.1.122\files\Utility\Retro Automation\retro_agent.exe`
+  (+ the `.ver` sidecar) in `agent/src/autoupdate.c:39` — so **no box on the fleet
+  could auto-update**, silently. Restored the directory with `retro_agent.exe`
+  (v1.25.1), `retro_agent.exe.ver` = `1.25.1`, `retro_chat.exe` (v0.14.0) +
+  its sidecar, and the versioned archive copy. **If the share is ever rebuilt
+  again, recreate this path first** — or nothing propagates.
+- **A stale helper batch was silently downgrading the box.**
+  `C:\RETRO_AGENT\restart_agent.bat` did
+  `copy /Y retro_agent_v1.17.0.exe retro_agent.exe` — so any "restart the agent"
+  ran a **v1.17.0** binary over the good one. .124 was running
+  `retro_agent_v1.17.0.exe` while a correct **v1.25.1** binary sat right next to
+  it and `LastUpdateVer` already read `1.25.1`. Rewrote the batch to restart the
+  *current* binary and deleted the other two stale swap bats. **Never pin a
+  versioned exe name in a restart helper.**
+- **`git tag` in the working clone stops at `v1.9.2`** while the agent source is
+  at **v1.25.1** (tags 1.10.0-1.25.1 were never created here). `agent/Makefile`
+  derives `VERSION` from `git tag -l 'v*' --sort=-v:refname | head -1`, so a bare
+  `make` compiles `AGENT_VERSION=1.9.2` — and since auto-update triggers on
+  version **inequality**, not "greater than", publishing that would have
+  **downgraded the entire fleet**. Tagged `v1.25.1` and added
+  `tests/python/test_agent_version.py` to fail if the derived version ever falls
+  behind the newest version named in `agent/` commit messages.
+
+Swap the running agent safely with a detached batch that starts the new binary,
+waits, checks `tasklist`, and **falls back to the previous exe if it did not
+come up** — that is what made a remote agent swap non-scary here.
 
 ---
 
