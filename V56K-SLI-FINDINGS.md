@@ -460,3 +460,59 @@ Verified: with an operator-style Q3 running as pid 276, the harness printed
 and it also silently corrupts measurements — a killed session looks like an
 instability datum. Several "crash" observations in this session deserve re-reading
 with that in mind.
+
+---
+
+## 14. Game benchmark results in 256MB mode (2026-08-12)
+
+All on the golden kernel pair + hardware-verified Glides, 256MB/64MB-per-chip VBIOS,
+via `bench-safe.py` (cooldowns enforced, no-stomp pre-flight).
+
+| game | renderer | resolution | result | stability |
+|---|---|---|--:|---|
+| **Quake 3** (timedemo four) | our ICD `3dfxogl` | 640×480×16 | **61.7 fps** | stable |
+| **Quake 3** | our ICD `3dfxogl` | 1024×768×16 | **61.7 fps** | stable |
+| **UT99** (UTbench.dem) | **Glide** (our `glide2x`) | 640×480×16 | **39.81 fps** avg (2939 frames / 73.81 s, Min 10.95, Max 60.26) | stable, clean exit |
+| **UT99** | Direct3D (our HAL) | 640×480×16 | ~24 fps | stable |
+| **RtCW** (wolfbench) | *vintage* `gl/openglv5.dll` | 1024×768×16 | **51.8 / 51.2 / 50.8 fps** | stable ×3 |
+
+### Corrections to earlier numbers
+
+- **UT99 Glide is 39.8 fps, not ~24.** The earlier ~24 figure was read off the HUD
+  mid-demo; the complete 2939-frame result from `bench.log` is 39.81 fps avg. **Glide
+  is UT's fast path** — roughly 1.7× the D3D number — so the earlier "UT is CPU-bound
+  at 24 fps on every renderer" conclusion was wrong. D3D is slow because it falls back
+  to software (see §7/§10), not because the CPU caps everything at 24.
+- UT-Glide ran a full timedemo and exited cleanly with no reboot, twice in a row here.
+  It remains historically intermittent, but it is not reliably broken.
+
+### 256MB mode delivers measurable texture headroom
+
+UT's Glide init reports per-TMU texture space:
+
+```
+128MB mode:  Init: Glide tmu 0: tmuRam=2 Space=15874032   (~15.9 MB)
+256MB mode:  Init: Glide tmu 0: tmuRam=2 Space=32389104   (~32.4 MB)
+```
+
+**Texture memory per TMU has doubled.** That is the concrete payoff of the 256MB
+VBIOS: not frame rate (these workloads are CPU/present-bound), but twice the texture
+working set before thrashing.
+
+### RtCW is NOT running on our driver
+
+RtCW logs `...assuming 'gl/openglv5.dll' is a standalone driver` /
+`GL_VENDOR: METABYTE/WICKED3D` — the vintage 2001 Wicked3D wrapper the game ships,
+not our ICD (`3Dfx [retro3dfx 0.5.0]`). Setting `r_glDriver` on the command line, then
+persisting it in `wolfconfig_mp.cfg`, then making that file read-only so RtCW could not
+revert it, all failed to move it: `r_glDriver` is CVAR_LATCH and this GOG build pins
+the wrapper. So the ~51 fps is a valid reference point but **not a measurement of this
+stack**. Open item.
+
+### Operator note: a stray system env var was contaminating everything
+
+`FX_GLIDE_SLI_LOG` had been left set **system-wide** from the SLI investigation, so
+every Glide application was writing a diagnostic log (the ICD log had reached 1.5 MB of
+per-texture `APPLYTEX` lines). Removed. Q3 measured 61.7 fps afterwards versus 60.0-61.4
+before — within noise, but the logging was a real per-frame cost and a stability risk.
+**Never leave a logging env var set system-wide.**
