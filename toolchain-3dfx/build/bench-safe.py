@@ -17,7 +17,8 @@ Rules encoded here:
   bench-safe.py stability [--modes 3,6] [--cooldown 90]
   bench-safe.py perf      [--modes 3,6,8] [--cooldown 120]
 """
-import argparse, asyncio, json, re, sys
+import argparse, asyncio, json, re, sys, functools
+print = functools.partial(print, flush=True)   # never lose results to buffering on a crash
 sys.path.insert(0, '/mnt/c/development/retro-agent')
 from client.retro_protocol import RetroConnection
 
@@ -71,14 +72,22 @@ async def run_q3(mode, vsync):
         await c.close()
         if m: fps = m.group(3); break
 
-    c = await C()
+    # Cleanup must never mask the result: if the box died here, that IS the answer.
+    try:
+        c = await C(retries=3, delay=10)
+    except Exception:
+        return fps, True
+    rebooted = False
     try:
         await c.command_text('EXECW 20 cmd /c taskkill /f /im quake3.exe 2>nul & echo ok', timeout=45)
         await asyncio.sleep(3)
         rebooted = (await uptime(c)) < before
         await c.command_text('DISPLAYCFG set 1024 768 16 85', timeout=25)
+    except Exception:
+        rebooted = True
     finally:
-        await c.close()
+        try: await c.close()
+        except Exception: pass
     return fps, rebooted
 
 async def main():

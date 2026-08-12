@@ -335,3 +335,44 @@ baseline that was itself degrading. The clamp really was wrong (it cut 32MB->4MB
 is provable from the code), but the *evidence* used to convict it — "UT rebooted after
 deploying it" — was not sound, because the golden baseline rebooted too. Re-test both
 from a cold box before drawing conclusions.
+
+---
+
+## 11. Thermal envelope, measured from a cold box (2026-08-12)
+
+After the operator powered the box down to cool and restarted it, the whole matrix
+was re-run through `toolchain-3dfx/build/bench-safe.py` (cooldowns enforced, stops on
+first reboot). Binaries: golden kernel pair + hardware-verified Glides, md5-verified.
+
+| test | result |
+|---|---|
+| 1024x768 vsync-limited, single, from cold | **60.0 fps**, no reboot |
+| 1024x768 unlimited, single, from cold | **60.8 fps**, no reboot |
+| 640x480 then 1024x768 unlimited, 180 s cooldown | **61.1 / 61.6 fps**, no reboot |
+| 1280x1024 unlimited, single, rested | **60.3 fps**, no reboot |
+| 640/1024/1280 unlimited, 120 s cooldown (3 back-to-back) | **REBOOT** partway |
+
+### Conclusions
+
+1. **The drivers are not the problem.** Every single run passes, at every resolution,
+   including the heaviest (1280x1024) and including unlimited/flat-out. Q3 is
+   consistently 60-62 fps.
+2. **It is not the resolution and not the frame limiter.** 1280x1024 alone from a
+   rested card is fine; unlimited from cold is fine.
+3. **It is cumulative duty cycle.** Three flat-out runs at a 120 s cooldown reboots the
+   box; two runs at 180 s does not. The board tolerates load but not sustained
+   back-to-back load without recovery time — consistent with the HiNT bridge heat /
+   ~80 W 6-pin power warnings in `V56K-PLAN.md`.
+
+### Practical operating envelope (until cooling/power is improved)
+
+- **Safe:** interactive gameplay (the operator played Q3 with no trouble), and up to
+  ~2 flat-out timedemos with >=180 s of idle between them.
+- **Unsafe:** 3+ flat-out timedemos in quick succession; anything back-to-back.
+- Benchmark with `bench-safe.py` (enforces this) rather than a naive loop. The old
+  harness's back-to-back matrix is what produced hours of phantom "regressions".
+
+**This also fully explains §9.** Q3 "regressing" on byte-identical golden binaries was
+never a code regression — it was a hot card. Every A/B conclusion drawn during that
+window (the 256MB clamp, the texture munge) was measured against a degrading baseline
+and must be re-tested cold before being trusted.
