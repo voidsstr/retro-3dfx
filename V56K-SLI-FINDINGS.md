@@ -376,3 +376,51 @@ first reboot). Binaries: golden kernel pair + hardware-verified Glides, md5-veri
 never a code regression — it was a hot card. Every A/B conclusion drawn during that
 window (the 256MB clamp, the texture munge) was measured against a degrading baseline
 and must be re-tested cold before being trusted.
+
+---
+
+## 12. 256MB MODE IS WORKING (2026-08-12)
+
+The operator flipped the card's dual-VBIOS switch to 256MB. Measured:
+
+| check | result |
+|---|---|
+| `HardwareInformation.MemorySize` | **0x10000000 = 256 MB total = 64 MB/chip** |
+| `Retro3dfxSliUnits` | **4** — all four VSA-100s still detected |
+| display driver | loads normally, 1024x768x16@85, no VGA fallback |
+| Q3 in-engine capture (640x480) | **renders perfectly** — no texture corruption or wrapping |
+| Q3 timedemo 1024x768 | **61.4 fps**, no reboot |
+| Q3 timedemo 640x480 then 1024x768, 180 s cooldown | **61.2 / 61.4 fps**, no reboot |
+
+The feared catastrophic case did not occur: the 256MB VBIOS widened BAR1 correctly,
+so the chip is not decoding more than PnP reserved, and `H3DetermineMemorySize` sizes
+the 128Mbit parts exactly as §2 of `V56K-256MB-READINESS.md` predicted.
+
+**Performance is unchanged** (61 fps, same as 128MB mode) — expected, because Q3 on
+this box is CPU/present-bound at ~61 fps, not memory- or fill-bound. 256MB buys
+texture headroom, not frame rate, on this workload.
+
+### The texture munge is REJECTED on hardware evidence
+
+Readiness Changes 3/4 proposed routing texture base addresses through
+`SST_TEXTURE_MUNGE_ADDRESS` because a plain mask is 25 bits (32MB). The conditional
+form turned out to be the perfect experiment — it only fires above 32MB, so it never
+executed at 128MB and ran for the **first time** at 64MB/chip:
+
+- with the munge: box **reboots** during a Q3 timedemo
+- with the plain mask, same 256MB mode: Q3 renders perfectly, **61.4 fps**
+
+So `grTexMultibaseAddress` does not carry the same register semantics as the tiled
+path at `GTEX.C:2811/:2825`. Both Glides are back to the shipped mask and the
+reasoning is recorded at the call sites so it does not get re-applied.
+
+**Twice now a speculative "256MB hardening" made a working driver worse** (the BAR
+clamp, then the munge). Neither was needed. The stack was already 64MB/chip-clean.
+
+### ⚠ Operational: do not drive the card from two places at once
+
+The operator reported a Q3 crash at 1024x768 while an automated timedemo sweep was
+also running. One fullscreen 3D application at a time is a hard rule on this stack
+(see the deploy/bench skills) — a second one contending for the Glide surface is its
+own failure mode and will contaminate any stability measurement. Coordinate: either
+the operator drives, or the harness does, never both.
