@@ -1882,7 +1882,12 @@ BOOL __stdcall D3DHALCreateDriver(NT9XDEVICEDATA *ppdev,
   if (NULL == _D3(txtrDesc))
       {
       if (!DESC_INIT_ARRAY(ppdev))
+         {
+#if ENABLE_LOG_FILE
+         retroLogForce((PDEV *)ppdev, "retro3dfx D3DHALCreate-FAIL: DESC_INIT_ARRAY\r\n");
+#endif
          return FALSE;
+         }
       }
 #if (DIRECT3D_VERSION >= 0x0700) && (DX >= 7)
 #else

@@ -351,6 +351,10 @@ PDD_MAPMEMORYDATA lpMapMemory)
                                &ReturnedDataLength))
         {
             DISPDBG((0, "Failed IOCTL_VIDEO_SHARE_MEMORY"));
+#if ENABLE_LOG_FILE
+            retroLogForce(ppdev, "retro3dfx DdMapMemory SHARE-FAIL viewSize=%08lXh\r\n",
+                          (DWORD)ShareMemory.ViewSize);
+#endif
 
             lpMapMemory->ddRVal = DDERR_GENERIC;
             return(DDHAL_DRIVER_HANDLED);
@@ -360,6 +364,12 @@ PDD_MAPMEMORYDATA lpMapMemory)
 
         DISPDBG((1, "DdMapMemory(mapping) - PID=%8lXh, LfbAddr=%8lXh, ViewSize=%8lXh",
                  curPID, ShareMemoryInformation.VirtualAddress, ShareMemoryInformation.SharedViewSize));
+
+#if ENABLE_LOG_FILE
+        retroLogForce(ppdev, "retro3dfx DdMapMemory OK viewSize=%08lXh va=%08lXh\r\n",
+                      (DWORD)ShareMemoryInformation.SharedViewSize,
+                      (DWORD)ShareMemoryInformation.VirtualAddress);
+#endif
 
         for (i = 0; i < MAX_ADDRESS_TABLE_SIZE; i++)
         {
@@ -547,6 +557,10 @@ DisableDDraw:
         _FF(ddMiscFlags) &= ~DDMF_VSYNC_POLARITY_MASK;
         _FF(ddMiscFlags) |= (inp(ppdev->pjIoBase + 0xCC) & 0x80) >> (7 - DDMF_VSYNC_POLARITY_BIT);
 
+#if ENABLE_LOG_FILE
+        retroLogForce(ppdev, "retro3dfx DDRAW-DISABLED: env/CapabilityOverride gate\r\n");
+#endif
+
         // DirectDraw is disabled for use on this card
         ppdev->flStatus &= ~STAT_DIRECTDRAW;
 
@@ -673,6 +687,11 @@ DisableDDraw:
     else
     {
       // skip ddraw support if we can't allocate the stretchBlt heap
+#if ENABLE_LOG_FILE
+      retroLogForce(ppdev, "retro3dfx DDRAW-DISABLED: no slop heap cyMem=%ld cyScr=%ld cyText=%ld need=%ld\r\n",
+                    (LONG)ppdev->cyMemory, (LONG)ppdev->cyScreen,
+                    (LONG)ppdev->cyText, (LONG)height);
+#endif
       _DS(stretchBltStart) = 0;
       _DS(stretchBltSize)  = 0;
       ppdev->flStatus &= ~STAT_DIRECTDRAW;
@@ -766,6 +785,18 @@ DisableDDraw:
 
     // DirectDraw is enabled for use on this card
     ppdev->flStatus |= STAT_DIRECTDRAW;
+
+#if ENABLE_LOG_FILE
+#if USE_NT5_DDMEMMGR
+    retroLogForce(ppdev, "retro3dfx DDRAW-ENABLED: units=%ld cyMem=%ld slop=%ld ddHeap=%ld\r\n",
+                  (LONG)_FF(dwNumUnits), (LONG)ppdev->cyMemory,
+                  (LONG)ppdev->cyDDSlopHeight, (LONG)ppdev->cyDDHeap);
+#else
+    retroLogForce(ppdev, "retro3dfx DDRAW-ENABLED: units=%ld cyMem=%ld slop=%ld ddHeap=%ld\r\n",
+                  (LONG)_FF(dwNumUnits), (LONG)ppdev->cyMemory,
+                  (LONG)0, (LONG)0);
+#endif
+#endif
 
     return(TRUE);
 }
@@ -875,6 +906,11 @@ DdGetDriverInfo ( LPDDHAL_GETDRIVERINFODATA lpInput )
 #endif
 
   lpInput->ddRVal = DDERR_CURRENTLYNOTAVAIL;
+
+#if ENABLE_LOG_FILE
+  retroLogForce(ppdev, "retro3dfx DDGDI guid=%08lX sz=%ld\r\n",
+                lpInput->guidInfo.Data1, (LONG)lpInput->dwExpectedSize);
+#endif
 
 #if ENABLE_3D
 #if (DIRECT3D_VERSION >= 0x0700) && (DX >= 7)
@@ -1429,6 +1465,11 @@ DdGetDriverInfo ( LPDDHAL_GETDRIVERINFODATA lpInput )
         lpInput->ddRVal = DD_OK;
     }
 
+#endif
+
+#if ENABLE_LOG_FILE
+  retroLogForce(ppdev, "retro3dfx DDGDI verdict guid=%08lX rv=%08lXh\r\n",
+                lpInput->guidInfo.Data1, (DWORD)lpInput->ddRVal);
 #endif
 
   return DDHAL_DRIVER_HANDLED;
