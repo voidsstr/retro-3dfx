@@ -1156,16 +1156,10 @@ GR_ENTRY(grTexSource, void,
                                       info->format,
                                       evenOdd);
   baseAddress += gc->tramOffset[tmu];
-  /* V56K-256MB-MUNGE: SST_TEXTURE_ADDRESS is 25 usable bits (32MB); bit 25 is only
-  ** reachable through SST_TEXTURE_MUNGE_ADDRESS, which relocates it (bits 25-31 are
-  ** the tile stride).  CONDITIONAL on purpose: the munge is NOT a superset of the
-  ** mask -- it overwrites bit 1 with the relocated bit 25 -- so applying it
-  ** unconditionally changed behaviour at 32MB/chip and rebooted the box under UT.
-  ** Below 32MB this is byte-identical to the original mask. */
-  if (baseAddress & BIT(25))
-    baseAddress = SST_TEXTURE_MUNGE_ADDRESS(baseAddress);
-  else
-    baseAddress &= SST_TEXTURE_ADDRESS;
+  /* V56K-256MB-MUNGE-REJECTED: see the note in GLIDE3/SRC/GTEX.C. Applying
+  ** SST_TEXTURE_MUNGE_ADDRESS here was measured WRONG on real hardware in 256MB
+  ** mode. Plain mask, as shipped. */
+  baseAddress &= SST_TEXTURE_ADDRESS;
   
   /*-------------------------------------------------------------
     Update Texture Mode

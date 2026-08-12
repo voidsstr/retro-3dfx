@@ -3159,10 +3159,15 @@ GR_ENTRY(grTexMultibaseAddress, void,
         memInfo = gc->tmuMemInfo + tmu;
       const FifoChipField 
         tmuChip = (FifoChipField)(0x02UL << tmu);
-      /* V56K-256MB-MUNGE3: reverted to the plain mask. The munge is not a superset
-      ** of the mask (it overwrites bit 1 with the relocated bit 25), and swapping it
-      ** in unconditionally regressed a working 32MB/chip config. Revisit when the
-      ** board is actually in 256MB mode and the >32MB case can be tested. */
+      /* V56K-256MB-MUNGE3-REJECTED: do NOT apply SST_TEXTURE_MUNGE_ADDRESS here.
+      ** The 256MB readiness analysis proposed it (a plain mask is 25 bits = 32MB,
+      ** and bit 25 is only reachable through the munge).  MEASURED ON HARDWARE in
+      ** actual 256MB/64MB-per-chip mode, it is WRONG: with the munge the box reboots
+      ** during a Q3 timedemo; with this plain mask Q3 renders perfectly and benches
+      ** 61.4 fps.  The conditional form proved it, because it only fires above 32MB
+      ** -- i.e. it never ran at 128MB and failed the first time it did.  Whatever
+      ** grTexMultibaseAddress feeds, it is not the same register semantics as the
+      ** tiled path at :2811/:2825.  Leave the mask alone. */
       const FxU32
         baseAddress = (memInfo->tramOffset +
                        _grTexCalcBaseAddress(startAddress,
