@@ -302,3 +302,36 @@ The C1 analysis remains correct in principle — nothing validates `AdapterMemor
 against the BAR that must hold 2x it — and that guard IS required before 256MB. It
 simply has to be implemented where the BAR length is known and where its decision can
 be read back (the `Retro3dfxSli*` registry pattern works; kernel `VideoDebugPrint` does not).
+
+### Refinement (same day, from the operator): normal gameplay is FINE
+
+Before powering the box down to cool, the operator **played Quake 3 interactively and
+it ran fine** — while the automated `timedemo` runs were rebooting the machine.
+
+That is not a contradiction, it is the discriminator:
+
+| load | behaviour |
+|---|---|
+| interactive gameplay (vsync-limited, ~60-85 fps cap) | **stable** |
+| `+set timedemo 1 +demo four`, back-to-back, incl. 1280x1024 | reboots |
+
+A timedemo renders flat out with no frame limiter, and the suite ran three
+resolutions back-to-back with no cooldown. Sustained 100% load is exactly what a
+marginal thermal/power situation punishes, and it is what this board's own design
+notes warn about (HiNT bridge runs hot, ~80W through a 6-pin input).
+
+**Consequences for methodology — the benchmark harness was part of the problem:**
+1. Insert a cooldown between runs (>=60s idle at the desktop), never back-to-back.
+2. Prefer vsync-limited runs for *stability* testing; keep unlimited timedemos for
+   *performance* numbers only, one at a time.
+3. Treat a reboot during a timedemo as a THERMAL/POWER datum first and a software
+   datum second — the reverse of what this session assumed for hours.
+4. Re-establish a cold baseline before attributing any reboot to a code change; a
+   drifting baseline invalidated several hours of A/B work here.
+
+**This also re-opens §9's other conclusions.** Several "regressions" attributed to
+in-flight driver changes (the 256MB clamp, the texture munge) were measured against a
+baseline that was itself degrading. The clamp really was wrong (it cut 32MB->4MB, that
+is provable from the code), but the *evidence* used to convict it — "UT rebooted after
+deploying it" — was not sound, because the golden baseline rebooted too. Re-test both
+from a cold box before drawing conclusions.
