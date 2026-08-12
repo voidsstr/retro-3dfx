@@ -1420,8 +1420,12 @@ ReportNTDDrawHeaps(PDEV *ppdev, DWORD *pdwNumHeaps, VIDEOMEMORY *pvmList)
                       (LONG)pvmList[retroHeapIdx].dwWidth,
                       (LONG)pvmList[retroHeapIdx].dwHeight);
     }
-    retroLogForce(ppdev, "retro3dfx HEAPSUM n=%ld tiledStart=%08lXh sliTileCmp=%08lXh\r\n",
-                  (LONG)cHeaps, _FF(ddTiledHeapStart), _FF(sliTileCompare));
+    /* V56K-VIDMEM2-HEAPSUM: lpHeap is filled in by DirectDraw AFTER this
+    ** call, so on run N it shows run N-1's value -- still decisive:
+    ** lpHeap != 0 proves DirectDraw really manages heap 0. */
+    retroLogForce(ppdev, "retro3dfx HEAPSUM n=%ld tiledStart=%08lXh sliTileCmp=%08lXh h0lp=%08lXh\r\n",
+                  (LONG)cHeaps, _FF(ddTiledHeapStart), _FF(sliTileCompare),
+                  (DWORD)pvmList[LINEAR_HEAP0_ID].lpHeap);
   }
 #endif
 #else

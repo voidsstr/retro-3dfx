@@ -189,6 +189,7 @@ void    WINAPI DDHAL32_VidMemFree( LPDDRAWI_DIRECTDRAW_GBL, int, FLATPTR );
 HRESULT memMgr_allocSurface( PDEV *, DWORD type, DWORD, DWORD, DWORD, DWORD, DWORD *, DWORD *, DWORD *, DWORD *, DWORD *, VIDEOMEMORY ** );
 HRESULT memMgr_allocSecondary( PDEV *, DWORD type, DWORD, DWORD, DWORD, DWORD, DWORD *, DWORD *, DWORD *, DWORD *, DWORD *, VIDEOMEMORY ** );
 void memMgr_freeSurface( PDEV *, DWORD, DWORD, DWORD, DWORD, DWORD, VIDEOMEMORY * );
+void memMgr_queryAvailMemory( PDEV *, DWORD, DWORD *, DWORD * );   /* V56K-VIDMEM2-PROTO */
 
 #if ENABLE_NAPALM_SLI_EXTRA_LINEAR_HEAP
 void memMgr_checkHeapStatus(PDEV *);

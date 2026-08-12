@@ -721,6 +721,81 @@ memMgr_freeSurface(PDEV        *ppdev,
 #endif
 }
 
+/**************************************************************************
+*
+* FUNCTION:     memMgr_queryAvailMemory
+*
+* DESCRIPTION:  V56K-VIDMEM2-QUERY
+*               Absolute total/free bytes of the DirectDraw-managed heaps
+*               that can hold a surface with the requested DDSCAPS_*.
+*               VIDEOMEMORY.ddsCaps is an EXCLUSION mask (ddrawint.h:201) --
+*               it says what the heap CANNOT be used for.
+*
+***************************************************************************/
+
+void
+memMgr_queryAvailMemory(PDEV *ppdev, DWORD dwCaps, DWORD *pdwTotal, DWORD *pdwFree)
+{
+  VIDEOMEMORY  *pvm;
+  LPVMEMHEAP    pvmh;
+  LPVMEML       pfree;
+  ULONG         iHeap;
+  ULONG         guard;
+  DWORD         dwTotal;
+  DWORD         dwFree;
+
+  dwTotal   = 0;
+  dwFree    = 0;
+  *pdwTotal = 0;
+  *pdwFree  = 0;
+
+  if (NULL == ppdev->pvmList)
+    return;
+
+  for (iHeap = 0; iHeap < ppdev->cHeaps; iHeap++)
+  {
+    pvm = &ppdev->pvmList[iHeap];
+
+    /* linear heaps only: the tiled heaps are rectangular render-target
+    ** heaps that already exclude DDSCAPS_TEXTURE (ddinit.c:1247/1266/1284)
+    ** and the VMEMR free-list layout is not stable (dmemmgr.h:105). */
+    if (!(VIDMEM_ISLINEAR & pvm->dwFlags))
+      continue;
+
+    if ((VIDMEM_ISNONLOCAL | VIDMEM_HEAPDISABLED) & pvm->dwFlags)
+      continue;
+
+    /* ddsCaps says what this heap CANNOT do */
+    if (pvm->ddsCaps.dwCaps & dwCaps)
+      continue;
+
+#if ENABLE_NAPALM_SLI_EXTRA_LINEAR_HEAP
+    /* the extra SLI linear heap (last entry) starts at ddTiledHeapStart
+    ** (ddinit.c:1386) and therefore ALIASES the tiled heaps - counting it
+    ** would double-count that video memory. */
+    if ((_FF(bUseSliExtraLinearHeap)) && (iHeap == (ppdev->cHeaps - 1)))
+      continue;
+#endif
+
+    pvmh = (LPVMEMHEAP)pvm->lpHeap;
+    if (NULL == pvmh)
+      continue;                       /* DirectDraw never initialised it */
+
+    dwTotal += pvmh->dwTotalSize;
+
+    guard = 0;
+    for (pfree = (LPVMEML)pvmh->freeList;
+         (NULL != pfree) && (guard < 65536);
+         pfree = pfree->next, guard++)
+    {
+      dwFree += pfree->size;
+    }
+  }
+
+  *pdwTotal = dwTotal;
+  *pdwFree  = dwFree;
+}
+
 #if ENABLE_NAPALM_SLI_EXTRA_LINEAR_HEAP
 /**************************************************************************
 *
