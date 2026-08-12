@@ -181,3 +181,62 @@ binary's format strings and verified at full 68/68 string parity, so the rebuilt
 driver no longer regresses anything. The vram fix ships with it.
 then ship the vram fix together with it. Until then the D3D fix stays source-only;
 the Glide fixes (§5) are user-mode and ship independently with no such risk.
+
+---
+
+## 8. HARDWARE-VERIFIED RESULTS (2026-08-12)
+
+Fixes deployed to `.133` (user-mode DLLs, no reboot) and tested.
+
+### 4-way SLI is ALREADY ACTIVE — §1's conclusion was wrong
+
+The first SLI readout ever taken off this board, via the new `FX_GLIDE_SLI_LOG`:
+
+```
+Q3 @1024x768 :  SLICTRL chips=4 sli=4 divisor=1 band=5 renderMask=0x60 log2=2
+UT @640x480  :  SLICTRL chips=4 sli=4 divisor=1 band=3 renderMask=0x18 log2=2
+```
+
+All four VSA-100s are in SLI (`log2=2` ⇒ 4 chips), scanline-band interleaved —
+32 lines under Q3, 8 lines under UT. **The absent `SSTH3_SLI_AA_CONFIGURATION` /
+`QuadChipAASLI` registry values are optional OVERRIDES, not the configuration**;
+the driver computes the config itself. Their absence, and the empty ring, meant
+"nobody overrode the default", not "SLI never ran". The `FX_GLIDE_NUM_CHIPS=1`
+fps cliff (§1) was the honest signal all along.
+
+### The UT99-Glide machine reset is FIXED
+
+UT99 on the Glide renderer previously took the machine down every time. With the
+slave-pointer re-cache deployed it ran **~110 s under sustained load including a
+full timedemo, uptime climbing 624 → 839 s, no reboot**, then a second full
+benchmark run 897 → 1049 s, also clean. The log caught the mechanism live:
+
+```
+SLAVE-RECACHE chips=4 sli=4 s0=0CF40000/0CF20000 s1=0CF80000/0CF60000 s2=0CFC0000/0CFA0000
+```
+
+glide2 really does remap mid-run, and all three slave MMIO pointers were
+refreshed. Unfixed, those stayed stale and the make-room loop drove MMIO at dead
+kernel addresses — which resets the box rather than faulting.
+
+### No performance regression
+
+Q3 @1024×768: **60.9 fps** after the fixes vs **61.4** before (noise).
+
+⚠ **Keep `FX_GLIDE_SLI_LOG` unset for benchmarking.** `_grEnableSliCtrl` runs per
+buffer-swap; logging it unconditionally cost two thirds of the frame rate
+(61 → 22 fps) and wrote 582 KB. The line is now emitted only when the programmed
+config changes (63 bytes/run), but the env var still gates real work.
+
+### UT is CPU-bound, not driver-bound
+
+| UT99 renderer | 640×480 | verdict |
+|---|--:|---|
+| Glide (native fast path) | **24.4** | renders clean, stable |
+| Direct3D | ~24 | renders clean, stable |
+
+Both land on ~24 fps, so the limiter is the 700 MHz Pentium III running
+`UTbench.dem` — a 17-player DM-Gothic botmatch — not the driver or the card.
+Q3 reaches 61 fps on the same hardware because its engine is far lighter. The
+D3D `0K vram` fix (§7) is still correct and worth shipping for texture-heavy D3D
+titles, but it will not move UT.
