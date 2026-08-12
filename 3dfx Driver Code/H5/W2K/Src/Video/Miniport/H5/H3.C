@@ -1634,18 +1634,32 @@ H3MapAccessRanges(PHW_DEVICE_EXTENSION HwDeviceExtension)
     while ((pow2 << 1) <= maxPerChip)
       pow2 <<= 1;
 
-    /* V56K-256MB-CLAMP-DISABLED: this fired on real hardware and destabilised
-    ** the board.  AccessRanges[MEMBASE_ONE].RangeLength is NOT yet valid at this
-    ** point in H3MapAccessRanges, so bar1Len reads 0, the sizing loop leaves pow2
-    ** at its 4MB floor, and the clamp silently cut each chip from 32MB to 4MB --
-    ** UT99/Glide then rebooted the machine under load.  The guard is still needed
-    ** for 256MB mode, but it must run AFTER the BAR is known and it must be
-    ** observable (VideoDebugPrint is compiled out of the free build, which is why
-    ** this was invisible).  Left inert and logged until both are true. */
-    if (HwDeviceExtension->AdapterMemorySize > pow2)
+    /* V56K-MEMOBS: MEASURE BEFORE ACTING.  The 256MB guard is real -- nothing
+    ** validates AdapterMemorySize against the BAR that must hold 2x it -- but an
+    ** earlier version of it CLAMPED on a value this code had never actually
+    ** observed, because VideoDebugPrint is compiled out of the free build.  So
+    ** publish the numbers to the registry (readable with one REGREAD, the same
+    ** trick used for Retro3dfxSli*) and change NOTHING until they have been read
+    ** off a cold, healthy board.  MemBase1Length is captured in FindAdapter
+    ** (H3.C:916), so it is definitely valid here; AccessRanges is recorded too so
+    ** the two can be compared. */
     {
-      VideoDebugPrint((0, "3dfx MEM: WOULD-CLAMP perChip=%08lXh -> %08lXh bar1Len=%08lXh (not applied)\n",
-                       HwDeviceExtension->AdapterMemorySize, pow2, bar1Len));
+      ULONG obsBar1  = HwDeviceExtension->MemBase1Length;
+      ULONG obsRange = bar1Len;
+      ULONG obsChip  = HwDeviceExtension->AdapterMemorySize;
+      ULONG obsWould = (obsChip > pow2) ? pow2 : 0;   /* 0 = clamp would NOT fire */
+
+      VideoPortSetRegistryParameters(HwDeviceExtension, L"Retro3dfxMemPerChip",
+                                     &obsChip, sizeof(obsChip));
+      VideoPortSetRegistryParameters(HwDeviceExtension, L"Retro3dfxMemBar1Len",
+                                     &obsBar1, sizeof(obsBar1));
+      VideoPortSetRegistryParameters(HwDeviceExtension, L"Retro3dfxMemRangeLen",
+                                     &obsRange, sizeof(obsRange));
+      VideoPortSetRegistryParameters(HwDeviceExtension, L"Retro3dfxMemWouldClamp",
+                                     &obsWould, sizeof(obsWould));
+      VideoPortSetRegistryParameters(HwDeviceExtension, L"Retro3dfxMemUnits",
+                                     &HwDeviceExtension->numUnits,
+                                     sizeof(HwDeviceExtension->numUnits));
     }
 
     VideoDebugPrint((0, "3dfx MEM: perChip=%08lXh bar1Len=%08lXh need2x=%08lXh units=%ld total=%08lXh\n",
