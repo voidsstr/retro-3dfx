@@ -31,12 +31,12 @@ Then `git worktree remove .worktrees/<topic>` and `git branch -d worktree-<topic
 when the topic is done. **Never end a session with verified work uncommitted or
 unpushed** — a commit that isn't pushed is still only on one machine.
 
-> **This repo is frequently checked out on a long-running lane branch** (e.g.
-> `v56k-6000`) that belongs to Voodoo 5 work in flight. When the session you are
-> in *is* that lane, commit and push to that branch and say so — landing on
-> `master` is for work that is finished, not for interrupting a lane mid-flight.
-> **Never switch the checked-out branch** to satisfy this rule; that yanks the
-> tree out from under the session that owns it. Take a worktree instead.
+> **`master` is the only branch — land everything there** (user directive,
+> 2026-08-11). The long-running `v56k-6000` lane was merged into `master` and now
+> points at the same commit; do not re-fork it. Work in a worktree off
+> `origin/master`, and push each tested checkpoint straight to `master`.
+> **Never switch the checked-out branch** of a tree another session is using;
+> that yanks it out from under them. Take a worktree instead.
 
 **Guardrails, all of which have bitten here:**
 - **Stage explicit paths.** `git add <paths>`, never `git add -A`.
@@ -178,4 +178,5 @@ tests). `FINDINGS.md` has the investigation matrices; memory file
 renders and benches FASTER than GL: 33.5 vs 30.6 fps @1024), desktop gamma
 washout (`07424b8`), all six unbounded accelerator spins bounded. SLI banding
 and warm-rerun "degradation" were resolved as non-bugs (the mip bug / 3DMark
-itself). V5 6000 (4-chip) prep: branch `v56k-6000`, plan in `V56K-PLAN.md`.
+itself). V5 6000 (4-chip): plan in `V56K-PLAN.md`, findings in `V56K-SLI-FINDINGS.md`
+(all on `master`).
