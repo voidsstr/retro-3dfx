@@ -3260,9 +3260,21 @@ _grSliCtrl(void)
   while (( 0x1UL << log2chipCount ) != (gc->chipCount / sliChipCountDivisor))
     log2chipCount++;
 
-  _grSliLog("SLICTRL chips=%u sli=%u divisor=%d band=%u renderMask=0x%lx log2=%u\n",
-            gc->chipCount, gc->sliCount, sliChipCountDivisor,
-            gc->sliBandHeight, (unsigned long)renderMask, log2chipCount);
+  /* V56K-SLICTRL-ONCE: this runs per buffer-swap, so log only when the
+  ** programmed configuration actually changes.  Left unconditional it cost
+  ** ~2/3 of the frame rate (61 -> 22 fps) and wrote megabytes. */
+  {
+    static FxU32 v56kLastSig = 0xFFFFFFFF;
+    FxU32 v56kSig = (gc->chipCount << 24) | (gc->sliCount << 16) |
+                    ((FxU32)(sliChipCountDivisor & 0xFF) << 8) |
+                    (gc->sliBandHeight & 0xFF);
+    if (v56kSig != v56kLastSig) {
+      v56kLastSig = v56kSig;
+      _grSliLog("SLICTRL chips=%u sli=%u divisor=%d band=%u renderMask=0x%lx log2=%u\n",
+                gc->chipCount, gc->sliCount, sliChipCountDivisor,
+                gc->sliBandHeight, (unsigned long)renderMask, log2chipCount);
+    }
+  }
   
   for (chipIndex = 0; chipIndex < gc->chipCount; chipIndex++) 
   {
