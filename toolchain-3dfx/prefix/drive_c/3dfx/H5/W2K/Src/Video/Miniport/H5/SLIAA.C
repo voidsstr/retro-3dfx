@@ -3439,6 +3439,34 @@ H3_SETUP_SLI_AA(PHW_DEVICE_EXTENSION  HwDeviceExtension,
 }
 
 /*----------------------------------------------------------------------
+Function name:  V56KRecordSliState   (V56K-SLIOBS)
+
+Description:    Persist the SLI decision where usermode can read it.
+                VideoDebugPrint is compiled out of the free build, so the
+                registry is the only channel that survives into a shipping
+                driver.  Same IRQL-safe API as Retro3dfxLogIoctlCount.
+
+Return:    Nothing
+----------------------------------------------------------------------*/
+static void
+V56KRecordSliState(PHW_DEVICE_EXTENSION HwDeviceExtension,
+                   ULONG reqChips, ULONG verdict, ULONG flags, ULONG clock)
+{
+  ULONG units = HwDeviceExtension->numUnits;
+
+  VideoPortSetRegistryParameters(HwDeviceExtension, L"Retro3dfxSliReqChips",
+                                 &reqChips, sizeof(reqChips));
+  VideoPortSetRegistryParameters(HwDeviceExtension, L"Retro3dfxSliUnits",
+                                 &units, sizeof(units));
+  VideoPortSetRegistryParameters(HwDeviceExtension, L"Retro3dfxSliVerdict",
+                                 &verdict, sizeof(verdict));
+  VideoPortSetRegistryParameters(HwDeviceExtension, L"Retro3dfxSliFlags",
+                                 &flags, sizeof(flags));
+  VideoPortSetRegistryParameters(HwDeviceExtension, L"Retro3dfxSliClock",
+                                 &clock, sizeof(clock));
+} /* V56KRecordSliState */
+
+/*----------------------------------------------------------------------
 Function name:  EnableSLIAA
 
 Description:    Enables SLI and AA on Napalm
@@ -3483,6 +3511,8 @@ EnableSLIAA(PHW_DEVICE_EXTENSION HwDeviceExtension, PSLI_AA_REQUEST pRequest)
   {
     VideoDebugPrint((0, "retro3dfx SLIAA-MISMATCH: req=%ld units=%ld -> refusing enable\n",
                      pRequest->ChipInfo.dwChips, HwDeviceExtension->numUnits));
+    /* V56K-SLIOBS: verdict 0 = refused */
+    V56KRecordSliState(HwDeviceExtension, pRequest->ChipInfo.dwChips, 0, 0, 0);
     DisableSLIAA(HwDeviceExtension, pRequest);
     return;
   }
@@ -3549,6 +3579,15 @@ EnableSLIAA(PHW_DEVICE_EXTENSION HwDeviceExtension, PSLI_AA_REQUEST pRequest)
   memcpy(&HwDeviceExtension->SLIAARequest, pRequest, sizeof(SLI_AA_REQUEST));
 #endif
 
+  /* V56K-SLIOBS: verdict 1 = enable programmed.  flags packs the request so a
+  ** single REGREAD tells us what the hardware was actually asked for. */
+  V56KRecordSliState(HwDeviceExtension, ChipInfo.dwChips, 1,
+                     (ChipInfo.dwsliEn ? 0x1 : 0) |
+                     (ChipInfo.dwaaEn ? 0x2 : 0) |
+                     (ChipInfo.dwsliAaAnalog ? 0x4 : 0) |
+                     (ChipInfo.dwaaSampleHigh ? 0x8 : 0) |
+                     ((ChipInfo.dwsli_nlines & 0xFF) << 8),
+                     (4 == ChipInfo.dwChips) ? 1 : 0);
   H3_SETUP_SLI_AA(HwDeviceExtension, SLI_AA_ENABLE, &ChipInfo, &pRequest->MemInfo);
 }
 
@@ -3582,6 +3621,8 @@ DisableSLIAA(PHW_DEVICE_EXTENSION HwDeviceExtension, PSLI_AA_REQUEST pRequest)
   memcpy(&HwDeviceExtension->SLIAARequest, pRequest, sizeof(SLI_AA_REQUEST));
 #endif
 
+  /* V56K-SLIOBS: verdict 2 = SLI disabled */
+  V56KRecordSliState(HwDeviceExtension, ChipInfo.dwChips, 2, 0, 0);
   H3_SETUP_SLI_AA(HwDeviceExtension, SLI_AA_DISABLE, &ChipInfo, &pRequest->MemInfo);
 }
 
