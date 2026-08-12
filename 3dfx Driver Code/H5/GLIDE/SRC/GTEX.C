@@ -1156,7 +1156,16 @@ GR_ENTRY(grTexSource, void,
                                       info->format,
                                       evenOdd);
   baseAddress += gc->tramOffset[tmu];
-  baseAddress &= SST_TEXTURE_ADDRESS;
+  /* V56K-256MB-MUNGE: SST_TEXTURE_ADDRESS is 25 usable bits (32MB); bit 25 is only
+  ** reachable through SST_TEXTURE_MUNGE_ADDRESS, which relocates it (bits 25-31 are
+  ** the tile stride).  CONDITIONAL on purpose: the munge is NOT a superset of the
+  ** mask -- it overwrites bit 1 with the relocated bit 25 -- so applying it
+  ** unconditionally changed behaviour at 32MB/chip and rebooted the box under UT.
+  ** Below 32MB this is byte-identical to the original mask. */
+  if (baseAddress & BIT(25))
+    baseAddress = SST_TEXTURE_MUNGE_ADDRESS(baseAddress);
+  else
+    baseAddress &= SST_TEXTURE_ADDRESS;
   
   /*-------------------------------------------------------------
     Update Texture Mode
@@ -1339,7 +1348,7 @@ GR_ENTRY(grTexMultibaseAddress, void,
                                              largeLevelLod,
                                              info->aspectRatio,
                                              info->format,
-                                             evenOdd)) & SST_TEXTURE_ADDRESS;
+                                             evenOdd)) & SST_TEXTURE_ADDRESS;   /* V56K-256MB-MUNGE2: see note at grTexDownloadMipMapLevel; revert to mask at <=32MB */
       
       hw = SST_TMU(hw,tmu);
       

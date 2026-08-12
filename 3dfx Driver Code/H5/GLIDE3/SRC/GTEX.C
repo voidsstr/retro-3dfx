@@ -3159,6 +3159,10 @@ GR_ENTRY(grTexMultibaseAddress, void,
         memInfo = gc->tmuMemInfo + tmu;
       const FifoChipField 
         tmuChip = (FifoChipField)(0x02UL << tmu);
+      /* V56K-256MB-MUNGE3: reverted to the plain mask. The munge is not a superset
+      ** of the mask (it overwrites bit 1 with the relocated bit 25), and swapping it
+      ** in unconditionally regressed a working 32MB/chip config. Revisit when the
+      ** board is actually in 256MB mode and the >32MB case can be tested. */
       const FxU32
         baseAddress = (memInfo->tramOffset +
                        _grTexCalcBaseAddress(startAddress,

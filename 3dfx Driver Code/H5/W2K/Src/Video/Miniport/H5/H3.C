@@ -1615,6 +1615,47 @@ H3MapAccessRanges(PHW_DEVICE_EXTENSION HwDeviceExtension)
     return status;
   }
 
+  //
+  // V56K-256MB: everything downstream derives from AdapterMemorySize*2 -- the
+  // VideoPortGetDeviceBase below, and MEMBASE1_DECODE_SIZE /
+  // MEMBASE1_MASTER_TO_SLAVE_SPACING in SLIAA.C (both literally
+  // 2*AdapterMemorySize).  Nothing validates it against the BAR PnP actually
+  // reserved, so a 256MB VBIOS whose BAR1 was not widened would make the chip
+  // decode 128MB out of a 64MB window and park the slaves on addresses nobody
+  // owns -- a bus hang before video comes up.  Clamp it, rounded DOWN to a
+  // power of two: any other value falls through GetDecodeSize()'s default arm
+  // to a 128MB decode, i.e. exactly the failure this guard exists to prevent.
+  //
+  {
+    ULONG bar1Len    = HwDeviceExtension->AccessRanges[MEMBASE_ONE].RangeLength;
+    ULONG maxPerChip = bar1Len >> 1;          // need 2x for the tiled aperture
+    ULONG pow2       = 0x00400000;            // 4MB floor
+
+    while ((pow2 << 1) <= maxPerChip)
+      pow2 <<= 1;
+
+    /* V56K-256MB-CLAMP-DISABLED: this fired on real hardware and destabilised
+    ** the board.  AccessRanges[MEMBASE_ONE].RangeLength is NOT yet valid at this
+    ** point in H3MapAccessRanges, so bar1Len reads 0, the sizing loop leaves pow2
+    ** at its 4MB floor, and the clamp silently cut each chip from 32MB to 4MB --
+    ** UT99/Glide then rebooted the machine under load.  The guard is still needed
+    ** for 256MB mode, but it must run AFTER the BAR is known and it must be
+    ** observable (VideoDebugPrint is compiled out of the free build, which is why
+    ** this was invisible).  Left inert and logged until both are true. */
+    if (HwDeviceExtension->AdapterMemorySize > pow2)
+    {
+      VideoDebugPrint((0, "3dfx MEM: WOULD-CLAMP perChip=%08lXh -> %08lXh bar1Len=%08lXh (not applied)\n",
+                       HwDeviceExtension->AdapterMemorySize, pow2, bar1Len));
+    }
+
+    VideoDebugPrint((0, "3dfx MEM: perChip=%08lXh bar1Len=%08lXh need2x=%08lXh units=%ld total=%08lXh\n",
+                     HwDeviceExtension->AdapterMemorySize,
+                     bar1Len,
+                     HwDeviceExtension->AdapterMemorySize * 2,
+                     HwDeviceExtension->numUnits,
+                     HwDeviceExtension->AdapterMemorySize * HwDeviceExtension->numUnits));
+  }
+
   // map frame buffer
   VideoDebugPrint((0, "MemBase1 AccessRange\n"));
   VideoDebugPrint((0, "  RangeStart=%lX%08lXh  Length=%08lXh  InIoSpace=%lXh\n",

@@ -240,3 +240,65 @@ Both land on ~24 fps, so the limiter is the 700 MHz Pentium III running
 Q3 reaches 61 fps on the same hardware because its engine is far lighter. The
 D3D `0K vram` fix (§7) is still correct and worth shipping for texture-heavy D3D
 titles, but it will not move UT.
+
+---
+
+## 9. CORRECTION + thermal hypothesis (2026-08-12, later session)
+
+### The UT99-Glide reboot was NOT fixed — §8's claim is withdrawn
+
+§8 reported the UT-Glide machine reset as "fixed and verified" on the strength of
+two clean runs. That was over-claimed. Later the same day UT-Glide rebooted the box
+on **four consecutive attempts**, including one with the ORIGINAL golden kernel pair
+(`optimized/deployed-133-v56k-20260811/`, byte-verified on disk) restored — i.e. the
+exact configuration §8 called fixed.
+
+The slave-pointer re-cache (`V56K-SLAVE-RECACHE`) is still a genuine defect fix — the
+log proved glide2 remaps mid-run and the pointers really were going stale — but it is
+**not sufficient** to make UT-Glide reliable. Treat UT-Glide as INTERMITTENTLY UNSTABLE.
+
+### Then Quake 3 started rebooting the box too — on byte-identical binaries
+
+Q3 had run stably ~15 times across the day at 60-62 fps. Late in the session it began
+rebooting the machine within seconds of launch, with the golden display driver,
+golden miniport and hardware-verified Glide DLLs all md5-verified on disk. **No driver
+change can explain a regression on byte-identical binaries.**
+
+### Leading hypothesis: THERMAL / power, not software
+
+`V56K-PLAN.md` flags exactly this risk for this board: the HiNT HB1-SE66 bridge "runs
+hot (needs airflow)", the board draws ~80 W through a 6-pin PCIe input, and the
+original design had "known AA/AF bus-corruption instability". The session put dozens
+of sustained 3D runs plus ~10 unclean power-cycles through the card over several hours.
+A card that is stable when cool and resets under load after prolonged hammering fits
+thermal far better than it fits any code path.
+
+**Ranked candidates:**
+1. Bridge/VSA-100 temperature after hours of sustained load — needs a physical check
+   (heatsink hot to touch, case airflow, fan on the bridge).
+2. 6-pin PCIe power delivery under 4-chip load (marginal PSU rail or connector).
+3. Filesystem/registry damage accumulated from ~10 unclean shutdowns.
+
+### What was done in response
+- All in-flight 256MB changes were neutralised or reverted (see §10) and the box was
+  restored to the golden kernel pair + hardware-verified Glides, md5-verified on disk.
+- **Hardware testing was STOPPED.** Continuing to hammer a rare board that may be
+  overheating is not a reasonable trade.
+
+**Do not flip the 256MB BIOS switch.** 256MB mode raises power and memory-bus load;
+attempting it while the board resets under ordinary 128MB load would only confuse a
+thermal/power fault with a software one.
+
+## 10. Status of the 256MB change set (all inert on the box)
+
+| change | state | why |
+|---|---|---|
+| C1 BAR clamp (`H3.C`) | **neutralised, diagnostic kept** | `AccessRanges[MEMBASE_ONE].RangeLength` is not yet valid where it was inserted, so `bar1Len` read 0, the sizing loop left `pow2` at its 4MB floor and the clamp cut each chip 32MB -> 4MB. It must run AFTER the BAR is known, and be observable — `VideoDebugPrint` is compiled out of the free build, which is why it was invisible. Logged as `WOULD-CLAMP`, not applied. |
+| C2 AA aperture mask (`SLIAA.C`) | reverted | unverifiable at 32MB/chip; part of the same untested batch |
+| C3 glide2 texture munge (`GLIDE/SRC/GTEX.C`) | conditional | `SST_TEXTURE_MUNGE_ADDRESS` is **not** a superset of the mask — it overwrites bit 1 with the relocated bit 25. Now only taken when bit 25 is actually set, i.e. byte-identical to the original mask below 32MB. |
+| C4 glide3 texture munge (`GLIDE3/SRC/GTEX.C`) | reverted | same reason; revisit when >32MB addresses can actually be tested |
+
+The C1 analysis remains correct in principle — nothing validates `AdapterMemorySize`
+against the BAR that must hold 2x it — and that guard IS required before 256MB. It
+simply has to be implemented where the BAR length is known and where its decision can
+be read back (the `Retro3dfxSli*` registry pattern works; kernel `VideoDebugPrint` does not).
