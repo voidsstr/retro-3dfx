@@ -176,6 +176,8 @@ chips are detected), the full heap dump (`HEAP%ld LIN/RECT`, `HEAPSUM`), the D3D
 create-failure paths, and an SLI diagnostic
 (`SLICFG: degenerate denominator (units=%ld) -> non-optimal path`).
 
-**Order of work:** port that instrumentation back into `DDFXNT.C`/`DDINIT.C` first,
+**RESOLVED 2026-08-11:** that instrumentation has been reconstructed from the deployed
+binary's format strings and verified at full 68/68 string parity, so the rebuilt display
+driver no longer regresses anything. The vram fix ships with it.
 then ship the vram fix together with it. Until then the D3D fix stays source-only;
 the Glide fixes (§5) are user-mode and ship independently with no such risk.
