@@ -592,7 +592,12 @@ PIXELFORMATDESCRIPTOR pfds[] = {
         { sizeof(PIXELFORMATDESCRIPTOR),  // size of this pfd
           1,                              // version number
           PFD_DRAW_TO_WINDOW              // support window
-          |  PFD_SUPPORT_OPENGL,          // support OpenGL
+          |  PFD_SUPPORT_OPENGL           // support OpenGL
+          |  PFD_DOUBLEBUFFER,            /* RETRO3DFX: was single-buffered.
+             A single-buffer selection makes wglSwapBuffers early-return
+             (never reaches the ICD swap) and forces front-buffer rendering
+             -- GoldSrc's ChoosePixelFormat could land here. All exposed
+             formats are now double-buffered. */
           PFD_TYPE_RGBA,                  // RGBA Color
           24,                             // 24-bit color depth
           0, 0, 0, 0, 0, 0,               // color bits ignored
@@ -600,7 +605,7 @@ PIXELFORMATDESCRIPTOR pfds[] = {
           0,                              // shift bit ignored
           0,                              // no accumulation buffer
           0, 0, 0, 0,                     // accum bits ignored
-          32,                             // 32-bit z-buffer      
+          32,                             // 32-bit z-buffer
           0,                              // no stencil buffer
           0,                              // no auxiliary buffer
           PFD_MAIN_PLANE,                 // main layer
@@ -629,7 +634,8 @@ PIXELFORMATDESCRIPTOR pfds[] = {
         { sizeof(PIXELFORMATDESCRIPTOR),  // size of this pfd
           1,                              // version number
           PFD_DRAW_TO_WINDOW              // support window
-          |  PFD_SUPPORT_OPENGL,          // support OpenGL
+          |  PFD_SUPPORT_OPENGL           // support OpenGL
+          |  PFD_DOUBLEBUFFER,            // RETRO3DFX: was single (see pfd #2)
           PFD_TYPE_RGBA,                  // RGBA Color
           24,                             // 24-bit color depth
           0, 0, 0, 0, 0, 0,               // color bits ignored
@@ -637,7 +643,7 @@ PIXELFORMATDESCRIPTOR pfds[] = {
           0,                              // shift bit ignored
           64,                              // no accumulation buffer
           16, 16, 16, 16,                     // accum bits ignored
-          32,                             // 32-bit z-buffer      
+          32,                             // 32-bit z-buffer
           0,                              // no stencil buffer
           0,                              // no auxiliary buffer
           PFD_MAIN_PLANE,                 // main layer

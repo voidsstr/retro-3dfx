@@ -1,3 +1,73 @@
+## 0.4.0 (2026-07-24) — ICD 1280x1024 support + highest-safe per-resolution refresh
+
+The OpenGL ICD (`SST/sst_export.c`) had two hardcodes that broke high-res and
+capped the in-game refresh at 60Hz:
+* **Resolution table topped out at 1024x768.** A 1280x1024 window (Quake3
+  r_mode 8) opened a **1024x768** Glide context under a 1280x1024 primary
+  surface, so Glide reprogrammed the CRTC/tile-stride for 1024x768 -> tile/
+  scanout mismatch -> hardware WEDGE (black screen, display drops to VGA). Fix:
+  added `SST_1280x1024` to the resolution enum + a `{1280,1024,
+  GR_RESOLUTION_1280x1024, ...}` row to `__sstResTable`, and moved the
+  "out of resolutions" sentinel to the new top entry. Glide's `_resTable`
+  (GSST.C) already supports 0xD=1280x1024 and the V5's memory fits db+Z; the
+  cap table auto-sizes (zero-fills SST_NC for legacy boards; the V5 takes the
+  platform<0 bypass).
+* **grSstWinOpen was hardcoded to GR_REFRESH_60Hz** (60Hz in every fullscreen
+  Glide/GL game). Added a 4th column to `__sstResTable` = the highest CRT-safe
+  refresh per resolution and pass it: **85Hz at <=1024x768, 75Hz at 1280x1024**
+  (the ViewSonic A90's ~86kHz Hmax makes 1280x1024@85 (~91kHz) out of range, so
+  it's capped at 75Hz). The refresh flows grSstWinOpen -> MINIHWC setVideoMode.
+  NOTE: a `FX_GLIDE_REFRESH` registry/env value overrides this per-resolution
+  choice with a single flat value for ALL resolutions -- it must be UNSET for
+  the per-res refresh (and its 1280x1024 safety) to apply.
+
+Verified offline by a 6-dimension adversarial workflow (compile, mode-walk,
+cap-table bounds, refresh honor+safety, viewport/buffer limits, glide/V5
+memory) -- all SAFE -- and a clean Wine build (`build_ogl.bat`, NMAKE exit 0).
+GL_RENDERER -> `[retro3dfx 0.4.0]`.
+
+## 0.3.9 (2026-07-24) — GoldSrc timedemo automation + worst-frame (stutter) instrumentation
+
+Tooling + diagnostics build, no rendering change. Adds the automated GoldSrc
+"timedemo" the user asked for and the instrumentation to see the ~1s CS walking
+stutter in an automated form.
+
+* **`optimized/gltest/goldsrc_bench.py`** — one-command automated benchmark for
+  Half-Life / Counter-Strike on the V5 box, driven entirely through the ICD's
+  own instrumentation so it works UNDER CS's BCShield anti-cheat (which blocks
+  `-condebug`/`qconsole.log`). A generated `<gamedir>/listenserver.cfg` runs a
+  deterministic `noclip` fly-through the moment a listen-server map loads (a
+  repeatable timedemo-equivalent), the ICD perf log is parsed for fps + worst
+  single frame, and the front buffer is dumped for render correctness. The cfg
+  is auto-removed after every run so normal play is never hijacked. `nofb` mode
+  disables the fbdump readback (which injects its own hitch) for truthful
+  stutter timing.
+* **`__r3dPerfDump` maxFrame** (`SST/sst_export.c`) — each perf window now logs
+  `maxFrame=<ms>`, the worst single inter-swap time in the window (30-frame
+  windows). A periodic hitch like the ~1s GoldSrc stutter shows up as a maxFrame
+  spike even when average fps looks fine; `texDl` in the same line stays 0 in
+  steady state, which DISPROVES texture streaming as the stutter cause (textures
+  are resident on de_dust — the hitch is elsewhere, correlates with 60Hz vs the
+  85Hz forced case). GL_RENDERER bumped to `[retro3dfx 0.3.9]`.
+
+## 0.3.8 (2026-07-24) — CS green/rainbow world ROOT CAUSE fixed (vertex colors)
+
+The real mechanism behind every "CS green world" symptom since 0.3.4: the
+dual-texture (_B) immediate-mode vertex procs never wrote iterated r/g/b/a
+(vintage `#if 0` "taco - don't bother since no it color"), and Intersect_B /
+ClipAndDraw_B left clip-vertex colors uninitialized stack floats. Valid for the
+vintage LOCAL_NONE dual-tex combine; broken ever since 0.1.4/0.1.5 programmed
+ITERATED x TEXTURE — the world modulated by stale ring colors (green walls,
+striped floors) and stack garbage (rainbow clip shards at screen edges). Fix:
+8-store color block added to all three ASM _B procs + ASM Intersect_B (and the
+C twins re-enabled). Verified on .143 V5 5500: de_dust perfect tan at 640+1024,
+single-chip AND 2-way SLI; Q3/CS golden + D3D matrix all pass. Forensics that
+pinned it: framebuffer stripe analysis (mod-256 iterated-color wraps, no mod-32
+SLI phase), exact (0,G,0) walls with intact texture in G, shard gradients =
+Gouraud planes. The 0.3.4d/0.3.7 swap hook is now understood as a partial MASK
+(its LOCAL_NONE combine override suppressed iterated color once per frame) —
+candidate for retirement in a future build after a hook-off A/B.
+
 # 3dfx-driver-optimized — CHANGELOG
 
 Our self-built 3dfx Voodoo driver stack (miniport `3dfxv5m.sys`, display `3dfxv5d.dll`,
@@ -17,3 +87,89 @@ Deploy/bench harness: `tools/deploy_bench.py`. Q3 timedemo `four`, r_mode/colorb
 | 0.1.2 | glide3x state-setter redundancy dedup (11 setters skip _grValidateState on unchanged args; assertDefaultState first-call guard) | (this commit) | 640x480: 79.7 (flat) | Render pixel-identical to 0.1.1 (verified). Flat/within-noise: this demo isn't state-validation-bound. Kept (correctness-verified, reduces per-drawcall CPU). Confirms bottleneck is T&L, not state. |
 | 0.1.3 | ICD post-transform vertex cache in CompileElementsIndexed (dedup shared indices within 36-elt batches, verified-hit struct-copy) | (this commit) | 640x480: 80.5 vs 79.9 before (+0.6, +0.75%) | Drift-controlled back-to-back A/B. Render pixel-identical. Marginal — 36-elt batch window limits cross-batch sharing AND the demo isn't strongly T&L-bound. Kept (correct, zero-regression). |
 | 0.1.4-exp | GL_ARB_multitexture single-pass world rendering (2 TMU) + DrvGetProcAddress fix (was NULL -> blocked ALL extensions under XP opengl32) | (this commit, EXPERIMENTAL) | 640x480: **84.5 (+5-6%)** but render TOO DARK | **NOT SHIPPED.** Real +6% single-pass win + the DrvGetProcAddress fix are both valuable. But single-pass is ~half brightness: Q3 sends identityLight=0.5 expecting a 2x overbright the 2-pass path got free from the lightmap blend (GL_SRC_COLOR/GL_DST_COLOR). Added 2x via grColorCombineExt shift=1 — log confirms the branch engages (ext_active=1, texEnv 0x2100x2) but the Napalm output-shift does NOT double on hardware. NEXT: apply the 2x by a different mechanism (double the iterated color, or grConstantColorValue factor, or grTexCombine scale) — the ext output-shift is a dead end here. dist/ + .143 kept at correct-rendering 0.1.3. |
+| 0.2.0 | honor GL min/mag texture filters in hardware at every grTexSource bind (was set once at init = POINT_SAMPLED, so every minified texture point-sampled → shimmer) | 131e430 | 640x480: 76.5 (no regression) | `__glSSTApplyGrFilter` at 7 grTexSource sites, both TMUs. User confirmed "somewhat better" on monitor. GL_RENDERER [retro3dfx 0.2.0]. |
+| 0.2.1 | GLCORE `__glCookSubTexture` OOB fix: sub-image row origin used `w*y+x` not `lp->width*y+x`, srcSkip missing `*bpp` — walked out of bounds on any partial update. Only affects the generic (non-SST) cook path. | (this commit) | n/a (correctness) | Necessary but NOT the UT crash (the SST hw path is separate — see 0.2.2). Kept: correct for the generic path. |
+| **0.2.2** | **UT glTexSubImage2D crash FIX**: `__glsstim_TexSubImage2D` (SST_TEX.C:3427) deref'd `cache->addr` with a NULL hw-cache pointer on non-resident partial texture updates (UT's create-empty-then-subimage lightmap pattern) → GPF loop → Double fault. Guard the partial download with `if (cache)`. + `element_size` default in `__glSSTShadowTexSubImage`. | 2c3b912 | Q3 76.5 / Q2 178-183 / CS 67.7 (all no-regression) | **★ ALL 4 GAMES STABLE.** UT loads CityIntro + runs 0 criticals (was crashing in seconds). Root cause proven by instrumentation: pre-download 6241 vs post-download 5754, Δ=487 == exactly the 487 `cache=0` calls. Additive guard (cache!=NULL path byte-identical) → can't regress Q3/Q2/CS. GL_RENDERER [retro3dfx 0.2.2], md5 6b8182dd. |
+| **0.3.1** | **★ 2D TEXT GARBLE SOLVED (Q3 menu font1_prop + CS VGUI)** — Napalm 16-byte texture-heap alignment. `__glSSTInitTextureManager` started the TMU0 heap at `grTexMinAddress + 8` (SST1 granularity); VSA-100's texBaseAddr drops bits [3:0] (16-byte `SST_TEXTURE_MUNGE_ADDRESS`) → every texture sampled 8 B = 4 texels below its download address → +4-texel S-shift → per-glyph sub-rect quads clipped the shifted strokes = "sliced" text. Fix: heap start +16, cdrs ramp at addr−16, all alloc lengths rounded to 16. + optional `RETRO3DFX_NODITHER`. | 09ef1e1 | n/a (quality) | gfix case A: **0.0% diff vs GDI-Generic oracle** (was 36.3%); live Q3 menu clean on monitor. Ends the multi-session garble hunt — it was never texcoords/filtering/postfilter; it was the heap base. Also exposed the **game-local stale-DLL deploy trap**: games load `<gamedir>\opengl32.dll` before system32 — every deploy must sweep ALL game-local copies. |
+| **0.3.2** | **CS palette colors fixed** — `sst_ctable.c __glSSTColorTableEXT` read the GL_RGBA palette with stride 3 → `GR_TEXTABLE_PALETTE` entries shifted 1 byte/index. Only GoldSrc uses EXT_paletted_texture (Q3 doesn't) — why only CS was wrong. | (post-09ef1e1) | n/a (quality) | CS world went black→rendered (the "black world" had been the stale game-local ICD). gfix case I = palette regression gate; cases G/H archived. |
+| **0.3.3** | **CS fps 3× fix** — GoldSrc re-MakeCurrents constantly; each LoseCurrent did `grSstWinClose` + full `grSstWinOpen` on the next MakeCurrent (70-600 ms fullscreen mode-set per switch). Fix: defer the close, reuse the Glide context on same hwnd+res (close only on window change/DestroyContext); made all 4 exposed PFDs double-buffered (single-buffer pick made wglSwapBuffers early-return → front-buffer rendering). | (committed 2026-07-20) | CS de_dust: ~33 → **99.9 fps steady** | Zero texture churn after. The all-double-buffered PFD change is also what makes fbdump work for every game. |
+| **0.3.4d** | **★ CS GREEN WORLD SOLVED** — stale **2PPC** (2-px/clock, Glide's SINGLE-texture opt; `combineMode` bit-29 `SST_CM_ENABLE_TWO_PIXELS_PER_CLOCK`). GoldSrc alternates single-tex (HUD, 2PPC ON) and dual-tex (world+lightmap, 2PPC must be OFF) per frame; our combine-word cache skipped the Glide combine re-issue when words were unchanged → `tmuConfig` never invalidated → `_grValidateTMUState`/`_grTex2ppc` never re-ran → both VSA-100 chips mirrored one TMU program → only the RGB565 green field survived: `(0,G,0)` world, distance-dependent. Fix (sst_export.c SwapBuffers): once/frame re-issue the FULL TMU1 state — grTexSource(latched first large-565 TMU1 texture) + grTexCombine + grColorCombine + grAlphaBlendFunction — forcing complete TMU re-validation on the next world draw. | 71db1e3 | CS de_dust **green 0/4**, perfect render; Q3 68.5-73.6 (no regression) | Bisect ledger: grTexSource alone=green; combines alone=4/6; combines+`__glSSTResetCombineCache()`=4/6 (the reset WIPES ext/overbright state — do NOT use at swap); all four together=**0/4 ✅**. Q3 never latches the dual-tex capture → no-op there. Failed attempts (documented in CS-GREEN-WORLD-LOG.md): topology-count cache reset (GoldSrc never flips the enabled-unit count), swap-time cache reset alone. |
+
+| **0.3.5** | **Fix the 0.3.4d Q3 regression** (user-caught on monitor: white menu text, green-tinted logo, black world at 1024×768; 0.3.4d's swap hook fired in Q3 because Q3's single texture unit maps to **GR_TMU1** on the 2-TMU config — the `__r3d_blitValid` latch is NOT GoldSrc-specific — and the per-frame combine override killed vertex-color modulate; the latched texture address also went stale across mode changes). Changes: (1) hook now gated on `__r3d_sawTMU0` — GR_TMU0 (lightmap unit) sourced THIS frame = genuine dual-texture; Q3 never sources TMU0 → hook provably inert; flag cleared every swap. (2) `__r3d_blitValid` reset at both grSstWinClose sites (context-lifetime latch). (3) After the four Glide calls, `__glSSTInvalidateCombineWords()` — a words-only cache invalidation so the app's next combine re-issues and restores its own state (NOT the full ResetCombineCache that wipes ext/overbright — the attempts-2/3 failure). | (this commit) | Q3 menu text red again / 1024 world renders / CS green still 0 (verifying) | LESSON: "verified" fbdump captures must be checked for COLOR fidelity, not just structure — my 0.3.4d Q3 menu capture showed white text and I called it correct; stock Q3 menu text is red. TRUST THE USER'S EYES. |
+
+| **0.3.6** | **★ Q3 BLACK WORLD AT 800/1024 SOLVED — the ICD NEVER actually opened >640×480.** MakeCurrent's res walk gates every mode on a Voodoo1/2-era capability table `__sstResCapTable[platform][sli][mem]`; platform detection only matches "Voodoo"/"Voodoo2"/"VoodooRush" (V3/V5 strings fall through → platform=Voodoo1) and `GR_MEMORY_FB` on Glide3 returns a byte-scale number matching no case → mem=2MB. Voodoo1-2MB's best db+Z mode = 640×480 → ANY 800/1024 window walked back down to 640×480 while the game rendered an 800/1024 viewport → black world on the monitor. Fix: unmatched (modern, V3+) hardware strings set platform=-1 and `__SST_RES_OK` bypasses the legacy cap gate. | (this commit) | Q3 1024 world renders (verifying) | **Every pre-0.3.6 "800x600/1024x768" OpenGL benchmark on this stack actually ran the Glide context at 640×480** (fps came from the engine, so numbers looked plausible; captures were done at 640; GDI garble hid it on the monitor). Res-labeled history (e.g. "Q3 640/800/1024 = 77.3/76.5/76.7, flat" — flat BECAUSE identical 640 rendering!) needs re-baselining. User's monitor report was the ground truth that exposed it. |
+
+| **0.3.7** | Remove `__glSSTInvalidateCombineWords()` from the swap hook — the 0.3.5/0.3.6 addition **reintroduced CS chaos** (green walls + rainbow ramp, 27/49) by letting the game's combine re-issue every frame, same failure class as ResetCombineCache (attempts 2/3). Hook is now EXACTLY the proven 0.3.4d body (4 Glide calls, cache untouched) + the 0.3.5 protections (sawTMU0 gate, latch cleared at WinClose) + the 0.3.6 res fix. | (this commit) | **VERIFIED: CS 0/49 green (de_dust perfect), Q3 1024 renders (res=12), Q3 800 renders (res=8), menu red** | Empirical combine-hook law on this stack: **override at swap = good; ANY per-frame cache invalidation = green/rainbow**. Open theoretical question (harmless so far): with the game's combine dedup-skipped after our override, is the world's lightmap modulate fully active? Captures look correctly shaded; verify on-monitor eventually. |
+
+## Overnight verification matrix (2026-07-20/21, ICD 0.3.4d)
+
+Captured via **FBDUMP** (`C:\icd_fbdump.on` → grLfbReadRegion), the only truthful
+capture — GDI SCREENSHOT of fullscreen Glide is always scanline-garbled (cannot
+BitBlt the Voodoo surface; garbled GDI ⇒ game IS on the hardware path).
+
+| game | result | evidence |
+|------|--------|----------|
+| Quake 3 | ✅ 68.5 fps timedemo four, menu crisp | /tmp/overnight/q3.png |
+| Quake 2 | ✅ 135.6 fps demo1, console crisp, GL_RENDERER 0.3.4d visible | /tmp/overnight/q2.png |
+| CS 1.6 | ✅ de_dust perfect tan — **green gone** | /tmp/overnight/cs.png |
+| UT GOTY | ✅ renders via OpenGLDrv=our ICD (city intro correct) | /tmp/overnight/ut.png |
+| RTCW | ✅ menu renders on hw (single-buffered ctx ⇒ no fbdump — capture limitation only) | rtcw_final_gdi.png |
+| MOHAA | ❌ SafeDisc "Cannot locate the CD-ROM" modal pre-render — DRM, not driver; needs owned disc image | mohaa_gdi.png |
+
+Operational gotchas hit: UT/RTCW detect unclean exits (`taskkill /f`) and block the
+next launch (UT "Recovery Mode" dialog — click through; RTCW stalls pre-GL); RTCW
+crashed once in glide3x (NULL deref) under kill/relaunch cycling; **PowerStrip
+autostart popped a "Trial Expiration" modal that aborted the first 3DMark2001
+fullscreen run** — Run-key value renamed to `PowerStrip.disabled-for-benchmarks`.
+
+## Quality campaign (present-bound ⇒ fill is ~free)
+
+Profiling proved Q3/Q2/CS are present/engine-bound on the V5 5500 + P3 — fps is
+capped, so image quality is nearly free. Measured on ICD 0.2.2:
+
+| quality | Q3 640 fps | vs baseline | notes |
+|---------|-----------|-------------|-------|
+| default (picmip 1, bilinear, 16-bit) | 76.5 | — | |
+| **max** (picmip 0, trilinear `GL_LINEAR_MIPMAP_LINEAR`, 16-bit) | **72.0** | **−5.9%** | Full texture detail + trilinear for 6% — in-game render clean+detailed (see benchmarks/quality_q3dm1.png), still >60fps. Menu proportional font readable in capture, minor slicing (postfilter = supervised display-driver fix). |
+| **max + 32-bit request** (r_colorbits 32) | 70.9-71.7 | ≈ same (present-bound) | Q3 asked for 32-bit (`GLW_ChoosePFD(32,24,8)`) but the ICD could only offer `PIXELFORMAT 3 = color(16-bits)` → render bit-identical to 16-bit (distinct colors 3633 vs 3637, same mean-lum). **The ICD's PFD table has no 32-bit color entry.** Added `--colorbits 32` to the bench skill (default 16). |
+
+### ★ Next V5 quality lever discovered: true-color (32-bit) rendering
+
+The VSA-100/Napalm renders 32-bit ARGB internally, but our ICD only advertises
+16-bit color PFDs, so every app is stuck at 16-bit (RGB565) with dither banding.
+The Voodoo3 lane physically can't do 32-bit; the V5 can — this is a V5-specific
+quality win that costs ~0 fps (present-bound). **Implementation (scoped, not yet
+done):** (1) add 32-bit color entries to the ICD PFD table (WGLCMDS.C ~1249,
+GLICD.C ~578); (2) `grSstWinOpen(...GR_COLORFORMAT_ARGB...)` (sst_export.c:734)
+defaults to 16-bit RGB565 — a 32-bit PFD must open via `grSstWinOpenExt` with
+`GR_PIXFMT_ARGB_8888`; (3) verify the ICD color-buffer read/clear/LFB paths
+handle 32bpp. Objective verification metric: q3dm1 capture distinct-color count
+jumps from ~3637 (16-bit) toward tens of thousands (true-color), banding in the
+sky gradient disappears. Render-changing ⇒ develop as an experimental A/B build,
+on-monitor sign-off before shipping (per HARD LESSONS).
+
+#### exp32 build result (0.2.3-exp32, env-gated RETRO3DFX_32BPP) — feasible + stable, marginal gain
+
+Implemented an env-gated true-color path (all changes no-op unless RETRO3DFX_32BPP
+set, so the deployed binary == 0.2.2 by default): WGLGLIDE.C `__wglGlideGetDisplayMasks`
+→ 8/8/8 masks + return 32; color LFB `GR_LFBWRITEMODE_565` → `_8888`; sst_export.c
+`grSstWinOpen` → `grSstWinOpenExt(GR_PIXFMT_ARGB_8888)` resolved via `grGetProcAddress`
+(it is NOT a static export — DIGET.C:1097; direct-link fails with LNK2001). Build
+gotcha: a stale `sst.lib` retained the old obj — must delete `release/sst.lib` +
+`SST/release/sst.lib` for the recompile to take.
+
+RESULT on Q3 (env set, r_colorbits 32): **the hardware opened ARGB_8888 fine** (ICD
+log: `grSstWinOpenExt=0x... grSstWinOpen OK`), **stable, clean render, ~same fps
+(72-73)**. BUT: (1) q3dm1 distinct-color count barely moved (3637 → 3743) and the
+render looks identical — because **VSA-100 TEXTURES are 16-bit** (TMU samples
+RGB565/ARGB4444), so texture-dominated scenes stay 16-bit-ish; 32bpp only helps
+gradients/alpha/fog/multi-pass accumulation. (2) Q3 still selected a 16-bit PFD
+(`PIXELFORMAT 3 = color(16-bits)`) — the getDisplayMasks→32 change did NOT reach the
+PFD-selection path, so the ICD software buffer stayed 16bpp = latent hw-32/sw-16
+mismatch (rendered fine anyway since in-game paths are GPU-side). **Disposition: 32bpp
+is PROVEN feasible + stable + free on the V5, but the visible quality payoff is modest
+(texture precision is the real 16-bit limiter, hardware-fixed). Not shipped; box kept
+on 0.2.2. To finish: fix PFD selection to actually pick 32-bit (updatePixelFormats/
+getDisplayMasks ordering — figure out why the Glide getDisplayMasks isn't authoritative
+at ChoosePixelFormat time) so sw matches hw; then verify on-monitor a gradient-heavy
+scene (sky/fog) for the real banding-reduction win.**

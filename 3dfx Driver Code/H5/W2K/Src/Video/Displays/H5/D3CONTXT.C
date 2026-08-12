@@ -366,11 +366,25 @@ DWORD __stdcall ddiContextCreate(LPD3DHAL_CONTEXTCREATEDATA pccd)
   pccd->dwhContext = CONTEXT_ALLOC(ppdev);
   if (pccd->dwhContext == CONTEXT_INVALID)
   {
+#if ENABLE_LOG_FILE
+    retroLogForce(ppdev, "retro3dfx CTX-CREATE FAIL: OUTOFCONTEXTS (leak across warm reruns?)\r\n");
+#endif
     pccd->ddrval = D3DHAL_OUTOFCONTEXTS;
     INS_EXIT( );
     D3D_EXIT( DDHAL_DRIVER_HANDLED );
   }
   newContext = CONTEXT_PTR(pccd->dwhContext);
+#if ENABLE_LOG_FILE
+  {
+    /* retro3dfx: running create/destroy balance for the warm-rerun leak hunt */
+    extern LONG g_retroCtxLive;
+    g_retroCtxLive++;
+    retroLogForce(ppdev, "retro3dfx CTX-CREATE: h=%08lXh live=%ld 3dCnt=%ld poolLive=%ld vidSurfLive=%ld vidSurfEver=%ld nullFree=%ld\r\n",
+                  pccd->dwhContext, g_retroCtxLive, _FF(dd3DSurfaceCount),
+                  g_retroPoolLive, g_retroVidSurfLive, g_retroVidSurfEver,
+                  g_retroVidSurfNullFree);
+  }
+#endif
 
   D3DPRINT( 255,"ddiContextCreate, pccd->lpDDGbl =%08lx, pccd->lpDDS =%08lx",
                                 pccd->lpDDGbl, pccd->lpDDS );
@@ -633,6 +647,16 @@ DWORD __stdcall ddiContextDestroy(LPD3DHAL_CONTEXTDESTROYDATA pcdd)
 #if defined(LEGACY_APPS) && !defined(NT)
   _D3( legacyApp ) = 0;
 #endif  // LEGACY_APPS
+
+#if ENABLE_LOG_FILE
+  {
+    extern LONG g_retroCtxLive;
+    g_retroCtxLive--;
+    retroLogForce(ppdev, "retro3dfx CTX-DESTROY: h=%08lXh live=%ld 3dCnt=%ld poolLive=%ld\r\n",
+                  pcdd->dwhContext, g_retroCtxLive, _FF(dd3DSurfaceCount),
+                  g_retroPoolLive);
+  }
+#endif
 
   pcdd->ddrval = DD_OK;
   INS_EXIT( );

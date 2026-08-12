@@ -32,6 +32,15 @@
 #include "sst_globals.h"
 #include "sst_imfncs.h"
 
+/* grSstWinOpenExt is a glide3x EXTENSION entry (not a static export) -- like
+ * grColorCombineExt it must be fetched via grGetProcAddress (see SST_TEX.C).
+ * (Do NOT #include <g3ext.h> -- it forces a link-time ref to the symbol.) */
+#ifndef GR_PIXFMT_ARGB_8888
+#define GR_PIXFMT_ARGB_8888 0x0005          /* from G3EXT.H */
+#endif
+typedef GrContext_t (FX_CALL *__pfnWinOpenExt)(FxU32, GrScreenResolution_t,
+        GrScreenRefresh_t, GrColorFormat_t, GrOriginLocation_t, int /*GrPixelFormat_t*/, int, int);
+
 /* crash-robust debug logging to C:\3dfxogl.log (defined in wgl/wglcmds.c) */
 extern void OGLLOG( const char *fmt, ... );
 
@@ -336,10 +345,190 @@ static void InitBuffers(__GLcontext *gc)
 
 /************************************************************************/
 
+/* --- RDTSC frame profiling (logging only -> C:\3dfxprof.log). Answers the
+ * core question the resolution sweep can't: of each frame's wall-clock, how much
+ * is the deferred Glide FIFO flush (procs.flush = T&L submission) vs grBufferSwap
+ * (present/vsync wait) vs "other" (engine + inline GL). rdtsc via _emit for
+ * MSVC6-safety. No render change. Enabled at runtime by env RETRO3DFX_PROF=1. */
+static unsigned __int64 __prof_rdtsc(void)
+{
+    unsigned int __lo, __hi;
+    __asm { _emit 0x0F __asm _emit 0x31 __asm mov __lo, eax __asm mov __hi, edx }
+    return ((unsigned __int64)__hi << 32) | __lo;
+}
+static unsigned __int64 __prof_lastSwap = 0, __prof_frameAcc = 0,
+                        __prof_flushAcc = 0, __prof_swapAcc = 0;
+static int             __prof_frames = 0;
+
+/* RETRO3DFX_PERFLOG: per-100-frame counter dump -> C:\icd_perf.log (raw
+** Win32 I/O; GoldSrc low-fps hunt).  Counters incremented at the texture
+** download / palette / allocator hot spots.  windows.h cannot be included
+** here (its SwapBuffers(HDC) clashes with the local static SwapBuffers),
+** so the few Win32 imports are declared by hand. */
+void * __stdcall CreateFileA(const char*, unsigned long, unsigned long,
+                             void*, unsigned long, unsigned long, void*);
+int    __stdcall WriteFile(void*, const void*, unsigned long, unsigned long*, void*);
+int    __stdcall FlushFileBuffers(void*);
+unsigned long __stdcall GetTickCount(void);
+int    __cdecl   wsprintfA(char*, const char*, ...);
+#define __R3D_INVALID_HANDLE ((void*)(long)-1)
+
+long __r3d_cTexDl = 0, __r3d_cTexDlPart = 0, __r3d_cTableDl = 0, __r3d_cTexAlloc = 0;
+static int __r3d_dbMode = -1;   /* doubleBufferMode as seen at swap time */
+
+/* RETRO3DFX FBDUMP: self-service "what is actually on screen" capture.
+** Gate: file marker C:\icd_fbdump.on.  Every 100th swap (up to 10 dumps)
+** the REAL hardware front buffer is read back via grLfbReadRegion in
+** 16-line strips and written raw-565 to C:\fbdump_NN.raw (WxH recorded in
+** 3dfxogl.log).  This is the exact scanout content - no GDI capture, no
+** game cooperation, no human eyeballing a monitor needed. */
+static void __r3dFbDump(__GLcontext *gc)
+{
+    static int en = -1, swaps = 0, ndump = 0;
+    static unsigned short strip[640 * 16];
+    char nm[64], msg[96];
+    void *h; unsigned long wr;
+    int w, hgt, y, lines, n;
+    extern void OGLLOG(const char*, ...);
+
+    if (en < 0) {
+        void *g = CreateFileA("C:\\icd_fbdump.on", 0x80000000L, 3, 0, 3, 0, 0);
+        en = (g != __R3D_INVALID_HANDLE) ? 1 : 0;
+        if (en) { extern int __stdcall CloseHandle(void*); CloseHandle(g); }
+    }
+    if (!en) return;
+    swaps++;
+    if (swaps != 5 && (swaps % 100) != 0) return;   /* frame 5, 100, 200, ... */
+    ndump = ndump % 10;   /* ROLLING: slots 0-9 overwrite, last 10 dumps kept */
+
+    w = gc->constants.maxViewportWidth;
+    hgt = gc->constants.maxViewportHeight;
+    if (w > 640) w = 640;
+    wsprintfA(nm, "C:\\fbdump_%02d.raw", ndump);
+    h = CreateFileA(nm, 0x40000000L, 1, 0, 2 /*CREATE_ALWAYS*/, 0, 0);
+    if (h == __R3D_INVALID_HANDLE) return;
+    for (y = 0; y < hgt; y += 16) {
+        lines = (hgt - y < 16) ? (hgt - y) : 16;
+        if (!grLfbReadRegion(GR_BUFFER_FRONTBUFFER, 0, y, w, lines,
+                             w * 2, strip))
+            break;
+        WriteFile(h, strip, (unsigned long)(w * 2 * lines), &wr, 0);
+    }
+    { extern int __stdcall CloseHandle(void*); CloseHandle(h); }
+    n = wsprintfA(msg, "FBDUMP %d -> %dx%d 565 (swap %d)", ndump, w, hgt, swaps);
+    (void)n;
+    OGLLOG("%s", msg);
+    ndump++;
+}
+static void __r3dPerfDump(void)
+{
+    static int en = -1;
+    static void *h = 0;
+    static unsigned long lastTick = 0;
+    static int frames = 0;
+    static unsigned long lastFrameTick = 0, maxFrameDt = 0;  /* retro3dfx 0.3.9: per-frame hitch */
+    unsigned long now, wr, dt, fdt;
+    char buf[220]; int n, fps10;
+    if (en < 0) {
+        /* gate on C:\icd_perf.on (file marker, not env: getenv proved
+        ** unreliable under GoldSrc's process even though it works under
+        ** gfix.exe) */
+        void *g = CreateFileA("C:\\icd_perf.on", 0x80000000L /*GENERIC_READ*/,
+                              3 /*share rw*/, 0, 3 /*OPEN_EXISTING*/, 0, 0);
+        en = (g != __R3D_INVALID_HANDLE) ? 1 : 0;
+        if (en) { extern int __stdcall CloseHandle(void*); CloseHandle(g); }
+        if (!en && getenv("RETRO3DFX_PERFLOG")) en = 1;
+    }
+    if (!en) return;
+    frames++;
+    now = GetTickCount();
+    /* retro3dfx 0.3.9: track the worst single-frame time in the window so a
+    ** periodic hitch (e.g. the ~1s GoldSrc stutter) shows up as maxFrame. */
+    if (lastFrameTick) { fdt = now - lastFrameTick; if (fdt > maxFrameDt) maxFrameDt = fdt; }
+    lastFrameTick = now;
+    if (frames < 30) return;   /* ~0.2-0.3s windows: fine enough to see a hitch */
+    if (!h) {
+        h = CreateFileA("C:\\icd_perf.log", 0x40000000L /*GENERIC_WRITE*/,
+                        1 /*FILE_SHARE_READ*/, 0, 2 /*CREATE_ALWAYS*/, 0, 0);
+    } else if (h != __R3D_INVALID_HANDLE && lastTick) {
+        dt = now - lastTick;
+        fps10 = dt ? (int)(1000L * frames * 10 / dt) : 0;
+        n = wsprintfA(buf, "f=%d dt=%lums fps10=%d maxFrame=%lums db=%d texDl=%ld texDlPart=%ld tableDl=%ld alloc=%ld\r\n",
+                      frames, dt, fps10, maxFrameDt, __r3d_dbMode,
+                      __r3d_cTexDl, __r3d_cTexDlPart, __r3d_cTableDl, __r3d_cTexAlloc);
+        WriteFile(h, buf, (unsigned long)n, &wr, 0); FlushFileBuffers(h);
+    }
+    lastTick = now; frames = 0; maxFrameDt = 0;
+    __r3d_cTexDl = __r3d_cTexDlPart = __r3d_cTableDl = __r3d_cTexAlloc = 0;
+}
+
 static void SwapBuffers(__GLcontext *gc)
 {
     extern unsigned long tacoHackGlideInit;
+    unsigned __int64 t0, t1, ts0, ts1;
+
+    /* RETRO3DFX 2PPC-STALE FIX (CS green world, ICD 0.3.4).  2PPC ("2 pixels
+    ** per clock") is Glide's SINGLE-texture optimization; it must be OFF for a
+    ** genuine dual-texture (world+lightmap) draw.  GoldSrc alternates single
+    ** (HUD/sprites, 2PPC ON) and dual (world, 2PPC OFF) every frame, but our
+    ** combine-word cache skips the Glide re-issue when words are unchanged, so
+    ** stale 2PPC bit-29 leaks into the world draw -> (0,G,0) green world.
+    ** 0.3.5: fire ONLY on frames that really used dual-texture (__r3d_sawTMU0
+    ** = the lightmap unit GR_TMU0 was sourced this frame).  Q3/idTech is
+    ** single-texture (never sources TMU0) -> hook inert there.  0.3.4d fired
+    ** in Q3 too (Q3's one unit maps to GR_TMU1, so __r3d_blitValid latched)
+    ** and the per-frame combine override killed vertex-color modulate (white
+    ** menu text) and went stale across mode changes (black 1024 world).
+    ** Re-issue the FULL TMU1 state: grTexSource (dirties textureMode/
+    ** texBaseAddr/tLOD) + grTexCombine + grColorCombine (dirty combineMode +
+    ** tmuConfig) + grAlphaBlendFunction.  Together they force a full TMU
+    ** re-validation on the next world draw, so Glide re-runs _grTex2ppc and
+    ** clears the stale bit-29.  Bisect-proven set (0/4 green): grTexSource
+    ** ALONE does NOT fix, combines ALONE do NOT fix (4/6), the four together
+    ** DO.  Then invalidate ONLY the combine-word dedup cache so the app's
+    ** next combine call genuinely re-issues (restores its own state) -- NOT
+    ** __glSSTResetCombineCache(), which wipes ext/overbright and broke
+    ** attempts 2/3. */
+    {
+        extern unsigned long __r3d_blitAddr; extern long __r3d_blitInfo[5];
+        extern int __r3d_blitValid;
+        extern int __r3d_sawTMU0;
+        extern void __glSSTInvalidateCombineWords(void);
+        if ( tacoHackGlideInit && __r3d_blitValid && __r3d_sawTMU0 ) {
+            GrTexInfo ti;
+            ti.smallLodLog2     = (GrLOD_t)__r3d_blitInfo[0];
+            ti.largeLodLog2     = (GrLOD_t)__r3d_blitInfo[1];
+            ti.aspectRatioLog2  = (GrAspectRatio_t)__r3d_blitInfo[2];
+            ti.format           = (GrTextureFormat_t)__r3d_blitInfo[3];
+            ti.data             = (void *)__r3d_blitInfo[4];
+            grTexSource( GR_TMU1, __r3d_blitAddr, GR_MIPMAPLEVELMASK_BOTH, &ti );
+            grTexCombine( GR_TMU1, GR_COMBINE_FUNCTION_LOCAL, GR_COMBINE_FACTOR_NONE,
+                          GR_COMBINE_FUNCTION_LOCAL, GR_COMBINE_FACTOR_NONE, FXFALSE, FXFALSE );
+            grColorCombine( GR_COMBINE_FUNCTION_SCALE_OTHER, GR_COMBINE_FACTOR_ONE,
+                            GR_COMBINE_LOCAL_NONE, GR_COMBINE_OTHER_TEXTURE, FXFALSE );
+            grAlphaBlendFunction( GR_BLEND_ONE, GR_BLEND_ZERO,
+                                  GR_BLEND_ONE, GR_BLEND_ZERO );
+            /* 0.3.7: do NOT invalidate the combine-word cache here.  Doing so
+            ** (0.3.5/0.3.6) made the game's combine re-issue every frame and
+            ** the green/rainbow chaos returned (27/49) -- same failure class
+            ** as ResetCombineCache in attempts 2/3.  The PROVEN-good state is
+            ** exactly this override with the cache left alone (0.3.4d: 0/4
+            ** green, correct-looking de_dust).  The dedup cache then skips
+            ** the game's identical combine words and the world draws through
+            ** the freshly-validated TMU state. */
+        }
+        __r3d_sawTMU0 = 0;   /* per-frame marker */
+    }
+
+    t0 = __prof_rdtsc();
     gc->procs.flush(gc);
+    t1 = __prof_rdtsc();
+
+    /* perf dump BEFORE the single-buffer early-return: a single-buffered
+    ** context (front-buffer rendering) still counts as a "frame" for the
+    ** GoldSrc fps hunt, and db= in the log tells us which mode we're in. */
+    __r3d_dbMode = gc->modes.doubleBufferMode ? 1 : 0;
+    __r3dPerfDump();
 
     if (!gc->modes.doubleBufferMode) {
         return;
@@ -350,16 +539,102 @@ static void SwapBuffers(__GLcontext *gc)
     }
 #endif
 
+    /* RETRO3DFX read-back blit (C:\icd_texblit.on): before the swap, draw the
+    ** saved large-565 world texture to the top-left corner point-sampled, white
+    ** modulate, so fbdump captures its ACTUAL sampled texels.  Green corner =
+    ** TMU memory is corrupt; tan corner = memory is fine (bug is elsewhere). */
+    { static int tb = -1;
+      extern unsigned long __r3d_blitAddr; extern long __r3d_blitInfo[5];
+      extern int __r3d_blitValid;
+      if ( tb < 0 ) {
+          void *g = CreateFileA("C:\\icd_texblit.on", 0x80000000L, 3, 0, 3, 0, 0);
+          tb = (g != __R3D_INVALID_HANDLE) ? 1 : 0;
+          if (tb) { extern int __stdcall CloseHandle(void*); CloseHandle(g); }
+      }
+      /* NOTE: this swap-time combine re-issue was the DIAGNOSTIC that proved
+      ** the green is stale 2PPC combine state.  The PROPER fix now lives in
+      ** __glSSTLoadCombineFunction (SST_TEX.C): invalidate the combine cache on
+      ** an active-TMU topology change so the combine is re-issued and Glide
+      ** re-evaluates 2PPC.  This blit is left inert (marker off by default);
+      ** it stays only as the read-back tool (draw disabled). */
+      if ( tb && tacoHackGlideInit && __r3d_blitValid ) {
+          grTexCombine( GR_TMU1, GR_COMBINE_FUNCTION_LOCAL, GR_COMBINE_FACTOR_NONE,
+                        GR_COMBINE_FUNCTION_LOCAL, GR_COMBINE_FACTOR_NONE, FXFALSE, FXFALSE );
+          grColorCombine( GR_COMBINE_FUNCTION_SCALE_OTHER, GR_COMBINE_FACTOR_ONE,
+                          GR_COMBINE_LOCAL_NONE, GR_COMBINE_OTHER_TEXTURE, FXFALSE );
+      }
+    }
+
+    ts0 = __prof_rdtsc();
     if ( tacoHackGlideInit ) {
-        grBufferSwap(1);
+        grBufferSwap(1);   /* swapInterval 1 required — grBufferSwap(0) breaks
+                              rendering on the Voodoo5 SLI (hard sync needed) */
+        __r3dFbDump(gc);
+    }
+    ts1 = __prof_rdtsc();
+
+    __prof_flushAcc += (t1 - t0);
+    __prof_swapAcc  += (ts1 - ts0);
+    if (__prof_lastSwap) { __prof_frameAcc += (ts1 - __prof_lastSwap); __prof_frames++; }
+    __prof_lastSwap = ts1;
+    if (__prof_frames >= 100) {
+        /* RETRO3DFX: gated on C:\icd_prof.on (was unconditional despite the
+        ** "env-gated" comment - every game appended 3dfxprof.log forever). */
+        static int profEn = -1;
+        FILE *f;
+        if (profEn < 0) {
+            void *g = CreateFileA("C:\\icd_prof.on", 0x80000000L, 3, 0, 3, 0, 0);
+            profEn = (g != __R3D_INVALID_HANDLE) ? 1 : 0;
+            if (profEn) { extern int __stdcall CloseHandle(void*); CloseHandle(g); }
+        }
+        if (!profEn) {
+            __prof_frames = 0; __prof_frameAcc = 0; __prof_flushAcc = 0; __prof_swapAcc = 0;
+            return;
+        }
+        f = fopen("C:\\3dfxprof.log", "a");
+        if (f) {
+            double fr = (double)__prof_frameAcc;
+            fprintf(f, "frames=%d avgFrameKc=%u flushKc=%u swapKc=%u flush%%=%.1f swap%%=%.1f other%%=%.1f\n",
+                __prof_frames,
+                (unsigned)((__prof_frameAcc / __prof_frames) / 1000),
+                (unsigned)((__prof_flushAcc / __prof_frames) / 1000),
+                (unsigned)((__prof_swapAcc  / __prof_frames) / 1000),
+                fr > 0 ? 100.0 * (double)__prof_flushAcc / fr : 0.0,
+                fr > 0 ? 100.0 * (double)__prof_swapAcc  / fr : 0.0,
+                fr > 0 ? 100.0 * (double)(__prof_frameAcc - __prof_flushAcc - __prof_swapAcc) / fr : 0.0);
+            fclose(f);
+        }
+        __prof_frames = 0; __prof_frameAcc = 0; __prof_flushAcc = 0; __prof_swapAcc = 0;
     }
 }
 
 /************************************************************************/
 
+static GrContext_t tacoHackContext;
+/* RETRO3DFX Glide-context reuse bookkeeping (see MakeCurrent): the window and
+** resolution the current Glide context was opened on. */
+long __r3d_openHwnd = 0;
+long __r3d_openRes  = -1;
+
 static GLboolean DestroyContext(__GLcontext *gc)
 {
-    /* 
+    extern unsigned long tacoHackGlideInit;
+
+    /* RETRO3DFX: the deferred Glide close (LoseCurrent no longer closes).
+    ** If a multi-context app destroys a secondary context mid-run, the next
+    ** MakeCurrent simply reopens -- one hiccup, still correct. */
+    if (tacoHackGlideInit && tacoHackContext) {
+        OGLLOG( "DestroyContext: grSstWinClose(ctx=0x%x)",
+                (unsigned)tacoHackContext );
+        grSstWinClose( tacoHackContext );
+        tacoHackGlideInit = 0;
+        __r3d_openHwnd = 0;
+        __r3d_openRes = -1;
+        /* 0.3.5: the latched world-texture address dies with the context */
+        { extern int __r3d_blitValid; __r3d_blitValid = 0; }
+    }
+
+    /*
     ** Free ancillary buffer related data.  Note that these calls do
     ** *not* free software ancillary buffers, just any related data
     ** stored in them.
@@ -375,23 +650,23 @@ static GLboolean DestroyContext(__GLcontext *gc)
     return GL_TRUE;
 }
 
-static GrContext_t tacoHackContext;
-
 static GLboolean LoseCurrent(__GLcontext *gc)
 {
     extern unsigned long tacoHackGlideInit;
-    /* 
-    ** Illegal to makeCurrent when the current context is in selection or 
+    /*
+    ** Illegal to makeCurrent when the current context is in selection or
     ** feedback mode.
     */
     if (gc->renderMode != GL_RENDER || __gl_beginMode == __GL_IN_BEGIN)
         return GL_FALSE;
 
-    OGLLOG( "LoseCurrent: calling grSstWinClose(ctx=0x%x)",
+    /* RETRO3DFX: do NOT grSstWinClose here.  GoldSrc switches GL contexts on
+    ** the same window constantly; closing on every LoseCurrent forced a full
+    ** fullscreen re-open in the next MakeCurrent (70-600ms each = the CS
+    ** "very low fps").  The Glide context now stays open; it is closed by
+    ** MakeCurrent on a window/res change and by DestroyContext. */
+    OGLLOG( "LoseCurrent: keeping Glide ctx=0x%x open (deferred close)",
             (unsigned)tacoHackContext );
-    grSstWinClose( tacoHackContext );
-    OGLLOG( "LoseCurrent: grSstWinClose returned" );
-    tacoHackGlideInit = 0;
 
     __glLoseCurrentBuffers( gc, ((__GLDDcontext *)gc)->displayBank );
 
@@ -430,6 +705,9 @@ typedef enum SST_RESOLUTION {
     SST_640x480,
     SST_800x600,
     SST_1024x768,
+    SST_1280x1024,   /* RETRO3DFX: added so a 1280x1024 window opens a matching
+                     ** Glide context instead of clamping to 1024x768 (which put
+                     ** a 1024x768 CRTC under a 1280x1024 surface -> HW wedge). */
     SST_RESOLUTIONS
 };
 
@@ -535,11 +813,17 @@ static const int __sstResCapTable[SST_PLATFORMS][SST_SLICONFIGS][SST_MEMCONFIGS]
     }  
 };
 
-static const int __sstResTable[SST_RESOLUTIONS][3] = {
-    {  512,  384, GR_RESOLUTION_512x384  },
-    {  640,  480, GR_RESOLUTION_640x480  },
-    {  800,  600, GR_RESOLUTION_800x600  },
-    { 1024,  768, GR_RESOLUTION_1024x768 }
+/* RETRO3DFX: 4th column = the highest CRT-safe refresh for this resolution.
+** The vintage code hardcoded GR_REFRESH_60Hz in grSstWinOpen (60Hz in-game).
+** On the .143 ViewSonic A90 (Hmax ~86kHz) 85Hz is safe through 1024x768, but
+** 1280x1024@85 needs ~91kHz -> out of range, so cap it at 75Hz there. Lower
+** resolutions are far under the horizontal-frequency limit at 85Hz. */
+static const int __sstResTable[SST_RESOLUTIONS][4] = {
+    {  512,  384, GR_RESOLUTION_512x384,   GR_REFRESH_85Hz },
+    {  640,  480, GR_RESOLUTION_640x480,   GR_REFRESH_85Hz },
+    {  800,  600, GR_RESOLUTION_800x600,   GR_REFRESH_85Hz },
+    { 1024,  768, GR_RESOLUTION_1024x768,  GR_REFRESH_85Hz },
+    { 1280, 1024, GR_RESOLUTION_1280x1024, GR_REFRESH_75Hz }
 };
 
 /*
@@ -626,6 +910,20 @@ static GLboolean MakeCurrent(__GLcontext *gc)
         if ( getenv( "OGL_ENABLE_RUSH_WINDOWING" ) ) {
             windowable = 1;
         }
+    } else {
+        /* RETRO3DFX 0.3.6 (Q3 black world at 800/1024, user-caught): any
+        ** OTHER hardware string ("Voodoo3 (tm)", "Voodoo5 (tm)", Banshee...)
+        ** fell through with platform=SST_VOODOO and, because GR_MEMORY_FB on
+        ** Glide3/Napalm returns a byte-scale value that matches no case
+        ** below, mem=SST_2M -- i.e. the res walk consulted the VOODOO1-2MB
+        ** capability row, whose best double-buffered+Z mode is 640x480.  An
+        ** 800x600/1024x768 window therefore opened a 640x480 Glide context
+        ** under a game rendering an 800/1024 viewport -> black world (only
+        ** ever visible on the monitor; timedemo fps still measured fine, so
+        ** every "800/1024" benchmark before this fix really ran at 640).
+        ** Modern boards (V3 and up) do 1024x768x16 db+Z trivially: skip the
+        ** legacy cap-table gate entirely. */
+        platform = -1;   /* sentinel: modern board, cap table bypassed */
     }
 
     /* XXX Taco - Need a query mechanism for SLI from Glide 3 */
@@ -642,29 +940,34 @@ static GLboolean MakeCurrent(__GLcontext *gc)
     
     /* walk up the list until width/height match */
     /* walk down the list until supported */
+    /* RETRO3DFX 0.3.6: platform<0 = modern board (V3+), every table res is
+    ** supported db+Z -- bypass the Voodoo1/2-era capability gate (see the
+    ** platform detection above for why the old default clamped to 640x480). */
+#define __SST_RES_OK(p,s,m,r) \
+    ( (p) < 0 || ( ( __sstResCapTable[(p)][(s)][(m)][(r)] & SST_DBZ ) == SST_DBZ ) )
     step = 1;
     for( res = 0; ( ( res < SST_RESOLUTIONS ) && ( res >= 0 ) ); res += step ) {
         flags = 0;
-        if ( width <= __sstResTable[res][0] ) 
+        if ( width <= __sstResTable[res][0] )
             flags++;
-        if ( height <= __sstResTable[res][1] ) 
+        if ( height <= __sstResTable[res][1] )
             flags++;
         if ( step == 1 ) {
             if ( flags == 2 ) { /* we have a match */
-                if ( ( __sstResCapTable[platform][sli][mem][res] & SST_DBZ ) == SST_DBZ ) {
+                if ( __SST_RES_OK( platform, sli, mem, res ) ) {
                     break;
                 } else {
                     step = -1;
                 }
-            } else if ( res == SST_1024x768 ) { /* out of resolutions */
-                if ( ( __sstResCapTable[platform][sli][mem][res] & SST_DBZ ) == SST_DBZ ) {
+            } else if ( res == SST_1280x1024 ) { /* out of resolutions (top entry) */
+                if ( __SST_RES_OK( platform, sli, mem, res ) ) {
                     break;
                 } else {
                     step = -1;
                 }
             }
         } else { /* step == -1 */
-            if ( ( __sstResCapTable[platform][sli][mem][res] & SST_DBZ ) == SST_DBZ ) {
+            if ( __SST_RES_OK( platform, sli, mem, res ) ) {
                 break;
             }
         }
@@ -681,19 +984,69 @@ static GLboolean MakeCurrent(__GLcontext *gc)
         }
     }
 
+    /* RETRO3DFX Glide-context REUSE (GoldSrc/CS fps fix): GoldSrc switches
+    ** between several GL contexts on the SAME window every few frames, and
+    ** each MakeCurrent used to do a full grSstWinClose+grSstWinOpen round
+    ** trip (70-600ms of fullscreen mode-set EACH) -> seconds per frame.
+    ** LoseCurrent no longer closes; here we reuse the open Glide context
+    ** when the target window is unchanged and only re-apply state.  A
+    ** different window (or resolution request) still closes + reopens. */
+    { extern long __r3d_openHwnd;
+      extern long __r3d_openRes;
+      if ( tacoHackGlideInit && tacoHackContext &&
+           __r3d_openHwnd == (long)tacoHackHWND &&
+           __r3d_openRes == (long)resolution ) {
+          OGLLOG( "MakeCurrent: REUSE Glide ctx=0x%x (same hwnd/res, no WinOpen)",
+                  (unsigned)tacoHackContext );
+          goto __r3d_glide_ready;
+      }
+      if ( tacoHackGlideInit && tacoHackContext ) {
+          OGLLOG( "MakeCurrent: hwnd/res changed -> grSstWinClose(0x%x)",
+                  (unsigned)tacoHackContext );
+          grSstWinClose( tacoHackContext );
+          tacoHackGlideInit = 0;
+          /* 0.3.5: latched world texture is context-lifetime */
+          { extern int __r3d_blitValid; __r3d_blitValid = 0; }
+      }
+      __r3d_openHwnd = (long)tacoHackHWND;
+      __r3d_openRes  = (long)resolution;
+    }
+
     OGLLOG( "MakeCurrent: fbmem=%dMB res idx=%d -> maxvp %dx%d, calling "
-            "grSstWinOpen(hwnd=0x%x res=%d refresh=GR_REFRESH_60Hz "
+            "grSstWinOpen(hwnd=0x%x res=%d refresh=%d "
             "fmt=ARGB origin=UL nCol=2 nAux=1)",
             grGetInteger( GR_MEMORY_FB ), res,
             gc->constants.maxViewportWidth, gc->constants.maxViewportHeight,
-            (unsigned)tacoHackHWND, resolution );
+            (unsigned)tacoHackHWND, resolution, __sstResTable[res][3] );
 
-    if ( !(tacoHackContext = grSstWinOpen( tacoHackHWND,
+    /* RETRO3DFX EXPERIMENT (env RETRO3DFX_32BPP): open the hw color buffer in
+     * true-color ARGB_8888 instead of the default RGB565. Must stay in lockstep
+     * with __wglGlideGetDisplayMasks/LockBuffer (WGLGLIDE.C) so the ICD's
+     * software buffer depth matches the hw. Env-unset = the original 565 path. */
+    if ( getenv("RETRO3DFX_32BPP") ) {
+        __pfnWinOpenExt pfnExt = (__pfnWinOpenExt) grGetProcAddress( "grSstWinOpenExt" );
+        OGLLOG( "MakeCurrent: RETRO3DFX_32BPP -> grSstWinOpenExt=0x%x (GR_PIXFMT_ARGB_8888)",
+                (unsigned)pfnExt );
+        if ( pfnExt )
+            tacoHackContext = (*pfnExt)( tacoHackHWND, resolution, __sstResTable[res][3],
+                                         GR_COLORFORMAT_ARGB, GR_ORIGIN_UPPER_LEFT,
+                                         GR_PIXFMT_ARGB_8888, 2, 1 );
+        else                          /* fallback to 16bpp if the ext isn't resolvable */
+            tacoHackContext = grSstWinOpen( tacoHackHWND, resolution, __sstResTable[res][3],
+                                            GR_COLORFORMAT_ARGB, GR_ORIGIN_UPPER_LEFT, 2, 1 );
+    } else {
+        tacoHackContext = grSstWinOpen( tacoHackHWND,
                                            resolution,
-                                           GR_REFRESH_60Hz,
+                                           __sstResTable[res][3],   /* RETRO3DFX: highest CRT-safe
+                                              refresh for this res (85Hz <=1024x768, 75Hz@1280x1024),
+                                              was hardcoded GR_REFRESH_60Hz. Double-buffer (2,1); the
+                                              old "85Hz destabilized" note was the triple-buffer(3,1)
+                                              path, not this one. */
                                            GR_COLORFORMAT_ARGB,
                                            GR_ORIGIN_UPPER_LEFT,
-                                           2,1 )) ) {
+                                           2,1 );
+    }
+    if ( !tacoHackContext ) {
         OGLLOG( "MakeCurrent: ** grSstWinOpen FAILED (returned 0) **" );
         return GL_FALSE;
     }
@@ -701,8 +1054,13 @@ static GLboolean MakeCurrent(__GLcontext *gc)
             (unsigned)tacoHackContext );
     tacoHackGlideInit = 1;
 
+__r3d_glide_ready:
     if ( !gc->modes.doubleBufferMode || getenv( "SST_SINGLEBUFFER" ) ) {
         grRenderBuffer( GR_BUFFER_FRONTBUFFER );
+    } else {
+        /* explicit: a reused context may have been left on FRONT by a
+        ** single-buffered sibling context */
+        grRenderBuffer( GR_BUFFER_BACKBUFFER );
     }
 
     /* XXXshui glide initialization; may need to be moved to the place */
@@ -724,6 +1082,18 @@ static GLboolean MakeCurrent(__GLcontext *gc)
     grAlphaTestFunction(GR_CMP_ALWAYS);
     grAlphaTestReferenceValue(0x00);
     grConstantColorValue( 0x00000000 );
+
+    /* RETRO3DFX 2D-text garble A/B: the VSA-100 4x4 ordered dither mottles
+    ** flat-color UI text (Q3 proportional menu font, CS HUD) — thin glyph
+    ** strokes with every-other-column darkened read as "sliced". The GDI
+    ** Generic software-GL reference (no dither) renders the same quads solid.
+    ** Env RETRO3DFX_NODITHER forces dither off so one binary can A/B; the
+    ** live default is decided after measuring against the GDI oracle. */
+    { extern int __r3d_nodither;
+      if ( getenv( "RETRO3DFX_NODITHER" ) ) {
+          grDitherMode( GR_DITHER_DISABLE );
+          __r3d_nodither = 1;
+      } }
 
     /* these are the settings for no texturing, the opengl default */
     grAlphaCombine(GR_COMBINE_FUNCTION_LOCAL, 
@@ -805,9 +1175,16 @@ static GLboolean MakeCurrent(__GLcontext *gc)
 
         /* XXXTaco This init is a hack */
         if ( gc->grNTexelFx == 2 ) {
-            /* OPT 0.1.4: advertise ARB_multitexture (2 units) alongside the
-            ** legacy SGIS variant -- Q3 keys off GL_ARB_multitexture. */
-            static char mtexString[] = "GL_ARB_multitexture GL_SGIS_multitexture ";
+            /* QUALITY FIX menu-text (baseline): do NOT advertise
+            ** GL_ARB_multitexture.  That was the unshipped OPT 0.1.4-0.1.6
+            ** single-pass/overbright experiment (world lighting collapse +
+            ** vertex-color doubling) which never validated clean on the live
+            ** Voodoo5 and is not in the kept 0.1.0/0.1.1/0.1.3 set.  With ARB
+            ** unadvertised, Q3 falls back to its classic two-pass world path
+            ** (identical to shipped 0.1.3 -- in-game q3dm1 stays clean) while
+            ** all the dormant multitexture plumbing compiles but never fires.
+            ** Reverted to the legacy SGIS-only advertisement. */
+            static char mtexString[] = "GL_SGIS_multitexture ";
             if ( !strstr( gc->constants.extensions, mtexString ) ) {
                 char *extString;
                 extString = (void*)(gc->imports.calloc)( 0, 1, strlen( gc->constants.extensions ) + strlen( mtexString ) + 1 );

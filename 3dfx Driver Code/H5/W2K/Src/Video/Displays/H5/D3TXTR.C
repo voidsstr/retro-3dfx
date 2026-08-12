@@ -2245,6 +2245,7 @@ DWORD __stdcall TEXTURESURFACECREATE(NT9XDEVICEDATA * ppdev, LPDDRAWI_DDRAWSURFA
       else  // out of memory
       {
          D3DPRINT( 0, "TEXTURESURFACECREATE: Warning: VidMemAlloc Failed:out of texture memory" );
+         V5DLog("D3D TextureSurfaceCreate OUT-OF-TEXTURE-MEMORY memReq=%ld (texture overcommit -> DDERR_OUTOFVIDEOMEMORY; the 3DMark 16/32MB-texture path)\n", (long)memRequired);
          FREETEXTUREDESC(ppdev, txtrID);
 #if defined(WINNT)
          D3DFREE(surfGCL->dwReserved1);
@@ -2588,12 +2589,22 @@ DWORD __stdcall TEXTURELOAD(
                       (slog < MAX_BIGTEXTURE_LOG))
                   ++slog;
 
+               // retro3dfx: tlog must come from the SOURCE level being read
+               // (mmData[nSrcLOD]), not the dest index -- vintage typo that was
+               // benign only while every caller passed nSrcLOD == nDstLOD.
                tlog = 0;
-               while (((psurfSrc->mmData[nDstLOD].wHeight - (0x01 << tlog)) != 0) &&
+               while (((psurfSrc->mmData[nSrcLOD].wHeight - (0x01 << tlog)) != 0) &&
                       (tlog < MAX_BIGTEXTURE_LOG))
                   ++tlog;
 
                // board address offset
+               // retro3dfx: restore the line rev 40 (10/25/00 "no longer use
+               // surface local pointers") dropped — without it `addr` is stale
+               // for every per-LOD download of a mipmapped texture, so mip
+               // texels land at the wrong board offset and sampling reads
+               // unwritten memory (black/garbage textures in all mipmapped
+               // D3D content; Win9x rev 35 has this line and works).
+               addr = psurfDst->mmData[nDstLOD].fpVidMem - _FX(textureHeapStart[tmuCnt]);
             }
             else
             {

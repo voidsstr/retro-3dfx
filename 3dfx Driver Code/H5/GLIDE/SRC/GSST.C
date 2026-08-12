@@ -280,7 +280,7 @@
 ** default for Avenger to increase single texturing tri fillrate.
 ** 
 ** 181   12/03/98 11:27p Dow
-** Code 'cleanup' heç
+** Code 'cleanup' heï¿½
 ** 
 ** 180   12/03/98 10:37p Dow
 ** Removed bogus gamma setting in assertDefaultState\nRemoved protoected &
@@ -441,7 +441,7 @@
 ** LFB Fixes:  Round 1
 ** 
 ** 129   3/28/98 11:24a Dow
-** itwoç
+** itwoï¿½
 ** 
 ** 128   3/20/98 1:12p Dow
 ** Windows happiness
@@ -611,6 +611,7 @@
 */
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
 #include <3dfx.h>
 
@@ -1682,6 +1683,25 @@ GR_ENTRY(grSstWinOpen, FxBool, ( FxU32                   hWnd,
     gc->lfb_ptr = (FxU32*)bInfo->regInfo.lfbBase;
     gc->rawLfb  = (FxU32*)bInfo->regInfo.rawLfbBase;
     gc->tex_ptr = (FxU32*)SST_TEX_ADDRESS(bInfo->regInfo.sstBase);
+
+    /* V56K-SLAVE-RECACHE: the SLAVE pointers must be refreshed here too.
+    ** Glide3 does exactly this at the same point (GLIDE3/SRC/GSST.C); Glide2
+    ** never did, so on a multi-chip board a remap left slaveSstRegs/slaveCRegs
+    ** addressing the PREVIOUS mapping.  _grHwFifoPtrSlave() then touches MMIO
+    ** through stale kernel addresses on every make-room, which resets the
+    ** machine rather than faulting.  (Set once at GPCI.C:1228 before this.) */
+    if (IS_NAPALM(gc->bInfo->pciInfo.deviceID) && (gc->chipCount > 1)) {
+      FxU32 v56kChip;
+      for (v56kChip = 0; v56kChip < gc->chipCount - 1; v56kChip++) {
+        gc->slaveSstRegs[v56kChip] = (SstRegs *) bInfo->regInfo.slaveSstBase[v56kChip];
+        gc->slaveCRegs[v56kChip]   = (SstCRegs *)bInfo->regInfo.slaveCmdBase[v56kChip];
+      }
+      _grSliLog("SLAVE-RECACHE chips=%u sli=%u s0=%p/%p s1=%p/%p s2=%p/%p\n",
+                gc->chipCount, gc->sliCount,
+                (void *)gc->slaveSstRegs[0], (void *)gc->slaveCRegs[0],
+                (void *)gc->slaveSstRegs[1], (void *)gc->slaveCRegs[1],
+                (void *)gc->slaveSstRegs[2], (void *)gc->slaveCRegs[2]);
+    }
 
     vInfo->xRes              = gc->state.screen_width;
     vInfo->yRes              = gc->state.screen_height;
@@ -2797,12 +2817,23 @@ GR_ENTRY(grSstIdle, void, (void))
     status = grSstStatus();
   } while (status & SST_BUSY);*/
 
-    do {
-      if(grSstStatus() & SST_BUSY)
-        i = 0; /* Reset counter */
-      else
-        i++;
-    } while(i < 3);
+    /* retro3dfx: bounded idle wait. If the accelerator wedges with
+     * SST_BUSY stuck (hw never goes idle), the original loop spins
+     * forever; on the grSstWinClose path that hangs the app at exit
+     * and the desktop is never restored. ~4M status polls is seconds
+     * of continuous BUSY on real hw -- treat that as a wedge and
+     * proceed with shutdown anyway. */
+    {
+      FxU32 busyPolls = 0;
+      do {
+        if(grSstStatus() & SST_BUSY) {
+          i = 0; /* Reset counter */
+          if (++busyPolls > 4000000UL)
+            break; /* WEDGE-BREAK: hw stuck busy, give up idling */
+        } else
+          i++;
+      } while(i < 3);
+    }
 
 //    while (grSstStatus() & SST_BUSY) ;
 //    while (((grSstStatus() & SST_BUSY) == 0) &&
@@ -3141,6 +3172,42 @@ _grAAOffsetValue(FxU32 *xOffset,
 #undef FN_NAME
 } /* _grAAOffsetValue */
 
+
+/* ---- v56k SLI diagnostics -------------------------------------------------
+** Self-contained file logger used for multi-chip bring-up on the Voodoo5 6000.
+** Lifecycle paths only (open/close, SLI programming, the FIFO wedge path) --
+** never per-frame.  Writes to the path in FX_GLIDE_SLI_LOG; unset makes every
+** call a single pointer test, so retail builds are unaffected.
+*/
+void
+_grSliLog(const char *fmt, ...)
+{
+  static int  v56kLogState = 0;          /* 0=unknown 1=on 2=off */
+  static char v56kLogPath[260];
+  FILE   *fp;
+  va_list ap;
+
+  if (v56kLogState == 0) {
+    const char *p = GETENV("FX_GLIDE_SLI_LOG");
+    if (p && *p) {
+      strncpy(v56kLogPath, p, sizeof(v56kLogPath) - 1);
+      v56kLogPath[sizeof(v56kLogPath) - 1] = 0;
+      v56kLogState = 1;
+    } else {
+      v56kLogState = 2;
+    }
+  }
+  if (v56kLogState != 1) return;
+
+  fp = fopen(v56kLogPath, "a");
+  if (!fp) return;
+  va_start(ap, fmt);
+  vfprintf(fp, fmt, ap);
+  va_end(ap);
+  fclose(fp);
+} /* _grSliLog */
+
+
 /*---------------------------------------------------------------------------
 ** _grSliCtrl
 */
@@ -3150,7 +3217,7 @@ _grSliCtrl(void)
 {
 #define FN_NAME "_grSliCtrl"  
   FxU32 chipIndex;
-  FxI32 sliChipCountDivisor;
+  FxI32 sliChipCountDivisor = 1;   /* V56K: never uninitialised */
   FxU32 renderMask;
   FxU32 scanMask;
   FxU32 log2chipCount;
@@ -3159,11 +3226,32 @@ _grSliCtrl(void)
   ** enable sli mode
   */
 //8xaa
-  if( gc-> chipCount == 2 )
-  	sliChipCountDivisor = (gc->grPixelSample == 4) ? 2 : 1;
+  /* V56K-SLICTRL-GUARD: sliChipCountDivisor is how many chips share one SLI
+  ** band.  Derive it from the sliCount the buffers were actually laid out from;
+  ** deriving it from grPixelSample disagreed with that layout in the 4-chip /
+  ** 2-sample case, so chips rendered into each other's bands.  It was also left
+  ** UNINITIALISED for any chipCount other than 2 or 4, and the log2 loop below
+  ** never terminates unless chipCount/divisor is an exact power of two -- an
+  ** unkillable spin with the command FIFO open. */
+  sliChipCountDivisor = (gc->sliCount > 0)
+                          ? (FxI32)(gc->chipCount / gc->sliCount)
+                          : 1;
+  if (sliChipCountDivisor < 1)
+    sliChipCountDivisor = 1;
 
-  if( gc-> chipCount == 4 )
-	sliChipCountDivisor = (gc->grPixelSample == 2) ? 2 : 1;
+  {
+    FxU32 v56kBands = gc->chipCount / (FxU32)sliChipCountDivisor;
+    if ((gc->chipCount == 0) ||
+        ((gc->chipCount % (FxU32)sliChipCountDivisor) != 0) ||
+        (v56kBands == 0) ||
+        ((v56kBands & (v56kBands - 1)) != 0)) {
+      _grSliLog("SLICTRL-BAIL chips=%u sli=%u divisor=%d bands=%u\n",
+                gc->chipCount, gc->sliCount, sliChipCountDivisor, v56kBands);
+      GR_END();
+      return;
+    }
+  }
+
 
   renderMask = (gc->chipCount / sliChipCountDivisor - 1) << gc->sliBandHeight;
   scanMask = (1 << gc->sliBandHeight) - 1;
@@ -3171,6 +3259,10 @@ _grSliCtrl(void)
   
   while (( 0x1UL << log2chipCount ) != (gc->chipCount / sliChipCountDivisor))
     log2chipCount++;
+
+  _grSliLog("SLICTRL chips=%u sli=%u divisor=%d band=%u renderMask=0x%lx log2=%u\n",
+            gc->chipCount, gc->sliCount, sliChipCountDivisor,
+            gc->sliBandHeight, (unsigned long)renderMask, log2chipCount);
   
   for (chipIndex = 0; chipIndex < gc->chipCount; chipIndex++) 
   {

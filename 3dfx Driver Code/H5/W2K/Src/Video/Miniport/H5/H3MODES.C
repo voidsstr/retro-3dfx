@@ -51,6 +51,21 @@ Revision History:
 #include "cmdcnst.h"
 #include "dfp.h"
 
+/* retro3dfx: force the highest monitor-supported refresh rate for each
+ * resolution on every mode set (stock code uses exactly the mode Windows
+ * picked, which is 60Hz on the desktop and for most games).  The chosen
+ * rate is capped so it can NEVER exceed what the attached CRT can display:
+ *   RETRO_MAX_VREFRESH   - EDID-declared max standard timing (ViewSonic A90 = 85Hz)
+ *   RETRO_MAX_HFREQ_HZ   - EDID horizontal range limit (ViewSonic A90 = 86kHz);
+ *                          rejects modes whose horizontal scan would exceed it
+ *                          (e.g. the GTF-extrapolated 100/120Hz @ >=1024, and
+ *                          85Hz at 1600x1200 which needs ~107kHz).
+ * Estimated horizontal freq = Vfreq * Vtotal, Vtotal ~= height * 1.05. */
+#define RETRO_MAX_VREFRESH   85
+#define RETRO_MAX_HFREQ_HZ   86000
+#define RETRO_EST_HFREQ(vfreq,height)  ((vfreq) * (((height) * 105) / 100))
+
+
 VP_STATUS
 H3ValidateModes(
     PHW_DEVICE_EXTENSION HwDeviceExtension
@@ -609,6 +624,38 @@ H3SetCurrentMode(
 			VideoDebugPrint((2, "H3: fixed frequency mode-set, index = %d\n", modeNumber));
 
 			FrequencyEntry = &HwDeviceExtension->FixedFrequencyTable[modeNumber];
+
+			/* retro3dfx: upgrade to the highest monitor-safe refresh for this
+			 * resolution+depth instead of the exact (usually 60Hz) mode Windows
+			 * requested.  Bounded by RETRO_MAX_VREFRESH and RETRO_MAX_HFREQ_HZ so
+			 * a GTF rate the CRT cannot display is never selected. */
+			if (FrequencyEntry->BitsPerPel != 0 && FrequencyEntry->ScreenWidth != 0)
+			{
+				PH3_VIDEO_FREQUENCIES scanEntry;
+				PH3_VIDEO_FREQUENCIES bestEntry = FrequencyEntry;
+
+				for (scanEntry = &HwDeviceExtension->FixedFrequencyTable[0];
+				     scanEntry->BitsPerPel != 0;
+				     scanEntry++)
+				{
+					if (scanEntry->BitsPerPel   != FrequencyEntry->BitsPerPel)   continue;
+					if (scanEntry->ScreenWidth  != FrequencyEntry->ScreenWidth)  continue;
+					if (scanEntry->ScreenHeight != FrequencyEntry->ScreenHeight) continue;
+					if (!scanEntry->ModeValid) continue;
+					if (scanEntry->ScreenFrequency <= bestEntry->ScreenFrequency) continue;
+					if (scanEntry->ScreenFrequency > RETRO_MAX_VREFRESH) continue;
+					if (RETRO_EST_HFREQ(scanEntry->ScreenFrequency, scanEntry->ScreenHeight) > RETRO_MAX_HFREQ_HZ) continue;
+					bestEntry = scanEntry;
+				}
+
+				if (bestEntry != FrequencyEntry)
+				{
+					VideoDebugPrint((1, "retro3dfx: %dx%d refresh forced %dHz -> %dHz (monitor max)\n",
+						FrequencyEntry->ScreenWidth, FrequencyEntry->ScreenHeight,
+						FrequencyEntry->ScreenFrequency, bestEntry->ScreenFrequency));
+					FrequencyEntry = bestEntry;
+				}
+			}
 
 		}
 		else

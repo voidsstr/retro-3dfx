@@ -290,67 +290,73 @@ static void __fastcall CopyCurrentIndex(__GLcontext *gc, const GLdouble *ip, __G
 
 static void __fastcall CopyTexCoord1s(__GLcontext *gc, const GLshort *tp, __GLvertex *v)
 {
-    v->texture[0].x = tp[0]; v->texture[0].y = 0.0F; v->texture[0].z = 0.0F; v->texture[0].w = 1.0F;
+    v->texture[0].x = (tp[0]) + __glSSTHalfTexelS[0]; v->texture[0].y = (0.0F) + __glSSTHalfTexelT[0]; v->texture[0].z = 0.0F; v->texture[0].w = 1.0F;
 }
 static void __fastcall CopyTexCoord1i(__GLcontext *gc, const GLint *tp, __GLvertex *v)
 {
-    v->texture[0].x = tp[0]; v->texture[0].y = 0.0F; v->texture[0].z = 0.0F; v->texture[0].w = 1.0F;
+    v->texture[0].x = (tp[0]) + __glSSTHalfTexelS[0]; v->texture[0].y = (0.0F) + __glSSTHalfTexelT[0]; v->texture[0].z = 0.0F; v->texture[0].w = 1.0F;
 }
 static void __fastcall CopyTexCoord1f(__GLcontext *gc, const GLfloat *tp, __GLvertex *v)
 {
-    v->texture[0].x = tp[0]; v->texture[0].y = 0.0F; v->texture[0].z = 0.0F; v->texture[0].w = 1.0F;
+    v->texture[0].x = (tp[0]) + __glSSTHalfTexelS[0]; v->texture[0].y = (0.0F) + __glSSTHalfTexelT[0]; v->texture[0].z = 0.0F; v->texture[0].w = 1.0F;
 }
 static void __fastcall CopyTexCoord1d(__GLcontext *gc, const GLdouble *tp, __GLvertex *v)
 {
-    v->texture[0].x = tp[0]; v->texture[0].y = 0.0F; v->texture[0].z = 0.0F; v->texture[0].w = 1.0F;
+    v->texture[0].x = (tp[0]) + __glSSTHalfTexelS[0]; v->texture[0].y = (0.0F) + __glSSTHalfTexelT[0]; v->texture[0].z = 0.0F; v->texture[0].w = 1.0F;
 }
 static void __fastcall CopyTexCoord2s(__GLcontext *gc, const GLshort *tp, __GLvertex *v)
 {
-    v->texture[0].x = tp[0]; v->texture[0].y = tp[1]; v->texture[0].z = 0.0F; v->texture[0].w = 1.0F;
+    v->texture[0].x = (tp[0]) + __glSSTHalfTexelS[0]; v->texture[0].y = (tp[1]) + __glSSTHalfTexelT[0]; v->texture[0].z = 0.0F; v->texture[0].w = 1.0F;
 }
 static void __fastcall CopyTexCoord2i(__GLcontext *gc, const GLint *tp, __GLvertex *v)
 {
-    v->texture[0].x = tp[0]; v->texture[0].y = tp[1]; v->texture[0].z = 0.0F; v->texture[0].w = 1.0F;
+    v->texture[0].x = (tp[0]) + __glSSTHalfTexelS[0]; v->texture[0].y = (tp[1]) + __glSSTHalfTexelT[0]; v->texture[0].z = 0.0F; v->texture[0].w = 1.0F;
 }
 static void __fastcall CopyTexCoord2f(__GLcontext *gc, const GLfloat *tp, __GLvertex *v)
 {
-    v->texture[0].x = tp[0]; v->texture[0].y = tp[1]; v->texture[0].z = 0.0F; v->texture[0].w = 1.0F;
+    /* QUALITY FIX menu-text: +0.5-texel texel-center bias (0 unless a
+    ** non-mipmapped 2D atlas is bound on unit 0 -- see SST_TEX.C).  Covers
+    ** the compiled vertex-array route in case it (rather than the immediate
+    ** __glim_TexCoord2fv route) services a 2D StretchPic draw. */
+    v->texture[0].x = (tp[0]) + __glSSTHalfTexelS[0];
+    v->texture[0].y = (tp[1]) + __glSSTHalfTexelT[0];
+    v->texture[0].z = 0.0F; v->texture[0].w = 1.0F;
 }
 static void __fastcall CopyTexCoord2d(__GLcontext *gc, const GLdouble *tp, __GLvertex *v)
 {
-    v->texture[0].x = tp[0]; v->texture[0].y = tp[1]; v->texture[0].z = 0.0F; v->texture[0].w = 1.0F;
+    v->texture[0].x = (tp[0]) + __glSSTHalfTexelS[0]; v->texture[0].y = (tp[1]) + __glSSTHalfTexelT[0]; v->texture[0].z = 0.0F; v->texture[0].w = 1.0F;
 }
 static void __fastcall CopyTexCoord3s(__GLcontext *gc, const GLshort *tp, __GLvertex *v)
 {
-    v->texture[0].x = tp[0]; v->texture[0].y = tp[1]; v->texture[0].z = tp[2]; v->texture[0].w = 1.0F;
+    v->texture[0].x = (tp[0]) + __glSSTHalfTexelS[0]; v->texture[0].y = (tp[1]) + __glSSTHalfTexelT[0]; v->texture[0].z = tp[2]; v->texture[0].w = 1.0F;
 }
 static void __fastcall CopyTexCoord3i(__GLcontext *gc, const GLint *tp, __GLvertex *v)
 {
-    v->texture[0].x = tp[0]; v->texture[0].y = tp[1]; v->texture[0].z = tp[2]; v->texture[0].w = 1.0F;
+    v->texture[0].x = (tp[0]) + __glSSTHalfTexelS[0]; v->texture[0].y = (tp[1]) + __glSSTHalfTexelT[0]; v->texture[0].z = tp[2]; v->texture[0].w = 1.0F;
 }
 static void __fastcall CopyTexCoord3f(__GLcontext *gc, const GLfloat *tp, __GLvertex *v)
 {
-    v->texture[0].x = tp[0]; v->texture[0].y = tp[1]; v->texture[0].z = tp[2]; v->texture[0].w = 1.0F;
+    v->texture[0].x = (tp[0]) + __glSSTHalfTexelS[0]; v->texture[0].y = (tp[1]) + __glSSTHalfTexelT[0]; v->texture[0].z = tp[2]; v->texture[0].w = 1.0F;
 }
 static void __fastcall CopyTexCoord3d(__GLcontext *gc, const GLdouble *tp, __GLvertex *v)
 {
-    v->texture[0].x = tp[0]; v->texture[0].y = tp[1]; v->texture[0].z = tp[2]; v->texture[0].w = 1.0F;
+    v->texture[0].x = (tp[0]) + __glSSTHalfTexelS[0]; v->texture[0].y = (tp[1]) + __glSSTHalfTexelT[0]; v->texture[0].z = tp[2]; v->texture[0].w = 1.0F;
 }
 static void __fastcall CopyTexCoord4s(__GLcontext *gc, const GLshort *tp, __GLvertex *v)
 {
-    v->texture[0].x = tp[0]; v->texture[0].y = tp[1]; v->texture[0].z = tp[2]; v->texture[0].w = tp[3];
+    v->texture[0].x = (tp[0]) + __glSSTHalfTexelS[0]; v->texture[0].y = (tp[1]) + __glSSTHalfTexelT[0]; v->texture[0].z = tp[2]; v->texture[0].w = tp[3];
 }
 static void __fastcall CopyTexCoord4i(__GLcontext *gc, const GLint *tp, __GLvertex *v)
 {
-    v->texture[0].x = tp[0]; v->texture[0].y = tp[1]; v->texture[0].z = tp[2]; v->texture[0].w = tp[3];
+    v->texture[0].x = (tp[0]) + __glSSTHalfTexelS[0]; v->texture[0].y = (tp[1]) + __glSSTHalfTexelT[0]; v->texture[0].z = tp[2]; v->texture[0].w = tp[3];
 }
 static void __fastcall CopyTexCoord4f(__GLcontext *gc, const GLfloat *tp, __GLvertex *v)
 {
-    v->texture[0].x = tp[0]; v->texture[0].y = tp[1]; v->texture[0].z = tp[2]; v->texture[0].w = tp[3];
+    v->texture[0].x = (tp[0]) + __glSSTHalfTexelS[0]; v->texture[0].y = (tp[1]) + __glSSTHalfTexelT[0]; v->texture[0].z = tp[2]; v->texture[0].w = tp[3];
 }
 static void __fastcall CopyTexCoord4d(__GLcontext *gc, const GLdouble *tp, __GLvertex *v)
 {
-    v->texture[0].x = tp[0]; v->texture[0].y = tp[1]; v->texture[0].z = tp[2]; v->texture[0].w = tp[3];
+    v->texture[0].x = (tp[0]) + __glSSTHalfTexelS[0]; v->texture[0].y = (tp[1]) + __glSSTHalfTexelT[0]; v->texture[0].z = tp[2]; v->texture[0].w = tp[3];
 }
 static void __fastcall CopyCurrentTexCoord(__GLcontext *gc, const GLdouble *tp, __GLvertex *v)
 {
@@ -598,8 +604,8 @@ static void CompileElements_T2F_V3F(__GLcontext *gc, GLint offset, GLint first, 
 
         off += gc->vertexArray.vp_stride;
         v->hasAndClipCode = gc->vertexArray.validateMask;
-        v->texture[0].x = texCoordPtr[0];
-        v->texture[0].y = texCoordPtr[1];
+        v->texture[0].x = (texCoordPtr[0]) + __glSSTHalfTexelS[0];
+        v->texture[0].y = (texCoordPtr[1]) + __glSSTHalfTexelT[0];
         v->texture[0].z = 0.0F;
         v->texture[0].w = 1.0F;
         v->obj.x = vertexPtr[0];
@@ -802,8 +808,8 @@ static void CompileElements_T2F_N3F_V3F(__GLcontext *gc, GLint offset, GLint fir
             v->hasAndClipCode = gc->vertexArray.validateMask;
         }
         if (!(v->hasAndClipCode & __GL_ALL_CLIP_MASK)) {
-            v->texture[0].x = texCoordPtr[0];
-            v->texture[0].y = texCoordPtr[1];
+            v->texture[0].x = (texCoordPtr[0]) + __glSSTHalfTexelS[0];
+            v->texture[0].y = (texCoordPtr[1]) + __glSSTHalfTexelT[0];
             v->texture[0].z = 0.0F;
             v->texture[0].w = 1.0F;
             v->normal.x = normalPtr[0];
@@ -1376,8 +1382,8 @@ static void CompileElementsMT1(__GLcontext *gc, GLint offset, GLint first, GLsiz
     case GL_FLOAT:
         for (i = 0; i < count; ++i, ++v, tp += stride) {
             const GLfloat *t = (const GLfloat *) tp;
-            v->texture[1].x = t[0];
-            v->texture[1].y = (size >= 2) ? t[1] : 0.0F;
+            v->texture[1].x = (t[0]) + __glSSTHalfTexelS[1];
+            v->texture[1].y = ((size >= 2) ? t[1] : 0.0F) + __glSSTHalfTexelT[1];
             v->texture[1].z = (size >= 3) ? t[2] : 0.0F;
             v->texture[1].w = (size >= 4) ? t[3] : 1.0F;
         }
@@ -1385,8 +1391,8 @@ static void CompileElementsMT1(__GLcontext *gc, GLint offset, GLint first, GLsiz
     case GL_SHORT:
         for (i = 0; i < count; ++i, ++v, tp += stride) {
             const GLshort *t = (const GLshort *) tp;
-            v->texture[1].x = t[0];
-            v->texture[1].y = (size >= 2) ? t[1] : 0.0F;
+            v->texture[1].x = (t[0]) + __glSSTHalfTexelS[1];
+            v->texture[1].y = ((size >= 2) ? t[1] : 0.0F) + __glSSTHalfTexelT[1];
             v->texture[1].z = (size >= 3) ? t[2] : 0.0F;
             v->texture[1].w = (size >= 4) ? t[3] : 1.0F;
         }
@@ -1394,8 +1400,8 @@ static void CompileElementsMT1(__GLcontext *gc, GLint offset, GLint first, GLsiz
     case GL_INT:
         for (i = 0; i < count; ++i, ++v, tp += stride) {
             const GLint *t = (const GLint *) tp;
-            v->texture[1].x = (GLfloat) t[0];
-            v->texture[1].y = (size >= 2) ? (GLfloat) t[1] : 0.0F;
+            v->texture[1].x = ((GLfloat) t[0]) + __glSSTHalfTexelS[1];
+            v->texture[1].y = ((size >= 2) ? (GLfloat) t[1] : 0.0F) + __glSSTHalfTexelT[1];
             v->texture[1].z = (size >= 3) ? (GLfloat) t[2] : 0.0F;
             v->texture[1].w = (size >= 4) ? (GLfloat) t[3] : 1.0F;
         }
@@ -1403,8 +1409,8 @@ static void CompileElementsMT1(__GLcontext *gc, GLint offset, GLint first, GLsiz
     case GL_DOUBLE_EXT:
         for (i = 0; i < count; ++i, ++v, tp += stride) {
             const GLdouble *t = (const GLdouble *) tp;
-            v->texture[1].x = (GLfloat) t[0];
-            v->texture[1].y = (size >= 2) ? (GLfloat) t[1] : 0.0F;
+            v->texture[1].x = ((GLfloat) t[0]) + __glSSTHalfTexelS[1];
+            v->texture[1].y = ((size >= 2) ? (GLfloat) t[1] : 0.0F) + __glSSTHalfTexelT[1];
             v->texture[1].z = (size >= 3) ? (GLfloat) t[2] : 0.0F;
             v->texture[1].w = (size >= 4) ? (GLfloat) t[3] : 1.0F;
         }
@@ -3431,12 +3437,32 @@ void APIENTRY __glim_DrawArrays(GLenum mode,
     }
 }
   
-void APIENTRY __glim_DrawElements(GLenum mode, GLsizei count, GLenum type, 
+void APIENTRY __glim_DrawElements(GLenum mode, GLsizei count, GLenum type,
                         const GLvoid *indices)
 {
     GLuint *elements;
 
     __GL_SETUP_NOT_IN_BEGIN_VALIDATE();
+
+    /* RETRO3DFX diag: per-DrawElements state vector (text-garble hunt).
+    ** OGLLOG only (crash-robust logger). Logs 2D-ish draws (small counts). */
+    {
+        extern void OGLLOG( const char *fmt, ... );
+        static int __r3dDE = 0;
+        if (__r3dDE < 260 && count <= 400) {
+            __GLtexture *t0 = gc->texture.currentTexture[0];
+            __r3dDE++;
+            OGLLOG( "DE#%d mode=%d cnt=%d en=0x%x depthF=%d wr=%d blend=%d/%d aTest=%d aRef=%d env=0x%x tex=%dx%d f=0x%x",
+                    __r3dDE, (int)mode, (int)count,
+                    (unsigned)gc->state.enables.general,
+                    (int)gc->state.depth.testFunc, (int)gc->state.depth.writeEnable,
+                    (int)gc->state.raster.blendSrc, (int)gc->state.raster.blendDst,
+                    (int)gc->state.raster.alphaFunction, (int)(gc->state.raster.alphaReference * 255.0f),
+                    (unsigned)gc->state.texture[0].env[0].mode,
+                    t0 ? (int)t0->level[0].width : -1, t0 ? (int)t0->level[0].height : -1,
+                    t0 ? (unsigned)t0->level[0].internalFormat : 0 );
+        }
+    }
 
     /* check that count is positive */
     if (count < 0) {

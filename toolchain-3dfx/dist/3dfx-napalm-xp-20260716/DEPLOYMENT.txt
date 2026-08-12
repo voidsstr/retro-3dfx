@@ -1,0 +1,86 @@
+OpenGL ICD DEPLOYMENT — WHICH FILES MUST GO WHERE (and why)
+=============================================================
+(Learned the hard way on 192.168.1.143, 2026-07-20: a week of "the fix
+didn't work" was actually stale per-game DLL copies.)
+
+The display driver pair (3dfxv5m.sys / 3dfxv5d.dll) installs once via
+SetupAPI (INSTALL.bat / updrv.exe) and is machine-global. The OpenGL ICD
+(3dfxogl.dll) is NOT global in practice: games load their own app-local
+copy first. Deploying a new ICD build means updating EVERY copy below —
+miss one and that game silently keeps the old driver.
+
+WINDOWS DLL SEARCH ORDER IS THE TRAP
+------------------------------------
+LoadLibrary("opengl32") / LoadLibrary("<r_glDriver>") checks the game's
+own directory BEFORE system32. Games on the fleet that carry a local GL
+DLL (inventory a box with:  dir /s /b C:\opengl32.dll C:\3dfxogl.dll):
+
+  Quake III Arena\Quake3\opengl32.dll     <- r_glDriver "opengl32" loads THIS
+  Quake III Arena\Quake3\3dfxogl.dll      <- loaded if r_glDriver "3dfxogl"
+  <each CS/Half-Life install>\opengl32.dll  (BC Romania AND the plain
+                                             Counter-strike dir — BOTH)
+  Games\Quake2\opengl32.dll (+3dfxogl.dll)
+  GOG Games\Unreal Tournament GOTY\System\opengl32.dll
+  WINDOWS\system32\3dfxogl.dll            <- registry ICD entry target
+
+NEVER touch WINDOWS\system32\opengl32.dll or dllcache\opengl32.dll —
+that is Microsoft's dispatcher, WFP-protected, and not ours.
+
+DEPLOY PROCEDURE (new ICD build)
+--------------------------------
+1. Kill every running GL game first (a loaded DLL is locked and copy
+   fails SILENTLY in a batch loop — check every copy's output):
+     taskkill /f /im quake3.exe & taskkill /f /im hl.exe  (etc.)
+2. Stage once:  UPLOAD -> C:\RETRO_AGENT\3dfx-driver\3dfxogl-stage.dll
+3. copy /Y the stage file over EVERY path in the inventory above
+   (keep a .preNNN backup of each on first replacement).
+4. Verify each target's size/date changed (dir per file). Version check:
+   the renderer string "3Dfx [retro3dfx X.Y.Z]" — gltest/gfix logs it,
+   or any GL game's console (Q3: /gl_renderer).
+5. Never launch a second fullscreen GL game while one is running — a
+   fullscreen Glide surface collision can wedge the whole box for
+   minutes (or require power-cycle).
+
+WHY BOTH NAMES IN THE Q3 DIR: q3config.cfg r_glDriver decides which
+filename Q3 loads. Fleet boxes have shipped with both "opengl32" and
+"3dfxogl" configured at different times — keep the two files identical.
+
+GLIDE STACK: glide3x.dll also lives BOTH in system32 and next to some
+game exes (Q3 dir). Same rule: update all copies together.
+
+HISTORY (why versions matter)
+-----------------------------
+  0.2.2  UT glTexSubImage2D NULL-cache crash fix
+  0.3.1  Napalm 16-byte texture-heap alignment — fixed the notorious
+         "sliced/garbled 2D text" in Q3 menus + CS VGUI (texBaseAddr
+         drops addr bits [3:0] on VSA-100; heap started at min+8)
+  0.3.2  EXT_paletted_texture RGBA table stride — fixed GoldSrc world
+         textures rendering green/blue (palette read as 3-byte RGB)
+  0.3.3  GoldSrc fps 3x: reuse the Glide context across MakeCurrent
+         switches (was full WinClose+WinOpen each); all PFDs
+         double-buffered (CS ~33 -> ~100 fps)
+  0.3.4d CS green world: stale 2PPC (combineMode bit-29) cleared by a
+         full TMU1 state re-issue at SwapBuffers
+  0.3.5  gate that hook on REAL dual-texture frames (__r3d_sawTMU0) —
+         0.3.4d fired in Q3 too and broke menu colors
+  0.3.6  ** ICD NEVER OPENED >640x480 until here ** — the res walk used
+         a Voodoo1/2-era cap table; V3/V5 hardware strings fell through
+         to "Voodoo1 2MB" = clamp to 640x480 (black world at 800/1024
+         on the monitor). Modern boards now bypass the cap gate.
+  0.3.7  drop the 0.3.5 combine-cache invalidation (it re-broke CS).
+         SHIP BUILD, verified on .143 V5 5500: CS de_dust 0-green,
+         Q3 640/800/1024 = 72.8/73.0/71.7 fps at REAL resolutions,
+         Q2 135+, UT + RTCW render. md5 ee69a4b9c2e5fe535d27929544a6045e
+
+V5-SPECIFIC CAVEATS (as of 2026-07-21)
+--------------------------------------
+- 3DMark2001/D3D: the D3D HAL path can HARD-FREEZE a V5 box (no ping,
+  physical reboot) — suspect Napalm-only compressed-texture (DXT/FXT1)
+  path and/or 2-chip SLI FIFO; under investigation. Do NOT run 3DMark
+  with Texture Format=Compressed on a V5 until cleared. OpenGL games
+  are unaffected.
+- Deploy display+miniport under WFP-safe names (3dfxv5d.dll/3dfxv5m.sys,
+  voodoo5-wfp.inf) — standard names get silently reverted by WFP.
+- fbdump capture (C:\icd_fbdump.on) is the only truthful screenshot of
+  fullscreen GL; GDI SCREENSHOT garbles (that garble is NORMAL and means
+  the hw path is active).

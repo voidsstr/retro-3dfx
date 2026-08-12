@@ -2074,11 +2074,14 @@ H3SetRegistryValue(PHW_DEVICE_EXTENSION hwDeviceExtension,
 VP_STATUS
 H3WriteLogFile ( PVOID pBuffer, ULONG BytesToWrite )
 {
-#if H4VEL
-  static const WCHAR  FileName[] = L"\\DosDevices\\C:\\3dfxvs.log";
-#else
-  static const WCHAR  FileName[] = L"\\DosDevices\\C:\\3dfxvs.log";
-#endif
+  /* retro3dfx: original path was \DosDevices\C:\3dfxvs.log, but on the .124
+     dual-boot box C: is the Win98 FAT volume and the active NT system volume is
+     D: — the kernel write to C: silently failed. Try D: first (active system
+     volume), then C: as a fallback. */
+  static const WCHAR  FileNameD[] = L"\\DosDevices\\D:\\3dfxvs.log";
+  static const WCHAR  FileNameC[] = L"\\DosDevices\\C:\\3dfxvs.log";
+  const WCHAR        *FileName = FileNameD;
+  int                 retroTry;
   HANDLE              hFile;
   VP_STATUS           status;
   UNICODE_STRING      ucFileName;
@@ -2087,45 +2090,52 @@ H3WriteLogFile ( PVOID pBuffer, ULONG BytesToWrite )
   LARGE_INTEGER       maxFileSize;
 
 
-  RtlInitUnicodeString(&ucFileName, FileName);
-
-  // Initialize file attributes
-  InitializeObjectAttributes(&fileAttr,
-                             &ucFileName,
-                             OBJ_CASE_INSENSITIVE,
-                             NULL,
-                             NULL);
-
   // start with a 20MB file if it doesn't already exist
   maxFileSize.QuadPart = 0x1400000;
 
-  // Open the file
-  status = ZwCreateFile(&hFile,
-                        SYNCHRONIZE | FILE_APPEND_DATA,
-                        &fileAttr,
-                        &fileIoStatus,
-                        &maxFileSize,
-                        FILE_ATTRIBUTE_NORMAL,
-                        0,
-                        FILE_OPEN_IF,
-                        FILE_SYNCHRONOUS_IO_NONALERT,
-                        NULL,
-                        0);
-
-  if (NT_SUCCESS(status))
+  /* retro3dfx: try D: (active NT system volume) then C:. File I/O here is only
+     valid at PASSIVE_LEVEL; the IOCTL path runs there. */
+  status = ERROR_DEV_NOT_EXIST;
+  for (retroTry = 0; retroTry < 2; retroTry++)
   {
-    // Write to the file
-    status = ZwWriteFile(hFile,
-                         NULL,
-                         NULL,
-                         NULL,
-                         &fileIoStatus,
-                         pBuffer,
-                         BytesToWrite,
-                         NULL,
-                         NULL);
+    FileName = (0 == retroTry) ? FileNameD : FileNameC;
+    RtlInitUnicodeString(&ucFileName, FileName);
 
-    ZwClose(hFile);
+    InitializeObjectAttributes(&fileAttr,
+                               &ucFileName,
+                               OBJ_CASE_INSENSITIVE,
+                               NULL,
+                               NULL);
+
+    // Open the file
+    status = ZwCreateFile(&hFile,
+                          SYNCHRONIZE | FILE_APPEND_DATA,
+                          &fileAttr,
+                          &fileIoStatus,
+                          &maxFileSize,
+                          FILE_ATTRIBUTE_NORMAL,
+                          0,
+                          FILE_OPEN_IF,
+                          FILE_SYNCHRONOUS_IO_NONALERT,
+                          NULL,
+                          0);
+
+    if (NT_SUCCESS(status))
+    {
+      // Write to the file
+      status = ZwWriteFile(hFile,
+                           NULL,
+                           NULL,
+                           NULL,
+                           &fileIoStatus,
+                           pBuffer,
+                           BytesToWrite,
+                           NULL,
+                           NULL);
+
+      ZwClose(hFile);
+      break;    // wrote successfully (or write failed but file opened) — done
+    }
   }
 
 	if (! NT_SUCCESS(status))

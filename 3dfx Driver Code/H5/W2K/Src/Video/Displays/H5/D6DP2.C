@@ -777,6 +777,7 @@
 #include "d6global.h"
 #include "d3contxt.h"
 extern DWORD __stdcall Blt32_CopyFourCC(NT9XDEVICEDATA *,LPDDRAWI_DDRAWSURFACE_LCL,RECTL*,LPDDRAWI_DDRAWSURFACE_LCL,RECTL*);
+extern DWORD __stdcall Blt32_TexBltCopyFourCC(NT9XDEVICEDATA *,TXTRHNDL *,RECTL*,int,TXTRHNDL *,RECTL*,int);
 #endif
 
 #if( DX >= 8 )
@@ -808,9 +809,24 @@ extern VOID    _D3D_OP_PixelShader_SetConst(RC *pRc, DWORD dwRegister, DWORD dwC
 #define ENABLE_ERROR_CHECKING   1
 
 #if defined(WINNT) && ENABLE_ERROR_CHECKING
+/* retro3dfx: flight-record every DP2 parse error (op + hr + offset) so a
+   D3DERR_DRIVERINTERNALERROR seen by the runtime can be traced to the
+   failing command without a checked build.  ppdev is in scope at every
+   expansion site (SETUP_PPDEV in ddiDrawPrimitives2). */
+#if ENABLE_LOG_FILE
+#define RETRO_DP2_ERRLOG(pDP2Data, pIns, pStartIns, ddrvalue)               \
+    retroLogForce(ppdev, "retro3dfx DP2-PARSE-ERR: hr=%08lXh op=%d off=%ld cmdLen=%ld\r\n", \
+                  (DWORD)(ddrvalue),                                        \
+                  (int)((LPD3DHAL_DP2COMMAND)(pIns))->bCommand,             \
+                  (LONG)((LPBYTE)(pIns)-(LPBYTE)(pStartIns)),               \
+                  (pDP2Data)->dwCommandLength)
+#else
+#define RETRO_DP2_ERRLOG(pDP2Data, pIns, pStartIns, ddrvalue)
+#endif
 #define PARSE_ERROR_AND_EXIT(pDP2Data, pIns, pStartIns, ddrvalue)      \
   {                                                                    \
     D3DPRINT(0, "  returning error code %08lX", ddrvalue);             \
+    RETRO_DP2_ERRLOG(pDP2Data, pIns, pStartIns, ddrvalue);             \
     pDP2Data->dwErrorOffset = (DWORD)((LPBYTE)pIns-(LPBYTE)pStartIns); \
     pDP2Data->ddrval = ddrvalue;                                       \
     goto Exit_DrawPrimitives2;                                         \
@@ -1257,6 +1273,21 @@ DWORD __stdcall ddiDrawPrimitives2( LPD3DHAL_DRAWPRIMITIVES2DATA lpdp2d )
 
   UPDATE_HW_STATE( SC_BUFFERS );
 
+#if ENABLE_LOG_FILE
+  /* retro3dfx: mark the first DP2 batch per context — if a context is
+     destroyed WITHOUT this line, the runtime aborted before any drawing
+     reached the driver (device-init stage failure). */
+  {
+    static DWORD g_retroLastDp2Ctx = 0;
+    if (lpdp2d->dwhContext != g_retroLastDp2Ctx)
+    {
+      g_retroLastDp2Ctx = lpdp2d->dwhContext;
+      retroLogForce(ppdev, "retro3dfx DP2-FIRST: ctx=%08lXh cmdLen=%ld\r\n",
+                    lpdp2d->dwhContext, lpdp2d->dwCommandLength);
+    }
+  }
+#endif
+
   // Always disable zeroing the jitter values at the start of this for loop
   // and let the special case code enable it, if appropriate.
   pRc->dwZeroJitter = 0;
@@ -1429,6 +1460,17 @@ DWORD __stdcall ddiDrawPrimitives2( LPD3DHAL_DRAWPRIMITIVES2DATA lpdp2d )
                       )
                     )
                 {
+#if ENABLE_LOG_FILE
+                    // retro3dfx white-world hunt: a NONZERO app texture handle
+                    // being silently forced to 0 here unbinds the stage (white).
+                    if (0 != data)
+                    {
+                      static DWORD _tssBad = 0;
+                      if (++_tssBad <= 4)
+                        retroLogForce(ppdev, "retro3dfx TSS-BADTEX#%ld: stg=%ld h=%ld\r\n",
+                                      _tssBad, stage, data);
+                    }
+#endif
                     data = 0;
                 }
 
@@ -3773,7 +3815,12 @@ DWORD __stdcall ddiDrawPrimitives2( LPD3DHAL_DRAWPRIMITIVES2DATA lpdp2d )
           if ((DDPF_FOURCC & pDstSurf->dwFlags) &&
               (DDPF_FOURCC & pSrcSurf->dwFlags))
           {
-            pfnTexBlt = (PTEXBLTFUNC)Blt32_CopyFourCC;
+            // retro3dfx: Blt32_TexBltCopyFourCC is the 7-argument
+            // TEXBLT-signature adapter for Blt32_CopyFourCC.  Casting
+            // the 5-argument Blt32_CopyFourCC itself to PTEXBLTFUNC
+            // put nSrcLOD in its pDDDstSurf parameter -> bugcheck 8E
+            // on the first managed DXTn texture blt (UT2004).
+            pfnTexBlt = (PTEXBLTFUNC)Blt32_TexBltCopyFourCC;
           }
           else
           {
@@ -3802,7 +3849,7 @@ DWORD __stdcall ddiDrawPrimitives2( LPD3DHAL_DRAWPRIMITIVES2DATA lpdp2d )
             // the DX7 runtime appears to munge the width and height of system memory DXTn
             // surfaces
             if ((DDSCAPS_SYSTEMMEMORY & pSrcSurf->dwCaps) &&
-                (pfnTexBlt == (PTEXBLTFUNC)Blt32_CopyFourCC) &&
+                (pfnTexBlt == (PTEXBLTFUNC)Blt32_TexBltCopyFourCC) &&
                 ((FOURCC_DXT1 == pDstSurf->dwFourCC) ||
                  (FOURCC_DXT2 == pDstSurf->dwFourCC) ||
                  (FOURCC_DXT3 == pDstSurf->dwFourCC) ||
@@ -3876,6 +3923,20 @@ DWORD __stdcall ddiDrawPrimitives2( LPD3DHAL_DRAWPRIMITIVES2DATA lpdp2d )
                  dstRect.right = dstRect.left + 1;
             }
 
+#if ENABLE_LOG_FILE
+            // retro3dfx: the vintage no-match diagnostic below is dead code
+            // (its else is unreachable inside the while) -- when no source
+            // level matches, this fell through downloading ZERO levels with
+            // hr=D3D_OK. Keep the skip semantics but make it visible.
+            if (nSrcLOD >= pSrcSurf->nLevels)
+            {
+              static DWORD _tbNoMatch = 0;
+              if (++_tbNoMatch <= 3)
+                retroLogForce(ppdev, "retro3dfx TEXBLT-NOMATCH#%ld: dst=%ldx%ld srcLvls=%d\r\n",
+                              _tbNoMatch, (LONG)dstWidthToMatch, (LONG)dstHeightToMatch,
+                              pSrcSurf->nLevels);
+            }
+#endif
             // loop until no more src or dst mipmaps
             while ((nSrcLOD < pSrcSurf->nLevels) && (nDstLOD < pDstSurf->nLevels))
             {
@@ -4910,6 +4971,13 @@ DWORD __stdcall ddiDrawPrimitives2( LPD3DHAL_DRAWPRIMITIVES2DATA lpdp2d )
   }
 
   lpdp2d->ddrval = hr;
+
+#if ENABLE_LOG_FILE
+  /* retro3dfx: record non-parse DP2 failures (unknown-command callback etc.) */
+  if (D3D_OK != hr)
+    retroLogForce(ppdev, "retro3dfx DP2-EXIT-ERR: hr=%08lXh lastOp=%d errOff=%ld\r\n",
+                  (DWORD)hr, (int)lpCmd->bCommand, lpdp2d->dwErrorOffset);
+#endif
 
 #if defined(WINNT) && ENABLE_ERROR_CHECKING
 Exit_DrawPrimitives2:

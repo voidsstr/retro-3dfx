@@ -557,6 +557,21 @@ DHPDEV dhpdev)
 
 
     ppdev = (PDEV*) dhpdev;
+#if ENABLE_LOG_FILE
+    /* retro3dfx: ppdev (and ppdev->hDriver) are valid here — stash it so V5DLog
+       and other ppdev-less loggers can reach the file sink. */
+    g_retroLogPpdev = ppdev;
+    /* retro3dfx UNCONDITIONAL positive control: fire the WRITE_LOG_FILE IOCTL
+       directly from here (no gate, no buffering) so the miniport's IOCTL counter
+       increments iff the display->miniport IOCTL channel works at all. */
+    {
+        char probe[] = "retro3dfx DrvEnableSurface probe\r\n";
+        ULONG probeOut = 0;
+        DWORD nb;
+        EngDeviceIoControl(ppdev->hDriver, IOCTL_3DFX_WRITE_LOG_FILE,
+                           probe, sizeof(probe) - 1, &probeOut, sizeof(probeOut), &nb);
+    }
+#endif
     H3PRINTF((ppdev, "DrvEnableSurface\r\n"));
     DISPDBG((1, "DrvEnableSurface - ppdev = %8lXh", ppdev));
 
@@ -2599,6 +2614,11 @@ TryItAgain:
 
     // flag the primary is in tiled mode
     _FF(ddPrimaryInTile) = TRUE;
+#if ENABLE_LOG_FILE
+    retroLogForce(ppdev, "retro3dfx PRIMARY-TILED: scrOff=%08lXh %ldx%ldx%ld\r\n",
+                  ppdev->ulScreenOffset, (LONG)ppdev->cxScreen,
+                  (LONG)ppdev->cyScreen, (LONG)(ppdev->cjPelSize * 8));
+#endif
   }
   else
 #endif
@@ -2686,6 +2706,14 @@ LinearSetup:
 
     // flag the primary is in linear mode
     _FF(ddPrimaryInTile) = FALSE;
+#if ENABLE_LOG_FILE
+    /* retro3dfx: a LINEAR primary in a 3D-capable mode disables the whole
+       exclusive-fullscreen 3D setup path (DDSURF.C ~414) — if this fires on
+       warm reruns where the first run was TILED, that's the degradation. */
+    retroLogForce(ppdev, "retro3dfx PRIMARY-LINEAR: scrOff=%08lXh %ldx%ldx%ld\r\n",
+                  ppdev->ulScreenOffset, (LONG)ppdev->cxScreen,
+                  (LONG)ppdev->cyScreen, (LONG)(ppdev->cjPelSize * 8));
+#endif
   }
 
   // Clear desktop surface with rect. fill.

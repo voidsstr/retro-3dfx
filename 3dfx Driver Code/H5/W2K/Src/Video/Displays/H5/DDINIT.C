@@ -165,7 +165,12 @@ DrvGetDirectDrawInfo(DHPDEV       dhpdev,
 
   // We may not support DirectDraw on this card
   if (!(ppdev->flStatus & STAT_DIRECTDRAW))
+  {
+#if ENABLE_LOG_FILE
+    retroLogForce((PDEV *)ppdev, "retro3dfx DDGDDI-FAIL: STAT_DIRECTDRAW clear\r\n");
+#endif
     return FALSE;
+  }
 #endif
 
   /* Initialize DDHALINFO structure. */
@@ -495,7 +500,12 @@ DrvGetDirectDrawInfo(DHPDEV       dhpdev,
 #endif
 
   if (! fxinit(ppdev, FALSE))
+  {
+#if ENABLE_LOG_FILE
+    retroLogForce((PDEV *)ppdev, "retro3dfx DDGDDI-FAIL: fxinit\r\n");
+#endif
     return FALSE;
+  }
 
 #if ENABLE_3D
 #if   defined(TnL_HAL) && defined(VERT_BUFF)
@@ -503,12 +513,22 @@ DrvGetDirectDrawInfo(DHPDEV       dhpdev,
                           (LPD3DHAL_GLOBALDRIVERDATA*)&(pHalInfo->lpD3DGlobalDriverData),
                           (LPD3DHAL_CALLBACKS*)&(pHalInfo->lpD3DHALCallbacks),
                           (DDHAL_DDEXEBUFCALLBACKS*)&_FF(DDExebufCallbacks)))
+  {
+#if ENABLE_LOG_FILE
+    retroLogForce((PDEV *)ppdev, "retro3dfx DDGDDI-FAIL: D3DHALCreateDriver\r\n");
+#endif
     return FALSE;
+  }
 #else
   if (!D3DHALCreateDriver(ppdev,
                           (LPD3DHAL_GLOBALDRIVERDATA*)&(pHalInfo->lpD3DGlobalDriverData),
                           (LPD3DHAL_CALLBACKS*)&(pHalInfo->lpD3DHALCallbacks)))
+  {
+#if ENABLE_LOG_FILE
+    retroLogForce((PDEV *)ppdev, "retro3dfx DDGDDI-FAIL: D3DHALCreateDriver\r\n");
+#endif
     return FALSE;
+  }
 #endif
 #endif
 
@@ -516,10 +536,54 @@ DrvGetDirectDrawInfo(DHPDEV       dhpdev,
     _FF(dwRelaxedOverlayOwnerMode) = 0;
 #endif
 
+#if ENABLE_LOG_FILE
+  retroLogForce((PDEV *)ppdev, "retro3dfx DDGDDI-OK: d3dGlobal=%08lXh heaps=%ld\r\n",
+                (DWORD)pHalInfo->lpD3DGlobalDriverData, (LONG)*pdwNumHeaps);
+#endif
+
   return TRUE;
 
 } // DrvGetDirectDrawInfo
 
+
+/*----------------------------------------------------------------------
+retro3dfx: logging shims around the surface-creation callbacks. Every
+CreateSurface/CanCreateSurface failure (any DDERR, from any of the ~15 exit
+sites) gets one ring line — this is the last silent way a D3D app's resource
+loading can abort with clean driver state (the warm-rerun degradation).
+----------------------------------------------------------------------*/
+#if ENABLE_LOG_FILE
+static DWORD __stdcall retroDdCreateSurfaceLogged(LPDDHAL_CREATESURFACEDATA pcsd)
+{
+  DWORD ret = DdCreateSurface(pcsd);
+  if (DD_OK != pcsd->ddRVal)
+  {
+    PDEV *ppdev = (PDEV *)pcsd->lpDD->dhpdev;
+    retroLogForce(ppdev, "retro3dfx CREATESURF-FAIL: ddRVal=%08lXh caps=%08lXh %ldx%ld cnt=%ld\r\n",
+                  (DWORD)pcsd->ddRVal,
+                  pcsd->lpDDSurfaceDesc ? pcsd->lpDDSurfaceDesc->ddsCaps.dwCaps : 0,
+                  pcsd->lpDDSurfaceDesc ? (LONG)pcsd->lpDDSurfaceDesc->dwWidth : 0,
+                  pcsd->lpDDSurfaceDesc ? (LONG)pcsd->lpDDSurfaceDesc->dwHeight : 0,
+                  (LONG)pcsd->dwSCnt);
+  }
+  return ret;
+}
+static DWORD __stdcall retroDdCanCreateSurfaceLogged(LPDDHAL_CANCREATESURFACEDATA pccsd)
+{
+  DWORD ret = DdCanCreateSurface(pccsd);
+  if (DD_OK != pccsd->ddRVal)
+  {
+    PDEV *ppdev = (PDEV *)pccsd->lpDD->dhpdev;
+    retroLogForce(ppdev, "retro3dfx CANCREATE-FAIL: ddRVal=%08lXh caps=%08lXh\r\n",
+                  (DWORD)pccsd->ddRVal,
+                  pccsd->lpDDSurfaceDesc ? pccsd->lpDDSurfaceDesc->ddsCaps.dwCaps : 0);
+  }
+  return ret;
+}
+#else
+#define retroDdCreateSurfaceLogged    DdCreateSurface
+#define retroDdCanCreateSurfaceLogged DdCanCreateSurface
+#endif
 
 /*----------------------------------------------------------------------
 Function name:  DrvEnableDirectDraw
@@ -537,6 +601,11 @@ DrvEnableDirectDraw(DHPDEV                    dhpdev,
 {
 #ifdef WINNT
   PDEV  *ppdev = (PDEV *)dhpdev;
+#endif
+
+#if defined(WINNT) && ENABLE_LOG_FILE
+  retroLogForce(ppdev, "retro3dfx DrvEnableDirectDraw ENTER ppdev=%08lXh\r\n",
+                (DWORD)ppdev);
 #endif
 
 
@@ -573,9 +642,9 @@ DrvEnableDirectDraw(DHPDEV                    dhpdev,
 #endif
 #endif
 
-  pCallBacks->CreateSurface        = DdCreateSurface;
+  pCallBacks->CreateSurface        = retroDdCreateSurfaceLogged;
   pCallBacks->WaitForVerticalBlank = DdWaitForVerticalBlank;
-  pCallBacks->CanCreateSurface     = DdCanCreateSurface;
+  pCallBacks->CanCreateSurface     = retroDdCanCreateSurfaceLogged;
 #if ENABLE_PALETTE_CAPS
   pCallBacks->CreatePalette        = DdCreatePalette;
 #endif
@@ -657,6 +726,10 @@ DrvEnableDirectDraw(DHPDEV                    dhpdev,
   // convert DDraw memory allocation from reserved to permanent
   bOhCommit(ppdev, ppdev->pohDirectDraw, TRUE);
 #endif
+#endif
+
+#if defined(WINNT) && ENABLE_LOG_FILE
+  retroLogForce(ppdev, "retro3dfx DrvEnableDirectDraw EXIT ok\r\n");
 #endif
 
   return TRUE;
@@ -882,6 +955,17 @@ ComputeOptimalSliConfig(PDEV *ppdev)
   denominator  = SST_TILE_SIZE * (double)_FF(ddTileStride);
   denominator -= (double)_FF(dwNumUnits) * (double)_FF(ddTilePitch) * SST_TILE_HEIGHT;
 
+#if ENABLE_LOG_FILE
+  // retro3dfx: denominator is 4096*ddTileStride - units*ddTilePitch*32 and
+  // goes to zero for units<=1 with a tile-exact pitch.  The divide below then
+  // produces INF/NaN and (ULONG)tileCtrl is garbage that can still pass the
+  // 4kB test, committing junk to sliTileCtrl/sliTileCompare.  Log, don't fix.
+  if ((denominator > -1.0) && (denominator < 1.0))
+    retroLogForce(ppdev,
+                  "retro3dfx SLICFG: degenerate denominator (units=%ld) -> non-optimal path\r\n",
+                  (LONG)_FF(dwNumUnits));
+#endif
+
   tileCtrl = numerator / denominator;
   ulTileCtrl = (ULONG)tileCtrl;
   DISPDBG((DDRAWHEAP_DBGLVL, "    optimal tileCtrl = %8lXh", ulTileCtrl));
@@ -1043,6 +1127,9 @@ ReportNTDDrawHeaps(PDEV *ppdev, DWORD *pdwNumHeaps, VIDEOMEMORY *pvmList)
   DWORD     cHeaps;
 #if ENABLE_RECONFIG_VIDMEM
   DWORD     heapStart;
+#endif
+#if ENABLE_LOG_FILE && ENABLE_RECONFIG_VIDMEM && ENABLE_NAPALM_SLI_EXTRA_LINEAR_HEAP
+  DWORD     retroHeapIdx;
 #endif
 
 
@@ -1284,6 +1371,16 @@ ReportNTDDrawHeaps(PDEV *ppdev, DWORD *pdwNumHeaps, VIDEOMEMORY *pvmList)
         {
           ComputeOptimalSliConfig(ppdev);
 
+#if ENABLE_LOG_FILE
+          // retro3dfx: fpEnd = sliTileCompare - 1 lands below fpStart when
+          // sliTileCompare <= ddTiledHeapStart -> degenerate (underflowing)
+          // extra-SLI heap.  Reported anyway so both report passes agree.
+          if (_FF(sliTileCompare) <= _FF(ddTiledHeapStart))
+            retroLogForce(ppdev,
+                          "retro3dfx HEAP-SKIP extra-SLI: sliTileCmp=%08lXh <= tiledStart=%08lXh\r\n",
+                          _FF(sliTileCompare), _FF(ddTiledHeapStart));
+#endif
+
           // report extra linear heap for sli mode (AA disabled)
           pvmList[cHeaps - 1].dwFlags           = VIDMEM_ISLINEAR;
           pvmList[cHeaps - 1].fpStart           = _FF(ddTiledHeapStart);
@@ -1302,6 +1399,31 @@ ReportNTDDrawHeaps(PDEV *ppdev, DWORD *pdwNumHeaps, VIDEOMEMORY *pvmList)
     }
 #endif
   }
+#if ENABLE_LOG_FILE && ENABLE_RECONFIG_VIDMEM && ENABLE_NAPALM_SLI_EXTRA_LINEAR_HEAP
+  // retro3dfx: dump the finished VIDEOMEMORY array (fill pass only --
+  // GDI calls us first with pvmList == NULL just to count the heaps).
+  if (NULL != pvmList)
+  {
+    for (retroHeapIdx = 0; retroHeapIdx < cHeaps; retroHeapIdx++)
+    {
+      if (VIDMEM_ISLINEAR & pvmList[retroHeapIdx].dwFlags)
+        retroLogForce(ppdev, "retro3dfx HEAP%ld LIN start=%08lXh end=%08lXh%s\r\n",
+                      (LONG)retroHeapIdx,
+                      (DWORD)pvmList[retroHeapIdx].fpStart,
+                      (DWORD)pvmList[retroHeapIdx].fpEnd,
+                      (_FF(bUseSliExtraLinearHeap) &&
+                       (retroHeapIdx == (cHeaps - 1))) ? " extra-SLI" : "");
+      else
+        retroLogForce(ppdev, "retro3dfx HEAP%ld RECT start=%08lXh w=%ld h=%ld\r\n",
+                      (LONG)retroHeapIdx,
+                      (DWORD)pvmList[retroHeapIdx].fpStart,
+                      (LONG)pvmList[retroHeapIdx].dwWidth,
+                      (LONG)pvmList[retroHeapIdx].dwHeight);
+    }
+    retroLogForce(ppdev, "retro3dfx HEAPSUM n=%ld tiledStart=%08lXh sliTileCmp=%08lXh\r\n",
+                  (LONG)cHeaps, _FF(ddTiledHeapStart), _FF(sliTileCompare));
+  }
+#endif
 #else
   // make one linear heap
   if (0 < (ppdev->cyDDHeap + ppdev->cyDDMemoryExtra))

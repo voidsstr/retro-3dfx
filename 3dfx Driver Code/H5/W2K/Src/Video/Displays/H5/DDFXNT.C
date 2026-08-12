@@ -351,6 +351,10 @@ PDD_MAPMEMORYDATA lpMapMemory)
                                &ReturnedDataLength))
         {
             DISPDBG((0, "Failed IOCTL_VIDEO_SHARE_MEMORY"));
+#if ENABLE_LOG_FILE
+            retroLogForce(ppdev, "retro3dfx DdMapMemory SHARE-FAIL viewSize=%08lXh\r\n",
+                          (DWORD)ShareMemory.ViewSize);
+#endif
 
             lpMapMemory->ddRVal = DDERR_GENERIC;
             return(DDHAL_DRIVER_HANDLED);
@@ -360,6 +364,12 @@ PDD_MAPMEMORYDATA lpMapMemory)
 
         DISPDBG((1, "DdMapMemory(mapping) - PID=%8lXh, LfbAddr=%8lXh, ViewSize=%8lXh",
                  curPID, ShareMemoryInformation.VirtualAddress, ShareMemoryInformation.SharedViewSize));
+
+#if ENABLE_LOG_FILE
+        retroLogForce(ppdev, "retro3dfx DdMapMemory OK viewSize=%08lXh va=%08lXh\r\n",
+                      (DWORD)ShareMemoryInformation.SharedViewSize,
+                      (DWORD)ShareMemoryInformation.VirtualAddress);
+#endif
 
         for (i = 0; i < MAX_ADDRESS_TABLE_SIZE; i++)
         {
@@ -417,7 +427,7 @@ PDD_MAPMEMORYDATA lpMapMemory)
             
             // spin down the command FIFO to ensure that all of the command FIFOS owned by GLIDE are
             // processed and not pending processing
-            while(H3_GP_BUSY(ppdev, ppdev->pjH3Base));
+            RETRO_GP_SPIN(ppdev);  /* retro3dfx: bounded FIFO spin-down */
         }
         else
         {
@@ -547,6 +557,10 @@ DisableDDraw:
         _FF(ddMiscFlags) &= ~DDMF_VSYNC_POLARITY_MASK;
         _FF(ddMiscFlags) |= (inp(ppdev->pjIoBase + 0xCC) & 0x80) >> (7 - DDMF_VSYNC_POLARITY_BIT);
 
+#if ENABLE_LOG_FILE
+        retroLogForce(ppdev, "retro3dfx DDRAW-DISABLED: env/CapabilityOverride gate\r\n");
+#endif
+
         // DirectDraw is disabled for use on this card
         ppdev->flStatus &= ~STAT_DIRECTDRAW;
 
@@ -673,6 +687,11 @@ DisableDDraw:
     else
     {
       // skip ddraw support if we can't allocate the stretchBlt heap
+#if ENABLE_LOG_FILE
+      retroLogForce(ppdev, "retro3dfx DDRAW-DISABLED: no slop heap cyMem=%ld cyScr=%ld cyText=%ld need=%ld\r\n",
+                    (LONG)ppdev->cyMemory, (LONG)ppdev->cyScreen,
+                    (LONG)ppdev->cyText, (LONG)height);
+#endif
       _DS(stretchBltStart) = 0;
       _DS(stretchBltSize)  = 0;
       ppdev->flStatus &= ~STAT_DIRECTDRAW;
@@ -766,6 +785,18 @@ DisableDDraw:
 
     // DirectDraw is enabled for use on this card
     ppdev->flStatus |= STAT_DIRECTDRAW;
+
+#if ENABLE_LOG_FILE
+#if USE_NT5_DDMEMMGR
+    retroLogForce(ppdev, "retro3dfx DDRAW-ENABLED: units=%ld cyMem=%ld slop=%ld ddHeap=%ld\r\n",
+                  (LONG)_FF(dwNumUnits), (LONG)ppdev->cyMemory,
+                  (LONG)ppdev->cyDDSlopHeight, (LONG)ppdev->cyDDHeap);
+#else
+    retroLogForce(ppdev, "retro3dfx DDRAW-ENABLED: units=%ld cyMem=%ld slop=%ld ddHeap=%ld\r\n",
+                  (LONG)_FF(dwNumUnits), (LONG)ppdev->cyMemory,
+                  (LONG)0, (LONG)0);
+#endif
+#endif
 
     return(TRUE);
 }
@@ -875,6 +906,11 @@ DdGetDriverInfo ( LPDDHAL_GETDRIVERINFODATA lpInput )
 #endif
 
   lpInput->ddRVal = DDERR_CURRENTLYNOTAVAIL;
+
+#if ENABLE_LOG_FILE
+  retroLogForce(ppdev, "retro3dfx DDGDI guid=%08lX sz=%ld\r\n",
+                lpInput->guidInfo.Data1, (LONG)lpInput->dwExpectedSize);
+#endif
 
 #if ENABLE_3D
 #if (DIRECT3D_VERSION >= 0x0700) && (DX >= 7)
@@ -1431,6 +1467,11 @@ DdGetDriverInfo ( LPDDHAL_GETDRIVERINFODATA lpInput )
 
 #endif
 
+#if ENABLE_LOG_FILE
+  retroLogForce(ppdev, "retro3dfx DDGDI verdict guid=%08lX rv=%08lXh\r\n",
+                lpInput->guidInfo.Data1, (DWORD)lpInput->ddRVal);
+#endif
+
   return DDHAL_DRIVER_HANDLED;
 }
 
@@ -1493,6 +1534,10 @@ DdSetExclusiveMode ( PDD_SETEXCLUSIVEMODEDATA psemd )
   if (psemd->dwEnterExcl)
   {
     DISPDBG((DEBUG_APIENTRY, "DdSetExclusiveMode (entering)"));
+#if ENABLE_LOG_FILE
+    retroLogForce(ppdev, "retro3dfx EXCL-ENTER: tiledHeapSz=%ld primInTile=%ld 3dCnt=%ld\r\n",
+                  _FF(ddTiledHeapSize), (LONG)_DS(ddPrimaryInTile), _FF(dd3DSurfaceCount));
+#endif
     _DS(ddExclusiveMode) = TRUE;
     hwcSetContextDWORD();
     // remove all GDI device bitmaps from video memory here
@@ -1501,6 +1546,9 @@ DdSetExclusiveMode ( PDD_SETEXCLUSIVEMODEDATA psemd )
   else
   {
     DISPDBG((DEBUG_APIENTRY, "DdSetExclusiveMode (leaving)"));
+#if ENABLE_LOG_FILE
+    retroLogForce(ppdev, "retro3dfx EXCL-LEAVE: 3dCnt=%ld\r\n", _FF(dd3DSurfaceCount));
+#endif
     _DS(ddExclusiveMode) = FALSE;
   }
 
@@ -1569,6 +1617,20 @@ DdGetAvailDriverMemory(LPDDHAL_GETAVAILDRIVERMEMORYDATA pgadm)
   pgadm->dwTotal = 0;
   pgadm->dwFree  = 0;
 
+  /* V56K-VIDMEM: only answer this call when we genuinely have to hide the
+  ** SLI extra linear heap from DirectDraw.  Returning DDHAL_DRIVER_HANDLED
+  ** with dwTotal/dwFree still 0 -- which is what happened whenever
+  ** bUseSliExtraLinearHeap was off (its registry opt-in is absent by
+  ** default) -- tells DirectDraw the board has NO video memory at all, so
+  ** D3D keeps every texture in system memory.  That is the "D3D Device 0K
+  ** vram, 0K free" UT99 reports on the Voodoo5 6000.  Hand the question
+  ** back instead; DirectDraw accounts the heaps we already handed it. */
+  if (!((IS_NAPALM) && _FF(bUseSliExtraLinearHeap)))
+  {
+    pgadm->ddRVal = DD_OK;
+    return DDHAL_DRIVER_NOTHANDLED;
+  }
+
   if ((IS_NAPALM) && _FF(bUseSliExtraLinearHeap))
   {
     memMgr_checkHeapStatus(ppdev);
@@ -1588,13 +1650,11 @@ DdGetAvailDriverMemory(LPDDHAL_GETAVAILDRIVERMEMORYDATA pgadm)
       if ((DUAL_CHIP_SLI_2WAY_AA_DISABLED == _DD(ddSLIAAConfiguration)) ||
           (QUAD_CHIP_SLI_4WAY_AA_DISABLED == _DD(ddSLIAAConfiguration)))
       {
-        if (DDSCAPS_TEXTURE & pgadm->DDSCaps.dwCaps)
-        {
-          // don't do anything
-        }
-        else // this catches ((0 == DDSCap.dwCaps) || ((DDSCAPS_VIDEOMEMORY | DDSCAPS_LOCALVIDMEM) & pgadm->DDSCaps.dwCaps))
-        {
-        }
+        /* V56K-VIDMEM: nothing is reserved in this configuration, so there is
+        ** no adjustment to report -- returning 0/0 here claimed the board had
+        ** no memory.  Defer to DirectDraw. */
+        pgadm->ddRVal = DD_OK;
+        return DDHAL_DRIVER_NOTHANDLED;
   
         DDPRINT(DDDBGLVL, "  (in sli mode) returning dwTotal=%ld, dwFree=%ld", pgadm->dwTotal, pgadm->dwFree);
       }
@@ -1605,18 +1665,21 @@ DdGetAvailDriverMemory(LPDDHAL_GETAVAILDRIVERMEMORYDATA pgadm)
         if (DDSCAPS_TEXTURE & pgadm->DDSCaps.dwCaps)
         {
           pgadm->dwTotal = (unsigned long) -((long)(_FF(sliTileCompare) - _FF(ddTiledHeapStart)));
-          //pgadm->dwFree  = (unsigned long) -((long)(_FF(sliTileCompare) - _FF(ddTiledHeapStart)));
+          pgadm->dwFree  = pgadm->dwTotal;   /* V56K-VIDMEM: was commented out -> always 0 */
         }
         else // this catches ((0 == DDSCap.dwCaps) || ((DDSCAPS_VIDEOMEMORY | DDSCAPS_LOCALVIDMEM) & pgadm->DDSCaps.dwCaps))
         {
           pgadm->dwTotal = (unsigned long) -((long)(_FF(sliTileCompare) - _FF(ddTiledHeapStart)));
-          //pgadm->dwFree  = (unsigned long) -((long)(_FF(sliTileCompare) - _FF(ddTiledHeapStart)));
+          pgadm->dwFree  = pgadm->dwTotal;   /* V56K-VIDMEM: was commented out -> always 0 */
         }
   
         DDPRINT(DDDBGLVL, "  (not in sli mode) returning dwTotal=%ld, dwFree=%ld", pgadm->dwTotal, pgadm->dwFree);
       }
     }
   }
+
+  retroLogForce(ppdev, "retro3dfx DDAVAILMEM: caps=%08lXh total=%ld free=%ld\r\n",
+                pgadm->DDSCaps.dwCaps, pgadm->dwTotal, pgadm->dwFree);
 
   pgadm->ddRVal = DD_OK;
 
@@ -2326,6 +2389,13 @@ Return:        DD_OK
 
 DWORD Enter_3DApplication(NT9XDEVICEDATA * ppdev)
 {
+#if ENABLE_LOG_FILE
+  retroLogForce(ppdev, "retro3dfx ENTER-3DAPP: scr=%ldx%ldx%ld primInTile=%ld tiledHeapSz=%ld\r\n",
+                (LONG)ppdev->cxScreen, (LONG)ppdev->cyScreen,
+                (LONG)(ppdev->cjPelSize * 8), (LONG)_DS(ddPrimaryInTile),
+                _FF(ddTiledHeapSize));
+#endif
+
   /* Disable video display. */
   if (IS_NAPALM)
   {
@@ -2401,6 +2471,10 @@ Return:        DD_OK
 
 DWORD Exit_3DApplication(NT9XDEVICEDATA * ppdev)
 {
+#if ENABLE_LOG_FILE
+  retroLogForce(ppdev, "retro3dfx EXIT-3DAPP: 3dCnt=%ld\r\n", _FF(dd3DSurfaceCount));
+#endif
+
   /* Disable video display. */
   if (IS_NAPALM)
   {
@@ -2649,6 +2723,12 @@ DWORD Promote_PrimaryToOverlay(NT9XDEVICEDATA * ppdev)
   _FF(ddVisibleOverlaySurf) = GETPRIMARY;
   _FF(lastOverlayAddress) = INVALID_ADDRESS;
   _DD(dd3DInOverlay) = 1;
+
+  /* retro3dfx: new fullscreen-3D session — reset flip-present state */
+  {
+    extern LONG g_retroFlipGen;
+    g_retroFlipGen++;
+  }
 
   return DD_OK;
 
@@ -2983,6 +3063,18 @@ DWORD Promote_DeviceToSLIAA(NT9XDEVICEDATA * ppdev)
     Sli_AA_Request.MemInfo.dwaaSecondaryDepthBufEnd   = _DD(ddAAZbufferStart) + _FF(gdiDesktopSize) - 1;
     Sli_AA_Request.MemInfo.dwBpp                      = ppdev->cBitsPerPel;
 
+#if ENABLE_LOG_FILE
+    /* retro3dfx: flight-record the exact multi-chip request (D3D SLI banding
+       investigation) — compare against the known-good Glide escape path. */
+    retroLogForce(ppdev, "retro3dfx PROMOTE-SLIAA: cfg=%ld sliEn=%ld aaEn=%ld smpHi=%ld analog=%ld nlines=%ld chips=%ld tileMark=%08lXh bpp=%ld scr=%ldx%ld\r\n",
+                  _DD(ddSLIAAConfiguration),
+                  Sli_AA_Request.ChipInfo.dwsliEn, Sli_AA_Request.ChipInfo.dwaaEn,
+                  Sli_AA_Request.ChipInfo.dwaaSampleHigh, Sli_AA_Request.ChipInfo.dwsliAaAnalog,
+                  Sli_AA_Request.ChipInfo.dwsli_nlines, Sli_AA_Request.ChipInfo.dwChips,
+                  Sli_AA_Request.MemInfo.dwTileMark, Sli_AA_Request.MemInfo.dwBpp,
+                  (LONG)ppdev->cxScreen, (LONG)ppdev->cyScreen);
+#endif
+
     // call the miniport
     if (EngDeviceIoControl(ppdev->hDriver,
                            IOCTL_3DFX_SLI_AA_ENABLE,
@@ -3091,6 +3183,11 @@ DWORD Promote_DeviceToSLIAA(NT9XDEVICEDATA * ppdev)
       _FF(ddPrimarySurfaceData).hwPtr |= SSTG_IS_TILED;
       _FF(gdiDesktopStart) = _FF(ddPrimarySurfaceData).hwPtr;
       DISPDBG((0, "  Promote_ToSLIAA -> primary HwPtr=%8lXh", _FF(ddPrimarySurfaceData)));
+#if ENABLE_LOG_FILE
+      retroLogForce(ppdev, "retro3dfx PROMOTE-SLIAA OK: primary lfb=%08lXh hwPtr=%08lXh maxH=%ld maxLinH=%ld\r\n",
+                    _FF(ddPrimarySurfaceData).lfbPtr, _FF(ddPrimarySurfaceData).hwPtr,
+                    _DD(dwMaxHeight), _DD(dwMaxLinearHeight));
+#endif
 
 #ifdef RD_ABORT_ERROR
       _FF(dwSLIMode) = DISABLE_SLI_READ;
@@ -3111,6 +3208,12 @@ DWORD Demote_DeviceFromSLIAA(NT9XDEVICEDATA * ppdev)
 {
   SLI_AA_REQUEST  Sli_AA_Request;
   DWORD           numBytes;
+
+#if ENABLE_LOG_FILE
+  retroLogForce(ppdev, "retro3dfx DEMOTE-SLIAA: aaEn=%ld sliEn=%ld smp=%ld cfg=%ld\r\n",
+                _DD(ddAAModeEnabled), _DD(ddSLIModeEnabled),
+                _DD(ddAANumberSamples), _DD(ddSLIAAConfiguration));
+#endif
 
   if (_DD(ddAAModeEnabled) || _DD(ddSLIModeEnabled) || _DD(ddAANumberSamples))
   {
@@ -3795,6 +3898,14 @@ void Compute_SLIAA_Config(NT9XDEVICEDATA * ppdev, FxU32 numBuffers)
                                          _DD(ddSLIAAAnalog) = 1;
                                          break;
   }
+
+#if ENABLE_LOG_FILE
+  retroLogForce(ppdev, "retro3dfx COMPUTE-SLIAA: cfg=%ld numBufs=%ld -> aaReq=%ld aaSmp=%ld sliReq=%ld sliWays=%ld analog=%ld 3dCnt=%ld\r\n",
+                _DD(ddSLIAAConfiguration), numBuffers,
+                _DD(ddAAModeRequested), _DD(ddAANumberSamples),
+                _DD(ddSLIModeRequested), _DD(ddSLINumberWays), _DD(ddSLIAAAnalog),
+                _FF(dd3DSurfaceCount));
+#endif
 } // Compute_SLIAA_Config
 #endif
 

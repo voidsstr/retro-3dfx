@@ -152,12 +152,142 @@ DdBlt( LPDDHAL_BLTDATA pbd )
 #ifndef WINNT
   DWORD                dwDestSurfFlags, dwSrcSurfFlags;
 #endif
+#if defined(WINNT) && (DIRECT3D_VERSION >= 0x0700) && (DX >= 7)
+  DWORD                dwSrcTxHndl, dwDstTxHndl;
+#endif
   RC                   *pRc;
 
   DD_ENTRY_SETUP(pbd->lpDD);
 
   pRc = (RC *)_D3(lastContext);
   DDPRINT(DDDBGLVL, ">> DdBlt (dst=%08lXh, src=%08lXh", pbd->lpDDDestSurface, pbd->lpDDSrcSurface);
+
+  /* retro3dfx: present-path tracer (CS-D3D fillrate hunt). Counts blts and
+   * separately blts whose DEST is the primary/front (a Blt-present — the
+   * expensive way to show a frame). One log line at the first primary-dest
+   * blt and every 512th blt overall. */
+  {
+    extern VOID V5DLog(CHAR *, ...);
+    extern LONG g_retroBltCount, g_retroBltToPrimary;
+    LONG n = ++g_retroBltCount;
+    LONG toPrim = 0;
+    if (pbd->lpDDDestSurface &&
+        (pbd->lpDDDestSurface->ddsCaps.dwCaps &
+         (DDSCAPS_PRIMARYSURFACE | DDSCAPS_FRONTBUFFER)))
+      toPrim = ++g_retroBltToPrimary;
+    if ((0 < toPrim) && (14 >= toPrim))
+    {
+      V5DLog("retro3dfx BltToPrim #%ld dst=(%ld,%ld-%ld,%ld) src=(%ld,%ld-%ld,%ld) srcCaps=%08lXh flags=%08lXh\n",
+             (long)toPrim,
+             (long)pbd->rDest.left, (long)pbd->rDest.top,
+             (long)pbd->rDest.right, (long)pbd->rDest.bottom,
+             (long)pbd->rSrc.left, (long)pbd->rSrc.top,
+             (long)pbd->rSrc.right, (long)pbd->rSrc.bottom,
+             (unsigned long)(pbd->lpDDSrcSurface ? pbd->lpDDSrcSurface->ddsCaps.dwCaps : 0),
+             (unsigned long)pbd->dwFlags);
+    }
+    else if ((1 == n) || (0 == (n & 511)))
+    {
+      V5DLog("retro3dfx DdBlt #%ld toPrimary=%ld dstCaps=%08lXh flags=%08lXh\n",
+             (long)n, (long)g_retroBltToPrimary,
+             (unsigned long)(pbd->lpDDDestSurface ? pbd->lpDDDestSurface->ddsCaps.dwCaps : 0),
+             (unsigned long)pbd->dwFlags);
+    }
+  }
+
+  /* retro3dfx EXPERIMENT (SSTH3_SKIPPRESENTBLT REG_SZ "1", read once per
+   * driver load): swallow full-screen origin-anchored blts INTO the primary.
+   * The screen freezes on the last GDI frame during the run — this exists
+   * only to measure what the Blt-present path (copy + any completion sync)
+   * costs a Blt-presenting D3D app (GoldSrc CS). Absent/0 = normal blts. */
+  {
+    static LONG skipPresent = -1;
+    if (0 > skipPresent)
+    {
+      char *e = GETENV("SSTH3_SKIPPRESENTBLT");
+      skipPresent = ((NULL != e) && ('1' == e[0])) ? 1 : 0;
+      if (skipPresent)
+      {
+        extern VOID V5DLog(CHAR *, ...);
+        V5DLog("retro3dfx SKIPPRESENTBLT ACTIVE - primary-dest present blts are swallowed\n");
+      }
+    }
+    if ((0 < skipPresent) &&
+        pbd->lpDDDestSurface && pbd->lpDDSrcSurface &&
+        (pbd->lpDDDestSurface->ddsCaps.dwCaps & DDSCAPS_PRIMARYSURFACE) &&
+        (0 == pbd->rDest.top) && (0 == pbd->rDest.left))
+    {
+      pbd->ddRVal = DD_OK;
+      return DDHAL_DRIVER_HANDLED;
+    }
+  }
+
+  /* retro3dfx: Blt-present -> page-flip promotion. DEFAULT ON — the strict
+   * shape match below is the real gate (only the exact GoldSrc-D3D present
+   * shape promotes: fullscreen 3D app active, full-screen non-stretch
+   * SRCCOPY from a tiled vidmem surface into the tiled primary, no
+   * colorkey; everything else takes the normal blit). SSTH3_FLIPPRESENT
+   * REG_SZ "0" disables — best-effort only: registry READS through the
+   * miniport are unreliable on deployed boxes (see LOGFILE.C, the reason
+   * V5DLog went unconditional), which is why the default must be the
+   * useful behavior. See retroFlipPresent() in DDFLIP.C. */
+  {
+    static LONG flipPresent = -1;
+    if (0 > flipPresent)
+    {
+      char *e = GETENV("SSTH3_FLIPPRESENT");
+      flipPresent = ((NULL != e) && ('0' == e[0])) ? 0 : 1;
+      if (flipPresent)
+      {
+        extern VOID V5DLog(CHAR *, ...);
+        V5DLog("retro3dfx FLIPPRESENT ACTIVE - full-screen present blts promote to page flips\n");
+      }
+    }
+    /* condition probe: first 4 primary-dest blts explain the gate verdict */
+    {
+      extern LONG g_retroBltToPrimary;
+      if ((0 < flipPresent) && (4 >= g_retroBltToPrimary) &&
+          pbd->lpDDDestSurface && pbd->lpDDSrcSurface &&
+          (pbd->lpDDDestSurface->ddsCaps.dwCaps & DDSCAPS_PRIMARYSURFACE))
+      {
+        extern VOID V5DLog(CHAR *, ...);
+        V5DLog("retro3dfx FPcond 3d=%ld rop=%08lXh flags=%08lXh srcHw=%08lXh dstHw=%08lXh cx=%ld cy=%ld\n",
+               (long)_DD(dd3DInOverlay),
+               (unsigned long)((pbd->dwFlags & DDBLT_ROP) ? pbd->bltFX.dwROP : 0xFFFFFFFFul),
+               (unsigned long)pbd->dwFlags,
+               (unsigned long)GET_HW_ADDR(pbd->lpDDSrcSurface),
+               (unsigned long)GET_HW_ADDR(pbd->lpDDDestSurface),
+               (long)ppdev->cxScreen, (long)ppdev->cyScreen);
+      }
+    }
+    if ((0 < flipPresent) &&
+        _DD(dd3DInOverlay) &&
+#if defined(SLI_AA) && (!defined(WINNT) || (_WIN32_WINNT >= 0x0500))
+        !_DD(ddSLIModeEnabled) && !_DD(ddAAModeEnabled) && !_DD(ddAANumberSamples) &&
+#endif
+        pbd->lpDDDestSurface && pbd->lpDDSrcSurface &&
+        (pbd->lpDDDestSurface->ddsCaps.dwCaps & DDSCAPS_PRIMARYSURFACE) &&
+        (pbd->lpDDSrcSurface->ddsCaps.dwCaps & DDSCAPS_VIDEOMEMORY) &&
+        (0 == (pbd->dwFlags & (DDBLT_KEYSRCOVERRIDE | DDBLT_KEYDESTOVERRIDE |
+                               DDBLT_KEYSRC | DDBLT_KEYDEST))) &&
+        /* apps pass dwROP with only the HIWORD meaningful (GoldSrc sends
+         * 00CC0000h, not the full SRCCOPY constant) — compare like the
+         * dispatch below does */
+        ((0 == (pbd->dwFlags & DDBLT_ROP)) || (HIWORD(SRCCOPY) == HIWORD(pbd->bltFX.dwROP))) &&
+        (0 == pbd->rDest.top) && (0 == pbd->rDest.left) &&
+        (0 == pbd->rSrc.top) && (0 == pbd->rSrc.left) &&
+        ((DWORD)pbd->rDest.right  == (DWORD)ppdev->cxScreen) &&
+        ((DWORD)pbd->rDest.bottom == (DWORD)ppdev->cyScreen) &&
+        ((DWORD)pbd->rSrc.right   == (DWORD)ppdev->cxScreen) &&
+        ((DWORD)pbd->rSrc.bottom  == (DWORD)ppdev->cyScreen) &&
+        IS_TILED(GET_HW_ADDR(pbd->lpDDSrcSurface)) &&
+        IS_TILED(GET_HW_ADDR(pbd->lpDDDestSurface)))
+    {
+      extern DWORD retroFlipPresent(NT9XDEVICEDATA *, LPDDHAL_BLTDATA);
+      if (retroFlipPresent(ppdev, pbd))
+        return DDHAL_DRIVER_HANDLED;
+    }
+  }
 
   #ifdef FXTRACE
   DISPDBG((ppdev, DEBUG_APIENTRY, "Blt32" ));
@@ -518,11 +648,177 @@ DdBlt( LPDDHAL_BLTDATA pbd )
       return DDHAL_DRIVER_HANDLED ;
     }
 
-    #ifndef WINNT
+    // retro3dfx: resolve the texture-download handle table CONTEXT-INDEPENDENTLY.
+    //
+    // The original code resolved both surface handles with TXTRHNDL_PTR(), which on
+    // DX7/NT expands to  pRc->pHndlList->ppTxtrHndlList[h]  where pRc = _D3(lastContext).
+    // That crashed GoldSrc's Direct3D renderer: _D3(lastContext) is set ONLY inside the
+    // DrawPrimitives2 draw path and is ZEROED by textureLoad() itself, so a texture
+    // upload -- which precedes the first draw, or follows a prior upload in the same
+    // batch -- legitimately runs with lastContext == NULL, and pRc->pHndlList then
+    // dereferenced [NULL+0x510] -> kernel AV (bugcheck 0x8E, DdBlt+0x32C).
+    //
+    // On W2K/NT a surface carries no owning DirectDraw-local, so we can't key the
+    // handle list off the surface.  Resolve through the GLOBAL per-DDLcl handle-list
+    // chain (g_pHndlList, D7D3D.C -- the list GetHndlListPtr iterates).  It is
+    // populated at ddiCreateSurfaceEx time and exists INDEPENDENT of any render
+    // context: GoldSrc restarts its video mode several times at startup, and
+    // uploads issued in the context-less windows between CTX-DESTROY and the next
+    // CTX-CREATE must still resolve (walking g_pContexts dropped those uploads --
+    // ring 'TEXDL-SKIP no-RC' -- leaving stale-white texture memory).  Find the
+    // HNDLLIST that validly resolves BOTH handles and load through its TXTRHNDLs.
+    // textureLoad() needs only ppdev + the two TXTRHNDLs (its body reads no
+    // context state).  goto unsupported only when no list resolves the handles
+    // (worst case == the old guard-only behaviour, never a fault).
+#if defined(WINNT) && (DIRECT3D_VERSION >= 0x0700) && (DX >= 7)
+    {
+      extern HNDLLIST *g_pHndlList;   // D7D3D.C: head of the per-DDLcl handle lists
+      HNDLLIST *pHL;
+      HNDLLIST *pTxHndlList = NULL;
+      TXTRHNDL  *pSrcTxtr = NULL, *pDstTxtr = NULL;
+      LPDDRAWI_DDRAWSURFACE_LCL pSrcRoot, pDstRoot;
+      int       nSrcLvl = 0, nDstLvl = 0, nHops;
+
+      if ( !pbd->lpDDSrcSurface->lpSurfMore || !pbd->lpDDDestSurface->lpSurfMore )
+      {
+        DDPRINT(DDDBGLVL, "Blt32 - texture download skipped: surface has no lpSurfMore");
+        goto unsupported;
+      }
+
+      // Mip SUBLEVEL surfaces carry their own dwSurfaceHandle that
+      // ddiCreateSurfaceEx never registers (only the chain ROOT gets a
+      // TXTRHNDL, with the whole chain described in mmData[]).  GoldSrc blts
+      // every mip level as a separate surface; resolving the sublevel handle
+      // directly fails, which used to silently drop mips 1..n of every world
+      // texture (ring TEXDL-SKIP) -> the TMU minified into stale-white memory.
+      // Walk each surface UP the attach-from chain to its texture root and
+      // resolve THAT handle; the level index is recovered below by matching
+      // the blitted surface's dimensions against the root's mmData[] (the
+      // same idiom the DP2 TEXBLT mip-match loop uses).
+      pSrcRoot = pbd->lpDDSrcSurface;
+      for ( nHops = 0; nHops < MAX_MIPMAP_LEVELS; nHops++ )
+      {
+        if ( (NULL == pSrcRoot->lpAttachListFrom) ||
+             (NULL == pSrcRoot->lpAttachListFrom->lpAttached) ||
+             !(pSrcRoot->lpAttachListFrom->lpAttached->ddsCaps.dwCaps & DDSCAPS_TEXTURE) )
+          break;
+        pSrcRoot = pSrcRoot->lpAttachListFrom->lpAttached;
+      }
+      pDstRoot = pbd->lpDDDestSurface;
+      for ( nHops = 0; nHops < MAX_MIPMAP_LEVELS; nHops++ )
+      {
+        if ( (NULL == pDstRoot->lpAttachListFrom) ||
+             (NULL == pDstRoot->lpAttachListFrom->lpAttached) ||
+             !(pDstRoot->lpAttachListFrom->lpAttached->ddsCaps.dwCaps & DDSCAPS_TEXTURE) )
+          break;
+        pDstRoot = pDstRoot->lpAttachListFrom->lpAttached;
+      }
+      if ( !pSrcRoot->lpSurfMore || !pDstRoot->lpSurfMore )
+      {
+        DDPRINT(DDDBGLVL, "Blt32 - texture download skipped: root has no lpSurfMore");
+        goto unsupported;
+      }
+      dwSrcTxHndl = pSrcRoot->lpSurfMore->dwSurfaceHandle;
+      dwDstTxHndl = pDstRoot->lpSurfMore->dwSurfaceHandle;
+      if ( (0 == dwSrcTxHndl) || (0 == dwDstTxHndl) )
+      {
+        DDPRINT(DDDBGLVL, "Blt32 - texture download skipped: zero surface handle");
+        goto unsupported;
+      }
+
+      for ( pHL = g_pHndlList; NULL != pHL; pHL = pHL->pNext )
+      {
+        // valid list, both handles in range (ppTxtrHndlList[0] holds the count,
+        // handle <= count -- matches D3TXTR.C:1218), and both registered.
+        if ( NULL == pHL->ppTxtrHndlList )
+          continue;
+        if ( (dwSrcTxHndl > (DWORD)pHL->ppTxtrHndlList[0]) ||
+             (dwDstTxHndl > (DWORD)pHL->ppTxtrHndlList[0]) )
+          continue;
+        if ( (NULL != pHL->ppTxtrHndlList[dwSrcTxHndl]) &&
+             (NULL != pHL->ppTxtrHndlList[dwDstTxHndl]) )
+        {
+          pTxHndlList = pHL;
+          pSrcTxtr    = pHL->ppTxtrHndlList[dwSrcTxHndl];
+          pDstTxtr    = pHL->ppTxtrHndlList[dwDstTxHndl];
+          break;
+        }
+      }
+
+      if ( NULL == pTxHndlList )
+      {
+        DDPRINT(DDDBGLVL, "Blt32 - texture download skipped: no context resolves handles (src=%ld dst=%ld)",
+                dwSrcTxHndl, dwDstTxHndl);
+#if ENABLE_LOG_FILE
+        // white-texture hunt: a silent skip here means the app's upload fell back
+        // to a software copy into tiled vidmem. Bounded: first 4 only.
+        {
+          static DWORD _dlSkip = 0;
+          if (++_dlSkip <= 4)
+            retroLogForce(ppdev, "retro3dfx TEXDL-SKIP#%ld: no-HL src=%ld dst=%ld %ldx%ld\r\n",
+                          _dlSkip, dwSrcTxHndl, dwDstTxHndl,
+                          (LONG)pbd->lpDDSrcSurface->lpGbl->wWidth,
+                          (LONG)pbd->lpDDSrcSurface->lpGbl->wHeight);
+        }
+#endif
+        goto unsupported;
+      }
+
+      // Recover the mip level being blitted: match the ORIGINAL surface's
+      // dimensions against the root TXTRHNDL's per-LOD mmData[].  A top-level
+      // blt (surface == its own root) is LOD 0 by definition.
+      if ( pSrcRoot != pbd->lpDDSrcSurface )
+      {
+        for ( nSrcLvl = 0; nSrcLvl < pSrcTxtr->nLevels; nSrcLvl++ )
+          if ( (pSrcTxtr->mmData[nSrcLvl].wWidth  == (DWORD)pbd->lpDDSrcSurface->lpGbl->wWidth) &&
+               (pSrcTxtr->mmData[nSrcLvl].wHeight == (DWORD)pbd->lpDDSrcSurface->lpGbl->wHeight) )
+            break;
+        if ( nSrcLvl >= pSrcTxtr->nLevels )
+        {
+          DDPRINT(DDDBGLVL, "Blt32 - texture download skipped: src sublevel not in mmData");
+          goto unsupported;
+        }
+      }
+      if ( pDstRoot != pbd->lpDDDestSurface )
+      {
+        for ( nDstLvl = 0; nDstLvl < pDstTxtr->nLevels; nDstLvl++ )
+          if ( (pDstTxtr->mmData[nDstLvl].wWidth  == (DWORD)pbd->lpDDDestSurface->lpGbl->wWidth) &&
+               (pDstTxtr->mmData[nDstLvl].wHeight == (DWORD)pbd->lpDDDestSurface->lpGbl->wHeight) )
+            break;
+        if ( nDstLvl >= pDstTxtr->nLevels )
+        {
+          DDPRINT(DDDBGLVL, "Blt32 - texture download skipped: dst sublevel not in mmData");
+          goto unsupported;
+        }
+      }
+
+      DDPRINT(DDDBGLVL, "Blt32 - Texture download (ctx-independent, lod %d->%d)", nSrcLvl, nDstLvl);
+      pbd->ddRVal = TEXTURELOAD(ppdev, pSrcTxtr, &pbd->rSrc, nSrcLvl, pDstTxtr, &pbd->rDest, nDstLvl);
+#if ENABLE_LOG_FILE
+      // white-texture hunt: log the first 3 downloads (+ every 256th) with the
+      // mip count and pixel format so we can see what GoldSrc actually uploads.
+      {
+        static DWORD _dlOk = 0;
+        ++_dlOk;
+        // first 2 + rare heartbeat only: the bind-side logs need the ring slots
+        // log the first few LOD-0 AND the first few sublevel downloads
+        {
+          static DWORD _dlSub = 0;
+          DWORD _isSub = (nSrcLvl | nDstLvl) ? 1 : 0;
+          if (_isSub) ++_dlSub;
+          if ((_dlOk <= 2) || (0 == (_dlOk & 8191)) || (_isSub && (_dlSub <= 3)))
+            retroLogForce(ppdev, "retro3dfx TEXDL#%ld: hr=%08lXh src=%ld dst=%ld %ldx%ld lod=%d/%d nlv=%d\r\n",
+                          _dlOk, pbd->ddRVal, dwSrcTxHndl, dwDstTxHndl,
+                          (LONG)pbd->lpDDSrcSurface->lpGbl->wWidth,
+                          (LONG)pbd->lpDDSrcSurface->lpGbl->wHeight,
+                          nSrcLvl, nDstLvl, pDstTxtr->nLevels);
+        }
+      }
+#endif
+      return DDHAL_DRIVER_HANDLED;
+    }
+#else
     DISPDBG((ppdev, DEBUG_DDDETAILS,"Blt32 - Texture download"));
-    #else
-    DDPRINT(DDDBGLVL, "Blt32 - Texture download");
-    #endif
     pbd->ddRVal = TEXTURELOAD(ppdev,
                               TXTRHNDL_PTR(pbd->lpDDSrcSurface->lpSurfMore->dwSurfaceHandle),
                               &pbd->rSrc, 0,
@@ -530,6 +826,7 @@ DdBlt( LPDDHAL_BLTDATA pbd )
                               &pbd->rDest, 0);
 
     return DDHAL_DRIVER_HANDLED;
+#endif
   }
 #endif
 
@@ -2203,3 +2500,149 @@ Blt32_CopyFourCC(NT9XDEVICEDATA             *ppdev,
   return DD_OK;
 } // Blt32_CopyFourCC
 
+
+#if ENABLE_3D && (DIRECT3D_VERSION >= 0x0700) && (DX >= 7)
+/*----------------------------------------------------------------------
+Function name:  Blt32_TexBltCopyFourCC()
+
+Description:    retro3dfx: 7-argument adapter so the D3DDP2OP_TEXBLT
+                handler can invoke Blt32_CopyFourCC through the same
+                PTEXBLTFUNC signature as textureLoad().
+
+                The vintage code cast the 5-argument __stdcall
+                Blt32_CopyFourCC directly to the 7-argument PTEXBLTFUNC
+                and called it with (ppdev, TXTRHNDL*, RECTL*, int LOD,
+                TXTRHNDL*, RECTL*, int LOD).  Argument 4 (nSrcLOD, an
+                integer, normally 0) therefore arrived in
+                Blt32_CopyFourCC's pDDDstSurf parameter and was
+                dereferenced as a surface pointer -> bugcheck 1000008E
+                on the first managed FourCC (DXTn) texture blt (seen
+                with UT2004's D3D renderer).  The callee also popped
+                0x14 bytes while the caller pushed 0x1c.
+
+                This wrapper rebuilds the DDRAWI surface views that
+                Blt32_CopyFourCC expects from the TXTRHNDL's per-LOD
+                mipmap data (populated in D7D3D.C when the runtime
+                associates the surface with its handle) and calls it
+                with the correct arity.  The rectangles passed down are
+                the full LOD level, per the DDK contract for FourCC
+                copies (no stretching, no sub-rectangles); prSrc/prDest
+                from the DP2 stream are ignored because the TEXBLT
+                mip-loop halves them from the runtime-munged system
+                memory dimensions, which do not survive reinterpretation
+                through the DXT bits-per-pixel math in Blt32_CopyFourCC.
+
+Return:         DD_OK or DDERR_*
+----------------------------------------------------------------------*/
+
+DWORD __stdcall
+Blt32_TexBltCopyFourCC(NT9XDEVICEDATA  *ppdev,
+                       TXTRHNDL        *pSrcSurf,
+                       RECTL           *prSrc,
+                       int              nSrcLOD,
+                       TXTRHNDL        *pDstSurf,
+                       RECTL           *prDest,
+                       int              nDstLOD)
+{
+  DD_SURFACE_GLOBAL         gblSrc, gblDst;
+  DD_SURFACE_LOCAL          lclSrc, lclDst;
+  DD_SURFACE_MORE           moreSrc, moreDst;
+  RECTL                     rSrcFull, rDstFull;
+  MIPMAPDATA                mmSrc, mmDst;
+  DWORD                     retval;
+
+  prSrc;   // unreferenced, see above
+  prDest;  // unreferenced, see above
+
+  if ((NULL == pSrcSurf) || (NULL == pDstSurf))
+    return DDERR_INVALIDPARAMS;
+
+  // Pick the per-LOD source/dest data.  mmData[0] is valid for any
+  // texture surface (the population loop in D7D3D.C always runs at
+  // least once); fall back to the top-level fields for LOD 0 of a
+  // TXTRHNDL without mipmap data.
+
+  if ((nSrcLOD >= 0) && (nSrcLOD < pSrcSurf->nLevels))
+    mmSrc = pSrcSurf->mmData[nSrcLOD];
+  else if (0 == nSrcLOD)
+  {
+    mmSrc.wWidth   = pSrcSurf->wWidth;
+    mmSrc.wHeight  = pSrcSurf->wHeight;
+    mmSrc.lPitch   = pSrcSurf->lPitch;
+    mmSrc.fpVidMem = pSrcSurf->fpVidMem;
+  }
+  else
+    return DDERR_INVALIDPARAMS;
+
+  if ((nDstLOD >= 0) && (nDstLOD < pDstSurf->nLevels))
+    mmDst = pDstSurf->mmData[nDstLOD];
+  else if (0 == nDstLOD)
+  {
+    mmDst.wWidth   = pDstSurf->wWidth;
+    mmDst.wHeight  = pDstSurf->wHeight;
+    mmDst.lPitch   = pDstSurf->lPitch;
+    mmDst.fpVidMem = pDstSurf->fpVidMem;
+  }
+  else
+    return DDERR_INVALIDPARAMS;
+
+  memset(&gblSrc,  0, sizeof(gblSrc));
+  memset(&gblDst,  0, sizeof(gblDst));
+  memset(&lclSrc,  0, sizeof(lclSrc));
+  memset(&lclDst,  0, sizeof(lclDst));
+  memset(&moreSrc, 0, sizeof(moreSrc));
+  memset(&moreDst, 0, sizeof(moreDst));
+
+  // dwReserved1 of the GBL views stays 0 so Blt32_CopyFourCC addresses
+  // through fpVidMem (the per-LOD address) rather than the
+  // surface-wide FXSURFACEDATA hwPtr.
+
+  gblSrc.fpVidMem                  = (FLATPTR)mmSrc.fpVidMem;
+  gblSrc.lPitch                    = mmSrc.lPitch;
+  gblSrc.wWidth                    = mmSrc.wWidth;
+  gblSrc.wHeight                   = mmSrc.wHeight;
+  gblSrc.ddpfSurface.dwSize        = sizeof(gblSrc.ddpfSurface);
+  gblSrc.ddpfSurface.dwFlags       = pSrcSurf->dwFlags;
+  gblSrc.ddpfSurface.dwFourCC      = pSrcSurf->dwFourCC;
+  gblSrc.ddpfSurface.dwRGBBitCount = pSrcSurf->dwBitCnt;
+
+  lclSrc.lpGbl          = &gblSrc;
+  lclSrc.ddsCaps.dwCaps = pSrcSurf->dwCaps;
+  lclSrc.dwReserved1    = pSrcSurf->txtrID;
+  lclSrc.lpSurfMore     = &moreSrc;
+
+  gblDst.fpVidMem                  = (FLATPTR)mmDst.fpVidMem;
+  gblDst.lPitch                    = mmDst.lPitch;
+  gblDst.wWidth                    = mmDst.wWidth;
+  gblDst.wHeight                   = mmDst.wHeight;
+  gblDst.ddpfSurface.dwSize        = sizeof(gblDst.ddpfSurface);
+  gblDst.ddpfSurface.dwFlags       = pDstSurf->dwFlags;
+  gblDst.ddpfSurface.dwFourCC      = pDstSurf->dwFourCC;
+  gblDst.ddpfSurface.dwRGBBitCount = pDstSurf->dwBitCnt;
+
+  lclDst.lpGbl          = &gblDst;
+  lclDst.ddsCaps.dwCaps = pDstSurf->dwCaps;
+  lclDst.dwReserved1    = pDstSurf->txtrID;   // TXTRDESC handle for the
+                                              // DXT1 stretch/pad fixups
+  lclDst.lpSurfMore     = &moreDst;
+
+  rSrcFull.left = rSrcFull.top = 0;
+  rSrcFull.right  = (LONG)mmSrc.wWidth;
+  rSrcFull.bottom = (LONG)mmSrc.wHeight;
+
+  rDstFull.left = rDstFull.top = 0;
+  rDstFull.right  = (LONG)mmDst.wWidth;
+  rDstFull.bottom = (LONG)mmDst.wHeight;
+
+  retval = Blt32_CopyFourCC(ppdev, &lclSrc, &rSrcFull, &lclDst, &rDstFull);
+
+#if ENABLE_LOG_FILE
+  if (DD_OK != retval)
+    retroLogForce(ppdev, "retro3dfx TEXBLT-4CC-ERR: hr=%08lXh fourcc=%08lXh lod=%d/%d dst=%ldx%ld\r\n",
+                  retval, pDstSurf->dwFourCC, nSrcLOD, nDstLOD,
+                  (LONG)mmDst.wWidth, (LONG)mmDst.wHeight);
+#endif
+
+  return retval;
+} // Blt32_TexBltCopyFourCC
+#endif // ENABLE_3D && DX7

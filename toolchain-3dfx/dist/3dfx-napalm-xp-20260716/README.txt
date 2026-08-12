@@ -1,73 +1,85 @@
-3dfx Voodoo3/4/5 driver package for Windows 2000 / XP
-=======================================================
-Package: 3dfx-napalm-xp-20260716
+3dfx Voodoo3 / Voodoo4 / Voodoo5 (incl. Voodoo5 6000) driver package
+for Windows 2000 / XP
+=====================================================================
+Package: 3dfx-napalm-xp-20260716   (rebuilt 2026-07-19)
+
+Complete self-built driver stack for the leaked H5/Napalm source, produced
+with the Wine + VC6/W2K-DDK toolchain. Covers Voodoo3 (DEV_0005), Voodoo4/5
+5500 (DEV_0009 / DEV_000B), and the Voodoo5 6000 (quad VSA-100, DEV_0009).
 
 CONTENTS
 --------
-  3dfxvsm.sys   video miniport driver (kernel), free/retail build
-  3dfxvs.dll    XP/2K display driver
-  glide3x.dll   Glide3 runtime (96 exports)
-  fxoem2x.dll   3dfx OEM support DLL (not INF-installed; for tools that want it)
-  voodoo3.inf   install INF for Voodoo3 (PCI\VEN_121A&DEV_0005),
-                includes SUBSYS_1037121A&REV_01 (fleet box .124)
-  voodoo5.inf   install INF for Voodoo4/5 (PCI\VEN_121A&DEV_0009 / DEV_000B)
-  updrv.exe     tiny helper that calls UpdateDriverForPlugAndPlayDevicesA
-                (SetupAPI/PnP install; needs Win2000 or later)
-  INSTALL.bat   scripted Voodoo3 install (backup + policy + install)
+  Kernel / display (W2K miniport + XP display driver):
+    3dfxv5m.sys   miniport, WFP-safe name — Voodoo4/5 + *6000*. Includes the
+                  6000 quad-VSA-100 bring-up: HiNT HB1-SE66 bridge finder,
+                  external graphics-clock synthesis over bridge GPIO
+                  (V56KFindHintBridge / V56KSetExternalClock / V56KOutputClock),
+                  and QuadChipAASLI config. Also serves the 5500 (dwChips==2)
+                  and Voodoo3 (IS_VOODOO3) from the same binary via runtime
+                  branches — the 6000 paths are dwChips==4 / HiNT-gated, so no
+                  regression on 5500 / V3.
+    3dfxv5d.dll   XP/2K display driver (WFP-safe name), incl. the D3D HAL.
+    3dfxvsm.sys   legacy stock-name miniport (for voodoo3.inf / voodoo5.inf).
+    3dfxvs.dll    legacy stock-name display driver.
 
-Both INFs are trimmed to the files actually shipped: glide2x.dll,
-3dfxSpl2.dll, 3dfxSpl3.dll and 3dfxOGL.dll are NOT included, and the
-OpenGL ICD registration was removed (registering a missing 3dfxOGL.dll
-would break every OpenGL app). OpenGL apps should use a Glide wrapper or
-MesaFX on top of glide3x.dll.
+  Runtimes:
+    glide3x.dll   Glide3 runtime (96 exports) — Napalm, minihwc-linked (incl.
+                  the 6000 same-bus chip-detection fallback).
+    glide2x.dll   Glide2 runtime (133 exports) — most Glide GAMES need this
+                  (Unreal/UT'99, NFS, Diablo II, …), not glide3x.
+    3dfxogl.dll   OpenGL ICD [retro3dfx 0.3.3] (0.3.1: 16-byte Napalm texture-heap alignment, solves 2D sliced-text garble; 0.3.2: EXT_paletted_texture RGBA table stride fix, solves GoldSrc green-world colors). Honors GL texture filters in
+                  hardware; fixes the UT glTexSubImage2D NULL-cache GPF. Stable
+                  across Quake III, Quake II, CS 1.6, Unreal Tournament on the
+                  Voodoo5. Registered by voodoo5-6k.inf / voodoo5-wfp.inf.
+    fxoem2x.dll   3dfx OEM support DLL (not INF-installed; for tools).
 
-TARGETS
--------
-  voodoo3.inf : 3dfx Voodoo3 2000/3000/3500 (PCI\VEN_121A&DEV_0005),
-                verified target: box .124, HWID
-                PCI\VEN_121A&DEV_0005&SUBSYS_1037121A&REV_01, Windows XP SP3
-  voodoo5.inf : Voodoo4 4500 / Voodoo5 5500 (DEV_0009) and Napalm2 (DEV_000B)
-  OS          : Windows 2000 / XP (updrv.exe loads newdev.dll at runtime;
-                the binary itself starts on Win98 but the API needs Win2K+)
+  INFs:
+    voodoo5-6k.inf   Voodoo5 6000 (quad VSA-100). Ships the WFP-safe driver
+                     pair + all three runtimes + registers the OpenGL ICD.
+                     MaximumNumberOfDevices=4. Generic PCI\VEN_121A&DEV_0009
+                     row (the 6000 shares DEV_0009; chip count is detected at
+                     runtime). Fill in the exact Strange God SUBSYS after the
+                     card's PnP tree is captured (Phase 1).
+    voodoo5-wfp.inf  Voodoo4/5 5500 (WFP-safe 3dfxv5d/3dfxv5m pair) — the
+                     verified .143 fleet path.
+    voodoo5.inf      legacy stock-name Voodoo4/5 (3dfxvs/3dfxvsm).
+    voodoo3.inf      Voodoo3 (DEV_0005), incl. SUBSYS_1037121A&REV_01 (.124).
 
-INSTALL (scripted, via retro agent)
------------------------------------
-  1. Copy this whole directory to the machine, e.g. C:\RETRO_AGENT\3dfx-drv\
-     (agent UPLOAD, or copy from the SMB share).
-  2. Run INSTALL.bat from that directory (agent: EXEC or EXECW - it is a
-     console batch, output is captured). It will:
-       - back up existing 3dfxvs*.* + glide3x.dll to C:\RETRO_AGENT\3dfx-backup\
-         (first run only - reruns keep the original backup)
-       - set the XP driver-signing policy to Ignore (this build is unsigned)
-       - copy glide3x.dll to system32
-       - install via: updrv.exe voodoo3.inf "PCI\VEN_121A&DEV_0005"
-  3. Reboot (fleet machines: only with explicit user approval), then verify
-     with VIDEODIAG / DISPLAYCFG.
-  For a Voodoo4/5 box run updrv.exe manually with voodoo5.inf and the
-  matching HWID (e.g. "PCI\VEN_121A&DEV_0009").
+  Installer helpers:
+    updrv.exe     UpdateDriverForPlugAndPlayDevicesA (SetupAPI/PnP; W2K+).
+    INSTALL.bat   scripted install (backup + signing policy + updrv).
 
-INSTALL (manual, Device Manager fallback)
------------------------------------------
-  1. Copy the directory to the machine.
-  2. Device Manager -> Display adapters -> the Voodoo device -> Update
-     Driver -> "Install from a list or specific location" -> "Don't search,
-     I will choose" -> Have Disk -> browse to voodoo3.inf (or voodoo5.inf).
-  3. Accept the unsigned-driver warning, let files copy, reboot.
+INSTALL (Voodoo5 6000, XP/2000)
+-------------------------------
+  1. Capture + archive the vendor's known-good stack and BOTH VBIOS images
+     first (Phase 1) — that is the rollback. Never reflash the card BIOS.
+  2. Start in the card's 128 MB BIOS mode (32 MB/chip) — the hardened path.
+  3. Back up the display-class registry + existing driver files.
+  4. Suppress the unsigned-driver prompt (our binaries are unsigned):
+       reg add "HKLM\SOFTWARE\Microsoft\Driver Signing" /v Policy /t REG_BINARY /d 00 /f
+  5. updrv.exe voodoo5-6k.inf "PCI\VEN_121A&DEV_0009"
+  6. Reboot; verify VIDEODIAG shows our driver and a sane resolution (not
+     640x480 4-bit VGA — that means the VxD/miniport fell back).
 
-ROLLBACK
---------
-  - Preferred: Device Manager -> display adapter -> Properties -> Driver ->
-    "Roll Back Driver" (XP keeps the previous driver set).
-  - Boot problem: F8 -> "Last Known Good Configuration" undoes the new
-    service/driver registration.
-  - Manual: restore the files saved in C:\RETRO_AGENT\3dfx-backup\ over
-    system32 / system32\drivers (from Safe Mode if needed), then reboot.
+STATE / SUPPORT MATRIX
+----------------------
+  Voodoo3, Voodoo5 5500          : verified on the fleet (.124 / .143).
+  Voodoo5 6000, 128 MB mode      : code-complete (external clock + quad SLI +
+                                   detection); awaiting the physical card to
+                                   bring up (single-chip -> 2-way -> 4-way).
+  Voodoo5 6000, 256 MB mode      : Phase 3 — needs one hwcMapBoard change
+                                   (MINIHWC.C:1681, 32 MB -> 64 MB/chip BAR
+                                   length) that must be verified on hardware;
+                                   NOT applied here to keep the 128 MB path
+                                   hardened. See V56K-PLAN.md.
 
-PROVENANCE
-----------
-  Built 20260716 from the 3dfx Interactive H5 (Napalm) source tree,
-  W2K free (retail) build, cross-compiled in the repo's toolchain-3dfx/
-  Wine+DDK environment. UNSIGNED - no WHQL catalog; XP shows the unsigned
-  driver prompt unless the signing policy is set to Ignore (INSTALL.bat
-  does this). updrv.exe is our own helper (agent/tools/updrv.c), built
-  freestanding with mingw so it runs on any Win98-XP box.
+  Full plan + phased bring-up: ../../V56K-PLAN.md
+  OpenGL ICD changelog:        ../../optimized/CHANGELOG.md
+
+NOTES
+-----
+  - Unsigned, sign-free-era install (driver-signing prompt only on W2K/XP).
+  - WFP: never raw-copy 3dfxv5d.dll/3dfxv5m.sys into system32 — install via
+    the INF/updrv (SetupAPI) so WFP does not silently revert them. The
+    WFP-safe names avoid the in-box 3dfxvs.dll/3dfxvsm.sys protection.
+  - INFs are trimmed to the files actually shipped (no 3dfxSpl2/3.dll).

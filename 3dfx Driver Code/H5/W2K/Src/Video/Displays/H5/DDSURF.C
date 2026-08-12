@@ -816,6 +816,21 @@ DdCreateSurface( LPDDHAL_CREATESURFACEDATA pcsd )
                                         &(surfaceData->heapID),
                                         &(surfaceData->pvmHeap));
 
+      /* retro3dfx: surface-placement tracer (CS-D3D fillrate hunt). Logs every
+       * video-memory surface create with its caps and TILED/LINEAR placement —
+       * a 3D back/depth buffer landing MEM_IN_LINEAR renders dramatically
+       * slower on this hardware than the tiled heap Glide always uses. Surface
+       * creates are rare (mode set / level load), so always log. */
+      if (DD_OK == pcsd->ddRVal)
+      {
+        extern VOID V5DLog(CHAR *, ...);
+        V5DLog("retro3dfx DdCreateSurface caps=%08lXh %ldx%ld pitch=%ld hwPtr=%08lXh %s heap=%ld\n",
+               (unsigned long)psurf->ddsCaps.dwCaps, (long)bWidth, (long)height,
+               (long)surfaceData->lPitch, (unsigned long)surfaceData->hwPtr,
+               (MEM_IN_TILED == tileFlag) ? "TILED" : "LINEAR",
+               (long)surfaceData->heapID);
+      }
+
       if (DD_OK != pcsd->ddRVal)
       {
 CleanUp:
@@ -1172,6 +1187,13 @@ DdDestroySurface( LPDDHAL_DESTROYSURFACEDATA pdsd )
   psurf_gbl = psurf->lpGbl;
   dwCaps = psurf->ddsCaps.dwCaps;
 
+  /* retro3dfx: if this surface is flip-present-promoted, restore its
+   * original backing before the runtime frees it (DDFLIP.C) */
+  {
+    extern VOID retroFlipPresentSurfGone(void *);
+    retroFlipPresentSurfGone((void *)psurf_gbl->dwReserved1);
+  }
+
   #ifdef FXTRACE
   DISPDBG((ppdev, DEBUG_APIENTRY, "DestroySurface32" ));
   DUMP_DDHAL_DESTROYSURFACEDATA(ppdev, DEBUG_DDGORY, pdsd );
@@ -1507,6 +1529,19 @@ DdLock( LPDDHAL_LOCKDATA pld )
 
   dwCaps = pld->lpDDSurface->ddsCaps.dwCaps;
 
+  /* retro3dfx: lock tracer (CS-D3D present hunt). A per-frame app Lock of the
+   * primary/back buffer is a hard CPU-GPU serialization point (and would veto
+   * any flip-promotion of the Blt-present). First 4 + every 512th. */
+  {
+    extern VOID V5DLog(CHAR *, ...);
+    static LONG lockCount = 0;
+    LONG n = ++lockCount;
+    if ((4 >= n) || (0 == (n & 511)))
+    {
+      V5DLog("retro3dfx DdLock #%ld caps=%08lXh\n", (long)n, (unsigned long)dwCaps);
+    }
+  }
+
 #ifdef Z_ACCESS_OPT
   // If the app is locking the surface to clear the Z Buffer itself,
   // lets reset the optimization
@@ -1571,8 +1606,7 @@ DdLock( LPDDHAL_LOCKDATA pld )
     // or the texture is also a render target
     if ((BltToTxtrInFifo & txtr->flags) || (DDSCAPS_3DDEVICE & dwCaps))
     {
-      while (FXGETBUSYSTATUS(ppdev))
-        ;
+      FXBUSYWAIT(ppdev);  /* retro3dfx: bounded (was raw spin) */
       txtr->flags &= ~BltToTxtrInFifo;
     }
 
@@ -1709,7 +1743,7 @@ DdLock( LPDDHAL_LOCKDATA pld )
 
     if (pld->dwFlags & DDLOCK_WAIT)
     {
-      while (FXGETBUSYSTATUS(ppdev));
+      FXBUSYWAIT(ppdev);  /* retro3dfx: bounded */
     }
     else if (FXGETBUSYSTATUS(ppdev))
     {
@@ -1724,7 +1758,7 @@ DdLock( LPDDHAL_LOCKDATA pld )
     /* There may be a better place to put this but we need   */
     /* it now to fix WHQL so here it is.                     */
 
-    while (FXGETBUSYSTATUS(ppdev));
+    FXBUSYWAIT(ppdev);  /* retro3dfx: bounded */
 #endif
 
     /* Avoid pipeline flush when surface is locked, if the   */
@@ -1743,7 +1777,19 @@ DdLock( LPDDHAL_LOCKDATA pld )
 
       if (pld->dwFlags & DDLOCK_WAIT)
       {
+#if ENABLE_LOG_FILE
+        /* retro3dfx: bounded (was raw spin). A wedged flip must not hang a
+           DDLOCK_WAIT surface lock (would hang the locking app and any GDI). */
+        { ULONG _rs = 0;
+          while (FXGETFLIPSTATUS(ppdev)) {
+            if (++_rs >= 100000000UL) {
+              retroLogForce(ppdev, "retro3dfx DdLock-FlipWait WEDGE-BREAK@100M\r\n");
+              break;
+            }
+          } }
+#else
         while (FXGETFLIPSTATUS(ppdev));
+#endif
       }
       else if (FXGETFLIPSTATUS(ppdev))
       {

@@ -180,9 +180,49 @@ __inline BOOL H3_GP_BUSY(PDEV* ppdev, BYTE* pjBase)
 
 #else
 
+/* retro3dfx: bounded (was unbounded) — see FXBUSYWAIT note in DDGLOBAL.H. */
+#if ENABLE_LOG_FILE
+    #define H3_GP_WAIT(ppdev, pjBase)                                          \
+        do {                                                                   \
+          ULONG _retroGpSpin = 0;                                              \
+          while (H3_GP_BUSY(ppdev, pjBase)) {                                  \
+            if (++_retroGpSpin >= 100000000UL) {                               \
+              retroLogForce((PDEV *)(ppdev),                                   \
+                            "retro3dfx H3GpWait WEDGE-BREAK@100M\r\n");        \
+              break;                                                           \
+            }                                                                  \
+          }                                                                    \
+        } while (0)
+#else
     #define H3_GP_WAIT(ppdev, pjBase)                     \
         do {;} while (H3_GP_BUSY(ppdev, pjBase))
+#endif
 
+#endif
+
+/* retro3dfx: bounded replacement for the raw `while(H3_GP_BUSY(ppdev,
+   ppdev->pjH3Base));` spins in the 2D BitBlt / DrvCopyBits path (BITBLT.C).
+   Those waited for the 2D engine to idle before reading framebuffer bits; if
+   the accelerator is stuck (e.g. the shared command FIFO is mid-D3D-present),
+   the raw spin hangs win32k -> GDI BitBlt / a client SCREENSHOT never returns.
+   Bounded at 100M reads (~100s, unreachable in healthy operation) with a ring
+   log on breach, matching the DDraw/3D wedge-breakers. Behaviourally identical
+   otherwise. */
+#if ENABLE_LOG_FILE
+#define RETRO_GP_SPIN(ppdev)                                                  \
+    do {                                                                      \
+      ULONG _retroBltSpin = 0;                                                \
+      while (H3_GP_BUSY((ppdev), (ppdev)->pjH3Base)) {                        \
+        if (++_retroBltSpin >= 100000000UL) {                                 \
+          retroLogForce((PDEV *)(ppdev),                                      \
+                        "retro3dfx BitBlt-GPSpin WEDGE-BREAK@100M\r\n");       \
+          break;                                                              \
+        }                                                                     \
+      }                                                                       \
+    } while (0)
+#else
+#define RETRO_GP_SPIN(ppdev)                                                  \
+    do { while (H3_GP_BUSY((ppdev), (ppdev)->pjH3Base)) ; } while (0)
 #endif
 
 /////////////////////////////////////////////////////////////////

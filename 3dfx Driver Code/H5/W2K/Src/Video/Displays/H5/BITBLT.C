@@ -980,12 +980,17 @@ ROP4        rop4)
     GLIDE_EXCLUSION(glideState[ 0 ]);
 
 #if ENABLE_LOG_FILE
-    if ((psoDst->dhsurf != NULL) && (! (((DSURF *)psoDst->dhsurf)->dt & DT_DIB)))
+    /* retro3dfx: the vintage block dereferenced psoSrc with NO null check.
+       psoSrc is NULL for solid/pattern blts; while a mode change has the
+       primary temporarily as a DIB the psoDst branch fails and the next
+       solid fill faulted here (bugcheck 8E @ 3dfxv5d+0x346, Q3 1024->1280
+       vid_restart).  Guard both, mirroring the correct SLI_AA block below. */
+    if ((psoDst != NULL) && (psoDst->dhsurf != NULL) && (! (((DSURF *)psoDst->dhsurf)->dt & DT_DIB)))
     {
       ppdev = (PDEV*)psoDst->dhpdev;
       H3PRINTF((ppdev, "DrvBitBlt\r\n"));
     }
-    else if ((psoSrc->dhsurf != NULL) && (! (((DSURF *)psoSrc->dhsurf)->dt & DT_DIB)))
+    else if ((psoSrc != NULL) && (psoSrc->dhsurf != NULL) && (! (((DSURF *)psoSrc->dhsurf)->dt & DT_DIB)))
     {
       ppdev = (PDEV*)psoSrc->dhpdev;
       H3PRINTF((ppdev, "DrvBitBlt\r\n"));
@@ -1914,8 +1919,13 @@ POINTL*   pptlSrc)
     GLIDE_EXCLUSION(glideState[ 0 ]);
 
 #if ENABLE_LOG_FILE
-    ppdev     = (PDEV*)  psoDst->dhpdev;
-    H3PRINTF((ppdev, "DrvCopyBits\r\n"));
+    /* retro3dfx: same hardening as DrvBitBlt — don't trust dhpdev of a DIB
+       target; h3printf tolerates NULL ppdev only after first init. */
+    if ((psoDst != NULL) && (psoDst->dhsurf != NULL))
+    {
+      ppdev     = (PDEV*)  psoDst->dhpdev;
+      H3PRINTF((ppdev, "DrvCopyBits\r\n"));
+    }
 #endif
 
 #ifdef SLI_AA
@@ -1993,8 +2003,7 @@ POINTL*   pptlSrc)
 
 		    // S3DBCIWait(pMmBase);
 //			S3DBCIWait(ppdev);			// STB-GVB: parameter has changed
-			while(H3_GP_BUSY(ppdev, ppdev->pjH3Base))
-				;
+			RETRO_GP_SPIN(ppdev);  /* retro3dfx: bounded 2D BitBlt engine wait */
 
 			// Translate and save bits
 			while (ulXferPix--)
@@ -2025,8 +2034,7 @@ POINTL*   pptlSrc)
 
 			    // S3DBCIWait(pMmBase);
 //				S3DBCIWait(ppdev);		// STB-GVB: parameter has changed
-				while(H3_GP_BUSY(ppdev, ppdev->pjH3Base))
-					;
+				RETRO_GP_SPIN(ppdev);  /* retro3dfx: bounded 2D BitBlt engine wait */
 
 				// Translate and save bits
 				while (ulXferPix--)
@@ -2569,8 +2577,7 @@ XLATEOBJ*	pxlo)			// Contains translation table
 
     // S3DBCIWait(pMmBase);
 //	S3DBCIWait(ppdev);			// STB-GVB: parameter has changed
-	while(H3_GP_BUSY(ppdev, ppdev->pjH3Base))
-		;
+	RETRO_GP_SPIN(ppdev);  /* retro3dfx: bounded 2D BitBlt engine wait */
 
 	// Translate and save bits
 	// Transfer the first unaligned pixel if one exists.
@@ -2688,8 +2695,7 @@ XLATEOBJ*	pxlo)			// Contains translation table
 
 //	if(ulEngineWaitFlag)
 //		DrvSynchronize(ppdev, prclDst);
-	while(H3_GP_BUSY(ppdev, ppdev->pjH3Base))
-		;
+	RETRO_GP_SPIN(ppdev);  /* retro3dfx: bounded 2D BitBlt engine wait */
 
 	// Translate and save bits
 		

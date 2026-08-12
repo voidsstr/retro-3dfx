@@ -557,9 +557,27 @@ DHPDEV dhpdev)
 
 
     ppdev = (PDEV*) dhpdev;
+#if ENABLE_LOG_FILE
+    /* retro3dfx: ppdev (and ppdev->hDriver) are valid here — stash it so V5DLog
+       and other ppdev-less loggers can reach the file sink. */
+    g_retroLogPpdev = ppdev;
+    /* retro3dfx UNCONDITIONAL positive control: fire the WRITE_LOG_FILE IOCTL
+       directly from here (no gate, no buffering) so the miniport's IOCTL counter
+       increments iff the display->miniport IOCTL channel works at all. */
+    {
+        char probe[] = "retro3dfx DrvEnableSurface probe\r\n";
+        ULONG probeOut = 0;
+        DWORD nb;
+        EngDeviceIoControl(ppdev->hDriver, IOCTL_3DFX_WRITE_LOG_FILE,
+                           probe, sizeof(probe) - 1, &probeOut, sizeof(probeOut), &nb);
+    }
+#endif
     H3PRINTF((ppdev, "DrvEnableSurface\r\n"));
     DISPDBG((1, "DrvEnableSurface - ppdev = %8lXh", ppdev));
 
+    V5DLog("DrvEnableSurface ENTER ppdev=%08lXh cxScreen=%ld cyScreen=%ld bpp=%ld (GDI creating desktop surface)\n",
+           (unsigned long)ppdev, (long)ppdev->cxScreen, (long)ppdev->cyScreen,
+           (long)ppdev->cBitsPerPel);
 
 	glideState[ 0 ].glideGDIFlags &= ~GLDATA_GDIFLAGS_HWC_EXCLUSIVE;
 	hwcSetContextDWORD();
@@ -781,6 +799,9 @@ DHPDEV dhpdev)
     H3PRINTF((ppdev, "DrvDisableSurface\r\n"));
     DISPDBG((1, "DrvDisableSurface - ppdev = %8lXh", ppdev));
 
+    V5DLog("DrvDisableSurface ENTER ppdev=%08lXh (GDI tearing down desktop surface; disabling hw/pointer/heap)\n",
+           (unsigned long)ppdev);
+
     // Note: In an error case, some of the following relies on the
     //       fact that the PDEV is zero-initialized, so fields like
     //       'hsurfScreen' will be zero unless the surface has been
@@ -822,9 +843,15 @@ BOOL    bEnable)
     ppdev = (PDEV*) dhpdev;
     H3PRINTF((ppdev, "DrvAssertMode\r\n"));
 
+    V5DLog("DrvAssertMode ENTER ppdev=%08lXh bEnable=%ld mode=%ldx%ldx%ld (bEnable=0 -> release hw to full-screen; bEnable=1 -> reprogram hw back to GDI desktop mode)\n",
+           (unsigned long)ppdev, (long)bEnable,
+           (long)ppdev->cxScreen, (long)ppdev->cyScreen, (long)ppdev->cBitsPerPel);
+
     if (!bEnable)
     {
         DISPDBG((1, "DrvAssertMode(disable) - ppdev = %8lXh", ppdev));
+        V5DLog("DrvAssertMode(DISABLE) ppdev=%08lXh: relinquishing hw (full-screen switch)\n",
+               (unsigned long)ppdev);
 
         SetGlideStateFlags(ppdev, GLDATA_GDIFLAGS_PPDEV_DISABLED);
 
@@ -850,8 +877,12 @@ BOOL    bEnable)
             {
                 ppdev->bEnabled = FALSE;
 
+                V5DLog("DrvAssertMode(DISABLE) ppdev=%08lXh: bAssertModeHardware(FALSE) OK -> hw released, bEnabled=0, returning TRUE\n",
+                       (unsigned long)ppdev);
                 return(TRUE);
             }
+            V5DLog("DrvAssertMode(DISABLE) ppdev=%08lXh: bAssertModeHardware(FALSE) FAILED -> undoing subcomponent disables\n",
+                   (unsigned long)ppdev);
 
             //////////////////////////////////////////////////////////
             // We failed to switch to full-screen.  So undo everything:
@@ -876,6 +907,9 @@ BOOL    bEnable)
     else
     {
         DISPDBG((1, "DrvAssertMode(enable) - ppdev = %8lXh", ppdev));
+        V5DLog("DrvAssertMode(ENABLE) ppdev=%08lXh: reprogramming hw back to GDI desktop mode %ldx%ldx%ld (this is the desktop-restore path after a Glide app exits)\n",
+               (unsigned long)ppdev, (long)ppdev->cxScreen, (long)ppdev->cyScreen,
+               (long)ppdev->cBitsPerPel);
 
         //////////////////////////////////////////////////////////////
         // Enable - Switch back to graphics mode
@@ -909,10 +943,16 @@ BOOL    bEnable)
 
             ppdev->bEnabled = TRUE;
 
+            V5DLog("DrvAssertMode(ENABLE) ppdev=%08lXh: bAssertModeHardware(TRUE) OK -> desktop mode reprogrammed, bEnabled=1, returning TRUE\n",
+                   (unsigned long)ppdev);
             return(TRUE);
         }
+        V5DLog("DrvAssertMode(ENABLE) ppdev=%08lXh: bAssertModeHardware(TRUE) FAILED -> desktop mode NOT restored, returning FALSE (garble risk!)\n",
+               (unsigned long)ppdev);
     }
 
+    V5DLog("DrvAssertMode EXIT ppdev=%08lXh returning FALSE (mode transition did not complete)\n",
+           (unsigned long)ppdev);
     return(FALSE);
 }
 
@@ -2574,6 +2614,11 @@ TryItAgain:
 
     // flag the primary is in tiled mode
     _FF(ddPrimaryInTile) = TRUE;
+#if ENABLE_LOG_FILE
+    retroLogForce(ppdev, "retro3dfx PRIMARY-TILED: scrOff=%08lXh %ldx%ldx%ld\r\n",
+                  ppdev->ulScreenOffset, (LONG)ppdev->cxScreen,
+                  (LONG)ppdev->cyScreen, (LONG)(ppdev->cjPelSize * 8));
+#endif
   }
   else
 #endif
@@ -2661,6 +2706,14 @@ LinearSetup:
 
     // flag the primary is in linear mode
     _FF(ddPrimaryInTile) = FALSE;
+#if ENABLE_LOG_FILE
+    /* retro3dfx: a LINEAR primary in a 3D-capable mode disables the whole
+       exclusive-fullscreen 3D setup path (DDSURF.C ~414) — if this fires on
+       warm reruns where the first run was TILED, that's the degradation. */
+    retroLogForce(ppdev, "retro3dfx PRIMARY-LINEAR: scrOff=%08lXh %ldx%ldx%ld\r\n",
+                  ppdev->ulScreenOffset, (LONG)ppdev->cxScreen,
+                  (LONG)ppdev->cyScreen, (LONG)(ppdev->cjPelSize * 8));
+#endif
   }
 
   // Clear desktop surface with rect. fill.

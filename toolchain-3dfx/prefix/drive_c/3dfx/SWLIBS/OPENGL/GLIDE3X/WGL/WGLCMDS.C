@@ -65,6 +65,32 @@ void OGLLOG( const char *fmt, ... )
 
     InterlockedExchange( (LONG *)&oglLogBusy, 0 );
 }
+
+/* OGLLOGV - VERBOSE tier of OGLLOG.  High-frequency traces (per-draw /
+** per-bind, e.g. FILT@) go through here and only reach the log when the
+** file marker C:\icd_verbose.on exists.  Checked once per process; the
+** always-on OGLLOG stays for lifecycle + error lines so any crash is
+** diagnosable from C:\3dfxogl.log without a special build. */
+void OGLLOGV( const char *fmt, ... )
+{
+    static int verbose = -1;
+    char    msg[512];
+    va_list ap;
+
+    if ( verbose < 0 ) {
+        HANDLE g = CreateFileA( "C:\\icd_verbose.on", GENERIC_READ,
+                                FILE_SHARE_READ | FILE_SHARE_WRITE, NULL,
+                                OPEN_EXISTING, 0, NULL );
+        verbose = ( g != INVALID_HANDLE_VALUE ) ? 1 : 0;
+        if ( verbose ) CloseHandle( g );
+    }
+    if ( !verbose ) return;
+
+    va_start( ap, fmt );
+    wvsprintfA( msg, fmt, ap );
+    va_end( ap );
+    OGLLOG( "%s", msg );
+}
 /* ------------------------------------------------------------------ */
 
 int WINAPI wglGetPixelFormat(HDC hDC);
@@ -1200,17 +1226,31 @@ wglSwapBuffers(HDC hDC)
 {
     HWND hWnd = WindowFromDC(hDC);
     WGLCONTEXT *glrc;
-    
+    /* RETRO3DFX one-shot diagnostics: CS/GoldSrc renders but frames never
+    ** reached the ICD swap -- log which exit path fires (first hit each). */
+    static int __swFail1 = 1, __swFail2 = 1, __swFail3 = 1, __swOk = 1;
+
     /* Make sure that the device context has a valid window */
     if (hWnd == NULL) {
+        if (__swFail1) { __swFail1 = 0;
+            OGLLOG("wglSwapBuffers: EXIT WindowFromDC(0x%x)=NULL", (unsigned)hDC); }
         return FALSE;
     }
 
     /* Make sure there is a current context, and that it is double buffered */
     glrc = __wglFindWGLWindow(hWnd, NULL);
-    if ((glrc == NULL) || !glrc->modes->doubleBufferMode) {
+    if (glrc == NULL) {
+        if (__swFail2) { __swFail2 = 0;
+            OGLLOG("wglSwapBuffers: EXIT FindWGLWindow(hwnd=0x%x)=NULL", (unsigned)hWnd); }
         return FALSE;
     }
+    if (!glrc->modes->doubleBufferMode) {
+        if (__swFail3) { __swFail3 = 0;
+            OGLLOG("wglSwapBuffers: EXIT singlebuffer modes (hwnd=0x%x)", (unsigned)hWnd); }
+        return FALSE;
+    }
+    if (__swOk) { __swOk = 0;
+        OGLLOG("wglSwapBuffers: OK first swap (hwnd=0x%x, further not logged)", (unsigned)hWnd); }
 
     (*glrc->gc->exports.swapBuffers)(glrc->gc);
 
@@ -2528,6 +2568,9 @@ wglSwapLayerBuffers(HDC hDC, UINT fuPlanes)
 ****************************************************************************/
 
 unsigned long tacoHackGlideInit = 0;
+/* RETRO3DFX: when set (env RETRO3DFX_NODITHER), keep VSA-100 ordered dither
+** off so flat-color 2D UI text renders solid (see sst_export.c MakeCurrent). */
+int __r3d_nodither = 0;
 
 LRESULT CALLBACK
 __wglMonitorWindowChanges(int code, WPARAM wParam, LPARAM lParam)

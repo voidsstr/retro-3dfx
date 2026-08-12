@@ -39,8 +39,16 @@
 #define CHECK_MEMORY_INTEGRITY()
 #define UPDATE_BLOCK_DATA(p,n)
 
+#if ENABLE_LOG_FILE
+/* retro3dfx: route every driver pool alloc/free through the counting wrappers
+   (LOGFILE.C) so the device-cycle leak hunt sees the outstanding-allocation
+   balance. Behaviourally identical to EngAllocMem/EngFreeMem. */
+#define ENGALLOCMEM(fl,cj,tag,dwData)   retroEngAllocMem((fl),(cj),(tag))
+#define ENGFREEMEM(p)                   retroEngFreeMem((PVOID)(p))
+#else
 #define ENGALLOCMEM(fl,cj,tag,dwData)   EngAllocMem((fl),(cj),(tag))
 #define ENGFREEMEM(p)                   EngFreeMem((p))
+#endif
 
 #endif
 

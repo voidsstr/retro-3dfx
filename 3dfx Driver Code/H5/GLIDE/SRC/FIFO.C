@@ -93,7 +93,7 @@
 ** Dos Glide Mods
 ** 
 ** 23    3/28/98 11:24a Dow
-** itwoç
+** itwoï¿½
 ** 
 ** 21    2/17/98 12:50p Dow
 ** Added conditional fifo id.
@@ -710,6 +710,7 @@ _grCommandTransportMakeRoom(const FxI32 blockSize, const char* fName, const int 
   {
     FxU32 lastHwRead = gc->cmdTransportInfo.fifoRead;
     FxI32 roomToReadPtr = gc->cmdTransportInfo.roomToReadPtr;
+    FxU32 stuckPolls = 0;
 
     while (roomToReadPtr < blockSize) {
       FxU32 curReadPtr = HW_FIFO_PTR(FXTRUE);
@@ -740,6 +741,21 @@ _grCommandTransportMakeRoom(const FxI32 blockSize, const char* fName, const int 
           }
         }
       }
+
+      /* retro3dfx: bounded fifo stall. If the accelerator wedges, the
+       * hw read pointer stops advancing and this loop spins forever
+       * (the checks>1000 diagnostic below is GDBG-only and just logs).
+       * ~4M no-progress polls is seconds of wall time on real hw --
+       * treat that as a wedge, pretend the fifo drained, and let the
+       * caller proceed (matches the display driver's H3MakeRoom
+       * WEDGE-BREAK behavior). */
+      if (curReadDist == 0) {
+        if (++stuckPolls > 4000000UL) {
+          roomToReadPtr = blockSize; /* WEDGE-BREAK: force room */
+          break;
+        }
+      } else
+        stuckPolls = 0;
 
       checks++;
 
@@ -949,6 +965,24 @@ _grHwFifoPtrSlave(FxU32 slave, FxBool ignored)
   GR_DCL_GC;
 
   FXUNUSED(ignored);
+
+  /* V56K-SLAVE-GUARD: these pointers are MMIO into a slave chip.  If the
+  ** slave was never mapped (or a remap left the cache stale) the reads
+  ** below hit an unmapped kernel address and reset the box.  Report "no
+  ** progress" instead -- the caller already treats that as a stall. */
+  if ((slave == 0) || (slave > 3) ||
+      (gc->slaveCRegs[slave-1] == NULL) || (gc->slaveSstRegs[slave-1] == NULL)) {
+    static int v56kWarned = 0;
+    if (v56kWarned < 8) {
+      v56kWarned++;
+      _grSliLog("SLAVE-UNMAPPED slave=%u cregs=%p sstregs=%p chips=%u\n",
+                slave,
+                (void *)(slave && slave <= 3 ? gc->slaveCRegs[slave-1] : NULL),
+                (void *)(slave && slave <= 3 ? gc->slaveSstRegs[slave-1] : NULL),
+                gc->chipCount);
+    }
+    return (FxU32)gc->cmdTransportInfo.fifoStart;
+  }
 
   do {
     readPtrL1 = GET(gc->slaveCRegs[slave-1]->cmdFifo0.readPtrL);

@@ -189,6 +189,15 @@ void CmdFifo0Disable( PDEV*	ppdev )
 #define MIN_ROOM_TO_READ_PTR      0
 #endif
 
+/* retro3dfx: CMD-FIFO flight-recorder instrumentation. Uses the driver's own
+   ENABLE_LOG_FILE mechanism (h3printf/retroLogForce -> IOCTL -> miniport ->
+   C:\3dfxvs.log): EngDebugPrint proved to be a no-op on free/retail XP.
+   g_h3mrAnnounced latches the one-time positive-control announce;
+   g_h3mrStallReported rate-limits stall reports so a flood can't fill the log. */
+LONG g_h3mrAnnounced = 0;
+LONG g_h3mrStallReported = 0;
+LONG g_h3mrCallCount = 0;
+
 void
 H3MakeRoom (PDEV* ppdev, ULONG **pfifoPtr, LONG n)
 {
@@ -201,6 +210,7 @@ H3MakeRoom (PDEV* ppdev, ULONG **pfifoPtr, LONG n)
   LONG            roomToReadPtr, smallestRoomToReadPtr;
   volatile ULONG  curReadPtr;
   ULONG           curWritePtr;
+  ULONG           spinCount = 0;        /* retro3dfx: CMD-FIFO wedge detector */
 #if MIN_ROOM_TO_READ_PTR
   LONG            minRoomToReadPtr;
 #endif
@@ -215,6 +225,25 @@ H3MakeRoom (PDEV* ppdev, ULONG **pfifoPtr, LONG n)
   ASSERTDD((N + minRoomToReadPtr) <= (LONG)pfifoData->fifoSize, "request too large");
 #else
   ASSERTDD(N <= (LONG)pfifoData->fifoSize, "request too large");
+#endif
+
+#if ENABLE_LOG_FILE
+  /* retro3dfx positive control: one-time announce on the first H3MakeRoom call.
+     Desktop 2D drawing hits H3MakeRoom shortly after boot, so a line in
+     C:\3dfxvs.log proves the whole logging pipeline (display -> IOCTL ->
+     miniport -> file) is live. Bypasses the runtime gate on purpose. */
+  if (!g_h3mrAnnounced)
+  {
+    g_h3mrAnnounced = 1;
+    retroLogForce(ppdev, "retro3dfx H3MakeRoom FIRST-CALL: fifoSize=%ld (positive control)\r\n",
+                  (LONG)pfifoData->fifoSize);
+  }
+
+  /* retro3dfx heartbeat (verbose only, Retro3dfxLog >= 2): periodic liveness
+     marker during activity. Gated so normal/benchmark runs pay nothing. */
+  if (2 <= g_retroLogLevel && 0 == (g_h3mrCallCount % 4096L))
+    h3printf(ppdev, "retro3dfx H3MakeRoom heartbeat #%ld\r\n", g_h3mrCallCount);
+  g_h3mrCallCount++;
 #endif
 
   CMDFIFO_CHECKBUMP(n)
@@ -267,6 +296,34 @@ againThisChip:
     while (roomToReadPtr <= N)
 #endif
     {
+      /* retro3dfx graduated stall flight-recorder. A healthy stall drains in well
+         under 100K iterations. The first time any stall crosses 100K, force-log the
+         FIFO state (rate-limited; flushed so it survives a subsequent hang). Keep a
+         50M safety-break so a genuine infinite wedge recovers the CPU (soft frozen
+         display) instead of pinning it into a TDR. Does NOT break early, so
+         near-stock wedge behavior stays observable up to 50M. */
+      ++spinCount;
+#if ENABLE_LOG_FILE
+      if (spinCount == 100000UL && g_h3mrStallReported < 24)
+      {
+        g_h3mrStallReported++;
+        retroLogForce(ppdev, "retro3dfx H3MakeRoom STALL>=100K: N=%ld fifoSize=%ld curRead=%08lx curWrite=%08lx room=%ld fullCnt=%ld\r\n",
+                      N, (LONG)pfifoData->fifoSize, (ULONG)curReadPtr, (ULONG)curWritePtr, roomToReadPtr, fullCnt);
+      }
+#endif
+      if (spinCount > 50000000UL)
+      {
+#if ENABLE_LOG_FILE
+        if (g_h3mrStallReported < 48)
+        {
+          g_h3mrStallReported++;
+          retroLogForce(ppdev, "retro3dfx H3MakeRoom WEDGE-BREAK@50M: N=%ld fifoSize=%ld curRead=%08lx room=%ld\r\n",
+                        N, (LONG)pfifoData->fifoSize, (ULONG)curReadPtr, roomToReadPtr);
+        }
+#endif
+        roomToReadPtr = (LONG)pfifoData->fifoSize;  /* safety net: recover CPU */
+        break;
+      }
       curReadPtr = GET2(fifo->readPtrL);
     
 #if (_WIN32_WINNT >= 0x0500) && defined (AGP_CMDFIFO)
