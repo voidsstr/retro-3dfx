@@ -9,10 +9,15 @@
 # possible) BEFORE the next deploy.
 
 cd "$(dirname "$0")/.." || exit 2
+# The heavy Wine build tree normally lives OUTSIDE the repo (see
+# toolchain-3dfx/build/env.sh); $RETRO3DFX_TC points at it. Fall back to the
+# historical in-repo location so old checkouts keep working.
+BUILDROOT="${RETRO3DFX_TC:+$RETRO3DFX_TC/prefix/drive_c/3dfx}"
+[ -n "$BUILDROOT" ] && [ -d "$BUILDROOT" ] || BUILDROOT="toolchain-3dfx/prefix/drive_c/3dfx"
 H5DISP="3dfx Driver Code/H5/W2K/Src/Video/Displays/H5"
 H5MINI="3dfx Driver Code/H5/W2K/Src/Video/Miniport/H5"
 H5GLIDE="3dfx Driver Code/H5/GLIDE3/SRC"
-PREFIX="toolchain-3dfx/prefix/drive_c/3dfx/H5/W2K/Src/Video"
+PREFIX="$BUILDROOT/H5/W2K/Src/Video"
 fail=0
 chk() { # chk <desc> <file> <pattern>
   if grep -q -a -- "$3" "$2"; then echo "PASS  $1"; else echo "FAIL  $1  [$2 : $3]"; fail=1; fi
@@ -191,7 +196,7 @@ chk "H3MODES mode-set upgrades to highest safe refresh" \
 #     vintage "taco - don't bother since no it color" skip modulated GoldSrc's
 #     world by stale ring colors (green walls) and uninitialized stack floats
 #     (rainbow clip shards) once the 0.1.4 combine used ITERATED x TEXTURE.
-ICDSST="toolchain-3dfx/prefix/drive_c/3dfx/SWLIBS/OPENGL/GLIDE3X/SST"
+ICDSST="$BUILDROOT/SWLIBS/OPENGL/GLIDE3X/SST"
 if grep -q -a -- "taco - don" "$ICDSST/sst_vertex.c"; then
   echo "FAIL  ICD sst_vertex.c still contains the vintage no-color skip (taco)"; fail=1
 else
@@ -212,7 +217,7 @@ chk "ICD __r3dPerfDump maxFrame hitch tracking" \
     "$ICDSST/sst_export.c" \
     "maxFrame=%lums"
 chk "ICD renderer string current (>=0.4.0)" \
-    "toolchain-3dfx/prefix/drive_c/3dfx/SWLIBS/OPENGL/GLIDE3X/GLCORE/S_CONTXT.C" \
+    "$BUILDROOT/SWLIBS/OPENGL/GLIDE3X/GLCORE/S_CONTXT.C" \
     "retro3dfx 0.4.0"
 chk "goldsrc_bench timedemo harness present" \
     "optimized/gltest/goldsrc_bench.py" \
@@ -289,7 +294,7 @@ fi
 #     so hwcRestoreVideo never ran and the desktop was never restored).
 #     Both user-mode spins on the WinClose path must be bounded.
 G2SRC="3dfx Driver Code/H5/GLIDE/SRC"
-G2PREFIX="toolchain-3dfx/prefix/drive_c/3dfx/H5/GLIDE/SRC"
+G2PREFIX="$BUILDROOT/H5/GLIDE/SRC"
 chk "glide2 grSstIdle bounded busy-poll (WEDGE-BREAK)" \
     "$G2SRC/GSST.C" \
     "WEDGE-BREAK: hw stuck busy"

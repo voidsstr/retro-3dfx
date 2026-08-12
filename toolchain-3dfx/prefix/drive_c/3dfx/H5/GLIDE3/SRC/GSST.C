@@ -799,6 +799,7 @@
 */
 
 #include <stdio.h>
+#include <stdarg.h>
 #include <string.h>
 #include <3dfx.h>
 
@@ -3766,6 +3767,42 @@ _grAAOffsetValue(FxU32 *xOffset,
 #undef FN_NAME
 } /* _grAAOffsetValue */
 
+
+/* ---- v56k SLI diagnostics -------------------------------------------------
+** Self-contained file logger used for multi-chip bring-up on the Voodoo5 6000.
+** Lifecycle paths only (open/close, SLI programming) -- never per-frame.
+** Writes to the path in FX_GLIDE_SLI_LOG; unset makes every call a single
+** pointer test, so retail builds are unaffected.
+*/
+void
+_grSliLog(const char *fmt, ...)
+{
+  static int  v56kLogState = 0;          /* 0=unknown 1=on 2=off */
+  static char v56kLogPath[260];
+  FILE   *fp;
+  va_list ap;
+
+  if (v56kLogState == 0) {
+    const char *p = GETENV("FX_GLIDE_SLI_LOG");
+    if (p && *p) {
+      strncpy(v56kLogPath, p, sizeof(v56kLogPath) - 1);
+      v56kLogPath[sizeof(v56kLogPath) - 1] = 0;
+      v56kLogState = 1;
+    } else {
+      v56kLogState = 2;
+    }
+  }
+  if (v56kLogState != 1) return;
+
+  fp = fopen(v56kLogPath, "a");
+  if (!fp) return;
+  va_start(ap, fmt);
+  vfprintf(fp, fmt, ap);
+  va_end(ap);
+  fclose(fp);
+} /* _grSliLog */
+
+
 /*---------------------------------------------------------------------------
 ** _grEnableSliCtrl
 */
@@ -3775,7 +3812,7 @@ _grEnableSliCtrl(void)
 {
 #define FN_NAME "_grEnableSliCtrl"  
   FxU32 chipIndex;
-  FxI32 sliChipCountDivisor;
+  FxI32 sliChipCountDivisor = 1;   /* V56K: never uninitialised */
   FxU32 renderMask;
   FxU32 scanMask;
   FxU32 log2chipCount;
@@ -3785,11 +3822,32 @@ _grEnableSliCtrl(void)
   */
   
 //8xaa
-  if( gc-> chipCount == 2 )
-  	sliChipCountDivisor = (gc->grPixelSample == 4) ? 2 : 1;
+  /* V56K-SLICTRL-GUARD: sliChipCountDivisor is how many chips share one SLI
+  ** band.  Derive it from the sliCount the buffers were actually laid out from;
+  ** deriving it from grPixelSample disagreed with that layout in the 4-chip /
+  ** 2-sample case, so chips rendered into each other's bands.  It was also left
+  ** UNINITIALISED for any chipCount other than 2 or 4, and the log2 loop below
+  ** never terminates unless chipCount/divisor is an exact power of two -- an
+  ** unkillable spin with the command FIFO open. */
+  sliChipCountDivisor = (gc->sliCount > 0)
+                          ? (FxI32)(gc->chipCount / gc->sliCount)
+                          : 1;
+  if (sliChipCountDivisor < 1)
+    sliChipCountDivisor = 1;
 
-  if( gc-> chipCount == 4 )
-	sliChipCountDivisor = (gc->grPixelSample == 2) ? 2 : 1;
+  {
+    FxU32 v56kBands = gc->chipCount / (FxU32)sliChipCountDivisor;
+    if ((gc->chipCount == 0) ||
+        ((gc->chipCount % (FxU32)sliChipCountDivisor) != 0) ||
+        (v56kBands == 0) ||
+        ((v56kBands & (v56kBands - 1)) != 0)) {
+      _grSliLog("SLICTRL-BAIL chips=%u sli=%u divisor=%d bands=%u\n",
+                gc->chipCount, gc->sliCount, sliChipCountDivisor, v56kBands);
+      GR_END();
+      return;
+    }
+  }
+
 
 
   renderMask = (gc->chipCount / sliChipCountDivisor - 1) << gc->sliBandHeight;
@@ -3798,6 +3856,22 @@ _grEnableSliCtrl(void)
   
   while (( 0x1UL << log2chipCount ) != (gc->chipCount / sliChipCountDivisor))
     log2chipCount++;
+
+  /* V56K-SLICTRL-ONCE: this runs per buffer-swap, so log only when the
+  ** programmed configuration actually changes.  Left unconditional it cost
+  ** ~2/3 of the frame rate (61 -> 22 fps) and wrote megabytes. */
+  {
+    static FxU32 v56kLastSig = 0xFFFFFFFF;
+    FxU32 v56kSig = (gc->chipCount << 24) | (gc->sliCount << 16) |
+                    ((FxU32)(sliChipCountDivisor & 0xFF) << 8) |
+                    (gc->sliBandHeight & 0xFF);
+    if (v56kSig != v56kLastSig) {
+      v56kLastSig = v56kSig;
+      _grSliLog("SLICTRL chips=%u sli=%u divisor=%d band=%u renderMask=0x%lx log2=%u\n",
+                gc->chipCount, gc->sliCount, sliChipCountDivisor,
+                gc->sliBandHeight, (unsigned long)renderMask, log2chipCount);
+    }
+  }
   
   for (chipIndex = 0; chipIndex < gc->chipCount; chipIndex++) 
   {

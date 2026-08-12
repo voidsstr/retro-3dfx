@@ -6,9 +6,11 @@
 # Usage: test_built_artifact.sh [path-to-3dfxvs.dll]
 
 cd "$(dirname "$0")/.." || exit 2
-DLL="${1:-toolchain-3dfx/prefix/drive_c/3dfx/H5/W2K/Src/Video/Displays/H5/objfre/i386/3dfxvs.dll}"
+BUILDROOT="${RETRO3DFX_TC:+$RETRO3DFX_TC/prefix/drive_c/3dfx}"
+[ -n "$BUILDROOT" ] && [ -d "$BUILDROOT" ] || BUILDROOT="toolchain-3dfx/prefix/drive_c/3dfx"
+DLL="${1:-$BUILDROOT/H5/W2K/Src/Video/Displays/H5/objfre/i386/3dfxvs.dll}"
 SRCDIR="3dfx Driver Code/H5/W2K/Src/Video/Displays/H5"
-OBJDIR="toolchain-3dfx/prefix/drive_c/3dfx/H5/W2K/Src/Video/Displays/H5/objfre/i386"
+OBJDIR="$BUILDROOT/H5/W2K/Src/Video/Displays/H5/objfre/i386"
 fail=0
 
 [ -f "$DLL" ] || { echo "FAIL  DLL not found: $DLL"; exit 1; }

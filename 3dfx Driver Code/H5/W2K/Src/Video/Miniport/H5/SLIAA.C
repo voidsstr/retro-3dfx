@@ -466,6 +466,339 @@ FixAGPPerformanceOnViaChipsets(PHW_DEVICE_EXTENSION HwDeviceExtension)
   } // for loop of chipsets
 }
 
+
+/*======================================================================
+  v56k (2026-07): Voodoo5 6000 (4-chip) support, ported from the Win9x
+  MiniVDD (GPIO.C / SLIAA.C).
+
+  The 6000 generates its graphics clock with an external serial clock
+  synthesizer wired to GPIO pins on the board's HiNT HB1-SE66 PCI-PCI
+  bridge (PCI id 3388h:0021h), bit-banged through bridge config register
+  C4h.  Without this the four chips never get a correct clock, so 4-way
+  SLI cannot run.  The PLL search is integer math here because NT kernel
+  code must not touch the FPU without saving state; the precision loss
+  vs the Win9x double version is under the synthesizer's own step size.
+======================================================================*/
+
+#define V56K_HINT_BRIDGE_ID     0x00213388  // HiNT HB1-SE66: device 0021h, vendor 3388h
+#define V56K_GPIO_REG           0xC4        // GPIO register in bridge config space
+#define V56K_DTIME              5           // microseconds between GPIO transitions
+#define V56K_CLOCK_STRETCH      1000
+
+#ifndef PCI_MAX_DEVICES
+#define PCI_MAX_DEVICES         32
+#endif
+
+typedef unsigned __int64 V56K_U64;
+
+typedef struct _V56K_PCI_BIT {
+  ULONG           BusNumber;
+  PCI_SLOT_NUMBER SlotNumber;
+  ULONG           dInMask;
+  ULONG           dInShift;
+  ULONG           dOutMask;
+  ULONG           dOutShift;
+} V56K_PCI_BIT;
+
+typedef struct _V56K_GPIOMASK {
+  V56K_PCI_BIT Data;
+  V56K_PCI_BIT Clk;
+  V56K_PCI_BIT Strobe;
+  V56K_PCI_BIT HiVoltage;
+} V56K_GPIOMASK;
+
+static ULONG
+V56KFindHintBridge(ULONG secondaryBus, PULONG pBridgeBus, PCI_SLOT_NUMBER *pBridgeSlot)
+{
+  ULONG           busNumber, deviceNumber;
+  PCI_SLOT_NUMBER slotNumber;
+  ULONG           id, busInfo;
+  ULONG           length;
+
+  // the bridge lives on a bus upstream of the chips' (secondary) bus
+  for (busNumber = 0; busNumber < secondaryBus; busNumber++)
+  {
+    for (deviceNumber = 0; deviceNumber < PCI_MAX_DEVICES; deviceNumber++)
+    {
+      slotNumber.u.AsULONG = 0;
+      slotNumber.u.bits.DeviceNumber   = deviceNumber;
+      slotNumber.u.bits.FunctionNumber = 0;
+      length = HAL_GET_BUS_DATA_BY_OFFSET(PCIConfiguration,
+                                          busNumber,
+                                          slotNumber.u.AsULONG,
+                                          &id,
+                                          0,
+                                          sizeof(id));
+      if (0 == length)
+        break;                      // no such bus
+      if (PCI_INVALID_VENDORID == (id & 0xFFFF))
+        continue;
+      if (V56K_HINT_BRIDGE_ID != id)
+        continue;
+      // config offset 19h = secondary bus number
+      length = HAL_GET_BUS_DATA_BY_OFFSET(PCIConfiguration,
+                                          busNumber,
+                                          slotNumber.u.AsULONG,
+                                          &busInfo,
+                                          0x18,
+                                          sizeof(busInfo));
+      if ((sizeof(busInfo) == length) && (((busInfo >> 8) & 0xFF) == secondaryBus))
+      {
+        if (pBridgeBus)
+          *pBridgeBus = busNumber;
+        if (pBridgeSlot)
+          *pBridgeSlot = slotNumber;
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+
+static ULONG
+V56KGetGpioReg(V56K_PCI_BIT *pBit)
+{
+  ULONG data = 0;
+
+  HAL_GET_BUS_DATA_BY_OFFSET(PCIConfiguration,
+                             pBit->BusNumber,
+                             pBit->SlotNumber.u.AsULONG,
+                             &data,
+                             V56K_GPIO_REG,
+                             sizeof(data));
+  return data;
+}
+
+static void
+V56KSetGpioReg(V56K_PCI_BIT *pBit, ULONG data)
+{
+  HAL_SET_BUS_DATA_BY_OFFSET(PCIConfiguration,
+                             pBit->BusNumber,
+                             pBit->SlotNumber.u.AsULONG,
+                             &data,
+                             V56K_GPIO_REG,
+                             sizeof(data));
+}
+
+static ULONG
+V56KGetGpioBit(V56K_PCI_BIT *pBit)
+{
+  return (V56KGetGpioReg(pBit) & pBit->dInMask) >> pBit->dInShift;
+}
+
+static void
+V56KSetGpioBit(V56K_PCI_BIT *pBit, ULONG value)
+{
+  ULONG data;
+
+  data = V56KGetGpioReg(pBit) & ~pBit->dOutMask;
+  data |= (value & 0x01) << pBit->dOutShift;
+  V56KSetGpioReg(pBit, data);
+}
+
+static void
+V56KGpioScl(V56K_GPIOMASK *pMask, ULONG bit)
+{
+  ULONG nCount = 0;
+
+  VideoPortStallExecution(V56K_DTIME);
+  V56KSetGpioBit(&pMask->Clk, bit);
+  VideoPortStallExecution(V56K_DTIME);
+
+  if (bit)
+  {
+    while (!V56KGetGpioBit(&pMask->Clk) && (nCount++ < V56K_CLOCK_STRETCH))
+      VideoPortStallExecution(V56K_DTIME);
+
+    if (!V56KGetGpioBit(&pMask->Clk))
+      VideoDebugPrint((0, "v56k: clock synth did not release SCL\n"));
+  }
+}
+
+static void
+V56KGpioSda(V56K_GPIOMASK *pMask, ULONG bit)
+{
+  VideoPortStallExecution(V56K_DTIME);
+  V56KSetGpioBit(&pMask->Data, bit >> 7);
+  VideoPortStallExecution(V56K_DTIME);
+}
+
+static void
+V56KGpioSendByte(V56K_GPIOMASK *pMask, UCHAR b1, UCHAR b2, UCHAR b3)
+{
+  ULONG i;
+
+  for (i = 0; i < 8; i++)
+  {
+    V56KGpioSda(pMask, (ULONG)(b1 << i) & 0x80);
+    V56KGpioScl(pMask, 1);
+    V56KGpioScl(pMask, 0);
+  }
+  for (i = 0; i < 8; i++)
+  {
+    V56KGpioSda(pMask, (ULONG)(b2 << i) & 0x80);
+    V56KGpioScl(pMask, 1);
+    V56KGpioScl(pMask, 0);
+  }
+  for (i = 0; i < 8; i++)
+  {
+    V56KGpioSda(pMask, (ULONG)(b3 << i) & 0x80);
+    V56KGpioScl(pMask, 1);
+    V56KGpioScl(pMask, 0);
+  }
+
+  // strobe latches the shifted word into the synthesizer
+  VideoPortStallExecution(V56K_DTIME);
+  V56KSetGpioBit(&pMask->Strobe, 1);
+  VideoPortStallExecution(2 * V56K_DTIME);
+  V56KSetGpioBit(&pMask->Strobe, 0);
+  VideoPortStallExecution(V56K_DTIME);
+}
+
+static ULONG
+V56KGpioInit(PHW_DEVICE_EXTENSION HwDeviceExtension, V56K_GPIOMASK *pMask)
+{
+  ULONG           bridgeBus;
+  PCI_SLOT_NUMBER bridgeSlot;
+  ULONG           data;
+
+  if (!V56KFindHintBridge(HwDeviceExtension->BusNumber, &bridgeBus, &bridgeSlot))
+  {
+    VideoDebugPrint((0, "v56k: no HiNT bridge above bus %ld - cannot set external clock\n",
+                     HwDeviceExtension->BusNumber));
+    return 0;
+  }
+
+  pMask->Data.BusNumber    = bridgeBus;
+  pMask->Data.SlotNumber   = bridgeSlot;
+  pMask->Clk.BusNumber     = bridgeBus;
+  pMask->Clk.SlotNumber    = bridgeSlot;
+  pMask->Strobe.BusNumber  = bridgeBus;
+  pMask->Strobe.SlotNumber = bridgeSlot;
+  pMask->HiVoltage.BusNumber  = bridgeBus;
+  pMask->HiVoltage.SlotNumber = bridgeSlot;
+
+  // GPIO wiring per the Win9x driver (all in bridge config reg C4h)
+  pMask->Data.dInMask       = 0x00000100;
+  pMask->Data.dInShift      = 8;
+  pMask->Data.dOutMask      = 0x00000400;
+  pMask->Data.dOutShift     = 10;
+  pMask->Clk.dInMask        = 0x00010000;
+  pMask->Clk.dInShift       = 16;
+  pMask->Clk.dOutMask       = 0x00040000;
+  pMask->Clk.dOutShift      = 18;
+  pMask->Strobe.dInMask     = 0x00001000;
+  pMask->Strobe.dInShift    = 12;
+  pMask->Strobe.dOutMask    = 0x00004000;
+  pMask->Strobe.dOutShift   = 14;
+  pMask->HiVoltage.dInMask  = 0x00100000;
+  pMask->HiVoltage.dInShift = 20;
+  pMask->HiVoltage.dOutMask = 0x00400000;
+  pMask->HiVoltage.dOutShift = 22;
+
+  // enable GPIO C4..C7 as outputs
+  data = V56KGetGpioReg(&pMask->Data);
+  data &= 0xFF0000FF;
+  data |= 0x00222200;
+  V56KSetGpioReg(&pMask->Data, data);
+  return 1;
+}
+
+// serial synthesizer divider encoding, from the Win9x driver
+static const ULONG V56KOdTable[] = {2, 3, 4, 5, 6, 7, 8, 10};
+static const ULONG V56KS2S1S0[]  = {15, 15, 1, 6, 3, 4, 7, 5, 2, 15, 0};
+
+static void
+V56KOutputClock(PHW_DEVICE_EXTENSION HwDeviceExtension,
+                ULONG c, ULONG ttl, ULONG f, ULONG s, ULONG v, ULONG r)
+{
+  V56K_GPIOMASK gpioMask;
+  UCHAR         b1, b2, b3;
+
+  b1  = (UCHAR)((c & 3) << 6);
+  b1 |= (UCHAR)((ttl & 1) << 5);
+  b1 |= (UCHAR)((f & 3) << 3);
+  b1 |= (UCHAR)(s & 7);
+  b2  = (UCHAR)((v & 0x1FE) >> 1);
+  b3  = (UCHAR)((v & 1) << 7);
+  b3 |= (UCHAR)(r & 0x7F);
+
+  if (V56KGpioInit(HwDeviceExtension, &gpioMask))
+    V56KGpioSendByte(&gpioMask, b1, b2, b3);
+}
+
+static ULONG
+V56KSetExternalClock(PHW_DEVICE_EXTENSION HwDeviceExtension)
+{
+  SstIORegs *pMasterIO;
+  ULONG     pixelclock, n, m, k;
+  ULONG     ic;
+  ULONG     i, rdw, vdw, od;
+  ULONG     bFound, b_rdw, b_vdw, b_od;
+  V56K_U64  bestDiff, diff, clk1, partial;
+
+  pMasterIO = (SstIORegs *)HwDeviceExtension->sliMappedAddress[0][HWINFO_SST_IOREGS_INDEX];
+
+  // recover the target graphics clock from the master's PLL setting
+  pixelclock = pMasterIO->pllCtrl0;
+  n = ((pixelclock & 0xFF00) >> 8) + 2;
+  m = ((pixelclock & 0x00FC) >> 2) + 2;
+  k = pixelclock & 0x03;
+  ic = ((14318180 * n) / m) >> k;
+  ic >>= 2;
+
+  VideoDebugPrint((0, "v56k: external clock target %ld Hz (pllCtrl0=%08lXh)\n",
+                   ic, pixelclock));
+
+  bFound   = 0;
+  b_rdw    = 0;
+  b_vdw    = 0;
+  b_od     = 0;
+  bestDiff = 500000000;   // same 500 MHz acceptance window as the Win9x driver
+  for (i = 0; i < sizeof(V56KOdTable) / sizeof(V56KOdTable[0]); i++)
+  {
+    od = V56KOdTable[i];
+    for (rdw = 1; rdw < 128; rdw++)
+    {
+      // constraint: 200 kHz < 14318180 / (rdw+2); only gets worse as rdw grows
+      if (14318180 / (rdw + 2) <= 200000)
+        break;
+      for (vdw = 4; vdw < 512; vdw++)
+      {
+        // constraint: 55 MHz < 14318180 * 2 * (vdw+8) / (rdw+2) < 400 MHz
+        partial = ((V56K_U64)28636360 * (vdw + 8)) / (rdw + 2);
+        if ((partial <= 55000000) || (partial >= 400000000))
+          continue;
+        clk1 = partial / od;
+        diff = (clk1 > ic) ? (clk1 - ic) : (ic - clk1);
+        if (diff < bestDiff)
+        {
+          bestDiff = diff;
+          bFound   = 1;
+          b_rdw    = rdw;
+          b_vdw    = vdw;
+          b_od     = od;
+        }
+      }
+    }
+  }
+
+  if (bFound)
+  {
+    VideoDebugPrint((0, "v56k: synth solution od=%ld rdw=%ld vdw=%ld (err %ld Hz)\n",
+                     b_od, b_rdw, b_vdw, (ULONG)bestDiff));
+    V56KOutputClock(HwDeviceExtension, 0x0, 0x1, 0x0, V56KS2S1S0[b_od], b_vdw, b_rdw);
+  }
+  else
+  {
+    // the Win9x driver breakpoints here; we leave the clock alone instead
+    VideoDebugPrint((0, "v56k: NO synth solution for %ld Hz - external clock unchanged\n",
+                     ic));
+  }
+
+  return ic;
+}
+
 /*----------------------------------------------------------------------
 Function name:  DetectNumUnits
 
@@ -524,6 +857,52 @@ DetectNumUnits(PHW_DEVICE_EXTENSION HwDeviceExtension)
     {
       HwDeviceExtension->numUnits++;
       HwDeviceExtension->sliSlotNumber[functionNumber] = slotNumber;
+    }
+  }
+
+  // v56k: defensive fallback.  On a stock 6000 the slave chips answer as
+  // functions 1-3 of the master's device (found above), but if a rebuilt
+  // board straps them as separate devices behind the HiNT bridge, sweep
+  // the rest of this (secondary) bus too.  Gated on the HiNT bridge so a
+  // second Voodoo board in the system is never mistaken for slave chips,
+  // and on IS_NAPALM so a Voodoo3 (single chip, no SLI) can never grow
+  // phantom slaves even on a bridged backplane.
+  if (IS_NAPALM &&
+      (HwDeviceExtension->numUnits < 4) &&
+      V56KFindHintBridge(HwDeviceExtension->BusNumber, NULL, NULL))
+  {
+    ULONG deviceNumber;
+
+    for (deviceNumber = 0; deviceNumber < PCI_MAX_DEVICES; deviceNumber++)
+    {
+      if (deviceNumber == HwDeviceExtension->PCISlot.u.bits.DeviceNumber)
+        continue;                   // covered by the function walk above
+
+      for (functionNumber = 0; functionNumber < PCI_MAX_FUNCTION; functionNumber++)
+      {
+        if (PCI_MAX_FUNCTION <= HwDeviceExtension->numUnits)
+          break;
+        slotNumber.u.bits.DeviceNumber   = deviceNumber;
+        slotNumber.u.bits.FunctionNumber = functionNumber;
+        length = HAL_GET_BUS_DATA_BY_OFFSET(PCIConfiguration,
+                                            HwDeviceExtension->BusNumber,
+                                            slotNumber.u.AsULONG,
+                                            &pciConfigInfo,
+                                            0,
+                                            sizeof(pciConfigInfo));
+        if (0 == length)
+          break;
+        if (PCI_INVALID_VENDORID == ((PCI_COMMON_CONFIG *)&pciConfigInfo)->VendorID)
+          continue;
+        if ((((PCI_COMMON_CONFIG *)&pciConfigInfo)->VendorID == HwDeviceExtension->PCIVendorID) &&
+            (((PCI_COMMON_CONFIG *)&pciConfigInfo)->DeviceID == HwDeviceExtension->PCIDeviceID))
+        {
+          VideoDebugPrint((0, "  v56k: extra chip at bus %ld dev %ld fn %ld\n",
+                           HwDeviceExtension->BusNumber, deviceNumber, functionNumber));
+          HwDeviceExtension->sliSlotNumber[HwDeviceExtension->numUnits] = slotNumber;
+          HwDeviceExtension->numUnits++;
+        }
+      }
     }
   }
   VideoDebugPrint((0, "  num chip(s) = %ld\n", HwDeviceExtension->numUnits));
@@ -3060,6 +3439,34 @@ H3_SETUP_SLI_AA(PHW_DEVICE_EXTENSION  HwDeviceExtension,
 }
 
 /*----------------------------------------------------------------------
+Function name:  V56KRecordSliState   (V56K-SLIOBS)
+
+Description:    Persist the SLI decision where usermode can read it.
+                VideoDebugPrint is compiled out of the free build, so the
+                registry is the only channel that survives into a shipping
+                driver.  Same IRQL-safe API as Retro3dfxLogIoctlCount.
+
+Return:    Nothing
+----------------------------------------------------------------------*/
+static void
+V56KRecordSliState(PHW_DEVICE_EXTENSION HwDeviceExtension,
+                   ULONG reqChips, ULONG verdict, ULONG flags, ULONG clock)
+{
+  ULONG units = HwDeviceExtension->numUnits;
+
+  VideoPortSetRegistryParameters(HwDeviceExtension, L"Retro3dfxSliReqChips",
+                                 &reqChips, sizeof(reqChips));
+  VideoPortSetRegistryParameters(HwDeviceExtension, L"Retro3dfxSliUnits",
+                                 &units, sizeof(units));
+  VideoPortSetRegistryParameters(HwDeviceExtension, L"Retro3dfxSliVerdict",
+                                 &verdict, sizeof(verdict));
+  VideoPortSetRegistryParameters(HwDeviceExtension, L"Retro3dfxSliFlags",
+                                 &flags, sizeof(flags));
+  VideoPortSetRegistryParameters(HwDeviceExtension, L"Retro3dfxSliClock",
+                                 &clock, sizeof(clock));
+} /* V56KRecordSliState */
+
+/*----------------------------------------------------------------------
 Function name:  EnableSLIAA
 
 Description:    Enables SLI and AA on Napalm
@@ -3074,6 +3481,7 @@ void
 EnableSLIAA(PHW_DEVICE_EXTENSION HwDeviceExtension, PSLI_AA_REQUEST pRequest)
 {
   ULONG     i;
+  ULONG     nProgram;   /* V56K-CHIPCOHERENCE: units we may touch */
   CHIPINFO  ChipInfo;
   SstIORegs *pMasterIO, *pSlaveIO;
 #if DBG
@@ -3091,10 +3499,41 @@ EnableSLIAA(PHW_DEVICE_EXTENSION HwDeviceExtension, PSLI_AA_REQUEST pRequest)
   pMaster3D     = HwDeviceExtension->sliMappedAddress[0][HWINFO_SST_3DREGS_INDEX];
 #endif
 
+  /* V56K-CHIPCOHERENCE: refuse a request that does not cover every detected
+  ** unit.  The loop below reprograms each slave's mode/video registers, but
+  ** only ChipInfo.dwChips of them are then given an SLI role by
+  ** H3_SETUP_SLI_AA -- and 4-way is forced ANALOG combining where 2-way is
+  ** digital.  Asking a 4-chip board for 2 chips therefore left units 2-3
+  ** driving the video path with no role, which wedged the machine hard
+  ** (no network, flickering output, power cycle to recover).  Losing SLI is
+  ** strictly better than half-programming the board. */
+  if (pRequest->ChipInfo.dwChips != HwDeviceExtension->numUnits)
+  {
+    VideoDebugPrint((0, "retro3dfx SLIAA-MISMATCH: req=%ld units=%ld -> refusing enable\n",
+                     pRequest->ChipInfo.dwChips, HwDeviceExtension->numUnits));
+    /* V56K-SLIOBS: verdict 0 = refused */
+    V56KRecordSliState(HwDeviceExtension, pRequest->ChipInfo.dwChips, 0, 0, 0);
+    DisableSLIAA(HwDeviceExtension, pRequest);
+    return;
+  }
+
+  // v56k: the 6000 has 4 chips and an external clock (see Win9x SLIAA.C)
+  if (4 == pRequest->ChipInfo.dwChips)
+  {
+    V56KSetExternalClock(HwDeviceExtension);
+    VideoDebugPrint((0, "retro3dfx V56K-CLOCK: external clock programmed (chips=%ld)\n",
+                     pRequest->ChipInfo.dwChips));
+  }
+
   // disable i/o on master
   UpdatePCICommandReg(HwDeviceExtension, 0, ~PCI_ENABLE_IO_SPACE, 0);
 
-  for (i = 1; i < HwDeviceExtension->numUnits; i++)
+  /* V56K-CHIPCOHERENCE: never touch a unit the setup pass will not configure. */
+  nProgram = pRequest->ChipInfo.dwChips;
+  if (nProgram > HwDeviceExtension->numUnits)
+    nProgram = HwDeviceExtension->numUnits;
+
+  for (i = 1; i < nProgram; i++)
   {
     // enable i/o on slave
     UpdatePCICommandReg(HwDeviceExtension, i, (LONG)-1, PCI_ENABLE_IO_SPACE);
@@ -3140,6 +3579,15 @@ EnableSLIAA(PHW_DEVICE_EXTENSION HwDeviceExtension, PSLI_AA_REQUEST pRequest)
   memcpy(&HwDeviceExtension->SLIAARequest, pRequest, sizeof(SLI_AA_REQUEST));
 #endif
 
+  /* V56K-SLIOBS: verdict 1 = enable programmed.  flags packs the request so a
+  ** single REGREAD tells us what the hardware was actually asked for. */
+  V56KRecordSliState(HwDeviceExtension, ChipInfo.dwChips, 1,
+                     (ChipInfo.dwsliEn ? 0x1 : 0) |
+                     (ChipInfo.dwaaEn ? 0x2 : 0) |
+                     (ChipInfo.dwsliAaAnalog ? 0x4 : 0) |
+                     (ChipInfo.dwaaSampleHigh ? 0x8 : 0) |
+                     ((ChipInfo.dwsli_nlines & 0xFF) << 8),
+                     (4 == ChipInfo.dwChips) ? 1 : 0);
   H3_SETUP_SLI_AA(HwDeviceExtension, SLI_AA_ENABLE, &ChipInfo, &pRequest->MemInfo);
 }
 
@@ -3173,6 +3621,8 @@ DisableSLIAA(PHW_DEVICE_EXTENSION HwDeviceExtension, PSLI_AA_REQUEST pRequest)
   memcpy(&HwDeviceExtension->SLIAARequest, pRequest, sizeof(SLI_AA_REQUEST));
 #endif
 
+  /* V56K-SLIOBS: verdict 2 = SLI disabled */
+  V56KRecordSliState(HwDeviceExtension, ChipInfo.dwChips, 2, 0, 0);
   H3_SETUP_SLI_AA(HwDeviceExtension, SLI_AA_DISABLE, &ChipInfo, &pRequest->MemInfo);
 }
 
