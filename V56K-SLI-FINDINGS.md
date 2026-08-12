@@ -424,3 +424,39 @@ also running. One fullscreen 3D application at a time is a hard rule on this sta
 (see the deploy/bench skills) — a second one contending for the Glide surface is its
 own failure mode and will contaminate any stability measurement. Coordinate: either
 the operator drives, or the harness does, never both.
+
+---
+
+## 13. The operator's "Quake 3 crash" — root cause: OUR BENCHMARK HARNESS
+
+The operator reported Q3 crashing at 1024x768 while an automated sweep was running.
+Investigated properly rather than assumed:
+
+**Evidence gathered**
+- No Dr Watson logs, no `.dmp` crash dumps anywhere — Windows never caught a fault.
+- Flight recorder + `C:\3dfxvs.log`: **zero** `WEDGE-BREAK`, **zero** `H3MakeRoom STALL`,
+  zero `memMgr ALLOC-FAIL`, zero `DP2-*` errors. The accelerator never hung.
+- **Not reproducible**: interactive q3dm1 with bots at 1024x768 in 256MB mode ran a
+  full 3 minutes, machine stable throughout (uptime 1048 -> 1336 s).
+
+**Root cause: `bench-safe.py` force-killed the operator's live game.** The cleanup
+step ran `taskkill /f /im quake3.exe` — `/im` kills EVERY quake3.exe, not the one the
+harness started — and there was no pre-flight check for an already-running instance.
+So the moment the sweep finished a run, it terminated the operator's session. From the
+player's seat that is indistinguishable from Quake 3 crashing.
+
+**Fix (`V56K-NO-STOMP`), verified live on hardware:**
+1. Pre-flight — if a `quake3.exe` is already running the harness **ABORTS** with the
+   offending PID and touches nothing. Somebody is using the box.
+2. Cleanup kills **only the PID the harness itself launched** (`taskkill /f /pid N`).
+   `/im` is gone entirely.
+3. The `QUIESCE` list is documented as background CPU thieves only — it must never
+   contain a game executable, i.e. never terminate something a human started.
+
+Verified: with an operator-style Q3 running as pid 276, the harness printed
+`ABORT: quake3.exe already running (pid 276)` and **pid 276 survived**.
+
+**Wider lesson.** Automation that force-kills by image name is unsafe on a shared box,
+and it also silently corrupts measurements — a killed session looks like an
+instability datum. Several "crash" observations in this session deserve re-reading
+with that in mind.

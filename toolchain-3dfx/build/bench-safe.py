@@ -24,6 +24,8 @@ from client.retro_protocol import RetroConnection
 
 IP = '192.168.1.133'
 Q3 = r'C:\Games\Quake III Arena\Quake3'
+# Background CPU thieves only. Deliberately contains NO game executables -- this
+# harness must never terminate something a human started (V56K-NO-STOMP).
 QUIESCE = ['rotate_wall.exe', 'daemon.exe', 'wuauclt.exe', '3dfxMan.exe', 'wmiprvse.exe']
 
 async def C(retries=8, delay=10):
@@ -37,10 +39,24 @@ async def C(retries=8, delay=10):
 async def uptime(c):
     return json.loads((await c.send_command('SYSINFO', timeout=12))[1].decode())['uptime_seconds']
 
+async def q3_pids(c):
+    d = (await c.send_command('PROCLIST', timeout=15))[1].decode('ascii', 'replace')
+    return [p['pid'] for p in json.loads(d) if p['name'].lower() == 'quake3.exe']
+
 async def run_q3(mode, vsync):
     """One Q3 timedemo. Returns (fps, rebooted)."""
     c = await C()
     before = await uptime(c)
+
+    # V56K-NO-STOMP: if a Quake 3 is ALREADY running it is not ours -- somebody is
+    # using the box. Refuse. The previous version force-killed every quake3.exe as
+    # "cleanup", which killed the operator's live game mid-session and looked to them
+    # exactly like Quake 3 crashing. Never kill a process this harness did not start.
+    pre = await q3_pids(c)
+    if pre:
+        await c.close()
+        raise SystemExit('ABORT: quake3.exe already running (pid %s). Someone is using '
+                         'the box -- refusing to touch it.' % ','.join(map(str, pre)))
     for img in QUIESCE:
         try: await c.command_text('EXEC cmd /c taskkill /f /im %s 2>nul' % img, timeout=20)
         except Exception: pass
@@ -52,6 +68,8 @@ async def run_q3(mode, vsync):
            r'+set fs_homepath C:\q3home +set logfile 2 +set s_initsound 0 +set com_introPlayed 1 '
            r'+set r_swapInterval %s +set nextdemo quit +set timedemo 1 +demo four') % (Q3, sw, mode, sw)
     await c.command_text(cmd, timeout=40)
+    await asyncio.sleep(4)
+    mine = [p for p in (await q3_pids(c)) if p not in pre]
     await c.close()
 
     fps = None
@@ -79,7 +97,10 @@ async def run_q3(mode, vsync):
         return fps, True
     rebooted = False
     try:
-        await c.command_text('EXECW 20 cmd /c taskkill /f /im quake3.exe 2>nul & echo ok', timeout=45)
+        # kill ONLY the instance we started, by PID -- never /im (see V56K-NO-STOMP)
+        for pid in mine:
+            try: await c.command_text('EXECW 20 cmd /c taskkill /f /pid %d 2>nul & echo ok' % pid, timeout=45)
+            except Exception: pass
         await asyncio.sleep(3)
         rebooted = (await uptime(c)) < before
         await c.command_text('DISPLAYCFG set 1024 768 16 85', timeout=25)
