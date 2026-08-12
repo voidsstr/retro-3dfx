@@ -3453,6 +3453,7 @@ void
 EnableSLIAA(PHW_DEVICE_EXTENSION HwDeviceExtension, PSLI_AA_REQUEST pRequest)
 {
   ULONG     i;
+  ULONG     nProgram;   /* V56K-CHIPCOHERENCE: units we may touch */
   CHIPINFO  ChipInfo;
   SstIORegs *pMasterIO, *pSlaveIO;
 #if DBG
@@ -3470,14 +3471,39 @@ EnableSLIAA(PHW_DEVICE_EXTENSION HwDeviceExtension, PSLI_AA_REQUEST pRequest)
   pMaster3D     = HwDeviceExtension->sliMappedAddress[0][HWINFO_SST_3DREGS_INDEX];
 #endif
 
+  /* V56K-CHIPCOHERENCE: refuse a request that does not cover every detected
+  ** unit.  The loop below reprograms each slave's mode/video registers, but
+  ** only ChipInfo.dwChips of them are then given an SLI role by
+  ** H3_SETUP_SLI_AA -- and 4-way is forced ANALOG combining where 2-way is
+  ** digital.  Asking a 4-chip board for 2 chips therefore left units 2-3
+  ** driving the video path with no role, which wedged the machine hard
+  ** (no network, flickering output, power cycle to recover).  Losing SLI is
+  ** strictly better than half-programming the board. */
+  if (pRequest->ChipInfo.dwChips != HwDeviceExtension->numUnits)
+  {
+    VideoDebugPrint((0, "retro3dfx SLIAA-MISMATCH: req=%ld units=%ld -> refusing enable\n",
+                     pRequest->ChipInfo.dwChips, HwDeviceExtension->numUnits));
+    DisableSLIAA(HwDeviceExtension, pRequest);
+    return;
+  }
+
   // v56k: the 6000 has 4 chips and an external clock (see Win9x SLIAA.C)
   if (4 == pRequest->ChipInfo.dwChips)
+  {
     V56KSetExternalClock(HwDeviceExtension);
+    VideoDebugPrint((0, "retro3dfx V56K-CLOCK: external clock programmed (chips=%ld)\n",
+                     pRequest->ChipInfo.dwChips));
+  }
 
   // disable i/o on master
   UpdatePCICommandReg(HwDeviceExtension, 0, ~PCI_ENABLE_IO_SPACE, 0);
 
-  for (i = 1; i < HwDeviceExtension->numUnits; i++)
+  /* V56K-CHIPCOHERENCE: never touch a unit the setup pass will not configure. */
+  nProgram = pRequest->ChipInfo.dwChips;
+  if (nProgram > HwDeviceExtension->numUnits)
+    nProgram = HwDeviceExtension->numUnits;
+
+  for (i = 1; i < nProgram; i++)
   {
     // enable i/o on slave
     UpdatePCICommandReg(HwDeviceExtension, i, (LONG)-1, PCI_ENABLE_IO_SPACE);
