@@ -516,3 +516,68 @@ every Glide application was writing a diagnostic log (the ICD log had reached 1.
 per-texture `APPLYTEX` lines). Removed. Q3 measured 61.7 fps afterwards versus 60.0-61.4
 before — within noise, but the logging was a real per-frame cost and a stability risk.
 **Never leave a logging env var set system-wide.**
+
+## 15. Hardware monitoring: what this box can and cannot measure (2026-08-12)
+
+Asked whether the GPU has a temperature sensor we can monitor. Probed it properly
+rather than guessing.
+
+**The GPU has no temperature sensor, and no software can invent one.** The VSA-100
+(2000) has no on-die thermal diode, and there is no monitor chip anywhere on the
+V5 6000 board: SpeedFan's full sweep — ISA probe, PIIX4 SMBus scan of every address
+$14–$2C, and the PCI/I2C paths — finds nothing on the card. WMI agrees from the
+other side: no `MSAcpi_ThermalZoneTemperature` instances (the 1998 BX BIOS predates
+ACPI thermal zones) and no `Win32_TemperatureProbe`. **Do not look for a GPU
+temperature again.**
+
+What the Tyan 440BX motherboard *does* have is a real hardware monitor, and it is
+enough to characterise the card indirectly:
+
+| Chip | Bus | Address | Channels | Idle reading |
+|---|---|---|---|---|
+| LM79 | ISA | `$290` | board temp, 3 fan tachs, 7 voltage rails | 24 °C |
+| LM75 | Intel SMBus | `$4C` | temp | 36 °C |
+| LM75 | Intel SMBus | `$4D` | temp | 32 °C |
+| Samsung 860 EVO | AdvSMART | — | drive temp | 25 °C |
+
+Idle rails: COREA/COREB 1.68 V (dual P3), +3.3 V 3.30, +5 V 5.08, **+12 V 12.22**,
+−12 V −13.44, −5 V −5.68. Fans 0 / 4441 / 4470 RPM (Fan1 header unpopulated).
+
+**Why +12V is the interesting channel.** The card pulls ~80 W through a 6-pin input.
+If the resets in §11 are power rather than heat, a sag here under 4-chip load is the
+direct evidence — and it is the one hypothesis §11 could not separate. `thermal.py`
+therefore range-checks the rails on every window and prints `RAIL EXCURSION`.
+
+### How it is logged (no port I/O of ours)
+
+SpeedFan 4.49 was already installed; its signed `speedfan.sys` does the ISA/SMBus
+access, so we add no kernel risk. Logging is driven entirely from its **plain-text**
+configs — `speedfansens.cfg` (`logged=true` per reading, names set to the CSV
+headers) and `speedfanparams.cfg` (`LogEnabled=true`). It appends a tab-separated
+`SFLog<YYYYMMDD>.csv` every ~3 s, which `toolchain-3dfx/build/thermal.py` downloads:
+
+```
+thermal.py ensure          # start + verify it is logging
+thermal.py now             # latest sample  (--seconds-only to mark a window)
+thermal.py window <t0>     # min/max/delta since a mark, + rail range check
+thermal.py stop
+```
+
+> **SpeedFan rewrites both configs when it exits.** Kill it before uploading a
+> config or the change is silently lost. This cost a cycle to find.
+
+### Two measured caveats — read before trusting this data
+
+1. **It does not perturb benchmarks.** Q3 1024×768 unlimited measured **60.9 fps**
+   with SpeedFan sampling throughout, against a 60.8–61.1 fps baseline. And it is
+   not starved by an exclusive-fullscreen Glide app: across a full timedemo the log
+   had **57 samples, no gap >6 s** at a 3 s cadence.
+
+2. **It is far too coarse to see a single run.** A complete flat-out 1024×768
+   timedemo moved *nothing*: board, both LM75s, and all three rails were flat to
+   their resolution (1 °C, ~0.01–0.16 V) across the whole window. These sensors sit
+   on the motherboard, not on the card, behind 4400 RPM of case airflow.
+   **A single benchmark is not a thermal measurement.** The only regime where this
+   telemetry can say anything is a long soak — which is exactly the regime where
+   §11's reboots occur (three flat-out runs at a 120 s cooldown). Use it that way,
+   sampling continuously across a whole session, or not at all.
