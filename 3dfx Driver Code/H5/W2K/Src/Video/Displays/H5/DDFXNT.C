@@ -207,7 +207,14 @@
 
 // Include for new DX 8 macros
 #if( DIRECTDRAW_VERSION >= 0x0800 )
+/* V56K-DX8-PORT: d3dhal.h is the Win9x HAL header.  On NT the pair is
+** d3dnthal.h + dx95type.h, and the latter aliases D3DHAL_* -> D3DNTHAL_*, so
+** including d3dhal.h too yields "D3DHAL_CALLBACKS: redefinition".  Same idiom
+** the rest of the tree already uses (D6FVF.H:86, D3GLOBAL.H:700).  d3dhalex.h
+** is standalone and IS still needed -- D3DGDI_GET_GDI2_DATA lives there. */
+#ifndef WINNT
 #include <d3dhal.h>
+#endif
 #include <d3dhalex.h>
 #endif
 

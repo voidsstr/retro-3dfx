@@ -1771,6 +1771,12 @@ ExecuteStateBlock(RC *pRc, DWORD dwHandle)
       // viewport info, z range and clip planes - here -
 #if (DIRECT3D_VERSION >= 0x0800) && (DX >= 8)
       // DX 8 Stream Support (Single stream only)
+      /* V56K-DX8-PORT: pNextData was used here but never declared.  It is the
+      ** cursor to the variable-size tail that follows pair[]; after the TSS
+      ** loop above, dwFinalState is exactly the number of pairs stored
+      ** (dwNumRS + sum of dwNumTSS[]).  C89 (VC6): open a block for it. */
+    {
+      LPBYTE pNextData = (LPBYTE)&pSB->cc.pair[dwFinalState];
 
       if (pSB->cc.dwSizeSetStreamSource)
       {
@@ -1810,6 +1816,7 @@ ExecuteStateBlock(RC *pRc, DWORD dwHandle)
 
         pNextData += sizeof(DWORD);
       }
+    }   /* V56K-DX8-PORT: close the pNextData block */
 #endif // DX 8
 
       UPDATE_HW_STATE(SC_SOMETHING);
@@ -2407,6 +2414,12 @@ CompressStateBlock(RC *pRc, STATEBLOCK *pUncompressedSB)
 #endif
 
 #if (DIRECT3D_VERSION >= 0x0800) && (DX >= 8)
+  /* V56K-DX8-SBSIZE: cc gains THREE DWORDs under DX8
+  ** (dwSizeSetStreamSource/dwSizeSetIndices/dwSizeShaderHandle) and they sit
+  ** ahead of pair[].  The block is allocated from dwSize, so omitting them --
+  ** as the original DX8 change did, despite the warning above -- leaves it 12
+  ** bytes short and the stream tail written below overruns the allocation. */
+  dwSize += 3*sizeof(DWORD);                            // the three cc.dwSize* fields
   dwSize += dwSizeSetStreamSource + dwSizeSetIndices +  // stream source (Single stream only) & stream indices
             dwSizeShaderHandle;                         // vertex shader handle
 #endif
@@ -2476,6 +2489,11 @@ CompressStateBlock(RC *pRc, STATEBLOCK *pUncompressedSB)
     }
 
 #if (DIRECT3D_VERSION >= 0x0800) && (DX >= 8)
+   {
+    /* V56K-DX8-PORT: matching cursor for the writer -- dwIndex is the number of
+    ** pair[] entries just emitted, so the tail starts right after them. */
+    LPBYTE pNextData = (LPBYTE)&pCompressedSB->cc.pair[dwIndex];
+
     pCompressedSB->cc.dwSizeSetStreamSource = dwSizeSetStreamSource;
     if(dwSizeSetStreamSource)
     {
@@ -2503,6 +2521,7 @@ CompressStateBlock(RC *pRc, STATEBLOCK *pUncompressedSB)
 
         pNextData += sizeof(DWORD);
     }
+   }    /* V56K-DX8-PORT: close the writer pNextData block */
 #endif
 
     // Get rid of the old(uncompressed) one

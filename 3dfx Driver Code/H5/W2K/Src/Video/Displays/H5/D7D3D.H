@@ -102,6 +102,12 @@ typedef struct _STATEBLOCK
       D3DHAL_DP2SETSTREAMSOURCE StreamSource[1];    // Single stream only
       D3DHAL_DP2SETINDICES      StreamIndices;
       DWORD                     dwShaderHandle;
+      /* V56K-DX8-PORT: the IS_/SET_STATEBLOCK_STREAM_FLAG macros above are
+      ** written as `pSB->uc.bStoredStream & (1 << (state % FLAGS_PER_DWORD))`,
+      ** i.e. a scalar DWORD bitfield -- but the member was never declared, so
+      ** every DX8 build failed on it.  Flags in use are 0 (stream source),
+      ** 8 (indices) and 9 (vertex shader handle), so one DWORD covers it. */
+      DWORD                     bStoredStream;
 #endif
       // store 32 flags per dword
       BOOL  bStoredRS[((MAX_RENDERSTATES+1)+(FLAGS_PER_DWORD-1))/FLAGS_PER_DWORD];

@@ -283,7 +283,11 @@ extern void  dp2AADrawLine( RC *pRc, LPDWORD pA, LPDWORD pB, LPDWORD pZ );
 extern void  dp2StripAll( RC *pRc, DWORD count, LPWORD idx, LPDWORD vertices, DWORD vertexType );
 extern void  dp2IdxStripAll( RC *pRc, DWORD count, LPWORD idx, LPDWORD vertices, DWORD vertexType );
 extern void  dp2Idx16StripAll( RC *pRc, DWORD count, LPWORD idx, LPDWORD vertices, DWORD vertexType );
-extern void  dp2Idx16StripAll( RC *pRc, DWORD count, LPWORD idx, LPDWORD vertices, DWORD vertexType );
+/* V56K-DX8-PORT: was a duplicate of the 16-bit line above -- the 32-bit
+** indexed-strip renderer was never declared for NT, though D6STRIP.C:476
+** does instantiate it and the Fan/Triangle groups below both carry their
+** full 16/32 pair.  D8DP2.C is the first caller to need it. */
+extern void  dp2Idx32StripAll( RC *pRc, DWORD count, LPWORD idx, LPDWORD vertices, DWORD vertexType );
 
 extern void  dp2FanAll( RC *pRc, DWORD count, LPWORD idx, LPDWORD vertices, DWORD vertexType );
 extern void  dp2IdxFanAll( RC *pRc, DWORD count, LPWORD idx, LPDWORD vertices, DWORD vertexType );

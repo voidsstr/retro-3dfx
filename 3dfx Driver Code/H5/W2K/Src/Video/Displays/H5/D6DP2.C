@@ -952,7 +952,16 @@ Description:    UpdateCtxFVFChanges() is a function that resets context state an
 
 Return:         VOID
 -------------------------------------------------------------------------------------*/
+#if (DIRECT3D_VERSION >= 0x0800) && (DX >= 8)
+/* V56K-DX8-PORT: D8DP2.C calls this, so under DX8 it needs external
+** linkage.  The Win9x copy (Win9x/DX/D3D/D6DP2.C:928) is non-static for
+** exactly that reason; the W2K copy was never updated when D8DP2.C was
+** written, because D8DP2.C was never added to the W2K build.  Kept static
+** at DX7 so that build is unchanged. */
+VOID UpdateCtxFVFChanges(DWORD pContext, DWORD dwOutputVertexType)
+#else
 static VOID UpdateCtxFVFChanges(DWORD pContext, DWORD dwOutputVertexType)
+#endif
 {                   
   SETUP_PPDEV(pContext)
   RC *pRc = CONTEXT_PTR(pContext);
@@ -4707,7 +4716,11 @@ DWORD __stdcall ddiDrawPrimitives2( LPD3DHAL_DRAWPRIMITIVES2DATA lpdp2d )
             if (hr != DD_OK)
             {
                 D3DPRINT(D3DDBGLVL, "ERROR: Pixel Shader couln't be created!");
-                PARSE_ERROR_AND_EXIT(lpdp2d, lpCmd, lpCmdStart,
+                /* V56K-DX8-PORT: lpCmdStart never existed.  Every other call
+                ** site in this function passes the command-buffer base, which
+                ** is what the macro subtracts for dwErrorOffset (cf. :1376). */
+                PARSE_ERROR_AND_EXIT(lpdp2d, lpCmd,
+                                     lpdp2d->lpDDCommands->lpGbl->fpVidMem,
                                      D3DERR_DRIVERINVALIDCALL);                                           
             }                                                  
 
