@@ -976,3 +976,29 @@ and no `mohbench.dm_` exists in `benchmarks/`. Screenshot-based fps reading is o
 too: GDI capture of this box garbles during 3D (the same scanout defect already
 recorded for Q2). **A MOHAA fps figure needs one demo recorded by hand at the
 keyboard; everything else is in place and scripted.**
+
+### 21a. CmdfifoSize does NOT reproduce the logging throttle (negative result)
+
+Tried to replace the §21 logging crutch with a legitimate driver knob.
+`ENABLE.C:1235` reads `CmdfifoSize` (default 512 KB, clamped to 64 KB..1 MB,
+rounded to 4 KB); a smaller FIFO fills sooner and forces more `H3MakeRoom` waits,
+which looked like a clean way to buy the same pacing.
+
+**It does not work.** With `Retro3dfxLog=0` and `CmdfifoSize=65536` (the minimum),
+after a reboot to apply it, Q3 1024x768 **vsync reset on the first run** — same as
+with the default FIFO. Then the box **hard-froze**: no ping, no route, NIC dead,
+requiring a physical power cycle (the NAS on the same switch stayed up, so it was
+the box, not the network).
+
+Why the two are not equivalent, and the useful part of the negative result: a
+smaller FIFO does not slow submission, it only **blocks** the CPU once the FIFO is
+full — the GPU still receives the same tight burst of work. The ICD's per-texture
+file logging instead **interleaves CPU time between submissions**, spreading the
+work out within the frame. Both give ~60 fps under vsync, so **frame rate is not
+the variable — the burstiness of submission inside each frame is.** That is
+consistent with the transient hypothesis in §18, and it means the fix has to
+*spread* submission, not merely throttle or cap it. No registry knob does that;
+it needs actual pacing code in the Glide/ICD submission path.
+
+**Do not leave the box on `Retro3dfxLog=0`.** That configuration reset it 4 times
+out of 4 and then froze it hard.
