@@ -782,3 +782,65 @@ is where to look next; it is not a thermal story.
 (or the renderer's own vsync) is the difference between a stable session and a
 reset, and it costs nothing in these titles -- UT averages 34.6 fps, nowhere near
 the 85 Hz cap, so the cap only removes the peaks. Prefer OpenGL over Glide in UT.
+
+## 19. RtCW is on our ICD now — and the ICD never enables multitexturing (2026-08-13)
+
+### RtCW: fixed, and benchmarked
+
+§14 left RtCW running the vintage 2001 Wicked3D wrapper it ships as
+`gl\openglv5.dll`, because `r_glDriver` is `CVAR_LATCH` and this GOG build pins
+it — command line, `wolfconfig_mp.cfg`, and making that file read-only all failed
+to move it. **Stop fighting the cvar and satisfy it instead: put our ICD at the
+path it insists on.** `toolchain-3dfx/build/bench-rtcw.py` backs up
+`gl\openglv5.dll`, drops `system32\3dfxogl.dll` in its place, and always restores
+it. Result:
+
+```
+GL_VENDOR:   3Dfx Interactive Inc.
+GL_RENDERER: 3Dfx [retro3dfx 0.5.0]        <- ours, finally
+...setting mode 6: 1024 768 FS
+421 frames, 11.8 seconds: 35.8 fps
+```
+
+**RtCW 1024x768x16 on our ICD: 35.8 fps**, against ~51 fps for the Wicked3D
+wrapper. We are slower than the wrapper, and the log says exactly why.
+
+### The ICD never enables multitexturing — on a 2-TMU-per-chip card
+
+Both engines report the same thing. Q3 is blunt about it:
+
+```
+...GL_ARB_multitexture not found
+multitexture: disabled
+GL_EXTENSIONS: GL_EXT_paletted_texture GL_EXT_shared_texture_palette GL_SGIS_multitexture
+```
+
+`sst_export.c:782` appends **`GL_SGIS_multitexture`** when the chip reports two
+TMUs (`gc->grNTexelFx == 2`). But `GL_SGIS_multitexture` and `GL_ARB_multitexture`
+are *different APIs*, and Quake 3 / RtCW only ever look for the ARB one. So on a
+card with **two TMUs per chip, times four chips**, every lightmapped surface is
+drawn in **two passes** instead of one — double the geometry submission and double
+the fill.
+
+Worse, grepping the whole ICD tree finds **neither** API's entry points:
+
+| symbol | present in `SWLIBS/OPENGL`? |
+|---|---|
+| `glActiveTextureARB`, `glMultiTexCoord*ARB`, `GL_MAX_TEXTURE_UNITS_ARB` | no |
+| `glSelectTextureSGIS`, SGIS multitexcoord entry points | no |
+
+So the advertised `GL_SGIS_multitexture` is **not backed by an implementation
+either** — it is a bare string. Any app that believed it and called the SGIS
+entry points would fail to link them.
+
+**This is the single largest performance item on the board**, and it is a
+*user-mode* DLL, so unlike the DX8 work it cannot bugcheck the box. Implementing
+`GL_ARB_multitexture` (the three entry-point families, `GL_MAX_TEXTURE_UNITS_ARB`
+= 2, and the extension string) against the ICD's existing two-TMU state
+(`gc->texture.sst.texUnits[0..1]`, already populated for `grNTexelFx == 2`) should
+collapse those two passes into one in Q3, RtCW and every other Quake-engine title.
+Caveat before anyone promises a number: at 1024x768 on a 700 MHz P3 these titles
+are partly CPU-bound (§8 measured UT identical on Glide and D3D), so expect the
+win to be real but smaller than the 2x the pass count suggests.
+
+Removing the unbacked `GL_SGIS_multitexture` string is worth doing regardless.
