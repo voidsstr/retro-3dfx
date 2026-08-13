@@ -844,3 +844,65 @@ are partly CPU-bound (§8 measured UT identical on Glide and D3D), so expect the
 win to be real but smaller than the 2x the pass count suggests.
 
 Removing the unbacked `GL_SGIS_multitexture` string is worth doing regardless.
+
+## 20. Multitexture: the ARB entry points are ALREADY SHIPPING, just never advertised
+
+Follow-on to §19, and it changes the effort estimate for queue item 12
+(`icd-multitexture`, `optimized/OPTIMIZATION-QUEUE.md`, which budgets it as
+"High risk — a feature, not a tweak; largest commit in the queue").
+
+**The deployed `3dfxogl.dll` (retro3dfx 0.5.0, 708,608 bytes) already exports the
+ARB entry points.** Checked against the binary itself:
+
+| symbol | in the shipped DLL |
+|---|---|
+| `glActiveTextureARB` | **present** |
+| `glMultiTexCoord2fARB` | **present** |
+| `glClientActiveTextureARB` | **present** |
+| `glSelectTextureSGIS` | present |
+| the string `GL_ARB_multitexture` | **absent** |
+
+So the plumbing exists; only the advertisement is missing. `sst_export.c:782`
+appends `GL_SGIS_multitexture` when `gc->grNTexelFx == 2`, and Q3/RtCW only ever
+look for the ARB name — which is why Q3 says `multitexture: disabled` on a card
+with two TMUs per chip across four chips.
+
+### Tested by patching only the advertised string
+
+Byte-patched the 21-byte literal `"GL_SGIS_multitexture "` to
+`"GL_ARB_multitexture  "` in a copy of the DLL and deployed that (user-mode, so
+no bugcheck risk, and reversible without a reboot). Q3 changed behaviour exactly
+as intended:
+
+```
+...using GL_ARB_multitexture
+GL_EXTENSIONS: GL_EXT_paletted_texture GL_EXT_shared_texture_palette GL_ARB_multitexture
+multitexture: enabled
+1260 frames, 19.9 seconds: 63.4 fps      (vsync-limited; 59.9 fps on the stock DLL)
+```
+
+**+5.8 % at 1024x768 vsync-limited, and the frame rendered.** A captured frame
+showed correct textures, correct lightmap falloff, correct HUD and weapon — none
+of the failure signature of the earlier
+`optimized/experimental/3dfxogl-0.1.4-multitexture-itercolor-DARK.dll`.
+
+### What is NOT established — do not ship on this evidence
+
+* **Rendering correctness is UNVERIFIED.** The two frames I compared came from
+  different points of a demo (different room, different HUD), so the -17.6 %
+  mean-luminance delta between them is an artifact of comparing different scenes,
+  **not** a measurement of darkening. A controlled same-frame A/B is still owed.
+  `toolchain-3dfx/build/icd-ab-shot.py` is a start at one (fixed map + `setviewpos`
+  to pin the camera) but does not yet produce a shot — Q3 did not launch under
+  `+devmap`, and quoted console commands do not survive the EXECW/cmd/start
+  quoting chain, which is why the binds had to move into an `+exec`'d cfg.
+* **+5.8 % is one vsync-limited data point**, well short of the queue's 25-50 %
+  estimate — expected, since these titles are partly CPU-bound on a 700 MHz P3,
+  and a vsync-capped run compresses differences. An unlimited run would measure it
+  better but resets this board (§18).
+* The string patch is a **probe, not a fix.** The real change is in
+  `sst_export.c:782`: advertise `GL_ARB_multitexture`, and drop the
+  `GL_SGIS_multitexture` string, which is advertised but has **no** SGIS entry
+  points behind it in the ICD source at all.
+
+The box was returned to the stock ICD (`3dfxogl.dll.arbbak` retained on it).
