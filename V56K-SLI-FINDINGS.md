@@ -1152,3 +1152,69 @@ the card.
 deployed, `3dfxv5m.sys` restored, all services re-enabled, watchdog counters zeroed
 as a fresh instrument. `boot.ini` retains three entries (VGA+logged, normal+logged,
 pristine original); the original is backed up at `/tmp/qa256/boot.ini.bak`.
+
+## 24. Full XP boot-path audit — `NVStrap` in "Boot Bus Extender" (2026-08-13)
+
+§23 concluded hardware. A systematic audit of **everything XP loads at boot** found a
+far better candidate, and it had been sitting there the whole time.
+
+### The find
+
+`Win32_SystemDriver` enumeration (179 drivers) shows two third-party **boot-start**
+(`Start=0`) drivers that have nothing to do with this machine's job:
+
+```
+Boot   NVStrap   Stopped   C:\WINDOWS\system32\drivers\NVStrap.sys   (dated 2009)
+Boot   giveio    Running   C:\WINDOWS\system32\giveio.sys            (dated 1996)
+```
+
+`NVStrap` is **RivaTuner's NVIDIA low-level hardware-hooking driver** — and this box's
+GeForce4 Ti 4600 was removed long ago (its `Query remove failed` entries are still all
+over `setupapi.log`). `giveio` is a raw I/O-port access shim.
+
+The decisive detail is `NVStrap`'s load group:
+
+```
+NVStrap:  Group = "Boot Bus Extender"   Start = 0
+ServiceGroupOrder = System Reserved | Boot Bus Extender | System Bus Extender |
+                    SCSI miniport | Port | Primary Disk | ...
+```
+
+**"Boot Bus Extender" is the SECOND group XP loads — before `PCI`, before storage,
+before everything.** A driver that hangs there produces exactly the observed screen:
+the `/SOS` kernel banner, and then **nothing** — no driver names, no boot log flushed,
+no bugcheck, no event-log entry. It also explains the Safe Mode asymmetry perfectly:
+Safe Mode loads only the `SafeBoot\Minimal` set, which does not include it.
+
+It further explains the **intermittency** (§23 leaned on this for "hardware"): a
+hardware-probing driver aimed at an absent card will behave differently depending on
+what the AGP/PCI bus returns, so it can pass one boot and hang the next.
+
+### What was done
+
+Disabled (`Start=4`): **`NVStrap`**, **`giveio`**, and `speedfan` (also boot-start,
+also raw ISA/SMBus port I/O, also unnecessary to boot). `d347bus`/`d347prt` (DAEMON
+Tools) and `Si3114r5` (**the boot disk controller — must stay**) left enabled.
+
+Rest of the audit, all clean: every Boot/System-start driver's binary **exists**;
+`boot.ini` restored to the pristine original; `BootExecute = autocheck autochk *`;
+no `PendingFileRenameOperations`; filesystem not dirty; `Shell`/`Userinit` stock;
+autologon intact; **no persistent net mappings** (see §23 — mine was removed).
+
+One more logon-time item worth knowing about, pre-existing and not mine:
+`HKLM\...\Run` contains `MapShare = net use \\192.168.1.122\files /user:admin password`,
+plus NVIDIA leftovers (`NvCplDaemon`, `nwiz`, `NvMediaCenter`) that `rundll32` into
+NVIDIA DLLs on a 3dfx box. These run **after** logon so they cannot block boot, but
+they do cost logon time.
+
+### Driver state
+
+Our custom stack is archived to `C:\RETRO3DFX_REMOVED\` (`3dfxv5d.dll`, `3dfxv5m.sys`,
+`3dfxogl.dll`, `opengl32.dll`, `glide2x/3x.dll`), the live copies renamed `.removed`,
+and `3dfxvs` disabled — so XP boots on plain VGA with **no 3dfx code loaded at all**.
+**AmigaMerlin 2.5 SE** (Win2k/XP) is staged at `C:\AMIGAMERLIN\driver2K\`; its INF
+lists our exact hardware ID:
+
+```
+"Amigamerlin 2.5 SE for Voodoo 4/5" = 3dfxvsV5,PCI\VEN_121A&DEV_0009&SUBSYS_0001121A
+```
