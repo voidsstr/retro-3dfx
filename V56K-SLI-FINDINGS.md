@@ -727,3 +727,58 @@ These are a porting job on the DP2 command-buffer path, not a configuration fix,
 that path is exactly where a wrong edit bugchecks the box. **Do not deploy a DX=8
 binary until these are properly resolved and the d3dlab matrix passes.** The DX=7
 driver on the box is unaffected by any of this work.
+
+## 18. The resets are a LOAD ceiling, not heat — and Glide is the worst offender (2026-08-13)
+
+Overnight run with the new rail/temperature telemetry (§15) attached. This
+supersedes the "cumulative duty cycle" reading in §11 and in memory
+`v56k-thermal-envelope`: **that theory does not survive the measurement.**
+
+### What the sensors say at the moment of a reset
+
+Sampled every 3 s right up to a reset, from a box that had been idle for hours:
+
+```
+3679  board 23C  smb4C 35.0  smb4D 31.5  +12V 12.22  +5V 5.08  +3.3V 3.30  Vcore 1.68/1.68
+3682  board 23C  smb4C 35.0  smb4D 31.5  +12V 12.22  +5V 5.08  +3.3V 3.30  Vcore 1.68/1.68
+3685  board 23C  smb4C 35.5  smb4D 31.5  +12V 12.22  +5V 5.08  +3.3V 3.30  Vcore 1.68/1.68
+<reset>
+```
+
+Across the whole session `V12` never left 12.22 (min == max) and the board never
+left 23-24 C. **No sag, no heat, and the flight-recorder ring is clean** -- no
+`H3MakeRoom STALL/WEDGE-BREAK`, no `DdFlip WEDGE-BREAK`, no `DP2-PARSE-ERR`, no
+`memMgr ALLOC-FAIL`. The driver never sees a fault; the machine simply goes away,
+in one case exactly at the `DrvAssertMode(DISABLE)` full-screen transition.
+
+Two things the telemetry genuinely cannot see, so this is *not* proof of a clean
+bill of health: a **fast transient** (3 s sampling cannot resolve a millisecond
+droop when four chips spin up) and **die temperature** (the VSA-100 has no sensor
+and the board thermistors are nowhere near it).
+
+### What actually predicts a reset
+
+| workload | frame cap | result |
+|---|---|---|
+| Q3 timedemo 1024x768 | vsync | **59.9 fps, stable** |
+| Q3 timedemo 1024x768 | unlimited | 61.3 fps; reset 1 of 3 runs |
+| UT99 UTbench, **OpenGL** (our ICD 0.5.0) | vsync | **34.56 fps avg** (min 8.99 max 55.01, 2940 frames / 85.06 s), stable |
+| UT99 UTbench, **OpenGL** | unlimited | **RESET** |
+| UT99 UTbench, **Glide** | unlimited | **RESET** |
+| UT99 UTbench, **Glide** | vsync | **RESET** |
+
+It is a **load ceiling**, not accumulated heat: a cold, freshly-booted box resets
+on the first flat-out run, and the same box runs frame-limited work all night.
+Every reset recovers on its own in ~45 s, and `chkdsk` is clean afterwards.
+
+**Glide is the outlier and the one clear driver-side lead.** UT-Glide is the only
+workload that resets even *frame-limited*, while UT-OpenGL at the same resolution
+and cap is stable -- and the ICD reaches the hardware through `glide3x`, so the
+finger points at the **`glide2x`** path UT's GlideDrv uses directly. That matches
+the standing "UT-Glide is intermittent" note in `v56k-stability-findings`, and it
+is where to look next; it is not a thermal story.
+
+**Operational rule for this board: cap the frame rate.** `FX_GLIDE_SWAPINTERVAL=1`
+(or the renderer's own vsync) is the difference between a stable session and a
+reset, and it costs nothing in these titles -- UT averages 34.6 fps, nowhere near
+the 85 Hz cap, so the cap only removes the peaks. Prefer OpenGL over Glide in UT.
