@@ -1076,3 +1076,79 @@ Safe Mode does minimal PnP, which is why it boots. Repair applied: `INFCACHE.1`
 renamed so XP rebuilds the driver database, watchdog counters cleared, and
 `Services\3dfxvs\Start=4` so the next normal boot comes up on VGA with our driver
 out of the path. The filesystem was never dirty.
+
+## 23. The Safe-Mode-only boot failure is NOT software (2026-08-13)
+
+After §22 fixed the watchdog bug, the box still would only boot in Safe Mode. It is
+worth recording how thoroughly that was eliminated, because the answer is hardware
+and the next person will otherwise re-run all of it.
+
+### The machine is capable of booting perfectly
+
+The 13:47:54 session, from its own logs:
+
+```
+13:47:54  EventLog service started
+13:48:19  retro_agent v1.28.0: main() entered
+13:48:39  Hostname=P3-DUAL IP=192.168.1.133  Listening on TCP :9898
+13:49:02  retrowall: arranged desktop icons     <- Explorer running, desktop up
+13:57:10  USER32 1074 - CLEAN shutdown
+```
+
+Kernel → drivers → services → autologon → Explorer → desktop → agent listening, for
+nine minutes, then a clean shutdown. **Not a hang, not a crash.**
+
+### What the hang actually looks like
+
+Photographed by the operator: the `/SOS` screen showing only
+
+```
+Microsoft (R) Windows (R) Version 5.1 (Build 2600: Service Pack 3)
+2 System Processors [1024 MB Memory] MultiProcessor Kernel
+Boot Logging Enabled
+```
+
+and **no driver lines at all**. `/SOS` prints every driver as it initialises, so the
+stall is at the very first step of device init — which is also why `ntbtlog.txt`
+never gained a normal-mode session (the log is never flushed).
+
+### Eliminated, each by direct test
+
+| Suspect | How it was excluded |
+|---|---|
+| 3dfx display driver | **`3dfxv5m.sys` RENAMED away** (cannot load) → identical hang |
+| `d347bus`/`d347prt` (DAEMON Tools) | `Start=4` → identical hang |
+| `speedfan` (boot-start, raw ISA/SMBus I/O) | `Start=4` → identical hang |
+| Video output | the operator's photo proves the display works |
+| Filesystem / registry | `fsutil` clean, chkdsk clean, no PendingFileRenameOperations |
+| Driver database | `INFCACHE.1` rebuilt after "DATABASE OPEN FAILED" |
+| A crash | **zero** bugchecks after 11:25; watchdog `BreakCount`/`EventCount` stayed **0** |
+| Boot config | operator's photo shows NTLDR loaded the kernel with our `/sos /bootlog` entry |
+
+**A real, self-inflicted bug was found and fixed along the way:** `net use Z:
+\\192.168.1.122\files` had been saved **persistently**, with the username mangled to
+the *local* account `P3-DUAL\voidsstr` (`HKCU\Network\Z`, `SaveConnections=yes`).
+Every logon stalled in "Attempting to restore your network connections" — a
+light-blue-screen hang, and Safe Mode does not restore mappings, which is exactly
+the observed asymmetry. Removed, and `SaveConnections=no` set. **Never leave a
+persistent `net use` on a fleet box.** It was not the whole story, though.
+
+### Why the conclusion is hardware
+
+The configuration that booted successfully at 13:47 — `3dfxvs`, `d347bus`,
+`d347prt`, `speedfan` all disabled, `/basevideo` default — is **the same
+configuration that then hung repeatedly**. Same software, different outcome, with
+no fault of any kind recorded. That is intermittent hardware, and the timing is
+unambiguous: the box ran for **days with the case open**, and broke immediately
+after the PSU swap (300→380 W) *and* the lid going on with a new rear fan. Safe
+Mode survives because it initialises far fewer devices.
+
+Checks to make, cheapest first: **boot with the lid OFF** (newest variable; a heavy
+4-chip card flexes easily when a panel is fitted), reseat the card, verify its ~80 W
+auxiliary power connector on the new supply, and check no cable is routed against
+the card.
+
+**Box state left ready:** watchdog-fixed `3dfxv5d.dll` (968,932, md5 `dbba17b4949c`)
+deployed, `3dfxv5m.sys` restored, all services re-enabled, watchdog counters zeroed
+as a fresh instrument. `boot.ini` retains three entries (VGA+logged, normal+logged,
+pristine original); the original is backed up at `/tmp/qa256/boot.ini.bak`.
