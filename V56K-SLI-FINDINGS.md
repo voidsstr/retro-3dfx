@@ -906,3 +906,73 @@ of the failure signature of the earlier
   points behind it in the ICD source at all.
 
 The box was returned to the stock ICD (`3dfxogl.dll.arbbak` retained on it).
+
+## 21. MOHAA runs on our ICD — and the "stability" we had was accidental throttling
+
+### Retro3dfxLog=1 was holding the board up (A/B/A)
+
+Found `Retro3dfxLog = 0x1` still set under `Services\3dfxvs\Device0`, with the ICD
+writing an **800 KB `C:\3dfxogl.log` per session** of per-texture `APPLYTEX` and
+per-batch `BEGIN` lines. That is the same class of mistake as the
+`FX_GLIDE_SLI_LOG` incident in §14 — and **every benchmark in §18-§20 was measured
+with it on.** Turning it off produced something much more interesting than a
+speedup:
+
+| `Retro3dfxLog` | Q3 1024x768 vsync |
+|---|---|
+| 1 (on) | 59.9 / 60.5 / 60.5 fps — **stable, 5 runs** |
+| **0 (off)** | **RESET, RESET, RESET** — three consecutive |
+| 1 (restored) | 60.5 / 60.5 fps — **stable again** |
+
+A clean A/B/A. The per-frame log I/O was acting as an **unintentional throttle**,
+and removing it pushed the card past the load ceiling of §18 immediately. This
+reframes the whole night: the board is *less* stable than it looked, and what was
+keeping it up was debug logging, not headroom.
+
+**Do not treat this as the fix.** Relying on log I/O to pace the GPU is accidental
+and fragile — it makes every benchmark a "safe mode" number and silently taxes
+real gameplay. The real work is a proper frame/rate limiter (or the underlying
+power/timing cause), with logging off. Left at `1` for now because that is the
+configuration the box is stable in; **anyone benchmarking must state which setting
+they used**, because it changes both the fps and whether the box survives.
+
+### MOHAA: mounted, running on our ICD, benchmark blocked
+
+`toolchain-3dfx/build/bench-mohaa.py` does the whole prep. MOHAA is SafeDisc
+(`drvmgt.dll` + `secdrv.sys`) so it needs the disc:
+
+* Disc 1 ISO was **not** on the fleet share (that path in retro-agent's
+  driver-bench skill belongs to a different host — this share has no game ISOs at
+  all). It is on the box, on the Administrator's Desktop.
+* Staged to `C:\ISO\MOHAA_CD1.iso` — **DAEMON Tools 3.47 will not take a path with
+  spaces** — and mounted with `daemon.exe -mount 0,<image>`. `daemon.exe` stays
+  resident, so it must be launched **detached** (`start ""`) or EXECW tree-kills it
+  and undoes the mount. Mounts as **`E: MOHAA_DISK1`**.
+* Our ICD staged as `MOHAA\opengl32.dll` (the game directory wins the DLL search
+  order).
+
+Confirmed from MOHAA's *own* log:
+
+```
+...setting mode 3: 640 480 FS
+GL_VENDOR:   3Dfx Interactive Inc.
+GL_RENDERER: 3Dfx [retro3dfx 0.5.0]
+GL_VERSION:  1.1.0 3Dfx Beta 3.00
+------ Server Initialization Complete ------  6.06 seconds
+```
+
+**MOHAA loads, initialises our ICD, and plays a map.** It shipped configured for
+`r_colorbits 32`, which reset the box on the first map load; at 640x480x16 with
+`r_picmip 1` it runs (config backed up as `unnamedsoldier.cfg.v56kprev`).
+
+It also confirms §20 in a **third** engine: `GL_ARB_multitexture not found` and
+`GL_MAX_ACTIVE_TEXTURES_ARB: 0`.
+
+**No fps number yet, and the reason is structural.** MOHAA has no bundled demo,
+`record` is not accepted from a startup cfg, and it has no `com_speeds` output —
+so a timedemo needs a demo recorded during interactive play. retro-agent's
+driver-bench skill hit the same wall ("stage first; DirectInput blocks recording")
+and no `mohbench.dm_` exists in `benchmarks/`. Screenshot-based fps reading is out
+too: GDI capture of this box garbles during 3D (the same scanout defect already
+recorded for Q2). **A MOHAA fps figure needs one demo recorded by hand at the
+keyboard; everything else is in place and scripted.**
