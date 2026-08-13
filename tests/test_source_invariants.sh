@@ -34,12 +34,12 @@ chk "D3TXTR mip-download addr line (black-texture fix)" \
 # 2. DdFlip bounded pending-swap spin (hard-freeze vector).
 chk "DDFLIP pending-swap spin-breaker" \
     "$H5DISP/DDFLIP.C" \
-    "retro3dfx DdFlip WEDGE-BREAK@50M"
+    "retro3dfx DdFlip WEDGE-BREAK"
 
 # 3. H3MakeRoom spin-breaker + flight recorder (CFIFO wedge diagnosis).
 chk "CFIFO H3MakeRoom wedge-breaker" \
     "$H5DISP/CFIFO.C" \
-    "retro3dfx H3MakeRoom WEDGE-BREAK@50M"
+    "retro3dfx H3MakeRoom WEDGE-BREAK"
 
 # 4. DP2 error flight-recorder (names failing D3D op on DRIVERINTERNALERROR).
 chk "D6DP2 parse-error ring logging" \
@@ -54,16 +54,36 @@ chk "DDFXNT promote-SLIAA ring logging" \
 # 5b. FXBUSYWAIT / H3_GP_WAIT bounded busy-spins (remaining freeze vectors).
 chk "DDGLOBAL FXBUSYWAIT wedge-breaker" \
     "$H5DISP/DDGLOBAL.H" \
-    "retro3dfx FXBUSYWAIT WEDGE-BREAK@100M"
+    "retro3dfx FXBUSYWAIT WEDGE-BREAK"
 chk "HW.H H3_GP_WAIT wedge-breaker" \
     "$H5DISP/HW.H" \
-    "retro3dfx H3GpWait WEDGE-BREAK@100M"
+    "retro3dfx H3GpWait WEDGE-BREAK"
 chk "HW.H 2D BitBlt spin-breaker (RETRO_GP_SPIN)" \
     "$H5DISP/HW.H" \
-    "retro3dfx BitBlt-GPSpin WEDGE-BREAK@100M"
+    "retro3dfx BitBlt-GPSpin WEDGE-BREAK"
 chk "BITBLT.C uses bounded RETRO_GP_SPIN" \
     "$H5DISP/BITBLT.C" \
     "RETRO_GP_SPIN(ppdev)"
+
+# 5c. V56K-WEDGE-WATCHDOG: every accelerator spin-breaker must use the SHARED bound,
+# and that bound must stay inside Windows' ~30s video watchdog. At the original
+# 50M/100M iterations (~50-100s of uncached MMIO reads) the watchdog always fired
+# first and bugchecked 0xEA THREAD_STUCK_IN_DEVICE_DRIVER, so the breakers below
+# were dead code -- that is what took .133 down 12 times. Guard BOTH halves:
+# no raw over-long literal may come back, and the constant must stay small.
+for f in CFIFO.C DDFLIP.C DDSURF.C DDGLOBAL.H HW.H; do
+  chk "$f spin-breakers use RETRO_WEDGE_BREAK_SPINS" "$H5DISP/$f" "RETRO_WEDGE_BREAK_SPINS"
+done
+if grep -qa "100000000UL\|50000000UL" "$H5DISP"/*.C "$H5DISP"/*.H 2>/dev/null; then
+  echo "FAIL  a raw 50M/100M spin bound is back (watchdog fires at ~30s)"; RC=1
+else
+  echo "PASS  no raw 50M/100M spin bounds remain"
+fi
+if grep -qa "define RETRO_WEDGE_BREAK_SPINS   2000000UL" "$H5DISP/CFIFO.C"; then
+  echo "PASS  RETRO_WEDGE_BREAK_SPINS is watchdog-safe (2M ~= 2s)"
+else
+  echo "FAIL  RETRO_WEDGE_BREAK_SPINS changed - keep it well under the ~30s watchdog"; RC=1
+fi
 
 # 5d. DrvBitBlt/DrvCopyBits NULL-guard (Q3 1024->1280 mode-change bugcheck
 #     1000008E @ 3dfxv5d+0x346). The ENABLE_LOG_FILE block in DrvBitBlt used to

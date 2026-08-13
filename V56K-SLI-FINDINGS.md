@@ -1002,3 +1002,77 @@ it needs actual pacing code in the Glide/ICD submission path.
 
 **Do not leave the box on `Retro3dfxLog=0`.** That configuration reset it 4 times
 out of 4 and then froze it hard.
+
+## 22. The resets were never power — every spin-breaker outran the video watchdog
+
+**This supersedes §18, §21 and §21a.** Those blamed a load ceiling / power
+transient, with logging as an accidental throttle. The crash dumps say otherwise.
+
+### The evidence
+
+**12 of 12 minidumps on .133 are `0x100000EA THREAD_STUCK_IN_DEVICE_DRIVER`**, and
+parameter 4 is `1` — which specifically means *the video port driver detected the
+stuck thread*. Windows names the culprit itself, in
+`HKLM\SYSTEM\CCS\Control\Watchdog\Display`:
+
+```
+DriverName        REG_SZ     3dfxv5d
+BreakCount        REG_DWORD  0x18      (24 watchdog events)
+ShutdownCount     REG_DWORD  0x14      (20 driver shutdowns)
+BugcheckTriggered REG_DWORD  0x1
+```
+
+and in the System event log, source `3dfxvs`, **event 108**:
+
+> The driver 3dfxv5d for the display device \Device\Video0 **got stuck in an
+> infinite loop**. This usually indicates a problem with the device itself or with
+> the device driver programming the hardware incorrectly.
+
+Our own flight recorder had already caught it:
+
+```
+H3MakeRoom STALL>=100K:  N=644 fifoSize=524276 curRead=000750c4 room=84
+H3MakeRoom WEDGE-BREAK@50M: N=644 fifoSize=524276 curRead=000750c4 room=84
+```
+
+`curRead` is **identical** in both lines — the hardware stopped consuming the FIFO.
+
+### The bug
+
+Every accelerator spin *was* bounded — but the bounds were 50M/100M iterations, and
+each iteration is an **uncached MMIO read across PCI (~1 us)**. That is **50–100
+seconds**. Windows shoots a stuck display thread at **~30 s**. So the watchdog
+always won, the recovery paths were **dead code**, and a recoverable FIFO wedge
+became a bugcheck every time. The `CFIFO.C` comment even says the 50M value was
+chosen so "near-stock wedge behavior stays observable" — a diagnostic decision
+that never accounted for the watchdog.
+
+Fixed: one shared `RETRO_WEDGE_BREAK_SPINS = 2000000UL` (~2 s) across **all eight**
+spin sites in `CFIFO.C`, `DDFLIP.C` (×3), `DDSURF.C`, `DDGLOBAL.H`, `HW.H` (×2).
+Still ~20× beyond the "healthy stalls drain well under 100K" figure, but an order
+of magnitude inside the watchdog — so a wedge now costs a frame, not the machine.
+`tests/test_source_invariants.sh` guards both halves: no raw 50M/100M literal may
+return, and the constant must stay small. 89/89 pass.
+
+**This also explains the `Retro3dfxLog` A/B/A in §21.** Logging never provided
+"power headroom" — it perturbed timing enough that the FIFO wedge rarely occurred.
+The correlation was real; the mechanism I gave for it was wrong.
+
+**Still open:** *why* the hardware stops consuming the FIFO (`curRead` frozen) is a
+separate question this fix does not answer — it only makes the wedge survivable.
+
+### Separately: what actually blocked normal boot
+
+After the hard freeze, normal boot stopped completing — and **not** by bugchecking
+(no minidump after 11:25 despite many attempts). Two pieces of PnP damage:
+
+* `Application Popup`: **"There was error [DATABASE OPEN FAILED] processing the
+  driver database."**
+* `setupapi.log`: `#W104 Device "PCI\VEN_121A&DEV_0009..." required reboot:
+  Query remove failed (install) **CfgMgr32 returned: 0x17**` (CR_REMOVE_VETOED) —
+  a pending device-install state stuck on the Voodoo 5 6000's PCI node.
+
+Safe Mode does minimal PnP, which is why it boots. Repair applied: `INFCACHE.1`
+renamed so XP rebuilds the driver database, watchdog counters cleared, and
+`Services\3dfxvs\Start=4` so the next normal boot comes up on VGA with our driver
+out of the path. The filesystem was never dirty.

@@ -230,8 +230,8 @@ DdFlip( LPDDHAL_FLIPDATA pfd )
       /* retro3dfx: bounded (was raw spin) - a wedged flip must not hang DdFlip. */
       { ULONG _rs = 0;
         while (FXGETFLIPSTATUS(ppdev)) {
-          if (++_rs >= 100000000UL) {
-            retroLogForce(ppdev, "retro3dfx DdFlip-FlipWait WEDGE-BREAK@100M\r\n");
+          if (++_rs >= RETRO_WEDGE_BREAK_SPINS) {
+            retroLogForce(ppdev, "retro3dfx DdFlip-FlipWait WEDGE-BREAK\r\n");
             break;
           }
         } }
@@ -376,10 +376,10 @@ DdFlip( LPDDHAL_FLIPDATA pfd )
 
       while (READSWAPCOUNT() > swapsQueued)
       {
-        if (++retroFlipSpin >= 50000000UL)
+        if (++retroFlipSpin >= RETRO_WEDGE_BREAK_SPINS)
         {
 #if ENABLE_LOG_FILE
-          retroLogForce(ppdev, "retro3dfx DdFlip WEDGE-BREAK@50M: swapCount=%ld queued=%ld\r\n",
+          retroLogForce(ppdev, "retro3dfx DdFlip WEDGE-BREAK: swapCount=%ld queued=%ld\r\n",
                         (LONG)READSWAPCOUNT(), (LONG)swapsQueued);
 #endif
           break;
@@ -617,10 +617,10 @@ retroFlipPresent ( NT9XDEVICEDATA *ppdev, LPDDHAL_BLTDATA pbd )
     ULONG spin = 0;
     while (READSWAPCOUNT() > MAXPENDINGBUFFERS_TOAVOIDHANG)
     {
-      if (++spin >= 50000000UL)
+      if (++spin >= RETRO_WEDGE_BREAK_SPINS)
       {
 #if ENABLE_LOG_FILE
-        retroLogForce(ppdev, "retro3dfx FlipPresent WEDGE-BREAK@50M\r\n");
+        retroLogForce(ppdev, "retro3dfx FlipPresent WEDGE-BREAK\r\n");
 #endif
         retroFlipDisabled = 1;
         return 0;
@@ -1720,5 +1720,14 @@ int HostDrawCursor(NT9XDEVICEDATA * ppdev, DWORD swapToAddr)
 #define DEBUG_FIX	// as nothing
 #define MYCMDFIFO	_FF(lpCRegs)->PRIMARY_CMDFIFO
 #include "..\minivdd\agpcf.c"
+
+/* V56K-WEDGE-WATCHDOG: shared bound for every accelerator spin-breaker.
+** Each spin is an uncached MMIO read (~1us), so this is roughly the wall-clock
+** cap on a hardware wedge. It MUST stay well inside Windows' ~30s video
+** watchdog: at the old 50M/100M (50-100s) the watchdog always fired first and
+** bugchecked 0xEA THREAD_STUCK_IN_DEVICE_DRIVER, so these breakers never ran. */
+#ifndef RETRO_WEDGE_BREAK_SPINS
+#define RETRO_WEDGE_BREAK_SPINS   2000000UL
+#endif
 #endif
 

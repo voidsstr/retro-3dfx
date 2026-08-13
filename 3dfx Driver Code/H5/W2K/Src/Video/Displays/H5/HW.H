@@ -186,9 +186,9 @@ __inline BOOL H3_GP_BUSY(PDEV* ppdev, BYTE* pjBase)
         do {                                                                   \
           ULONG _retroGpSpin = 0;                                              \
           while (H3_GP_BUSY(ppdev, pjBase)) {                                  \
-            if (++_retroGpSpin >= 100000000UL) {                               \
+            if (++_retroGpSpin >= RETRO_WEDGE_BREAK_SPINS) {                               \
               retroLogForce((PDEV *)(ppdev),                                   \
-                            "retro3dfx H3GpWait WEDGE-BREAK@100M\r\n");        \
+                            "retro3dfx H3GpWait WEDGE-BREAK\r\n");        \
               break;                                                           \
             }                                                                  \
           }                                                                    \
@@ -213,9 +213,9 @@ __inline BOOL H3_GP_BUSY(PDEV* ppdev, BYTE* pjBase)
     do {                                                                      \
       ULONG _retroBltSpin = 0;                                                \
       while (H3_GP_BUSY((ppdev), (ppdev)->pjH3Base)) {                        \
-        if (++_retroBltSpin >= 100000000UL) {                                 \
+        if (++_retroBltSpin >= RETRO_WEDGE_BREAK_SPINS) {                                 \
           retroLogForce((PDEV *)(ppdev),                                      \
-                        "retro3dfx BitBlt-GPSpin WEDGE-BREAK@100M\r\n");       \
+                        "retro3dfx BitBlt-GPSpin WEDGE-BREAK\r\n");       \
           break;                                                              \
         }                                                                     \
       }                                                                       \
@@ -306,4 +306,13 @@ __inline ULONG GET_SCANLINE(BYTE* pjBase)
 // moved ioctl defines and structures to an include file that can
 // be shared by the miniport and display driver
 #include "fxioctl.h"
+
+/* V56K-WEDGE-WATCHDOG: shared bound for every accelerator spin-breaker.
+** Each spin is an uncached MMIO read (~1us), so this is roughly the wall-clock
+** cap on a hardware wedge. It MUST stay well inside Windows' ~30s video
+** watchdog: at the old 50M/100M (50-100s) the watchdog always fired first and
+** bugchecked 0xEA THREAD_STUCK_IN_DEVICE_DRIVER, so these breakers never ran. */
+#ifndef RETRO_WEDGE_BREAK_SPINS
+#define RETRO_WEDGE_BREAK_SPINS   2000000UL
+#endif
 

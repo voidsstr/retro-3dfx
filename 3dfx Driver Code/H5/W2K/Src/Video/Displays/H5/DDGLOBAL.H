@@ -26,6 +26,15 @@
 #include "hw.h"
 #include "header.h"
 #include <stddef.h>
+
+/* V56K-WEDGE-WATCHDOG: shared bound for every accelerator spin-breaker.
+** Each spin is an uncached MMIO read (~1us), so this is roughly the wall-clock
+** cap on a hardware wedge. It MUST stay well inside Windows' ~30s video
+** watchdog: at the old 50M/100M (50-100s) the watchdog always fired first and
+** bugchecked 0xEA THREAD_STUCK_IN_DEVICE_DRIVER, so these breakers never ran. */
+#ifndef RETRO_WEDGE_BREAK_SPINS
+#define RETRO_WEDGE_BREAK_SPINS   2000000UL
+#endif
 #endif
 
 #ifdef DEBUG
@@ -417,9 +426,9 @@ typedef struct _DDGLOBAL
       do {                                                                     \
         ULONG _retroBusySpin = 0;                                              \
         while (FXGETBUSYSTATUS(ppdev) != DD_OK) {                              \
-          if (++_retroBusySpin >= 100000000UL) {                               \
+          if (++_retroBusySpin >= RETRO_WEDGE_BREAK_SPINS) {                               \
             retroLogForce((PDEV *)(ppdev),                                     \
-                          "retro3dfx FXBUSYWAIT WEDGE-BREAK@100M\r\n");        \
+                          "retro3dfx FXBUSYWAIT WEDGE-BREAK\r\n");        \
             break;                                                             \
           }                                                                    \
         }                                                                      \

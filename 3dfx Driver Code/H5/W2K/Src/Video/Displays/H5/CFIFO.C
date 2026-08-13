@@ -9,6 +9,14 @@
 
 #include "precomp.h"
 
+/* V56K-WEDGE-WATCHDOG: wedge-break spin bound. Each spin is an uncached MMIO
+** read (~1us), so this is roughly the wall-clock cap on a FIFO wedge. It MUST
+** stay well inside Windows' ~30s video watchdog, or the watchdog bugchecks
+** 0xEA THREAD_STUCK_IN_DEVICE_DRIVER before this break is ever reached. */
+#ifndef RETRO_WEDGE_BREAK_SPINS
+#define RETRO_WEDGE_BREAK_SPINS   2000000UL
+#endif
+
 
 #if (_WIN32_WINNT >= 0x0500) && defined (AGP_CMDFIFO)
 
@@ -301,7 +309,16 @@ againThisChip:
          FIFO state (rate-limited; flushed so it survives a subsequent hang). Keep a
          50M safety-break so a genuine infinite wedge recovers the CPU (soft frozen
          display) instead of pinning it into a TDR. Does NOT break early, so
-         near-stock wedge behavior stays observable up to 50M. */
+         V56K-WEDGE-WATCHDOG: this safety break WAS 50M, chosen to keep near-stock
+         wedge behavior observable. That is far longer than Windows' video
+         watchdog tolerates: every iteration re-reads fifo->readPtrL, an
+         UNCACHED MMIO read across PCI (~1us), so 50M iterations is ~50 SECONDS
+         of spinning. XP shoots a stuck display thread at ~30s, so the watchdog
+         always won and the box died with 0x100000EA
+         THREAD_STUCK_IN_DEVICE_DRIVER instead of taking the recovery path
+         below. Break at 2M (~2s) -- still 20x any healthy stall, but an order
+         of magnitude inside the watchdog, so a wedge costs a frame, not the
+         machine. */
       ++spinCount;
 #if ENABLE_LOG_FILE
       if (spinCount == 100000UL && g_h3mrStallReported < 24)
@@ -311,13 +328,13 @@ againThisChip:
                       N, (LONG)pfifoData->fifoSize, (ULONG)curReadPtr, (ULONG)curWritePtr, roomToReadPtr, fullCnt);
       }
 #endif
-      if (spinCount > 50000000UL)
+      if (spinCount > RETRO_WEDGE_BREAK_SPINS)
       {
 #if ENABLE_LOG_FILE
         if (g_h3mrStallReported < 48)
         {
           g_h3mrStallReported++;
-          retroLogForce(ppdev, "retro3dfx H3MakeRoom WEDGE-BREAK@50M: N=%ld fifoSize=%ld curRead=%08lx room=%ld\r\n",
+          retroLogForce(ppdev, "retro3dfx H3MakeRoom WEDGE-BREAK: N=%ld fifoSize=%ld curRead=%08lx room=%ld\r\n",
                         N, (LONG)pfifoData->fifoSize, (ULONG)curReadPtr, roomToReadPtr);
         }
 #endif

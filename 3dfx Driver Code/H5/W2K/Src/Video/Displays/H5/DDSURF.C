@@ -49,6 +49,15 @@
 #include "precomp.h"
 #if ENABLE_3D && !defined(WINNT)
 #include "d3txtr.h"
+
+/* V56K-WEDGE-WATCHDOG: shared bound for every accelerator spin-breaker.
+** Each spin is an uncached MMIO read (~1us), so this is roughly the wall-clock
+** cap on a hardware wedge. It MUST stay well inside Windows' ~30s video
+** watchdog: at the old 50M/100M (50-100s) the watchdog always fired first and
+** bugchecked 0xEA THREAD_STUCK_IN_DEVICE_DRIVER, so these breakers never ran. */
+#ifndef RETRO_WEDGE_BREAK_SPINS
+#define RETRO_WEDGE_BREAK_SPINS   2000000UL
+#endif
 #endif
 
 #if ENABLE_3D
@@ -1782,8 +1791,8 @@ DdLock( LPDDHAL_LOCKDATA pld )
            DDLOCK_WAIT surface lock (would hang the locking app and any GDI). */
         { ULONG _rs = 0;
           while (FXGETFLIPSTATUS(ppdev)) {
-            if (++_rs >= 100000000UL) {
-              retroLogForce(ppdev, "retro3dfx DdLock-FlipWait WEDGE-BREAK@100M\r\n");
+            if (++_rs >= RETRO_WEDGE_BREAK_SPINS) {
+              retroLogForce(ppdev, "retro3dfx DdLock-FlipWait WEDGE-BREAK\r\n");
               break;
             }
           } }
