@@ -40,7 +40,11 @@ for inf_path in sorted(SRC.glob('*.INF')):
         m = re.match(r'([^=\s]+)\s*=\s*(\d+)\s*(?:,\s*"?([^"]*?)"?\s*)?$', line)
         if m:
             sect, ldid, sub = m.group(1), m.group(2), (m.group(3) or '')
-            destdirs[sect.lower()] = (ldid, sub.replace('\\', '/'))
+            # The XP DDK's INFs write the subdir with a leading backslash
+            # (49000,\inc\ddk). Left as-is that becomes an ABSOLUTE '/inc/ddk'
+            # and DEST/sub silently discards DEST -- the extractor then tries to
+            # write to the filesystem root. Strip the leading separator.
+            destdirs[sect.lower()] = (ldid, sub.replace('\\', '/').lstrip('/'))
     copy_sections = []
     for line in sections.get('DefaultInstall', []):
         m = re.match(r'CopyFiles\s*=\s*(.+)', line, re.I)

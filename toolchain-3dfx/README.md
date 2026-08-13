@@ -44,7 +44,8 @@ internet and pins the versions:
 \\192.168.1.122\files\Utility\Retro Automation\3dfx-build-toolchain\
    README.txt            manifest: versions, source URLs, usage
    downloads\            wine-11.13, vc6-sp5-portable.7z, 1_WIN2KDDK.iso, dx7ddk.exe,
-                         vcpp5.exe, win98-ddk-toolchain.tar.gz, 7zz, SHA256SUMS.txt
+                         en_winxp_sp1_ddk.exe, vcpp5.exe, win98-ddk-toolchain.tar.gz,
+                         7zz, SHA256SUMS.txt
    build\                copies of env.sh / setup-toolchain.sh / build-glide3x.sh
 ```
 
@@ -64,7 +65,7 @@ large and reconstructable:
 |---|---|---|
 | `wine/` | Kron4ek portable Wine 11.13 (wow64) | github.com/Kron4ek/Wine-Builds releases |
 | `downloads/` | archive.org fetches: `visual-studio-6-0-sp5-portable`, `vcpp5`, `vs6sp5`, `msdn-disc7-february-2000-x05-48786` (W2K DDK ISO), dx7ddk | archive.org, same item names |
-| `devtools/` | extracted toolchain = `C:\3dfxtools`: `msvc6_0/` (VC6 SP5: CL 12.00.8804), `masm614/`, `w2kddk/` (rebuilt from ISO CABs via `extract_ddk.py`), `dx7ddk/`, `w9xddk/` (Win98 DDK headers from github.com/fapablazacl/win98-ddk-toolchain — needed by MINIHWC for minivdd.h/vmm.h/configmg.h) | re-extract from `downloads/` |
+| `devtools/` | extracted toolchain = `C:\3dfxtools`: `msvc6_0/` (VC6 SP5: CL 12.00.8804), `masm614/`, `w2kddk/` (rebuilt from ISO CABs via `extract_ddk.py`), `dx7ddk/`, `xpddk/` (**DX8 driver headers — see below**), `w9xddk/` (Win98 DDK headers from github.com/fapablazacl/win98-ddk-toolchain — needed by MINIHWC for minivdd.h/vmm.h/configmg.h) | re-extract from `downloads/` |
 | `prefix/` | Wine prefix; `drive_c/3dfx` = space-free build copy of the source | recopy source + apply the two edits below |
 | `bin/`, `extract/` | 7-zip + ISO extraction staging | trivial |
 
@@ -129,3 +130,37 @@ All of these are already handled inside [`build/env.sh`](build/env.sh) and the
 `package_driver.sh [version]` assembles `dist/3dfx-napalm-xp-<version>/`
 (binaries + trimmed INFs + `updrv.exe` + `INSTALL.bat`). Deploy to a fleet XP
 box with the `deploy-3dfx-driver` skill (`.claude/skills/deploy-3dfx-driver/`).
+
+## The XP SP1 DDK — why it is here, and what it unblocks
+
+`devtools/xpddk/` is the **Windows XP SP1 DDK (2600.1106)**, added 2026-08-12. It is a
+**header source only** — `build.exe`, `nmake` and the libs still come from `w2kddk/`.
+
+It exists for one reason: the W2K DDK predates the DirectX 8 driver interface, so it
+defines none of these, and every one of them is referenced by the display driver's
+`DX >= 8` code paths:
+
+| symbol | W2K DDK | XP SP1 DDK |
+|---|---|---|
+| `DDHALINFO_GETDRIVERINFO2` | missing | `inc/wxp/ddrawint.h:907`, `ddrawi.h:1978` |
+| `DD_GETDRIVERINFO2DATA` | missing | `d3dhal.h`, `d3dhalex.h`, `d3dnthal.h` |
+| `GUID_GetDriverInfo2` | missing | `d3dhal.h`, `d3dhalex.h` |
+| `D3DGDI_GET_GDI2_DATA` | missing | `inc/ddk/wxp/d3dhalex.h` |
+
+Without them `Displays/H5/SOURCES` can only take its default `DX = 7`, so
+`DDINIT.C:240` never sets `DDHALINFO_GETDRIVERINFO2`, no D3D8 caps are published, and
+**every D3D8 title falls back to software** — `CreateDevice(D3DDEVTYPE_HAL)` returns
+`D3DERR_NOTAVAILABLE` without the runtime ever entering the driver. Full evidence:
+`V56K-SLI-FINDINGS.md` §16.
+
+**Packaging gotchas** (both cost time, both are handled by `setup-toolchain.sh`):
+
+- `en_winxp_sp1_ddk.exe` is a **WinZip SFX** — the payload is an appended ZIP, so it
+  needs `7zz x -tzip`, not plain `x` (plain `x` sees only the PE and yields nothing).
+- Inside, CAB members are stored as `<CABNAME>_FILE_<N>`; the real names live in the
+  matching `.INF`. `extract_ddk.py` resolves them — the same machinery the W2K DDK
+  needs. **The XP INFs write their subdir with a leading backslash** (`49000,\inc\ddk`),
+  which `DEST / sub` turns into an absolute `/inc/ddk` and silently discards `DEST`;
+  `extract_ddk.py` now strips it. Extracting the DDK to `/` is otherwise the result.
+
+The headers land as `inc/wxp/`, `inc/ddk/wxp/` (920 headers, 44 MB).

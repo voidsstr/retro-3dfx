@@ -13,6 +13,12 @@
 #   MASM 6.15 (ml.exe ships inside VC6 SP5)
 #   W2K DDK   archive.org/details/msdn-disc7-february-2000-x05-48786 (1_WIN2KDDK.iso)
 #   DX7 DDK   archive.org/details/dx7ddk         (MSI; headers only, optional)
+#   XP DDK    archive.org/details/microsoft-windows-xp-service-pack-1-driver-development-kit-ddk-english
+#             ^ ONLY source of the DirectX 8 DRIVER headers (ddrawint.h/ddrawi.h/
+#               d3dhal.h/d3dhalex.h). The W2K DDK has none of DDHALINFO_GETDRIVERINFO2 /
+#               DD_GETDRIVERINFO2DATA / GUID_GetDriverInfo2 / D3DGDI_GET_GDI2_DATA, so
+#               without this the display driver can only build DX=7 and every D3D8 title
+#               falls back to software. Headers only -- build.exe still comes from w2kddk.
 #   Win98 DDK github.com/fapablazacl/win98-ddk-toolchain (minivdd.h/vmm.h/configmg.h)
 #   7-Zip     7-zip.org standalone 7zz (handles BCJ2 / CAB / ISO)
 set -eu
@@ -40,6 +46,7 @@ echo "== downloads =="
 fetch "https://archive.org/download/visual-studio-6-0-sp5-portable/visual-studio-6-0-sp5-portable.7z" vc6-sp5-portable.7z
 fetch "https://archive.org/download/msdn-disc7-february-2000-x05-48786/1_WIN2KDDK.iso" 1_WIN2KDDK.iso
 fetch "https://archive.org/download/dx7ddk/dx7ddk.exe" dx7ddk.exe || true
+fetch "https://archive.org/download/microsoft-windows-xp-service-pack-1-driver-development-kit-ddk-english/en_winxp_sp1_ddk.exe" en_winxp_sp1_ddk.exe || true
 [ -d "$TC/extract/win98-ddk-toolchain" ] || git clone --depth 1 https://github.com/fapablazacl/win98-ddk-toolchain "$TC/extract/win98-ddk-toolchain"
 
 echo "== VC6 (BCJ2 -> needs 7zz, not py7zr) -> devtools/msvc6_0 =="
@@ -60,6 +67,23 @@ echo "== W2K DDK (ISO -> CABs -> extract_ddk.py) -> devtools/w2kddk =="
   mkdir -p "$TC/devtools/w2kddk"
   python3 "$REPO/toolchain-3dfx/extract_ddk.py" "$TC/extract/iso-w2k/CABS/I386" "$TC/devtools/w2kddk" "$Z"
 }
+echo "== XP SP1 DDK (DirectX 8 driver headers) -> devtools/xpddk =="
+# WinZip SFX: the payload is an appended ZIP, so -tzip. We only pull the CAB/INF
+# pairs that carry headers -- extract_ddk.py skips any INF whose CAB is absent.
+[ -f "$TC/devtools/xpddk/inc/wxp/ddrawint.h" ] || {
+  if [ -s "$TC/downloads/en_winxp_sp1_ddk.exe" ]; then
+    "$Z" x -tzip -y -o"$TC/extract/xpddk" en_winxp_sp1_ddk.exe "COMMON/*.INF" \
+        "COMMON/SDKINCS1.CAB" "COMMON/SDKINCS2.CAB" "COMMON/SDKINCS3.CAB" \
+        "COMMON/SDKINC2K1.CAB" "COMMON/SDKINC2K2.CAB" "COMMON/SDKINC2K3.CAB" \
+        "COMMON/DDKINCS.CAB" "COMMON/DDKINC2K.CAB" "COMMON/DXDDK.CAB" \
+        "COMMON/W2K_INCS.CAB" >/dev/null
+    mkdir -p "$TC/devtools/xpddk"
+    python3 "$REPO/toolchain-3dfx/extract_ddk.py" "$TC/extract/xpddk/COMMON" "$TC/devtools/xpddk" "$Z"
+  else
+    echo "   !! en_winxp_sp1_ddk.exe missing -- DX=8 builds will not be possible"
+  fi
+}
+
 echo "== Win98 DDK headers -> devtools/w9xddk =="
 [ -f "$TC/devtools/w9xddk/inc/win98/MINIVDD.H" ] || cp -a "$TC/extract/win98-ddk-toolchain/98DDK" "$TC/devtools/w9xddk"
 
