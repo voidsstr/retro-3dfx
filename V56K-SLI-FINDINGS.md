@@ -581,3 +581,95 @@ thermal.py stop
    telemetry can say anything is a long soak — which is exactly the regime where
    §11's reboots occur (three flat-out runs at a 120 s cooldown). Use it that way,
    sampling continuously across a whole session, or not at all.
+
+## 16. Why D3D gets no hardware: the driver is built `DX=7` (2026-08-12)
+
+Chasing "TotalVRAM=0 makes D3D fall back to software". **The premise was wrong and
+the real cause is a build-configuration one.** Measured, not reasoned.
+
+### TotalVRAM=0 is a red herring — it came from a different build
+
+The `DDRAW-ENABLED: ... vram=00000000h` line that started this only exists on the
+`USE_NT5_DDMEMMGR` arm of DDFXNT.C:794. **The deployed driver takes the `#else`
+arm** — it prints `DDRAW-ENABLED: units=4 cyMem=4095 slop=4 ddHeap=3203`, and the
+heaps it publishes are healthy:
+
+```
+HEAP0 LIN start=0008E400h end=0337FFFFh      (~54 MB linear, 64 MB/chip mode)
+HEAPSUM n=9 tiledStart=039C0000h sliTileCmp=03E50000h
+DDGDDI-OK: d3dGlobal=E1B889C0h heaps=9       (x16, and ZERO DDGDDI-FAIL)
+```
+
+`d3dGlobal` is non-NULL and 9 heaps are handed over, i.e. `D3DHALCreateDriver`
+succeeds and the D3D HAL *is* published. Nothing here is zero. Do not go looking
+for a vram-reporting bug on this build again.
+
+### What actually fails
+
+`d3dlab` (windowed, `D3DDEVTYPE_HAL`) on the box:
+
+```
+CreateDevice failed 8876086a        == D3DERR_NOTAVAILABLE
+```
+
+Reproduced at 1024×768×32, 1024×768×16 and 800×600×16 — so it is not a format or
+mode issue. The decisive measurement: **`C:\3dfxvs.log` grew by exactly 0 bytes
+across the failing call.** The D3D8 runtime rejects the device from cached caps
+*without ever entering the driver*, so no amount of driver-side memory reporting
+can affect it.
+
+### Root cause
+
+`Displays/H5/SOURCES`:
+
+```
+!IFNDEF DX
+DX = 7          <-- and nothing in SETENV.BAT, bldw2k.bat or build-w2k.sh sets it
+!ENDIF
+C_DEFINES = $(C_DEFINES) -DDX=$(DX)
+```
+
+and `DDINIT.C:240`, inside the `dwFlags` the driver reports to DirectDraw:
+
+```
+#if (DIRECT3D_VERSION >= 0x0800) && (DX >= 8)
+/* DX8 GetDriverInfo2 callback */   DDHALINFO_GETDRIVERINFO2 |
+```
+
+**The driver is compiled as a DirectX 7 driver.** `DDHALINFO_GETDRIVERINFO2` is
+compiled out, so the DX8 caps negotiation (`GUID_GetDriverInfo2` → the
+`DD_GETDRIVERINFO2DATA` handler at DDFXNT.C:1062) never happens and the D3D8
+runtime concludes there is no D3D8-capable HAL. That is precisely
+`D3DERR_NOTAVAILABLE` with no driver entry.
+
+Corroborating, from `dxdiag` (a DX9 runtime querying a DX7 driver):
+`DDI Version: unknown`, `Display Memory: n/a`, `D3D Status: Not Available`.
+
+**D3D7 is unaffected** — during a forced UT99 D3D run the driver logged
+`DrvEnableDirectDraw ENTER` / `EXIT ok`, 16× `DDGDDI-OK` and the fullscreen
+`DrvAssertMode` transitions, i.e. the DirectDraw/D3D7 HAL is live and servicing
+the app. This matches CS 1.6 D3D benching 33.5 fps. **Only D3D8+ titles are
+affected.**
+
+### BLOCKED: we cannot build `DX=8` with the toolchain we have
+
+The DX8 source paths are real and substantial (D3CONTXT, D3INIT, D6DP2, D7DP2,
+DDFXNT, DDINIT — the `GetDriverInfo2` handler is fully written), but they need DX8
+DDK headers we do not have:
+
+| symbol | defined in our toolchain? |
+|---|---|
+| `DD_GETDRIVERINFO2DATA` | **no** |
+| `GUID_GetDriverInfo2` | **no** |
+| `D3DGDI_GET_GDI2_DATA` | **no** |
+| `DDHALINFO_GETDRIVERINFO2` | **no** |
+
+`prefix/drive_c/3dfxtools/` contains `dx7ddk` only. Those four symbols appear
+nowhere in the tree except the Win9x `*.COD` compiler listings under
+`H5/Win9x/DX/DD32/` — proof 3dfx *did* build this path, with a DDK we are missing.
+Setting `DX=8` today just fails to compile.
+
+**To unblock:** the DirectX 8.0/8.1 DDK (`ddrawint.h` / `d3dhal.h` of that
+vintage) needs to be added to `3dfxtools`. Then build with `DX=8 DXDDKVERSION=8`,
+and treat it as a BSOD-risk binary — the whole DX8 arm will be executing for the
+first time here, so deploy it with the `.v56kprev` rollback and expect to use it.
