@@ -673,3 +673,57 @@ Setting `DX=8` today just fails to compile.
 vintage) needs to be added to `3dfxtools`. Then build with `DX=8 DXDDKVERSION=8`,
 and treat it as a BSOD-risk binary — the whole DX8 arm will be executing for the
 first time here, so deploy it with the `.v56kprev` rollback and expect to use it.
+
+## 17. DX8 DDK obtained — and how far the DX=8 build actually gets (2026-08-12)
+
+§16 ended blocked on missing DX8 driver headers. **Obtained and archived**, so that
+half is closed:
+
+- **Windows XP SP1 DDK** (`en_winxp_sp1_ddk.exe`, 137.8 MB, sha256 `6f3113bd…`) on the
+  share at `…\3dfx-build-toolchain\downloads\`, in `SHA256SUMS.txt`, described in the
+  share README, and fetched+extracted automatically by `setup-toolchain.sh`.
+  Readback-verified byte-for-byte off the NAS after upload.
+- It supplies all four blocking symbols; the W2K DDK has none of them:
+  `DDHALINFO_GETDRIVERINFO2` (`ddrawint.h:907`), `DD_GETDRIVERINFO2DATA`,
+  `GUID_GetDriverInfo2`, `D3DGDI_GET_GDI2_DATA` (`d3dhalex.h`).
+- `RETRO3DFX_DX=8 build-w2k.sh display` now builds with
+  `DX=8 DXDDKVERSION=8 DXDDK=c:\3dfxtools\dx8ddk`.
+
+### Four traps found the hard way (all now encoded in the scripts)
+
+1. **`.exe` is a WinZip SFX** — needs `7zz x -tzip`; a plain `x` sees only the PE.
+2. **CAB members are `<CABNAME>_FILE_<N>`**; real names come from the paired `.INF`.
+   `extract_ddk.py` handles it — but the **XP INFs write the subdir with a leading
+   backslash** (`49000,\inc\ddk`), and `DEST / sub` with an absolute `sub` silently
+   discards `DEST`, so it tried to extract the DDK to `/`. Now stripped.
+3. **`DXDDK\inc` is PREPENDED**, so it shadows the W2K DDK *and* 3dfx's own vendored
+   `Displays/INC/DX95TYPE.H`. It must stay a **curated** set, never a copy of the XP
+   DDK. `d3dhal.h` is deliberately **excluded**: it is the Win9x HAL variant and
+   collides with the NT pair (`d3dnthal.h` + `dx95type.h`, which aliases
+   `D3DHAL_* -> D3DNTHAL_*`) as `D3DHAL_CALLBACKS: redefinition`.
+4. **`DX8DDK_DX7HAL_DEFINES`** — the DX8 DDK hides *every* legacy `D3DHAL_*` alias
+   behind this switch. This driver uses the DX7 HAL names throughout, so without it
+   `D3DHAL_TSS_MAXSTAGES`, `D3DHAL_DP2SETSTREAMSOURCE` etc. simply vanish at DX=8.
+
+Two `PRECOMP.H` edits carry 3 and 4 (`V56K-DX8-DX7HAL`, `V56K-DX8-INCORDER`; the
+latter because at `DIRECT3D_VERSION 0x0800` the DX7 body of `d3d.h` is guarded out,
+taking with it the chain that used to reach `dx95type.h` before `driver.h`). **Both
+sit inside `#if (DX == 8)` and are inert at DX=7 — verified: the default build is
+still green at 968,916 bytes.**
+
+### STILL BLOCKED — but now on 3dfx's source, not on tooling
+
+The header wall is gone; what remains are real gaps in 3dfx's own NT DX8 code, which
+**was evidently never compiled** (the `GetDriverInfo2` symbols appear in this tree
+only in the *Win9x* `.COD` listings — they shipped DX8 for Win9x, not for W2K/NT):
+
+| file | error |
+|---|---|
+| `ddfxnt.c:210` | includes `d3dhal.h` unguarded — needs the NT/9x split the other sites have |
+| `d6dp2.c:4711` | `'lpCmdStart' : undeclared identifier` |
+| `d7dp2.c:1645,1655,1664` | `'bStoredStream' : is not a member of '__unnamed'` (`d7d3d.h:96`) |
+
+These are a porting job on the DP2 command-buffer path, not a configuration fix, and
+that path is exactly where a wrong edit bugchecks the box. **Do not deploy a DX=8
+binary until these are properly resolved and the d3dlab matrix passes.** The DX=7
+driver on the box is unaffected by any of this work.

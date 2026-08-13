@@ -84,6 +84,25 @@ echo "== XP SP1 DDK (DirectX 8 driver headers) -> devtools/xpddk =="
   fi
 }
 
+echo "== curated DX8 include set -> devtools/dx8ddk (used via DXDDK when DX=8) =="
+# SOURCES does INCLUDES=$(DXDDK)\inc;..\inc;... -- i.e. this dir is PREPENDED and
+# SHADOWS both the W2K DDK and 3dfx's own vendored headers. So it is deliberately
+# curated, not a copy of the XP DDK: only the DirectDraw/D3D interface.
+# NOTE d3dhal.h is intentionally EXCLUDED -- it is the Win9x HAL variant and
+# collides with the NT pair (d3dnthal.h + dx95type.h aliases D3DHAL_* ->
+# D3DNTHAL_*), giving "D3DHAL_CALLBACKS: redefinition". d3dhalex.h is standalone
+# and IS needed, for D3DGDI_GET_GDI2_DATA.
+[ -f "$TC/devtools/dx8ddk/inc/ddrawint.h" ] || {
+  if [ -f "$TC/devtools/xpddk/inc/wxp/ddrawint.h" ]; then
+    mkdir -p "$TC/devtools/dx8ddk/inc"
+    for f in wxp/ddrawint.h wxp/ddrawi.h wxp/d3dnthal.h wxp/dmemmgr.h wxp/dx95type.h \
+             ddk/wxp/d3dhalex.h crt/ddraw.h crt/d3d.h crt/d3dtypes.h crt/d3dcaps.h \
+             crt/d3d8.h crt/d3d8types.h crt/d3d8caps.h; do
+      cp -f "$TC/devtools/xpddk/inc/$f" "$TC/devtools/dx8ddk/inc/$(basename "$f")"
+    done
+  fi
+}
+
 echo "== Win98 DDK headers -> devtools/w9xddk =="
 [ -f "$TC/devtools/w9xddk/inc/win98/MINIVDD.H" ] || cp -a "$TC/extract/win98-ddk-toolchain/98DDK" "$TC/devtools/w9xddk"
 
