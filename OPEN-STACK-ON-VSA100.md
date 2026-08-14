@@ -14,6 +14,13 @@ Identity comes from the game's own `GL_RENDERER`/`GL_VERSION` plus out-of-band
 md5 of each file — deliberately *not* from the bench harness's `--gldriver` flag,
 which asserts lineage rather than detecting it (see §5).
 
+> ⚠️ **KERNEL-DRIVER CAVEAT (added 2026-08-14, see [`DEPLOY-143-20260814.md`](DEPLOY-143-20260814.md)).** Every number below was
+> measured while `.143` ran the **AmigaMerlin 3.1-R11** kernel display driver
+> (`Services\3dfxvs -> 3dfxv5r.sys`), not this repo's. `3dfxv5d.dll` is not
+> referenced anywhere in that box's registry. The ICD/Glide comparisons stay valid
+> — they varied only user-mode layers over a fixed kernel — but none of them is a
+> measurement of this repo's display driver.
+
 ---
 
 ## 1. Benchmarks — Quake 2 timedemo, `demo1.dm2`, 640×480×16
