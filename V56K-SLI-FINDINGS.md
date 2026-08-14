@@ -1218,3 +1218,80 @@ lists our exact hardware ID:
 ```
 "Amigamerlin 2.5 SE for Voodoo 4/5" = 3dfxvsV5,PCI\VEN_121A&DEV_0009&SUBSYS_0001121A
 ```
+
+## 25. RETRACTION — §23 and §24 were not established (2026-08-14)
+
+**§23 ("the boot failure is hardware") and §24 (NVStrap as culprit) are both
+withdrawn.** Neither conclusion survives review of its own evidence. The box was
+reimaged on 2026-08-14 before the question was settled, so the root cause is
+**UNKNOWN** — not "hardware", and not NVStrap. Read this section before trusting
+anything in §23–24.
+
+### Why §23's eliminations do not eliminate
+
+§23 lists eight suspects "eliminated, each by direct test". Every one of those
+tests was a **single failed boot**. But §23 also documents the machine booting
+normally once and running nine minutes. Both cannot be true of a deterministic
+fault: **the failure is intermittent**, and against an intermittent fault a
+1-sample negative has no discriminating power at all. `/PCILOCK`, `/ONECPU`,
+`/BASEVIDEO`, the renamed 3dfx driver, the 17 disabled drivers, the 14 services —
+none of them were actually ruled out. The conclusion "everything software is
+eliminated, therefore hardware" was residual reasoning over an empty residue.
+
+Three specific inference errors, each of which independently breaks the chain:
+
+1. **"Zero `ntbtlog.txt` lines ⇒ it hung before driver loading" is a non sequitur.**
+   `ntbtlog` is buffered and flushed only after the boot volume is mounted. Zero
+   lines means "before the flush point" — which covers most of Phase-1 driver
+   init, not just the first instant.
+2. **"Normal mode now loads the same driver set as Safe Mode" is false.** That
+   diff was `Win32_SystemDriver` (`Start=0/1`) against a Safe Mode `ntbtlog`.
+   **All 70 `Start=3` PnP function/filter drivers were excluded by construction** —
+   USB, HID, audio, chipset/AGP filters. They load in normal mode via PnP and never
+   in Safe Mode. That tranche is the largest untested delta and was never touched.
+3. **`/BASEVIDEO` is not `/NOGUIBOOT`.** Under `/BASEVIDEO` the kernel still drives
+   the card through bootvid/Inbv. The Voodoo 5 6000 was being driven by video code
+   in *every single failing boot*; only the 3dfx *function* driver was excluded.
+   Video was never eliminated. Likewise `/ONECPU` is not a uniprocessor HAL.
+
+`NVStrap` (§24) was never a valid suspect either: its `Boot Bus Extender` group
+**is** present in `SafeBoot\Minimal`, so it loads in Safe Mode too — the mode that
+always works.
+
+### The one hard datum this cost us
+
+At the hang (plain normal boot, `/SOS /BOOTLOG`, 2026-08-14): the screen stops on
+the light-blue system-information banner, the spinner stops, and **the NumLock LED
+does not respond**. Keyboard interrupts are not being serviced — so this is a hard
+wedge (high IRQL, interrupts disabled, or a dead interrupt path), not a driver
+blocked at PASSIVE_LEVEL waiting on something. *Caveat before over-reading it:* at
+that stage the keyboard class driver may not be loaded, in which case a dead LED is
+also the healthy behaviour. It was never A/B'd against a known-good boot.
+
+Also established, and still true: all six `boot.ini` entries hang except Safe Mode;
+Last Known Good (ControlSet002) hangs as well; `ntbtlog.txt` never contains a
+normal-mode session; and the failure persists with the entire 3dfx stack archived
+to `C:\RETRO3DFX_REMOVED\` and the `3dfxvs` service disabled — i.e. **with no 3dfx
+code loading at all**. That last point is the one genuinely load-bearing negative
+here, and it is what makes "our driver caused it" unlikely, though not impossible
+via leftover registry/PnP state.
+
+### Do this instead next time
+
+- **Five boots per condition, not one.** An intermittent fault needs a pass/fail
+  *rate*. A single hang proves nothing; a single success proves nothing either.
+- **Arm the crash dump before you need it**, while the box still boots Safe Mode:
+  `CrashOnCtrlScroll=1` under `Services\kbdhid\Parameters` (**`kbdhid`, not
+  `i8042prt` — this box has a USB keyboard**), plus `CrashControl` `AutoReboot=0`
+  and `CrashDumpEnabled=2`. Then `Ctrl+ScrollLock ScrollLock` at the hang yields a
+  bugcheck with a real stack, which ends the guessing outright. This was the
+  correct move and it was reached far too late.
+- **Bisect the `Start=3` tranche** — it is the untested delta. USB first
+  (`usbuhci`/`usbehci`/`usbohci`/`usbhub`/`usbstor`/`hidusb`), and physically
+  unplug USB mass storage: a USB flash drive was present at every failing boot and
+  USB enumeration is a classic XP early-boot hang.
+- **Settle hardware vs software with one non-Windows test** — a Linux live USB or
+  memtest86. That answers in a single boot what a dozen Windows reboots did not.
+- **Baseline before you build.** On a fresh XP, confirm ~5 clean normal boots
+  *before* installing the 3dfx stack, then re-confirm after each component. Without
+  a known-good baseline there is nothing to attribute a regression to.
