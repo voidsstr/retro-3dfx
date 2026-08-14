@@ -134,8 +134,20 @@ Avenger, and find where the board mapping fails.
 | `opengl32.dll` | 704,512 | vintage ICD `retro3dfx 0.4.0` |
 
 So the box has been running a **mixed** stack, and the two ICDs on it are from
-different lineages. Note this makes `3dfxogl.dll` ≠ `opengl32.dll`, which
-contradicts the table in `CLAUDE.md` (they are documented as the same file).
+different lineages — `3dfxogl.dll` ≠ `opengl32.dll`.
+
+**This is a rule violation, not a documentation error.** `CLAUDE.md:74` is
+*prescriptive* — its table says what must be **on the box** ("`system32\opengl32.dll`
+AND `3dfxogl.dll` (same file)"), under the hard rule that *every* V5 driver binary
+must come from this repo. A Mesa 6.3 community build sitting at the `3dfxogl.dll`
+path in `system32` on a Voodoo 5 is exactly the foreign-lineage binary that rule
+exists to prevent. The doc is right; **`.143` is out of compliance**.
+
+Whether to reconcile it is a judgement call worth making deliberately: that Mesa
+ICD is *slower* (§1), so nothing is lost by replacing it with the vintage
+`retro3dfx 0.4.0` — but it is also load-bearing for anything on the box that
+selects `3dfxogl` explicitly, so it should be swapped knowingly rather than
+silently. **Not changed here** — this session only ever wrote game-local files.
 
 Left exactly as found: the open `glide3x.dll` I staged was deleted, `retrogl.dll`
 and `mesa63.dll` were left in the Q2 directory as inert reference copies (nothing
@@ -163,3 +175,39 @@ the retro-agent DOS-lane session; the same rows are duplicated in
 **Consequence:** any comparison drawn from the historical `.143` ICD field is
 unsafe. The numbers in §1 do not depend on it — they carry the game's own
 `GL_RENDERER`/`GL_VERSION` and an out-of-band md5 per file.
+
+**The `.124` Voodoo 3 figures, by contrast, are sound.** They were checked rather
+than assumed: those runs recorded `GL_RENDERER: Mesa Glide v0.62 Voodoo3 (tm)
+[retro3dfx 0.1.31]` (`FINDINGS.md:638, 1057, 1700, 2033`). A Mesa renderer string
+is positive proof the Mesa ICD actually ran, because the silent-fallback failure
+mode reports `3Dfx [retro3dfx 0.4.0]` instead. The +28 % Voodoo 3 result stands.
+
+---
+
+## 6. One cell of the matrix is still empty — and why
+
+The untested combination is **`retro3dfx-gl` + retail Glide on VSA-100**. It
+matters because it is the only configuration in which the open ICD could run on
+`.143` *without* the broken open Glide of §2 — i.e. the one that might still work.
+
+It could not be tested, for a mundane reason:
+
+- `build-mesafx-retail.sh` exists precisely for this (it relinks MesaFX against
+  `libglide3x_retail.dll.a` so the ICD imports `_grFoo@N`), and its own header
+  documents the identical mismatch found in §2: *"Confirmed on .124: AmigaMerlin
+  glide3x.dll exports `_grBufferSwap@4`; our default opengl32.dll imports
+  `grBufferSwap@4` → mismatch → LoadLibrary fails."* So §2 is a **reproduction of
+  a known defect on new silicon**, not a discovery.
+- But **no retail-linked artifact exists on this host.** Both archived copies
+  (`vcr-build/retro3dfx-gl/lib/opengl32.dll` and `voodoo-cleanroom/out/opengl32.dll`)
+  are byte-identical — md5 `2a90bebeabee5578` — and both import the undecorated
+  `grFoo@N`, i.e. both are open-linked.
+- And it **cannot be built here**: this host has no C compiler at all. `gcc`,
+  `cc`, `clang` and `i686-w64-mingw32-gcc` are all absent — the same gap that
+  makes `tests/run_native.sh` fail. The retail import lib and the MesaFX source
+  tree are both present, so this is purely a missing toolchain.
+
+Filling this cell needs a cross-compiler installed (`gcc-mingw-w64-i686`), then
+`build-mesafx-retail.sh`, then a game-local rerun. Until then the honest status of
+`retro3dfx-gl` on VSA-100 is **untested**, not *broken* — §2 only establishes that
+the *open-linked* build cannot work against retail Glide, which is by design.
