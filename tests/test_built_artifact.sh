@@ -51,8 +51,20 @@ nchk "no @50M breaker marker"   "WEDGE-BREAK@50M"
 nchk "no @100M breaker marker"  "WEDGE-BREAK@100M"
 
 echo "== stale-object check (every fixed source older than its .obj) =="
+# Compare the BUILD-TREE source against its .obj, not the repo-tree source.
+# The repo tree is git-managed, and checkout/rebase/stash rewrite mtimes with ZERO
+# content change -- so switching branches made all eight sources look "newer than
+# their .obj" and hard-failed the deploy gate against a provably current artifact
+# (BUILD itself recompiled nothing; same md5, same timestamps). mtime across a git
+# tree is not evidence of staleness.
+# This is still a real check: the build tree is a plain cp target, so its mtimes
+# reflect actual edits, and it is what BUILD compiles. Content equality between the
+# two trees is separately guaranteed by the "sync <FILE>" assertions in
+# test_source_invariants.sh, which run before this file in predeploy.sh.
+STALE_SRCDIR="$BUILDROOT/H5/W2K/Src/Video/Displays/H5"
+[ -d "$STALE_SRCDIR" ] || STALE_SRCDIR="$SRCDIR"
 for src in d3txtr ddflip d6dp2 ddfxnt cfifo logfile bitblt ddblt32; do
-  s=$(find "$SRCDIR" -maxdepth 1 -iname "$src.c" -printf '%T@' 2>/dev/null | cut -d. -f1)
+  s=$(find "$STALE_SRCDIR" -maxdepth 1 -iname "$src.c" -printf '%T@' 2>/dev/null | cut -d. -f1)
   o=$(find "$OBJDIR" -maxdepth 1 -iname "$src.obj" -printf '%T@' 2>/dev/null | cut -d. -f1)
   if [ -z "$o" ]; then echo "FAIL  $src.obj missing"; fail=1; continue; fi
   if [ -n "$s" ] && [ "$s" -gt "$o" ]; then
