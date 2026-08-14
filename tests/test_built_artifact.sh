@@ -20,17 +20,35 @@ chk() { # chk <desc> <string>
   if strings -a "$DLL" | grep -q -- "$2"; then echo "PASS  $1"; else echo "FAIL  $1 [missing string: $2]"; fail=1; fi
 }
 
+nchk() { # nchk <desc> <string-that-must-be-ABSENT>
+  if strings -a "$DLL" | grep -q -- "$2"; then echo "FAIL  $1 [stale string present: $2]"; fail=1; else echo "PASS  $1"; fi
+}
+
 echo "== instrumentation/fix strings present in binary =="
-chk "H3MakeRoom breaker"        "retro3dfx H3MakeRoom WEDGE-BREAK@50M"
-chk "DdFlip breaker"            "retro3dfx DdFlip WEDGE-BREAK@50M"
+# V56K-WEDGE-WATCHDOG (bebc83e): the spin bounds moved to the shared
+# RETRO_WEDGE_BREAK_SPINS (2M, ~2s) so every breaker fires INSIDE Windows' ~30s
+# video watchdog. That dropped the @50M/@100M suffixes these markers used to
+# carry. test_source_invariants.sh was updated in that commit; THIS file was not,
+# so the deploy gate failed permanently against a correctly-built DLL -- the
+# binary had the right markers and the test was asking for the old ones.
+chk "H3MakeRoom breaker"        "retro3dfx H3MakeRoom WEDGE-BREAK"
+chk "DdFlip breaker"            "retro3dfx DdFlip WEDGE-BREAK"
 chk "DP2 error logging"         "retro3dfx DP2-PARSE-ERR"
 chk "DP2 exit logging"          "retro3dfx DP2-EXIT-ERR"
 chk "SLIAA promote logging"     "retro3dfx PROMOTE-SLIAA"
 chk "SLIAA compute logging"     "retro3dfx COMPUTE-SLIAA"
-chk "FXBUSYWAIT breaker"        "retro3dfx FXBUSYWAIT WEDGE-BREAK@100M"
-chk "H3GpWait breaker"          "retro3dfx H3GpWait WEDGE-BREAK@100M"
-chk "DdLock flip-wait breaker"  "retro3dfx DdLock-FlipWait WEDGE-BREAK@100M"
-chk "DdFlip flip-wait breaker"  "retro3dfx DdFlip-FlipWait WEDGE-BREAK@100M"
+chk "FXBUSYWAIT breaker"        "retro3dfx FXBUSYWAIT WEDGE-BREAK"
+chk "H3GpWait breaker"          "retro3dfx H3GpWait WEDGE-BREAK"
+chk "DdLock flip-wait breaker"  "retro3dfx DdLock-FlipWait WEDGE-BREAK"
+chk "DdFlip flip-wait breaker"  "retro3dfx DdFlip-FlipWait WEDGE-BREAK"
+
+# Guard the fix itself: an @50M/@100M suffix in the binary means someone
+# reintroduced a spin bound that outruns the watchdog, which is the 0x100000EA
+# THREAD_STUCK_IN_DEVICE_DRIVER bug. Mirrors the source-level literal check in
+# test_source_invariants.sh so the regression cannot come back through either door.
+echo "== no watchdog-outrunning spin bounds reintroduced =="
+nchk "no @50M breaker marker"   "WEDGE-BREAK@50M"
+nchk "no @100M breaker marker"  "WEDGE-BREAK@100M"
 
 echo "== stale-object check (every fixed source older than its .obj) =="
 for src in d3txtr ddflip d6dp2 ddfxnt cfifo logfile bitblt ddblt32; do
