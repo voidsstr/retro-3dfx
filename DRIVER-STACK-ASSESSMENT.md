@@ -157,7 +157,23 @@ correctness was never validated.
 
 ---
 
-## 5. The highest-value untested move
+## 5. The highest-value untested move — ⚠️ TESTED 2026-08-14, AND IT WAS WRONG
+
+> **This section has been answered by measurement and the recommendation is
+> WITHDRAWN.** See [`OPEN-STACK-ON-VSA100.md`](OPEN-STACK-ON-VSA100.md).
+>
+> On the Voodoo 5 5500, Quake 2 @640×480×16: the **vintage `retro3dfx 0.4.0` ICD
+> is 71 % FASTER than a Mesa ICD** (159.5 fps vs 93.5, noise floor ±1.7 %). The
+> expected Voodoo-3-style win did not transfer, because that win was measured
+> against *stock* `3dfxgl` whereas this repo's vintage ICD is a tuned build.
+> retro-agent's `retro3dfx-gl` specifically could not be tested against retail
+> Glide at all (ABI mismatch: it imports `grFoo@N`, retail exports `_grFoo@N`),
+> and with the open Glide the whole stack hangs at Glide hardware init on
+> VSA-100 — the **open Glide** being the broken layer, not the ICD.
+>
+> The reasoning below is kept as the record of what was predicted and why.
+
+
 
 > **Every Voodoo 5 benchmark on record used the vintage H5 ICD**
 > (`icd = "3dfxogl (H5-source OpenGL ICD)"` / `retro3dfx 0.3.x` in all 31 `.143`
