@@ -76,10 +76,16 @@ Initializing OpenGL display
 …and then stops. No fps, no `GL_RENDERER`, no Glide error log, no crash dialog,
 no reboot. It dies **between the mode set and Glide bringing the board up**.
 
-**D — the isolating experiment.** Leaving the open Glide in place but reverting to
-the *vintage* ICD also fails, falling through to Microsoft's `Direct3D` GL. Since
-the vintage ICD is known-good with retail Glide (159.5 fps, §1), **the open Glide
-is the broken layer.** The ICD is exonerated.
+**D — the first isolating experiment.** Leaving the open Glide in place but
+reverting to the *vintage* ICD also fails, falling through to Microsoft's
+`Direct3D` GL. Since the vintage ICD is known-good with retail Glide (159.5 fps,
+§1), **the open Glide is broken on VSA-100.**
+
+> ⚠️ **I originally added "the ICD is exonerated" here. That was wrong** — see §7.
+> Test D shows the open *Glide* is broken; it does **not** show the ICD is fine.
+> Building the missing retail-linked ICD (§6) and testing it against known-good
+> retail Glide showed the ICD fails too. **Both open layers are independently
+> broken on VSA-100.**
 
 This is consistent with `retro-agent/docs/3dfx-glide-hardware-init.md`: the open
 Glide's NT hardware layer (`minihwc`) obtains its board mapping through the 3dfx
@@ -207,7 +213,60 @@ It could not be tested, for a mundane reason:
   makes `tests/run_native.sh` fail. The retail import lib and the MesaFX source
   tree are both present, so this is purely a missing toolchain.
 
-Filling this cell needs a cross-compiler installed (`gcc-mingw-w64-i686`), then
-`build-mesafx-retail.sh`, then a game-local rerun. Until then the honest status of
-`retro3dfx-gl` on VSA-100 is **untested**, not *broken* — §2 only establishes that
-the *open-linked* build cannot work against retail Glide, which is by design.
+**UPDATE — the cell has now been filled.** A cross-toolchain *does* exist on this
+host, at `/home/voidsstr/toolchain-mingw/usr/bin/` (found by the retro-agent
+DOS-lane session). It needs two fixes to run: the binaries carry a `-win32`
+suffix, so `build-mesafx-retail.sh`'s `command -v ${CROSS}gcc` check fails without
+a symlink shim, and `cc1` needs `LD_LIBRARY_PATH=$TC/usr/lib/x86_64-linux-gnu`
+(else `libisl.so.23: cannot open shared object file`). `make` is also there but not
+on `PATH`. With a shim plus the source tree seeded from
+`/home/voidsstr/vcr-build/retro3dfx-gl` (no clone needed), the retail-linked ICD
+builds cleanly:
+
+```
+output: opengl32_retail.dll v0.1.2 (2,749,065 bytes)   md5 4888dac8d2066998
+OK: imports _grFoo@N (binds retail/AmigaMerlin glide3x)
+```
+
+Independently verified: **all 65** Glide imports are `_grFoo@N`. Result of testing
+it on `.143` is §7.
+
+---
+
+## 7. Correction — both open layers are broken, not just the Glide
+
+The retail-linked ICD built in §6 was staged game-local as `retailgl.dll` and run
+against `.143`'s **known-good retail Glide** — the exact configuration that works
+at 159.5 fps under the vintage ICD and at 93.5 fps under Mesa 6.3.
+
+**It failed at precisely the same point as the open-Glide run:**
+
+```
+...calling CDS: ok            <- and nothing further, 3 runs
+```
+
+No fps, no `GL_RENDERER`, no reboot. So `retro3dfx-gl` fails on VSA-100
+**independent of which Glide it binds**.
+
+Ruled out as explanations, by inspection rather than assumption:
+
+- *Not* an ABI/link problem — this build imports the correct `_grFoo@N` and the
+  retail Glide exports all 65.
+- *Not* a missing-export problem in test D either: the open `glide3x_h5` exports
+  **all 48** symbols the vintage ICD imports (0 missing).
+- *Not* a missing dependency — `glide3x_h5` imports only stock XP DLLs
+  (`KERNEL32`, `USER32`, `GDI32`, `ADVAPI32`, `ddraw`, `msvcrt`).
+
+**Revised conclusion.** §2's claim that "the open Glide is the broken layer, not
+the ICD" was half right and I have struck it above. The correct reading:
+
+| Test | Shows |
+|---|---|
+| D — vintage ICD (known-good) + open Glide → fails | the **open Glide** is broken on VSA-100 |
+| §7 — retail-linked `retro3dfx-gl` + retail Glide (known-good) → fails | the **open ICD** is broken on VSA-100 |
+
+Each test pairs one suspect layer with a component *proven good on this hardware*,
+so the two faults are **independent**. Fixing either one alone will not produce a
+working open stack on a Voodoo 5 — a point that materially raises the cost
+estimate in §3, and that only became visible because the missing build variant
+was actually produced rather than reasoned about.
