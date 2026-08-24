@@ -14,6 +14,45 @@ it until a Voodoo card goes back in.
 
 ---
 
+## Game servers consolidated onto the dev host; two traps: exec-stack `.so` and loopback A2S proxy (2026-08-24)
+
+The fleet's game servers were split between whitebeast (.82, CS 1.6 x2 + UT99)
+and the dev host (.132). They now ALL run on **.132** as `systemctl --user`
+units, lingering enabled so they start at boot with no login. whitebeast runs
+nothing and has **no autostart** for them (no Run key, no scheduled task, no
+Startup shortcut), so it will not quietly take a port back.
+
+- **A pre-2008 Half-Life mod `.so` will not `dlopen` on a current kernel.**
+  `specialists-server` crash-looped with `LoadLibrary failed on ts_i386.so:
+  cannot enable executable stack as shared object requires: Invalid argument`
+  -> `Host_Error: Couldn't get DLL API`. It looks exactly like a corrupt install
+  or a Steam-auth problem and is neither: `ts_i386.so` (built 2007) has **no
+  `PT_GNU_STACK` program header at all** (`readelf -lW` shows only 3 phdrs), so
+  the kernel assumes it wants an executable stack, and current kernels refuse to
+  grant one at dlopen time. Fix once per file:
+  `patchelf --clear-execstack ts_i386.so` (adds `PT_GNU_STACK RW`); keep the
+  original as `*.so.orig`. `patchelf` installs from pip with no root
+  (`pip install --user patchelf`). Expect this on any pre-2008 HL mod game DLL.
+
+- **An A2S proxy pointed at `127.0.0.1` silently never answers.** Both CS units
+  run `-ip 192.168.1.132` (never `0.0.0.0`) because this host is multi-homed, so
+  loopback does not reach them. The shipped `a2s-proxy-cs16-public.service`
+  targeted `127.0.0.1:27019`; it started clean and simply never replied. Point
+  every proxy at the address HLDS actually **bound**.
+
+- **Probe each engine with its OWN query packet.** A single `getstatus` sweep
+  reports live servers as down: Quake 2 answers `status` (not `getstatus`), UT99
+  and UT2004 answer GameSpy `\status\` on **game port + 1** (7798 / 7787, not
+  7797 / 7777), and Tribes 2 only speaks the Torque binary query
+  (`0E 00 00 00 00 00`). Encoded in `retro-agent/scripts/game-servers/healthcheck.py`.
+
+- The second CS 1.6 server (no-blood) was rebuilt here as its own SteamCMD tree
+  with Metamod-P 1.21p109 + AMX Mod X 1.10.0-git5479. **`rtcw-server` and
+  `mohaa-server`, listed in the game-servers skill, have never existed on any
+  host** - no directory, no install script, no game data. Skill table corrected.
+
+---
+
 ## .124 is now a GeForce2 GTS — 3dfx stack fully purged, ForceWare 71.89 is the ONLY usable driver (2026-08-11)
 
 The user swapped the Voodoo3 out of **.124** for an **NVIDIA GeForce2 GTS**
