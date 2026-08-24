@@ -46,6 +46,15 @@ Startup shortcut), so it will not quietly take a port back.
   7797 / 7777), and Tribes 2 only speaks the Torque binary query
   (`0E 00 00 00 00 00`). Encoded in `retro-agent/scripts/game-servers/healthcheck.py`.
 
+- **A hung `docker build` that looks like a slow mirror is buildkit's netns.**
+  The Tribes 2 image stalled 58 minutes at `apt-get update` with `/usr/lib/apt/
+  methods/http` alive and **0 bytes fetched** — no error, no timeout. The same
+  `apt-get update` on the same image finishes in **1 second** under a plain
+  `docker run`, so it is not the network, not IPv6 and not archive.debian.org.
+  Build with the legacy builder + host net: `docker build --network=host ...`
+  then `docker compose up -d --no-build`. (`--progress=plain` is buildkit-only
+  and errors on the legacy builder.) All 12 servers verified after this.
+
 - The second CS 1.6 server (no-blood) was rebuilt here as its own SteamCMD tree
   with Metamod-P 1.21p109 + AMX Mod X 1.10.0-git5479. **`rtcw-server` and
   `mohaa-server`, listed in the game-servers skill, have never existed on any
