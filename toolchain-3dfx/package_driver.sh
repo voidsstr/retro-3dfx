@@ -18,7 +18,14 @@
 # CRLF line endings are preserved byte-for-byte outside the edited lines.
 #
 # Output: toolchain-3dfx/dist/3dfx-napalm-xp-<version>/  +  matching .zip
-# Idempotent: reruns wipe and rebuild the package dir + zip.
+# Idempotent: reruns wipe and rebuild the package dir + zip — EXCEPT the
+# hand-added Voodoo5/V56K files (V56K-PLAN.md Phase 0), which are preserved:
+#   - 3dfxv5m.sys / 3dfxv5d.dll are regenerated from the same fresh binaries
+#     (byte-identical WFP-safe renames of 3dfxvsm.sys / 3dfxvs.dll), and
+#   - glide2x.dll, 3dfxogl.dll, voodoo5-wfp.inf, voodoo5-6k.inf and
+#     DEPLOYMENT.txt are taken from the build tree when present, else carried
+#     over from the previous package. The script FAILS if one is missing —
+#     never silently ship a package without them again.
 
 set -euo pipefail
 
@@ -47,6 +54,21 @@ for f in "$MINIPORT" "$DISPLAY_DLL" "$GLIDE3" "$FXOEM" "$UPDRV" "$INF_V3" "$INF_
 done
 
 echo "== Packaging $PKG_NAME =="
+
+# Snapshot the hand-added Voodoo5/V56K files BEFORE the wipe, from this
+# version's package dir if it exists, else the newest previous package.
+HAND_ADDED=(glide2x.dll 3dfxogl.dll voodoo5-wfp.inf voodoo5-6k.inf DEPLOYMENT.txt)
+PREV_SNAP="$(mktemp -d)"
+PREV_SRC="$PKG_DIR"
+if [ ! -d "$PREV_SRC" ]; then
+    PREV_SRC="$(ls -d "$DIST_DIR"/3dfx-napalm-xp-*/ 2>/dev/null | sort | tail -1 || true)"
+fi
+if [ -n "$PREV_SRC" ] && [ -d "$PREV_SRC" ]; then
+    for f in "${HAND_ADDED[@]}"; do
+        [ -f "$PREV_SRC/$f" ] && cp "$PREV_SRC/$f" "$PREV_SNAP/"
+    done
+fi
+
 rm -rf "$PKG_DIR"
 rm -f "$ZIP_PATH"
 mkdir -p "$PKG_DIR"
@@ -56,6 +78,33 @@ cp "$DISPLAY_DLL" "$PKG_DIR/3dfxvs.dll"
 cp "$GLIDE3"      "$PKG_DIR/glide3x.dll"
 cp "$FXOEM"       "$PKG_DIR/fxoem2x.dll"
 cp "$UPDRV"       "$PKG_DIR/updrv.exe"
+
+# WFP-safe Voodoo5 names: same binaries, renamed (see retro-3dfx/CLAUDE.md).
+# Regenerated fresh so the package never mixes driver generations.
+cp "$MINIPORT"    "$PKG_DIR/3dfxv5m.sys"
+cp "$DISPLAY_DLL" "$PKG_DIR/3dfxv5d.dll"
+
+# Hand-added files with no build product in this script: prefer a build-tree
+# copy, fall back to the previous package, otherwise FAIL (a package without
+# them regresses the Voodoo5 boxes — V56K-PLAN.md Phase 0).
+carry() {
+    local name="$1"; shift
+    local cand
+    for cand in "$@" "$PREV_SNAP/$name"; do
+        if [ -n "$cand" ] && [ -f "$cand" ]; then
+            cp "$cand" "$PKG_DIR/$name"
+            echo "  + $name  (from $cand)"
+            return 0
+        fi
+    done
+    fail "hand-added file missing: $name (not in build tree, no previous package to carry it from)"
+}
+carry glide2x.dll "$H5/GLIDE/SRC/glide2x.dll" "$H5/BIN/glide2x.dll"
+carry 3dfxogl.dll "$H5/SWLIBS/OPENGL/GLIDE3X/release/opengl.dll"
+carry voodoo5-wfp.inf
+carry voodoo5-6k.inf
+carry DEPLOYMENT.txt
+rm -rf "$PREV_SNAP"
 
 # ------------------------------------------------------- INF generation
 # Byte-level edits in python3 so CRLF endings survive untouched.
@@ -225,11 +274,22 @@ CONTENTS
                 (SetupAPI/PnP install; needs Win2000 or later)
   INSTALL.bat   scripted Voodoo3 install (backup + policy + install)
 
-Both INFs are trimmed to the files actually shipped: glide2x.dll,
-3dfxSpl2.dll, 3dfxSpl3.dll and 3dfxOGL.dll are NOT included, and the
-OpenGL ICD registration was removed (registering a missing 3dfxOGL.dll
-would break every OpenGL app). OpenGL apps should use a Glide wrapper or
-MesaFX on top of glide3x.dll.
+  3dfxv5m.sys / 3dfxv5d.dll
+                WFP-safe renamed copies of the same miniport/display
+                binaries, used by the Voodoo5 INFs below
+  voodoo5-wfp.inf / voodoo5-6k.inf
+                Voodoo5 installs under the WFP-safe names; voodoo5-6k.inf
+                covers the Voodoo5 6000 (4-chip, box .133) and ships
+                glide2x.dll + the OpenGL ICD (registers 3dfxogl.dll)
+  glide2x.dll   Glide2 runtime (Voodoo5 set; most Glide games need this)
+  3dfxogl.dll   OpenGL ICD (vintage SGL lane)
+  DEPLOYMENT.txt  fleet deployment notes
+
+The generated voodoo3.inf / voodoo5.inf are trimmed to a minimal file set:
+glide2x.dll, 3dfxSpl2.dll, 3dfxSpl3.dll and 3dfxOGL.dll are NOT referenced
+by them and their OpenGL ICD registration is removed (registering a missing
+3dfxOGL.dll would break every OpenGL app). The hand-maintained
+voodoo5-wfp.inf / voodoo5-6k.inf DO ship glide2x.dll and the ICD.
 
 TARGETS
 -------
@@ -339,6 +399,31 @@ for inf in ('voodoo3.inf', 'voodoo5.inf'):
     limit = 1 if inf == 'voodoo3.inf' else 0   # source Voodoo3.inf has 1 legacy bare LF
     if bare > limit:
         problems.append('%s: %d unexpected bare LFs' % (inf, bare - limit))
+
+# hand-added Voodoo5/V56K INFs: must be present, and every CopyFiles target
+# they reference must ship (they legitimately ship glide2x/3dfxogl, so the
+# removed-files check above does NOT apply to them)
+for inf in ('voodoo5-wfp.inf', 'voodoo5-6k.inf'):
+    path = os.path.join(pkg, inf)
+    if not os.path.exists(path):
+        problems.append('%s missing from package (hand-added INF was not carried over)' % inf)
+        continue
+    sec = parse(path)
+    copy_secs = set()
+    for lines in sec.values():
+        for ln in lines:
+            k, _, v = ln.partition('=')
+            if k.strip().lower() == 'copyfiles':
+                copy_secs.update(s.strip().lower() for s in v.split(','))
+    for cs in sorted(copy_secs):
+        if cs.startswith('@'):
+            if cs[1:] not in {s.lower() for s in shipped}:
+                problems.append('%s: CopyFiles wants %s (not in package)' % (inf, cs[1:]))
+            continue
+        for ln in sec.get(cs, ['<missing section %s>' % cs]):
+            fname = ln.split(',')[0].strip()
+            if fname and fname not in shipped:
+                problems.append('%s: [%s] wants %s (not in package)' % (inf, cs, fname))
 
 # target HWID present in voodoo3.inf model list
 v3 = open(os.path.join(pkg, 'voodoo3.inf'), 'rb').read().decode('ascii')

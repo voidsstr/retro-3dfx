@@ -1,6 +1,16 @@
 # Voodoo 5 6000 (Strange God 256MB AGP) — XP driver build-out plan
 
-**Target hardware (being shipped to us):** "Strange God" AGP 256MB by Anthony
+> **STATUS (2026-08-25): Phases 0–3 COMPLETE.** The card is installed in box
+> **.133 "P3-DUAL"** (dual P3-700, XP SP3) and runs our stack in **256MB mode
+> (64MB/chip), 4-way SLI verified** — Q3 61.4 fps, UT99 Glide 39.8 fps, per-TMU
+> texture space doubled 15.9→32.4 MB. Results: `V56K-SLI-FINDINGS.md` (§8, §12,
+> §14); 256MB plan outcome: banner atop `V56K-256MB-READINESS.md`; deployed set:
+> `optimized/deployed-133-v56k-20260811/`. **Still open:** exact Strange God
+> subsystem HWID in `voodoo5-6k.inf` (item 5 / Phase 1 capture), FIFO-wedge root
+> cause + submission pacing (FINDINGS §21–22), DX=8 build (FINDINGS §17),
+> ICD ARB multitexture (FINDINGS §19–20).
+
+**Target hardware (arrived; now in .133):** "Strange God" AGP 256MB by Anthony
 ZXCLXIV (zx-c64.com) — a modern recreation of the unreleased Voodoo 5 6000:
 
 - 4× 3dfx VSA-100 ("Napalm") @ 166 MHz, double-SLI (2-way analog combining of
@@ -46,13 +56,15 @@ were disproved by reading the detection paths; see Phase 0 log below):
    per-chip *register* aperture — correct for any memory size. The frame
    buffer BAR (`MEMBASE1`) decode is already `2*AdapterMemorySize`, and the
    probe handles 64 MB/chip (`H3.C:1953-1995`: 4 parts × 128 Mbit = 64 MB;
-   total = per-chip × numUnits, uncapped). **Remaining real item:** Glide's
-   `hwcMapBoard` maps BARs with a hardcoded 32 MB length on Napalm
-   (`H5/MINIHWC/MINIHWC.C:1681`) — must scale for 64 MB/chip in 256 MB BIOS
-   mode (Phase 3; file currently carries another session's in-flight ICD
-   edits, so deferred deliberately).
-4. Glide3 `sliCount = 4; /* doesn't work yet */` branch — `GSST.C:1820`
-   (hardware-debug phase).
+   total = per-chip × numUnits, uncapped). ~~Remaining real item: Glide's
+   `hwcMapBoard` hardcoded 32 MB BAR length (`H5/MINIHWC/MINIHWC.C:1681`)~~ —
+   RESOLVED 2026-08-12: that literal is in the DOS/Linux `#else` branch, not
+   compiled on Windows (`READINESS` §Change 6), and 256 MB mode is verified
+   working on hardware including Glide titles (FINDINGS §12, §14).
+4. ~~Glide3 `sliCount = 4; /* doesn't work yet */` branch — `GSST.C:1820`~~ —
+   RESOLVED 2026-08-12: 4-way SLI verified live on hardware
+   (`SLICTRL chips=4 sli=4 divisor=1 log2=2`, FINDINGS §8) after the
+   `V56K-SLICTRL-GUARD` divisor fixes in both Glides (FINDINGS §4–5).
 5. No 6000 HWID in any INF (6000 shares `DEV_0009`; chip count is detected
    at runtime). → `voodoo5-6k.inf` added in Phase 0; exact Strange God
    subsystem ID to be filled in at Phase 1.
@@ -94,9 +106,11 @@ were disproved by reading the detection paths; see Phase 0 log below):
   PE checksums valid): `3dfxvsm.sys` and `3dfxv5m.sys` (198 544 bytes,
   +2.6 KB over stock). Dist package updated: new `3dfxv5m.sys` +
   `voodoo5-6k.inf` staged into `dist/3dfx-napalm-xp-20260716/` and the zip.
-  (Note: `package_driver.sh` does NOT know about the hand-added
-  `3dfxv5m/3dfxv5d/voodoo5-wfp/6k` files — rerunning it wipes them; update
-  the script before the next full repackage.)
+  (Note — RESOLVED 2026-08-25: `package_driver.sh` now regenerates
+  `3dfxv5m.sys`/`3dfxv5d.dll` from the fresh build and carries over
+  `voodoo5-wfp.inf`/`voodoo5-6k.inf`/`glide2x.dll`/`3dfxogl.dll`/
+  `DEPLOYMENT.txt`, failing loudly if any is missing; the package
+  validation also checks their CopyFiles targets.)
 - **`voodoo5-6k.inf`** added (voodoo5-wfp pattern, `3dfxv5m`/`3dfxv5d` pair,
   `DriverVer=07/18/2026`): generic `PCI\VEN_121A&DEV_0009` row for manual
   updrv install; replace with the exact HWID after Phase 1 capture.
@@ -132,12 +146,17 @@ were disproved by reading the detection paths; see Phase 0 log below):
 4. Debug `GSST.C:1820` and any scanout/franken-stack issues (check
    `InstalledDisplayDrivers=3dfxv5d` — same trap as DEBUG-LOG.md).
 
-## Phase 3 — 256 MB mode (64 MB/chip)
+## Phase 3 — 256 MB mode (64 MB/chip) — **DONE 2026-08-12**
 
-- Flip BIOS switch; verify probe reports 64 MB/chip / 256 MB total; exercise
-  the parameterized aperture layout; audit texture/buffer offset fields for
-  >32 MB addressing limits in hwcAllocBuffers and Glide texture download.
-- Soak + benchmark; if stable, make 256 MB the default documented config.
+- ~~Flip BIOS switch; verify probe reports 64 MB/chip / 256 MB total~~ —
+  done: `HardwareInformation.MemorySize=0x10000000`, `Retro3dfxSliUnits=4`,
+  Q3 61.4 fps, no corruption (FINDINGS §12). The >32 MB texture-addressing
+  audit concluded: the shipped plain mask is CORRECT and the speculative
+  munge hardening caused reboots — see the outcome banner atop
+  `V56K-256MB-READINESS.md` before re-opening any of it.
+- 256 MB is now the default documented config (benchmarks in FINDINGS §14).
+  Stability envelope: cooldowns between flat-out timedemos, one fullscreen
+  3D app at a time, `bench-safe.py` only (FINDINGS §11–§13, §18, §22).
 
 ## Benchmark-stack readiness (added 2026-07-18, works on 5500 today)
 

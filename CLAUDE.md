@@ -166,6 +166,11 @@ instrumented builds.
   (HIGH priority, `MONITOR` streaming). Hard freeze = NIC dead = physical
   power cycle (ask the user). Reboots need user awareness. GDI screenshots
   garble during exclusive fullscreen (windowed d3dlab is truthful).
+- **Test box .133 "P3-DUAL"**: dual P3-700, 1GB, XP SP3 — the **Voodoo 5
+  6000** (4× VSA-100 behind a HiNT bridge, 256MB mode = 64MB/chip). Same
+  freeze/reboot cautions as .143, plus: cooldowns between flat-out
+  timedemos, one fullscreen 3D app at a time, bench only via
+  `toolchain-3dfx/build/bench-safe.py` (`V56K-SLI-FINDINGS.md` §11–§13).
 
 ## Current state / open bugs
 
@@ -178,5 +183,10 @@ tests). `FINDINGS.md` has the investigation matrices; memory file
 renders and benches FASTER than GL: 33.5 vs 30.6 fps @1024), desktop gamma
 washout (`07424b8`), all six unbounded accelerator spins bounded. SLI banding
 and warm-rerun "degradation" were resolved as non-bugs (the mip bug / 3DMark
-itself). V5 6000 (4-chip): plan in `V56K-PLAN.md`, findings in `V56K-SLI-FINDINGS.md`
-(all on `master`).
+itself). V5 6000 (4-chip, box .133): **256MB mode (64MB/chip) + 4-way SLI
+verified working 2026-08-12** — plan in `V56K-PLAN.md` (status header lists
+what's still open), findings in `V56K-SLI-FINDINGS.md`, 256MB outcome banner
+atop `V56K-256MB-READINESS.md` (Changes 1–4 there were falsified on hardware —
+do not re-apply). Open V56K items: FIFO-wedge root cause / submission pacing
+(§21–22), exact 6000 subsystem HWID in `voodoo5-6k.inf`, DX=8 build (§17),
+ICD ARB multitexture (§19–20). (All on `master`.)

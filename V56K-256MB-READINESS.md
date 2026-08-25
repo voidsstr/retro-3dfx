@@ -1,5 +1,29 @@
 # 256MB Readiness Plan — Voodoo 5 6000 (4× VSA‑100, HiNT HB1‑SE66, Windows XP)
 
+> ## ⚠ OUTCOME (2026‑08‑12) — SUPERSEDED BY HARDWARE RESULTS. Read this before acting on the plan below.
+>
+> **The 256MB flip itself SUCCEEDED** — the box (.133) runs 64MB/chip, all four chips in
+> 4‑way SLI, Q3 61.4 fps, no corruption (`V56K-SLI-FINDINGS.md` §12, §14). The §2
+> memory‑sizing analysis was CONFIRMED: `H3DetermineMemorySize` sized the 128Mbit parts
+> to 64MB/chip exactly as predicted, and the 256MB VBIOS widened BAR1 correctly, so the
+> feared over‑decode never happened. But **three of the five prescribed changes were
+> falsified on hardware — do NOT (re‑)apply Changes 1–4 as written:**
+>
+> | change | outcome |
+> |---|---|
+> | **1 — BAR clamp** | Analysis correct in principle, implementation WRONG: `AccessRanges[MEMBASE_ONE].RangeLength` is not yet valid at the insertion point, so the clamp read `bar1Len=0` and cut each chip 32MB→4MB — invisibly, because `VideoDebugPrint` is compiled out of free builds. **Neutralised to observe‑only** (`V56K-MEMOBS`, `H3.C` — publishes `Retro3dfxMem*` registry values, applies nothing). A future active clamp must run after the BAR is known and report via the registry, not `VideoDebugPrint`. See FINDINGS §10. |
+> | **2 — AA aperture masks** | Reverted; unverifiable, part of the same untested batch (FINDINGS §10). |
+> | **3/4 — texture munge** | **REJECTED ON HARDWARE.** With the munge the box reboots in 256MB mode; with the shipped plain mask Q3 renders perfectly at 61.4 fps. `grTexMultibaseAddress` does NOT share the tiled path's register semantics — the §Change‑3 reasoning below is wrong. Rejection markers are in the code (`GLIDE/SRC/GTEX.C:1159,1345`, `GLIDE3/SRC/GTEX.C:3162‑3170`); do not re‑apply (FINDINGS §12). |
+> | **5 — logging** | Retained. |
+> | **6 — hygiene** | Still optional; all dead on Windows. |
+>
+> "Twice a speculative 256MB hardening made a working driver worse (the BAR clamp, then
+> the munge). Neither was needed. The stack was already 64MB/chip‑clean." (FINDINGS §12.)
+>
+> **Still valid and worth keeping:** the log‑signature tables (§3), the staged bring‑up
+> with `MemSizePerChipOverride` (§4) and the rollback ladder (§5) — all were used during
+> the flip and worked. The single‑chip‑fallback checklist (§4) remains the fastest triage.
+
 Source tree: `/home/voidsstr/retro3dfx-toolchain/prefix/drive_c/3dfx`
 Live Windows tree is `H5/W2K/Src/Video/…` (the `H5/WinNT/Src/Video/…` copies are not built for XP).
 
