@@ -14,6 +14,44 @@ it until a Voodoo card goes back in.
 
 ---
 
+## DOSGAME: four install/UI faults found from .243's DOSGAME.LOG (2026-08-25)
+
+The user ran the DOS game manager on .243 in MS-DOS mode; the box's
+`C:\DOSGAME\DOSGAME.LOG` (151 KB) had every decision in it and named all four
+faults without touching the hardware. Read the log first - that is what it is
+for.
+
+- **A DEICE set must be entered through its own `INSTALL.BAT`.** The Apogee/id
+  BBS layout is `DEICE.EXE` + `NAME.1` + `NAME.DAT` + `INSTALL.BAT`, and the
+  scan kept whichever installer-shaped file DOS returned *first* - `DEICE.EXE`.
+  DEICE alone only rebuilds the packed self-extractor (`C:\GAMES\KEEN\KEEN.EXE`,
+  one file) and stops; `INSTALL.BAT` is what then runs it. `setup_exes[]` is now
+  a preference order, not a membership test.
+
+- **Some archives on the share are only disk 1.** `heretic_shareware1.zip` is
+  1,439,232 bytes against the `SIZE=2863638` its own `.DAT` declares, so its
+  installer asks for a floppy that does not exist. Compare the `.DAT`'s `SIZE=`
+  with the `NAME.<n>` parts present and refuse before starting. (`EXPSIZE=` is
+  the unpacked size - match `SIZE=` at line start or every set looks short.)
+
+- **Disk-set parts are numbered in the EXTENSION** (`KEEN.1`), not `NAME._1`.
+  Only the underscore form was recognised, so a stalled multi-disk install was
+  reported as "the installer wrote nothing at all - the download is bad" while
+  the whole game sat in the directory.
+
+- **Never take a step's verdict from `ERRORLEVEL` in a generated DOS script.**
+  A LAN install that fully succeeded logged `HTGET failed` AND `UNZIP failed`
+  immediately above `install finished OK`. COMMAND.COM keeps the last value
+  anything set, and `DOSGAME.EXE` exits **42** to hand over to `RUN.BAT`, so any
+  tool that terminates without setting a return code leaves 42 standing.
+  Test the artifact (`if not exist <zip>`).
+
+Also: the two tabs disagreed on grid and colour (40-col title, no marker, grey
+vs 36-col title, marker, green), and a scan-found game was listed by its
+DIRECTORY (`KEEN1`, `STARCR~1`) while the catalogue tab named the same game
+properly. Both now share one grid/marker/green, and folders are resolved to the
+catalogue title when the match is unambiguous.
+
 ## Game servers consolidated onto the dev host; two traps: exec-stack `.so` and loopback A2S proxy (2026-08-24)
 
 The fleet's game servers were split between whitebeast (.82, CS 1.6 x2 + UT99)
