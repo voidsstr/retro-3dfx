@@ -14,6 +14,35 @@ it until a Voodoo card goes back in.
 
 ---
 
+## Win98 MS-DOS mode: two routes, different files - and DOS batch files must be CRLF (2026-08-26)
+
+.243 stuck at a bare cursor on "Restart in MS-DOS mode". Not reproduced (that
+means rebooting the box the operator chats from), but two real hazards fell out
+of looking:
+
+- **`DOSSTART.BAT` is what MS-DOS mode runs, NOT `AUTOEXEC.BAT`.** A box can be
+  perfectly set up at the boot prompt and bare in MS-DOS mode. The second route
+  - CTRL/F8 -> "Command prompt only" - runs `AUTOEXEC.BAT` and never starts
+  Windows, so it cannot be broken by the shutdown transition; it is the
+  fallback worth having, but it needs `AUTOEXEC.BAT` to set `PATH`.
+  Put a log marker as the FIRST line of both: present = DOS came up, absent =
+  never left the Windows shutdown. Nothing logged anything there before.
+
+- **A DOS `.BAT` shipped from a Linux host as LF-only will not run.**
+  `COMMAND.COM` answers `Bad command or file name`, or prints `OFF` and stops
+  if `@echo off` is line 1. retro-agent's batch files had been LF in git the
+  whole time and worked only because someone once published them from Windows,
+  which converted them by accident: the share's `PLAY.BAT` was 2,274 bytes
+  against git's 2,217, exactly one CR per line. `retro_upload` is byte-for-byte,
+  so publishing from Linux would have broken `PLAY`, `NETUP` and `DOSSTART` on
+  every DOS box at once. Pin it with `.gitattributes` `*.BAT text eol=crlf` -
+  git keeps LF in the index and checks out CRLF, so there is no churn commit.
+
+- Ruled out, so nobody re-walks it: `Exit To Dos.pif` is correct (386-section
+  dword at +0x12 has bit 0x80 = MS-DOS mode; no embedded `CONFIG  SYS 4.0`
+  section = "use current configuration"; 967 bytes is the genuine size), and
+  `FastReboot` was already `0`.
+
 ## DOSGAME: four install/UI faults found from .243's DOSGAME.LOG (2026-08-25)
 
 The user ran the DOS game manager on .243 in MS-DOS mode; the box's
