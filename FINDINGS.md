@@ -559,6 +559,66 @@ stale `gl_vsync "0"` further down the autoexec kept winning - the exact thing
 the strip exists to prevent. One `cvar_name()` now serves both sides;
 `tests/python/test_game_refresh_cvars.py` pins it.
 
+## Reading a file off an agent: "absent", "unreadable" and "busy" are three answers, not one (2026-08-29)
+
+A data-loss bug in the fleet favourites agent, found only because another
+session compared **two boxes**: on `.143` our block was appended after their
+`r_fullscreen`/`r_mode` and nothing was lost; on `.240` those settings were
+gone. Same code, same file, opposite outcomes.
+
+The merge was correct. **The read was the bug:**
+
+```python
+existing = ""
+try:
+    existing = await c.command_text(f'EXEC cmd /c type "{path}"')
+    if "cannot find" in existing.lower(): existing = ""
+except Exception:
+    existing = ""
+```
+
+Three unrelated failures all collapse into *"the file is empty"*, after which a
+read-modify-write faithfully writes a file containing only the new content:
+
+- **`except Exception`** — a timeout, a busy box, a dropped connection.
+- **Deciding existence by matching English error prose against the file's own
+  content.** `type` writes its error to stderr; the phrase can equally appear
+  *in* a config. And it is locale-dependent.
+- **A shell round trip** — `EXEC` captures cmd.exe output, so a large file can
+  truncate, encodings can mangle, and on Win98 it is `command.com`, a different
+  shell entirely.
+
+**The rule:** *"the file is not there"* and *"I could not read the file"* mean
+opposite things — one is safe to create, the other is destructive — and any
+code that treats them alike will destroy data intermittently, on whichever box
+the read happened to fail. Intermittent is the worst case: it looks like
+somebody else's change not sticking.
+
+**The pattern to copy** (`scripts/gameindex/sync.py:read_existing`):
+
+1. **`DOWNLOAD`, never `EXEC ... type`** — exact bytes, real status code, no
+   shell, no truncation, no locale.
+2. On failure, **`DIRLIST` the parent directory**. Only a positive listing
+   showing the file absent means `missing` and permits creating it. File
+   present, listing failed, or listing unparseable all mean `unreadable`.
+3. **`unreadable` must skip the write entirely**, with the reason logged.
+4. Match filenames **case-insensitively** — Windows paths are.
+
+**And check the check.** A second guard (`favorites.WouldClobber`) refuses to
+render if the merge would drop a pre-existing line. The first version of it
+reused `_strip_block` — the very function it was checking — so a strip rule
+that grew too greedy would have been invisible to both. A verifier that shares
+an implementation with the thing it verifies is not a verifier.
+
+**Audited the rest of the codebase for the same shape.** Two other sites use
+`EXEC cmd /c type`: `voodoo-cleanroom/deploy/q2bench.py` reads a benchmark log
+and never writes it back (worst case: a missed result), but
+`.claude/skills/driver-install/game_sweep.py:fix_ut99` **rewrote the whole
+`UnrealTournament.ini` from what it read**. Its `if "RenderDevice=" not in txt`
+guard catches an *empty* read by luck, but a **truncated** read still contains
+that string and would have been uploaded back over a complete file. Now on
+`DOWNLOAD`, and it bails out rather than rewriting a file it never saw.
+
 ## GPU serving for game bots: the model was never the slow part (2026-08-28)
 
 Building the neural-bot policy server on the 5090. Every number that mattered
