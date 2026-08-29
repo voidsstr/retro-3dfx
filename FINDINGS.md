@@ -14,6 +14,75 @@ it until a Voodoo card goes back in.
 
 ---
 
+## A driver INF with no binaries hangs DRVUPDATE on an invisible "Files Needed" dialog (2026-08-29)
+
+`DRVUPDATE PCI\VEN_1002&DEV_9515` on **.123** (NSC-B20C188E96D, Radeon HD 3850 AGP)
+returned nothing at all: the agent logged `DRVUPDATE ... -> C:\D\G001\CX137529.inf`
+and then no `OK installed` and no `install failed`, ever. The command simply never
+completed and the box sat with no display driver at 640x480 for hours.
+
+Cause: `UpdateDriverForPlugAndPlayDevicesA` was called with an INF whose payload was
+missing, so SetupAPI put a modal **"Files Needed - the file 'ati2mtag.sys' ... is
+needed"** dialog on the console session and waited. Nothing in the log says so;
+`WINLIST` is the only thing that shows it. **When a DRVUPDATE goes quiet, run
+`WINLIST` before assuming it is slow** - a `#32770` window named "Files Needed" or
+"Hardware Installation" means it is blocked on a click, not working.
+
+Two separate blockers in one install, both invisible from the log:
+- **Files Needed** - missing payload (below).
+- **Hardware Installation** ("has not passed Windows Logo testing") - a
+  non-WHQL/beta driver. Setting `HKLM\SOFTWARE\Microsoft\Driver Signing\Policy`
+  to `00` did **not** suppress it; the dialog still appeared and had to be clicked
+  ("Continue Anyway"). Budget a `WINLIST` + `UICLICK` pass for any beta driver.
+
+Root cause of the missing payload: **the PXE image's ATI display-driver directory
+`$OEM$\$1\D\G001` contains INF+CAT only** (4 INFs, 2 CATs, 762 KB total, no
+`B*\` payload directory). `CX137529.inf` correctly names
+`"ATI Radeon HD 3850 AGP" = ati2mtag_RV630, PCI\VEN_1002&DEV_9515` and is a real
+Windows XP INF (Catalyst 12.4, 8.961.0.0000) - the machine note that it "may be
+Vista/7-only" was wrong - but `[SourceDisksNames.x86] 1 = ...,.\B136646` points at a
+directory that is not in the image. Any XP box with an ATI card imaged from this
+source will hang the same way. **This is a share-side gap, not a per-box one, and it
+is still open.**
+
+Fix used on .123: extracted `Packages/Drivers/Display/XP_INF` (INF + `B156345\`,
+33 files, 27 MB) from
+`Files/Drivers/ATI/WinXP/Radeon/AMD_Catalyst_13.4_Legacy_Beta_WinXP.exe` - the
+**legacy** branch is the right one for HD 2000/3000/4000, and 13.4 (8.970.100.0) is
+newer than the image's 12.4 - staged it on the share as
+`Files/Drivers/ATI/WinXP/Radeon/Catalyst134-Legacy-XP-Display/`, copied it to
+`C:\D\G006\` and ran `DRVUPDATE PCI\VEN_1002&DEV_9515 C:\D\G006\CX156444.inf`.
+Result: `ati2dvag.dll` + `ati3duag.dll` + `atioglxx.dll` in system32,
+`ati2mtag.sys` in drivers, `OpenGLDrivers\ati2dvag -> atioglxx.dll` registered.
+
+Note `ATI_Catalyst_14.4_XP.exe` on the share is the wrong package for this card -
+14.4 is the HD 5000+ XP branch; the HD 2000/3000/4000 line went legacy at 13.x.
+
+## The fleet wallpaper only applies at agent start, so a resolution change needs a RESTART (2026-08-29)
+
+`apply_fleet_wallpaper()` lives in `retrowall_apply_startup()` and runs **once, from
+the retrowall thread at agent start**. `gs_arrange_icons()` runs from `gs_run()`, at
+the end of a GAMESYNC. So after changing the screen resolution, neither happens on
+its own: on .123 the box booted at 800x600, took `retrowall_800x600.bmp`, and kept
+it after being moved to 1024x768.
+
+Order that works: set the mode, `RESTART` the agent (wallpaper follows the new
+screen, ~40s after relaunch - wait for the `retrowall: wallpaper set to ...` log
+line, not just for the port to reopen), then `GAMESYNC RESET` + `START` to
+re-arrange the icons for the new bay geometry.
+
+Also: **the icon bay must have at least as many slots as there are icons, or the
+desktop listview scrolls and every icon renders one bay-offset too high.** 32
+shortcuts + Recycle Bin = 33 icons; at 1024x768 the bay is 4x8 = 32 slots, one short,
+and the whole grid sat ~63px above its drawn cells. At 1920x1080 it is 8x12 = 96 and
+the icons land in their cells exactly. Slots per resolution follow
+`gs_icon_bay()` / `gen_retro_wall.py:icon_bay()`: `cols = (w*0.34)/76`,
+`rows = (h - max(18,h*0.03) - 34 - 24)/80`.
+
+Worth knowing: the current bay is **top-left by design** ("with the grain" of the
+shell, per `gen_retro_wall.py:icon_bay()`), superseding the older bottom-right well
+that `arrange_icons.exe` used. Instructions that still say "bottom-right" are stale.
+
 ## The agent installs `RetroWallRotate` in HKCU but deletes it from HKLM (2026-08-29)
 
 `retrowall.c:stop_wallpaper_rotation()` kills `rotate_wall.exe` and then tries to
