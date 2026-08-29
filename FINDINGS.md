@@ -14,6 +14,66 @@ it until a Voodoo card goes back in.
 
 ---
 
+## The agent installs `RetroWallRotate` in HKCU but deletes it from HKLM (2026-08-29)
+
+`retrowall.c:stop_wallpaper_rotation()` kills `rotate_wall.exe` and then tries to
+remove the Run key that restarts it — but it opens **HKEY_LOCAL_MACHINE**
+`Software\Microsoft\Windows\CurrentVersion\Run`, while step 3 of
+`retrowall_apply_startup()` writes that value with `hkcu_set_sz(RUN_KEY, ...)`, i.e.
+into **HKCU**. The value is therefore never deleted, and the legacy rotator is
+relaunched at every logon on any box that ever had the rotation staged.
+
+It still *looks* fixed in the log: `n++` runs unconditionally after the taskkill, so
+`"retrowall: legacy wallpaper rotation stopped"` is printed even when the
+`RegDeleteValueA` failed, and the more specific `"removed the RetroWallRotate Run
+key"` line — which only prints on real success — is simply absent. Grep for the
+*second* line, not the first, when checking whether a box is really clean.
+
+Seen on **.133 (P3-DUAL)** 2026-08-29: `HKCU\...\Run\RetroWallRotate =
+C:\retro-wall\rotate_wall.exe 120` still present after the agent had logged the
+rotation as stopped; `HKLM\...\Run` had no such value. Per-box workaround:
+`reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v
+RetroWallRotate /f`. Real fix: delete from HKCU (and keep the HKLM delete for older
+boxes), and only count a deletion that actually succeeded.
+
+Why it matters: the agent applies `retrowall_<W>x<H>.bmp` ~20s after boot, then kills
+the rotator. The rotator started at logon on its own interval, so between those two
+moments it can re-set the wallpaper to `wall0N.bmp` and the agent will not re-apply.
+The fleet wallpaper then silently loses to the legacy rotation on a slow boot.
+
+---
+
+## Desktop icons: arrange AFTER the shell has settled, or ~8 of them land outside the bay (2026-08-29)
+
+`gamesync.c:gs_arrange_icons()` sleeps 2000 ms after the last shortcut is written and
+then makes ONE `LVM_SETITEMPOSITION` pass over the desktop listview. On **.133** that
+reliably left 8 of 33 icons out of place — four in a row clipped off the top edge of
+the screen above the bay, and four in a phantom fifth column beside it — while the
+other 25 sat perfectly in their drawn cells. Re-running the whole provision produced
+the same 8-icon displacement with a *different* set of icons, so it is a race with
+explorer still creating listview items, not a bad shortcut.
+
+Fix that worked: wait for `LVM_GETITEMCOUNT` to stop changing (4 stable reads, 250 ms
+apart), then repeat the position loop ~5 times with 500 ms between passes. All 32
+icons then landed in the 4x8 bay exactly. Built as
+`voodoo-cleanroom`-style throwaway `arrange_bay.exe` (mingw, `-luser32`) and staged at
+`C:\retro-wall\arrange_bay.exe`.
+
+Also note the bay is **top-LEFT**, deliberately: `gen_retro_wall.py:icon_bay()` says
+Windows fights attempts to move icons away from the top-left, so the wallpaper draws
+the "GAME LIBRARY" panel there and the arranger matches it. The staged
+`arrange_icons.exe` still parks icons bottom-RIGHT and must not be run on a box that
+has a `retrowall_<W>x<H>.bmp` — `retrowall_apply_startup()` returns before reaching it,
+which is the only reason the two do not fight.
+
+The bay is exactly `cols x rows` = 4x8 = **32 slots** at 1024x768. A 33rd icon has
+nowhere to go and the shell re-flows it to the top of the screen, clipped. On .133 the
+33rd was the Recycle Bin; hiding it (`HideDesktopIcons\{ClassicStartMenu,NewStartPanel}
+\{645FF040-5081-101B-9F08-00AA002F954E}` = 1, then `SHChangeNotify`) made 32 icons fill
+32 slots exactly.
+
+---
+
 ## "No sound" on a fresh XP image is usually the WDM audio core, not the sound card (2026-08-28)
 
 .124 (NSC-4664F96DE08, XPSP3-FLEET image) had a Sound Blaster AWE64 whose
