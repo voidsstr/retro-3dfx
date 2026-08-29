@@ -14,6 +14,164 @@ it until a Voodoo card goes back in.
 
 ---
 
+## A Voodoo 2 is invisible to every display-class check, and its XP driver installs itself dead (2026-08-28)
+
+Preparing a Voodoo 2 (and a second card for SLI) on a fleet XP box. Three
+things cost time before any hardware was even reachable:
+
+- **`VIDEODIAG` will never show a Voodoo 2.** It is a 3D-only passthrough
+  card and its INF is `Class=MEDIA`, not Display — the 2D card stays the
+  display adapter. Detect it against the raw PCI enum:
+  `REGREAD HKLM SYSTEM\CurrentControlSet\Enum\PCI` on NT/XP, or
+  `REGREAD HKLM Enum\PCI` on 9x (**different path**).
+
+- **`VEN_1102&DEV_0002` is a Creative SB Live!, not a Voodoo 2.** 3dfx is
+  vendor `121A`; Creative is `1102`. `.240` carries two SB Live devices, so a
+  match on `DEV_0002` alone reports a Voodoo 2 that is not in the machine.
+  Locked in by `retro-agent/tests/python/test_voodoo2_install.py`.
+
+- **The XP driver installs itself into silence.** Most Win9x Voodoo 2 drivers
+  do not run on XP at all; the one that does is the 3dfx **Win2K 1.02.00**
+  kit (now on the share at `Files\Drivers\3DFX\WinXP\Voodoo2_1.02.00_Win2K\`).
+  Its `Voodoo2.inf` registers `fxgpio`, `fxptl` and `Ntremap` with
+  `StartType=2` (auto), but the Win2K display driver is **core-level** and
+  fails **silently** on XP at auto start: the driver reports installed and
+  nothing renders. All three must be moved to `Start=1` (system) and the box
+  rebooted. `retro-agent/scripts/voodoo2/install_voodoo2.py` does this.
+
+- **SLI needs matching cards.** The official 3dfx drivers do not support
+  mixed/mismatched SLI — different manufacturer and/or different RAM size
+  (8MB vs 12MB) will not run in SLI. FastVoodoo2 4.6 handles mismatched pairs
+  but is Win9x-only.
+
+Still unverified on hardware: six boxes were enumerated (.124 .133 .143 .145
+.240 .246) and none carries `VEN_121A&DEV_0002`.
+
+---
+
+## A game that never asks for a refresh rate gets 60Hz, whatever the desktop is set to (2026-08-25)
+
+Measured on **.124** (GeForce2 GTS, ForceWare 71.89, Sony CPD-G200): desktop at
+1024x768x32 **@100Hz**, Quake II launched fullscreen at the *same* resolution,
+and `DISPLAYCFG` then reports **60**. The mode was already stored at 100 with
+`CDS_UPDATEREGISTRY`; that is not what decides it.
+
+**A `ChangeDisplaySettings` call that omits `DM_DISPLAYFREQUENCY` gets the
+adapter default, not the stored mode.** So the game does not "lose" the refresh
+rate - it never asked for one, and 60 is what XP hands out. Every engine on that
+box that sets its own video mode does this: Quake II, UT99 and GoldSrc have no
+in-engine refresh setting at all, and ForceWare 71.89 has no override page, so
+there is nothing to switch on from inside the machine.
+
+The only lever is to re-apply the mode from OUTSIDE with the frequency field
+filled in, while the game runs. That is `agent/tools/refreshkeep.exe` in
+retro-agent: it polls the current mode and re-applies it whenever it drifts off
+target, exiting when the watched process is gone.
+
+Two things worth keeping:
+
+- **Apply with flags 0, never `CDS_UPDATEREGISTRY`.** A game's odd fullscreen
+  resolution must not become the stored desktop mode. `setrefresh.exe` remains
+  the tool for changing the desktop persistently.
+- **Refuse a rate the driver does not enumerate.** Asking a CRT for a mode it
+  cannot display is how you get "out of range" on a machine that then needs
+  somebody physically in front of it. An unsupported request must do nothing at
+  all rather than fall back to some other rate.
+
+**Related, found while reviewing the deploy script:** its stale-cvar strip
+worked for Quake configs and silently did nothing for GoldSrc, because the two
+sides of the comparison extracted the cvar name differently - `split()[1]` is
+the NAME in `seta r_swapInterval "0"` but the VALUE in `gl_vsync "1"`. The
+managed set came out as `{'"1"', '"100"'}`, which no cvar name can match, so a
+stale `gl_vsync "0"` further down the autoexec kept winning - the exact thing
+the strip exists to prevent. One `cvar_name()` now serves both sides;
+`tests/python/test_game_refresh_cvars.py` pins it.
+
+## The status wall reports on services, so "not installed" must never look like "dead" (2026-08-28)
+
+The GDM login-screen dashboard grew panels for the game servers, the PXE
+server, the favourites agent and the host services. Everything that cost time
+came from one theme: **a status wall is only useful if its silences are
+distinguishable.**
+
+- **A oneshot behind a timer has no honest status.** `retro-gameindex` was a
+  `oneshot` fired by a 5-minute `.timer`, so its unit read `inactive (dead)`
+  for 297 of every 300 seconds — indistinguishable from a service that had
+  stopped. It is now a long-running `Type=simple` daemon (same 5-minute pass)
+  that publishes a per-pass report. **Delete the timer when you do this**, or
+  systemd starts a second pass that fights the daemon over the same SQLite file.
+
+- **"Nothing to do" and "did not run" look identical from outside.** The retro
+  fleet is powered on demand, so a healthy favourites pass across zero live
+  boxes writes nothing and logs almost nothing. Judged by output volume, a
+  healthy agent looks dead every time the machines are off. Services must
+  *state* that a pass completed, not leave it to be inferred.
+
+- **`systemctl --user` as root is the wrong manager.** The collector runs as
+  root; a bare `systemctl --user` there queries *root's* manager, which has
+  none of the fleet's user units — so every fleet service reads "not found",
+  which on the wall looks exactly like every fleet service having died. Drop to
+  the owning uid with `XDG_RUNTIME_DIR` set. And report `LoadState=not-found`
+  as `absent`, distinct from `failed`: never installed and crashed are
+  different calls to action.
+
+- **An `active` unit can be serving nothing.** `retro-pxe` that has lost its
+  UDP sockets looks perfectly healthy to systemd. The panel says `serving` only
+  when TFTP is actually bound. (Parsing that: `ss -ulnH` columns are
+  State/Recv-Q/Send-Q/**Local**/Peer — reading the peer column of a listening
+  socket gives `0.0.0.0:*` and finds no ports at all.)
+
+- **Bots are not players.** A Quake III server at `bot_minplayers 4` reports
+  four players forever, so a naive count leaves the wall permanently claiming
+  someone is playing. GoldSrc's A2S reply carries a bot count; on the Quake
+  family the tell is **ping 0** in the player line.
+
+- **Every engine needs its own query packet AND its own reply offsets.**
+  Q3/Q2 put the infostring on line 1 (line 0 is `statusResponse`/`print`);
+  **QuakeWorld's mvdsv puts it on line 0**, with its `n` header glued to the
+  first key, and ends the reply `\n\x00` — and `str.strip()` does not remove a
+  NUL, so a naive player count reports one phantom player on an empty server.
+  GoldSrc hides its counts after four NUL-terminated strings plus a u16 appid,
+  and since 2020 may answer `A` + a 4-byte challenge that must be echoed back.
+
+- **A game-server watchdog must not restart on the first silent probe** — that
+  is a map change, and restarting kicks everyone off a healthy server. Three
+  consecutive mute cycles, a 5-minute cooldown and a 4-per-hour cap; past that
+  it says "needs a human" instead of flapping a server whose config is broken.
+  It has to be a `--user` unit, because the game servers are.
+
+- **The fleet has TWO process managers, and assuming systemd hides a whole
+  server.** Nine game servers are `systemd --user` units; **Tribes 2 is a
+  docker container** (it needs a 2001 userland). `systemctl show
+  tribes2-server` returns `not-found`, which reads as "never installed here" —
+  so a running game server was silently absent from the board and an outage on
+  it would have been invisible. That also forces a **third** state:
+  `absent` (never installed), `failed` (it died) and `unknown` (we could not
+  ask the manager — no docker binary, daemon down) are three different calls to
+  action. Restarting on the strength of a failed *lookup* is how a watchdog
+  starts bouncing healthy services because docker was briefly busy.
+
+- **`rtcw-server` and `mohaa-server` have never existed on this host.** They
+  are in the game-servers skill's table as a wish list. Keep them OUT of any
+  status table until they are really installed — a row that can never come up
+  sits on the wall as a permanent outage, and "we never built this" is not a
+  fault report.
+
+- **An unknown player count is not zero.** Tribes 2 under TribesNext encrypts
+  its info response (`0x12` returns a well-formed `0x14` full of ciphertext),
+  so the count cannot be read from off the box; the row shows `—`. What the
+  protocol *does* give is an echo of the request's four key bytes, so sending
+  a random key and requiring it back turns "some UDP arrived" into "this is an
+  answer to our query".
+
+- **The login screen still cannot be screenshotted**, so
+  `dashboard/tests/preview_panels.mjs` now renders the real `_render*` methods
+  to a terminal with the Pango colours mapped to ANSI, by stubbing the
+  `gi://…` imports through a node loader hook. That is the only way to *see*
+  the wall before shipping it.
+
+---
+
 ## Win98 MS-DOS mode: two routes, different files - and DOS batch files must be CRLF (2026-08-26)
 
 .243 stuck at a bare cursor on "Restart in MS-DOS mode". Not reproduced (that
