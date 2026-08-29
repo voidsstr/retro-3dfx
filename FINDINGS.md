@@ -14,6 +14,43 @@ it until a Voodoo card goes back in.
 
 ---
 
+## A filename with PARENTHESES cannot be launched through the agent (2026-08-29)
+
+    EXEC cmd /c start "" /D "..." "...\Host Descent (LAN).bat"
+      -> 'C:\Games\Descent1\Host' is not recognized
+
+**Mechanism (two layers of cmd, not one).** The agent already runs
+`cmd.exe /c <command>`; our `cmd /c start` adds a **second** layer. cmd's
+quote-stripping across those two layers loses the quotes, so the path splits at
+the first space. **Plain spaces are fine** — `Launch Red Alert 2.bat` works —
+it is specifically the parentheses. The 8.3 name works as a fallback
+(`HOSTDE~1.BAT`, from `dir /x`).
+
+**Why it survived review: a desktop `.lnk` is completely unaffected.** The file
+launches perfectly for a person double-clicking it and fails only for
+automation, which makes the affected launchers **unverifiable rather than
+obviously broken** — the worst shape a defect can take on this fleet, because
+every one of our verification passes is automated.
+
+**This is the SECOND time this character has cost time here.** `onboard.cmd`
+had the same class of failure on game NAMEs like `(BC Romania)` and
+`(fleet build)`, where the `)` in an expanded variable closed a `( ... )` block
+early and cmd aborted with `- was unexpected at this time`, leaving onboarding
+silently unfinished — no theme, no `Onboarded` flag. That was fixed per-script.
+
+**It is now a REQUIRED rule in the retro-agent CLAUDE.md instead:** any filename
+this project GENERATES — a launcher `.bat`, a shortcut target, a `launch.txt`
+path — must avoid `(` and `)`. Use a dash (`Host Redneck Rampage - LAN.bat`).
+Display names in `launch.txt` may keep parentheses; that column is a label, not
+a path. Nine staged launchers carried them.
+
+**Corollary, same family:** `taskkill /f /im "Descent 3.exe"` needs its quotes —
+**without them it silently kills nothing**, after which the previous game is
+still on screen and the next screenshot is attributed to the wrong title. That
+one cost a lost Tiberian Sun result.
+
+---
+
 ## A shared CD serial lets only ONE machine on the fleet into a LAN game (2026-08-29)
 
 Red Alert 2 / Yuri's Revenge refuse a second machine's LAN join with
