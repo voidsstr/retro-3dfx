@@ -116,6 +116,25 @@ answered it in three seconds. The only trace anywhere was one daemon line:
   retry loop delivered the reply **twice**. Locking the ensure fixes the
   spurious failure and the duplicate together.
 
+- **ROOT CAUSE of the unclaimed box: reaping a host killed the whole daemon.**
+  `rediscover()` cancels a host's `serve_host` task when the box goes offline,
+  and `serve_host` correctly cleans up and re-raises `CancelledError`. But
+  `main_async` awaited `asyncio.gather(*tasks)` **without
+  `return_exceptions=True`**, so that cancellation propagated out of gather
+  and killed the process:
+
+      22:26:02,785 [INFO] reaping offline agent 192.168.1.171 ...
+      22:26:03      retro-chat-daemon.service: Failed, status=1/FAILURE
+
+  Under a second apart, **seven times in one day**. The unit restarts with
+  `RestartSec=5min`, so chat died for five minutes on every reap — which is
+  how `.143` sat unclaimed for two hours while someone typed into it. A
+  cancelled child is a *normal* event when you cancel children on purpose;
+  gather must be told so. Log the other exception types, though, or
+  `return_exceptions=True` hides a real crash and leaves the daemon up doing
+  nothing — worse than crashing. Regression test:
+  `retro-agent/tests/python/test_chat_daemon_reap_survival.py`.
+
 - **An unclaimed box is a silent black hole.** `.143` was reaped at 19:51 when
   it went unreachable and was not re-claimed until 21:55; in between, anything
   typed into its chat client went into the agent's prompt slot with nobody
