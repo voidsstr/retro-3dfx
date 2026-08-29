@@ -14,6 +14,63 @@ it until a Voodoo card goes back in.
 
 ---
 
+## "No sound" on a fresh XP image is usually the WDM audio core, not the sound card (2026-08-28)
+
+.124 (NSC-4664F96DE08, XPSP3-FLEET image) had a Sound Blaster AWE64 whose
+driver was loaded and healthy - `sc query ctlsb16` RUNNING, the devnode bound
+with `ConfigFlags=0`, and its KS `#Wave` interface registered with `Linked=1`
+under `DeviceClasses\{65e8773e-...}`. Yet `waveOutGetNumDevs()` returned 0,
+`sndvol32` said "no active mixer devices" and `mmsys.cpl` said "No Audio
+Device". Reinstalling the card driver would have fixed nothing.
+
+The break was in XP's own WDM audio core, under
+`HKLM\SYSTEM\CurrentControlSet\Enum\SW`:
+
+- `SW\{a7c7a5b0-5af3-11d1-9ced-00a024bf0407}` ("Microsoft Kernel System Audio
+  Device", **sysaudio** - the audio graph builder) had **no `Driver` and no
+  `Service` value** and `ConfigFlags=0x40` (FAILEDINSTALL). Without sysaudio
+  there is no wave device *at all*, whatever the card does.
+- kmixer's node had `ConfigFlags=0x20` (REINSTALL) and its service was STOPPED.
+- `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Drivers32` was missing
+  `mixer=wdmaud.drv` and `aux=wdmaud.drv` (it had `wave` and `midi`).
+
+Three dead ends worth remembering:
+
+- **You cannot repair an Enum devnode with `reg add`** - the `Enum` key denies
+  writes even to Administrators (`Access is denied`).
+- **`rundll32 streamci.dll,StreamingDeviceSetup` does not help when the devnode
+  already exists.** It only re-runs the INF's `*.Interface.Install` AddReg and
+  fails in `setupapi.log` with `Error 1010: The configuration registry key is
+  invalid`. It creates nodes; it does not rebind broken ones.
+- **`setupapi.log` said the sysaudio install "finished successfully"** at image
+  time. That line was true and stale - the node was broken afterwards. Trust
+  the live `Service`/`ConfigFlags` values, not the log.
+
+What fixed it: `tools/drvupd.c` (the retro-agent devcon replacement) rebinding
+each broken node against the in-box INF, no reboot needed:
+
+    drvupd.exe C:\WINDOWS\inf\wdmaudio.inf "SW\{A7C7A5B0-5AF3-11D1-9CED-00A024BF0407}"
+    drvupd.exe C:\WINDOWS\inf\wdmaudio.inf "SW\{B7EAFDC0-A680-11D0-96D8-00AA0051E51D}"
+
+`drvupd` returning `FAILED err=3758096907` (0xE000020B) on a node that already
+has `Driver`+`Service` just means there was nothing to do - not a failure.
+
+Two verification traps after the fix:
+
+- **winmm caches the device list per process**, so the already-running agent
+  keeps reporting `wave_out_count: 0`. `RESTART` the agent (never `QUIT`) before
+  believing `AUDIOINFO`.
+- **`mmsys.cpl` is single-instance**: launching it again just refocuses the
+  stale window still reading "No Audio Device". Close it first.
+
+Also: the box **dropped off the network entirely for ~6 minutes** (agent *and*
+SMB) immediately after the sysaudio install landed, then came back with its
+uptime intact - it had not rebooted. Wait it out rather than walking over to it.
+
+Fleetbook: recipe `xp-no-sound-sysaudio-kmixer-devnodes-failed-install-sound-bl`.
+
+---
+
 ## A Voodoo 2 is invisible to every display-class check, and its XP driver installs itself dead (2026-08-28)
 
 Preparing a Voodoo 2 (and a second card for SLI) on a fleet XP box. Three
@@ -86,6 +143,42 @@ managed set came out as `{'"1"', '"100"'}`, which no cvar name can match, so a
 stale `gl_vsync "0"` further down the autoexec kept winning - the exact thing
 the strip exists to prevent. One `cvar_name()` now serves both sides;
 `tests/python/test_game_refresh_cvars.py` pins it.
+
+## GPU serving for game bots: the model was never the slow part (2026-08-28)
+
+Building the neural-bot policy server on the 5090. Every number that mattered
+came from measuring something I had assumed:
+
+- **A small policy net is launch-bound, not compute-bound.** The forward pass
+  cost ~0.44 ms *whatever the batch size* — batch 1 and batch 1024 were within
+  noise of each other, because it is ~35 tiny kernel launches. Capturing it
+  into a **CUDA graph** cut that to 0.09–0.15 ms (3–5×). If a model is small
+  and called often, measure launches, not FLOPs.
+
+- **Capture and first-touch must be PREWARMED or they land in a game frame.**
+  The first request at each batch size paid graph capture plus first-touch
+  allocation in the code *around* the graph — tens of milliseconds, over the
+  frame budget, so the C adapter timed out, backed off, and the bots silently
+  stayed on the engine's own AI. Symptom: 9300 frames, 9300 fallbacks, one
+  reconnect. Warming the *whole serving path* (not just the graph) once per
+  batch bucket at startup costs 0.6 s and makes the first served frame the
+  same speed as the ten-thousandth.
+
+- **Python marshalling dwarfed the GPU.** 512 bots took 3.9 ms end to end, of
+  which the GPU was 0.36 ms; the rest was per-float `struct` work. One typed
+  `numpy.frombuffer` view over the whole batch took it to 0.36 ms total. The
+  C adapter's `memcpy` is 0.013–0.067 µs/bot against Python's 2.8 µs/bot.
+
+- **Per-bot recurrent state must be gathered with one kernel.** The first
+  version looped in Python and touched the GPU once per bot, costing more than
+  the forward pass it fed. One preallocated state tensor plus
+  `index_select`/`index_copy_` fixed it — and the key must include the
+  *connection*, because bot id 0 exists on every game server.
+
+- **A local 1.5B LLM plans a 4-bot squad in 419 ms, a 16-bot squad in 1184 ms.**
+  Output length scales with squad size, so a 2 Hz strategic layer does not hold
+  past ~4 bots. Fine if the planner is off the serving path (it lowers the plan
+  rate, never drops a frame) — but only if that was designed in.
 
 ## Chat answered but never replied: a non-atomic write into an inotify watcher (2026-08-28)
 
