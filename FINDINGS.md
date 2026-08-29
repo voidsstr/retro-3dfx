@@ -87,6 +87,46 @@ stale `gl_vsync "0"` further down the autoexec kept winning - the exact thing
 the strip exists to prevent. One `cvar_name()` now serves both sides;
 `tests/python/test_game_refresh_cvars.py` pins it.
 
+## Chat answered but never replied: a non-atomic write into an inotify watcher (2026-08-28)
+
+Someone typed a message on a retro box and got nothing back. The brain had
+answered it in three seconds. The only trace anywhere was one daemon line:
+
+    outbox: invalid JSON in 192.168.1.143-1-000001.json, removing
+
+- **`Path.write_text()` is not atomic, and the reader is inotify-driven.** The
+  brain wrote each response chunk straight to its final name; the daemon
+  watches the outbox with inotify, so it is woken the instant the *filename*
+  appears — usually before any bytes are in it. It parsed a zero-byte file,
+  got a `JSONDecodeError`, and **deleted** the answer. Fix both halves: write
+  temp + `os.replace` (the temp suffix goes AFTER `.json` so it cannot match
+  the reader's `glob('*.json')`), and never destroy a file you merely could
+  not parse yet — give it a grace window, then move it to `failed/`.
+  The rest of this project already had the convention
+  (`scripts/ai_status_bus.py`, the dashboard collector); the chat brain was
+  the odd one out.
+
+- **A check-and-create outside the lock let two coroutines share one
+  StreamReader.** The daemon's `ensure_send_conn()` sat *outside* the per-host
+  `state.lock` in both send paths, so a response and a `STATUS_SET` could each
+  build a connection and then both `readexactly()` on the same reader →
+  *"readexactly() called while another coroutine is already waiting for
+  incoming data"*, and three `send connection established` lines in the same
+  millisecond. The error fires **after** the `LOG_APPEND` has gone out, so the
+  retry loop delivered the reply **twice**. Locking the ensure fixes the
+  spurious failure and the duplicate together.
+
+- **An unclaimed box is a silent black hole.** `.143` was reaped at 19:51 when
+  it went unreachable and was not re-claimed until 21:55; in between, anything
+  typed into its chat client went into the agent's prompt slot with nobody
+  polling, and was lost when the box rebooted. Diagnose with `LOG_READ 0` on
+  the box — a claimed agent's log carries `[daemon connected from
+  192.168.1.132]`, an unclaimed one is 0 bytes.
+
+- **`PROMPT_WAIT` POPS the prompt** (`chatcore_prompt_pop`), and its argument
+  is **milliseconds**, not seconds. It is not a safe way to ask "is anything
+  queued?" — you will consume the user's message.
+
 ## The status wall reports on services, so "not installed" must never look like "dead" (2026-08-28)
 
 The GDM login-screen dashboard grew panels for the game servers, the PXE
