@@ -14,6 +14,62 @@ it until a Voodoo card goes back in.
 
 ---
 
+## Windows 7's GameUXShim hangs old games FOREVER - process alive, zero CPU, no window (2026-08-29)
+
+On **.246** (Win7 6.1.7600) several staged titles "launched" and then did
+nothing at all. They were not crashing: Windows 7 attaches an AppCompat shim,
+**GameUXShim** (`gameux.dll`, invoked as
+`rundll32.exe ...,GameUXShim {86fbe0c5-...};<exe>;<pid>`), to old game
+executables, and the game **blocks forever waiting on it**.
+
+**Signature - learn this, it is unlike any other failure:**
+- process ALIVE, **1 thread**, and **zero CPU accumulation** (it never runs)
+- `WINLIST` empty - no window is ever created
+- a `rundll32.exe` sibling process
+- `tasklist /m` on the hung game lists only `ntdll`, `kernel32` and
+  **`apphelp` / `AcGenral` / `AcXtrnal`** - **none of the game's own DLLs**,
+  because it never reaches its entry code
+
+Confirmed victims on .246: **Quake II and StarCraft**. It would present as a
+different mystery for every title it touches.
+
+**Fix - instant, no reboot, Win7+ only (does not apply to XP):**
+
+    reg add "HKLM\SOFTWARE\Policies\Microsoft\Windows\AppCompat" \
+        /v DisableEngine /t REG_DWORD /d 1 /f
+
+The obvious objection is that this also disables `AppCompatFlags\Layers`, and
+some titles carry a deliberate layer - StarCraft has
+`~ WINXPSP3 DISABLEDWM 256COLOR`. That was **A/B tested rather than assumed**:
+with the engine ON, StarCraft hangs entirely; with it OFF, StarCraft runs. So
+disabling is strictly better here and there is no trade-off to weigh.
+
+**Two more Win7-only items from the same box:**
+- The firewall's **Domain profile** was still ON after the Standard profile was
+  disabled - on Win7 use `netsh advfirewall set allprofiles state off`, not the
+  XP `netsh firewall` syntax.
+- **Suppress AutoPlay** (`NoDriveTypeAutoRun`=255 under HKCU+HKLM
+  `Policies\Explorer`): mounting a game ISO throws a modal AutoPlay window over
+  the running game. This matters now that disc-gated titles mount their own
+  images at launch.
+
+**Related, and a correction to an earlier conclusion in this log:** SiN Gold's
+staged binaries are VS2015 / PE subsystem 6.0 builds, which XP's loader refuses
+outright - but they **do not work on Win7 either**. On .246 `sin.exe` starts and
+**exits immediately with RC=0**, no window, no process, and **no crash record in
+the Application event log** - a clean voluntary exit, tested plain, with
+`+set vid_ref soft +set vid_fullscreen 0`, and with the AppCompat engine both ON
+and OFF, against intact data (`base\pak0.sin` 569 MB). So it is not a
+wrong-target binary to be kept as a Win7 variant; it is simply broken, and the
+title must be re-staged from the period ISO.
+
+The bounding scan is worth copying: every `.exe`/`.dll` in all 29 staged titles
+was checked for PE subsystem >= 6.0, and **SiNGold is the only game affected**
+(the sole other hit, `UnrealTournament/System/magick.exe`, is an ImageMagick
+helper on no launch path). A bounded class beats a fixed instance.
+
+---
+
 ## A 1990s CD check wants a DISC IN A DRIVE - staging the disc's files into the game folder does not satisfy it (2026-08-29)
 
 The single biggest blocker in the fleet-wide staged-games pass was not rendering,
