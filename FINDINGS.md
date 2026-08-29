@@ -14,6 +14,62 @@ it until a Voodoo card goes back in.
 
 ---
 
+## A shared CD serial lets only ONE machine on the fleet into a LAN game (2026-08-29)
+
+Red Alert 2 / Yuri's Revenge refuse a second machine's LAN join with
+
+    "There is already a player with your serial# in that game."
+
+Westwood reads a **per-installation** serial from
+`HKLM\SOFTWARE\Westwood\<Red Alert 2|Yuri's Revenge>\Serial` (string 34326
+`Serial` sits immediately before 34327 `SOFTWARE\Westwood\Yuri's Revenge` in
+`gamemd.exe`; ids `TXT_SERIAL_DUP` / `TXT_SERIALDUP`). The staged `install.reg`
+wrote `InstallPath` and `Version` but **no Serial**, so every box read the same
+absent value — and **only one machine on the entire fleet could ever be in an
+RA2 LAN game.**
+
+**The general lesson, which is bigger than RA2.** Our staged-games model copies
+a tree *byte-identically* to every machine. That is exactly right for content
+and exactly WRONG for anything that must be **unique per installation** — a
+network serial, a machine GUID, a player id. Such a value cannot live in
+`install.reg`, because install.reg is the thing being copied identically; it has
+to be **generated on the box at first launch** and then left alone. The fix
+therefore lives in the title's `Play/Launch .bat`:
+
+    where reg.exe >nul 2>&1 && (
+      reg query "HKLM\SOFTWARE\Westwood\%%~K" /v Serial >nul 2>&1 || (
+        reg add "HKLM\SOFTWARE\Westwood\%%~K" /v Serial /t REG_SZ ^
+            /d 1%%RANDOM%%%%RANDOM%%%%RANDOM%%00 /f >nul 2>&1
+      )
+    )
+
+written **only if absent**, so it is stable across relaunches and across
+redeploys. `reg.exe` does not exist on Win9x, hence the `where` gate.
+
+**Worth auditing every other staged multiplayer title for the same shape** — any
+game that identifies an installation rather than a player will have it.
+
+**Proven on .123 + .240:** identical serial → join refused; distinct serials →
+host on one box, join from the other, both in the same match at fullscreen
+1024x768.
+
+**Related trap in the same tree: `RedAlert2\wsock32.dll` is NOT IPXWrapper and
+must not be replaced with it.** At 49,664 bytes (md5
+`a195155a1a31995e1eb685854acac3dc`) it is a working IPX-over-UDP LAN shim of the
+CnCNet pattern — it forwards nearly all `wsock32` ordinals to `ws2_32` but
+implements `bind`/`getsockopt`/`htonl`/`htons`/`ntohl`/`ntohs`/`recvfrom`/
+`sendto`/`setsockopt`/`socket` itself. `Carmageddon2` carries a *real*
+IPXWrapper of a similar size, which is what makes the two easy to confuse.
+
+**And do not trust A2S for liveness on our GoldSrc servers.** `A2S_INFO`
+reported `players=0` on both `:27015` and `:27018` **while two real clients were
+playing** — clients arrive through the `:27015` proxy, so hlds logs them as
+`192.168.1.132` and the A2S count does not reflect them. Use the hlds log or
+rcon `status`. (Separately: on the Quake family and CS, a player line with
+**ping 0 is a bot** — the Q3 server runs `bot_minplayers 4`.)
+
+---
+
 ## Windows 7's GameUXShim hangs old games FOREVER - process alive, zero CPU, no window (2026-08-29)
 
 On **.246** (Win7 6.1.7600) several staged titles "launched" and then did
@@ -67,6 +123,89 @@ The bounding scan is worth copying: every `.exe`/`.dll` in all 29 staged titles
 was checked for PE subsystem >= 6.0, and **SiNGold is the only game affected**
 (the sole other hit, `UnrealTournament/System/magick.exe`, is an ImageMagick
 helper on no launch path). A bounded class beats a fixed instance.
+
+---
+
+## On XP, an UNSIGNED driver can never win on merit — `DriverSigningPolicy=Ignore` suppresses the dialog, NOT the rank (2026-08-29)
+
+Root-caused on **.124** (freshly PXE-imaged Pentium III 845 MHz, GeForce2 GTS
+`PCI\VEN_10DE&DEV_0150`) after the user reported "the GeForce 2 GTS and Sound
+Blaster 16 drivers are not installed". They were installed — with *Microsoft's*
+in-box drivers, at 800x600 in 16-bit colour, reporting **status OK and problem
+code 0**, while ForceWare 71.89 sat unused in `C:\D\G005` the whole time.
+
+**This is a whole class of silent image failure, not one card.** Read from the
+box's own `C:\WINDOWS\setupapi.log`, there are two independent layers and
+fixing either alone changes nothing:
+
+**1. The driver was never a candidate.** `winnt.sif` carries only the SHORT
+early `OemPnPDriversPath` (LAN + chipset), because the full 493-directory list
+is 3450 chars and broke the answer file. Everything else waits for `DevicePath`,
+which `cmdlines.txt` writes at **T-12 — after GUI setup has already installed
+the devices**. The log proves it: exactly **six** `Found ... in C:\D\` lines in
+the whole install, and every one names an `L` (LAN) or `C` (chipset) directory.
+Not one `G`, `H`, `I`, `M`, `N`, `S` or `T`. Graphics, sound, monitor and
+mass-storage were copied to disk, indexed (`Modified INF cache "C:\D\G005\
+INFCACHE.1"`), and never consulted. The comment in `inject-drivers.sh` saying
+graphics and sound "can wait for DevicePath" was the bug.
+
+**2. Even a VISIBLE unsigned INF loses.** XP adds **+0x8000** to the rank of an
+untrusted driver node:
+
+```
+#I087 Driver node not trusted, rank changed from 0x00002000 to 0x0000a000.
+```
+
+so it can never beat a trusted in-box match — XP's own `nv4_disp.inf` scored
+`0x00002001`. `DriverSigningPolicy=Ignore` only suppresses the *warning dialog*.
+Every DriverPacks INF that was **edited or renamed** (`nv4_disp2.inf`,
+`nv4_disp3.inf`, the `_go` mobile INFs) has lost its catalog and is untrusted by
+construction. The counter-example in the same log proves the rule rather than
+breaking it: the NIC *did* get a DriverPacks driver, because
+`C:\D\L025\e100b325.inf` is DriverPacks' **unmodified** copy of Intel's INF
+and still validates — it scored `0x00000001` with no penalty and won.
+
+> **Rule:** a device Windows can serve *badly* by itself never sees our better
+> driver, ends at problem code 0, and nothing anywhere flags it. The ONLY way to
+> put an unsigned driver on XP over a working in-box one is an explicit **forced**
+> install (`UpdateDriverForPlugAndPlayDevices` + `INSTALLFLAG_FORCE`), which does
+> not consult the ranking at all. Making the driver *visible* to PnP is not enough.
+
+**The second-order bug this caused.** `gs_reclaim_drivers()` deleted `C:\D` once
+no device carried a problem code — reading "no problem code" as "setup is
+finished with the drivers". On .124 that removed 2.4 GB of NVIDIA drivers from
+the machine that needed them: `dir C:\D` returns *File Not Found* while
+`DevicePath` still lists all 493 directories. **Neither the right driver nor the
+payload to fix itself.**
+
+**Fixed in agent 1.59.0.** The image now ships an explicit
+`$OEM$\$1\D\PREFER.TXT` (`<hardware id>\t<INF>`, generated by `stage-oem.sh`
+from `scripts/pxe/driver-prefs.txt`), the agent force-installs it at first logon
+**before** reclaiming, and the reclaim refuses while any preference that applies
+to *this* machine is unsatisfied. Preferences for hardware the box does not have
+never block, or the list would refill the 6 GB Gateway the reclaim exists for.
+Logic in `agent/shared/drvprefs.h`; tests `tests/native/test_driver_prefs.c` and
+`tests/test_pxe_drivers.py`.
+
+**Do not let a heuristic choose the INF.** Three directories in that image ship
+an INF naming `DEV_0150`, and the first one a search finds is
+`G003\nv4_go.inf` — **ForceWare 270.61 MOBILE, a 2011 driver for a 2000 card**.
+`gs_find_inf_for()` would have picked it. Name the build (the preference file
+matches on `DriverVer 7.1.8.9` = 71.89).
+
+**Verified on hardware, not inferred:** `DRVUPDATE PCI\VEN_10DE&DEV_0150
+C:\D\G005\nv4_disp.inf` on .124 → `OK installed ... (reboot required)`, and
+`wmic path win32_videocontroller` then reports **6.14.10.7189** where it had read
+6.14.10.5673.
+
+**And the honest half: the Sound Blaster needed nothing.** The card is an ISA
+**PnP** Creative **AWE64** (`ISAPNP\CTL00E4_DEV0000/0001/0002`, compatible ids
+`*CTL0045` and `*CTL0022`), correctly driven by XP's own `wdma_ctl.inf` /
+`CTLSB16.SYS`; all three functions installed cleanly. A grep of **every INF in
+the whole staged driver payload** for `CTL00E4`/`CTL0045`/`CTL0022` returns
+**zero hits** — DriverPacks Sound A/B is PCI/HDA-era and Creative never shipped
+an XP driver for their ISA cards. There is no better driver to install, and
+"our payload has nothing for it" is the right answer here, not a gap.
 
 ---
 
