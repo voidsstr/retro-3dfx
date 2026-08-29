@@ -116,6 +116,28 @@ answered it in three seconds. The only trace anywhere was one daemon line:
   retry loop delivered the reply **twice**. Locking the ensure fixes the
   spurious failure and the duplicate together.
 
+- **Half-applied locking is worse than none, because it looks deliberate.**
+  Each `HostState` has ONE `send_conn` shared by four coroutines (response
+  forwarder, status forwarder, task drainer, connect banner) and `state.lock`
+  was applied to some uses and not others. Two gaps: `ensure_send_conn()` ran
+  unlocked in two places (it check-and-creates the connection *and reads the
+  greeting*, so unlocked it swaps the socket out from under a coroutine that
+  is mid-read), and all three error handlers did `close()` + `= None`
+  unlocked, destroying a connection another coroutine was actively reading
+  from. Symptoms read exactly like flaky 25-year-old hardware — *"0 bytes read
+  on a total of 4 expected"*, *"Connection lost"* — and were entirely
+  self-inflicted. **Audit the invariant, don't chase the interleavings:** a
+  source-level check that every `state.send_conn` use sits inside an open
+  `async with state.lock` found four sites when hand-reading had found two.
+
+- **"No agents found" is not an error on a fleet that is powered on demand.**
+  `main_async` exited when discovery came back empty. With `Restart=always`
+  that made a permanent rescan of all 254 addresses the steady state, made
+  `daemon: NOT RUNNING` normal — so the status check could not tell *fleet is
+  off* from *daemon is broken* — and meant a box that booted waited for the
+  next restart to be claimed. Stay up with zero hosts; `rediscover()` already
+  knew how to add them.
+
 - **ROOT CAUSE of the unclaimed box: reaping a host killed the whole daemon.**
   `rediscover()` cancels a host's `serve_host` task when the box goes offline,
   and `serve_host` correctly cleans up and re-raises `CancelledError`. But
