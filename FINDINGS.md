@@ -14,6 +14,231 @@ it until a Voodoo card goes back in.
 
 ---
 
+## A 1990s CD check wants a DISC IN A DRIVE - staging the disc's files into the game folder does not satisfy it (2026-08-29)
+
+The single biggest blocker in the fleet-wide staged-games pass was not rendering,
+drivers or patches: it was **CD-presence checks**. Deus Ex, Red Faction, Red
+Alert 2, Soldier of Fortune and StarCraft all hit one.
+
+The expensive way we learned the rule was StarCraft. `StarCraft.exe` opens
+`\Install.exe` as a data archive and reads `rez\CDversion.txt` from it, and that
+file exists in no other file on the disc - so the obvious fix is to stage the
+CD's archives into the game folder. **That does not work**, and it cost 1.15 GB
+per box to prove:
+
+| box | optical drives | disc | result |
+|---|---|---|---|
+| .133 | present, ALL EMPTY | archive staged locally | `Data File Error` |
+| .145 | four (D:-G:), ALL EMPTY | archive staged locally | `Data File Error` |
+| .240 | one, **real disc MOUNTED** (Daemon Tools, vol `STARCRAFT`) | — | **both games run** |
+
+An intermediate theory - "the check insists on a disc only when an optical drive
+exists, and falls back to the local archive when none does" - was withdrawn once
+.240 checked properly and found it *did* have a drive with a disc already mounted
+in it from an earlier session. There is no per-box difference to explain. The
+rule is one line:
+
+> **The check wants a disc in a drive. Not a drive, and not a copy of the disc's
+> data staged into the game folder.**
+
+**Consequences for staging.** A title with a CD check cannot be made
+self-contained by copying files; it needs its disc image staged alongside it and
+**mounted at launch**. That is what makes a resilient mount script part of the
+staged game rather than a convenience - and it must find whatever mounter the box
+has: some fleet boxes have **WinCDEmu and no Daemon Tools**, so a launcher that
+only knows Daemon Tools fails on them.
+
+**Two refinements worth keeping:**
+- On .240 **Brood War ran with only the STARCRAFT-labelled disc mounted**, so the
+  check does not necessarily verify that the volume matches the game. A launcher
+  that refuses to start unless *its own* disc is mounted is stricter than the
+  game it launches - which is its own bug. Mount your own image, but fall back to
+  running if another usable disc is present.
+- A title with **no disc image on the share is genuinely blocked**, not merely
+  unfinished. Red Faction is in that state: it stops on "Insert Red Faction
+  CD #2" and no image exists to mount.
+
+**Related failure signature, from the same pass (Red Alert 2).** `game.exe` and
+`gamemd.exe` launched directly **exit with code 0 in under a second - no window,
+no dialog, no crash log**. That silence is what makes a CD stage so easy to
+misdiagnose; two separate theories (SafeDisc wrapping, a `-CD` switch) died on it
+before the mechanism was found. The Westwood stubs `Ra2.exe`/`RA2MD.exe`
+reference `GetDriveTypeA` and `GetVolumeInformationA` - **the stub IS the volume
+discovery** - while `game.exe` has none. So the stub is *required*, not merely
+sufficient, and no command-line switch substitutes for it.
+
+---
+
+## An SSE-less CPU cannot run our MesaFX ICD either — `-mfpmath=sse` is in our build flags (2026-08-29)
+
+Found while root-causing why every OpenGL game crashed on **.143** (`1GHZ`,
+GeForce 6800). The box's CPU is an **AMD Athlon "K75" Slot A, 1000 MHz**
+(CPUID sig `0x00000622`, `AuthenticAMD`), and it has **no SSE at all**:
+`MMX=1 FXSR=1 SSE=0 SSE2=0 3DNow=1`, `IsProcessorFeaturePresent(PF_XMMI)=0`.
+SSE arrived with the Athlon XP; this chip predates it.
+
+NVIDIA's ForceWare 93.71 ICD uses SSE unconditionally, so it faults instantly:
+Dr Watson logs `Exception number: c000001d (illegal instruction)` in
+`function: nvoglnt`, disassembling to `cvtsi2ss xmm0, dword ptr [nvoglnt+...]`.
+Static comparison of the two ICDs on the share is unambiguous —
+**93.71**: 27 `cvtsi2ss`, 68 `comiss`, 52 `ucomiss`, 1003 `movss`;
+**71.89**: 0, 0, 0, 130. Crashers logged: ioquake3, quake3, GLQUAKE, quake2,
+SoF.
+
+**The part that matters for OUR lane.** The same Dr Watson history shows this box
+crashing the same way back on 7/19–7/21 while it was running the **3dfx/Voodoo5
+stack**, faulting in `glide3x` and `OPENGL32!glClientActiveTextureARB`. So this
+is a property of the CPU, not of any one vendor's driver — and **our clean-room
+MesaFX ICD is built with `-march=pentium3 -mtune=pentium3 -mfpmath=sse`** (the
+documented flags in CLAUDE.md's Driver Stack Map). `-mfpmath=sse` makes gcc emit
+SSE for **ordinary float math throughout the ICD**, not merely in a few
+intrinsics — so on any pre-Athlon-XP CPU our own ICD will die exactly the way
+NVIDIA's does.
+
+**Consequence:** if a Voodoo card ever goes back into an SSE-less box, our driver
+will appear "broken" for a reason that has nothing to do with the driver.
+Measured on our *shipped artifacts* (disassembled, not inferred from flags):
+
+| artifact | SSE instructions | of which `cvtsi2ss` |
+|---|---|---|
+| `opengl32_retail.dll` (our MesaFX ICD) | **54,388** | 2,783 |
+| `glide3x_cvg.dll` (our Voodoo 2 Glide) | **2,840** | — |
+
+`cvtsi2ss` is the exact opcode the Dr Watson trace names, so on an SSE-less part
+both of our binaries fault **immediately**, not marginally.
+
+**`-mfpmath=387` ALONE DOES NOT FIX IT.** `-march=pentium3` by itself declares
+SSE available, so gcc keeps emitting it — auto-vectorisation is on at `-O2` in
+gcc 12+, and inlined memcpy/float conversions use it too; `-mfpmath=387` only
+redirects *scalar* FP math. Measured on float-heavy test code with our toolchain:
+
+| flags | SSE instructions emitted |
+|---|---|
+| `-march=pentium3 -mfpmath=sse` | 11 |
+| `-march=pentium3 -mfpmath=387` | 4 — **still faults** |
+| `-march=i686 -mfpmath=387` | 0 |
+| `-march=athlon -mfpmath=387` | 0 |
+
+**You must lower `-march` as well.** For an SSE-less Athlon (K75) prefer
+**`-march=athlon -mfpmath=387`** over i686: same zero SSE, but it keeps MMX and
+3DNow!, which that CPU has. The flags live in `voodoo-cleanroom/build-stack.sh`
+(`GLIDEOPT`, `GLIDEOPT_CVG`) and `build-mesafx-retail.sh` (`CPU=`); `-march` and
+`-mtune` are now split in the ICD build, so a K75 lane is a two-variable change
+rather than a fork.
+
+Diagnose with a CPUID probe before blaming the ICD.
+
+**Method worth reusing:** `Documents and Settings\All Users\Application Data\
+Microsoft\Dr Watson\drwtsn32.log` retains a long crash history with the
+faulting module and the disassembled instruction. Parsing the *whole* file dated
+the fault to 19 July and disproved the initial "the 08/27 driver install broke
+it" theory.
+
+---
+
+## `VIDEODIAG.adapters[0]` reports registry keys, not live devices — a stale "Standard VGA" key makes a healthy box look driverless (2026-08-29)
+
+On **.246** (Win7, ADMIN-PC) `VIDEODIAG` reported the adapter as **"Standard VGA
+Graphics Adapter"**, and this was written into the fleet task sheet as "NO VIDEO
+DRIVER INSTALLED — 3D games cannot work". **It was wrong.** The box has a working
+**AMD Radeon HD 5450** (`PCI\VEN_1002&DEV_68F9`, Catalyst 15.7.1 /
+15.200.1062.1004, Status=OK) driving 1920x1080, with the full OpenGL runtime
+(`atioglxx.dll`, 25.3 MB) installed.
+
+Cause: `adapters[]` enumerates **display-class registry keys**, not bound
+devices. Index `0000` was a leftover `display.inf` key (hardware id
+`pci\cc_0300`) with no device attached; the real AMD adapter was at `0001`. The
+**`display` block** in the same response was truthful all along
+(`driver_desc: AMD Radeon HD 5450`, 1920x1080x32@60).
+
+**Never conclude "no driver" from `adapters[0]`.** Corroborate with
+`wmic path win32_videocontroller get name,pnpdeviceid,driverversion,status`
+(live devices only) plus a desktop screenshot at a real resolution.
+
+Two related blind spots, so absence is never evidence here:
+- **`PCISCAN` returns `pci_display_devices: []` on Windows 7** — it walks the
+  Win9x/XP `Enum\PCI` layout, which Win7 does not populate the same way.
+- A **Voodoo 2 is `Class=MEDIA`**, so it never appears in any display
+  enumeration at all (this is why .171's Voodoo 2 was repeatedly "missing").
+
+Cost: a fabricated blocking task ("fix the video driver first, may need a
+reboot") on a box that needed neither, plus the risk of a reboot request going
+to the user for no reason.
+
+---
+
+## F5 on the XP desktop re-flows every icon into auto-arrange and destroys the icon bay (2026-08-29)
+
+On `NSC-B20C188E96D` (**.123**) the Recycle Bin was hidden to meet the "only
+staged-game icons plus Retro Agent and Retro Chat" desktop standard:
+
+```
+reg add "HKCU\...\Explorer\HideDesktopIcons\NewStartPanel"  /v {645FF040-5081-101B-9F08-00AA002F954E} /t REG_DWORD /d 1 /f
+reg add "HKCU\...\Explorer\HideDesktopIcons\ClassicStartMenu" /v {645FF040-...} /t REG_DWORD /d 1 /f
+```
+
+The registry half is correct and the Recycle Bin does disappear. **The mistake was
+refreshing the shell with a desktop click + `UIKEY F5`.** That refresh makes
+explorer re-flow *every* icon into auto-arrange columns starting at x=0,y=0 — all
+32 shortcuts marched up the left edge, on top of the wallpaper's "GAME LIBRARY"
+header and outside the bay entirely. The `LVM_SETITEMPOSITION` placements that
+`gamesync.c:gs_arrange_icons()` had just made were gone.
+
+- **Refresh with `SHChangeNotify(SHCNE_ASSOCCHANGED, ...)`, never F5**, when you
+  change a desktop-icon registry value. (This is exactly why the hide-Recycle-Bin
+  helper written the same day calls SHChangeNotify and avoids both F5 and
+  `taskkill explorer` — on XP explorer does not come back from a `taskkill /f`.)
+- **If you have already pressed F5, the repair is `GAMESYNC RESET` + `GAMESYNC START`.**
+  It re-runs `gs_arrange_icons()` at the end of the pass, and because
+  `gs_copy_file()` treats an identical-sized destination as done, a fully-synced
+  20 GB library re-verifies in ~20-35 s rather than re-copying. Cheap enough to
+  use as the standard "put the icons back" lever.
+- Related: the arrangement is **not** perfectly dense. Explorer will not stack two
+  icons on one cell, so a slot or two ends up skipped and the tail icons shift.
+  All icons still land inside the bay on bay cells; this is cosmetic, not drift
+  between `icon_bay.json` and `gs_icon_bay()`.
+
+## On Windows 7 the agent's XP-era Themes-disable strips Aero AND silently loses the retro wallpaper (2026-08-29)
+
+`ADMIN-PC` (**.246**, Win7 Pro RTM 6.1.7600, Sandy Bridge, AMD HD 5450) had an
+**empty** `HKCU\Control Panel\Desktop /v Wallpaper` even though `agent.log` said
+the work had been done:
+
+```
+[09:15:44] retrowall: Themes service set to Disabled
+[09:15:45] retrowall: wallpaper set to C:\retro-wall\retrowall_1920x1080.bmp (screen 1920x1080)
+```
+
+Both lines are true and the second one still ends up with nothing set. On XP the
+Themes service only paints Luna, so stopping it is exactly right. **On Win7 that
+service owns wallpaper application**, so `SystemParametersInfoA(SPI_SETDESKWALLPAPER)`
+returns success into the void: the value does not persist, and Aero is stripped
+as collateral. With `sc config Themes start= auto` + `sc start Themes` the very
+same call sticks first time (`SPI_result=True`, value reads back).
+
+Cause: `agent/src/retrowall.c:apply_hacker_theme()` calls `stop_and_disable_themes()`
+**unconditionally — there is no OS-version gate**, and no registry off-switch.
+So this is not a one-time mess to clean up: **every agent start re-disables Themes**,
+and the wallpaper goes again on the next reboot. The durable fix is to gate that
+call (and the `SetSystemVisualStyle(classic)` next to it) to pre-NT6 only.
+
+Two traps while fixing it by hand:
+- **Do not "just restart the agent" to re-apply the wallpaper** — that re-runs
+  retrowall and re-disables Themes, undoing the fix you just made. Set it with a
+  direct `SPI_SETDESKWALLPAPER` call instead.
+- Win7 RTM ships **PowerShell 2.0**: `Get-ChildItem -File` does not exist there
+  (`ParameterBindingException`), and the failure is easy to miss because the
+  CLIXML error stream interleaves with good output and every size sums to 0.
+  Use `| Where-Object {-not $_.PSIsContainer}`.
+
+Related: the desktop icon bay is **left-hand** in the current wallpaper
+(`_desktop/icon_bay.json`, 1920x1080 -> x=34,y=66, 8x12). "Icons bottom-right" is
+the *old* `arrange_icons.exe` behaviour that `gamesync.c:gs_icon_bay()` deliberately
+replaced — see its comment about the art and the icons sitting on top of each other.
+
+---
+
+
 ## A driver INF with no binaries hangs DRVUPDATE on an invisible "Files Needed" dialog (2026-08-29)
 
 `DRVUPDATE PCI\VEN_1002&DEV_9515` on **.123** (NSC-B20C188E96D, Radeon HD 3850 AGP)
