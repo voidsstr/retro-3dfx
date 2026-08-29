@@ -58,6 +58,25 @@ only knows Daemon Tools fails on them.
   unfinished. Red Faction is in that state: it stops on "Insert Red Faction
   CD #2" and no image exists to mount.
 
+**Choosing the marker a mount script checks for: a missed mount fails loudly, a
+WRONG MATCH fails silently.** `Play Descent 2.bat` used `MARKER=AUTORUN.INF` to
+decide whether its disc was already mounted. **Every game CD has an
+AUTORUN.INF**, so it matched a mounted *StarCraft* disc, skipped mounting its own
+image, and launched Descent 2 against the wrong CD - while reporting success.
+That is far worse than failing to mount, which is at least visible.
+
+Picking a marker is not obvious, either. For StarCraft the two images share
+almost everything:
+
+    STARCRAFT.iso and BROODWAR.iso both contain:  AUTORUN.INF, INSTALL.EXE,
+                                                  ISP, SETUP.EXE
+    unique:                                       SC.ICO (StarCraft only)
+                                                  BW.ICO (Brood War only)
+
+so even `INSTALL.EXE` fails to separate the two games of the same title. The
+recipe: **match on a file unique to that specific disc; when nothing unique
+exists, match on the volume label alone** - never on a file every CD carries.
+
 **Related failure signature, from the same pass (Red Alert 2).** `game.exe` and
 `gamemd.exe` launched directly **exit with code 0 in under a second - no window,
 no dialog, no crash log**. That silence is what makes a CD stage so easy to
