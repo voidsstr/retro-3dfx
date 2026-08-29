@@ -200,6 +200,48 @@ Fleetbook: recipe `xp-no-sound-sysaudio-kmixer-devnodes-failed-install-sound-bl`
 
 ---
 
+## Optimising a driver: establish the regime before you optimise anything (2026-08-29)
+
+From the Voodoo 2 ICD work on .171. Six agents produced ranked optimisation
+candidates with percentage estimates; almost none survived contact with the
+hardware, and the two cheap measurements below would have retired most of them
+before a line was written.
+
+- **Fit the frame-time model first.** Run the same timedemo at three
+  resolutions and fit `t = a + b·pixels`. On .171: 80.5 / 57.2 / 37.2 fps at
+  512×384 / 640×480 / 800×600 → **a = 2.4 ms fixed CPU, b = 5.10e-5 ms/px**.
+  That says fill-rate bound, and therefore that every CPU-side micro-optimisation
+  on the list was competing for at most ~14% of frame time. Worth knowing before
+  ranking anything.
+
+- **Find a switch that removes the work entirely, and measure that ceiling.**
+  Two agents independently estimated +12% for routing `glTexSubImage2D` through
+  the partial-download path. `gl_dynamic 0` removes those uploads completely and
+  bought **+0.7%** (57.2 → 57.6). Ceiling established in one run; risky
+  texture-upload surgery correctly skipped.
+
+- **Estimates from code reading are not measurements.** `-mtune=pentium4` on the
+  ICD (the box IS a Pentium 4, estimate +3%) measured **exactly neutral**.
+  Meanwhile the one change that did pay — withdrawing `GL_EXT_point_parameters`,
+  an extension we advertise but do not accelerate — was **+12.2%** and came from
+  noticing an asymmetry in the game's own log, not from profiling.
+
+- **A silent `LoadLibrary` failure looks like nothing.** Adding profiling
+  counters introduced a 64-bit divide, which pulled in a libgcc helper, which
+  added an import on `libgcc_s_dw2-1.dll` — absent on the retro boxes. Quake II
+  then reported only `could not load "retrogl"` with no hint a DLL was missing.
+  **Link retro-targeted DLLs with `-static-libgcc`** and check
+  `objdump -p | grep "DLL Name"` after any change.
+
+- **Five theories for the same 22 ms, all refuted on hardware** (texture
+  thrashing via `gl_picmip`; the `glClientActiveTextureARB` flush; per-vertex
+  texcoord submission; redundant `grTexCombine`; Mesa x86 vertex codegen). The
+  profiler then showed the cost is neither the TNL pipeline (5.33 vs 5.50 ms)
+  nor state setup (2 calls/frame, not thousands) nor vertex count (4728 vs 4716
+  — identical). Still unattributed; recorded so nobody re-walks those five.
+
+---
+
 ## A Voodoo 2 is invisible to every display-class check, and its XP driver installs itself dead (2026-08-28)
 
 Preparing a Voodoo 2 (and a second card for SLI) on a fleet XP box. Three
