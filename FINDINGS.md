@@ -479,6 +479,23 @@ key cannot simply be typed into the registry. The share holds no Halo 1 key
 thing as the crack. Tree is built and ready at
 `Files/tmp/halo-build/Halo Combat Evolved/`, one rename from `Games-Library/`.
 
+**Follow-up: the key that was later supplied is rejected by Microsoft's own
+validator, and the harness that says so is itself unproven.** `halo.exe` reads
+`DigitalProductID`, which is a *derived* value — writing the plain 25-character
+key there as `REG_SZ` does not satisfy it. `mgspid.dll` (shipped in the tree,
+one export `GetPid`) carries Microsoft's real "Please Enter your Product Key"
+dialog; driven both by hand and headlessly it answered **"Invalid CD Key!"** and
+wrote nothing. But `GetPid`'s signature is undocumented and was inferred from
+disassembly — its first arg is stored as a bare dword and might be a *product
+code* rather than the window handle passed — so the rejection may be the harness,
+not the key. **That distinction was not resolved, and the key must not be
+recorded as bad on this evidence.** Two watch-outs found on the way: Halo's
+startup checks are ordered, so with the wrong working directory it fails earlier
+on `Cannot find 'C:\config.txt'` and that is *not* evidence the key passed; and
+a screenshot taken while another agent had Red Alert 2 fullscreen on the same box
+was very nearly reported as "Halo is running" — check `WINLIST` for the window
+that owns the screen before attributing a frame to your title.
+
 **Case-insensitivity bites on the SHARE too, not just in greps.** Copying the
 patched `Strings.dll`/`Keystone.dll` up and then deleting the old
 `strings.dll`/`keystone.dll` deleted *the files just copied* — same file, and
