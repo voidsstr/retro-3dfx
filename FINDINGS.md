@@ -14,6 +14,67 @@ it until a Voodoo card goes back in.
 
 ---
 
+## Two engines in one family give two different answers — measure each (2026-08-30)
+
+`GLQUAKE.EXE` and Hexen II's `glh2.exe` are the same lineage, look alike, and
+were treated alike. On **.145** (GeForce 8400GS, 1920x1080 panel), from the
+same desktop mode, minutes apart:
+
+| | 1920x1080 | 1600x1200 | 1280x960 |
+|---|---|---|---|
+| `GLQUAKE.EXE` | `Quake Error: "Specified video mode not available"` | same error | **fullscreen, renders** |
+| `glh2.exe` | **fullscreen, renders** (window class `HexenII`, 0,0–1920x1080) | — | — |
+
+So GLQuake's cap is real and its ceiling is **1280x960**, not the 1024x768 that
+had been guessed; and Hexen II has no cap at all. Inheriting one engine's
+limits from a relative cost every 1080p box a worse picture in one direction
+and would have shipped a broken launcher in the other.
+
+Corollary, with Tiberian Sun below: **a resolution cap is a claim about
+hardware and must arrive with the measurement that produced it.** The library
+now has exactly one cap (Quake 1) and a test that fails if a second appears.
+
+## The render device is per-box for the same reason the resolution is (2026-08-30)
+
+`Games-Library/UnrealGold/System/` and `Games-Library/Carmageddon2/` each ship
+a game-local nGlide `glide2x.dll` (1,310,720 B). **Game-local wins at load
+time**, so on the only two boxes that still have Glide silicon that wrapper
+shadows the real `system32\glide2x.dll` and the game gets neither the card nor
+a working wrapper — `grSstOpen` fails and UE1 falls back to the software
+rasterizer at 100% CPU. On **.171** that presented for a whole session as
+"UnrealGold crashes". It never crashed.
+
+Deleting the wrapper is the wrong fix: it is the only Glide path the other six
+boxes have. `FLEETRES.EXE` now reports `FR_GLIDE` by walking
+`HKLM\SYSTEM\CurrentControlSet\Enum\PCI` for `VEN_121A` **case-insensitively**
+— a Voodoo 2's INF is `Class=MEDIA`, so `EnumDisplayDevices` and `VIDEODIAG`
+both report it absent and the PCI enum is the only place it appears. Measured:
+`.171 = VEN_121A&DEV_0002`, `.143 = VEN_121A&DEV_0009&SUBSYS_0002121A`, `.145`
+none. The launcher moves the wrapper aside when it is 1 and **back** when it
+is 0; a one-way rename would strand it the moment a card came out.
+
+**Silicon present and "render through it" are different questions.** `.143`
+has a Voodoo5 5500 fitted but its monitor is on a GeForce 6800, so Glide would
+draw to a port nobody is looking at. Rendering on the 3dfx card is an explicit
+per-box opt-in, `HKLM\Software\RetroAgent\GlideRender` (REG_DWORD 1), set on
+`.171` alone.
+
+## `%%` outside a FOR loop is a silent no-op that reads correctly (2026-08-30)
+
+The first cut of that render-device block emitted `if "%%FR_GLIDE%%"=="1" (`.
+In a batch file `%%` is an escape **only inside a for loop**; anywhere else
+cmd.exe reduces it to the literal text `%FR_GLIDE%`, which is never equal to
+`"1"`, so the entire block does nothing and looks perfectly right in review.
+Same shape as every other defect this fleet has paid for: the tool reported
+success.
+
+The check that catches it has to be precise or it is worse than nothing — a
+FOR variable is one character and is never closed with a second `%%`, while an
+environment variable is `%%NAME%%`. Matching only the latter (and skipping any
+line with a `for`) is the difference between one true hit and **fifteen false
+ones across the library's mount launchers**.
+
+
 ## A game's own mode list is NOT evidence of the engine's ceiling (Tiberian Sun, 2026-08-30)
 
 Tiberian Sun's **Options -> Display -> Resolution Modes offers exactly three
