@@ -14,6 +14,318 @@ it until a Voodoo card goes back in.
 
 ---
 
+## Half-Life fell back to 400x300 because we asked a 1999 engine for 16:9 (2026-08-30)
+
+**Every widescreen box was running Half-Life at 400x300 — and it looked like a
+success.** The launcher said `-full`, the game really was fullscreen, the
+desktop mode really did change, no error appeared anywhere, and `install.reg`
+had already seeded a sane 1024x768. The five staged launchers passed
+`-w %FR_W% -h %FR_H%`, which on a 1080p panel is `-w 1920 -h 1080`.
+
+**The WON GoldSrc engine (1.1.0.8, `hw build 1792`) has a FIXED 4:3 MODE TABLE
+and no widescreen mode at all. Handed one, it does not degrade to the nearest
+sensible mode — it falls to the BOTTOM of its table, 400x300, and takes the
+whole desktop with it.**
+
+MEASURED on `.240` (1920x1080 panel), same launcher, one token changed,
+`DISPLAYCFG get` read after `+map crossfire`:
+
+| switch | resulting desktop | window |
+|---|---|---|
+| `-w 1920 -h 1080` | **400x300** | 400x300 |
+| `-w 1280 -h 960` | 1280x960 | 1280x960 |
+| `-w 1280 -h 1024` | **1280x960** — silently remapped to 4:3 | 1280x960 |
+
+Fixed by switching all five launchers to **`%FR_W43% / %FR_H43%`**, the pair
+`FLEETRES.BAT` already publishes for exactly this case ("resolution for an
+engine that is 4:3-only"). A 4:3 CRT box gets the same answer from both pairs,
+so it costs those boxes nothing.
+
+**Why it survived:** it was invisible on the CRT boxes and broken on every
+widescreen one, and the failure mode was a *working game at a silly size*
+rather than an error. `install.reg` seeding 1024x768 also made the tree look
+correct on inspection — the registry is simply overridden by the switch.
+
+**The general rule:** `FR_W/FR_H` is for an engine that can do widescreen.
+Before using it, ask whether the engine has a mode TABLE. A pre-2000 engine
+usually does, and handing it an entry that is not in that table is not a
+graceful degrade.
+
+---
+
+## UT2004's browser queries a different PORT and PROTOCOL than our health probe (2026-08-30)
+
+**The fleet's UT2004 favourite showed the right name and `Ping N/A` for ever,
+while the host-side probe answered on that same server in 49 ms.** Server up,
+client unable to query it — and nothing on either side reported an error.
+
+A UT2004 server opens **two** query listeners and they are not interchangeable:
+
+| listener | port | protocol | who speaks it |
+|---|---|---|---|
+| `IpServer.UdpServerQuery` | **game port + 1** (7778) | Epic's **binary** query | the **in-game server browser**, and only this |
+| `OldQueryPortNumber` | game port + 10 (7787) | legacy GameSpy `\status\` **text** | third-party tools — *including ours* |
+
+`scripts/gameindex/sync.py` carries `query_port=7787` because that is where
+**our** GameSpy probe gets an answer, and the favourites writer reused that
+value verbatim. So the client sent its binary query to the GameSpy listener,
+which never replies.
+
+MEASURED on `.240` with three favourites differing only in `QueryPort`, and a
+UDP sink bound to the third:
+
+```
+QueryPort=7778   -> name resolved to "NSC Retro Fleet Arena", DM-Rankin,
+                    0/12 players, ping 54
+QueryPort=7787   -> N/A
+QueryPort=29000  -> N/A, and the sink logged the client's actual query as
+                    b"\x80\x00\x00\x00\x00"  -- the binary UdpServerQuery,
+                    NOT \status\
+```
+
+So the client honours `QueryPort` verbatim and speaks only the binary protocol.
+Fixed by deriving it as **game port + 1 per server** (`_ut2k4_query_port()`) —
+hard-coding 7778 would fix the fleet server and break every other one a master
+hands us.
+
+**UT99 is deliberately untouched**: its browser speaks the same GameSpy protocol
+our probe does, so there the probed port IS the right one — and it happens to be
+port + 1 as well. **That coincidence is the whole reason this stayed invisible**:
+one server where the two meanings of "query port" agree, one where they do not,
+and a single field carrying both.
+
+---
+
+## The current agent could not LOAD on Windows 98 — seven NT-only static imports (2026-08-30)
+
+**`.243` (`N5R5L9`, Win98SE, Pentium P54C) was stranded on agent 1.30.0 while
+the fleet ran 1.78.0, and 1.78.0 would not start there at all — it wrote NO log
+file, so `main()` was never reached.** `agent/src/main.c` names that exact
+symptom at its `log_init()` call: no `main() entered` line means the failure was
+at **EXE LOAD**, before a single instruction of ours ran.
+
+Diffing the PE **import tables** of the 1.30.0 that runs on that box against the
+1.78.0 that does not produced seven new names, every one NT-only:
+
+| import | source site | why 9x cannot resolve it |
+|---|---|---|
+| `OpenSCManagerA` `OpenServiceA` `ControlService` `QueryServiceStatus` `CloseServiceHandle` `ChangeServiceConfigA` | `retrowall.c` (stopping the Themes service) | **Windows 9x has no Service Control Manager** — its `advapi32.dll` exports none of that family |
+| `CM_Get_DevNode_Status` | `gamesync.c` (driver reclaim / missing-driver scan) | `setupapi.dll` on NT, **`cfgmgr32.dll` on 9x** |
+
+**A static import the loader cannot resolve kills the WHOLE PROCESS at load
+time.** No lazy binding, no error dialog, nothing on the box to point at it —
+identical, from the outside, to a machine that simply never boots its agent.
+
+Fixed in agent **1.78.1**: all seven resolve at runtime through the new
+`agent/src/ntdyn.c` (`GetProcAddress`), degrading gracefully — on 9x
+`ntdyn_scm_available()` is false and retrowall logs *"no Service Control Manager
+on this Windows - leaving the Themes service alone"*. `video.c`'s own duplicate
+`CM_Get_DevNode_Status` loader was folded into the same module; `service.c`'s
+larger table (NT service-mode entry points) was always dynamic and was never
+part of this bug. Import count 240 → 233, and the diff is **exactly** those
+seven — nothing else moved. The pseudo-reloc list is still empty
+(`LIST == LIST_END`), so the two dead CMOV helpers stay unreachable on a genuine
+Pentium.
+
+**Three things worth carrying forward:**
+
+- **A source grep would not have caught it, and did not.** `OpenSCManagerA(...)`
+  is perfectly ordinary C, and both offending files sat right beside modules
+  that already resolved the same names dynamically (`service.c`, `video.c`).
+  ONE direct call anywhere recreates the import. So the guard is a **PE
+  import-table assertion on the BUILT binary** —
+  `tests/python/test_agent_win9x_imports.py`, confirmed to fail on the
+  origin/master build (all seven found) and pass on the fix.
+- **Do not widen the ban list by resemblance.** The four `SetupDi*`,
+  `AdjustTokenPrivileges`, `OpenProcessToken` and `LookupPrivilegeValueA` are
+  imported by 1.30.0 **as well**, and that binary runs fine on this box. The
+  test asserts they are STILL imported, so a later "cleanup" cannot quietly
+  delete working functionality in the name of 9x safety.
+- **This became a safety mechanism the moment 9x auto-update started working.**
+  `spawn_helper()` passing `lpThreadId = NULL` is accepted by NT and **rejected
+  by Win95/98 with error 87**, so on 9x the `autoupdate`, `retrowall`,
+  `watchdog`, `dosstage` and `sharelog` threads silently never started — which
+  is the only reason `.243` never pulled the unloadable binary and bricked
+  itself. With that fixed, a 9x box now auto-updates like any other, and a
+  future NT-only import would take it dark with **no supervision at all** (the
+  `RetroAgent` Run key fires only at logon; recovery needs someone at the
+  keyboard).
+
+**Independent confirmation that `.243` has no remote route while its agent is
+down:** `nmblookup -A` returns `N5R5L9<00>`, `<03>` and `WORKGROUP<00>` and
+**no `<20>`** — the File Server Service name. File and printer sharing is not
+enabled, so SMB/impacket cannot reach its filesystem even though 139 is open.
+No agent + no `<20>` = keyboard.
+
+---
+
+## The Pentium 1 was refused every DOS game by a floor that described DOSBox, not the game (2026-08-30)
+
+**Four staged titles — Descent 1, Descent 2, Carmageddon 1, Redneck Rampage —
+each stated `min_cpu_mhz` 350-400 at the TITLE level of `requires.json`, with a
+note that said so in as many words: *"the floor is the emulator's host cost"*.**
+It is: DOSBox needs roughly a gigahertz to emulate a 486. But the title-level
+floor is what decides whether the tree is **copied at all**, so the fleet's only
+genuine Pentium 1 (`.243`, Compaq Deskpro 2000, Win98 SE) received none of them
+— while **the DOS binaries those emulators are running are native to that
+machine and above spec for it**. Descent 1's own `DESCENT.FAQ`, staged in its
+tree, puts the requirement at *"486 or Pentium processor, 8 MB RAM"*.
+
+The explanation was sitting in the file the whole time. **A cost a WRAPPER pays
+must be stated on the shortcut that pays it**, never on the title. Moved into
+`shortcuts` (the schema already supported it — it is the BF1942 disc-mount
+case); the gate simulation for that box went from `1 run / 5 marginal / 31 no`
+to `3 run`, with all five Descent 1 icons correctly suppressed and each saying
+why.
+
+**A title-level `requires_capabilities` has the same shape and was ALSO wrong.**
+Shortcut rules inherit the title level, so Descent 2's title-level
+`disc_mount` suppressed **both** its shortcuts — including the DXX-Rebirth one
+whose own launcher header reads *"NO DISC, NO MOUNTER"*. On `.123` and `.246`,
+neither of which has a mounter, **Descent II has had no desktop icon at all**
+and nothing said why. (`"requires_capabilities": []` on that shortcut clears it;
+an absent list would not — presence decides, not value.)
+
+## DXX-Rebirth's CMOV floor is in a DLL its launcher never mentions (2026-08-30)
+
+`d1x-rebirth.exe` and `d2x-rebirth.exe` carry **0 CMOV**, so counting
+instructions in "the game" finds nothing and the title reads as safe for a
+Pentium 1. The floor is in the **load-time imports**: `d1x-rebirth.exe`'s import
+table names `SDL.dll` (**286 CMOV**) and `SDL_mixer.dll` (**117**), which map at
+process start; `libmikmod-2.dll` (**544**) sits behind SDL_mixer. Neither
+`SDL_mixer.dll` nor `libmikmod-2.dll` contains a single `cpuid`, so there is no
+dispatch and the i686 baseline is unconditional.
+
+This corrects an earlier note in `retro-agent/scripts/gamegate/SCHEMA.md` which
+said a Pentium 1 "faults there when music initialises, not at startup" — the
+import table says the exposure begins at load.
+
+**The same binaries give the OPPOSITE answer for MMX**, and that is the point of
+the discriminators: `SDL.dll` has 73 MMX-register references, **14 `cpuid`
+sites**, and exports `SDL_HasMMX`/`SDL_HasSSE`/`SDL_Has3DNow`. That is a runtime
+dispatch, so declaring `mmx` would refuse the title on machines that run it
+perfectly. **Look past the executable named in `launch.txt` to what it imports.**
+
+## The DOS menu could not find the DOS build in a staged tree (2026-08-30)
+
+`DOSGAME.EXE` already scans `C:\GAMES`, which is exactly where `GAMESYNC`
+deploys a staged title — so the games were in front of it all along. What it
+could not do is pick the launcher, because a staged tree is built for **Windows**
+and carries a DOSBox, several `Play <Game>.bat` wrappers and Win32 binaries
+beside the DOS ones. Measured in DOSBox against the real file lists:
+
+| directory | the guess picks | what that is in real DOS |
+|---|---|---|
+| `C:\GAMES\QUAKE1` | `GLQUAKE.EXE` | a Win32 PE |
+| `C:\GAMES\DESCENT1` | `DESCENT1.BAT` | a cmd.exe batch, opening with `cd /d` |
+
+Not a bug in the heuristic — no ranking of 8.3 names can tell which of two real
+executables is the DOS one. The tree now says it, in `DOSGAME.TXT`
+(`<8.3 launcher><TAB><title>`). **The file's own name had to be 8.3**: a
+`dosnative.txt` reaches real DOS as `DOSNAT~1.TXT`, a mangled alias that depends
+on what else is in the directory.
+
+## Every staged `Play *.bat` is cmd.exe-dialect, and the Pentium 1 is COMMAND.COM (2026-08-30, UNVERIFIED ON HARDWARE)
+
+Every launcher in the staged library opens with `call "%~dp0FLEETRES.BAT"` and
+`cd /d "%~dp0"`, and several end `start "" GAME.EXE`. **`%~dp0`, `cd /d` and
+`start "<title>"` are all NT/cmd.exe extensions**; Win9x `COMMAND.COM` has none
+of them. That includes `Play Quake - Software.bat` — the single Windows shortcut
+the capability gate approves for `.243`. If true on hardware, every staged
+Windows shortcut on a Win9x box is a desktop icon that does nothing.
+
+Flagged rather than fixed: it is a library-wide change and it needs one `EXEC`
+on that box to settle. **Test it before believing a Windows shortcut works on a
+Win9x machine.**
+
+## `.243`'s RAM was 31 MB in the docs and 127 MB in the machine (2026-08-30)
+
+A whole gate simulation was built on the documented 31 MB and several of its
+refusals were RAM-driven and simply wrong. The SIMMs had been changed and
+nothing recorded it — the same shape as `.124`'s Voodoo 3 and `.133`'s Voodoo5
+6000. On this box the binding constraint is **617 MB of free disk**, which is
+what `disk_mb` in `requires.json` exists for, and which no amount of CPU
+reasoning would have found.
+
+## A retail 436 UT99 client DOES join our 469e server — the claim that it cannot was never measured (2026-08-30)
+
+**Three fleet boxes were recorded as having "no route to UT99 multiplayer", and
+a task was raised to stand up a second, 436-compatible dedicated server. None of
+it was necessary.** `.124`, `.133` and `.143` cannot run any 469e client — that
+part is real and stands (SSE2, see the entry below) — but the retail **436**
+tree the library already stages joins the fleet's **469e** server perfectly.
+
+**Measured, two boxes in one match, both ends screenshotted:**
+
+| | |
+|---|---|
+| `.143` | Athlon K7, `fpu,mmx,cmov,3dnow` — **no SSE at all** |
+| `.133` | dual Pentium III, `fpu,mmx,cmov,sse` — **SSE1, no SSE2** |
+
+Server log for each, on the live `ut99-server` (`:7797`):
+
+    Open MyLevel ... 192.168.1.143:1301
+    Level server received: HELLO REVISION=0 MINVER=400 VER=436
+    Level server received: JOIN
+    Join succeeded: pigga
+
+and the scoreboard on `.143` then listed both humans (`pigga` ping 18,
+`Player2` ping 19) beside four bots at ping 0, while `.133` rendered live play.
+
+**The client's own browser states the rule.** `.143`'s 436 LAN Servers tab shows
+`NSC Retro Fleet Arena (UT99)` at ping 19 with a rules panel reading
+**`Game Version 469` / `Min. Compatible Version 432`**. UT99's join is a
+**VERSION handshake with a floor** — not a package-hash or ServerPackages check.
+469e's `GetMinNetVersion()` returns 432 and our server's ini already carried
+`MinClientVersion=432`; 436 clears it.
+
+**Why the wrong claim survived.** Every source agreed with every other because
+they were all copies of one unmeasured inference — FINDINGS.md, both
+`requires.json` notes, and the task brief. Three cheap checks each refuted it and
+none had been run: OldUnreal's own `ReleaseNotes.md`, shipped **in the server
+directory**, says in five separate places that "Version 469x is completely
+network compatible with all previous public releases of UT (down to 432)"; the
+live ini says `MinClientVersion=432`; and the staged
+`Join fleet UT99 server - 436.bat` **already carried a hardware verification
+from the previous day** saying it joined first time. The correct claim was
+sitting inside the library while the docs said the opposite.
+
+**The lesson is the one this repo keeps paying for, inverted.** The usual failure
+is a tool reporting success that nobody checks. This is the mirror image: a
+*failure* nobody checked, which is worse, because it is self-confirming — nothing
+ever tries the thing again, so no evidence ever arrives to contradict it, and the
+remedy proposed (build a second server) would have added a duplicate entry to
+every box's browser and a second config to keep in step, permanently.
+
+**Do not re-derive; do not build a second UT99 server.** Pinned by
+`retro-agent/tests/python/test_ut99_436_compat.py`, which also forbids the false
+sentence returning to either `requires.json`.
+
+### Two real defects found on the way, both still live
+
+- **GAMESYNC reverts the favourites agent's UT99 work.** `.143`'s 436 favourites
+  were back to the three internet servers the library ships, while `.124` still
+  had the agent's seventeen — the staged `UnrealTournament.ini` is re-copied over
+  whatever was written. Same shape as the `.171` case already logged. **Fixed for
+  this title by pinning the fleet server into the STAGED favourites** (slot 0,
+  query port **7798** — UT99 answers GameSpy on game port + 1), so it survives a
+  sync. The general problem is the favourites agent's to own.
+- **The earlier "UT99 browser proven on `.143`" row in this log has no screenshot
+  behind it.** `/tmp/retro-screenshots/fav/143-ut99-browser.png` is the
+  *Multiplayer menu*, not the browser, and no shot in that set shows a server
+  list. The claim happened to be true — it is now genuinely screenshotted — but
+  it was filed ahead of its evidence.
+
+**UWindow menu mechanics, since this cost an hour.** Windowed is necessary but
+not sufficient. One `UICLICK` on a menu-bar item only **arms** it (UWindow sets
+its selection from the mouse *move*, so the click is consumed); a second opens
+the dropdown. A dropdown item then activates on a single further click. Getting
+that wrong looks exactly like "the browser will not open" — it never opened on
+`.124` across four attempts, and the identical sequence with the arm click
+accounted for opened it first time on `.143`.
+
+---
+
 ## The staged-library validator is SHARE-BOUND, and 24 of them will deadlock each other (2026-08-30)
 
 `scripts/validate-staged-library.py` walks every title's whole tree over CIFS.
@@ -1711,11 +2023,18 @@ profiler collects but no title ever *requires* is indistinguishable from one tha
 does not work. Sweep `requires.json` for other titles whose real floor is an
 instruction set rather than a clock speed.
 
-**The fleet-level consequence, which is a decision rather than a bug:** the
-fleet's `ut99-server` runs 469e, a 436 client cannot join it at all, and `.124`,
-`.133` and `.143` cannot run a 469e client. **Those three boxes therefore have no
-route to UT99 multiplayer** until either a 436-compatible server is stood up or a
-non-SSE2 469 build is found. The incoming Pentium-1 is a fourth.
+**The fleet-level consequence:** `.124`, `.133` and `.143` cannot run a 469e
+client, and the incoming Pentium-1 boxes are a fourth and fifth.
+
+> ### ⚠️ CORRECTED 2026-08-30 — the second half of this paragraph was WRONG
+> It used to continue *"a 436 client cannot join it at all ... those three boxes
+> therefore have no route to UT99 multiplayer until either a 436-compatible
+> server is stood up"*. **That was an inference from version numbers that nobody
+> had measured, and it is false.** The staged retail **436** tree joins our
+> **469e** server: the join is a version handshake with a floor of 432, which
+> 469e advertises and our ini already set. Verified two-box on hardware with
+> screenshots of both ends — see the top entry, *"A retail 436 UT99 client DOES
+> join our 469e server"*. **No second UT99 server exists, and none is needed.**
 
 ---
 
