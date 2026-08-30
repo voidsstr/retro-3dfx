@@ -424,6 +424,24 @@ Findings worth keeping from building it:
   creates a second thing to go stale. The generated file had to become the
   single source of truth for every measured field, with CLAUDE.md reduced to
   the prose a probe cannot discover. Half the work was deletion.
+- **`CopyFile` PROPAGATES THE SOURCE FILE'S TIMESTAMP, and that silently broke
+  the staleness test.** The publisher first wrote a local temp file and
+  `CopyFileA`'d it to the share, so every record arrived stamped with the RETRO
+  BOX's clock — which is precisely the clock the host-side renderer judges age
+  by mtime in order *not* to trust. Measured on `.124` (clock two hours fast),
+  two files written to the same share directory seconds apart:
+  `echo >` gave mtime **12:55:58** (the file server) and `copy` gave
+  **14:56:31** (the box). The tell was that seven of eight records had an mtime
+  byte-identical to their own `reported_at`. Fixed in agent **1.77.1** by
+  writing straight to the share in one `CreateFile`+`WriteFile`, so the server
+  stamps it. Nothing looked wrong: every record was present, correct and
+  recent, and it would only ever have surfaced as one box being called stale
+  forever while publishing on every boot.
+- **Write to the FINAL name, not a temp name renamed into place.** A reader
+  catching a partial file renders as `unreadable` — honest, and self-healing on
+  the next publish. Delete-then-rename would briefly show no file at all and
+  render as `never seen`, i.e. "this box has never reported". Of the two
+  possible lies, pick the less misleading one.
 - **Two clocks, and only one of them is trustworthy.** Staleness must be judged
   by when the record landed on the dev host, never by the timestamp inside it:
   a retro box's RTC is frequently years out, and a record published thirty
@@ -462,6 +480,13 @@ Findings worth keeping from building it:
   (`hwpub_utf16le_narrow()`), in BOTH readers — `hwextra.c`'s and
   `hwprofile.c`'s `reg_str()`. Anything neither string nor UTF-16 now yields
   nothing rather than a byte soup that reads as a short name.
+- **Every field in the document is a SNAPSHOT and must be labelled as one.**
+  The fleet moved through 1.74 → 1.77 while this was being built, and each
+  restart made the boxes republish themselves unprompted (the mechanism works),
+  but a committed render still carried the version true at generation time. A
+  reader has to be able to tell "what `.143` SAID at 12:47" from "what `.143`
+  IS" — so the agent version sits beside the measurement time in the summary
+  and every machine's section leads with "As this box reported itself at HH:MM".
 - **The first generated inventory corrected the hand-written one immediately**,
   on facts nobody would have re-checked: `.145`/`.246` have **3316/3317 MB**,
   not the "2047 MB" that was `GlobalMemoryStatus` saturating and being copied
