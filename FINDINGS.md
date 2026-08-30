@@ -240,6 +240,71 @@ indistinguishable - and both of those were true here at different times.
 
 ---
 
+## A one-title `gamegate publish` REPLACES a box's whole verdict file, and the truncated file parses perfectly (2026-08-30)
+
+Staging Halo, I published its gate verdict with
+
+    gamegate.py --refresh publish --title Halo <all eight IPs>
+
+and that **overwrote seven boxes' complete 38-title verdict files with a
+one-row file each**.  Nobody noticed for half an hour because every truncated
+file was *well formed*: same `# gamegate v1` header, same columns, same
+profile hash — it simply had 1 row where it should have had 38.
+
+**The rule: a per-title stager must not write the shared verdict file at all.**
+If a newly staged title needs a verdict published, trigger a **full** publish
+for those boxes. `--title` is for *inspecting* one decision, not for shipping
+one.
+
+**The part that actually costs something.** Every verdict in those files was
+`[rule]`-derived, so each box recomputes locally and nothing broke that day.
+But the point of publishing a file at all is to carry the verdicts **a Pentium
+III cannot compute** — the marginal-band adjudications the LLM was called in
+to make.  A truncated file silently drops exactly those.
+
+**And a second, worse write, from the same command.** The run also carried
+`--no-llm --refresh`, which inserted nine `marginal [rule]` rows over
+`(profile, title, shortcut)` keys that already had an LLM adjudication.  Rule
+and LLM verdicts do **not** overwrite each other — `cache.put()` stores a rule
+verdict under `model=''` and an LLM one under the model name — but
+`cache.get()` deliberately prefers the `model=''` row, and `decide_title()`
+only escalates to the model **on a cache miss**.  So a later, perfectly normal
+republish would have hit the rule row, returned `marginal`, and never
+re-escalated: the adjudication still in the database but unreachable, and the
+published file saying `[rule]` where a model had been consulted.  `marginal` is
+fail-open, so the box would still receive the title and nothing would look
+wrong.
+
+## I nearly reported a data-loss incident that never happened (2026-08-30)
+
+Repairing the above, I counted `decided_by='llm'` rows: **28**.  Minutes later,
+after my `DELETE`, I counted again: **19**.  Nine LLM verdicts apparently
+destroyed by my own repair.
+
+They were not.  The gate agent was **republishing all eight boxes concurrently**,
+with the model enabled, and its `--refresh` was deleting and rewriting rows the
+whole time I was measuring.  My two counts came from two different moments of
+somebody else's write.  A diff against the backup I had taken thirty seconds
+earlier showed the truth: **one** row gone (the one I meant to delete) and
+**eight** new `[llm]` rows appearing at 13:41:28–31 as the model re-adjudicated
+`.171`.  Nothing was lost.
+
+Two things saved it, and both are cheap:
+
+- **`cp -a` the SQLite file before touching it.**  The backup is what turned a
+  scary count into a two-line diff.
+- **Diff states, do not compare counts.**  A count is a scalar taken at an
+  instant; on shared state under concurrent writers it carries no information
+  about what changed.
+
+This is CLAUDE.md's *"check whether your MEASUREMENT is the broken thing"* rule
+in its most expensive form — I was one message away from reporting a fabricated
+incident against another agent's work, which is exactly the "phantom bug report
+is worse than no report" failure that section warns about.  **Before editing
+shared state another agent may be writing: back it up, and say so.**
+
+---
+
 ## A rejected CD key that was never actually tested: Halo, mgspid.dll and the wrong PIDGen (2026-08-30)
 
 Halo PC would not start ("Your product key is invalid", both Continue buttons
