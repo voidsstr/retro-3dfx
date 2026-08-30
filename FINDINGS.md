@@ -111,6 +111,43 @@ a common one.
 
 ---
 
+## `r_mode -1` is NOT universal across the id Tech 3 family (2026-08-30)
+
+`r_mode -1` plus `r_customwidth` / `r_customheight` is *the* id Tech 3 idiom for
+an arbitrary resolution, and applying it as a rule is wrong. Probed on **.145**
+(1920x1080 panel) with one identical `fleetres.cfg` — `seta r_mode "-1"`,
+`r_customwidth 1920`, `r_customheight 1080`, `r_fullscreen 1` — launched into
+each binary in turn and read back from `WINLIST`:
+
+| binary | window rect | verdict |
+|---|---|---|
+| `quake3.exe` (retail 1.32c) | **1920x1080** | branch present |
+| `jasp.exe` (Jedi Academy SP) | **1920x1080** | branch present |
+| `jamp.exe` (Jedi Academy MP) | **1920x1080** | branch present |
+| `sof2mp.exe` | **640x480** | **no `-1` branch** |
+
+**Every one of these binaries contains the string `r_customwidth`**, so the
+symbol table is not evidence either. SoF2's fork registers the cvar and never
+implements the branch; it does not error, it renders at the engine default.
+Silent, and indistinguishable from "the config did not apply".
+
+The replacement is a plain mode index — and it must come from the **id Tech 3**
+table, not id Tech 2's. They diverge exactly where it hurts:
+
+| index | id Tech 2 | id Tech 3 |
+|---|---|---|
+| 7 | 1152x864 (4:3) | 1152x864 (4:3) |
+| **8** | **1280x960 (4:3)** | **1280x1024 (5:4)** |
+| 9 | 1600x1200 | 1600x1200 |
+
+So handing `FR_Q2MODE` to a Quake III-family engine asks a 16:9 panel for a
+5:4 image — the squashed picture this whole mechanism exists to remove.
+`FLEETRES` now emits a separate **`FR_Q3MODE`**, which skips index 8 (5:4) and
+index 11 (856x480). On the four 1080p boxes it answers **7 = 1152x864**, the
+largest correctly-proportioned mode SoF2 can reach; **SoF2 cannot do 1080p at
+all**, and that is a real engine limit rather than a configuration failure.
+
+
 ## Two engines in one family give two different answers — measure each (2026-08-30)
 
 `GLQUAKE.EXE` and Hexen II's `glh2.exe` are the same lineage, look alike, and
