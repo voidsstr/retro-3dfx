@@ -14,6 +14,68 @@ it until a Voodoo card goes back in.
 
 ---
 
+## A favourites list can be written, reported "wrote N servers", and be unjoinable (2026-08-30)
+
+Extending the favourites agent (`scripts/gameindex/`) from the Quake family to
+the whole staged library turned up four faults **that all log as success**. The
+pass prints `wrote N servers` in every one of these cases:
+
+| fault | why it is invisible |
+|---|---|
+| **All ten fleet servers share one IP.** `best_servers` deduped by host IP to stop a big internet host eating all 16 slots. `192.168.1.132` is one host, so a box got Quake III *or* OpenArena, CS 1.6 *or* the no-blood server — never both. | the write succeeds; the list is just short |
+| **SoF2 and Jedi Academy keep data in `base`, not `baseq3`.** The Quake III writer targeted `baseq3\autoexec.cfg` for every q3-engine title, creating a directory the game never reads. | a file was written, at a path nothing loads |
+| **The agent reports a game's dir as the one the EXE was in** — for every Unreal-engine title that is `System\`, so appending `System` gave `...\System\System\UnrealTournament.ini`. | only shows up as a path that cannot exist |
+| **Unreal Gold and Deus Ex are the same ENGINE as UT99 and a different game.** They were about to be handed a list of UT99 servers. | 6 live servers written, none joinable |
+
+**The general rule: an engine is not a game.** Where a title keeps its
+favourites, and which of our servers it can actually join, are per-TITLE facts.
+The fleet's Half-Life is the sharpest case — the staged tree is **WON protocol
+46** and every fleet GoldSrc server answers **48**, so pointing it at them
+would produce a favourites list of entirely dead entries while reporting a
+clean write.
+
+### Read the format out of the game, do not infer it from Quake
+All three new writers came from the games' own files in `Games-Library`:
+- `System\UBrowser.u` (UT99/Unreal Gold/Deus Ex) carries the format as a
+  literal bytecode comment — `/* eg Favorites[0]=Host Name\10.0.0.1\7778\True */`
+  — and `Query()` passes field 2 to `FoundServer` as the **query port**.
+- `XInterface.u` declares `struct ServerFavorite {ServerID, IP, Port,
+  QueryPort, ServerName}` on `class ExtendedConsole` → `Favorites=(...)` under
+  `[XInterface.ExtendedConsole]` in `UT2004.ini`.
+- The staged CS 1.6 tree's own **`revSrvBrowser.dll`** contains the `printf`
+  template it writes into `config\ServerBrowser.vdf`, tab characters included.
+
+### The query port is NOT game port + 1
+The fleet disproves the convention with its own two servers: **UT99 is
+7797/7798 (+1) but UT2004 is 7777/7787 (+10)**. Anything that derives the
+query port reports our own live UT2004 server as down. Carry it.
+
+### Ordering a generated config by a live metric rewrites the whole fleet forever
+The favourites file was rendered in player-count order. Player counts change
+constantly, so the content hash never matched, so **every box was rewritten
+every five minutes** — the exact cost the "only if it changed" design exists to
+avoid. Measured on `.171`: two passes ninety seconds apart rewrote Quake III
+and both UT99 trees purely from reordering, with no server having come or gone.
+**Select by the live metric; render in a stable order** (here: ours first, then
+by address), and rank on *bucketed* counts so small fluctuations do not move
+the cut. UT99, CS 1.6, Quake II and UT2004 then sit unchanged pass after pass.
+
+### Two cheap guards worth copying anywhere we write into a game
+- **Never write while the game is running.** Quake III rewrites `q3config.cfg`
+  on exit and UT rewrites its `.ini` on exit, both from memory — a write
+  landing mid-session is thrown away at best, and at worst reverts what the
+  player just changed. One `PROCLIST` per box per pass is enough.
+- **Update, never create** (except a file whose normal state is absent, like
+  `autoexec.cfg`). A file's **absence is evidence**: a WON Half-Life at
+  `C:\Sierra\Half-Life` has no `revSrvBrowser` and therefore no
+  `config\serverbrowser.vdf`, and creating one writes a file nothing reads.
+
+Covered by `tests/python/test_gameindex_favorites.py` in the retro-agent repo,
+including a coverage assertion that no staged title may fall through to the
+generic "nobody has looked at this yet" reason.
+
+---
+
 ## A staged game's icon can be the WRONG game's artwork, and every structural check passes (2026-08-30)
 
 Three titles in `Games-Library` drew their desktop icon from the wrong file.
@@ -180,6 +242,78 @@ after. The fix is `apt install python3-psycopg2`. **Not** fixed by appending the
 user's site-packages to `sys.path`: that has a root service import code from a
 user-writable directory, which is a privilege-escalation route in exchange for a
 wall decoration.
+
+---
+
+## Before changing a staged tree for a failure, COUNT THE BOXES (2026-08-30)
+
+Two near-misses on the same day, in opposite directions, and both would have made
+things worse:
+
+* **Unreal Gold.** A crash on `.143` (`Critical: Failed blt: DD_OK` /
+  `UD3DRenderDevice::SetTexture`) was reported against the staged
+  `GameRenderDevice=D3DDrv.D3DRenderDevice`, with a suggestion to switch the
+  library to a modern UE1 render device. The **same staged tree with the same
+  line works on `.123` and `.145`.** Three good, one bad. The corroborating fact
+  is on that box, not in the tree: **Deus Ex — a different title and a different
+  engine build — reports `No fullscreen display modes found (DD_OK)` →
+  `3d hardware initialization failed` → `Bound to SoftDrv.dll` on `.143` too.**
+  That box's DirectDraw *mode enumeration* is broken. The agent that filed it
+  retracted it themselves.
+* **SiN and System Shock 2 on `.145`.** Same shape, mirror image: two unrelated
+  1999–2001 engines, one box, one signature.
+
+**The rule: one box failing where others succeed is a BOX problem. The staged
+tree is the control, not the variable.** Changing what every machine receives to
+rescue one degrades the working majority *and* hides the real fault so nobody
+ever fixes it.
+
+**The corollary that makes it actionable:** a per-box display-driver fault
+**follows the box across titles**, so the cheap confirmation is to check a second,
+unrelated engine on the same machine before touching any library file. That is
+what settled both of these, and it costs one launch.
+
+## Quake II config traps: TWO command buffers, and comments that execute (2026-08-30)
+
+Both found on SiN (a Quake II derivative), both general to the engine family, and
+both produce symptoms that point at the wrong thing.
+
+**1. `+set x y` is the EARLY buffer; `+x y` is the LATE buffer — and `autoexec.cfg`
+runs between them.** So a `+set` on the command line is applied *before*
+`autoexec.cfg`, and any `set` of the same cvar inside that file **silently
+overrides it**. Forcing SiN's renderer needed BOTH forms:
+
+    sin.exe +set vid_ref soft_real +set sw_mode 6 +vid_ref soft_real
+
+With only `+set`, `autoexec.cfg`'s own `set vid_ref "gl"` won and the game loaded
+the GL renderer anyway. With only the late `+vid_ref`, it crashed *sooner* —
+because the FIRST renderer load happens before the late buffer runs, on whatever
+the default already was. **Each half alone still failed, at a different point.**
+
+**The transferable diagnosis: a command-line override that appears to be ignored
+is usually a config file undoing it afterwards.** Grep the file the game execs
+before doubting the flag — and note the trap is sharpest when you are already
+*editing* that file, because you are configuring around the very thing beating
+you.
+
+**2. A quoted string may SPAN A NEWLINE, so a comment can become executable.**
+SiN's console printed `Line has unmatched quote, discarded.` twice, then
+`Unknown command "I"`, `"sixty"`, `"it"`. Cause: five `//` comment lines quoted a
+phrase **across a line break** — opening quote on one line, closing quote on the
+next. That puts the following line's `//` *inside* a string, so the comment
+marker stops working and the prose after the closing quote is executed as
+commands.
+
+It was **harmless only by luck**: every functional line sat above the damage.
+**Any `set` or `bind` added below a broken pair would have been silently
+swallowed** — which presents as "my config change is not taking", the exact wrong
+diagnosis. Check any Quake-family `.cfg` with:
+
+    awk '{n=gsub(/\x22/,x); if (n%2) print NR, $0}' autoexec.cfg
+
+(written with no double quotes of its own — the first version of that very line
+was itself the only unmatched-quote line left in the file, which is how easy this
+is to get wrong).
 
 ---
 
@@ -3069,3 +3203,145 @@ our clean-room stack** (which has no D3D HAL); the H5 HAL doesn't enumerate the
 DirectDraw/D3D fullscreen mode GoldSrc's (deprecated) D3D renderer wants. No
 Glide-fullscreen bypass exists for D3D (it must use DDraw mode enumeration).
 OpenGL is the correct GoldSrc path on 3dfx (as it always was).
+
+## 2026-08-30 — DOOM 3 cannot be staged: v1.3 gates the MAIN MENU on a local CD-key check
+
+The only Doom 3 copy on the share (`Files/Games/Windows XP/DOOM 3/`) is a
+Demonoid torrent container. Its three ISOs look genuinely retail — volume
+labels `DOOM3_1/2/3`, 2004 file dates, `pak000..pak004.pk4` stored as plain
+files, and SafeDisc's `DrvMgt.dll` still present (a repacker would have
+stripped it). The official id patch `DOOM 3 UPDATE 1.3.exe` is there too. So
+the *binaries* are publisher binaries and, on the face of it, stageable.
+
+It is still blocked, and the proof came from the bundled crack's own NFO
+(`PATCH/TNT.NFO`, TEAM TNT, 2005-05-25):
+
+  "v1.3 added more checks over v1.2. It does a local CD-Key check now as well
+   as the previous online CD-Key check **before you can even gain access to the
+   Main Menu**. This crack will allow you to play Single Player without a valid
+   Key..."
+
+Two things follow, and they are easy to get backwards:
+
+* **The 1.3 patch DOES remove SafeDisc** — the same NFO says "v1.2 and v1.3 do
+  not have copy protection. Previous versions used Safedisc." So no disc, no
+  mount launcher and no no-CD patch are needed. That part is solved.
+* **The 1.3 patch ADDS a local CD-key check that runs before the main menu.**
+  Single player is gated on it. So a key is not optional, not multiplayer-only,
+  and cannot be sidestepped by installing via direct file copy instead of
+  running the installer.
+
+The only key on the share is `DOOM SERIAL.txt`, shipped in the same torrent
+("THIS ONE IS OFFICIAL"). The NFO also notes 1.3 broke keygen keys — which
+means a key that still works in 1.3 is a *leaked real retail key*, not a
+generated one. Using it is worse provenance, not better.
+
+**So the blocker is exactly one artifact: a legitimate CD key.** Not the data,
+not the patch, not the DRM. Unblock it with the user's own retail key, or a
+GOG/Steam Doom 3. Do not reach for `PATCH/DOOM3.EXE` — that is the TNT crack.
+
+Retail data was extracted and left at `~/.cache/d3stage/iso/` (pak000-pak004 +
+game00.pk4 + retail Doom3.exe, ~2.4 GB) so that supplying a key is a short
+finish rather than another hour of ISO reads.
+
+**The general lesson: read the crack's NFO before deciding a title is clean.**
+It is the most precise available description of what the protection actually
+does, written by people who had to defeat it. Here it settled both questions —
+that SafeDisc was gone, and that the key check was not — in one paragraph.
+
+## 2026-08-30 — Far Cry staged from the GOG build; fleet GPUs are much better than the docs claim
+
+Staged `Games-Library/FarCry/` (3610 MB) from
+`setup_far_cry_2.0.0.9.exe` (GOG, DRM-free, = retail patched to 1.4),
+extracted with `innoextract --gog`. No key, no disc, no crack; all 57 PE files
+are XP-loadable (no SubsystemVersion >= 6.0).
+
+Two things worth remembering:
+
+* **The Far Cry engine has NO registry dependency at all.** `CrySystem.dll`,
+  `CryGame.dll` and `FarCry.exe` contain no `Software\...` string; everything
+  resolves relative to the working directory. That is why the launchers
+  `cd /d "%~dp0"` and why `install.reg` carries only an App Paths entry.
+* **Far Cry rewrites `System.cfg` on exit**, so a mode set once on a box sticks
+  and no redeploy corrects it. The launchers therefore `copy /Y` a staged
+  template over `System.cfg` every launch — the same class of problem as an id
+  engine rewriting `config.cfg`, solved the same way.
+
+**CLAUDE.md's hardware table is badly out of date and cost real reasoning time.**
+Measured 2026-08-30 across the eight live boxes:
+
+  .123  Athlon 64 4000+ 2403 MHz, 2047 MB, **Radeon HD 3850 AGP** (1002:9515)
+  .124  PIII 845 MHz, 511 MB, GeForce2 GTS (10DE:0150)
+  .133  dual PIII 701 MHz, **255 MB**, **GeForce4 Ti 4600** (10DE:0250)
+  .143  Athlon 1000 MHz (family 6 model 2 — K7, **no SSE**), 511 MB,
+        **GeForce 6800** (10DE:0041) alongside the Voodoo5 5500
+  .145  i5-2400 3093 MHz, 2047 MB, GeForce 8400GS (10DE:10C3)
+  .171  P4 2793 MHz, 509 MB, Intel 865G only (8086:2572)
+  .240  Athlon 64 3300+ 2403 MHz, 1534 MB, **Radeon 9800 XT** (1002:4E4A)
+  .246  i5-2400 3093 MHz, 2047 MB, Radeon HD 6xxx (1002:68F9), **Windows 7**
+
+So ".133 = Voodoo5 6000" and ".143 = Voodoo5 5500" describe the 3dfx card in
+the box, not the card driving the display. Three boxes carry a DX9-or-better
+GPU that the fleet docs do not mention at all. Verify with `VIDEODIAG` before
+reasoning about what a box can run.
+
+---
+
+## Fleet capability gaps (appended 2026-08-30 by the retro-agent coordinator session)
+
+*Appended at the end rather than inserted newest-first: this file was already
+modified by another session and the top of the file is where they collide.*
+
+### THREE BOXES HAD NO DISC MOUNTER, AND SEVEN STAGED TITLES SILENTLY DEPENDED ON ONE
+
+`.123`, `.246` and `.124` had **no disc-image mounter at all**; only `.133` and
+`.171` did. Seven already-staged titles mount a disc image from their launcher —
+**SystemShock2, Shogo, RedFaction, StarCraft, Descent2, Descent3,
+SoldierOfFortune2** — so on those boxes those titles had **never been able to
+work**, and nothing anywhere reported it. The launchers tolerate the failure,
+which is correct behaviour, but it means the gap is invisible until someone
+double-clicks the shortcut.
+
+The lesson generalises past mounters: **a runtime dependency that lives on the
+BOX rather than in the staged tree is invisible to every check we have.** The
+validator proves a title is internally consistent; `GAMESYNC` proves the files
+arrived. Neither can see that the machine lacks something the launcher needs.
+That is the gap the capability gate is being built to close, and a mounter is a
+first-class capability in it — note it is **software state, remediable**, unlike
+a GPU that simply is what it is.
+
+Installing Daemon Tools 3.47, for whoever does the remaining boxes:
+- **`/S` does not work.** It is a UPX-packed custom stub, not NSIS or Inno, so
+  the silent switch is simply ignored and you must walk the GUI:
+  Install → Next x3 → Close → **No** to its reboot prompt.
+- **The virtual drive does not appear until a reboot**, even though the `d347bus`
+  service already reads RUNNING. Do not conclude the install failed.
+- Check `LICSTATUS` first and reboot with `scripts/fleet/safe-reboot.py <ip>` —
+  never a bare `REBOOT`, because these boxes PXE boot first.
+- `.246` is **Windows 7**; confirm 3.47 is the right build there before walking
+  its installer.
+
+### A CRACK CAN LIVE IN A DLL WHILE THE MAIN EXE HASHES CLEAN
+
+Battlefield 1942's copy protection is **not** in `BF1942.exe` — that binary is
+clean in both the cracked and the original copy. It lives in
+`Mods\bf1942\Mod.dll`, which the repack had replaced with a **4,096-byte stub**
+carrying `tHIS iS a wIN 32 pROGRAM! -=[ tE ]=-`, exporting exactly the three
+symbols the engine looks up and doing nothing but `ExitProcess`. The genuine
+`Mod.dll` is SafeDisc 2 wrapped.
+
+**So verifying provenance by hashing the executable you launch proves nothing.**
+Check every binary the engine loads. A second, independent patch to `BF1942.exe`
+(50 bytes across 14 short runs, identical PE timestamp and size) was found first
+and would have been treated as the whole story.
+
+### TWO FLEET BOXES ARE NOT VINTAGE
+
+`.145` (DELL) and `.246` (ADMIN-PC, Windows 7) are **Sandy Bridge quad-cores**;
+every other box is a PIII or P4. Any claim of the form "the fleet cannot run X"
+is wrong unless it excludes those two, and they are the only realistic targets
+for the 2004-era titles being staged.
+
+Also: **`SYSINFO` reports no CPU MHz, no total RAM and no GPU name** on any box
+(`gpu: None` on all eight), and `VIDEODIAG.adapters[0]` lists stale registry
+keys rather than the live adapter. Neither is a basis for a hardware decision.
