@@ -14,6 +14,47 @@ it until a Voodoo card goes back in.
 
 ---
 
+## Publish the `.ver` sidecar LAST, and the dev host has TWO mounts of the share (2026-08-30)
+
+Two publish-path facts, both of which cost time today and neither of which is
+guessable from the docs as they stood.
+
+**1. `.ver` goes last — this is an ordering invariant, not a preference.**
+Auto-update compares the agent's compiled `AGENT_VERSION` against the share's
+`retro_agent.exe.ver` and pulls on **inequality**. So publish
+*versioned archive → latest pointer → `.ver` sidecar*: while the sidecar still
+names the OLD version, every box compares equal and correctly declines to pull,
+and there is no instant at which a box can fetch a binary whose version
+disagrees with the sidecar. Writing `.ver` first opens exactly that window, and
+because the comparison is inequality rather than "remote is newer", a box that
+pulls in that window can end up on a binary nobody intended.
+
+**2. "The share is read-only from the dev host" is HALF TRUE, and the false half
+is the expensive one.** There are two mounts of the same SMB share:
+
+| path | how | access |
+|---|---|---|
+| `/mnt/retro-share` | CIFS from `/etc/fstab` with an explicit `ro` flag | read-only; `cp` fails with *Read-only file system* |
+| `/run/user/1000/gvfs/smb-share:server=192.168.1.122,share=files,user=voidsstr` | gvfs, the desktop "mapped network drive" | **read-write**, verified write → read back → delete |
+
+So a host-side `cp` does work — via gvfs, not `/mnt`. The gvfs mount is
+**per-login-session** and vanishes in a headless or freshly-rebooted context, so
+the publish-through-a-fleet-box route stays the reliable fallback rather than
+being obsolete. `/etc/cifs-retro-share.creds` is root-only and sudo needs an
+interactive password here, so `smbclient -A` is not a route at all.
+
+**And when using the fleet-box route, `NETMAP` first.** `.171` answered
+`net use` with "There are no entries in the list" and had no `Z:` at all; the
+docs imply the mapping is already there. The `Z:` drive is a convention, not a
+guarantee.
+
+**Verify the post-condition from the host, not from "1 file(s) copied".**
+`md5sum` the local build against both published copies, `cat` the `.ver`, and
+`strings <published exe> | grep -x <version>` so the binary itself confirms the
+version you believe you shipped.
+
+---
+
 ## The machines now write their own documentation (2026-08-30)
 
 The hand-maintained "Known Machines" table was wrong about most of the fleet,
@@ -56,10 +97,21 @@ Findings worth keeping from building it:
   `k*3` the NUL from the previous octet lands in the gap. Short, plausible,
   and unflagged by any reader — found and fixed before shipping, and now
   asserted against the buggy form in `tests/native/test_hwpublish.c`.
-- **The share is mounted READ-ONLY on the dev host**, so the host cannot write
-  the inventory directory itself — which is a point in favour of the
-  architecture: the box that knows the answer is also the only thing that can
-  write it down.
+- **The dev host has TWO mounts of the same share and they differ.** The fstab
+  CIFS mount at `/mnt/retro-share` is explicitly `ro`; the gvfs mount under
+  `/run/user/1000/gvfs/smb-share:server=192.168.1.122,share=files,user=voidsstr`
+  is **read-write**. "The share is read-only from the host" was asserted and
+  believed during this work and is only half true — worth knowing before
+  designing around it. The gvfs mount is per-login-session, though: it can be
+  absent headless and was seen to disappear and return, so nothing may *depend*
+  on it. The generated document therefore lives in the repo, where it is always
+  present, and is only additionally copied to the share when that mount is
+  there.
+- **The box publishing its own record is still right**, but for the durable
+  reasons rather than the write-permission one: a box knows its own hardware, a
+  host-side collector on an on-demand fleet would mostly collect nothing, one
+  file per host means eight agents never contend, and it works while the host
+  is asleep.
 
 ---
 
@@ -466,6 +518,15 @@ align-to-grid differed. Stamping a constant `0x221` would have been correct on
 `.143` by luck and would have silently cleared align-to-grid on `.171`. Only bit
 0 may move. (`.246` on Win7 had no `Desktop` subkey under `Bags\1` at all, so
 the write has to create the key.)
+
+**3a. A REBOOT proves the registry is only a backstop.** Measured on .133 across
+a real power cycle: `FFlags` came back `0x221` with bit 0 intact, and the live
+listview style was **still OFF** — XP's shell did not honour the persisted bag —
+so the agent set it again at startup. So of the two mechanisms, **the
+every-agent-startup re-apply is the load-bearing one** and the registry write is
+the backstop, not the other way round. Anyone who "simplifies" this by dropping
+the startup pass and keeping only the registry write will ship a fleet that
+comes back from every reboot with auto-arrange off.
 
 **3. Persistence survived an Explorer restart even though the toggle had failed.**
 The worry was that Explorer keeps its own in-memory `FOLDERSETTINGS` and
