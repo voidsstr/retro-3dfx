@@ -14,6 +14,55 @@ it until a Voodoo card goes back in.
 
 ---
 
+## The machines now write their own documentation (2026-08-30)
+
+The hand-maintained "Known Machines" table was wrong about most of the fleet,
+and **twice a box's graphics card was swapped without the docs noticing** —
+`.124`'s Voodoo 3 came out on 2026-08-11 and the stale claim survived for
+weeks, and `.133`'s Voodoo5 6000 is physically gone while three documents still
+named the box by it. A *measured* replacement table written the same morning
+was already drifting by the afternoon.
+
+**Agent 1.74.0 makes every box publish its own hardware record on every
+startup** — `agent/src/hwpublish.c` writes its HWPROFILE JSON to
+`\\192.168.1.122\files\Utility\Retro Automation\fleet-inventory\<host>.json`,
+and `scripts/fleet/inventory.py` renders those into `docs/fleet-inventory.md`.
+`HWPUBLISH` does it on demand and replies with the path and byte count, so a
+publish is verified rather than inferred from a log line.
+
+Findings worth keeping from building it:
+
+- **Generating a document and keeping the hand-written one solves nothing** — it
+  creates a second thing to go stale. The generated file had to become the
+  single source of truth for every measured field, with CLAUDE.md reduced to
+  the prose a probe cannot discover. Half the work was deletion.
+- **Two clocks, and only one of them is trustworthy.** Staleness must be judged
+  by when the record landed on the dev host, never by the timestamp inside it:
+  a retro box's RTC is frequently years out, and a record published thirty
+  seconds ago would otherwise read "last seen 2003". Both are shown and the
+  disagreement is reported as clock skew.
+- **"never seen" needs a roster to be sayable at all.** Without one, a box that
+  has never published is indistinguishable from a box that does not exist, and
+  the document silently shrinks by one instead of saying one is missing.
+- **A VOODOO 2 IS INVISIBLE TO EVERY DISPLAY-CLASS SCAN** (its INF is
+  `Class=MEDIA`) and a Voodoo behind a 2D card is invisible to
+  `EnumDisplayDevices`' active-adapter answer. `hwextra.c` therefore reports
+  `accelerators[]` straight from `Enum\PCI` on the **vendor** id `121A` — the
+  one source a driver class cannot fool, and the same read that proved `.133`'s
+  V5 6000 physically absent rather than merely undriven. Instances are counted,
+  not device keys: two identical cards share one key.
+- **A MAC formatted at offset `k*3` truncates to `"00"`.** The first octet is
+  two characters and every later one is three, so the offset is `k*3-1`; at
+  `k*3` the NUL from the previous octet lands in the gap. Short, plausible,
+  and unflagged by any reader — found and fixed before shipping, and now
+  asserted against the buggy form in `tests/native/test_hwpublish.c`.
+- **The share is mounted READ-ONLY on the dev host**, so the host cannot write
+  the inventory directory itself — which is a point in favour of the
+  architecture: the box that knows the answer is also the only thing that can
+  write it down.
+
+---
+
 ## The favourites agent, proven in the games' own browsers (2026-08-30)
 
 Four engines, two boxes, screenshots of each — the standard the user set for
@@ -36,6 +85,29 @@ invisible when wrong: **Q2's address book is `adr0..adr8` and Q3's is
 `server1..server16`** — one engine generation apart, off by one, and a
 mis-numbered writer still logs "wrote 1 servers" while the game shows an empty
 first row.
+
+## UT2004's favourite is present and correct and still pings N/A (2026-08-30)
+
+On **.143** the Server Browser's Favorites tab lists `NSC Retro Fleet Arena`
+from the line the agent wrote into `UT2004.ini` —
+
+    Favorites=(ServerID=0,IP="192.168.1.132",Port=7777,QueryPort=7787,
+               ServerName="NSC Retro Fleet Arena")
+
+— and reports `Query Complete! Received: 1 Servers`. So the client parsed the
+entry and accepted it. But **Ping reads `N/A` and Map and Players stay blank**,
+before and after a REFRESH.
+
+That is not a favourites fault: the name on screen is the one we wrote, so the
+file reached the client and was read. It is the client's **query** to
+`192.168.1.132:7787` that does not resolve — while the host-side probe
+(`scripts/game-servers/gameservers.py`, which uses that same port 7787) gets an
+answer in 49 ms with map `Rankin`. Server up, favourite correct, client sees
+nothing. Whoever owns the UT2004 server config should look at what it answers
+to a client query as opposed to our probe; client here is retail **3369** and
+the browser's own News tab is advertising the OldUnreal **3374** patch.
+
+Screenshot: /tmp/retro-screenshots/fav/143-ut2k4-ref.png
 
 ## "Unchanged" must mean the BOX is unchanged, not that our intent is (2026-08-30)
 
