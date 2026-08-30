@@ -1160,6 +1160,57 @@ sends someone to diagnose a box that is fine.**
 
 ---
 
+## UT99 469e requires SSE2 — three fleet boxes cannot run ANY 469 client (2026-08-30)
+
+The staged OldUnreal **469e** tree crashes at startup on `.143` (`0xC000001E`) and
+`.133` (`0xC000001D` ILLEGAL_INSTRUCTION), before writing a line of its own log —
+seen ~30 times, succeeding exactly once, with every DLL matching the library
+byte-for-byte, so it was **not** a half-applied `GAMESYNC`. It reads like
+corruption and is not.
+
+**Cause, measured by disassembly with a same-product control:**
+
+| binary | SSE2-class | SSE1-class |
+|---|---|---|
+| 469e `Core.dll` | **1083** | 2482 |
+| 469e `UnrealTournament.exe` | **292** | 46 |
+| retail 436 `Core.dll` (control) | **0** | **0** |
+
+The hits are real compiler output, not misdisassembled data — `cvttsd2si eax,
+QWORD PTR [ebp-0x8]` (`f2 0f 2c ...`) and `movdqa xmm1,xmm0` (`66 0f 6f ...`) in
+ordinary ebp-relative prologue code, i.e. the default float-to-int conversion
+under `/arch:SSE2`, **not** a CPUID-dispatched fast path. So on a CPU without
+SSE2 the process dies on the first vectorised instruction with #UD.
+
+**The control is what makes this conclusive** — this project has already learned
+that PE forensics without a same-product control are worthless. 436 and 469e are
+the same product, and 436 scores a clean zero.
+
+The fleet's own `HWPROFILE` had the answer all along: `.124` and `.133` report
+`fpu,mmx,cmov,sse` (**no sse2**) and `.143` reports `fpu,mmx,cmov,3dnow` (**no
+SSE at all**). `.171`, `.123`, `.145`, `.240`, `.246` all have SSE2.
+
+**The gate knew the CPU but had never been told the requirement.** `GG_CPU_SSE2`
+existed in `gamegate.h` and `CPU_SSE2` in `rules.py`, and `requires.json` accepts
+`"cpu_features": ["sse2"]` and enforces it as a hard NO — but UnrealTournament's
+`requires.json` declared only `min_cpu_mhz: 233` / `min_ram_mb: 64`, so the gate
+cheerfully approved a title that cannot execute a single frame on three of eight
+boxes. Worse, the GPU floor had been *deliberately removed* to let it onto the
+Pentium-1, which has no SSE2 either. Fixed by declaring the requirement.
+
+**This is the `disk_mb` lesson again in a different shape**: a capability the
+profiler collects but no title ever *requires* is indistinguishable from one that
+does not work. Sweep `requires.json` for other titles whose real floor is an
+instruction set rather than a clock speed.
+
+**The fleet-level consequence, which is a decision rather than a bug:** the
+fleet's `ut99-server` runs 469e, a 436 client cannot join it at all, and `.124`,
+`.133` and `.143` cannot run a 469e client. **Those three boxes therefore have no
+route to UT99 multiplayer** until either a 436-compatible server is stood up or a
+non-SSE2 469 build is found. The incoming Pentium-1 is a fourth.
+
+---
+
 ## The Voodoo5 6000 is out of .133 — the vintage V5 lane is down to ONE box (2026-08-30)
 
 `.133` ("P3-DUAL") no longer has the Voodoo5 6000. It renders on an **NVIDIA
