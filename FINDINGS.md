@@ -14,6 +14,53 @@ it until a Voodoo card goes back in.
 
 ---
 
+## The Voodoo5 6000 is out of .133 — the vintage V5 lane is down to ONE box (2026-08-30)
+
+`.133` ("P3-DUAL") no longer has the Voodoo5 6000. It renders on an **NVIDIA
+GeForce4 Ti 4600** (`10DE:0250`, ForceWare 6.14.10.9371) at 1280x1024x32@85.
+Four independent reads agree the 3dfx card is *physically* absent, not merely
+undriven:
+
+* `VIDEODIAG` returns one adapter;
+* `HKLM\SYSTEM\CurrentControlSet\Enum\PCI` has **no `VEN_121A` key at all** —
+  the decisive one, because a present card enumerates there even with no driver;
+* the Display class GUID has a single instance `\0000`;
+* no `3dfx*` service, and no `glide*.dll` anywhere under `%SystemRoot%`.
+
+**This is the second time a lane lost its hardware without the docs noticing** —
+`.124`'s Voodoo 3 came out on 2026-08-11 (top entry) and the same stale claim
+survived in CLAUDE.md for weeks. An intermediate draft of the new fleet table
+*also* got this wrong, asserting the V5 6000 was still a second adapter in
+`.133`; it was written from the old table rather than from a probe. **Probe
+`Enum\PCI` before you claim a card is in a box.**
+
+Real Glide silicon on this fleet is now exactly **two cards**: `.143`'s V5 5500
+(`121A:0009` subsys `0002121A`) and `.171`'s Voodoo 2 (`121A:0002`). Note that on
+`.143` the V5 is the *second* adapter — a **GeForce 6800** (`10DE:0041`) drives
+the panel — so "the Voodoo5 box" no longer means "the box that renders on a
+Voodoo5".
+
+## A game-local nGlide in the STAGED LIBRARY hides the real card (2026-08-30)
+
+Game-local wins at load time, so the 1,310,720-byte nGlide `glide2x.dll` staged
+in `Games-Library/UnrealGold/System/` and `Games-Library/Carmageddon2/` shadows
+the real 3dfx `glide2x.dll` in `system32` on **exactly the two boxes that still
+have a Voodoo**. On `.171` this was diagnosed the expensive way (commit
+`7823586`): UnrealGold was reported crashing, had never crashed, and had run the
+whole session on the software rasterizer at 100% CPU because the wrapper's
+`grSstOpen` failed `(2, 3)` every time — the game got neither the card nor a
+working wrapper.
+
+**That fix went onto the box, not into the library, so the next `GAMESYNC`
+restores the wrapper.** Carmageddon2 ships the identical wrapper and is untested.
+The staged `Unreal.ini` still carries `WindowedRenderDevice=SoftDrv...` and a
+1024x768x32 mode no Voodoo 2 can scan out, so the library reproduces the fault on
+demand. The fix belongs in the per-box launcher (the FLEETRES pattern), not in a
+staged constant: deleting the wrapper outright is not obviously right, because it
+is the only Glide path the six non-3dfx boxes have.
+
+---
+
 ## A staged resolution is wrong somewhere BY CONSTRUCTION — one tree, eight monitors (2026-08-30)
 
 The staged game library deploys ONE tree to EIGHT machines: four 1920x1080 16:9
