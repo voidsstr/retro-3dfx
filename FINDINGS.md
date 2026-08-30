@@ -39,6 +39,24 @@ still queued. Mount it non-interactively with:
 printf 'password\nWORKGROUP\n0\n' | gio mount "smb://voidsstr@192.168.1.122/files"
 ```
 
+**AND THE HARNESS BLAMED THE LIBRARY FOR IT.** When one of those runs was
+killed mid-walk, `subprocess.run(capture_output=True)` lost its buffers with it,
+so `tests/test_staged_library.py` printed
+
+```
+== the staged library would deploy cleanly to a new box ==
+  FAIL  the library would NOT deploy cleanly - see above
+```
+
+with **nothing above it** — while three independent validator runs either side
+of it, across both transports, all said `38 titles checked / DEPLOYABLE`. The
+library was never broken; the measurement was. "Could not be measured" and "it
+failed" are different calls to action, and only the second is a fault. The
+wrapper now reports a signal death as `KILLED by signal N ... this is not a
+library failure`, and a silent nonzero exit as `exited without reporting
+anything`. Both still fail the suite — an unmeasured library is not a pass —
+they just no longer point at the wrong thing.
+
 Same trick applies to any share-bound sweep, and it is the only way to write to
 the library from the dev host at all: **`/mnt/retro-share` is mounted `ro` in
 `/etc/fstab`**, and `mount.cifs` is setuid but refuses a mountpoint that is not
