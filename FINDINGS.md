@@ -14,6 +14,170 @@ it until a Voodoo card goes back in.
 
 ---
 
+## Prove a patch REPLACES a file before you trust what it produced (Halo, 2026-08-30)
+
+Halo PC could not be staged from the share's "Original PC Release" zip: its
+`halo.exe` carried PE `TimeDateStamp` `0x21544c66`, whose raw little-endian
+bytes are `fLT!` — the FAiRLiGHT watermark — decoding to 1987, impossible for a
+2003 binary. That is the ONLY tampered file in the tree; a sweep of all 34 PE
+binaries found every other stamp sane and every `SubsystemVersion` 4.0.
+
+Bungie's own signed `halopc-patch-1.0.10.exe` fixes it — but only if the patch
+**replaces** `halo.exe` rather than delta-patching it, because a byte delta
+applied to a cracked source yields a cracked output. RTPatch does both, and the
+"successfully updated" dialog cannot tell you which. So the control experiment:
+
+    run 1  patch the tree as shipped                       -> halo.exe md5 b7aa8f68…
+    run 2  zero 256 KB of the source halo.exe's .text,
+           re-run the identical patch                      -> halo.exe md5 b7aa8f68…
+
+Byte-identical output from two different inputs proves the file is shipped
+whole and nothing from the crack survives. Same for `Strings.dll`,
+`Keystone.dll`, `binkw32.dll`, `haloupdate.exe`. **A patch reporting success is
+not evidence about what it produced** — vary the input and compare the output.
+
+Three more things that cost time here:
+
+- **A printable-ASCII TimeDateStamp is NOT tamper evidence on its own.** In the
+  same tree `haloupdate.exe` (`L"Y?`), `ogg.dll` (`pQP?`) and `vorbis.dll`
+  (`8TP?`) all have all-printable stamps and correct 2003 dates — and so does
+  the genuine Bungie 1.0.10 build (`RhrS`). Four bytes are printable about a
+  quarter of the time. Only *printable AND an impossible date* is a finding.
+  This is the same phantom-finding trap as the earlier "clean section layout"
+  claim that a genuine Microsoft control binary then reproduced exactly.
+  Encoded now in `retro-agent/scripts/fleet/pe-audit.py` + `test_pe_audit.py`.
+
+- **The patch's own resources tell you what it wants.** It refused with "You
+  have Halo Version 01.00.00.0564 installed" until the registry `Version` was
+  the *short* form. Its `FROM` RCDATA resource is literally
+  `1;1.01;1.02;1.03;1.031;1.04;1.051;1.06;1.07;1.08;1.09`. Reading the
+  installer's resources beat guessing the format.
+
+- **There is no Windows Vista check in Halo 1.** Measured, not assumed: every
+  binary in the tree and every binary the patch installs is
+  `SubsystemVersion 4.0`, so XP's loader has no objection, and official patch
+  1.08 already removed the CD-in-drive requirement. The Vista gate belongs to
+  Halo 2 Vista, a different product. No community bypass was needed.
+
+**What actually blocks Halo 1 is a product key.** Genuine 1.10 stops at
+"Your product key is invalid" with *both* Continue buttons greyed out — it is
+not a multiplayer-only check and there is no degraded mode. `halo.exe` reads
+the binary value `DigitalProductID` under
+`HKLM\SOFTWARE\Microsoft\Microsoft Games\Halo`; that is a PID blob derived
+from the 25-character key by `mgspid.dll` (one export, `GetPid`, cdecl), so a
+key cannot simply be typed into the registry. The share holds no Halo 1 key
+(full case-insensitive sweep), and a key from the internet is the same class of
+thing as the crack. Tree is built and ready at
+`Files/tmp/halo-build/Halo Combat Evolved/`, one rename from `Games-Library/`.
+
+**Case-insensitivity bites on the SHARE too, not just in greps.** Copying the
+patched `Strings.dll`/`Keystone.dll` up and then deleting the old
+`strings.dll`/`keystone.dll` deleted *the files just copied* — same file, and
+`del` reported nothing wrong. Verify the post-condition after a case-differing
+copy+delete pair.
+
+Also worth recording: the dev host's `/mnt/retro-share` is mounted **read-only**
+(`cifs … ro`). Every write to the staged library has to go through a fleet box's
+`Z:` drive. A `cp` that fails with "Read-only file system" is that, not a
+permissions problem to debug.
+
+---
+
+## An auto-update restart silently zeroes a GAMESYNC in flight (2026-08-30)
+
+Deploying Far Cry (3.6 GB) to **.246** was killed twice in twenty minutes, and
+both times the status said nothing was wrong. The agent auto-updated 1.70.0 ->
+1.71.1 -> 1.72.0 while the copy was running - six agents were publishing builds
+that morning - and an auto-update **restarts the agent**, which takes the
+GAMESYNC thread with it.
+
+What makes it expensive is the reporting, not the restart:
+
+    {"state":"idle","percent":0,"titles_done":0,"titles_total":0,
+     "mb_done":0,"failed_files":0, ... }
+
+A sync aborted 93% of the way through a 40 GB pass is **byte-for-byte identical
+to one that was never started**. `failed_files` stays 0, because nothing failed
+- the process just stopped existing. Reading `state` after the fact tells you
+"idle", and the natural reading of that is "my START never took".
+
+Three things follow, and the third is the general one:
+
+* **Verify the tree, not the status.** The post-condition for a title is its own
+  file count and byte total on the box matching the library:
+  `dir /s /a-d C:\Games\<Title> | find "File(s)"` against
+  `find . -type f | wc -l` + `du -sb --apparent-size` on the share. That caught
+  the real state each time - the second abort had in fact reached 1613/3536
+  files, which no field of the JSON revealed.
+* **GAMESYNC resumes cheaply, so just re-issue it.** The size+mtime skip means a
+  restarted pass re-walks the library in ~90 s and continues. A loop that polls
+  the post-condition and re-STARTs whenever the state is not `copying`/`sizing`
+  finishes the job unattended; ad-hoc watching does not, because the aborts are
+  minutes apart and look like success.
+* **A restart-shaped hole in a long operation needs its own signal.** `state`
+  encodes the *thread's* view and the thread is gone, so nothing in the status
+  can distinguish "never ran" from "was killed". Either the marker has to record
+  an in-progress generation, or the caller has to own the post-condition. Until
+  the former exists, the latter is not optional.
+
+Beware the corollary while the fleet is busy: **a refused TCP 9898 during this
+window is the agent restarting, not a dead box.** Retry before concluding
+anything.
+
+---
+
+## A parsed-but-never-consulted field is a silent no-op (gamegate, 2026-08-30)
+
+`requires.json` declared `disk_mb` from the first version of the capability
+gate. Both the C header and `rules.py` **parsed it into the requirements
+struct** — and neither ever compared it against anything. A library author
+could write `"disk_mb": 3700` with full confidence and get nothing: no refusal,
+no warning, no log line. The mirror test stayed green the whole time, because
+the two implementations ignored it *identically*.
+
+That is the exact failure shape CLAUDE.md's "Make Failure VISIBLE" section is
+about, and it is worth naming the general form: **a field that is parsed but
+never read is indistinguishable, from the outside, from a field that works.**
+Round-tripping a value into a struct is not evidence that anything consumes it.
+When adding a schema field, the test that matters is not "does it parse" but
+"does a decision change when it changes".
+
+Found by asking the gate for a verdict at 500 MB free against a 3700 MB
+requirement and getting `run`. Now a hard floor with **no margin band** — a
+clock 10% under yields a slower game, a disk 10% under yields a partial copy —
+checked *after* the cpu/ram/vram floors so a box that genuinely cannot run the
+title is told that, rather than sent to free up space it would then waste.
+`free_mb` is deliberately **not** in `gg_profile_hash()`: free space changes on
+every write, so hashing it would mint a new profile and miss every cached
+verdict on essentially every run — the same as having no cache.
+(agent 1.71.1; `tests/native/test_gamegate.c`, mirror harness now carries
+`free_mb` so the two copies cannot drift on it.)
+
+## HWPROFILE: SYSINFO cannot answer "can this box run this game" (2026-08-30)
+
+Measured on all 8 fleet boxes. `SYSINFO` reports **no CPU clock** (a 500 MHz and
+an 1100 MHz Pentium III are both "family 6"), **no CPU vendor** (family 6 model
+2 is an AMD K7 Athlon — .143 really is one, with **no SSE**, so an SSE title is
+`#UD` on the first vectorised instruction, not a slow frame rate), **no
+instruction set**, **no GPU at all**, and its RAM saturates at 2047 MB.
+
+`HWPROFILE` (agent 1.71.0+) adds CPUID, the real clock, `GlobalMemoryStatusEx`,
+the **active** display adapter, OS level, DirectX and a reboot-stable
+`profile_hash`. It reads the adapter via `EnumDisplayDevices` for the one
+`ATTACHED_TO_DESKTOP` and follows its own `DeviceKey`, because `VIDEODIAG`
+enumerates every `Class\{4D36E968-...}\NNNN` subkey and on a box that has ever
+had a card swapped `adapters[0]` can be a **stale key for hardware no longer
+fitted** — which has already caused one wrong report that a box had no video
+driver.
+
+Also worth keeping: the deterministic rules decided 7 of 8 boxes with **zero**
+model calls. Only .171 (Intel 865G, no hardware T&L) and .124 (UT2004 at 845 MHz
+against a 1000 MHz floor) reached the LLM at all — 9 calls for the whole fleet
+across 37 titles. A gate that phones a model to conclude a Pentium III cannot
+run Doom 3 is a bad gate.
+
+---
+
 ## After a host reboot, `enabled` and `active` answer different questions (2026-08-30)
 
 The dev host rebooted mid-session and everything came back — but establishing
