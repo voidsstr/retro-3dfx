@@ -159,6 +159,43 @@ No agent + no `<20>` = keyboard.
 
 ---
 
+## The fleet's DOSGAME.EXE is not this repo's build, and its source is LOST (2026-08-30)
+
+Publishing a rebuilt `DOSGAME.EXE` was stopped one command short by a size
+mismatch, and the mismatch was this:
+
+    git HEAD, rebuilt         111,170 B   (byte-exact reproduction)
+    share, dated 2026-08-26   113,012 B
+
+The extra **1,842 bytes are real work that exists in no commit, on no branch, in
+no worktree and in no file on this host** — four log strings the repository has
+never produced:
+
+    pick:   %s is a self-extracting archive, not the game
+    pick:   %s -> %s (self-extracting archive; needs setup run)
+    pick:   %s -> %s (skip-listed, but it is the only thing that runs here)
+    registry: DROP %s - launcher "%s" is a self-extracting archive, not the
+              game; re-deriving
+
+i.e. a launcher-choice refinement plus a registry-repair rule, built, published
+to the fleet, and never committed. Searched exhaustively before concluding it:
+`git log --all -S` over the whole history **with no path filter** (a path filter
+would miss a rename), `git grep` across every reachable commit, and a filesystem
+sweep of every `dosgame.c` on the host.
+
+**So `make` + `copy` over the share deletes it permanently.** The 2026-08-30
+`DOSGAME.TXT` support was therefore committed and deliberately **not published**
+— publishing is a trade (a staged-library fix for a shareware-install fix) and a
+person has to make it.
+
+The README already warned that *the share can be stale relative to the repo,
+silently* (the CRLF batch files). **It drifts in BOTH directions**, and the
+other direction is the dangerous one: stale costs you a fix, divergent costs you
+the source. `retro-agent/scripts/dosgames/check-published.py` now says which,
+prints it from the DOS suite, and reports rather than failing — a check that
+broke every session's `run_all.sh` today, over a known unresolved fact, would
+just train everyone to ignore it.
+
 ## The Pentium 1 was refused every DOS game by a floor that described DOSBox, not the game (2026-08-30)
 
 **Four staged titles — Descent 1, Descent 2, Carmageddon 1, Redneck Rampage —
