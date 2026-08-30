@@ -385,6 +385,79 @@ and re-verify the file count against the library afterwards — `state=done` and
 
 ---
 
+## FLEETRES.EXE could not run on the box it was written to help (2026-08-30)
+
+`FLEETRES.EXE` carried **78 CMOV instructions**. CMOV is a Pentium **PRO**
+instruction; a genuine Pentium (P54C/P55C) raises `STATUS_ILLEGAL_INSTRUCTION`
+0xC000001D on the first one. That is an instant hard crash, not a slow frame
+rate — and this binary is staged into **32 game trees** and `call`ed by the
+**first line of every `Play <Game>.bat`**, so on the Pentium-1 Deskpro the
+entire staged library would have failed at launch, every title, with an error
+naming our own helper rather than the game.
+
+Nothing on an XP box can show you this. Every other machine in the fleet is
+i686 or later and executes CMOV happily, so it stayed invisible until the one
+machine it breaks was about to be switched on.
+
+- **`-march=i586` ALONE IS NOT ENOUGH, and that is the trap.** It takes the
+  count from 78 to **53**, and someone measuring that improvement would ship a
+  binary that still dies on the first `printf`. The remaining 53 live inside
+  **mingw's own printf** (`__mingw_pformat`, `__pformat_*`, `__gdtoa`), which
+  ships prebuilt for i686. `-D__USE_MINGW_ANSI_STDIO=0` routes printf/snprintf
+  to the box's own `msvcrt.dll` and takes it to **2** — and halves the binary,
+  59,392 → 30,208 bytes. The two survivors (`_mark_section_writable`,
+  `__GetPEImageBase`) are libgcc pseudo-relocator helpers and are dead with no
+  runtime pseudo-relocs.
+- **The fix was already written down one directory away.** `agent/Makefile` has
+  carried the entire recipe — including the note that it "surfaced on a Compaq
+  Deskpro 2000 (Pentium 1)" — since the agent was made P5-safe. `FLEETRES.EXE`
+  was written later and simply did not inherit it. The flags now live in
+  `provisioning/fleetres/build.sh` with a self-check that **fails the build**
+  above two CMOVs, rather than in a header comment nobody re-reads.
+- Verified on hardware (.240, XP SP3): the P5-safe build's `-cmd` and `-info`
+  output is **byte-for-byte identical**, 1,134 bytes of it. All 32 staged trees
+  republished.
+
+**The general rule: anything WE build that is staged onto a game tree needs the
+agent's P5 flags**, because the fleet now contains a CPU older than the
+compiler's default baseline. A sweep found the same defect in a third-party
+DLL we ship — DXX-Rebirth's `libmikmod-2.dll`, 544 CMOVs — where a Pentium 1
+would fault when music initialises rather than at startup.
+
+## Instruction-set floors: counting is the start of the answer, never the end (2026-08-30)
+
+Swept all 38 staged titles for the instruction sets they actually execute,
+prompted by UT99 469e (SSE2 throughout, undeclared, killing three boxes ~30
+times). **Almost every alarming number turned out to be a runtime dispatch, and
+declaring floors from the raw counts would have refused a large part of the
+library on machines that run it perfectly** — the opposite error, and an easier
+one to make.
+
+Three discriminators separate a real floor from a fast path:
+- **`cpuid` count.** 0, or 1 at startup, means no dispatch. 3–19 sites means
+  the engine chooses: GoldSrc's `hl.exe` has 5, id Tech 3's `jamp.exe` 7,
+  `quake3.exe` 3, MaxPayne 19.
+- **Dispatch symbols.** Unreal Engine 1 exports **`GIsMMX` / `GIsKatmai` /
+  `GIs3DNow`** from `Core.dll`, and its software renderer branches on them — so
+  `SoftDrv.dll`'s 29,598 MMX references are optional, not required.
+- **Address adjacency.** StarCraft's SSE2 double math begins 0x4e bytes after
+  the two `cpuid` instructions that select it.
+
+**And the disassembler lies.** `objdump` walks a PE's `.text` linearly, so
+padding, tables and packed regions mint instructions that are not there:
+`WINQUAKE.EXE` "has" five CMOVs that are really `add BYTE PTR [edi],al`
+zero-padding, and `MaxPayne.exe` (SafeDisc, so most of its image is data)
+reports 785 including `cmove esp,[ecx]`, which no compiler emits. **A small
+count is usually noise — read the lines.** Real MMX looks like coherent
+register use inside a loop (`movd mm0,[esi]` … `punpcklwd mm4,mm2` … `pmulhw`).
+
+Exactly **one** new floor survived: **Aliens versus Predator requires MMX** —
+1126 MMX-register references in `emms`-bounded blocks, and precisely one
+`cpuid` in the whole binary, matching Rebellion's published "Pentium 200 **MMX**"
+minimum. Tool: `retro-agent/scripts/gamegate/isascan.py`; method written up in
+`scripts/gamegate/SCHEMA.md`.
+
+
 ## The capability gate had a feature level it could never reach: `none` (2026-08-30)
 
 Preparing the Pentium-1 Compaq Deskpro (Win98, ~31 MB) for staged games broke
