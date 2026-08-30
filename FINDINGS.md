@@ -14,6 +14,63 @@ it until a Voodoo card goes back in.
 
 ---
 
+## A staged game's icon can be the WRONG game's artwork, and every structural check passes (2026-08-30)
+
+Three titles in `Games-Library` drew their desktop icon from the wrong file.
+Found on `.143`/`.145` by reading the agent's own log lines — `GAMESYNC` prints
+`<Title>: desktop shortcut -> <target> (icon: <path>)` for every shortcut it
+creates, which is the only place the resolved icon is ever stated:
+
+| title | `launch.txt` said | should be | what the desktop showed |
+|---|---|---|---|
+| CounterStrike16 | `hl.exe` | `Counter-Strike.exe` | the **Half-Life lambda** |
+| SystemShock2 | `clokspl.exe` | `shock2.exe` | a generic stub icon |
+| RedFaction | `UpdateLauncher.exe` | `RedFaction.exe` | a generic stub icon |
+
+**Every one of these is silent by construction.** The shortcut exists, it
+launches the right game, and it merely wears the wrong badge — so nothing logs
+a warning, `state: done, failed_files: 0` is truthful, and a process list or a
+`dir` cannot tell you. `hl.exe` is the nastiest of the three because it *is* the
+engine Counter-Strike runs on, so the field reads as obviously correct to anyone
+reasoning about the tree instead of looking at the screen.
+
+**"Does the icon file have an icon?" is NOT the check.** That was the first
+instinct and it is wrong: parsing the PE resource directory shows `clokspl.exe`
+(the SafeDisc splash loader) and `UpdateLauncher.exe` (the patcher stub) each
+carry exactly **one** `RT_GROUP_ICON`, same as `shock2.exe` and
+`RedFaction.exe`. They have artwork; it is just generic artwork. Structurally
+all five files are identical, so no resource-level test can separate them.
+`validate-staged-library.py` already fails an icon path that does not *resolve*,
+and that is as far as a structural check can get.
+
+**So the only durable answer is to pin the verified value.** Whether artwork is
+the *right* artwork is a content question — the fix is
+`retro-agent/tests/python/test_launch_icon_targets.py`, which asserts both
+directions per title (fixed icon present, old stub absent) and skips loudly
+when the share is not mounted.
+
+**Two adjacent traps, both cost time in this pass:**
+
+- **Explorer caches shortcut icons by path, so a corrected icon does not appear
+  until Explorer restarts.** Replacing `retro_chat.exe` with a build that has a
+  real icon resource changed nothing on screen; the `.lnk` kept drawing the old
+  generic window. Fix: `taskkill /f /im explorer.exe`, relaunch it, then
+  `C:\retro-wall\arrange_icons.exe`.
+- **After an Explorer restart, the FIRST frame is a lie.** Screenshotting
+  immediately gave a desktop with **34 of 73** icons and `arrange_icons.exe`
+  reported "moved 34 icons" and parked a half-empty bay — indistinguishable
+  from the shortcuts having been deleted. Explorer was still enumerating the
+  All Users desktop. Twenty seconds later: "moved 75", full bay. **Wait for the
+  count to settle before arranging, and never judge a post-restart desktop from
+  the first screenshot.**
+
+Fixed in the library, redeployed via `GAMESYNC`, and confirmed with a zoomed
+screenshot on `.145` (CS badge, Red Faction emblem, SHODAN face all render).
+Pushed to `.123 .124 .133 .143 .145 .171 .240`. The four Carmageddon 1 entries
+remain genuinely generic — that title ships no `.ico` and its exe carries no
+icon resource, so it needs artwork, not a config fix.
+
+
 ## A second GPU's stale OpenGL ICD registration kills GL on the card that IS driving the monitor (2026-08-29)
 
 `.145` failed **every** OpenGL context creation, whichever DLL performed it, on
