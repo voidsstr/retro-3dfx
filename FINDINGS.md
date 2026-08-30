@@ -14,6 +14,164 @@ it until a Voodoo card goes back in.
 
 ---
 
+## A staged resolution is wrong somewhere BY CONSTRUCTION — one tree, eight monitors (2026-08-30)
+
+The staged game library deploys ONE tree to EIGHT machines: four 1920x1080 16:9
+LCDs (.123 .145 .240 .246) and four CRTs (.124 1024x768; **.133 and .171 are 4:3
+TUBES being driven at 1280x1024**, i.e. 5:4 and visibly squashed; .143 returns no
+EDID at all). Every title was pinned at 1024x768, Tiberian Sun at 640x480. There
+is no constant that is right, so the fix has to be **runtime and inside the
+staged tree** — `FLEETRES.EXE` + `FLEETRES.BAT` staged per title, called by the
+title's `Play ....bat`, reading this box's panel before the game starts.
+(`provisioning/fleetres/` and `scripts/fleet/stage-fleetres.py` in retro-agent.)
+
+Four things that cost measurement time:
+
+* **`wmic Win32_VideoController.CurrentHorizontalResolution` is wrong.** It
+  reported 640x480 on .123 while the box was really at 1024x768. Use
+  `EnumDisplaySettings`.
+* **Never derive a target from the LIVE desktop mode.** A game that exits
+  without restoring leaves the desktop at 640x480 — .123 and .240 were both
+  found sitting there mid-survey — so a launcher trusting it pins every LATER
+  game to 640x480 permanently. Read `ENUM_REGISTRY_SETTINGS` (the persisted
+  mode) instead.
+* **DOSBox `fullresolution=original` changes the WHOLE DESKTOP** to the DOS
+  mode, confirmed by `DISPLAYCFG` on .145. On a 16:9 LCD that is a stretched
+  640x480 upscale, and it is left behind after a crash. `desktop` + `aspect=true`
+  pillarboxes correctly — but `original` is still right on a CRT, so this cannot
+  be a staged constant in either direction.
+* **id Tech 3's `r_mode`/`r_customwidth`/`r_customheight`/`r_fullscreen` are
+  `CVAR_LATCH`** — read once, at renderer init. The staged `autoexec.cfg`'s
+  `seta r_mode "6"` runs after `Com_StartupVariable` and before `R_Init`, so it
+  **beats the command line** (measured on .123: `+set r_customwidth 1920` left
+  the game at 1024x768). Deleting those setas is what makes `+set` work, and it
+  is only safe once the launcher supplies the mode — both halves must ship
+  together or the fleet gets a windowed Quake III. A per-user
+  `%APPDATA%\Quake3\baseq3\autoexec.cfg` (retro-gameindex writes one) also
+  **shadows the staged file entirely**, since ioquake3 searches `fs_homepath`
+  before `fs_basepath` — which is exactly the case the command line does cover.
+* `+vid_restart` also fixes the latch, and **exits ioquake3 outright on .246**
+  (Win7 + Radeon HD5450), measured twice. Not usable fleet-wide.
+
+**The generalisable rule:** when one artefact serves hardware that differs, the
+fix belongs at *launch* time inside the artefact, not at *authoring* time. A
+constant chosen for the machine you happen to be testing on is a defect for
+every other machine, and it presents as "that game looks wrong on that box" days
+later, with nothing pointing back at the library.
+
+## Hash the binary you LAUNCH and you can certify a cracked game as clean — the crack was in a DLL the engine loads (2026-08-30)
+
+Battlefield 1942, staging the fleet's own preserved copy. The obvious provenance
+check — compare the main executable against the vendor's — **passes on the
+cracked tree and on a clean one alike, because the exe is not where the
+protection lives.**
+
+The repack `Battlefield.1942.PC.Game(djDEVASTATE)` was cracked in **two** places:
+
+| file | what was done to it | how visible? |
+|---|---|---|
+| `BF1942.exe` | **50 bytes** changed in 14 short runs; identical size (8,908,800) and identical PE timestamp. 24 of the edits are `jz`/`jnz` → `jmp` on the branches consuming the two disc-check functions, plus one string edit turning `bf1942.exe` into `bf1942.org`. | findable — a `.org` backup and a `BF1942.7z` holding the original sat right beside it |
+| `Mods\bf1942\Mod.dll` | **replaced wholesale by a 4,096-byte stub** carrying `tHIS iS a wIN 32 pROGRAM! -=[ tE ]=-` and `iMMERSiONj`. It exports exactly the three symbols the engine looks up — `getArchiveId`, `getNrOfArchiveId`, `?getVersion@@YIHXZ` — and does nothing but `ExitProcess`. | **invisible to any exe-level check** |
+
+**The second one is the whole game's protection.** EA's own `Mod.dll` is
+SafeDisc 2 wrapped (sections `stxt774` + `stxt371`); `BF1942.exe` is not, and
+carries no `stxt*` sections, no `BoG_ *90.0&!!  Yy>` magic, no `DrvMgt` import
+and no "please insert" strings — **in the cracked copy and in the retail
+original equally.** `BF1942.exe` `LoadLibraryA`s `mods/BF1942/Mod.dll` at
+`0x0044D609` and `exit(0)`s if it fails, so the stub is unavoidable and
+sufficient: with it in place the game runs with no disc, and every hash of the
+launched binary says "clean".
+
+### The rule
+
+**Verify every binary the engine loads, not just the one you launch.** Walk the
+whole tree, not the exe:
+
+- Diff **every** PE against the vendor payload, not just `<Game>.exe`. A 4 KB
+  DLL where the vendor ships 815 KB is the loudest possible signal and costs one
+  `ls -la` to see.
+- **A tiny PE next to a huge one is the tell.** `Mods\bf1942\Mod.dll` 4,096 B
+  against `Mods\XPack1\Mod.dll` 815,823 B in the same tree — same name, same
+  role, 200× apart.
+- Check the **exports**, not the size alone: a stub must export exactly what the
+  loader resolves, so an export list that is a perfect minimal match for the
+  engine's `GetProcAddress` calls, in a file with no other code, is a stub.
+- The complement of the same-size/same-timestamp rule in the entry above:
+  **a crack can also be a total replacement**, and then size and timestamp look
+  nothing like the original — which is why "sizes differ, so it must be a
+  legitimate rebuild" is not safe either.
+
+**Applied retroactively the same day** to the other disc-protected titles being
+staged. Max Payne's `Max_Payne_Fixes.zip` failed on the first test rather than
+this one — its `MaxPayne.exe` is the retail build with the SafeDisc wrapper
+stripped (`stxt774`/`stxt371` gone, entry point moved from `0x4cc056` back to a
+restored OEP at `0x36fb04`, 730 plaintext `MaxPayne_` symbols where retail has
+**zero**) — but the tree it would have gone into was checked DLL-by-DLL as well,
+and two of the pack's own DLLs turned out to be unloadable on XP for an
+unrelated reason (`d3d8.dll` and `MaxPayne.WidescreenFix.asi` are PE
+**subsystem 6.0**).
+
+**How the clean tree was built, for the record:** the preserved game *data*,
+overlaid with EA's own `bf1942-patch-1.6.19-full.exe` then
+`bf1942-1.6-to-1.61b.exe`, so every executable in the result is EA's —
+`BF1942.exe` 5,648,384 B, md5 `a56d63e83eb5e02b43e1928cb22cd15a`, PE timestamp
+2004-10-19 19:02:28 UTC, all 29 PEs subsystem 4.0.
+
+---
+
+## A Voodoo 2 game can be "running" and never touch the card — Unreal fell to the software rasterizer on its own splash (2026-08-30)
+
+`.171` (P4, one Voodoo 2). UnrealGold was reported as crashing. It never crashed.
+It ran the whole time on the **software rasterizer**, at 100% CPU, having thrown
+the Voodoo 2 away 3 seconds after startup. Two independent faults, either one
+enough to hide the card:
+
+**1. A game-local nGlide shadowed the real Glide.** `C:\Games\UnrealGold\System\glide2x.dll`
+was the **1,310,720-byte nGlide wrapper**; the real 3dfx one is **226,304 bytes**
+in `system32`. Game-local DLLs win, so Unreal loaded the wrapper — which reports
+`Glide 2.60` (the real one reports `2.56.00.0459`) and translates to Direct3D on
+the Intel 865G. **On this box the wrapper does not even work**: `Color buffers 3
+failed` / `Resolution 7 failed` / `grSstOpen failed (2, 3)`, repeatedly. So the
+game got neither the card nor the wrapper. Tell them apart **by size** — both are
+called `glide2x.dll`. Carmageddon2 has the same wrapper (`glide2x`, `glide3x`,
+`glide.dll`).
+
+**2. Unreal dropped Glide on its first focus change.** Unreal's own splash dialog
+(`#32770`) takes the foreground a few seconds *after* the viewport has already
+gone fullscreen on Glide. The viewport gets `WM_KILLFOCUS` → `EndFullscreen`, and
+Unreal switches to `WindowedRenderDevice`. **A Voodoo 2 is a 3D-only passthrough
+card and cannot render windowed**, so the stock
+`WindowedRenderDevice=SoftDrv.SoftwareRenderDevice` stranded the entire session on
+software. Nothing external steals the focus — a foreground-window trace across a
+full run showed only Unreal's own splash → viewport handoff, and killing every
+tray app (igfxtray/hkcmd/igfxpers, DAEMON Tools, SoundMAX, the chat client)
+changed nothing.
+
+**Fix, verified:** `WindowedRenderDevice=GlideDrv.GlideRenderDevice` — Unreal then
+*re-opens* Glide instead of falling back (`grSstOpen` twice, **zero** `Bound to
+SoftDrv`, zero `Bound to D3DDrv` across a full session). Plus a mode the card can
+scan out: **16bpp only**, and **640x480** — the stock ini asked for **1024x768x32**,
+which no Voodoo 2 can do, and 800x600 is refused too once Unreal requests three
+colour buffers (3.84 MB of a 4 MB FBI → `Resolution 8 failed`).
+
+**Method traps, all of which cost time here:**
+- **A GDI `SCREENSHOT` cannot see a Voodoo 2.** 3D goes out the passthrough cable,
+  so the desktop framebuffer keeps whatever was last drawn. A screenshot showing a
+  frozen splash is **not** evidence of a hang — and an *identical* screenshot 45 s
+  later is not either. Discriminate with **CPU-time delta** (`wmic ... UserModeTime`)
+  and the game's own log, never the picture.
+- **Unreal buffers `Unreal.log` and flushes on exit.** Reading it live shows 0
+  bytes. Close the game with `taskkill /IM` (WM_CLOSE, *not* `/F`) and then read it.
+- **Unreal rewrites `Unreal.ini` on every clean exit**, so an ini edit made while it
+  is running is discarded — and a "Glide" test run can silently be a D3D run. Verify
+  the ini *after* the run, and confirm the renderer from the log, not the config.
+- **`Help\Logo.bmp` is mandatory.** Removing the splash bitmap to dodge the focus
+  steal makes Unreal die with a `Critical Error` dialog instead.
+- **Prove Glide independently before blaming it.** A 60-line `LoadLibrary` probe
+  (`grGlideInit` → `grSstQueryHardware` → `grSstSelect` → `grSstWinOpen` → swap →
+  shutdown, logging each step with an immediate flush) settled in one run that the
+  card and driver were perfect and the fault was in the game. Worth keeping.
+
 ## Crack or compat patch? SAME SIZE + SAME HEADERS + DIFFERENT HASH is a crack (2026-08-30)
 
 Staging Halo 2 turned up a disc image carrying a literal `/CRACK/` directory,
@@ -42,21 +200,54 @@ preserves both on purpose so the file drops in cleanly.
 A same-size file looks untouched to every size-based check we own (including
 GAMESYNC's pre-1.62.0 skip test). Hash it against the file it replaces.
 
-### The mirror-image case: a stripped wrapper is also detectable
+### The mirror-image case, and the control that saved me from a phantom finding
 The same day, the share's Halo 1 tree showed the inverse — a file that had been
-*un*-patched. `halo.exe` reported version `01.00.00.0564` (retail 1.00) with a
-clean `.text/.rdata/.data/.tls/.rsrc` layout and **no SafeDisc sections**, while
-the tree still shipped SafeDisc's own `drvmgt.dll` (it references `SECDRV.SYS`)
-and `chktrust.exe`. Two further tells, both conclusive on their own:
+*un*-patched. `halo.exe` reported version `01.00.00.0564` (retail 1.00) with
+**no SafeDisc sections**, while the tree still shipped SafeDisc's own
+`drvmgt.dll` (it references `SECDRV.SYS`) and `chktrust.exe`.
 
-- **PE compile timestamp `0x21544c66` = 1987-09-20.** A 2003 Microsoft build
-  cannot have a 1987 timestamp; PE unpackers routinely write a bogus one.
-- **The import directory sits at the very tail of `.rdata`** (RVA `0x26d560`,
-  with `.rdata` ending at `0x270000`) — where an import reconstructor appends a
-  rebuilt table after dumping an unpacked image.
+**I initially called two more things evidence, and a control experiment proved
+one of them wrong.** I claimed the `.text/.rdata/.data/.tls/.rsrc` layout looked
+"clean/rebuilt", and that the import directory sitting at the tail of `.rdata`
+(RVA `0x26d560`) was an import-reconstructor artifact. Then I pulled a
+**known-genuine Microsoft Halo binary** — `halo.exe` out of the officially
+Microsoft-signed `Halo_Trial.exe` — and it has the **identical section layout**
+and its import directory in the **same place** (RVA `0x26c134`). Both "tells"
+were just how Halo's linker lays out a binary.
 
-So: **the presence of a protection's runtime support files next to an
-executable with no protection in it means the executable was swapped.**
+> **The rule: PE forensics are meaningless without a same-product control.**
+> Get a known-genuine binary from the same product and compare. Structure that
+> looks damning in isolation is usually just the vendor's toolchain.
+
+**What survived the control was decisive, and it is one field.** The genuine
+trial binary's `TimeDateStamp` is `0x3f79fea2` = 2003-09-30, a real build date.
+The suspect's is `0x21544c66` — and the *raw bytes of that field* are
+`66 4c 54 21`, which is ASCII **`fLT!`**: FAiRLiGHT's scene-group watermark,
+stamped into the PE header where the build date belongs.
+
+```
+SHARE retail halo.exe    TimeDateStamp=0x21544c66  raw=66 4c 54 21  ASCII='fLT!'
+OFFICIAL trial halo.exe  TimeDateStamp=0x3f79fea2  raw=a2 fe 79 3f  (2003-09-30)
+OFFICIAL haloupdate.exe  TimeDateStamp=0x537267ff  raw=ff 67 72 53  (2014-05-13)
+```
+
+**Read the TimeDateStamp as four ASCII bytes, not just as a date.** Crack groups
+sign their work there. A "nonsense" date is a hint; a nonsense date that spells
+a group's name is proof.
+
+And the publisher's own tooling agreed: Microsoft's official 1.0.10 updater, run
+against the complete, byte-verified retail tree on an otherwise idle box,
+refused it with **"There is a problem with your game installation. You may need
+to reinstall the game to fix it."** and wrote nothing (all five target files
+hashed identical before and after). **An integrity check from the vendor is
+worth more than any amount of my own PE reading** — and it was the cheapest test
+of the lot.
+
+Note the first run of that test was CONTAMINATED and I nearly drew the
+conclusion from it: I gave the updater a directory with 9 files and no maps, on
+a box where another agent was mid-test, and got the same dialog — which an
+incomplete install explains just as well. The finding only counts because it was
+re-run on a clean box against a complete tree.
 
 ### The way out is to UPGRADE provenance, not to launder it
 Halo 1 had a clean answer because **the publisher itself removed the DRM**:
