@@ -204,6 +204,60 @@ and `TiberianSun`.
 
 ---
 
+## A documented engine idiom can be ABSENT in a specific fork, and fail silently (SoF2, 2026-08-30)
+
+**`r_mode -1` + `r_customwidth`/`r_customheight` is THE documented way to ask an
+id Tech 3 engine for an arbitrary resolution. Soldier of Fortune II does not
+implement it.** The cvars are all registered — `r_customwidth`,
+`r_customheight`, `r_customaspect` and `r_customPixelAspect` are right there in
+`sof2mp.exe`'s string table — so the idiom looks supported by every test short
+of running it. The renderer simply has no mode -1 branch, so mode -1 is invalid
+and it **falls back to 640x480 while the config correctly says 1920**. No error,
+no warning, nothing in any log. The fleet launcher had been asking for -1 and
+getting 640x480 on a 1920x1080 panel.
+
+What makes the diagnosis credible is the A/B through the *identical* launcher
+path on .123, changing only the mode value:
+
+    r_mode -1 + r_customwidth 1920 / r_customheight 1080  -> 640x480   (fallback)
+    r_mode 7                                              -> 1152x864  (works)
+    r_mode 8                                              -> 1280x1024 (works)
+
+The mode-table path works perfectly; only the -1 branch is missing. That
+isolates it to the engine rather than to the config, the launcher, the latch
+ordering, or the panel.
+
+**The general lesson: a cvar existing is not a feature existing, and "this is
+how the engine family does it" is not evidence about a particular build.** A
+fork can register a variable and never wire it up. Verify an engine idiom on
+the actual binary before staging a whole fleet on it — especially when the
+failure mode is a silent fallback rather than an error, which is the normal
+shape for renderer init.
+
+**Does SoF2 reach 1920x1080 at all? NO — and that is an engine limit, not a
+staging gap.** Its mode table, from its own strings, is 0-11: 320x240, 400x300,
+512x384, 640x480, 800x600, 960x720, 1024x768, 1152x864, **1280x1024**,
+1600x1200, 2048x1536, and 856x480 (the only widescreen entry). There is no
+1920x1080. Measured on .123's 1920x1080 DELL P2312H, with the desktop set to
+1920x1080 first each time:
+
+    r_mode 8  (1280x1024)  -> 1280x1024      the largest that WORKS
+    r_mode 9  (1600x1200)  -> 640x480x16     refused, 1200 > 1080
+    r_mode 10 (2048x1536)  -> 640x480x16     refused
+    r_mode 11 (856x480)    -> 640x480x16     refused
+
+So **mode 8 is genuinely the ceiling on a 1080p panel**, and `FR_Q2MODE`
+(which resolves to 8 there) is already picking the largest usable mode — no
+change needed. Note the fallback drops to **16-bit** as well as 640x480, which
+is a useful tell that the mode was refused rather than chosen.
+
+Soldier of Fortune 1 is the same answer from the other engine: `SoF.exe`'s table
+runs mode 3 = 640x480 up to mode 9 = 1600x1200, all 4:3, no 1080p entry, so
+`gl_mode 8` = 1280x960 is its 1080p-panel maximum. **For both SoF titles,
+"1920x1080" is correctly reported as NOT APPLICABLE rather than as a defect.**
+
+---
+
 ## SoF2 multiplayer reads base/MP, so the fleet config never applied to it (2026-08-30)
 
 `sof2mp.exe`'s game directory is **`base/MP`, not `base`**. The fleet's staged
@@ -398,6 +452,60 @@ Also worth recording: the dev host's `/mnt/retro-share` is mounted **read-only**
 (`cifs … ro`). Every write to the staged library has to go through a fleet box's
 `Z:` drive. A `cp` that fails with "Read-only file system" is that, not a
 permissions problem to debug.
+
+---
+
+## Far Cry's System.cfg needs QUOTED values, and ignores everything else in
+## silence (2026-08-30)
+
+The staged Far Cry template was written in the obvious dialect:
+
+    r_Fullscreen = 1
+    r_Width = 1024
+    sys_firstlaunch = 0
+
+**None of it took effect.** Far Cry writes its own config with every value in
+double quotes - its configurator emits `sys_firstlaunch = "1"`,
+`e_decals = "1"` - and a bare value is not parsed at all. There is no warning,
+no log line, no error: the settings simply do not exist. The only visible
+consequence on .246 was that the first launch stopped dead on a modal
+**"Auto detection will adjust settings for optimal performance!"** dialog,
+which is precisely the "no wizard, no operator" promise that the word *staged*
+is supposed to mean. `r_Fullscreen` and the resolution were being ignored at
+the same time and nothing said so.
+
+Requoted, the engine's own `log.txt` proves each one landed:
+
+    Lua cvar: (r_Fullscreen,1)
+    Lua cvar: (r_Width,1920)
+    Lua cvar: (r_Height,1080)
+    Setting sys_firstlaunch to 0
+    Best-match display mode: 1920x1080x32
+
+Two general points worth keeping:
+
+* **Ask the engine what dialect it writes, do not infer one.** The answer was
+  sitting in `FarCryConfigurator.exe`'s own string table the whole time
+  (`strings -a` shows a hundred `key = "value"` pairs). One `strings` call was
+  cheaper than the launch that failed. The tree's `r_Driver = "Direct3D9"` was
+  already quoted and should have been the tell.
+* **A config a game silently ignores is the worst kind of staged defect**,
+  because every check short of running it passes: the file is present, it is
+  syntactically plausible, the validator likes it, and GAMESYNC copies it with
+  `failed_files: 0`. Only the game disagrees, and only by doing something
+  slightly wrong two minutes later.
+
+Mechanically, FLEETRES already had the answer: `-setline` turns a **backtick
+into a double quote**, exactly because cmd.exe eats real ones. So the staged
+recipe writes ``r_Width = `%FR_W%` ``. Guarded by
+`test_farcry_writes_quoted_values` in `tests/python/test_fleetres_staging.py`.
+
+Related, and true of any fullscreen D3D title: **the agent's `SCREENSHOT` cannot
+capture an exclusive-fullscreen CryEngine surface** - it returns the stale
+desktop composite, which here meant a Far Cry *splash* bitmap that sat on screen
+looking like a hang for eight minutes while the game was in fact at its main
+menu. `WINLIST` is the cheap truth (a `CryENGINE` class window at 0,0-1920x1080),
+and relaunching windowed is how you actually see the menu.
 
 ---
 
