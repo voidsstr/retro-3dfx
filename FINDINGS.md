@@ -14,6 +14,103 @@ it until a Voodoo card goes back in.
 
 ---
 
+## The favourites agent, proven in the games' own browsers (2026-08-30)
+
+Four engines, two boxes, screenshots of each — the standard the user set for
+"multiplayer works". `retro-gameindex` writes each title's own favourites file
+and every one of them was **read back by the game**, not merely written:
+
+| box | title | where | what was on screen |
+|---|---|---|---|
+| .133 | CS 1.6 | Favorites **and** Lan tabs | both fleet servers, 0/16, 13-24 ms |
+| .143 | CS 1.6 | Favorites **and** Lan tabs | both fleet servers, 0/16, 21-30 ms |
+| .133 | Quake III | Local **and** Favorites | `NSC RETRO FLEET AREN q3dm7 4/16`, 16 of 16 favourites |
+| .143 | UT99 | Favorites **and** LAN Servers | `NSC Retro Fleet Arena (UT99)` among 17, ping 12 on LAN |
+| .143 | Quake II | JOIN SERVER address book | `NSC Retro Fleet Arena (Q2) q2dm1 0/12` in row 1, 7x `<no server>` |
+
+**Quake III's `4/16` is four BOTS** (`bot_minplayers 4`), not four people. The
+server list gives you no way to tell; only the host-side probe does.
+
+Shapes now pinned by `tests/python/test_gameindex_favorites.py` because each is
+invisible when wrong: **Q2's address book is `adr0..adr8` and Q3's is
+`server1..server16`** — one engine generation apart, off by one, and a
+mis-numbered writer still logs "wrote 1 servers" while the game shows an empty
+first row.
+
+## "Unchanged" must mean the BOX is unchanged, not that our intent is (2026-08-30)
+
+`push_favorites` skipped a title when the DB's `applied_hash` matched the hash
+of what it had just rendered — which compares our own intent against itself.
+Anything that rewrites the file behind us is then invisible: GAMESYNC re-copied
+the staged `UnrealTournament.ini` over ours on **.171** and took the favourites
+back to the three the library ships. The next pass rendered the same output
+from the same staged base, matched its own recorded hash, logged `unchanged`,
+and would have done so forever. *Reverted* and *never written* look identical
+from the DB's side — the house failure mode exactly.
+
+`read_existing` already hands the pass the current bytes, so comparing against
+those is free. **Verified on hardware, not just in the suite:** the CS 1.6
+`serverbrowser.vdf` on **.143** was hand-reverted to an empty `favorites` block
+and the next pass logged `wrote 2 servers` for that path and `unchanged` for
+the untouched one, and the file on the box was then re-read and confirmed to
+carry both servers again.
+
+## A relative-mouse menu is not automatable, and WINDOWED is the escape hatch (2026-08-30)
+
+Known for id Tech 3; it is **also true of UT99's UWindow**. In exclusive
+fullscreen UT99 takes the mouse through DirectInput, so `UICLICK`'s absolute
+`SetCursorPos` moves nothing: a click at (600,400) moved the in-game cursor
+from (0,8) to (56,26). The UWindow menu bar also **ignores the keyboard
+entirely** — ESC opens it, and after that arrows and ENTER do nothing at all,
+so the usual "fall back to the keyboard" answer does not exist here.
+
+Running the same build **windowed** fixed it completely: absolute clicks landed
+on the menu bar, the dropdown, the browser's tab strip. Two habits that made it
+work:
+
+- **Click twice.** In UWindow the first click after a cursor jump only arms the
+  control (it registers as hover); the second activates. Every tab and menu
+  item needed the pair.
+- **Screenshot between every click.** The agent auto-updated four times during
+  the session (1.70.0 -> 1.72.1) and each restart raised its console window and
+  stole focus, silently eating the next click.
+
+## UT99 469e will not start on .143 or .133 — and the 436 tree does (2026-08-30)
+
+`C:\Games\UnrealTournament` is the staged OldUnreal **469e** tree (Engine.dll
+carries the `OldUnreal`/`469` markers, and every DLL matches the library
+byte-for-byte, so this is not a half-applied GAMESYNC). It **exits at startup
+before writing a single line of its own log**:
+
+- **.143** (Athlon 1000, no SSE): `0xC000001E`
+- **.133** (dual PIII 701, SSE1 only): `0xC000001D` STATUS_ILLEGAL_INSTRUCTION
+
+~30 attempts across both boxes, `start ""` and direct, fullscreen and windowed,
+with and without `Running.ini`. It succeeded **exactly once** on .143 and ran
+happily for five minutes, which is the only reason this is filed as "crashes at
+startup" rather than "cannot run".
+
+`C:\Games\UnrealTournament436` on .143 starts every time, and that is where the
+browser proof above came from. **That client is 436 and our server is 469** —
+the browser's own Version column says so — so per the standing rule these two
+boxes currently have no client that can actually join the fleet's UT99 server.
+The favourites reach them; the game cannot use them.
+
+**Diagnostic worth reusing:** `EXECW <n> cmd /v:on /c cd /d "<dir>" && game.exe
+& echo RC=!ERRORLEVEL!`. Plain `%ERRORLEVEL%` expands at parse time and always
+reports the outer shell's 0 — which is exactly the "the tool said success"
+failure this repo keeps meeting. `/v:on` plus `!ERRORLEVEL!` is what turns a
+silent crash into an NT status code.
+
+## NEVER `taskkill /f /im cmd.exe` through the agent (2026-08-30)
+
+The agent runs every `EXEC` through `cmd.exe`, so that command kills its own
+host shell mid-command and resets the connection. Harmless here, but it looks
+exactly like an agent crash, and the reflex to "clean up stray cmd windows" is
+a common one.
+
+---
+
 ## Two engines in one family give two different answers — measure each (2026-08-30)
 
 `GLQUAKE.EXE` and Hexen II's `glh2.exe` are the same lineage, look alike, and
