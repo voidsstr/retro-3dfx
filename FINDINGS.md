@@ -14,6 +14,166 @@ it until a Voodoo card goes back in.
 
 ---
 
+## A game's own mode list is NOT evidence of the engine's ceiling (Tiberian Sun, 2026-08-30)
+
+Tiberian Sun's **Options -> Display -> Resolution Modes offers exactly three
+entries: 640x400, 640x480, 800x600.** Read as a capability statement that says
+"this engine cannot do more than 800x600", and it is wrong: the same build, on
+the same fleet, **renders at a full 1920x1080** on .123 (screenshot
+`/tmp/retro-screenshots/ts-123-06-ingame.png` — full-resolution sidebar,
+proportionally small against a large map viewport).
+
+The CnCNet patch replaces the game's hardcoded 640/480 constants with reads of
+`[Video] ScreenWidth` / `ScreenHeight` from `SUN.INI`, **bypassing the
+enumerated mode list entirely**. The menu still lists what the unpatched code
+knew about. So the two facts are not in conflict, and the menu is simply not
+the authority.
+
+Generalised, because this will be re-derived wrongly by whoever next audits a
+resolution: **a menu, a mode list, or a settings dropdown is UI, not the
+engine's capability.** Ask the thing that actually sets the mode — the ini the
+patch reads, the mode table in the binary's own strings, or an empirical launch
+— before concluding a title is capped. The reverse trap exists too and was hit
+the same day: **Soldier of Fortune II registers `r_customwidth`,
+`r_customheight` and `r_customaspect` as cvars, so `r_mode -1` looks supported,
+and it is not** — the renderer has no mode -1 branch, so it falls back to
+640x480 while `fleetres.cfg` correctly said 1920. Measured twice. A cvar
+existing is not a feature existing.
+
+Corollary for TS specifically: its FLEETRES `-cap 1024 768` is a ceiling the
+engine does not have. Only two launchers in the library pass a cap — `Quake1`
+and `TiberianSun`.
+
+---
+
+## SoF2 multiplayer reads base/MP, so the fleet config never applied to it (2026-08-30)
+
+`sof2mp.exe`'s game directory is **`base/MP`, not `base`**. The fleet's staged
+`base\autoexec.cfg` — PunkBuster off, the screenshot binds, fullscreen, and the
+`exec fleetres.cfg` that carries the per-box resolution — **had never applied to
+multiplayer at all.** Every one of those settings was silently inert, and the
+game started and played perfectly, which is exactly why it survived.
+
+The proof was a single controlled swap, same file, same launch path, on .123:
+
+    autoexec.cfg with `seta r_mode 8` in base\      -> no effect, stayed 640x480
+    the SAME file in base\MP\                       -> came up 1280x1024
+
+The engine also writes its own config to `base\MP\sof2mp.cfg`, which
+independently confirms the live game directory. The clue was there all along and
+nobody carried it across: the binary reads its CD key with
+`CL_ReadCDKey("base/mp")` + `"%s/sof2key"`, which is why `base/mp/sof2key` was
+already staged correctly while the config beside it was not.
+
+Two useful details:
+* `exec fleetres.cfg` **does** resolve from `base\` when called from
+  `base\MP\autoexec.cfg` — fs_basegame stays in the search path (verified:
+  `r_mode 7` written into `base\fleetres.cfg` came up 1152x864 with only
+  `exec fleetres.cfg` in the MP file). So the launcher does not need to change
+  where it writes that file.
+* `base\MP\autoexec.cfg` **shadows** `base\autoexec.cfg` for MP (fs_game is
+  searched before fs_basegame), so the MP copy must carry everything MP needs on
+  its own. Single player (`SoF2.exe`) still reads `base\autoexec.cfg`. **Two
+  binaries, two game directories — edit both.**
+
+SoF2's real resolution ceiling, from its own mode table in the binary: modes
+0-11, topping at 9 = 1600x1200 and 10 = 2048x1536, with **no 1920x1080 entry**
+and the only widescreen mode 11 = 856x480. So **mode 8 (1280x1024) is the
+largest that fits a 1080p panel**, and 1920x1080 is genuinely not attainable —
+an engine limit, not a staging gap. Soldier of Fortune 1 is the same story from
+the other engine: its table (from `SoF.exe`'s strings) runs 640x480 to
+1600x1200, all 4:3, so `gl_mode 8` = 1280x960 is its 1080p-panel maximum.
+
+---
+
+## An unreferenced binary can be Vista-only and nothing will ever say so (2026-08-30)
+
+`UnrealTournament\System\magick.exe` was a **39 MB ImageMagick 7 binary** left
+in the staged tree by whoever generated the title's icons. No launcher, no
+`.ini`, no repo script named it (checked case-insensitively), and it was **PE
+`MajorSubsystemVersion` 6.0** — Vista and later, which **XP's loader refuses
+before a single instruction runs**, with no dialog and nothing in any log.
+
+So it was 39 MB of unloadable dead weight shipped to every box, and the only
+reason it was ever harmless is that nothing tried to start it. Had a launcher
+named it, the symptom would have been "the game does nothing when you
+double-click it" — the maximally silent failure, because `start ""` throws the
+exit code away too.
+
+Now caught by a `pe-subsystem` check in
+`retro-agent/scripts/validate-staged-library.py` (hand-rolled PE parse, no
+dependencies, verified byte-for-byte against `objdump -p`). It was the **only**
+such binary in 731 across the whole 40 GB library.
+
+Removed from the library, plus a `del` in `Play Unreal Tournament.bat` — because
+**GAMESYNC never deletes**, so a file the library stops shipping stays on every
+box forever unless a launcher removes it.
+
+---
+
+## A WM_COMMAND TOGGLE fired blindly reports success and does the opposite (desktop icons, 2026-08-30)
+
+The fleet was moved to Windows' own **Auto Arrange** for desktop icons (agent
+v1.73.0), reversing the custom "icon bay" placement. Three findings from doing
+it, in descending order of how much they would have cost:
+
+**1. The shell's toggle silently fails, on a quarter of the fleet.**
+`FCIDM_SHVIEW_AUTOARRANGE` is a WM_COMMAND **toggle**, not a set. The obvious
+implementation — post it, log "auto-arrange enabled" — was measured **doing
+nothing at all on both `.171` and `.143`**: the post returns, the style bit
+stays clear, and the log line claims success. That is this project's recurring
+"reported success and was believed" shape, and it is invisible to a unit test
+because the message is a cross-process side effect. The fix is to read
+`LVS_AUTOARRANGE` back after posting and fall back to
+`SetWindowLongA(lv, GWL_STYLE, style | LVS_AUTOARRANGE)` — which is a SET, so
+unlike the toggle it cannot flip the setting the wrong way. **The fallback is
+load-bearing, not belt-and-braces.**
+
+Corollary, and the general form worth remembering: **a toggle may only be fired
+when you have first read the state and know it moves the bit the way you want.**
+The previous generation of this same code learned this in the opposite
+direction — it fired the toggle blindly to turn auto-arrange OFF and thereby
+turned it ON on every box that already had it off, leaving icons in rows across
+the top of the screen.
+
+**2. The persisted view state is NOT uniform across the fleet, so read-modify-write.**
+Auto Arrange persists in `HKCU\Software\Microsoft\Windows\Shell\Bags\1\Desktop`
+→ `FFlags`, a FOLDERFLAGS word: **bit 0 = `FWF_AUTOARRANGE`**, bit 2 =
+`FWF_SNAPTOGRID` ("align to grid"). Measured before the change: **`.143` = 0x220,
+`.171` = 0x224** — the same fleet, the same image, different words, because
+align-to-grid differed. Stamping a constant `0x221` would have been correct on
+`.143` by luck and would have silently cleared align-to-grid on `.171`. Only bit
+0 may move. (`.246` on Win7 had no `Desktop` subkey under `Bags\1` at all, so
+the write has to create the key.)
+
+**3. Persistence survived an Explorer restart even though the toggle had failed.**
+The worry was that Explorer keeps its own in-memory `FOLDERSETTINGS` and
+rewrites the bag from it at logoff — which would clobber a registry write made
+behind its back, exactly the case when the WM_COMMAND never took. Tested by
+killing and restarting `explorer.exe` on `.171`: `FFlags` stayed `0x225` and the
+live style kept the bit. Not assumed — measured.
+
+**What this cost the icon bay:** with Auto Arrange on the shell packs icons into
+its own grid from the top-left and **ignores `LVM_SETITEMPOSITION` outright**, so
+the wallpaper's drawn bay cells are dead. The two mechanisms are mutually
+exclusive and cannot both run — that is the "two arrangers fighting over one
+desktop" bug this repo has already been through twice. Exactly one runs, chosen
+by `HKLM\Software\RetroAgent\IconAutoArrange` (absent/1 = auto, 0 = bay).
+`scripts/retro-wallpaper/arrange_icons.exe` must never be staged again: it
+clears `LVS_AUTOARRANGE` by design, so a single run turns the fleet default off.
+
+**Siting matters as much as the code.** The apply call had to go **above**
+`retrowall_apply_startup()`'s two early returns. Both of those returns are the
+NORMAL path on a fleet box (a fleet wallpaper was applied; no rotation staged),
+so a call placed after them runs on almost no machine, logs nothing, and looks
+installed. The theme and screensaver were already caught by that same trap once.
+
+Tests: `retro-agent/tests/native/test_icon_autoarrange.c`,
+`retro-agent/tests/python/test_icon_autoarrange_source.py` (both mutation-checked
+— the invariants really fail when the guard or the siting is removed).
+
+---
+
 ## Prove a patch REPLACES a file before you trust what it produced (Halo, 2026-08-30)
 
 Halo PC could not be staged from the share's "Original PC Release" zip: its
