@@ -14,6 +14,161 @@ it until a Voodoo card goes back in.
 
 ---
 
+## A second GPU's stale OpenGL ICD registration kills GL on the card that IS driving the monitor (2026-08-29)
+
+`.145` failed **every** OpenGL context creation, whichever DLL performed it, on
+a box whose NVIDIA driver was installed and working. It read as a broken driver
+and it was a **registration** problem.
+
+`HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\OpenGLDrivers` held two
+subkeys, one per adapter:
+
+    OpenGLDrivers\Intel     Dll = ig4icd32   (Intel HD Graphics - drives nothing)
+    OpenGLDrivers\RIVATNT   Dll = nvoglnt    (GeForce 8400GS - has the monitor)
+
+**Windows enumerates those subkeys alphabetically, so `Intel` is tried first** —
+and Intel's ICD cannot create a context on an NVIDIA framebuffer. The NVIDIA ICD
+was present, correct and never asked.
+
+**Diagnosis order that works**, and note the first step is the one that
+misleads:
+1. `VIDEODIAG` lists both adapters, which invites "it is using the wrong GPU".
+   It is not — `wmic path win32_videocontroller get name,currenthorizontalresolution,configmanagererrorcode`
+   showed **only** the GeForce with a live resolution and `ConfigManagerErrorCode=0`.
+   The display side was correct all along.
+2. `reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\OpenGLDrivers" /s`
+   is where the fault actually is.
+3. Confirm with the game's own log rather than a frame:
+   `GL_RENDERER` / `GL_VENDOR` name the card that really answered.
+
+**Fix:** remove the subkey belonging to the adapter that is NOT driving the
+monitor. Reversible — export it first; the values here were
+`Dll="ig4icd32"`, `Version=2`, `DriverVersion=1`, `Flags=3`. After removal
+`ioquake3` reported `GL_RENDERER: GeForce 8400GS/PCIe/SSE2`,
+`GL_VENDOR: NVIDIA Corporation`, `GL_VERSION 3.3.0`.
+
+**Check this on any box with two display adapters** — an onboard chip plus a
+card is the common case on this fleet, and the symptom (every GL title dies at
+context creation) looks nothing like a registry problem.
+
+---
+
+## A version number does not tell you whether a client can join — connect it and look (2026-08-29)
+
+Audited whether every fleet box's game clients can actually reach the servers on
+this host. **Every marker-based rule written first was wrong, and each one
+condemned healthy machines.** The corrections only came from launching the real
+client at the real server:
+
+| rule as first written | what hardware said |
+|---|---|
+| GoldSrc client `PatchVersion` must equal the server's | **56 false mismatches.** 1.1.2.5 and 1.1.2.7 are both protocol 48; .145's stock client logged `Connection accepted by 192.168.1.132:27018` |
+| Quake III needs the retail `pak0..pak8` set | **.145 has only pak0..pak6** and was on the server as `BOX145` while the audit called it broken |
+| UT99 469 = has `VulkanDrv`/`XOpenGLDrv`/`SDLDrv` | those are the **Linux server's** renderers. No Windows client has them, so all 15 UT99 installs read as 436/451. The real marker is the `OldUnreal469c.u` stamp |
+| an engine identifies a game | `q3` also covers Jedi Academy and SoF2 (paks in `base/`, not `baseq3`); `unreal` covers Unreal Gold. Auditing those against our Q3/UT99 servers condemned installs that were never going to connect to them anyway |
+
+Final state: **40 ok, 1 mismatch, 0 unknown** across 8 boxes.
+
+**Two traps that make a live test lie, both of which nearly produced a wrong
+answer here:**
+
+* **A player at the team-select screen is connected but NOT counted by A2S.**
+  The CS client was fully joined and rendering the map while the server still
+  reported `players=0` for 65 seconds. "The player count did not move" is
+  therefore *not* evidence of a failed connect — read the client's own console
+  (`-condebug`, and note GoldSrc writes `qconsole.log` to the **game root**, not
+  the mod directory).
+* **A blocked dialog is indistinguishable from a refusal, from the server side.**
+  UT99 sat on its "Recovery Mode" dialog and never attempted the connection at
+  all; the server saw exactly what a rejected client looks like — nothing. One
+  screenshot separated "refused" from "never asked".
+
+**The one real finding: The Specialists has no working client on the fleet.**
+`.145`'s `C:\Sierra\Half-Life` is the only TS install and is a **WON-era tree** —
+no `steam.inf` anywhere (that file postdates Steam) and `ts/liblist.gam` declares
+`hlversion "1110"`. It runs `hl.exe -game ts -window` and stays up; add
+`+connect` to our protocol-48 TS server and the process is gone within 25s,
+never appearing in the player list.
+
+Tooling: `retro-agent/scripts/gamepatch/audit.py`, which reports **ok /
+mismatch / unknown** and refuses to collapse the last two — an unreadable
+marker is not a failing client.
+
+---
+
+## Two files differing only in CASE are one file on the client (2026-08-29)
+
+The live UT99 server carries both `Botpack.u` (40 MB, matches OldUnreal's
+current manifest hash) and `BotPack.u` (39 MB, matches **no** entry in the
+315-row manifest). On Linux they are two files and the server has the right one
+open, so it is inert there.
+
+On any Windows client they are **one file**, and which one survives a copy is
+arbitrary — the wrong one is a version mismatch at connect time, on a box that
+looks correctly provisioned. The audit now flags case collisions in a UT99
+`System/` directory for this reason.
+
+---
+
+## A root service does not see a module installed in a USER site-packages (2026-08-29)
+
+`psycopg2` on this host lives only in `/home/voidsstr/.local/lib/python3.14/`.
+The dashboard collector runs as **root**, so the article counts it was written
+to publish would have rendered blank forever after deploy — and a blank there is
+indistinguishable from a site that published nothing all week, which is a much
+more alarming thing and would have been believed.
+
+Caught by checking `site.getusersitepackages()` before deploying rather than
+after. The fix is `apt install python3-psycopg2`. **Not** fixed by appending the
+user's site-packages to `sys.path`: that has a root service import code from a
+user-writable directory, which is a privilege-escalation route in exchange for a
+wall decoration.
+
+---
+
+## A 2001 OpenGL game can be killed by a MODERN driver's extension string, not by a missing feature (2026-08-29)
+
+SiN 1.11 runs fine on a **GeForce 6800** and access-violates on a
+**GeForce 8400GS** whose ForceWare reports **OpenGL 3.3**. The newer card is not
+missing anything; it is offering *more*.
+
+The engine's own log is the whole diagnosis, and the tell is where the file
+**ends**:
+
+    .143 / GeForce 6800   GL_VERSION: 2.x  -> ~2.4 KB GL_EXTENSIONS -> continues
+    .145 / GeForce 8400GS GL_VERSION: 3.3.0 -> <end of file>          -> c0000005
+
+It dies while producing or handling `GL_EXTENSIONS`, which on a GL 3.3 driver is
+far longer than a Quake II-derived engine of that era was written for. **A
+fixed-size extension-string buffer is the strong hypothesis — nobody has
+disassembled it, so it is not a finding.**
+
+**Why this generalises beyond one title:** the fleet keeps acquiring newer cards
+for old boxes, and *every* pre-2005 OpenGL title parses that string. Expect the
+same shape — an engine that works on the older card and crashes on the newer one,
+with the log stopping at `GL_VERSION`. It reads like a broken install or a bad
+driver; it is neither.
+
+**Diagnostic that costs nothing:** run the engine with its logfile on and look at
+the LAST LINE. Where a log stops is often more informative than what it says,
+and it distinguishes this instantly from "no GL at all" or "wrong renderer".
+
+**Attribution discipline that mattered here.** The staged tree deliberately makes
+`ref_soft.dll` a copy of `ref_gl.dll` (a fullscreen fix for cards lacking
+`GL_EXT_shared_texture_palette`), so the obvious suspicion was that the
+substitution caused the crash. An A/B with the genuine software renderer showed
+it reaching `mode 6: 1024 768 FS` and completing server init — and then dying **at
+exactly the same point** once the GL renderer loaded. So the substitution is not
+the cause; it only changes *where* the crash lands. **Two changes in flight at
+once, and only an A/B separates "my change broke it" from "my change moved it".**
+
+Equally important, what was **not** claimed: that this is a 1.11 regression. That
+title had never been run on that box under 1.0, so there is no baseline and none
+can be taken once 1.0 is replaced. "The new version broke it" is the tempting
+sentence and there was no evidence for it.
+
+---
+
 ## A private side-by-side assembly turns a missing DLL into "cannot execute the specified program" (2026-08-29)
 
 **`CreateProcess` gle=14001 `ERROR_SXS_CANT_GEN_ACTCTX` is reported by cmd as
