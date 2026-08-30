@@ -14,6 +14,186 @@ it until a Voodoo card goes back in.
 
 ---
 
+## A gate that reports a number can still be lying twice over (icons, 2026-08-30)
+
+The desktop icon-rebuild gate (arrange only when the desktop actually changed)
+failed **silently twice**, in two different ways, and BOTH were caught by
+reading a count off real hardware within minutes. Neither was visible from the
+source - the code was read carefully both times and looked right.
+
+**Failure 1: our own sweep made the question unanswerable.** `gs_run()` begins
+with `gs_sweep_desktop()`, which moves EVERY `.lnk` off the desktop before any
+shortcut is written. So the test "was this `.lnk` already there just before I
+wrote it?" is **always false**. Every shortcut counted as new, the gate was true
+on every box on every sync, and it suppressed nothing while reporting itself as
+working. Measured on .171: `shortcuts_changed=79` on a box that already had 81
+icons and had changed none of them.
+
+**Failure 2: the fix threw away its own evidence.** The repair was to sample the
+icon SET before the sweep and compare at the end. Correct - except
+`gs_desk_reset()` clears the snapshot as well as the counters and was sitting
+ELEVEN LINES BELOW `gs_desk_snapshot()`. The set was sampled and immediately
+discarded, nothing ever matched, and every rewritten shortcut counted as
+*added*: `shortcuts_changed=81`, the same wrong answer by a new route. The tests
+pinned `snapshot < sweep` and `settle < gate` but never `reset < snapshot`.
+
+**THE LESSON IS ABOUT ORDER, NOT ABOUT SHORTCUTS.** A before/after comparison
+has a setup step, a sample step, a mutate step and a resolve step, and *every
+adjacent pair is an invariant*. Pin all of them, not the one that happened to
+break first.
+
+**And a self-inflicted one worth naming: I read an unpopulated field as a
+result.** `shortcuts_changed` was written only by the end-of-run settle, so
+polling it mid-sync returned `0` for the entire run and then `81` at the finish.
+The mid-run zeros were reported as early evidence the fix was working. They were
+not a measurement of anything. **A counter that is only computed at the end must
+either not be published during the run, or must publish its running total** -
+now it publishes as it accrues. Reading a not-yet-computed value as a result is
+the same error as trusting a status word instead of the machine.
+
+**Why this argues FOR the instrumentation.** The counts were added reluctantly,
+as a check on a fix already believed to work. They found two real defects in the
+thing they were checking, on the first box they reached. A gate that suppresses
+work must report what it saw, or "it never fires" and "it fires every time" are
+indistinguishable - and both of those were true here at different times.
+
+---
+
+## A rejected CD key that was never actually tested: Halo, mgspid.dll and the wrong PIDGen (2026-08-30)
+
+Halo PC would not start ("Your product key is invalid", both Continue buttons
+greyed out).  Halo's own **mgspid.dll** was driven to enter the key the owner
+supplied and Microsoft's code answered **"Invalid CD Key!"**, which read as a
+wrong key — and a second key was requested from the user on that basis.  **The
+verdict was worthless.  No Halo key can pass that path on an XP box.**
+
+- **mgspid.dll validates nothing itself.** Its string table names the real
+  validator: `5011 "PIDGen.dll"`, `5012 "PIDGenSimpA"`, alongside `5001 "69771"`
+  (Halo's Microsoft Product Code), `5002 "Z08-00030"` (SKU) and
+  `5015 "OEM-1208613"`.  It `LoadLibraryA`s that DLL **by bare name**.
+- **Halo's PIDGen.dll ships on the retail CD, not in the installed tree.**  It
+  is absent from the user's 145-entry zip, from the staged tree, and from the
+  entire share (case-insensitive `find`: the only `PIDGEN.DLL` files anywhere
+  are the two Windows XP install-media copies under `Files/OS/XPSP3-*/I386/`).
+- **So the load falls through to `C:\WINDOWS\system32\PIDGen.dll`.**  Measured
+  on .145 with a purpose-built probe run from a directory with no PIDGen.dll:
+
+      LoadLibraryA resolved to: C:\WINDOWS\system32\PIDGen.dll
+      PIDGenSimpA             : present
+      BINK resource #1        : present (368 bytes)
+
+  A **`BINK` resource is the per-product elliptic-curve PUBLIC KEY** a
+  25-character key's signature is checked against.  Those two are Windows XP's —
+  the DLL even carries a hardcoded Windows key string.  It has no idea what MPC
+  69771 is.  The ABI matches (it exports `PIDGenSimpA` taking 9 dwords, `ret
+  0x24`; mgspid pushes exactly 9), so the call runs cleanly and simply answers
+  no.
+
+**The general lesson, and it is the "Make Failure VISIBLE" lesson pointed the
+other way: a NEGATIVE verdict from a tool needs the same proof of soundness as a
+positive one.**  "Microsoft's own code rejected it" felt authoritative; it was
+Microsoft's code judging the wrong product.  A wrongly-condemned key sends the
+owner hunting for media they already have.  Before recording any credential,
+key or licence as bad, establish that the validator you used is the one that
+belongs to that product.
+
+**Related, and it changes what "staged" means for this title:** `halo.exe` 1.10
+itself performs **no cryptographic check at all**.  Its gate at `0x0057f3f0`
+only requires `HKLM\Software\Microsoft\Microsoft Games\Halo\DigitalProductID`
+to exist, be exactly **164 bytes**, carry `0xA4` at 0 and version **3.0** at
+offset 4, and yield a non-empty `"%05d,%09d,0,% 19.19I64d"` identity string; the
+caller at `0x00541807` raises the fatal error **only** when that string comes
+back empty.  The ECC check lives in PIDGen.dll and runs once, in setup.  So the
+blob is built from the owner's own key by
+`retro-agent/scripts/halo/make_dpid.py` (base-24 at offset 52, Halo's own MPC /
+SKU / OEM id), and **the game starting is therefore NOT evidence the key is
+right** — only that the tree is staged correctly.  Say so rather than implying
+a validation happened.
+
+## Halo picks its overlay layout by VERTICAL RESOLUTION, and Bungie shipped no 1080 (2026-08-30)
+
+At the fleet's native 1920x1080 Halo paints a grey `404 Error! ... 
+content\1080log.ksml ... File Not Found!` panel across its own main menu.
+Keystone (Halo's overlay UI) opens `content\<height>log.ksml` and
+`content\<height>editbox.ksml`; the shipped set is 480, 576, 600, 720, 768,
+864, 900, 960, 1024, 1200 — 1920x1080 was not a PC mode in 2003.  Four of the
+eight fleet boxes are 1080p panels and the staged launcher picks the panel's
+native mode, so this hit **half the fleet** and looked like a corrupt install.
+Generated in the staged tree by `scripts/halo/make_ksml.py` (the 1200 pair
+scaled 0.9 vertically and 1.2 horizontally, plus a matching
+`gallery/editbox1080.png` — every shipped `editboxNNNN.png` is exactly as wide
+as its ksml's `width` field).
+
+## `rd /s /q` raced an in-flight GAMESYNC and left a title half-installed (2026-08-30)
+
+Purging `C:\Games\Halo` on .240 while a fleet-wide GAMESYNC was already copying
+that very title deleted everything not yet locked, reported
+`The process cannot access the file because it is being used by another
+process`, and the sync then finished and reported **`state=done, 38/38 titles,
+0 file error(s)`** over a tree missing `halo.exe`, `binkw32.dll`, the three
+`.bik` movies and 14 other files.  The desktop shortcut it built in that state
+fell back to the wrong icon (`FLEETRES.EXE`) because `launch.txt`'s explicit
+`halo.exe` was not on disk yet.  **Check `GAMESYNC` is idle before you purge**,
+and re-verify the file count against the library afterwards — `state=done` and
+`failed_files: 0` are both true of a tree that is missing a fifth of itself.
+
+---
+
+## The capability gate had a feature level it could never reach: `none` (2026-08-30)
+
+Preparing the Pentium-1 Compaq Deskpro (Win98, ~31 MB) for staged games broke
+three things in the gate that eight Windows XP boxes could not possibly have
+exposed. All three had the same shape: **the gate answered confidently, and the
+answer was wrong in the permissive direction.**
+
+- **`GG_GPU_NONE` was defined from day one and assigned to NOTHING.** Every S3,
+  Matrox, Trident, Cirrus and Tseng device id fell through a single vendor-wide
+  catch-all row at `GG_GPU_FIXED`, so an **S3 Trio64 — a chip with no 3D
+  pipeline at all, for which no Direct3D driver was ever written — claimed a
+  fixed-function rasteriser.** The level meaning "this box cannot do 3D" existed
+  and was unreachable. The only reason 3D-only titles were not waved straight
+  onto such a box is that `min_vram_mb` happened to catch some of them, which is
+  luck rather than a gate. Fixed by putting explicit 2D-only id ranges *ahead*
+  of each vendor's catch-all (`gg_gpu_level_from_pci` returns the first match).
+- **`none` is one level below `fixed`, so it landed in the MARGINAL band and the
+  title was copied.** The band exists because a title of that era usually ships
+  a lower-detail path for a weaker rasteriser — but there is no lower-detail
+  path from "has a rasteriser" to "has none", so this one is binary. Aliens
+  versus Predator is the title it protects: its own notes say "Direct3D only,
+  there is no software renderer".
+- **`gpu_feature_level` was being written in two different senses.** Nine staged
+  titles declared `fixed` while their own notes said a software renderer
+  shipped. Harmless while every box was `fixed` or better (a gap of zero), and a
+  hard `no` the instant a `none` box appeared. The field means *"will not launch
+  below this"*, never *"runs better above this"* — so it now comes off any title
+  whose tree really contains the software renderer, **with the proving file
+  named in the notes**: `sw.dll` (GoldSrc), `System\SoftDrv.dll` (Unreal
+  Engine 1), `soft.ren` (LithTech). Hexen II ships both builds and says it
+  per-shortcut instead, so a 2D box gets the game and loses only the OpenGL icon.
+
+**Blast radius was measured, not assumed**: re-deciding all 37 titles against
+the eight real fleet profiles produced a byte-identical result before and after,
+because every one of those boxes is `fixed` or better.
+
+**The wider lesson, and it is not about GPUs:** three staged titles carried
+`requires.json` files declaring **no floors at all**, on the explicit reasoning
+that there was *"no meaningful floor on this fleet"* — true when written, false
+the moment the fleet gained a machine a decade older than the rest.
+`HiddenAndDangerous` (2003, 272 MB, Direct3D-only) was being approved for a
+Pentium 166 with 31 MB of RAM. **A requirement written as a statement about the
+current fleet expires silently when the fleet changes**, and nothing anywhere
+flags it; a requirement written as a statement about the TITLE does not. The
+replacements are quoted from the games' own files — Turok 2's `ReadMeEnglish.txt`
+says "With a 3Dfx Voodoo or equivalent, P200. 3Dfx Voodoo 2 or equivalent,
+P166", and Hexen II's own launchers pass `-heapsize 32768`, i.e. the engine asks
+for 32 MB of heap on a machine that has 31 MB in total.
+
+**What was NOT a defect, checked first:** the DOSBox-wrapped titles
+(Carmageddon 1, Descent 1/2, Redneck Rampage) already gate on the **emulator's**
+host cost — 350-400 MHz — not the 1994 game's, and each says so in its notes.
+The P1 refuses all four for the right reason.
+
+
 ## Secrets: the vault is a system of record, and `$(az ...)` fails into an empty variable (2026-08-30)
 
 Swept the whole project for keys and credentials and moved the real ones into
