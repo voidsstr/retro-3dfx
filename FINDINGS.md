@@ -14,6 +14,40 @@ it until a Voodoo card goes back in.
 
 ---
 
+## Secrets: the vault is a system of record, and `$(az ...)` fails into an empty variable (2026-08-30)
+
+Swept the whole project for keys and credentials and moved the real ones into
+Azure Key Vault **`nsc-secrets-kv`** under `fleet-gamekey-*`. Three things worth
+not re-learning:
+
+- **`KEY=$(az keyvault secret show ... --query value -o tsv)` is a trap.** When
+  `az` is not logged in, the error goes to stderr, the non-zero exit is
+  swallowed by the assignment, and `KEY` is **empty** — so an empty product key
+  reaches `winnt.sif`, or an empty CD key reaches an `install.reg`, and it
+  surfaces hours later on a box at a dialog nobody is watching. Same "the tool
+  reported success" shape as everything else here. Use
+  `scripts/fleet/keyvault.py get`, which raises instead. It separates **four**
+  states — not logged in / no such secret / access denied / unreachable — because
+  each has a different fix.
+- **Key Vault's `--content-type` is capped at 255 chars** and rejects a longer
+  one with `Property  has invalid value`, naming *no* property. Cost one failed
+  `az keyvault secret set` before it was obvious.
+- **The vault is the SYSTEM OF RECORD, never a runtime dependency.** A staged
+  `install.reg` keeps the literal key: a Windows `.reg` has no indirection, and
+  a retro box must never need the WAN to start a game. The right shape is
+  `make-xp-source.sh`, which pulls the key **on the Linux host at build time**.
+- **Three categories of key-shaped value, not two.** Per-copy secret (vault it),
+  deliberately-public fleet convention (document why — `retro-agent-secret`,
+  `password`, `retroadmin`), and **per-installation machine-local state**
+  (`HKLM\SOFTWARE\Westwood\<game>\Serial` on RA2/Yuri/Tiberian Sun) which must
+  be *different* per box and would break LAN play if centralised.
+
+Git history was swept for key-shaped literals and is **clean**;
+`tests/python/test_no_committed_secrets.py` (in `retro-agent`) now keeps it that
+way, including a catch-all that greps the tree for the live vault values.
+
+---
+
 ## Publish the `.ver` sidecar LAST, and the dev host has TWO mounts of the share (2026-08-30)
 
 Two publish-path facts, both of which cost time today and neither of which is
@@ -534,6 +568,22 @@ rewrites the bag from it at logoff — which would clobber a registry write made
 behind its back, exactly the case when the WM_COMMAND never took. Tested by
 killing and restarting `explorer.exe` on `.171`: `FFlags` stayed `0x225` and the
 live style kept the bit. Not assumed — measured.
+
+**A GATE THAT DECIDES SILENTLY IS A GATE THAT CANNOT BE TRUSTED (v1.75.0).**
+The same change stopped rebuilding the icon layout at the end of every GAMESYNC
+and only does it when the desktop actually changed - a file really written, or
+a .lnk created/removed. But `gs_desk_changed()` decided that in silence, and if
+it is ever wrong in the "always true" direction the every-boot rebuild returns
+with nothing saying so. The realistic cause is ONE file that re-copies on every
+pass: a destination whose mtime never stamps (SetFileTime failing on an oddly
+attributed file, or coarser destination time granularity) fails the size+mtime
+resume test forever. From outside, that is indistinguishable from a box that
+genuinely had work to do. So the counts now appear in the `done:` line and as
+`files_written`/`shortcuts_changed` in GAMESYNC STATUS. **A steady-state box
+must report `0 file(s) written`; the same small non-zero count on consecutive
+no-change syncs is the defect announcing itself.** General form: when you add a
+condition that suppresses work, report what the condition saw - otherwise
+"it never fires" and "it fires every time" look identical.
 
 **What this cost the icon bay:** with Auto Arrange on the shell packs icons into
 its own grid from the top-left and **ignores `LVM_SETITEMPOSITION` outright**, so
