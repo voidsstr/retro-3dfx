@@ -14,6 +14,138 @@ it until a Voodoo card goes back in.
 
 ---
 
+## A private side-by-side assembly turns a missing DLL into "cannot execute the specified program" (2026-08-29)
+
+**`CreateProcess` gle=14001 `ERROR_SXS_CANT_GEN_ACTCTX` is reported by cmd as
+"The system cannot execute the specified program." — which reads like a corrupt
+or wrong-architecture binary, so the instinct is to go find a different exe.**
+That instinct is wrong and it is expensive.
+
+Found on Tiberian Sun. CnCNet's `GAME.EXE` carries an embedded `RT_MANIFEST`
+declaring a dependency on a **private** side-by-side assembly named `BLOWFISH`:
+
+    <dependency><dependentAssembly>
+      <assemblyIdentity type="win32" name="BLOWFISH" version="1.0.0.0"/>
+    </dependentAssembly></dependency>
+
+The tree's own 1999 `BLOWFISH.DLL` has **no resource directory at all**, so no
+assembly manifest, so activation-context generation fails and the process dies
+**before a single instruction runs**. CnCNet ships the same DLL with an
+`RT_MANIFEST` added (identity `BLOWFISH 1.0.0.0` + reg-free COM for CLSID
+`{1440AD10-6AA8-11D1-B6F9-00A024DDAFD1}`). Swap the exe alone and nothing
+happens; swap both and it runs.
+
+**Two general lessons:**
+* **When cmd hands you a sentence instead of a number, get the number.** A
+  three-line `CreateProcess` probe returned 14001 and named the problem in one
+  shot, after the sentence had sent the investigation off looking for a better
+  binary. `start ""` is worse still — it is fire-and-forget and discards the
+  exit code entirely.
+* **Check for `RT_MANIFEST` when a modern-ish rebuild of an old game refuses to
+  start.** Parsing the PE resource directory is cheap, and "the exe declares a
+  dependency the tree cannot satisfy" is invisible from every other angle.
+
+Related and distinct: an INI the patch expects and the tree does not ship can
+produce a plain `0xC0000005`. The same CnCNet patch replaces the game's
+hardcoded 640/480 constants with reads of `SUN.INI [Video] ScreenWidth/Height`.
+Those globals live in `.bss`, so with **no `SUN.INI` they are zero**; the surface
+allocator has an explicit "if width<=0 or height<=0, skip" guard, skips creating
+the HiddenSurface, and the game then makes a virtual call through the NULL
+pointer. **A patch can introduce a hard dependency on a config file that never
+existed before** — and the crash looks like bad game data, not a missing INI.
+
+## An era patch can remove a CD check outright — look on your own shelf before concluding it is uncrackable (2026-08-29)
+
+SiN Gold reached its main menu on every fleet box and **could not start a game**:
+`sin.exe +map bank` raised "You must have the Sin CD in the drive to play." A
+whole elimination pass had already ruled out the volume label, a marker file, the
+registry path, and **mounting the user's own disc image as a genuine
+`DRIVE_CDROM`** (657 MB and a mounter dependency for no behaviour change).
+
+The answer was the vendor's own **official 1.11 patch**, which simply removed the
+check: the string is in the 1.0 binary and **in no form** in 1.11's. No crack was
+involved, needed or wanted. And the patch was never on the internet for us — it
+was **already on the user's own share**, inside a licensed disc-preservation
+archive that an earlier note had flagged as "the next step" for an unrelated
+reason.
+
+**Three transferable points:**
+* **A 1990s copy-protection check is a version-dependent behaviour, not a law of
+  the title.** Before concluding a check cannot be satisfied, look for the last
+  official patch. Era patches routinely relaxed them.
+* **Search the user's own media before the internet.** Ours held it, and the
+  web routes (ModDB, FilePlanet, archive.org) all refuse scripted fetches, so the
+  patch had been written off as "needs a human with a browser".
+* **Pick a discriminator string that only appears in the failure path.**
+  `"No CD in player."` exists in *both* binaries — it is the audio-CD track
+  player — and using it as the check would have reported the patch as not
+  applied. `"CD in the drive"` is the one that discriminates.
+
+## UT99: a 436 client DOES join a 469 server — the join is a version handshake with a floor of 432 (2026-08-29)
+
+**"A retail 436 client cannot join a 469 server at all" is FALSE.** That single
+sentence sat in three of our documents and was the stated reason three pre-SSE2
+boxes (.124, .133, .143 — all `0xC000001D STATUS_ILLEGAL_INSTRUCTION` on 469e)
+could have no UT99 at all. It made the only apparent options a second dedicated
+server or a fleet-wide downgrade. Neither was needed.
+
+Established three independent ways:
+* the 469e engine's own `UEngine::GetMinNetVersion()` is literally
+  `mov eax,0x1b0; ret` = **432**;
+* the live server ini sets `MinClientVersion=432`, no ACE, `MD5Enable` absent;
+* a live join, with the server log reading `HELLO ... VER=436` → `Accepted` →
+  `Join succeeded`.
+
+All eight shared `ServerPackages` also carry **byte-identical GUIDs** across the
+436 and 469e trees, *including* the three whose contents changed — OldUnreal
+preserved them deliberately.
+
+**The lesson is about the shape of the error, not about UT99.** A blocking
+premise that everyone repeats, that nobody has measured, and that determines the
+whole solution space is the most expensive kind of wrong thing to have in a
+document. **When a constraint is doing that much load-bearing work, measure it
+before you design around it** — here it took one `objdump`, one `grep` of a
+config, and one join.
+
+Two smaller corrections that travelled with it, both the same failure of
+checking: the affected-box list said ".133 and .143" when **.124 was affected
+too**, and "no 436 CLIENT media has been found" when a complete pre-installed 436
+GOTY tree was **on the same share the whole time**.
+
+Also worth keeping, on why a runtime capability check does not save you: 436's
+`Galaxy.dll` *does* contain real SSE1, but it is runtime-gated on `GIsKatmai`
+imported from `Core.dll`. 469e's problem is that it puts SSE2 **in the EXE
+itself** — measured: 69 `movdqa` / 25 `movapd` / 44 `movsd` in
+`UnrealTournament.exe` and 6,304 `movdqa` in `Engine.dll`, against **zero** in
+every 436 module — so it faults before any check can run.
+
+---
+
+## GAMESYNC skips a staged file whose size is unchanged (2026-08-29)
+
+`gs_copy_file` treats a destination file of the **same size** as already up to
+date — it compares neither content nor mtime. So **editing a staged file without
+changing its length never reaches any box that already has the old one**, and
+GAMESYNC still reports success.
+
+Caught on `Descent1\DESCENT.CFG`: the box had 228 bytes with
+`DigiDeviceID=0xFFFFFFFF` and the share had 228 bytes with `DigiDeviceID=0x0`.
+The sync ran clean and the box kept the broken file.
+
+This is a *second*, distinct trap alongside the known "GAMESYNC never deletes".
+Same symptom — library changed, sync says done, box unchanged — different cause:
+
+| trap | trigger | workaround |
+|---|---|---|
+| never deletes | file removed from the library | overwrite it with a pointer comment (also changes its size) |
+| same-size skip | file **edited** to the same length | make the length change, or rename the file |
+
+Config edits are exactly the dangerous case, because the useful ones are
+same-length: `0`→`1`, a hex value edited in place, `yes`→`no`. (`ipx=false` →
+`ipx=true` shrinks by one byte and is safe by luck, not design.) After any
+small-file staged fix, confirm the **size on the box** matches the library
+rather than trusting the sync's "done".
+
 ## A filename with PARENTHESES cannot be launched through the agent (2026-08-29)
 
     EXEC cmd /c start "" /D "..." "...\Host Descent (LAN).bat"
