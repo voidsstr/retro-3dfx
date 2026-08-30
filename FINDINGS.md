@@ -14,6 +14,36 @@ it until a Voodoo card goes back in.
 
 ---
 
+## The staged-library validator is SHARE-BOUND, and 24 of them will deadlock each other (2026-08-30)
+
+`scripts/validate-staged-library.py` walks every title's whole tree over CIFS.
+With several fleet agents each running it — **24 concurrent copies** were live
+at one point today, all in uninterruptible IO wait (`D` state) — a single run
+got no timeslice for **over 25 minutes** and produced no output at all. It does
+not fail, it does not print, it just never returns, which is indistinguishable
+from a hang in the tool itself.
+
+**The escape hatch is a second transport to the same server.** The share is also
+reachable through gvfs, which is not contended by the processes hammering
+`/mnt/retro-share`:
+
+```bash
+python3 scripts/validate-staged-library.py --quiet \
+  --library "/run/user/1000/gvfs/smb-share:server=192.168.1.122,share=files,user=voidsstr/Files/Games-Library"
+```
+
+That returned `38 titles checked / DEPLOYABLE` in the time the CIFS run was
+still queued. Mount it non-interactively with:
+
+```bash
+printf 'password\nWORKGROUP\n0\n' | gio mount "smb://voidsstr@192.168.1.122/files"
+```
+
+Same trick applies to any share-bound sweep, and it is the only way to write to
+the library from the dev host at all: **`/mnt/retro-share` is mounted `ro` in
+`/etc/fstab`**, and `mount.cifs` is setuid but refuses a mountpoint that is not
+in fstab. gvfs is the writable path.
+
 ## A box can LOSE its EDID across a reboot, and the fallback took the fault back (2026-08-30)
 
 `.133` was measured in the morning as `pnp=VSC384D`, preferred timing
