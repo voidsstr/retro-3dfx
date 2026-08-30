@@ -531,6 +531,24 @@ Findings worth keeping from building it:
   on it. The generated document therefore lives in the repo, where it is always
   present, and is only additionally copied to the share when that mount is
   there.
+- **A NEAR MISS WORTH MORE THAN THE BUGS: the gate's cache key is a FILENAME.**
+  The gamegate host publishes each box's verdicts to
+  `<library>\_gamegate\<profile_hash>.txt` — `gg_profile_hash()` names the
+  file. Refactoring `hwprofile.c` for the inventory (splitting the handler,
+  adding `reported_at`, appending three arrays) could have moved that hash and
+  made **all eight boxes lose their verdict file simultaneously** — and nothing
+  would have errored: every box still deploys games, and only the LLM
+  adjudications in the marginal band, the ones a Pentium III cannot derive,
+  quietly fall back to the rule the model was called in to overrule. The change
+  was hash-neutral, but it was *reasoned* to be rather than checked, and the
+  check that established it was another agent's, after the push.
+  **`tests/native/test_profile_hash_pin.c` closes it**: the eight hashes the
+  fleet's own agents published on 2026-08-30, pinned as literals.
+  `test_gamegate.c` asserts only the RELATIVE properties (same box stable,
+  different boxes differ) — **demonstrated**, by folding `free_mb` into the hash
+  in a scratch copy: the existing 15-test suite stayed **fully green** while the
+  pin failed on all eight and named the consequence. A uniform drift is exactly
+  the shape that passes relative tests.
 - **A graphics card reported as "A".** `.246`'s display class key stores
   `DriverDesc` as a **REG_BINARY holding UTF-16LE**, not a REG_SZ.
   `RegQueryValueExA` converts REG_SZ for you and hands REG_BINARY back RAW, so
