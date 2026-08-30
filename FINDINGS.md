@@ -485,6 +485,17 @@ Findings worth keeping from building it:
   stamps it. Nothing looked wrong: every record was present, correct and
   recent, and it would only ever have surfaced as one box being called stale
   forever while publishing on every boot.
+  **It generalises to ANY "copy through a box" route**, not just this
+  publisher: the gamegate agent confirmed its verdict files took the same
+  offset by going UPLOAD-to-box-temp then `EXEC copy /Y` to `Z:`, landing on
+  the share reading 13:18 for files the host wrote at 11:18 - the same two
+  hours `.124` is fast. Harmless there only because nothing reads those
+  mtimes, which they checked rather than assumed. **The cheap fix when a host
+  is in the loop is `UPLOAD` straight to the share path** (`UPLOAD Z:\...`):
+  the agent's own file write is already CreateFile+WriteFile, so the server
+  stamps it and no agent change is needed. That does NOT apply to the
+  inventory publisher, which writes on the box, at startup, with no host in
+  the loop - there the direct CreateFile is the fix.
 - **Write to the FINAL name, not a temp name renamed into place.** A reader
   catching a partial file renders as `unreadable` — honest, and self-healing on
   the next publish. Delete-then-rename would briefly show no file at all and
