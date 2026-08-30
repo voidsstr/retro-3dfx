@@ -51,6 +51,31 @@ either not be published during the run, or must publish its running total** -
 now it publishes as it accrues. Reading a not-yet-computed value as a result is
 the same error as trusting a status word instead of the machine.
 
+**A STEADY-STATE MEASUREMENT NEEDS A STEADY STATE.** The gate's whole purpose is
+to suppress a sync in which nothing changed, and for a full afternoon it could
+not be observed doing so - every run reported `files_written=1` and stayed
+open. The suspicion was the unstampable-mtime defect (a file that re-copies
+forever). It was not: **four other agents were editing the staged library
+throughout**, so a different file legitimately changed on every pass. The moment
+the library was quiet the same box read:
+
+    nothing changed - icons left alone (0 file(s) written, 0 new/removed shortcut(s))
+    done: 37/38 title(s) copied, ... 0 file(s) written, 0 new/removed shortcut(s)
+
+The measurement was sound; the *environment* was not. **You cannot measure "did
+anything change?" while something is changing** - and a small non-zero count
+that never reaches zero looks exactly like a permanent defect. Before concluding
+a no-op path is broken, establish that a no-op was actually available.
+
+Full progression on one box, one library:
+
+| agent | `files_written` | `shortcuts_changed` | gate |
+|---|---|---|---|
+| 1.75.0 | 126 | 79 | suppressed nothing |
+| 1.76.0 | 1 | 79 | suppressed nothing |
+| 1.77.0, busy library | 1 | **0** | still open, via files |
+| **1.77.0, quiet library** | **0** | **0** | **suppresses - correct** |
+
 **Why this argues FOR the instrumentation.** The counts were added reluctantly,
 as a check on a fix already believed to work. They found two real defects in the
 thing they were checking, on the first box they reached. A gate that suppresses
