@@ -19,12 +19,19 @@ it until a Voodoo card goes back in.
 C&C Generals was investigated end to end for staging and is **blocked on
 SafeDisc 2**, and the way that conclusion was reached is the reusable part.
 
-**A SafeDisc title cannot be run from a data-only backup, and the `.mds` size
-tells you before you spend an hour.** Real SafeDisc/SecuROM images carry DPM
-(disc-profiling) data measured off the pressed disc; that lives in the `.mds`
-and makes it kilobytes. These images' `.mds` files are **1198 / 1038 / 486
-bytes** — data only. Mounting disc 1 on Daemon Tools and launching produced the
+**Mounting the image changed nothing**: disc 1 on Daemon Tools 3.47 produced the
 *identical* "Cannot locate the CD-ROM" modal as mounting nothing at all.
+
+**PARSE the `.mds`, do not judge it by size.** The first reading here was "these
+`.mds` files are 1198/1038/486 bytes, far too small for protection data, so this
+is a plain data rip" — and **that was wrong**, which is exactly the phantom-fact
+failure CLAUDE.md warns about. Parsed properly (header block pointer at 0x54),
+`Generals1.mds` carries a real protection table: the block at `0x46e` holds six
+sector ranges around LBA 304,300–308,300 — the SafeDisc weak-sector region. Disc
+1 is a protection-*aware* backup. The other three `.mds` files have that pointer
+at zero and carry nothing. So the honest statement is "the mount failed with
+Daemon Tools' emulation at its default", not "the image contains nothing to
+emulate".
 
 **Rule out `secdrv` before blaming the image, and say which you ruled out.**
 `sc query secdrv` = RUNNING / AUTO_START with `system32\DRIVERS\secdrv.sys`
