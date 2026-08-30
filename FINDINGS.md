@@ -14,6 +14,56 @@ it until a Voodoo card goes back in.
 
 ---
 
+## After a host reboot, `enabled` and `active` answer different questions (2026-08-30)
+
+The dev host rebooted mid-session and everything came back — but establishing
+that took a dozen ad-hoc commands across **three managers** (`systemctl --user`,
+system units, docker), each with its own status vocabulary. Now one command:
+`scripts/fleet/host-duties.py`.
+
+Two findings it encodes, both of which are silent until it is too late:
+
+* **Linger is the single point of failure for seven duties.** Without
+  `loginctl enable-linger voidsstr`, **no `systemctl --user` unit starts until
+  somebody logs in** — and every unit still reads `enabled`, so nothing looks
+  wrong. The host would come up with the chat daemon, the brain, the favourites
+  agent and all nine game servers dead. (Verified `Linger=yes` here.)
+* **A service running but not `enabled` is invisible until the reboot that
+  loses it.** `is-active` says `active`; it simply never comes back. That is the
+  one host fault that cannot be eyeballed, so the check looks for it explicitly.
+
+Also re-learned: **`active` is a promise, not evidence.** A unit can be active
+while what it supervises is wedged, so the check probes the post-condition —
+the game servers' own *per-engine* query replies (a single `getstatus` sweep
+reports false outages), `state.json`'s freshness, ollama's API, the brain's
+heartbeat. 12/12 servers answered after this reboot.
+
+And the rule that keeps having to be re-applied: **three states, never two.**
+`absent` (never installed here — `claude-csbot`, `rtcw-server`, `mohaa-server`),
+`unknown` (could not ask) and `down` are different calls to action and only the
+last is a fault. Rendering the first as an outage puts a permanent red light on
+the board and trains everyone to ignore it.
+
+## A refused TCP connect is contention, not a dead box (2026-08-30)
+
+With six agents driving the fleet at once, a box's listen backlog fills and XP
+answers RST. `box-owner.py` called `.124` UNREACHABLE three times while the box
+was perfectly healthy — ten hours of uptime, agent 1.71.0, answering instantly
+on the next attempt.
+
+The retry loop already existed; the bug was treating a refusal and a timeout
+alike. **`ConnectionRefusedError` returns INSTANTLY and consumes none of the
+time budget**, so two back-to-back attempts both landed inside the same few
+milliseconds and hit the same full backlog. *A retry with no pause is not a
+retry.* A refusal now earns several attempts with a rising sleep; a timeout,
+having already spent its wait, keeps the rising timeout it had.
+
+This is the second time this tool has produced this same false negative, and
+both times the damage was the same shape: **reporting a healthy machine as dead
+sends someone to diagnose a box that is fine.**
+
+---
+
 ## The Voodoo5 6000 is out of .133 — the vintage V5 lane is down to ONE box (2026-08-30)
 
 `.133` ("P3-DUAL") no longer has the Voodoo5 6000. It renders on an **NVIDIA
