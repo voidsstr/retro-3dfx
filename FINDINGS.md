@@ -552,6 +552,66 @@ anything.
 
 ---
 
+## EDID's "preferred" mode is a CRT's MAXIMUM, not its target (2026-08-30)
+
+The capability gate needs to know what resolution a title will actually run at,
+because 1920x1080 is ~2.4x the pixels of 1024x768 and that is the difference
+between a 2004 title being comfortable on a given card and not. There are three
+candidate sources on a fleet box and **each wrong one fails differently**:
+
+| source | why it is wrong |
+|---|---|
+| **live mode** (`EnumDisplaySettings ENUM_CURRENT_SETTINGS`) | a game that exits without restoring leaves it behind. **.123 and .240 were both sitting at 640x480** from a DOSBox leftover while driving 1080p panels. A tool that trusts it calls them 640x480 machines - and one that WRITES that conclusion pins them there for good. |
+| **EDID native** (first detailed timing) | correct for an LCD, **wrong for a CRT**, where the preferred timing is the tube's maximum. **.171's Gateway VX1120 reports 1920x1440** while the fleet runs it at 1280x1024. |
+| **persisted mode** (`ENUM_REGISTRY_SETTINGS`) | right: what the machine is configured to present, and a game's temporary `ChangeDisplaySettings` does not alter it. |
+
+**The CRT case was not theoretical - it was measured costing games.** Feeding
+1920x1440 to the ollama adjudicator flipped **BF1942, MaxPayne,
+SoldierOfFortune2 and UT2004 from `marginal` to `no` on .171**, i.e. the box
+would have silently stopped receiving four titles it runs perfectly well,
+because of a resolution nothing on it uses. Switching the target to the
+persisted mode put all four back. Agent 1.72.1 prefers the persisted mode and
+falls back to EDID; `HWPROFILE` reports `panel_source` plus both figures so a
+wrong answer can be diagnosed rather than guessed at.
+
+Two further notes for anyone touching this: **the EDID `digital` bit describes
+the CONNECTION, not the panel** - .123/.145/.240 are DELL LCDs on VGA and all
+report analogue, so it cannot be used to mean "is an LCD". And
+`EnumDisplayDevices` is **not stable between runs** on .171, which enumerates
+both a real Gateway and a `Default_Monitor` carrying no EDID; a single-shot
+probe reads the panel correctly on some runs and falls back on others, which is
+worse than failing outright because it looks like the panel changed. Walk every
+adapter and every monitor (`agent/shared/edid.h`, ported from
+`provisioning/fleetres/fleetres.c`).
+
+## Publish to the share ONLY from a commit already on origin/master (2026-08-30)
+
+Four agent versions (**v1.71.0, v1.71.1, v1.72.0, v1.72.1**) were built and
+published to the share from a worktree whose commits were **in no branch**, and
+one of them compiled in a **source file that was untracked entirely**
+(`agent/shared/edid.h`). All eight boxes ran that binary. The share is the
+fleet's auto-update source and is **the one artefact `git revert` cannot roll
+back**, so for several hours the fleet was executing code that could not be
+rebuilt from a fresh clone.
+
+Two distinct hazards, both real:
+1. **Another agent with a build off `origin/master` would have published
+   `v1.73.0` over it**, and every box would have pulled a binary with the
+   capability gate silently absent - auto-update pulls on version *inequality*,
+   so 1.72.x is simply stepped over with nothing pointing at the regression.
+2. **Local-only tags are one careless command from gone.** None of the four had
+   been pushed; a `git tag -d` during unrelated testing destroyed `v1.72.1`
+   outright, and it identified the binary the whole fleet was running.
+
+The repair that works: land the commits, `git tag -f` each published version at
+its post-rebase SHA, and **`git push origin --tags`**. Then prove the artefact
+matches - download the share's binary and diff it against a clean rebuild. Ours
+differed in **exactly 5 bytes, at offsets 136-137 and 216-218**: the PE
+`TimeDateStamp` and checksum. That is what "reproducible" looks like for a mingw
+PE; do not expect a byte-identical hash and do not accept more than those.
+
+---
+
 ## A parsed-but-never-consulted field is a silent no-op (gamegate, 2026-08-30)
 
 `requires.json` declared `disk_mb` from the first version of the capability
