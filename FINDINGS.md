@@ -385,6 +385,67 @@ and re-verify the file count against the library afterwards — `state=done` and
 
 ---
 
+## The Win98 Pentium-1 (.243, N5R5L9): why it never auto-updated (2026-08-30)
+
+The box finally came up as **192.168.1.243, hostname N5R5L9**, and it is NOT the
+31 MB machine the docs describe: **127 MB RAM, Pentium family 5 model 2 stepping
+12 — a P54C, so NO MMX** — 1220 MB disk with 617 MB free, Windows 98 4.10.2222.
+
+**It was stranded on agent v1.30.0** (published: 1.78.0) and the log says why, on
+every boot since:
+
+```
+[UPDATE] Cannot access share binary (network not ready or path invalid)
+[DOSSTAGE] share not reachable (...) - is it mapped? no files staged
+boot:   share not readable - skipping the update this boot
+```
+
+`net use` reported **"There are no entries in the list"** — no share mapped, so
+auto-update, DOSSTAGE and GAMESYNC had all been silently no-ops for eight
+versions. This is CLAUDE.md's *"NETMAP first — do not assume the box has the
+share mapped"* in its most expensive form: nothing was broken loudly, the box
+just quietly stopped receiving anything.
+
+**The credential is the actual root cause.** `MAPSHARE.BAT` (in the Run key,
+with sensible retries) runs:
+
+```
+net use E: \\192.168.1.122\files password /SAVEPW:NO /YES
+```
+
+which supplies a **password but no username**, so Win9x authenticates as the
+console logon account. The NAS wants **`voidsstr`**. The agent's own `NETMAP`
+succeeded immediately with `\\192.168.1.122\files Z: voidsstr password`,
+because it goes through **mpr.dll / WNetAddConnection2, which takes an explicit
+username** — the command-line `net use` on Win9x does not appear to. So the API
+path works and the batch path cannot, and the batch is the one that runs at
+logon. (Worth confirming on the box; `%USERNAME%` is unset on Win98, so the
+batch cannot even log which identity it used.)
+
+**AGENTRUN.BAT is the right design and was never the problem**: it updates the
+binary at logon *before* the agent starts, because **Win9x cannot rename or
+overwrite a RUNNING exe** — which is also why `RESTART` never helped here and
+why auto-update "quietly did nothing for four versions". Its second source is a
+hand-staged `C:\RETRO_AGENT\retro_agent_new.exe`, which is the safe way to
+push a build to this machine.
+
+**THE AGENT THEN DIED AND I DO NOT KNOW WHY — SAYING SO RATHER THAN GUESSING.**
+It exited about a minute into a sequence of `EXEC copy` / `EXEC dir` commands
+against the freshly mapped share; 9898 went to *connection refused*, 9897 held
+for ~80 s and then went too, while **139 stayed open and ARP stayed reachable**,
+so the machine is fine and only the agent process is gone. My first hypothesis
+was the documented DOSSTAGE tile-payload kill — **and it was wrong**: the free-RAM
+guard and the tiles opt-in landed in **v1.21.1**, older than the 1.30.0 that was
+running, and the box had 85 MB free anyway. A phantom cause is worse than none.
+The log will say; it is only readable once the agent is back.
+
+**There is no remote path to recover it.** Nothing supervises the agent on
+Win9x (the Run key fires at logon only), and the box shares nothing itself —
+port 139 accepts TCP but refuses the NetBIOS session, so smbclient/impacket
+cannot reach its filesystem either. It needs a physical power cycle, after
+which `AGENTRUN.BAT` installs the staged 1.78.0 before starting it.
+
+
 ## FLEETRES.EXE could not run on the box it was written to help (2026-08-30)
 
 `FLEETRES.EXE` carried **78 CMOV instructions**. CMOV is a Pentium **PRO**
@@ -1382,6 +1443,66 @@ Three things follow, and the third is the general one:
 Beware the corollary while the fleet is busy: **a refused TCP 9898 during this
 window is the agent restarting, not a dead box.** Retry before concluding
 anything.
+
+---
+
+## A cached "marginal" was a DEAD END, and a rule verdict shadowed the model (2026-08-30)
+
+Two bugs in the gamegate verdict cache, both of which **silently destroyed the
+model's reasoning on every routine re-publish** — the one part of a verdict file
+a Pentium III cannot recompute for itself.
+
+1. **`decide_title()` returned on a cache hit BEFORE the escalation gate.** So a
+   `marginal` recorded while ollama was down — or under `--no-llm` — was served
+   back forever and the model was never consulted. That is not a corner case: it
+   is what *every* run records whenever ollama is unreachable, and the fail-open
+   path is supposed to be routine.
+2. **`--refresh-llm` could not reach those rows**, because they are typed
+   `rule`, and that flag drops `llm` rows by design. The only recovery was
+   `--refresh`, which discards every verdict for the box.
+
+Fixing (1) exposed a third: **`cache.get()` prefers the empty-model row**
+(deliberately, so swapping models never throws away arithmetic), which meant a
+leftover rule row **permanently shadowed** the `llm` row written beside it. The
+verdict was re-asked on every run and the answer never used — unbounded model
+calls reported as `cached … llm calls: 0`. `put()` now deletes the superseded
+rule row when it stores an adjudication.
+
+**The general shape is worth more than the specific bug: a cache entry that
+means "not decided" must not be stored as though it were a decision.** Either
+do not cache it, or make it re-escalate when the thing that can decide it comes
+back. Ours now self-heals — the record is kept while ollama is down, and the
+next run that *can* adjudicate upgrades it, with no flag to remember.
+
+Verified on `.171`: seeded 5 rule-marginals with ollama pointed at a dead port,
+then a normal run re-escalated all five (`llm calls: 8`) and a third run settled
+at `llm calls: 0` with the model's reasoning intact.
+
+## The permissive default is what made a corrupted verdict file survivable (2026-08-30)
+
+A per-title publisher overwrote the complete 38-row verdict file with a
+**one-row** file on **seven of eight** boxes. Nothing reported it for hours,
+because the survivor was immaculate — right header, right columns, one valid
+verdict — and **every box carried on gating correctly from its own local
+rules**. Nine ollama adjudications were lost.
+
+Two design decisions turned a data-loss incident into an annotation-loss one,
+and both were made for stated reasons long before this happened:
+
+* **The agent carries the deterministic rules as well as the host.** Written for
+  "a freshly PXE-imaged box syncs before any host tool has seen it". It also
+  means a corrupted, truncated or absent published file costs *reasoning*, never
+  *correctness*.
+* **`gs_gate_allows_title()` returns `v != GG_V_NO`,** so `marginal` ALLOWS the
+  title. No box was ever denied a game it could run, at any point.
+
+**The lesson is not "we got away with it".** It is that the failure was
+invisible *precisely because* the fallback was silent and correct, so the
+detection has to be added deliberately: the file now declares `# titles=N`, and
+the agent logs how many verdicts it loaded and warns when that is fewer than the
+library holds. Neither refuses the sync — the gate is unharmed — but the
+shrinkage is now sayable instead of silent. A well-formed survivor of a clobber
+is the hardest kind of corruption to see.
 
 ---
 
