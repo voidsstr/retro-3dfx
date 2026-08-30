@@ -531,6 +531,35 @@ draw to a port nobody is looking at. Rendering on the 3dfx card is an explicit
 per-box opt-in, `HKLM\Software\RetroAgent\GlideRender` (REG_DWORD 1), set on
 `.171` alone.
 
+
+**VERIFIED END TO END ON .171 (2026-08-30).** With `FR_GLIDE=1` and
+`GlideRender=1`, `Play Unreal Gold.bat` moved the wrapper aside (only
+`glide2x.dll.nglide` left in `System\`), wrote `GameRenderDevice=`,
+`WindowedRenderDevice=` and `RenderDevice=GlideDrv.GlideRenderDevice` plus
+`FullscreenViewportX/Y=800/600`, and `System\Unreal.log` then reads:
+
+```
+Log:  Bound to GlideDrv.dll
+Init: Found Glide: 2.56.00.0459
+Init: Glide info: Type=0, fbRam=4 fbiRev=260 nTexelfx=2 Sli=0
+Init: grSstOpen Res=0 Ref=8 Buffers=3
+Init: Glide tmu 0: tmuRev=4 tmuRam=4 Space=4194296
+Init: Glide tmu 1: tmuRev=4 tmuRam=4 Space=4194296
+```
+
+That is the **real 3dfx Glide 2.56**, not nGlide, and `fbRam=4 nTexelfx=2` is
+the 12 MB Voodoo 2 (4 MB framebuffer + 2x4 MB TMU). **`grSstOpen` SUCCEEDS**
+where through the wrapper it had failed `(2, 3)` every time. The `Critical
+Error: Assertion failed: RenDev ... EndFullscreen <- WM_KILLFOCUS` that follows
+is UE1's well-known focus-loss assert, provoked by the agent's own commands
+stealing focus AFTER a successful init - not a Glide fault.
+
+**A Glide fullscreen surface on a pass-through card cannot be screenshotted.**
+The Voodoo 2 renders to its own framebuffer and feeds the monitor through the
+pass-through cable, so `SCREENSHOT` will never show it whatever happens. The
+engine's own log is the evidence, and it is better evidence than a frame.
+
+
 ## `%%` outside a FOR loop is a silent no-op that reads correctly (2026-08-30)
 
 The first cut of that render-device block emitted `if "%%FR_GLIDE%%"=="1" (`.
