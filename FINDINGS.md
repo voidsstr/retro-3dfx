@@ -131,6 +131,46 @@ the cut. UT99, CS 1.6, Quake II and UT2004 then sit unchanged pass after pass.
   `C:\Sierra\Half-Life` has no `revSrvBrowser` and therefore no
   `config\serverbrowser.vdf`, and creating one writes a file nothing reads.
 
+### `players > 0` is a defence against a MASTER's list, not a rule for your own
+
+Requiring live players before listing a server is right for a master's output
+— 900 Quake III addresses yield ~584 answers of which most are empty, and
+favourites full of ghost towns is the complaint that started this. Applied to
+an address **we curated**, the same rule means a known-good server drops out
+the moment its last player quits and returns when somebody joins, so the file
+churns and every box is rewritten *for a server that never went anywhere*.
+Curated entries need only to be **alive**.
+
+The general shape: **"did we choose this address" is the line**, and it decides
+several rules at once — the gamename filter, the host-dedupe, and this one. For
+what we curated we know exactly what is running; for a master's list we do not.
+
+### Never put the slot cut where the list is
+
+18 curated UT99 seeds plus our own server into **16** slots puts the boundary
+exactly in the middle of the candidate list, so one server emptying reshuffles
+the file. `UBrowserFavoritesFact` declares `Favorites[100]`, so there was never
+a reason to sit at the boundary — 24 slots and the whole curated list fits.
+
+Measured across five consecutive fleet passes, rewrites fell **66 → 16 → 13**,
+and the last pass rewrote Quake III and nothing else. Quake III genuinely
+changes (584 live servers competing for 16 slots); CS 1.6, Quake II, UT99 and
+UT2004 now sit unchanged pass after pass.
+
+### "Not attempted" and "nothing to do" must be different numbers
+
+A box skipped because a game was running and a box that needed no change both
+landed in `skipped`. So a pass that reached all eight boxes and wrote nothing
+**because every one of them was mid-session** looked exactly like a pass with
+nothing to do — and nobody would know to re-run. Only one of those two states
+needs the next pass to come back for it. They are now separate buckets, and the
+busy one is summarised at the end of the pass in its own line.
+
+Related ordering trap: check "is it busy" **after** you know there is something
+to write. Reporting BUSY for a title that had nothing to write anyway inflates
+the retry list with work that will never happen, and the whole value of the
+bucket is that it means *come back*.
+
 Covered by `tests/python/test_gameindex_favorites.py` in the retro-agent repo,
 including a coverage assertion that no staged title may fall through to the
 generic "nobody has looked at this yet" reason.
