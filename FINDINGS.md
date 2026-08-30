@@ -14,6 +14,67 @@ it until a Voodoo card goes back in.
 
 ---
 
+## Crack or compat patch? SAME SIZE + SAME HEADERS + DIFFERENT HASH is a crack (2026-08-30)
+
+Staging Halo 2 turned up a disc image carrying a literal `/CRACK/` directory,
+and the useful lesson is that **"there is a crack in the container" is the start
+of the analysis, not the end** — the folder held two things of completely
+different character, and only one of them was disqualifying.
+
+| artifact | what it actually is | verdict |
+|---|---|---|
+| `/CRACK/XP_PATCH/` — `DWMAPI.DLL`, `MF.DLL`, `MFPLAT.DLL`, `XTASKDLG.DLL`, `WOW.DLL`, `LOADER.EXE` | **stubs for Vista-only APIs** (Desktop Window Manager, Media Foundation, TaskDialog) plus a loader that fakes the OS version check | **compatibility shim — fine.** It changes which OS the binary will start on. |
+| `/CRACK/STARTUP.EXE` | a **byte-patched copy of the retail `/STARTUP.EXE`** | **DRM circumvention — blocked.** |
+
+**The test that separates them, and it is cheap:** compare the suspect against
+the original it shadows.
+
+- root `/STARTUP.EXE`  → sha256 `bef26459a69d3746ba5c853ee7af95f7ac9982cf6268c7767047381a61417a8d`
+- `/CRACK/STARTUP.EXE` → sha256 `dfd4f05e304f472aaa801562386c0345daebf154bf3b58e432243d7e667578c1`
+
+Both **1,705,336 bytes**, both PE timestamp `0x4636808b`, both version
+`1.00.00.11081`, both the same four sections. **Same size + same headers +
+different bytes = someone edited the binary in place.** A genuine rebuild moves
+the timestamp and almost never lands on the identical byte count; a patcher
+preserves both on purpose so the file drops in cleanly.
+
+**File size alone answers this question WRONGLY** — that is the whole point.
+A same-size file looks untouched to every size-based check we own (including
+GAMESYNC's pre-1.62.0 skip test). Hash it against the file it replaces.
+
+### The mirror-image case: a stripped wrapper is also detectable
+The same day, the share's Halo 1 tree showed the inverse — a file that had been
+*un*-patched. `halo.exe` reported version `01.00.00.0564` (retail 1.00) with a
+clean `.text/.rdata/.data/.tls/.rsrc` layout and **no SafeDisc sections**, while
+the tree still shipped SafeDisc's own `drvmgt.dll` (it references `SECDRV.SYS`)
+and `chktrust.exe`. Two further tells, both conclusive on their own:
+
+- **PE compile timestamp `0x21544c66` = 1987-09-20.** A 2003 Microsoft build
+  cannot have a 1987 timestamp; PE unpackers routinely write a bogus one.
+- **The import directory sits at the very tail of `.rdata`** (RVA `0x26d560`,
+  with `.rdata` ending at `0x270000`) — where an import reconstructor appends a
+  rebuilt table after dumping an unpacked image.
+
+So: **the presence of a protection's runtime support files next to an
+executable with no protection in it means the executable was swapped.**
+
+### The way out is to UPGRADE provenance, not to launder it
+Halo 1 had a clean answer because **the publisher itself removed the DRM**:
+Microsoft/Bungie's official **1.0.10 patch (May 2014) removed SafeDisc**. So the
+fix is to ship *Microsoft's own* DRM-free binary over the user's retail data —
+`halopc-patch-1.0.10.exe`, md5 `adeed5e8d33172ec387cb11a89f1b294`, containing
+`haloupdate.exe` v`01.00.10.0621` with `CompanyName = Microsoft Corporation`.
+That is a legitimate binary with a defensible origin, not a crack.
+
+**Before concluding a title is unstageable, check whether the publisher shipped
+a de-DRM patch.** It is more common than it looks for 2000s-era titles whose
+protection later broke on modern Windows, and it converts a blocked title into
+a clean one. (Halo 2 had no such route: its activation servers are dead and the
+only key source was a 284-line list of ~250 product keys bundled with the ISO,
+so every path ran through circumvention and it stayed blocked.)
+
+---
+
 ## A favourites list can be written, reported "wrote N servers", and be unjoinable (2026-08-30)
 
 Extending the favourites agent (`scripts/gameindex/`) from the Quake family to
