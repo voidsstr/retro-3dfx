@@ -14,6 +14,60 @@ it until a Voodoo card goes back in.
 
 ---
 
+## "The disc image is right there" is not the same as "the disc check passes" (Generals, 2026-08-30)
+
+C&C Generals was investigated end to end for staging and is **blocked on
+SafeDisc 2**, and the way that conclusion was reached is the reusable part.
+
+**A SafeDisc title cannot be run from a data-only backup, and the `.mds` size
+tells you before you spend an hour.** Real SafeDisc/SecuROM images carry DPM
+(disc-profiling) data measured off the pressed disc; that lives in the `.mds`
+and makes it kilobytes. These images' `.mds` files are **1198 / 1038 / 486
+bytes** — data only. Mounting disc 1 on Daemon Tools and launching produced the
+*identical* "Cannot locate the CD-ROM" modal as mounting nothing at all.
+
+**Rule out `secdrv` before blaming the image, and say which you ruled out.**
+`sc query secdrv` = RUNNING / AUTO_START with `system32\DRIVERS\secdrv.sys`
+present. Microsoft disabled that driver in KB3086255 on later builds, so "the
+protection driver is off" is a real and *different* fault from "the image is
+data-only", and they present identically as a CD-ROM dialog.
+
+**The vendor's own inner exe is not an escape hatch.** `generals.lcf` literally
+says `RUN = . game.dat`, and `game.dat` has no SafeDisc sections at all — which
+looks like an unprotected binary. Run it and it **exits 0, instantly, with no
+window** (exactly what CLAUDE.md already records for Red Alert 2's `game.exe`).
+Diffing retail `game.dat` against the scene crack's copy shows why: they differ
+at **exactly three bytes** — offsets 18767, 1630763, 1775875, each `0x75` (JNZ)
+→ `0xEB` (JMP). Three integrity branches forced. So "launch the inner exe" and
+"apply the crack" are the same act, and a three-byte `cmp -l` settles in seconds
+what an afternoon of launching cannot.
+
+**A three-byte diff is also the cheapest provenance test there is.** The install
+payload audits clean (25 PE binaries, 0 FAIL, all SubsystemVersion 4.0, stamps
+1999-2003) *and* still carries a working SafeDisc wrapper — a repacker would not
+leave the protection in and put the crack in a side folder. That is stronger
+evidence the CABs are untouched retail than any section-layout argument, and it
+needs no known-genuine control binary.
+
+**Two mechanical traps in the same job, both silent:**
+- **A `.mdf` is 2448-byte sectors** (2352 raw + 96 subchannel) when Daemon Tools
+  wrote it. The ISO PVD is at `16*2448+16 = 39184`, **not** 32768 and not
+  `16*2352+16`, so a `dd` at the usual offset reads zeros and the image looks
+  empty. Search for `CD001` instead of assuming. (`scripts/fleet/mdf2iso.py` in
+  retro-agent now does this.)
+- **`msiexec /i` on an InstallScript-MSI fails 1603** with `ISStartUp Failure.
+  OpenEvent, Error = 0x6` — its custom actions need the named event that
+  `setup.exe` creates. Run `setup.exe`. And mount **both** discs on separate
+  virtual devices, copy every cab into ONE folder, and run setup from there: the
+  MSI then never asks for a disc swap.
+- **XP `xcopy` to a mapped SMB drive can copy nothing and still exit 0.** Twice,
+  with `/E /I /Y` and with `/Q` removed. A generated `mkdir` + `copy /Y` batch
+  worked. **Verify the post-condition** — the file count and byte total on both
+  sides — never the exit code: the first `copy` run also silently dropped a
+  whole subdirectory when the connection dropped mid-run, and reported nothing.
+
+---
+
 ## A gate that reports a number can still be lying twice over (icons, 2026-08-30)
 
 The desktop icon-rebuild gate (arrange only when the desktop actually changed)
@@ -346,6 +400,20 @@ Findings worth keeping from building it:
   on it. The generated document therefore lives in the repo, where it is always
   present, and is only additionally copied to the share when that mount is
   there.
+- **A graphics card reported as "A".** `.246`'s display class key stores
+  `DriverDesc` as a **REG_BINARY holding UTF-16LE**, not a REG_SZ.
+  `RegQueryValueExA` converts REG_SZ for you and hands REG_BINARY back RAW, so
+  an ANSI reader's C string ends at the first NUL — after one character. Short,
+  printable, plausible, flagged by nothing. Fixed in agent **1.74.1**
+  (`hwpub_utf16le_narrow()`), in BOTH readers — `hwextra.c`'s and
+  `hwprofile.c`'s `reg_str()`. Anything neither string nor UTF-16 now yields
+  nothing rather than a byte soup that reads as a short name.
+- **The first generated inventory corrected the hand-written one immediately**,
+  on facts nobody would have re-checked: `.145`/`.246` have **3316/3317 MB**,
+  not the "2047 MB" that was `GlobalMemoryStatus` saturating and being copied
+  into docs as a measurement; `.171` has **TWO** Voodoo 2s sharing one
+  `Enum\PCI` device key with two instance subkeys (count keys and you see one);
+  `.240` has 10 GB free, not 17.
 - **The box publishing its own record is still right**, but for the durable
   reasons rather than the write-permission one: a box knows its own hardware, a
   host-side collector on an on-demand fleet would mostly collect nothing, one
