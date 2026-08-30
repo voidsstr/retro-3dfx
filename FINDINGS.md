@@ -14,6 +14,53 @@ it until a Voodoo card goes back in.
 
 ---
 
+## A box can LOSE its EDID across a reboot, and the fallback took the fault back (2026-08-30)
+
+`.133` was measured in the morning as `pnp=VSC384D`, preferred timing
+1280x1024@85, **physical size 37x28 cm** — a **4:3 tube** driven at 5:4 — and
+`FLEETRES` correctly answered **1280x960**. After a reboot the same box reported
+**no EDID at all**, and the CRT branch fell through to "target = the persisted
+desktop mode", handing it **1280x1024 straight back**.
+
+So the squashed picture returned **without anyone editing anything**. That is
+worth more than the fix: a per-box measurement is not a one-time fact, and a
+fallback that trusts the current state will cheerfully re-create the exact
+fault the measurement existed to remove.
+
+The fallback now assumes a **4:3 tube** when there is no EDID — safe for two
+structural reasons rather than luck: a **5:4 CRT essentially does not exist**
+(1280x1024 on a 4:3 tube is the classic mistake, not a panel shape), and a
+**widescreen LCD cannot reach that branch**, because the LCD test itself needs
+EDID, so "no EDID" already means `lcd == 0`.
+
+Verified after the change: `.133` → 1280x960 (4:3); `.143` and `.124`, also
+EDID-less and already 4:3, unchanged at 1024x768; `.246`'s LCD path untouched.
+`FR_EDID` now reports 1/0 so a **measured** panel and an **inferred** one stop
+looking identical.
+
+**Three of the eight boxes now present no EDID** (`.124`, `.133`, `.143`).
+Plugging those monitors into a port that carries DDC would turn three
+inferences back into measurements.
+
+## A staged block that is COPIED goes stale in every title at once (2026-08-30)
+
+Halo was staged with the FLEETRES block **hand-pasted** into its launcher — the
+pre-`FLEETRES.BAT` form — so the title shipped `FLEETRES.EXE` with no
+`FLEETRES.BAT`, every `%FR_*%` fell through to the 1024x768 fallbacks, and
+`validate-staged-library.py` failed the whole library.
+
+**The doc was half the defect.** `README-FLEETRES.md` carried a section headed
+*"The standard launcher block — paste this into every `Play <Game>.bat`"*
+containing precisely the block that was copied, left over from before
+`FLEETRES.BAT` existed. Whoever staged Halo **followed the documentation
+correctly and got a broken title.** That section now says the opposite.
+
+Its `-vidmode %FR_W%,%FR_H%,60` was the same defect one field to the right:
+**60 Hz is a staged constant too**, and wrong on every CRT box — measured the
+same day, `.143` runs **100 Hz**, `.133` **85 Hz**, `.124` **75 Hz**. `FR_HZ`
+now carries the persisted mode's refresh, clamped to 50–240 so a driver
+reporting 0 Hz is not handed to the game.
+
 ## "The disc image is right there" is not the same as "the disc check passes" (Generals, 2026-08-30)
 
 C&C Generals was investigated end to end for staging and is **blocked on
