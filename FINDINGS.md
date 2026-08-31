@@ -71,6 +71,32 @@ until disk is freed. Two were already on the box; HexenII is the one the
 truncation and the numbers between them cost it. The other three cannot fit at
 all, and reporting them as "gated" was the second defect (next entry down).
 
+### ...and the fix will NOT self-apply, because the marker idles the boot sync
+
+`CLAUDE.md` said *"GAMESYNC re-runs every boot, so it returns by itself once the
+box is fixed."* **It does not, and never has.** The startup thread is:
+
+```c
+if (gs_file_exists(GS_MARKER)) {              /* C:\RETRO_AGENT\gamesync.done */
+    log_msg(LOG_GS, "already provisioned (%s present) - idle", GS_MARKER);
+    return 0;
+}
+```
+
+So a provisioned box does **no** boot-time sync at all: a suppressed shortcut
+stays suppressed, a title newly added to the library never reaches the machine,
+and `.243` would have kept its two games forever on the strength of a marker
+recording a run that had seen 25 of 46 titles. `GAMESYNC RESET` (clears the
+marker) then `GAMESYNC START` is required — which is exactly what the staged-game
+fix loop's *"then push it to every connected box"* step is, and it is
+load-bearing rather than a courtesy. CLAUDE.md corrected.
+
+**Delivery while the box is dark:** both commands are queued in the deferred
+task queue (`scripts/retro_enqueue.py 192.168.1.243 "GAMESYNC RESET"` /
+`"GAMESYNC START"`), which the chat daemon drains the moment it next connects —
+so the re-sync happens on its own when someone powers the machine back on. Note
+queued tasks expire after 24 h.
+
 ### A dead agent on Win98 has NO remote recovery route — confirmed by probing
 
 The agent died mid-session (after a plain `DIRLIST`, not a large read). The
