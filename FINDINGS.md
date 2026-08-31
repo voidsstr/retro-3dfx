@@ -14,6 +14,51 @@ it until a Voodoo card goes back in.
 
 ---
 
+## `EXEC ... type <big file>` KILLS THE WIN98 AGENT — use DOWNLOAD (2026-08-31)
+
+**I took `.243` (Win98SE, Pentium 1, 127 MB) off the network by reading its own
+log the wrong way**, roughly an hour after it had finally come back. It now
+needs someone at the keyboard. Recording it because the mistake is easy, the
+symptom is misleading, and the correct method was already documented.
+
+**What I did:** `EXEC command.com /c type C:\RETRO_AGENT\agent.log` — a
+**204 KB** file. `EXEC` captures the child's entire stdout into memory and
+returns it in one frame. On a 127 MB single-threaded Win9x agent that is enough
+to kill the process; the call hit its 120 s timeout first, so the connection was
+also torn down mid-capture, which Win98 Winsock handles badly (CLAUDE.md's
+existing "abrupt disconnect crashes Win98 Winsock" warning).
+
+**The symptom lies about which layer failed:**
+
+| port | state | meaning |
+|---|---|---|
+| 139 | **OPEN** | the OS and networking are perfectly healthy |
+| 9898 | refused | the agent's main listener is gone |
+| 9899 | refused | discovery gone |
+| **9897** | **accepts, then never answers** | the alt listener is still bound |
+
+That last row is the trap. A TCP connect *succeeds*, so any check that probes
+reachability by connecting reports the box as up — it took a protocol-level
+`PING` (which timed out) to show the agent was dead. This is the same shape
+CLAUDE.md records for pre-1.20.0 shutdowns; **the fixed shutdown path does not
+help when the process dies rather than exits.**
+
+**Rules that follow:**
+- **Never `EXEC ... type` a file to read it. Use `DOWNLOAD`.** It streams as
+  binary and does not buffer the whole thing through the command path. For a
+  Win9x agent log CLAUDE.md already prescribes
+  `retro_agent.exe -l <path on the share>` — that advice existed and I did not
+  follow it.
+- **Treat `EXEC` output as small-by-contract on Win9x.** Anything that could
+  return more than a few KB wants `DOWNLOAD`, a `find /c` count, or redirection
+  to a file that is then downloaded.
+- **A successful TCP connect is not liveness.** Probe with a protocol `PING`;
+  9897 will accept a socket from a dead agent.
+- **Recovery on Win9x needs a person.** Nothing supervises the agent there —
+  the `HKLM\...\Run\RetroAgent` value only fires at logon — so a crashed
+  agent means a keyboard, exactly as CLAUDE.md warns about `QUIT`. The box is
+  otherwise fine; a reboot or double-clicking the exe restores it.
+
 ## The fleet compatibility matrix: two ways to be confidently wrong about a box (2026-08-31)
 
 Building the per-box x per-title compatibility database (`retro-agent`
