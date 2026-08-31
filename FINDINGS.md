@@ -14,6 +14,65 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-08-31 — Half-Life: Blue Shift is broken in the staged library, and the retail media is WHY: it ships its own engine
+
+**`HalfLife-BlueShift` has never run on any fleet box, and the reason is not a
+bad stage — it is that retail Blue Shift is not a mod you run with Half-Life's
+`hl.exe`.** Measured on `.240` (agent 1.78.1, Radeon 9800 XT).
+
+The engine says it itself, in `bshift\qconsole.log`, and nobody had read it:
+
+```
+Game DLL version mismatch
+The game DLL for bshift appears to be outdated, check for updates
+Host_Error:
+```
+
+**The dates are the whole story.** Every other mod's DLLs were built against
+the staged engine; Blue Shift's were built five months earlier:
+
+| file | PE date |
+|---|---|
+| `hl.exe` / `hw.dll` (the staged engine) | 2001-09-11 / 2001-09-21 |
+| `valve` / `tfc` / `dmc` / `gearbox` client+game DLLs | 2001-08-30 .. 2001-12-14 |
+| **`bshift/cl_dlls/client.dll`** | **2001-04-05** |
+| **`bshift/dlls/hl.dll`** | **2001-04-07** |
+
+Symptoms, which look like three unrelated bugs and are one:
+
+- `-gl`: access violation (`0xC0000005`) before a window ever appears, so the
+  title looks like it "does nothing". The GL renderer calls into the client
+  DLL's studio-model interface; the April build answers an older contract.
+- software renderer: starts and reaches the menu, so a casual test *passes*.
+- either renderer, the moment a map loads: the version check above fires.
+
+**The staged tree is FAITHFUL — do not "fix" it by re-staging from the ISO.**
+The two DLLs were extracted byte-for-byte out of the media's own installer
+(`Blue Shift.iso` → `bsinstall.EXE`) and are identical to what is staged. What
+the library dropped is the rest of the install: **retail Blue Shift ships a
+complete April-2001 engine of its own** — `bshift.exe` (1,259,651 B, PE
+2001-04-20), `hw.dll` (933,888 B) and `sw.dll` (892,928 B) — and the library
+staged only the `bshift\` game directory, leaving it to be launched by
+Half-Life's September engine. Those three files are recovered to
+`/home/voidsstr/box240-work/bshift-engine/`.
+
+**Candidate fix, NOT YET PROVEN ON HARDWARE** (`.240` dropped mid-test): ship
+those three engine files and launch Blue Shift with `bshift.exe`, not `hl.exe`.
+The open question is placement — `hw.dll`/`sw.dll` load from beside the exe and
+would collide with Half-Life's own, so it likely needs its own directory plus
+`-basedir`, and the engine binaries are only ~3.1 MB, so cost is not the
+obstacle. Substituting Half-Life's Sep-2001 `client.dll` and `hl.dll` into
+`bshift\` was tried and is NOT the answer: the menu renders, and a map load
+then access-violates anyway.
+
+**`bsinstall.EXE` is a Wise installer and 7-Zip cannot open it.** What works,
+and is worth keeping: scan every byte offset with `zlib.decompressobj(-15)`,
+decompress 8 bytes, and keep the offsets whose output begins `MZ`. Twenty
+embedded PEs fell out of a 49 MB installer in about two minutes, each one
+identifiable by its PE timestamp and import table. No Windows box needed.
+
+---
+
 ## 2026-08-31 — "Disc-locked" is not one thing: Serious Sam has NO copy protection, and its official patch ADDS some
 
 **Both Serious Sam Encounters were withdrawn from the staged library as
