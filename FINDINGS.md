@@ -283,6 +283,38 @@ task queue (`scripts/retro_enqueue.py 192.168.1.243 "GAMESYNC RESET"` /
 so the re-sync happens on its own when someone powers the machine back on. Note
 queued tasks expire after 24 h.
 
+### `EXEC command.com /c find ... > file` KILLS the Win98 agent too — the ban is not just `type`
+
+CLAUDE.md bans `EXEC ... type` for reading a file, on the grounds that EXEC
+buffers the child's entire stdout into one frame. So the obvious workaround is
+to REDUCE on the box and download the small result:
+
+```
+EXEC command.com /c find "to copy; C:" C:\RETRO_AGENT\agent.log > C:\GS1.TXT
+```
+
+**That kills the agent as well.** Measured 2026-08-31 19:22 on `.243`, minutes
+after a clean boot: `PING`, `HWPROFILE`, `GAMESYNC STATUS` and `DIRLIST` all
+answered normally on the same connection; the very next command was the `find`
+above, it never returned, and the agent was gone — 139 open, 9897 accepting,
+9898/9899 **refused**. Second power-cycle of the day, and the second one caused
+by trying to read that log.
+
+Note the redirect means the pipe the agent captures gets **nothing**, so the
+"large stdout" explanation does not apply. The output size is not the whole
+story; running `command.com` under EXEC to walk a ~300 KB file on a 165 MHz /
+127 MB single-threaded agent is enough on its own.
+
+**So on a Win9x box, to read a file, use `DOWNLOAD` — full stop.** It streams as
+binary instead of going through the command path. Do not reach for `find`,
+`findstr` or `more` as a "safe" reduction; they are not safe here. The other
+sanctioned route is `retro_agent.exe -l <path on the share>`.
+
+**Corollary for recovery work: prefer agent-INTERNAL commands.** `REGREAD`,
+`REGDELETE`, `UPLOAD`, `DOWNLOAD`, `FILECOPY`, `GAMESYNC`, `RESTART` all run
+inside the agent and spawn nothing. On this machine that is the difference
+between finishing a job and losing the box for an hour.
+
 ### A dead agent on Win98 has NO remote recovery route — confirmed by probing
 
 The agent died mid-session (after a plain `DIRLIST`, not a large read). The
