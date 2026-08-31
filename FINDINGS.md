@@ -210,6 +210,11 @@ No agent + no `<20>` = keyboard.
 
 ## The fleet's DOSGAME.EXE is not this repo's build, and its source is LOST (2026-08-30)
 
+> **RESOLVED 2026-08-31 — the source was recovered from the binary, the
+> reconstruction is proven equivalent, and the share now carries a build
+> this repo makes. See the top entry of this file for the method. Kept
+> because how it HAPPENED is still the useful half.**
+
 Publishing a rebuilt `DOSGAME.EXE` was stopped one command short by a size
 mismatch, and the mismatch was this:
 
