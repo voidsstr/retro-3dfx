@@ -353,13 +353,24 @@ sentence returning to either `requires.json`.
   list. The claim happened to be true — it is now genuinely screenshotted — but
   it was filed ahead of its evidence.
 
-**UWindow menu mechanics, since this cost an hour.** Windowed is necessary but
-not sufficient. One `UICLICK` on a menu-bar item only **arms** it (UWindow sets
-its selection from the mouse *move*, so the click is consumed); a second opens
-the dropdown. A dropdown item then activates on a single further click. Getting
-that wrong looks exactly like "the browser will not open" — it never opened on
-`.124` across four attempts, and the identical sequence with the arm click
-accounted for opened it first time on `.143`.
+**UWindow menu mechanics, and an honest limit.** Windowed is necessary but not
+sufficient. One `UICLICK` on a menu-bar item only **arms** it — UWindow sets its
+selection from the mouse *move*, so the click is consumed — and a second opens
+the dropdown; the game window must also have focus first, or `ESCAPE` never
+raises the menu bar at all. Coordinates must be **measured off a screenshot**,
+not offset from a previous session: the window lands in a different place each
+launch, and `WINLIST`'s rect is the frame, not the viewport.
+
+**Even with all of that right, the Server Browser opened exactly ONCE in about
+ten attempts across `.124`, `.133` and `.143`.** The menu navigates reliably and
+the dropdown item visibly activates (the menu closes), and then no browser
+window appears. Two things are worth knowing before spending an afternoon on it:
+`Find Internet Games` **never** produced a window on any box — it wants the
+master-server list first, and those masters are dead — whereas `Open Location`
+is what created the browser on the one occasion it worked. **Do not treat "the
+browser did not open" as evidence about the server or the favourites file.** The
+file content is checkable directly (`DOWNLOAD` the ini and read
+`[UBrowser.UBrowserFavoritesFact]`), and that is the check to rely on.
 
 ---
 
