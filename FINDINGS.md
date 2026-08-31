@@ -45,7 +45,8 @@ is not evidence that a branch exists.** RTCW now sits beside SoF2 in
 `stage-fleetres.py`'s `IDTECH3_NO_CUSTOM_MODE`.
 
 **3. `FR_Q3MODE` CAN NAME A MODE THE BOX CANNOT SET, AND THIS ENGINE ANSWERS
-THAT WITH A WINDOW.** On `.246` (1920x1080) `FR_Q3MODE` is 7 = 1152x864, and
+THAT WITH A WINDOW.** *(Fixed same day in `fleetres.c` `26dbe12`; the tail of
+this entry is now the more interesting half — see the note at the end.)* On `.246` (1920x1080) `FR_Q3MODE` is 7 = 1152x864, and
 `DISPLAYCFG set 1152 864 32` on that same box returns
 `{"status":"error","error":"mode not supported by display driver"}`. RTCW
 accepted `seta r_mode "7"`, kept it, set the **desktop** to 1280x960 (the
@@ -58,6 +59,28 @@ not offer would fix every id Tech 2/3 title at once and could only ever move a
 mode *down* to one that exists. **`SoldierOfFortune2` and `JediAcademy` take
 `FR_Q3MODE` today and are exposed to this on all three 1080p boxes.** Until
 then RTCW is called with `-cap 1024 768`.
+
+**FOLLOW-UP, AND THE PART WORTH REMEMBERING: THE WORKAROUND OUTLIVED THE DEFECT
+AND BECAME IT.** `q2_mode_for()`/`q3_mode_for()` were taught to consult the
+adapter's enumerated mode list (`26dbe12`), and RTCW's `-cap 1024 768` — put
+there the same morning to dodge exactly this — turned into the only thing still
+broken. Re-measured with the FIXED `FLEETRES.EXE` on all seven live boxes:
+
+| box | uncapped `FR_Q3MODE` | with `-cap 1024 768` |
+|---|---|---|
+| `.124` `.143` `.246` | 6 (1024x768) | 6 |
+| `.133` | 7 (1152x864) | 6 — loses a mode it can drive |
+| `.171` | 4 (800x600) | 4 |
+| **`.123` `.240`** | 7 (1152x864) | **3 — 640x480, the floor** |
+
+Capping the *target* at 1024x768 asks the fixed selector for the largest
+**offered** entry that fits inside 1024x768, and those two adapters do not
+enumerate 1024x768 at the queried depth. **A workaround for "this engine renders
+640x480" had become a way to render 640x480** — silently, with `r_fullscreen`
+still 1 and `r_mode` reading back what was asked for. `IDTECH3_MODE_CAP` is now
+empty and documented as needing a *new* measurement before anything goes back
+in. Whenever a defect is fixed upstream, go and delete the workaround: it is not
+inert, it is code that now runs against different behaviour.
 
 **4. GDI CANNOT READ AN EXCLUSIVE FULLSCREEN SURFACE, AND THE WORKAROUND IS
 PER-ENGINE.** `SCREENSHOT` returns a solid black frame for RTCW's OpenGL
