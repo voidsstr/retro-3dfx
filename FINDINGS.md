@@ -14,6 +14,135 @@ it until a Voodoo card goes back in.
 
 ---
 
+## SIX OF SEVEN BOXES HAVE A DISC MOUNTER — the docs said one (2026-08-31)
+
+**`docs/lan-multiplayer-status.md`, `scripts/gamegate/SCHEMA.md` and two staged
+titles' README-FLEET all asserted that only `.240` had a virtual disc mounter,
+and four titles were parked as "needs a person" on the strength of it.** It was
+never true on the day it was written down, and nobody re-measured.
+
+    sc query d347bus  +  wmic cdrom get Drive,Caption,MediaLoaded
+
+    .123  NONE - and no optical drive at all ("No Instance(s) Available")
+    .124  DAEMON Tools 3.47, d347bus + d347prt RUNNING
+    .133  DT 3.47   .143  DT 3.47, FOUR virtual drives   .171  DT 3.47
+    .240  DT 3.47   .246  WinCDEmu
+
+A DT virtual drive reports `Caption = "Generic DVD-ROM SCSI CdRom Device"`;
+that string separates it from a real drive. **Re-measure a capability claim
+before you plan around it** - this one cost a day across two agents.
+
+## A DAEMON TOOLS UNIT CAN BE LOCKED, AND IT FAKES A WORKING MOUNT (2026-08-31)
+
+On `.124` and `.240`, `daemon.exe -mount 0,"<image>"` answers with a modal
+**"Unable to mount image. Unit is locked."**. So does `-unmount 0`. Neither
+`net stop d347bus` nor `d347prt` will stop them (kernel drivers, "the requested
+pause or stop is not valid"), and `daemon.exe -lock` simply BLOCKS - it timed
+out at 25 s and had to be tree-killed. **No reboot-free way to clear it was
+found.**
+
+Three things make this expensive rather than merely annoying:
+
+* **The modals STACK and each one wedges the next call.** `.240` was carrying
+  THREE of them; while one is up every later `daemon.exe` invocation hangs, so
+  a second agent's mount attempt looks like a hung box.
+* **The mount launcher's fallback then starts the game against whatever disc is
+  already parked in a drive** - its `:anydisc` branch. So a locked unit does
+  not present as "the mount failed", it presents as "the game ran". That is the
+  same shape as the 2026-08-29 incident where Brood War was launched against
+  the SHOGO disc.
+* `.143`, whose device 0 held a disc that was NOT locked, mounted first try with
+  `rc=0`. So the syntax `-mount 0,"image"` is right; the unit state is the
+  variable. Do not go looking for a switch-spelling problem.
+
+Suspected cause, not proven: a SafeDisc title issues PREVENT_ALLOW_MEDIUM_REMOVAL
+and the lock outlives the game. `.124` was parked on SYSTEMSHOCK2 (SafeDisc
+1.11.000), `.240` on SHOGO.
+
+## THE SAFEDISC VERSION DWORDS ARE AT THE MARKER **+ 0x20** (2026-08-31)
+
+CLAUDE.md says the three major/minor/subminor dwords sit "immediately after" the
+`BoG_ *90.0&!!` marker at file offset `0xfd4`. Both halves mislead:
+
+* the full magic is `BoG_ *90.0&!!  Yy>` **plus 14 zero bytes**, so the dwords
+  are at **marker + 0x20**;
+* `0xfd4` is where the marker happens to sit in *some* binaries. Carmageddon 2's
+  is at `0x3d4`. **Find the marker, then add 0x20** - reading a fixed 0xfd4
+  gives garbage (1598517058.809052704.556150830).
+
+Validated by reproducing two independently hand-measured values: BF1942
+`Mods\bf1942\Mod.dll` = 2.80.010 and `MaxPayne.exe` = 2.51.020.
+
+New measurements from the same scanner: **Carmageddon 2 = SafeDisc 1.01.034**
+(within DT 3.47's emulation, so it is NOT protection-blocked), System Shock 2 =
+1.11.000, and **Jedi Academy, Soldier of Fortune, Red Faction, Turok 2, Hidden &
+Dangerous, Shogo and Aliens vs Predator carry no wrapper at all** - plain
+`GetDriveTypeA` checks that any virtual drive satisfies.
+
+**Sweep the TREE, not the main exe.** BF1942's SafeDisc is in
+`Mods\bf1942\Mod.dll`; `BF1942.exe` is clean and scanning only it says
+"unprotected".
+
+## SOLDIER OF FORTUNE 1: THE DISC IS NOT THE GATE (refuted 2026-08-31)
+
+The staged tree asserted that "a disc image labelled SOF, mounted, is what
+satisfies it" - read out of the binary, never tested. Tested now on two boxes
+with two different mounters:
+
+    .143  DAEMON Tools mounted sof.cue, E: reads SOF, no mount-error.txt
+    .246  WinCDEmu mounted the same, D: reads SOF, no mount-error.txt
+    both  -> "WON Error!  Please insert the SOF CD and try again."
+    .123  no mounter at all (the control) -> the IDENTICAL message
+
+**Same failure with and without the disc.** The 795 MB image was removed from
+the library again rather than shipped to seven boxes for nothing.
+
+The message is not a literal in `SoF.exe` - it is a localised string in
+`base/pak0.pak` under `REFERENCE NEED`, inside a block headed
+`DESCRIPTION "Won error messages"` next to "You disconnected" and "Server
+Quit!". `cd_nocd` exists in the exe but is the Quake II CD-**audio** cvar.
+
+**A near-miss worth recording:** the host bound UDP 28910 and 28901, and I
+briefly took that as "the server started, so the check passed". It had not -
+SoF binds those sockets before the check. Verify the post-condition you actually
+care about (a rendered frame, a player line), not a proxy for it.
+
+## JEDI ACADEMY IS UNBLOCKED, AND ITS CHECK IS PLAIN (2026-08-31)
+
+`jamp.exe`/`jasp.exe` build `"%s%s\%s"` from a drive letter, `gamedata\gamedata`
+and `jamp.exe`, and compare the volume label against `JEDIACAD` - the ordinary
+id Tech 3 `Sys_ScanForCD`, no wrapper anywhere in the tree. Staging the retail
+disc 1 image (`JEDIACAD_1`, 615 MB, md5 verified after the copy) and launching
+through the fleet mount template was enough: on `.143` the client loaded
+`maps/mp/ffa1.bsp` from the fleet `jka-server`, appeared in `getstatus` with
+`g_humanplayers 1`, and spawned into the map.
+
+Two mechanics worth keeping:
+* the **marker must be unique to that disc** - `GameData\GameData\jamp.exe` is
+  literally the path the game builds, unlike AUTORUN.INF which is on every CD;
+* the in-game menu is relative-mouse and ignores `UICLICK`, but **windowed, the
+  console takes synthetic keystrokes** - `SHIFT+TILDE` then `team f` joined the
+  match where clicking "Join Game" did nothing.
+
+## A LAUNCHER'S VOLID CAN SILENTLY NEVER MATCH (2026-08-31)
+
+Max Payne shipped `set "VOLID=Max Payne"` against an image whose real ISO9660
+label is `MAX_PAYNE`. `:finddisc` does `vol %%D: | find /i "%VOLID%"` - a
+substring match - so it could never hit; only the MARKER fallback was saving it,
+and a launcher whose primary test is dead is one edit from silence.
+
+`scripts/validate-staged-library.py` now reads the label **out of the image
+itself** (handling 2048 / 2352 / 2448-byte sectors - the PVD is at
+`16*sector + offset`, so a flat 32768 gets zeros on the last two) and fails the
+library on a mismatch. It found this on its first run.
+
+**And the check's own first version was the broken thing**, which is the lesson:
+it used `find_ci(dir, name)` on a multi-component path and reported that ELEVEN
+working launchers all pointed at missing images. Before escalating "this affects
+the whole fleet", check whether the measurement is what is broken.
+
+---
+
 ## `EXEC ... type <big file>` KILLS THE WIN98 AGENT — use DOWNLOAD (2026-08-31)
 
 **I took `.243` (Win98SE, Pentium 1, 127 MB) off the network by reading its own
