@@ -209,6 +209,54 @@ until disk is freed. Two were already on the box; HexenII is the one the
 truncation and the numbers between them cost it. The other three cannot fit at
 all, and reporting them as "gated" was the second defect (next entry down).
 
+### THE ACTUAL "no games on the desktop": a swept icon is never put back
+
+The engine index (`~/.retro-fleet/gameservers.db`) had walked `.243` at **14:25**
+and found:
+
+```
+c:\games\Descent1   c:\games\HexenII   c:\games\Quake1
+c:\games\HEXEN      c:\games\HERET3TV  c:\STARCRAFT
+```
+
+An hour later the desktop held `Retro Agent`, `Retro Chat` and one
+`Quake - Software Renderer.pif`. **Hexen II was installed on that machine and
+had no icon.** The games were on the box; the icons were in
+`C:\retro-desktop-backup`.
+
+`gs_run()` begins with `gs_sweep_desktop()`, which moves **every** `.lnk`/`.pif`/
+`.url` off both desktops — and the only call to `gs_make_game_shortcut()` is
+inside the copy branch:
+
+```c
+if (gs_copy_tree(src, dst)) {
+    ok_titles++;
+    gs_merge_reg(dst, titles[i]);
+    gs_make_game_shortcut(dst, titles[i]);   /* <-- the ONLY caller */
+}
+```
+
+So **the first sync that gates or skips an installed title deletes its icons
+permanently.** Every later sync gates or skips it again, and nothing ever puts
+them back. That is a far better explanation of the user's report than anything
+about staging, and it is fleet-wide, not a `.243` quirk — any box whose disk
+fills, or whose library grows past what fits, quietly loses the icons of games
+it still has.
+
+**Fixed in agent 1.79.0**: both `continue` paths now call
+`gs_restore_shortcuts_if_installed()`, which rebuilds the shortcuts from the
+DEPLOYED tree's own `launch.txt` when `C:\Games\<title>` exists.
+
+**Why this is safe for a GATED title, which is the non-obvious part.**
+`gs_make_game_shortcut()` goes line by line through `gs_shortcut_from_line()`,
+which asks `gs_gate_allows_shortcut()` **per shortcut**, and
+`gg_req_parse_shortcut()` parses the title-level requirements first and then
+overlays the shortcut's own. So a title-level hard NO still suppresses every one
+of its icons, and a per-shortcut floor suppresses only the icon that fails it —
+on a box with no 3D, Hexen II gets its software-renderer shortcut back and none
+of its three OpenGL ones. The gate stays the authority; the icons stop being
+collateral damage.
+
 ### ...and the fix will NOT self-apply, because the marker idles the boot sync
 
 `CLAUDE.md` said *"GAMESYNC re-runs every boot, so it returns by itself once the
