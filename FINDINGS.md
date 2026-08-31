@@ -104,6 +104,97 @@ has been countable.
 
 ---
 
+## The per-box verification matrix: every staged title measured on every live box (2026-08-31)
+
+**Nobody could previously answer "which games are verified on which box."**
+`docs/lan-multiplayer-status.md` records the PAIR of boxes that proved each
+title, which says nothing about the other five; the capability gate holds a
+PREDICTION per box, which is not a verification. The compat DB had **0 cells
+with a verified rendering**. This sweep measured **276 of 322 cells** (46
+titles x 7 live boxes, 86%): now **201 verified, 75 runs, 12 failed** in
+`fleetbook.db`, each with a screenshot on disk.
+
+**1. THREE TITLES RENDER 640x480 ON ALL SEVEN BOXES - AND THEY ARE EXACTLY THE
+THREE WITH NO `FLEETRES` LAUNCHER.** AliensVsPredator, JediKnightDF2 and
+JediKnightMotS are the only trees in the library containing no reference to
+FLEETRES, and the only three whose measured mode is identical everywhere. AvP
+has no `Play *.bat` at all - `launch.txt` names `avp.exe` directly - so nothing
+sets its per-box resolution and a 1920x1080 panel gets a 640x480 exclusive-D3D
+mode. Found twice independently: a share-side grep, and 7x46 measurements.
+
+**2. A CRASHED PROCESS KEEPS ITS NAME IN `PROCLIST`, SO "the game's own exe is
+running" IS NOT EVIDENCE.** This is a sharper form of the rule we already have.
+UnrealTournament 469e on the three non-SSE2 boxes dies on its first vectorised
+instruction, yet `unrealtournament.exe` sat in the process list 30s later -
+held by Windows Error Reporting - with the DESKTOP still on screen. The sweep
+scored it `runs` on `.133` and `.143` until the screenshot was actually looked
+at.
+
+The decisive measurement is the exit code, and it needs one trick:
+**`%errorlevel%` is expanded at PARSE time**, so `game.exe & echo
+RC=%errorlevel%` prints `RC=0` whatever happened. It must be
+`cmd /v:on /c "game.exe & echo RC=!errorlevel!"`. With that: `.124` and `.133`
+give `0xC000001D` STATUS_ILLEGAL_INSTRUCTION, `.143` gives `0xC000001E`. **The
+gate refuses this title on exactly those three boxes and the gate is right**,
+confirmed three independent times.
+
+**3. A HELPER PROCESS ALSO SCORED A PASS.** `daemon.exe` (the Daemon Tools
+mounter) appearing while a disc-mount title was still mounting made two cells
+on `.240` read `runs` with the game never started - this project's signature
+failure reproduced inside the tool built to detect it.
+
+**4. A 30s SETTLE IS A MEASUREMENT ARTIFACT, NOT A GAME DEFECT.** Re-running
+every failure at 90s turned four "failures" into passes - `.133` RedFaction and
+StarCraft, `.246` UnrealTournament436 - because a Daemon Tools mount there
+takes longer than 30s. Never report a title broken on one short timeout.
+
+**5. THE GATE IS HONEST: 1 WRONGLY REFUSED, 9 WRONGLY ALLOWED, OUT OF 276.**
+The only title refused that actually runs is **UT2004 on `.133`** (`CPU too
+slow, have 701 MHz needs 1000`) - a rule floor 30% above the real one, and a
+title wrongly withheld is as much a defect as one wrongly deployed. The nine in
+the other direction are not gate errors at all: they are the **`disc_mount`
+capability**, which by design does not change the verdict.
+
+**6. `.123` HAS NO DISC MOUNTER AND FOUR TITLES DIE OF IT - BUT THE SUPPRESSION
+WORKS.** MaxPayne, RedFaction, StarCraft and SystemShock2 all fail there, each
+having written the launcher's own `mount-error.txt` saying `NO DISC MOUNTER IS
+INSTALLED` - the boxed-banner design working exactly as intended, and nobody
+had ever read one. **Checked before reporting a defect: `.123` carries NO
+desktop shortcut for any of the four**, so the capability suppression did its
+job; the sweep only saw them fail because it launched the `.bat` directly,
+behind the suppressed icon. The trees deploy, the icons do not, and that is
+correct.
+
+**7. THE `disc_mount` PROBE ONLY KNOWS DAEMON TOOLS, SO `.246` IS REPORTED
+WRONG.** `HWPROFILE` decides `disc_mount` from `d347bus` alone. `.246` has
+**WinCDEmu** instead, so it reports `disc_mount: false` while mounting fine -
+it ran all four titles `.123` cannot. The launchers already look for both
+products; the capability probe does not. A capability used to suppress
+shortcuts must know every mounter the fleet has, or it suppresses on a box that
+works.
+
+**8. YOU CANNOT MEASURE A BOX ANOTHER AGENT IS WORKING ON.** `.133`'s
+UnrealTournament frame is its DESKTOP, carrying a DOSBox crash dialog,
+InstallShield, and modal `Cannot locate the CD-ROM: BF1942.exe - No Disk` boxes
+left by a concurrent agent. Unlike `.123`, `.133` HAS Daemon Tools and wrote
+**no** `mount-error.txt` at all, so its remaining disc-title failures are not
+attributable to those titles - a stuck No-Disk modal blocks disc access for
+everything behind it.
+
+**9. `.171` RENDERS THREE TITLES ABOVE ITS OWN 800x600 CEILING.** Carmageddon2,
+MaxPayne and UnrealGold all came up at **1280x1024** on the box whose
+`ResCapW/H` exists because its 3D is a Voodoo 2 with a hard 800x600 limit - and
+1280x1024 is 5:4 on a 4:3 tube. Every other title there obeys the cap.
+
+**10. TWO FLEET-WIDE FACTS THE MATRIX SETTLES.** AliensVsPredator black-captures
+on all seven boxes exactly as its own README predicts (exclusive D3D, GDI
+cannot see it) - so a black frame is recorded as `runs`, never `verified`,
+because nobody watched it render. And `.243`, the Win98 Pentium 1, is ONLINE
+and carries **none** of the 44 staged Windows titles, which is correct: it has
+its own DOS library.
+
+---
+
 ## Five new LAN titles: Serious Sam is disc-locked, and RTCW lies about its resolution (2026-08-31)
 
 Staging five new LAN-multiplayer titles into `Games-Library`. Seven findings, in
