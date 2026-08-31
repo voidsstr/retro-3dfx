@@ -14,6 +14,88 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-08-31 — GoldSrc: Blue Shift and Opposing Force are broken IN THE LIBRARY, and the engine says why (.143)
+
+`HalfLife-BlueShift` had been recorded `failed` on **four** boxes (.123, .133,
+.143, .246) with **no cause on any of them**, which is how it survived. It is a
+staged-tree defect, not a per-box one, and the WON engine states it verbatim once
+you ask it with `-condebug`:
+
+```
+Game DLL version mismatch
+The game DLL for bshift appears to be outdated, check for updates
+Host_Error:
+```
+
+The staged `bshift/` carries **Blue Shift 1.0-era DLLs grafted onto the shared
+build-1792 (HL 1.1.0.8 WON) `hl.exe`**. Two separate faults, both real:
+
+* `bshift/cl_dlls/client.dll` is **102,400 B and exports only SIX symbols**
+  (`HUD_Init`, `HUD_Redraw`, `HUD_Reset`, `HUD_UpdateClientData`, `HUD_VidInit`,
+  `Initialize`) against ~500 for `valve`/`tfc`/`dmc`/`gearbox`. It faults
+  **0xC0000005** at map spawn, reproducibly.
+* `bshift/dlls/hl.dll` is what triggers the version-mismatch banner above.
+
+**The isolation that settles it, and the one worth copying:** run the mod's
+gamedir against a **valve map**. `-game bshift +map c0a0` crashes while
+`-game valve +map c0a0` runs — so it is the gamedir's DLLs, never the maps or the
+WADs. The same test convicts Opposing Force: `-game gearbox +map c0a0` also dies,
+so `gearbox/dlls/opfor.dll`'s map-spawn path is broken too. OpFor reaches its
+menu fullscreen and renders it, then dies the instant a map spawns — proven by
+**two independent paths**, `+map` and clicking NEW GAME -> MEDIUM in the engine's
+own menu. `of0a0.bsp` is present in `gearbox/pak0.pak`, so it is not a missing map.
+
+**Remedy (identified, not yet applied):** Blue Shift is a standalone product with
+its own engine. `Blue Shift.iso` on the share ships `hl1106.exe` (engine 1.1.0.6)
+and `bsinstall.EXE` (a **Wise** installer, 49 MB) holding the real game files. The
+tree needs Blue Shift's own engine + DLL set, not 1.0 DLLs on a 1792 engine.
+Substituting `valve`'s DLLs is NOT a fix: valve's `client.dll` renders `ba_tram1`
+once but is not stable, and valve's `hl.dll` dies right after
+`Using secondary sound buffer`.
+
+### Three method traps this cost time on, all of which report success
+
+* **`qconsole.log` is not written at all unless `-condebug` is passed**, so its
+  absence proves nothing. Worse, **its presence proves little either**: TFC's log
+  is *also* only 30 bytes (`Using secondary sound buffer`) on a run that fully
+  worked. Never read log truncation as a crash point.
+* **`cmd /c cd "<dir>" & ren ...` silently fails** through `EXEC` — the same shape
+  as the `move` trap. Two "identical" runs then disagree because the first one
+  never actually swapped the file. Always `dir` the result; use absolute paths.
+* An `EXEC ... start` that times out can leave a **second engine instance** alive,
+  and two GoldSrc engines fighting over the same sound/display device produce a
+  spurious `0xC0000005` that looks exactly like the real bug.
+
+### GoldSrc fullscreen IS capturable — unlike id Tech 3
+
+The agent's GDI `SCREENSHOT` returns a **real frame** from GoldSrc's
+exclusive-fullscreen surface (TFC at 1024x768: 360 distinct colours, 1.2 % black),
+so no windowed relaunch is needed to evidence a GoldSrc title. What does *not*
+work is the staged `autoexec.cfg` `F11 "snapshot"` bind — synthetic `UIKEY` does
+not reach the fullscreen engine. `UIKEY ESCAPE` and `UICLICK` **do** drive the
+GoldSrc menu, which is how OpFor's New Game path was tested.
+
+## 2026-08-31 — The Second Encounter's menu says "THE FIRST ENCOUNTER", and the game is fine (.143)
+
+`SeriousSamSecondEncounter`'s main menu reads **`SERIOUS SAM - THE FIRST
+ENCOUNTER v1.05`**, which looks exactly like a mis-staged tree. It is **cosmetic
+only** — do not "fix" it by restaging the title. The engine's own `SeriousSam.log`
+loads `SE1_00.gro` + `SE1_00_Levels.gro` (3142 + 49 files) and those archives hold
+the genuine TSE campaign (`1_1_Palenque`, `1_3_Teotihuacan`, `2_1_Ziggurrat`,
+`2_2_Persepolis`, `2_4_TowerOfBabylon`, `3_1_GothicCastle`, `3_2_LandOfDamned`),
+and the menu border art is TSE's Mayan, not TFE's Egyptian. Only the `LogoText`
+texture is mislabelled. Ruled out: no loose `Data/` logo shadowing the `.gro`, and
+`wmic` confirmed exactly one `SeriousSam.exe` running from the *SecondEncounter*
+path.
+
+**Both Serious Sam titles stop on a modal first-run dialog** — *"SeriousSam is
+starting for the first time..."* (`#32770`, OK button) — and an **unattended
+launch parks there forever**. It is dismissable with `UICLICK` and does not recur
+once the engine writes its config, but a redeploy that restores the tree brings it
+back, so any automated sweep of these titles must expect it.
+
+---
+
 ## 2026-08-31 — Four titles on `.123` were recorded "failed" by a sweep that had bypassed the gate that stopped them
 
 **An automated per-box sweep launched each title's `Play <Game>.bat` DIRECTLY and
