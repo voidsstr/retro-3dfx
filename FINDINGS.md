@@ -100,6 +100,32 @@ SERIOUS_SAM_RC2 and then to SamSE. An earlier "unit is locked" modal on `.124`
 was two agents mounting at the same moment, not a launcher defect. I nearly
 "fixed" a bug that was not there.
 
+### And the renderer is not the launcher's to choose either (same day)
+
+`sam_iDriver` selects Serious Engine 1's OpenGL (0) or Direct3D (1) path, and
+the fleet launcher pinned it to **0 at every start**. On `.246` (Windows 7,
+Radeon HD 5450) that kills the game before it opens a window:
+
+```
+Fatal Error: Cannot set display mode!
+Serious Sam was unable to find display mode with OpenGL acceleration.
+```
+
+The identical tree on `sam_iDriver=1` starts and renders. Worse than the wrong
+default: writing it every launch also **overwrote the engine's own auto-detected
+answer**, which it saves in `PersistentSymbols.ini` — so a box fixed by hand was
+un-fixed on its next start, and the fix looked like it "did not take". The
+launcher now writes only the resolution; the engine owns the API. A per-box
+override goes in that box's own `PersistentSymbols.ini`, which is per-box state
+and deliberately not staged.
+
+Two capture notes that go with it, because both can be mistaken for failure:
+a **solid black GDI frame** on `.246` is the documented exclusive-fullscreen
+limitation on that box, not a dead game (check the window title and the
+process); and the OK button of a MessageBox is **centred on XP and
+right-aligned on Win7**, so a `UICLICK` at bottom-centre silently misses and
+the dialog looks unresponsive.
+
 ## SIX OF SEVEN BOXES HAVE A DISC MOUNTER — the docs said one (2026-08-31)
 
 **`docs/lan-multiplayer-status.md`, `scripts/gamegate/SCHEMA.md` and two staged
