@@ -14,6 +14,138 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-08-31 — Four titles on `.123` were recorded "failed" by a sweep that had bypassed the gate that stopped them
+
+**An automated per-box sweep launched each title's `Play <Game>.bat` DIRECTLY and
+recorded `runs=failed, "no GAME process after 90s"` for StarCraft, SystemShock2,
+RedFaction and MaxPayne.** All four are disc-image titles, `.123` has no optical
+drive and no mounter, and the capability gate had **already suppressed all four
+shortcuts** — verified as a post-condition, not inferred: a full listing of both
+Desktop folders on the box contains no `.lnk` for any of them (nor for
+JediAcademy), while every non-disc title is present.
+
+`HWPROFILE` says `{"disc_mount": false}` and each `requires.json` declares
+`requires_capabilities: ["disc_mount"]`. So the gate worked and the harness
+walked around it.
+
+**The generalisable rule: a test harness that invokes the launcher directly is
+not testing what the fleet does.** The gate expresses itself by *not creating a
+shortcut*; a sweep that never looks at the shortcuts cannot see it, and every
+title it gates comes back as a failure. Four cells now read `runs=n/a`
+(`mp=blocked` for the two with LAN), because **never-tested, tested-and-failed
+and not-applicable are three different facts** and only the third was ever true.
+
+---
+
+## 2026-08-31 — `EXEC cmd /c cd /d <dir> && <cmd>` SILENTLY RUNS AGAINST `C:\`
+
+**Measured on `.123` (agent 1.78.1), and it cost two experiments that reported
+success while doing nothing:**
+
+```
+EXEC cmd /c cd                                   ->  C:\
+EXEC cmd /c cd /d C:\Games\HalfLife1 && cd        ->  C:\        <-- not the new dir
+EXEC cmd /c pushd C:\Games\HalfLife1 && cd       ->  C:\
+EXEC cmd /c cd C:\Games\HalfLife1 && cd          ->  C:\
+EXEC cmd /v:on /c cd /d C:\Games\HalfLife1 ^& cd ->  C:\Games\HalfLife1   <-- works
+```
+
+The directory change does not survive `&&`; escaped as `^&` it does. It behaves
+as though the command is split on the unescaped separator and each piece run in
+its own shell.
+
+**Why this is expensive rather than merely annoying:** every *relative* path
+after the `&&` then resolves against `C:\`, so `move dlls\opfor.dll
+dlls\opfor.dll.1108` quietly moves nothing — and because the chain ends in
+`& echo DONE`, the command still prints DONE and looks like it worked. It is the
+project's signature failure shape: a tolerated failure that reports success. I
+lost two backup files that way and only noticed on a later `dir`.
+
+**So: in `EXEC`, use ABSOLUTE paths on both sides of every file operation.** If
+you genuinely need a working directory, put it in a `.bat` and `LAUNCH` that
+(`cd /d` behaves normally inside a batch file), or escape the separator as `^&`.
+And read the post-condition — `dir` the thing you just renamed.
+
+---
+
+## 2026-08-31 — GDI `SCREENSHOT` is NOT black on `.123`, including exclusive-fullscreen DirectDraw and OpenGL
+
+**The fleet-wide assumption that an exclusive-fullscreen surface photographs as
+a black frame is a PER-BOX fact, not an engine fact.** On `.123` (Radeon HD 3850
+AGP, XP SP3) a plain `SCREENSHOT 0` captured, in fullscreen:
+
+- **Tiberian Sun** (DirectDraw, 1920x1080x16) — intro movie, main menu, and an
+  in-game skirmish, all fully rendered;
+- **Return to Castle Wolfenstein** (OpenGL, 1152x864) — the main menu.
+
+This matters because it changes what evidence is obtainable. `TiberianSun` had
+been recorded `runs` rather than `verified` with the note *"exclusive fullscreen
+surface - GDI SCREENSHOT is black, so the mode change and the live process were
+the evidence"*; on this box it simply is not black, and the title is now
+`verified` from a real in-game frame. RTCW's `Main/autoexec.cfg` likewise carries
+a `bind F12 "screenshot"` added because *"GDI cannot read an exclusive fullscreen
+OpenGL surface (a solid black frame on .246)"* — true on `.246`, false here, and
+in fact the F12 bind produced no `.tga` while the plain capture worked.
+
+**Before concluding a title cannot be photographed, try the plain capture on THAT
+box.** The workaround is per-box and so is the problem.
+
+---
+
+## 2026-08-31 — Opposing Force on `.123`: isolated to `gearbox\dlls\opfor.dll`, and four good theories refuted
+
+Companion to the Blue Shift entry below; same tree, same engine, different half.
+All measured on `.123`, each line a launch and a `WINLIST`.
+
+**Harness control first** — `-game valve +map crossfire` renders, so the launcher
+and the probe are sound.
+
+- `-game gearbox +map of1a1` → dies at map load. `+map crossfire` **also** dies,
+  so it is not the OpFor map content.
+- `-game gearbox +map crossfire` with `gamedll` swapped to `valve\dlls\hl.dll`
+  → **renders** (window class `Half-Life`, title `Opposing Force`). That is the
+  isolation: the OpFor **game DLL** is what kills the engine.
+- The retail 1999 `opfor.dll` (1,450,047, off the OpFor ISO) dies too, so it is
+  not one bad file but an engine/game-DLL contract mismatch — the same shape as
+  Blue Shift. The staged tree is the OpFor **1.1.0.8** update (`readme1108.txt`,
+  and the two maps 1.1.0.8 added, `op4cp_park` and `op4ctf_power`, are present),
+  `liblist.gam` declares `hlversion "1108"`, and the staged engine is dated
+  2001-09-11/21.
+
+**Refuted — do not re-run these:**
+
+- *"`startmap of0a0` does not exist"* — **wrong, and it was in the record.**
+  `gearbox\pak0.pak` holds 56 `.bsp` including `of0a0`, `of1a1` and every
+  `ofboot`/`op4` map. Only the 12 CTF maps are loose in `maps\`, and the loose
+  directory was mistaken for the whole set. Read the pak index, not the folder.
+- *the mod `client.dll`* — refuted both ways: moving it aside still dies, and
+  gearbox's own 614,472 `client.dll` was present in the run that DID render.
+- *`decals.wad` over GoldSrc's 224-decal limit* — a good theory with a suspicious
+  fit (valve 222 lumps and tfc 7 work; gearbox `DECALS.WAD` 245 and bshift
+  `decals.wad` 226 fail). Renaming both oversized WADs aside so the engine falls
+  back to valve's 222 fixed **neither** mod.
+- *pak files* — `valve\pak0.pak` is 302 MB and works.
+- *`server.cfg` / `listenserver.cfg` / the fleet `autoexec.cfg`* — all five mods
+  carry the same stock files.
+
+**`gearbox\DECALS.WAD` and `OPFOR.WAD` are UPPERCASE** and were invisible to a
+`ls *.wad` from the Linux host — the case-sensitivity trap this repo already
+documents, hit again.
+
+**Two dead ends for whoever finishes Blue Shift** (its own engine, recovered by
+the `.240` session to `/home/voidsstr/box240-work/bshift-engine/`): I tried both
+obvious placements on `.123` and **neither works**. `bshift.exe` in a `bsengine\`
+subdirectory with `-basedir C:\Games\HalfLife1` produces no window and no
+`qconsole.log`; copying `bshift.exe` + its April `hw.dll`/`sw.dll` into the tree
+root (Half-Life's set renamed aside) does the same. In the second case the
+process **stays alive** with no visible window and writes no log, and Dr Watson
+records **no new exception** — so it is not crashing, it is exiting or blocking
+early, which points at retail Blue Shift's own CD/registry check rather than at
+the engine swap. The tree was restored byte-for-byte afterwards and Half-Life
+re-verified as still running.
+
+---
+
 ## 2026-08-31 — Half-Life: Blue Shift is broken in the staged library, and the retail media is WHY: it ships its own engine
 
 **`HalfLife-BlueShift` has never run on any fleet box, and the reason is not a
