@@ -345,6 +345,57 @@ a `finally:` block, not at the end of the happy path.**
 
 ---
 
+## 2026-08-31 — Counter-Strike 1.6 has been SOFTWARE-RENDERED fleet-wide; one missing `-gl` (FIXED in the library)
+
+`Games-Library\CounterStrike16\Play Counter-Strike.bat` launched
+`hl.exe -game cstrike -full -w .. -h ..` with **no `-gl`**, and this GoldSrc build
+defaults to the **software renderer** when nothing selects otherwise. So every box
+has been playing CS 1.6 software-rendered.
+
+**This is the exact defect already fixed in the `HalfLife1` tree on 2026-08-29** —
+every launcher there passes `-gl`, and the fix was simply never applied to the
+Counter-Strike tree.
+
+**It hid because nothing ever errors.** The game starts, fills the screen, and
+reports itself fullscreen either way. The tell is a registry value, not a message:
+
+```
+HKCU\Software\Valve\Half-Life\Settings\EngineDLL
+   sw.dll   <- staged launcher, plain -full
+   hw.dll   <- identical launch + -gl        (same box, same resolution)
+```
+
+Render quality confirms it independently: the software frame captured **4,779
+distinct colours at 16 bpp**, the fixed one **50,972 at 32 bpp**.
+
+**Fixed in the staged tree** (`Play Counter-Strike.bat` *and*
+`Play Half-Life Deathmatch.bat`, both with a comment saying `-gl` is
+load-bearing), and proven by the whole loop rather than by the edit: both `.bat`
+were purged from `.143` **and `EngineDLL` was reset to `sw.dll`** so leftover
+per-user state could not manufacture a pass, then `GAMESYNC START` →
+`state=done, failed_files=0, titles_done 43/46, titles_gated 3` (43+3=46),
+`files_written 32`. The 1,792-byte fixed launcher redeployed and took
+`EngineDLL` `sw.dll` → `hw.dll`.
+
+> **Check the other GoldSrc trees for the same omission.** The rule is that a
+> WON/GoldSrc launcher without `-gl` is software-rendered, and no log, dialog or
+> `state=done` will tell you.
+
+**Left open deliberately:** these two bats use `%FR_W%/%FR_H%` rather than the
+4:3 pair `%FR_W43%/%FR_H43%` that the WON `HalfLife1` launchers must use. Harmless
+on a 1024x768 box and **unverified on the 16:9 boxes** — do not "fix" it without
+measuring there, since the two trees run different engine builds.
+
+### Publishing to the share when gvfs is absent
+
+The dev host's read-write gvfs mount is **per-login-session** and was **absent**
+here, so the library edit went out through a fleet box's UNC
+(`UPLOAD` → `copy /Y \\192.168.1.122\files\...`) and was then verified by
+reading back through the read-only `/mnt/retro-share` — **a different mount than
+it was written through**, which is the stronger check.
+
+---
+
 ## 2026-08-31 — UnrealGold cannot start on `.143`, and the nGlide worry there is already solved (.143)
 
 `UnrealGold` was recorded `runs` on `.143`. It does **not** start. Reproduced from
