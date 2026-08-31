@@ -14,6 +14,74 @@ it until a Voodoo card goes back in.
 
 ---
 
+## The Unreal Gold / Deus Ex LAN lane: what joins what, and the 227k trap (2026-08-31)
+
+Two-box LAN verification of the Unreal-engine and RTS titles on `.143` + `.246`.
+Five findings, each of which cost real time.
+
+**1. A 226 client CANNOT join an OldUnreal 227k server, and the version handshake
+says it can.** The 227k Linux dedicated server (`ucc-bin-amd64`, built from
+`OldUnreal-UnrealPatch227k-Linux.tar.bz2` over the staged Unreal Gold data in
+`~/unreal-server`) runs fine on the dev host and advertises `\mingamever\224` in
+its GameSpy reply — which reads as "any client from 224 up is welcome". It is
+not. `mingamever` is only the version-NUMBER floor; the package generation check
+still applies, and the retail 226 client aborts with
+
+```
+DevNet: PendingLevel received: CHALLENGE VER=226 RVER=227 ...
+DevNet: PendingLevel received: USES ... PKG="UnrealI" FLAGS=0 SIZE=23850693 GEN=6
+Warning: Failed to load 'UnrealI': Package 'UnrealI' version mismatch
+NetComeGo: Close TcpipConnection0
+```
+
+`FLAGS=0` means the package is not downloadable either, so there is no recovery.
+**This is the opposite of the UT99 result** (a retail 436 client DOES join our
+469e server) — do not generalise one to the other. Upgrading the staged tree to
+227k would fix it and is NOT worth it: `objdump` over the 227k Windows build
+counts ~15,500 SSE2 instructions in `Engine.dll` alone, so it would take Unreal
+Gold away from `.124`, `.133` and `.143`, which is a worse outcome than having no
+host-side server. **Unreal Gold's dedicated server therefore runs on a fleet box**
+(`Host Unreal Gold LAN.bat`, added to the staged tree, verified), not on .132.
+
+**2. UE1 ignores a server address on the COMMAND LINE.** `Unreal.exe
+192.168.1.143:7777` logs `Browse: 192.168.1.143:7777/Index.unr` — the engine
+appends `[URL] Map` — the browse fails, and the client drops to the intro map
+**with no error line anywhere**. The console `open <ip>:<port>` builds the URL
+correctly (`LoadMap: <ip>:7777/DmDeck16`) and joins. Same for Deus Ex.
+
+**3. Deus Ex has no console key and its menu is relative-mouse — bind a KEY to the
+console command instead.** `DefUser.ini` ships `Tilde=` (empty), and absolute
+`UICLICK`s move the menu cursor by deltas, so they land unpredictably. The route
+that works in one shot is a User.ini binding whose value IS the console command:
+`F5=open 192.168.1.143:7790`, then `UIKEY F5`. No menu, no console, no typing.
+(Deus Ex's main menu also does not appear until the window gets a click — the
+rotating logo looks like a hang and is not one.)
+
+**4. WinCDEmu can sit in `Status=Error` with no drive letter, and `batchmnt`
+reports success anyway.** On `.246` seven disc-mounting titles were dead:
+`batchmnt.exe <iso>` printed "The operation completed successfully" (or "is
+already mounted!"), `batchmnt /list` was EMPTY, and no drive appeared —
+`wmic cdrom get Drive,Name,Status` was the only thing that told the truth
+(`Name=WinCDEmu drive, Status=Error, Drive=` blank). **A reboot fixed it**; the
+driver had been installed without one. The staged launcher's `MOUNT FAILED`
+banner was correct throughout — this is that banner doing its job.
+Also note `.246` is 32-bit Win7, so `batchmnt64.exe` refuses to run there, and
+`cmd /c "A" "B"` with two quoted paths mangles the command line: use
+`cmd /c ""A" "B""`.
+
+**5. `.143` reboots when Unreal Gold initialises its display, but the UCC
+dedicated server is safe.** `Unreal.exe` on `.143` gets as far as
+`Init: D3D Device: szDescription=NVIDIA GeForce 6800` and the box hard-resets
+(uptime 88 s afterwards) — twice, with GlideDrv and with D3DDrv forced. Running
+the *server* (`UCC.exe server`) never touches a renderer and is completely
+stable, which is what made the two-box proof possible at all. Related: driving
+that box's UE1 client into **windowed SoftDrv left the display stuck at
+800x600x4bpp @1Hz**, where `DISPLAYCFG set` answers "mode not supported by
+display driver" for every mode and StarCraft dies with a DirectDraw error. Only
+a reboot clears it. Do not put `.143` into UE1 windowed mode.
+
+---
+
 ## 1,842 bytes shipped to the fleet with no source — and were recovered from the binary (2026-08-31)
 
 **The `DOSGAME.EXE` the fleet ran had not been buildable from the repo since
