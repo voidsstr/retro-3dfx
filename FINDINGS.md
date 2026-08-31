@@ -104,6 +104,24 @@ GOG repack has produced a Vista-only image here (SiN Gold was the first).
   processes in `PROCLIST` afterwards; `PROCKILL <pid>` per pid is what actually
   cleared it.
 
+**8. ABSOLUTE `UICLICK` DOES NOT DRIVE A DOSBOX GAME'S MOUSE CURSOR - AND THE
+KEYBOARD DOES.** Measured across all three DOSBox titles in this batch on
+`.143`: `UIKEY` reaches the game reliably (Shadow Warrior's SETUP.EXE menu was
+navigated end to end with DOWN/ENTER, Master of Orion II's intro was skipped
+with ESCAPE, Warcraft's title screens advanced), while `UICLICK` straight on a
+menu button does nothing - Master of Orion II's MULTI PLAYER stayed unselected
+under two clicks on it, and Warcraft's "Start a new game" needed several
+attempts before it took once. DOSBox turns host mouse MOTION into DOS mouse
+deltas; a `SetCursorPos` with no motion, to an unfocused window, produces none.
+Setting `autolock=false` in the conf did not change it. **So a DOSBox title
+whose multiplayer lives behind a MOUSE-ONLY menu (Master of Orion II, Warcraft:
+Orcs & Humans) cannot be put into a network game by an agent** - which is the
+same class as CLAUDE.md's relative-mouse triage, one layer down. The three
+staged Build/DOS LAN launchers establish the IPXNET tunnel correctly (verified:
+`IPX Tunneling Client connected to server at 192.168.1.143.` on `.246`, UDP 213
+listening on `.143`); it is the in-game gather that needs a human at the mouse.
+
+
 ## DOS/IPX + peer-hosted LAN: Descent 3 hosts on the DEV HOST under Wine, and Carmageddon's front end cannot be driven (2026-08-31)
 
 Verifying the DOS/IPX and peer-hosted titles (Descent 1-3, Carmageddon 1/2,
