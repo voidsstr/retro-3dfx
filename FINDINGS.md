@@ -14,6 +14,92 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-08-31 — "Disc-locked" is not one thing: Serious Sam has NO copy protection, and its official patch ADDS some
+
+**Both Serious Sam Encounters were withdrawn from the staged library as
+"disc-locked and unfixable". They are back, and the withdrawal was a wrong
+conclusion drawn from a correct observation.** The cost of the wrong conclusion
+was two of the fleet's best showcase titles.
+
+**The check, read out of the binary at `0x420950` (retail TFE), is forty bytes:**
+
+```
+for ch in 'C'..'Z':
+    if GetDriveTypeA("<ch>:\\") == DRIVE_CDROM:      # 5
+        _fnmCDPath[0] = ch                           # patch the letter in place
+        f = fopen(_fnmCDPath + "Bin\\SeriousSam.exe", "rb")
+        if f: fclose(f); return TRUE
+return FALSE
+```
+
+`_fnmCDPath` starts as the literal `"C:\Install\"`, so the predicate is exactly
+*some drive reporting DRIVE_CDROM holds `Install\Bin\SeriousSam.exe`*. The
+identical loop is in retail TSE (two `GetDriveTypeA` xrefs, `0x423358` /
+`0x427f2e`). There is **no `stxt774`, no `stxt371`, no `BoG_ *90.0&!!  Yy>`, no
+`secdrv`** — it is not SafeDisc, and it needs no SafeDisc *emulation*, which is
+precisely what separates it from Generals and BF1942. DAEMON Tools 3.47
+satisfies it completely.
+
+**A CD-ROM-typed drive is NECESSARY AND NOT SUFFICIENT, and that is the whole
+mistake.** Six of seven live boxes already had `DRIVE_CDROM` volumes when the
+title was withdrawn — every one holding another game's disc (SYSTEMSHOCK2,
+SHOGO, RF_2, STARCRAFT) or nothing at all. *"The fleet has mounters"* was
+mistaken for *"the fleet has this disc"*. Measured both ways: `.240` with SHOGO
+in `F:` raised the modal; the same box with its own image mounted started.
+
+### The generalisable rule: read the VERSION of the protection, then measure the patch
+
+"Apply the latest official patch" is a rule this repo follows for multiplayer
+parity, and here it would have destroyed the title.
+**`serious-sam-tse-1.07.exe` replaces the 442,434-byte retail `SeriousSam.exe`
+with a 1,777,634-byte SafeDisc-2-wrapped one and ships `secdrv.sys` +
+`drvmgt.dll` beside it, dropping `GetDriveTypeA` entirely.** It ADDS the
+protection retail never had. That is the exact inverse of Doom 3, where id's
+official 1.3 patch REMOVED the wrapper. Neither direction is a rule; both are
+measurements. The TFE 1.05 patch is clean (442,368 bytes, `GetDriveTypeA` and
+the message both intact, no markers).
+
+The regression test therefore looks for **the wrapper, not a version number** —
+`tests/python/test_serioussam_staging.py::test_staged_binaries_carry_no_copy_protection`.
+
+### Three more things that cost time here
+
+* **A raw `.bin` declaring `TRACK 01 MODE2/2352` starts its filesystem at +24,
+  not +16.** A Mode 2 Form 1 sector is the same 2352 bytes as Mode 1 but carries
+  an 8-byte subheader after the header. Converted at +16 you get a full-size ISO
+  with no volume descriptor anywhere, which reads as *"the image is corrupt"*
+  rather than *"we used the wrong stride"*. `scripts/fleet/mdf2iso.py` now
+  carries the geometry, asserted both ways so it cannot steal an ordinary Mode 1
+  `.bin`.
+* **`launch.txt`'s icon column only has to RESOLVE.** Serious Sam ships **no
+  icon anywhere** — both game binaries, the disc's `Setup.exe`, both official
+  patch installers and both demo installers have an entirely empty PE resource
+  directory, and there is no `.ico` on either disc. Pointing the column at
+  `SeriousSam.exe` passes `validate-staged-library.py` and puts three generic
+  white pages on the desktop. Note also that a `.rsrc` **section header** is not
+  evidence either way: both binaries have one and neither has any resources —
+  only `DataDirectory[2]` answers the question.
+* **`Scripts\PersistentSymbols.ini` must not be staged.** The engine writes it
+  on exit, so GAMESYNC's size+mtime test always fires and copies the pristine
+  one back — resetting `sam_bFirstStarted` so the modal *"SeriousSam is starting
+  for the first time"* returns after **every** sync, on boxes with nobody to
+  click it. Same rule Doom 3 already carries for `DoomConfig.cfg`/`config.spec`.
+
+### And one non-finding, recorded so it is not re-diagnosed
+
+**TSE's main menu reads "SERIOUS SAM - THE FIRST ENCOUNTER - v1.05" and the tree
+is correct.** `SE1_00.gro` ships TFE's menu-logo textures byte for byte
+(`sam_menulogo256a/b.tex`, identical md5 in both games). The campaign it loads is
+TSE's snowy `1_0_InTheLastEpisode`; TFE is entirely Egyptian. Checked the running
+exe's path with `wmic ExecutablePath` first, because a leftover process from the
+other Encounter would look exactly the same.
+
+Likewise, **DAEMON Tools 3.47 CAN mount over an already-occupied unit** —
+verified on `.240`, which swapped its single virtual drive from SHOGO to
+SERIOUS_SAM_RC2 and then to SamSE. An earlier "unit is locked" modal on `.124`
+was two agents mounting at the same moment, not a launcher defect. I nearly
+"fixed" a bug that was not there.
+
 ## SIX OF SEVEN BOXES HAVE A DISC MOUNTER — the docs said one (2026-08-31)
 
 **`docs/lan-multiplayer-status.md`, `scripts/gamegate/SCHEMA.md` and two staged
