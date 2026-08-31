@@ -14,6 +14,152 @@ it until a Voodoo card goes back in.
 
 ---
 
+## DOS/IPX + peer-hosted LAN: Descent 3 hosts on the DEV HOST under Wine, and Carmageddon's front end cannot be driven (2026-08-31)
+
+Verifying the DOS/IPX and peer-hosted titles (Descent 1-3, Carmageddon 1/2,
+Redneck Rampage, System Shock 2, Far Cry, Halo). Six findings worth keeping.
+
+**1. A Windows-only dedicated server can live on the DEV HOST, in a container,
+under Wine.** Neither Descent 3 nor Far Cry ever shipped a Linux server, and
+this host has no Wine (installing one needs root, which needs a password). A
+`debian:bookworm` + `wine` image solves it - the same precedent as the Tribes 2
+container. `descent3-server` (TCP+UDP 2092) and `farcry-server` (UDP 49001) are
+now `systemd --user` units. **That is the difference between "a Descent 3 game
+costs you a fleet box" and "a server that comes back after a reboot."**
+
+**2. `wine <game>.exe` RETURNS as soon as wineserver owns the process.** A unit
+whose ExecStart was `xvfb-run wine main.exe` therefore "succeeded" in about a
+second, xvfb-run tore its X server down, the game died with it - and systemd
+still read `active (running)`, because the *docker client* was alive. Block on
+`wineserver -w`. Two further shapes of the same trap: `xvfb-run` as the
+container's own CMD never executes its argument at all (Xvfb up, no wine, no
+WINEPREFIX - wrap it in `bash -c "exec ..."`), and `xdotool type --window <id>`
+sends **no modifier state** to a Win32 edit control under Wine, so Far Cry's
+console echoed `start-server mp-monkeybay` and `g-gametype ffa` and answered
+"Unknown command" four times while the container looked healthy. Type through
+XTEST (no `--window`).
+
+**3. Descent 3's `+connect` was never the problem - the PILOTS modal was.**
+`_patches/README.txt` recorded "+connect only reaches the main menu", and that
+was `+connect` ALONE. `main.exe -launched -nointro -pilot SDF -directip
++connect <ip>` joins straight into the game: verified .240 -> the dev host, with
+the server console logging `sdf has joined the Anarchy`. All three switches are
+in main.exe's own string table. Descent 3 is now VERIFIED LAN, and it has
+`Host Descent 3 - LAN.bat` (its own dedicated server) and
+`Join Descent 3 - LAN.bat` staged.
+
+**4. Far Cry's "you should save a server-profile in the game" is HALF TRUE.**
+The same banner lists `start_server <map>`, which needs **no profile at all**:
+`g_gametype FFA` + `start_server mp_monkeybay` took the server from no bound
+port to `Precaching level ... done` with UDP 49001 open. So Far Cry can be
+hosted with nobody at a keyboard. The CLIENT still cannot be driven - CryEngine
+takes DirectInput exclusively even WINDOWED, so neither `UIKEY TEXT:` nor
+single named keys reach the console prompt (measured on .246, windowed, console
+visibly open with a `>` and nothing arriving).
+
+**5. Carmageddon 1's network browser is not automatable, and it is not a
+relative-mouse problem - the screen is inert.** The main menu accepts clicks
+(highlight moves, `NEW NETWORK GAME` opens). The browser it opens then ignores
+mouse AND keyboard entirely - ESC and ENTER do nothing, `HOST GAME` never
+fires - while its player-name caret keeps animating, so the process is alive.
+Everything up to that point is proven: the tunnel comes up on the host
+(`IPXSERVER: Connect from ...`) and the joiner attaches
+(`IPX: Connected to server. IPX address is 192:168:1:123:17:204`). A human must
+click HOST GAME. Two DOSBox facts worth keeping from the attempt: **`autolock`
+does not make Carmageddon's cursor absolute** (DOSBox falls back to relative for
+any game that fakes relative motion through a huge absolute range), and
+**`UIDRAG` moves a DOSBox cursor where `UICLICK` cannot**, because it
+interpolates real motion events.
+
+**6. Two staged LAN launchers were wrong in the same way: they made the player
+wait at something.** Carmageddon 1's LAN path ran the full ~2 minute opening FMV
+and then sat on a menu with an **attract-mode timeout** - the first player to
+arrive is thrown back into the intro before the second one gets there, and ESC
+from attract restarts the opening rather than returning. Redneck Rampage's LAN
+path went through the collection menu's `@choice`, so both machines waited on a
+keypress and Build's IPX gather (which happens in the first seconds of the game)
+never saw a second player. Both now have their own `*_lan.conf`
+(`-nocutscenes` / straight to `rr.exe %RRARGS%`); single player keeps its
+cutscenes and its menu. Separately, **every DOSBox Join launcher now issues
+IPXNET CONNECT four times**: DOSBox gives up after a 5 s timeout and then runs
+the game anyway, so a joiner that beat a slow host to the tunnel landed in the
+netgame browser with no connection and nothing on screen saying why.
+
+---
+
+## GoldSrc LAN proven per-mod; three staged titles were silently un-hostable (2026-08-31)
+
+Two-box LAN verification of the GoldSrc tree and the standalone shooters
+(host `.171`, joiner `.133`/`.124`). Four findings, every one of which had been
+reporting success.
+
+**1. Deathmatch Classic could never host. `dmc\events\` held only `door\`.**
+`map dmc_dm2` died instantly with `Host_Error: EV_Precache: file events/axe.sc
+missing from server`. `dmc.dll` and `dmc\cl_dlls\client.dll` each precache 19
+events by name; the staged tree had 4 (the `door\` subdirectory) and the base
+`valve\events\` fallback covered only 3 more, leaving **12 unresolvable**. The
+files are inert placeholders — Valve's own dmc `.sc` files are **zero bytes**,
+and the four `door\*.sc` already staged are byte-identical to Valve's — so the
+engine only needs them to EXIST so client and server agree on the event index.
+Restored from Valve's own HLDS (`steamcmd` app 90, `mod dmc`); the `door\*.sc`
+there md5-match the staged ones, which is what proves the provenance.
+**The client-side symptom is worse than the server's**: a joiner missing the
+files connects, holds a slot (`players: 2 active` with only one listed) and
+sticks on "Server # 1" forever with no error anywhere. GAMESYNC both ends.
+
+**2. The HalfLife1 tree is protocol 45, not 46 — so no host-side dedicated
+server is reachable from it.** The tree's own doc said 46. The engine banner
+reads `Half-Life 45/1.1.0.8 (hw build 1792)`, and a Steam-era HLDS stood up on
+this host (app 90, `Exe version 1.1.2.2/Stdio`, port 27020) refused it with
+*"This server is using a newer protocol ( 48 ) than your client ( 45 )"*.
+So standing up valve/gearbox/tfc/dmc servers on `.132` would produce servers no
+fleet box can join. The only route to one is to run those mods on the
+**CounterStrike16** tree's engine, which IS protocol 48 — a re-staging job, not
+a config change.
+
+**3. Hidden & Dangerous' LAN launchers passed an option the binary does not
+implement.** Both passed `net_connection_provider tcpip`, quoting HDE.exe's own
+`-help` text. That help text is stale: the parsed option table in `Bin\HDE.exe`
+is `safe language profile datadisk net_port net_address net_session_name
+sound_caps graph_caps net_cpu_schedule net_player net_num net_log net_join
+net_host sleep stop mission launch_app direct_trans releasedll position
+resolution help` — **no `net_connection_provider`, no `net_connect`** — so the
+parser choked on the next token and the game died on
+`Unknown command-line option: tcpip`. Removed from both launchers. **A binary's
+help text is not its option table; read the table.**
+
+**4. Red Faction refuses ALL multiplayer until `HKCU\...\Volition\Red Faction\
+UpdateRate` is non-zero — and the dedicated server hides that behind a bound
+port.** Client MULTI and `rf.exe -dedicated dm` both print *"You have not
+properly selected your network connection in the launcher"*; the server then
+prints "Hit a key to exit..." **after** it has already bound UDP 7755, so
+`netstat` shows a listening port for a server that is dead. The value is a rate
+in **bytes per second**, not an enum: `0x30d40` = 200000 = the launcher's
+"T1/LAN" radio. There is no `ConnectionSpeed` under HKLM — that was tried first,
+merges cleanly and does nothing. Seeded in the title's `install.reg`; with it,
+`rf.exe -dedicated dm` reaches "Game Initializing / Red Faction Initialized /
+Level Initializing" and stays up. Joining is still unproven: "Get Servers"
+always contacts the dead THQ Game Tracker even in LAN-Only mode and with
+`-lanonly`, and Add Server + Refresh All leaves the list empty.
+
+**Measured negatives worth keeping.** Blue Shift is **single-player only** —
+`liblist.gam` says `type "SP Mission"`, `maps\` is empty and `pak1.pak` holds 37
+maps every one of which is `ba_*` campaign; its `mpentity` line is inherited
+boilerplate, not a capability. Max Payne 1 has **no multiplayer** — `MaxPayne.exe`
+imports no WS2_32/WSOCK32/DPLAYX at all. **Aliens versus Predator Gold DOES have
+LAN multiplayer** despite importing no networking DLL: it creates DirectPlay
+through COM (`ole32`), and `avp.exe` contains `DPSPGUID_TCPIP`, `DPSPGUID_IPX`
+and `IID_IDirectPlay4A` plus an `IP_Address\` store and `-server` / `-ip %%s` /
+`-n %%s` switches — but it is exclusive-fullscreen Direct3D with no windowed
+mode, so the agent's GDI screenshot is an **all-black frame** and its menus
+cannot be seen or driven. Turok 2's `+connect <ip>` (which its README claimed
+was the LAN join path, from a string in the exe rather than a test) answers
+*"Unable to contact the GameManager."* — while the joiner's own GameSpy Lite
+browser lists the host correctly, so discovery works and only the connect step
+does not.
+
+---
+
 ## DOOM 3 staged; C&C Generals still walled by SafeDisc 2.80 (2026-08-31)
 
 Two copy-protection findings, one solved and one measured to a stop.
