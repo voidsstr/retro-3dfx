@@ -14,6 +14,198 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-08-31 — `smbclient put` to the NAS stamps the file **Oct 2007**, and GAMESYNC's resume test is size AND mtime
+
+`CLAUDE.md` says the dev host can only write the share through the gvfs mount
+and that `smbclient -A` is "not an available route" because the credentials are
+root-only. **That is out of date: `fleet-nas-192-168-1-122-user` and
+`fleet-nas-192-168-1-122-password` are in the vault**, so
+
+```bash
+python3 scripts/fleet/keyvault.py get fleet-nas-192-168-1-122-user   # into a 0600 authfile
+smbclient //192.168.1.122/files -A <authfile> -c 'cd "..."; put local remote'
+```
+
+works headless — which matters, because the **gvfs mount is a per-login-session
+thing and was simply absent** in this session (`/run/user/1000/gvfs/...` did not
+exist) while `/mnt/retro-share` is mounted `ro`. That was the only host-side
+write path documented, and it was not there.
+
+**But the file it writes carries a write_time of `Wed Oct 31 2007`.** Measured,
+deterministic, and independent of the negotiated dialect:
+
+```
+opt=''        write_time: Wed Oct 31 05:42:42 PM 2007 EDT
+opt='-m SMB3' write_time: Wed Oct 31 05:42:42 PM 2007 EDT
+opt='-m SMB2' write_time: Wed Oct 31 05:42:42 PM 2007 EDT
+```
+
+The **time of day is correct and the date is 19 years stale**, and a neighbouring
+file written by any other route reads a normal 2026 date — so this is the NAS's
+set-file-time handling for smbclient, not a clock problem on either end.
+
+**Why this is dangerous rather than untidy.** Since agent **v1.62.0**
+`gs_copy_file()` skips a file only when size **AND** last-write time match, and
+it stamps the destination with the SOURCE's mtime. A staged file whose source
+mtime is frozen at 2007 is self-consistent, so it deploys once and then looks
+settled forever — and **the next same-size edit published the same way is
+skipped on every box, silently, with `state=done, failed_files: 0`.** That is
+exactly the half-applied-patch failure v1.62.0 was written to end, re-entering
+through the publishing tool instead of through the sync.
+
+Nothing was lost this time only because the edit changed the size
+(9,473 -> 11,017 bytes). **So: after any `smbclient put` into `Games-Library`,
+either make sure the size changed, or restamp the file from a Windows box
+(`copy /Y` through a temp name restamps it to now) — and verify with
+`smbclient -c allinfo`, never by assuming the put was faithful.**
+
+---
+
+
+## 2026-08-31 — `.133` corroborates the Gearbox-mod diagnosis on a SECOND box, and three details the `.143`/`.123` write-ups do not have
+
+The Blue Shift / Opposing Force entries below were reached independently on
+**`.133`** (P3-DUAL, 701 MHz, 255 MB, GeForce4 Ti 4600) and every measurement
+agrees, which upgrades that diagnosis from "one box" to "the staged tree".
+Three things `.133` adds:
+
+* **The staged tree ships the PROOF of what the original install was.**
+  `bshift/qconsole.log` is dated 2026-08-27 and was captured on the machine the
+  tree was built from (`D:\blue-shift\`). It records `Protocol version 40`,
+  `Exe build: 02:23:49 Feb 28 2001 (1588)`, and the mod loading as
+  `cldll - 0`, `nomodels - 1`, `Adding: D:\blue-shift\bshift\dlls\bshift.dll`.
+  The tree's engine is **protocol 45, build 1792**, and the staged
+  `liblist.gam` says `cldll "1"` and `gamedll "dlls\hl.dll"`. So the graft is
+  documented inside the library itself — nobody had to guess the original
+  configuration, and nobody had read the file.
+* **`bsinstall.EXE` is NOT a Wise/InstallShield/cab archive** — the entry below
+  calls it Wise. Scanned byte-for-byte for `MSCF` (cab), `ISc(` (InstallShield),
+  `PK\x03\x04` and `Rar!`: **zero hits anywhere in all 49,023,877 bytes.** It
+  cannot be unpacked on the Linux host by any of the usual routes, so the
+  re-stage genuinely needs the installer RUN on a Windows box. Worth knowing
+  before someone spends an hour on `7z x`.
+* **Opposing Force dies on its own MULTIPLAYER maps too**, not only SP: measured
+  `op4_bootcamp` DEAD alongside `of0a0` and `of1a1`. And the engine names the
+  fault in `gearbox/qconsole.log` (`-condebug`, 210 bytes total) before dying:
+
+  ```
+  ]map of0a0
+  Can't register variable mapcyclefile, already defined
+  Can't register variable servercfgfile, already defined
+  Can't register variable lservercfgfile, already defined
+  ```
+
+  **TFC's log through the identical path has no such lines and 2fort loads**, so
+  this is a positive signature rather than noise: `opfor.dll` re-registers cvars
+  that build 1792 already owns. Note the staged `opfor.dll` is 1,519,685 B while
+  the retail ISO's is 1,450,047 B — the staged one is a LATER build, so "revert
+  to retail" is not the remedy.
+
+### The reverse trap: substituting valve's DLLs makes it look *more* broken, in a different place
+
+Recorded because it wasted a cycle. With bshift's own `client.dll` the engine
+access-violates at **init**; swap in valve's and it survives init and 60 s at the
+console, so the natural next move is to swap the gamedll too — at which point it
+hard-crashes with `0xC0000005` and the console log stops at `]map ba_tram1` with
+**no** version-mismatch banner. The banner is the useful message and the
+substitution *suppresses* it. Keep the mod's own gamedll while diagnosing.
+
+## 2026-08-31 — `.133` renders UT2004 fullscreen and in-game while the capability gate calls it a HARD NO
+
+`scripts/gamegate` gives profile `b65fa1fee4df292c` the verdict **`no`**,
+`limiting=cpu_mhz`, *"CPU too slow (have 701 MHz, needs 1000)"*. Measured on the
+box the same afternoon: UT2004 runs **fullscreen at 1280x960x32**, main menu and
+then **in-game on DM-Rankin** ("Press [Fire] to join the match!"), 114 MB working
+set, stable across 150 s of observation. Screenshots are on both cells in the
+compat DB.
+
+This is a **`no`, not a `marginal`** — 701/1000 is 30 % below, outside the 25 %
+band — so the gate never escalated it and no LLM ever saw it. That is the gate
+working as designed and still being wrong, which is the case the 25 % band cannot
+catch by itself. It is a pending **user decision** on lowering `min_cpu_mhz`, not
+a bug to patch silently. Note `min_ram_mb` is 256 and the box has **255**, so
+lowering only the clock still leaves a second unmet floor.
+
+**The method note that made it testable:** UT2004's menu is a UE2 GUI driven by
+**relative** mouse deltas and does **not** respond to absolute `UICLICK` — the
+main menu did not move under a click on "Instant Action". Bypass the menu
+entirely from the command line:
+
+```
+UT2004.exe "DM-Rankin?Game=XGame.xDeathMatch?NumBots=2?Difficulty=3"
+```
+
+That is the UE2 equivalent of id Tech's `+map`, and it turns an "unautomatable
+menu" title into a one-command in-game screenshot.
+
+## 2026-08-31 — Tiberian Sun's menu is a FIXED 640x400 shell; a menu screenshot looks exactly like a resolution bug and is not one
+
+On `.133` the staged launcher correctly wrote `SUN.INI` `[Video]
+ScreenWidth=1280 ScreenHeight=960` (read back on the box) and the desktop was at
+1280x960 — yet the main menu renders as a small 640x400 panel marooned in the
+middle of a black screen. That is **Tiberian Sun's normal behaviour**: the
+Westwood shell is a fixed-size image and only the in-game map view honours
+`ScreenWidth`/`ScreenHeight`. Driven through to a Skirmish (Grand Canyon 2-4) the
+match fills the screen properly, sidebar at full 1280x960 height.
+
+So **do not "fix" the resolution from a menu screenshot** on this title, and do
+not record it as a fullscreen defect. Its menu *is* absolute-clickable, unlike
+UE2's — main menu -> Multiplayer Game -> Skirmish -> OK all worked through
+`UICLICK`, which is how the in-game frame was obtained.
+
+## 2026-08-31 — GoldSrc fullscreen IS GDI-capturable on XP; the "black frame" rule is a Windows 7 fact wearing a fleet-wide label (.240/.123/.133/.246)
+
+`Games-Library/HalfLife1/HOW-TO-RUN.txt` tells every agent, without
+qualification, that
+
+> The agent's SCREENSHOT command is a GDI BitBlt and captures a black frame from
+> an exclusive-fullscreen GoldSrc window.
+
+and sends them to the engine's own `F11` -> `snapshot` bind instead. **That is
+true on exactly one box on this fleet, and it is the one that is not XP.**
+
+| box | OS | plain `SCREENSHOT 0` of the fullscreen GoldSrc surface |
+|---|---|---|
+| .123 | XP SP3 | **captured** — `tfc-123-2fort-1280x960-fullscreen.png`, 1280x960, 2fort in 3D with the TFC 1.5 MOTD |
+| .133 | XP SP3 | **captured** — `/tmp/b133/shots/tfc_2fort.png`, 1280x960 |
+| .246 | **Windows 7** | black, and recorded as such in the compat DB |
+
+The mechanism is the desktop compositor: **XP has no DWM, so a BitBlt of the
+screen DC sees the OpenGL front buffer; Vista/7 composite, and the same BitBlt
+returns black.** The correlation is perfect across every GoldSrc render row in
+the database and the one exception is the only non-XP box.
+
+**Why this cost time rather than merely being untidy.** The doc names the slow,
+fragile route as primary and dismisses the one that works on seven of eight
+fleet boxes. Worse, the recommended route is itself unproven: on **.240** the
+staged `bind "F11" "snapshot"` produced **no .bmp at all** — three attempts, two
+of them with `-condebug`, with the engine confirmed fullscreen (window class
+`Half-Life` at 0,0-1280x960, `DISPLAYCFG` reading 1280x960x16). It was not
+root-caused before the box went off the network; the untested hypothesis is
+**keyboard focus**: the game is started by `start ""` from a HIDDEN `EXEC`
+console, so it can render fullscreen while never becoming the foreground window,
+and synthetic keys then land nowhere. If you pursue it, `UICLICK` the centre of
+the screen first.
+
+So: **on an XP box, try the plain `SCREENSHOT` first.** It is one command and it
+is what actually produced every GoldSrc fullscreen frame in the database.
+
+### The WON engine's 4:3-only mode table, re-measured on .240
+`FR_W43`/`FR_H43` resolves to **1280x960** on this 1920x1080 panel and the engine
+takes it: desktop switched to **1280x960x16**. This confirms the launcher comment
+that a 16:9 mode drops the engine to 400x300 — do not "simplify" those launchers
+back to `FR_W`/`FR_H`.
+
+### Leaving hl.exe running fullscreen correlates with losing the box
+`.240` went off the network **at layer 2** (`ip neigh` -> `FAILED`, every port
+including 139/445 unreachable, not merely the agent's) minutes after a fullscreen
+`hl.exe` was left running across two capture attempts. Correlation only — the
+user was also power-cycling hardware by hand, and `.133` dropped in the same
+window — but the cheap precaution is free: **`taskkill /f /im hl.exe` belongs in
+a `finally:` block, not at the end of the happy path.**
+
+---
+
 ## 2026-08-31 — GoldSrc: Blue Shift and Opposing Force are broken IN THE LIBRARY, and the engine says why (.143)
 
 `HalfLife-BlueShift` had been recorded `failed` on **four** boxes (.123, .133,
