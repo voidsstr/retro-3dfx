@@ -14,6 +14,55 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 1,842 bytes shipped to the fleet with no source — and were recovered from the binary (2026-08-31)
+
+**The `DOSGAME.EXE` the fleet ran had not been buildable from the repo since
+2026-08-26, and nothing said so for five days.** `git HEAD` rebuilt byte-exactly
+to 111,170 B; the share carried 113,012 B. The extra bytes were a real feature —
+a self-extracting-archive test in the launcher choice, plus a registry-repair
+rule — built, published, and never committed. `git log --all -S` with no path
+filter, `git grep` over every reachable commit, and a filesystem sweep of every
+`dosgame.c` on the host all came back empty. A `make` plus a `copy` would have
+deleted it permanently and silently.
+
+**A lost binary is not lost work.** The reconstruction was recovered from the
+artifact and is now proven equivalent, not merely plausible:
+
+1. Build the **exact ancestor commit** (the last one before the publish date).
+   That gives a control whose only difference from the shipped binary is the
+   lost work — without it you are diffing a moving target.
+2. `wcl -fm=` for the **segment map**, which turns a file offset into "our
+   code" / "library code" / "a string constant". The string-constant diff
+   alone named a *second*, silent change nobody had noticed (`".OLD"` — the
+   oversized log is now renamed, not deleted).
+3. **Find code by the constants it loads.** A format string's DGROUP offset
+   shows up in the code as a 2-byte immediate (`mov ax, 0x627`), so searching
+   for that immediate locates every call site of every log message in *both*
+   binaries — which is what maps unknown addresses onto known source lines.
+4. Disassemble 16-bit with capstone; the map file names the library routines,
+   so `call 0x59c6` reads as `strrchr`, and `test byte [tbl+c], 0xe0` is
+   `isalnum` (`_LOWER|_UPPER|_DIGIT`, from `watcom/h/ctype.h`).
+5. **Reconstruct → rebuild → diff → iterate.** The first attempt already hit
+   the exact size (113,012 B) with 18,206 bytes differing; the differences
+   pointed straight at a missing `sz >= 0` guard and a 520- not 516-byte
+   buffer. Final: **57 differing bytes, every one a stack-frame displacement**
+   — normalise `[bp ± X]` out of both disassemblies and there are **0
+   instruction differences across all 9,885 instructions**, with the data
+   segment byte-identical. That is proof; "it looks right" is not.
+
+**The reusable lesson is the check, not the archaeology.** `check-published.py`
+now runs `--strict` inside `run_dos_tests.sh`, so the repo and the share can
+never silently diverge again in *either* direction. The same shape has bitten
+this project from the other side (the share's `NETUP.BAT` was stale against
+git, and a share rebuild once deleted the whole `Utility\Retro Automation\`
+tree). **Compare before you publish, and publish only from a build you can
+reproduce.**
+
+Details: `retro-agent/scripts/dosgames/README.md` ("how the lost feature was
+recovered").
+
+---
+
 ## Half-Life fell back to 400x300 because we asked a 1999 engine for 16:9 (2026-08-30)
 
 **Every widescreen box was running Half-Life at 400x300 — and it looked like a
@@ -744,6 +793,39 @@ and re-verify the file count against the library afterwards — `state=done` and
 `failed_files: 0` are both true of a tree that is missing a fifth of itself.
 
 ---
+
+## Do NOT force a Win9x shutdown to work around a blocked REBOOT (2026-08-31)
+
+**My mistake, recorded so nobody repeats it.** `.243`'s agent answered `REBOOT`
+with `OK` and then **did not reboot** — uptime kept climbing past 900 s across
+sixteen polls. Win9x's `ExitWindowsEx` can be refused by any app that declines
+to close, and something on that box (most likely `retro_chat.exe`, which the
+autoupdate had just relaunched) was doing exactly that. **`OK` here means "the
+call returned", not "the machine is going down"** — the same
+check-the-post-condition trap this project keeps paying for, in a new place.
+
+I escalated to `rundll32 shell32.dll,SHExitWindowsEx 6` (`EWX_REBOOT|EWX_FORCE`).
+The box went down within 20 s **and has not come back in 20+ minutes: no ARP
+entry, no 139, nothing.** Win98 brings networking up only after the GUI loads,
+so a machine invisible at layer 2 is stuck *before* that — and a FORCED shutdown
+is unclean, which makes Win98 run **ScanDisk at next boot, where it can sit
+waiting for a keypress**. That needs a person at the screen; there is no remote
+path.
+
+**What to do instead when a Win9x `REBOOT` returns OK and nothing happens:**
+1. **Verify the post-condition** — poll `uptime_seconds` and confirm it RESETS.
+   A climbing uptime after `OK` is a blocked shutdown, not a slow one.
+2. **Find what is blocking it** rather than overriding it: close the GUI
+   helpers first (`retro_chat.exe` is the usual suspect on this fleet, and the
+   agent's own autoupdate relaunches it), then retry the graceful reboot.
+3. **Treat `EWX_FORCE` as equivalent to pulling the plug** — it buys a reboot
+   at the price of an unattended box that may not come back. On a machine you
+   cannot walk to, that is a bad trade, and the graceful path failing is a
+   reason to diagnose, not to escalate.
+
+The PXE boot-hold was armed and re-armed throughout (`00:a0:24:b9:e9:fb`), so
+the box is protected from reimaging whenever it is next power-cycled.
+
 
 ## The Win98 Pentium-1 (.243, N5R5L9): why it never auto-updated (2026-08-30)
 
