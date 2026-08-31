@@ -14,6 +14,51 @@ it until a Voodoo card goes back in.
 
 ---
 
+## The fleet compatibility matrix: two ways to be confidently wrong about a box (2026-08-31)
+
+Building the per-box x per-title compatibility database (`retro-agent`
+`scripts/fleet/compat.py`, tables in `~/.retro-fleet/fleetbook.db`). Both bugs
+had this project's signature shape - **the tool reported success and the
+operator believed it** - and neither crashed.
+
+**1. `installed_games` IS AN ENGINE-AWARE INDEX AND CANNOT PROVE ABSENCE.**
+`gameservers.db.installed_games` looks like a per-box inventory of `C:\Games`
+and is not: `scripts/game-servers/gameservers.py` walks the drive looking for
+**engines it recognises**, and there is no `game_key` for Doom 3, Far Cry,
+Halo, Turok 2, Master of Orion II, Shadow Warrior or Warcraft II. Reading "not
+in this table" as "not on the box" marked **Doom 3 absent on `.123`** - a box
+where Doom 3 is LAN-verified against `.246` and visibly present. The table can
+prove PRESENCE and nothing else. Real absence needs a real directory listing.
+
+**2. `DIRLIST` RETURNS A BARE JSON ARRAY, NOT `{"entries": [...]}`.**
+The obvious guess is wrong, and the damage came from the `except Exception:
+continue` wrapped around the parse: every box returned an empty set, so **414
+cells were reported `absent`** - including the LAN-verified ones - with no
+error anywhere and a cheerful `ok probe 368 row(s)`. A parse failure must
+poison the whole box to *untested*, because **"I could not read the answer" and
+"the directory is empty" must never render the same.** An unreachable box is
+already handled that way; the parse path was not.
+
+The general lesson, which is the same one the `rd /s /q` and `GAMESYNC
+state=done` entries teach: **a tolerated failure must SAY it is a failure.** A
+blanket `except` around a parse converts a wrong schema guess into confident
+data, and confident wrong data is worse than a crash because nobody goes
+looking.
+
+**3. The matrix must be a CROSS JOIN, not a list of rows that exist.** A cell
+nobody has ever looked at has to be a row reading `untested`; if it is simply
+missing, every renderer downstream is free to style it as blank, and blank
+reads as fine. `deployed != runs != verified`, and `never tested != tested and
+failed != not applicable` - three states, never two, on every axis.
+
+**4. Where the fleet actually stands: 0 of 477 cells have a verified
+rendering.** 392 titles are deployed and 53 have a two-box LAN proof, but
+nobody has ever recorded *watching a game render* on a named box with a
+resolution attached. That is not a regression - it is the first time the gap
+has been countable.
+
+---
+
 ## Five new LAN titles: Serious Sam is disc-locked, and RTCW lies about its resolution (2026-08-31)
 
 Staging five new LAN-multiplayer titles into `Games-Library`. Seven findings, in
