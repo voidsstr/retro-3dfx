@@ -14,6 +14,144 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-08-31 — `.246`: a parenthesis in `GTITLE` broke Soldier of Fortune II's launcher on EVERY box, and it reported nothing
+
+`Play Soldier of Fortune II.bat` died instantly with
+
+```
+] was unexpected at this time.
+```
+
+and started **no process at all**. Through the agent this is invisible: the
+`EXEC ... start ""` returns success, `WINLIST` shows nothing, and the title
+simply never appears — which reads as "the game is broken", not "the launcher
+never parsed".
+
+**Cause, line 67 of the staged bat:**
+
+```bat
+set "GTITLE=Soldier of Fortune II: Gold (single player)"
+```
+
+The script then does `echo [%GTITLE%] ...` **inside `if ... ( ... )` blocks**, so
+the `)` inside the expanded variable closes the block early and cmd aborts
+before anything runs. **This is the THIRD time this exact character has cost
+this project time** — the generated `onboard.cmd` had it with game NAMEs
+containing `(BC Romania)`, and the "no parentheses in a generated filename" rule
+came from a `.bat` whose *name* contained them. The rule was written about
+filenames; the same defect simply moved into a variable's *value*.
+
+**So the rule generalises:** a value that will be `echo`-ed inside a
+parenthesised block must not contain `(` or `)` either. Fixed to
+`... Gold - single player`; it was the only staged bat with parens in `GTITLE`
+(all of them were checked). Verified the whole loop: published to the share,
+md5-compared through a *different* mount, launcher purged from the box,
+`GAMESYNC` (46/46 titles, `titles_skipped` 0, **`failed_files` 0**) restored a
+byte-identical copy, and the game then started — `Soldier of Fortune 2 : Double
+Helix`, fullscreen 1024x768.
+
+## 2026-08-31 — `.246`: Serious Sam TFE is an OpenGL-ONLY build, so "just use D3D" is not available
+
+`.246` (Radeon HD 5450, Win7) fails Serious Sam TFE at startup, every time,
+before any window:
+
+```
+Cannot set display mode!
+Serious Sam was unable to find display mode with OpenGL acceleration.
+```
+
+The obvious move — force Direct3D, as the sibling TSE does — **cannot work, and
+the reason is in the binaries, not the config**:
+
+| | TFE `Bin\Engine.dll` (1,560,576 B) | TSE `Bin\Engine.dll` (1,929,274 B) |
+|---|---|---|
+| `OpenGL` strings | 18 | 10 |
+| `Direct3D` / `d3d8.dll` | **0 / 0** | 5 / 1 |
+
+TFE's engine has **no Direct3D renderer at all**. Three configuration attempts
+all failed identically and none could have worked: `sam_iDriver=1` in
+`Scripts\PersistentSymbols.ini` (already set by an earlier session),
+`sam_iDriver=1` in `Scripts\Game_startup.ini` (held in place with `attrib +r`
+so the launcher's rewrite could not clobber it — verified by reading the file
+back), and dropping 1920x1080 to 1024x768 in case the OpenGL mode list lacked a
+widescreen entry.
+
+Two corollaries worth keeping:
+
+- **`sam_iDriver` is TFE's symbol and does not exist in TSE's exe** (TSE uses a
+  different one). The `sam_iDriver=1` line an earlier session wrote into the
+  *TSE* tree is therefore a no-op — TSE's Direct3D is the engine's own default,
+  not that setting. A per-box fix that appears to work can still be inert.
+- TSE runs here at native 1920x1080 and reports the mode in its own window
+  title, `Serious Sam (FullScreen 1920x1080)` — the cheapest fullscreen
+  evidence available on a box whose GDI capture returns black.
+
+## 2026-08-31 — `.246`: which engines you can PHOTOGRAPH fullscreen, and which you cannot
+
+`.246`'s GDI capture returns a pure-black frame for every exclusive-fullscreen
+3D surface, so "is it running?" and "can I photograph it?" are different
+questions there. Measured across the whole staged library this session:
+
+| engine | GDI fullscreen | synthetic input reaches it fullscreen | fullscreen capture route |
+|---|---|---|---|
+| GLQuake / Hexen II family | black | **yes** | `~`, `bind F12 screenshot` → `id1\quakeNN.tga` |
+| id Tech 3 (Quake III, RTCW) | black | **yes** | `~`, `screenshotJPEG` → `<mod>\screenshots` |
+| Quake II | black | yes | staged `bind F11 screenshot` → `baseq2\scrnshot` |
+| Unreal Tournament 436/469e | black (436) / **captures** (469e) | yes | `F11=Shot` → `System\Shot####.bmp` |
+| **GoldSrc** (HL, CS, TFC, DMC, OpFor) | black | **NO** | none found — windowed only |
+| **Serious Engine** (TSE) | black | **NO** | none found — window title states the mode |
+| DirectDraw (Tiberian Sun, Yuri's Revenge) | **captures fine** | yes | plain `SCREENSHOT` |
+
+The two `NO` rows are the ones that matter: on GoldSrc and Serious Engine you
+cannot get a fullscreen frame *at all* on this box, because you can neither
+BitBlt the surface nor reach the engine's own screenshot command. A windowed
+frame proves the title renders but **not** that it survives the exclusive-mode
+set, so those cells are honestly `runs`, never `verified` — and the limitation
+is CAPTURE, not the game. UT 469e is the useful exception: its D3D9 path
+photographs fine fullscreen, while 436's OpenGL path does not.
+
+## 2026-08-31 — `.246`: Counter-Strike 1.6 joins a server WINDOWED and stalls FULLSCREEN
+
+Same command line, one token different:
+
+```
+hl.exe -game cstrike -window ... +connect 192.168.1.132:27018   -> joins, plays
+hl.exe -game cstrike -full   ... +connect 192.168.1.132:27018   -> hangs
+```
+
+Fullscreen the client logs `Connection accepted by <server>` and then **nothing
+further** — no `BUILD ... SERVER`, no `connected`, black screen indefinitely.
+Reproduced against `:27015`, `:27018` and `:27019`, and at both 1920x1080 and
+1024x768, so it is **not** the resolution: the mode set itself succeeds
+(`DISPLAYCFG` really changed to 1024x768). One fullscreen run did reach
+`connected` and was then dropped with `timed out`.
+
+**A retracted conclusion, recorded because it was the expensive kind.** The
+first fullscreen attempt happened to target `:27015`, the a2s proxy, and the
+hang was written up as "the proxy accepts the handshake but does not forward the
+game channel" — which would have been a real bug in the game-server tooling and
+sent someone after it. It is false: Half-Life Deathmatch later joined through
+the sister proxy `:27020` and the server printed `Player has joined the game`.
+**The proxies forward fine.** Two variables were changed at once (port *and*
+fullscreen) and the wrong one got the blame — the project's standing warning
+about phantom bug reports, in its natural habitat.
+
+## 2026-08-31 — `.246`: the HalfLife1 tree cannot join our Half-Life Deathmatch server; the CounterStrike16 tree can
+
+The client refuses the connection itself, with the reason on screen:
+
+```
+This server is using a newer protocol ( 48 ) than your client ( 45 ).
+```
+
+`HalfLife1\hl.exe` is the WON build 1.1.0.8 (protocol 45). `CounterStrike16\hl.exe`
+is 1.1.2.7/Stdio (protocol 48) and joins the same server without complaint —
+in-game on `snark_pit` with a full HUD. The staged `launch.txt` already puts the
+"Half-Life Deathmatch" shortcut in the **CounterStrike16** tree, which is
+correct and worth not "tidying" into the HalfLife1 tree, where it could never
+work. Its target port `:27020` (the a2s proxy) was verified to forward game
+traffic, so that launcher needs no change.
+
 ## 2026-08-31 — Sizing inside the `FindFirstFile` loop TRUNCATED the library on Win9x: `.243` saw 25 of 46 titles and called it `done`
 
 The user's report was *"the pentium 1 computer needs the compatible games staged
