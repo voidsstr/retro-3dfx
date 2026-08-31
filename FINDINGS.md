@@ -167,9 +167,22 @@ Three things make this expensive rather than merely annoying:
   `rc=0`. So the syntax `-mount 0,"image"` is right; the unit state is the
   variable. Do not go looking for a switch-spelling problem.
 
-Suspected cause, not proven: a SafeDisc title issues PREVENT_ALLOW_MEDIUM_REMOVAL
-and the lock outlives the game. `.124` was parked on SYSTEMSHOCK2 (SafeDisc
-1.11.000), `.240` on SHOGO.
+**What it is NOT: "cannot mount over an occupied unit."** Refuted by the
+serioussam agent, which had started writing an unmount-first fix on that theory:
+`.240` swapped its single virtual drive SHOGO -> SERIOUS_SAM_RC2 -> SamSE with
+**no unmount at all**. Occupancy is fine; a lock is a lock, and unmount-first
+would have been ceremony that fixed nothing.
+
+**Likeliest cause, and the reproducible one: TWO AGENTS MOUNTING AT ONCE.**
+`.124` locked at the moment a Serious Sam launcher and a Jedi Academy launcher
+raced each other. That needs no SafeDisc title and can be reproduced on demand.
+
+A weaker second candidate, recorded because it is not excluded: a SafeDisc title
+issues PREVENT_ALLOW_MEDIUM_REMOVAL and the lock outlives the game - both locked
+boxes were parked on a SafeDisc disc (`.124` SYSTEMSHOCK2 1.11.000, `.240`
+SHOGO). Neither is proven, and the launcher fix does not depend on which is
+right. My own first write-up led with the SafeDisc theory on the strength of a
+coincidence; two boxes sharing a property is not a cause.
 
 ## THE SAFEDISC VERSION DWORDS ARE AT THE MARKER **+ 0x20** (2026-08-31)
 
