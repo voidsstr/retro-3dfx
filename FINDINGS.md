@@ -14,6 +14,173 @@ it until a Voodoo card goes back in.
 
 ---
 
+## DOOM 3 staged; C&C Generals still walled by SafeDisc 2.80 (2026-08-31)
+
+Two copy-protection findings, one solved and one measured to a stop.
+
+**1. A CD key was never Doom 3's only blocker — retail 1.0 is SafeDisc-wrapped.**
+The previous note read "genuinely ONE FILE away from done: `base\doomkey`". Half
+true. On `.123` with no disc and no key, retail `Doom3.exe` raises a modal
+**"Cannot locate the DVD-ROM" before any key prompt**. It is plain in the PE:
+sections `stxt774`/`stxt371`, and the three dwords after the
+`BoG_ *90.0&!!  Yy>` marker **at file offset 0xfd4** read `3 / 0x14 / 0x16` =
+**SafeDisc 3.20.022**. That offset+3-dword read is the cheap way to get an exact
+SafeDisc version out of any wrapped binary and it is worth doing FIRST — it
+would have redirected a whole session.
+
+**2. id's OFFICIAL 1.3 patch ships an exe with no wrapper at all**, which is what
+actually unblocked the title. Pull it without installing: run the InstallShield
+setup once, take `%TEMP%\_is2\Doom 3.msi`, `7z x` it, and the 5,832,704-byte
+stream `_02405D10997B49D29A16742747F2174E` is the exe — six ordinary sections
+including `.reloc`, no `stxt*`, no `BoG_`, no `secdrv` string. Verified on `.133`
+end to end: retail installed from the owner's three images, official 1.3 applied,
+image **unmounted**, game reached its main menu with every optical drive empty.
+**The scene crack on the same share is byte-for-byte the same SIZE** (5,832,704),
+so size proves nothing; the digests differ —
+official `7cd77c22b38c223ef1047083e374875a`, TNT crack
+`362672e5e25f1ece5410750eb6192e7b`.
+
+**3. id Tech 4 is the OPPOSITE of id Tech 3 about the command line.** Every
+idTech3 title in this library needed a latched `seta r_mode` DELETED from its
+staged `autoexec.cfg` because the cfg beat the command line. DOOM 3 calls
+`StartupVariable` a *second* time after exec'ing `DoomConfig.cfg` — id's own
+comment is "re-override anything from the config files with command line args" —
+so the command line wins and the title needs no `fleetres.cfg`. Also `r_customWidth`/
+`r_customHeight` are **camel-case in id Tech 4** and idTech3's lower-case spelling
+is a different, silently-ignored cvar name.
+
+**4. SafeDisc 2.80.010 (C&C Generals) is NOT satisfiable by DAEMON Tools 3.47**,
+the fleet's only mounter — and the image is not what is short. All four
+emulations ON (verified by post-condition: four tray checkmarks **and** a changed
+`d347bus\Cfg\khjeh` blob — those four entries are TOGGLES, only "All options ON"
+is a SET), mounting the owner's own `.mds`, still gives "Cannot locate the
+CD-ROM". Disc 2, a fresh post-enable mount, and a `daemon.exe` restart all fail
+identically. `Generals1.mds` carries a real weak-sector table (6 ranges, LBA
+304,300–308,320) and the `.mdf` is a **2448-byte-sector** dump — 2352 data + 96
+**subchannel**, exactly what SafeDisc needs (`784,121,328 / 2448 = 320,311`
+exactly; **2352 does not divide it**, and the ISO PVD is at `16*2448+16`, so a
+`dd` at 32768 reads zeros and makes the image look empty). Only disc 1 carries
+the table, so disc 2 was never a candidate. Corroboration: another agent's
+**BF1942 — also SafeDisc — was failing identically on the same box at the same
+time**. Two titles, one mounter, one failure. Unblocking it needs SafeDisc-3-era
+emulation with SPTD drive-hiding (DT 4.x / Alcohol), i.e. a third-party download,
+a kernel driver and a reboot per box — the `.171` failure mode — so it is the
+user's call, not an agent's.
+
+**5. Two automation limits, both cheap to hit.** The **DOOM 3 menu is
+relative-mouse**: an absolute `UICLICK` on NEW GAME does nothing, so drive it from
+the command line (`+map`, `+connect`, `+spawnServer`) instead. And **GDI cannot
+capture exclusive fullscreen on the Windows 7 box** — `SCREENSHOT` returned solid
+black on `.246` while returning real frames on every XP box; run the Win7 end
+windowed when a screenshot is the evidence.
+
+**6. Ghost dialogs from a killed process still appear in `WINLIST` and still
+block clicks.** Three stale "Cannot locate the CD-ROM" windows survived
+`taskkill` of their owners on `.133` and covered the Zero Hour installer's key
+fields. `ALT+SPACE` on any window forces the repaint that clears them. Until then
+every click in that region lands on a dead window — and a key typed blind into
+fields you cannot read proves nothing either way, which is why the ZH key is
+recorded as shape-matched (5×4, 20 chars) but **not** validated.
+
+---
+
+## The id Tech / Quake-engine LAN lane: four new servers, two CD walls, one empty directory (2026-08-31)
+
+Two-box LAN verification of the Quake-family and Sith-engine titles on `.123` +
+`.240`, and four dedicated servers stood up on the dev host. Eight findings.
+
+**1. "Quake 1 already has a server" was true and useless — NetQuake and
+QuakeWorld are different protocols.** The staged `Quake1` tree ships
+`GLQUAKE.EXE` / `WINQUAKE.EXE`, which are **NetQuake** clients and cannot join
+`quakeworld-server` on 27502 at all; mvdsv cannot serve them either. Fixed by
+standing up `quake1-server` on **26000** (DarkPlaces with
+`sv_protocolname QUAKE`) over the library's own `ID1/PAK0.PAK`+`PAK1.PAK`.
+Verified: both boxes in `e1m1`, server reporting 2 clients / 0 bots.
+
+**2. A NetQuake or Hexen II server answers NEITHER `getstatus` NOR `status`.**
+It speaks the Quake **control protocol** on the game port —
+`[0x80|len:u32BE][0x02]["QUAKE"\0][3]` → `[0x83][addr\0][hostname\0][level\0][cur][max][proto]`
+— and drops the other two **in silence**, so the wrong packet reports a live
+host as dead. Worse, **a Hexen II host replies only to the game string
+`HEXENII`**; send `QUAKE` and it is indistinguishable from an unplugged
+machine. Tool: `retro-agent/scripts/game-servers/nqquery.py <ip> <port>
+[QUAKE|HEXENII]`; probes wired into `gameservers.py`, `healthcheck.py` and
+`gameindex/masters.py`.
+
+**3. `SCREENSHOT` cannot capture GLQuake in exclusive fullscreen — it returns
+a STALE frame, not a black one.** On `.123` the capture kept showing the
+startup console long after the game was in `e1m1` and the server had logged
+"player entered the game". A black frame reads as "capture failed"; a stale
+frame reads as "the game is stuck", which is a much more expensive wrong
+answer. Relaunch with `-window` for any screenshot evidence. (The same engine
+family windowed captures perfectly.)
+
+**4. SoF2's player lines carry THREE numbers, so the ping-0 bot rule reads the
+wrong field.** `0 5 0 "B240"`, not `<score> <ping> "<name>"`. SoF2 multiplayer
+ships no bots at all, so `probe_sof2` returns a hard zero rather than parsing —
+calling a real person on `.123` a bot would hide the exact result the server
+exists to produce.
+
+**5. `sin.exe +set dedicated 1` with NO `+map` never opens its socket.** The
+staged `ds_deathmatch.bat` had exactly that. sin.exe starts, sits in the
+process list looking perfectly healthy, and `netstat` shows nothing: SiN binds
+UDP **22450** (+22449) only once a level loads. Fixed in the library. This is
+the project's signature failure shape — the thing reported success and was
+believed.
+
+**6. TWO of these titles are CD-locked in MULTIPLAYER ONLY, and neither says so
+until you try it.**
+   * **Jedi Academy**: `jamp.exe` (already v1.0.1.0 — the 1.01 patch does NOT
+     remove it) runs the classic id Tech 3 `Sys_ScanForCD`. Its three strings
+     sit adjacent in the binary: `"gamedata"`, `"jamp.exe"`, `"JEDIACAD"` — a
+     DRIVE_CDROM whose volume label is `JEDIACAD`. A `subst` folder is
+     DRIVE_FIXED and a mapped share is DRIVE_REMOTE, so neither is a way round.
+   * **Soldier of Fortune 1**: single player is fine without a disc (the
+     `won_set_key` line handles the key), but starting a deathmatch put up
+     *"WON Error! Please insert the SOF CD and try again."* on the HOST, while
+     the JOINER just sat on "Loading" forever. **Always screenshot the host
+     before diagnosing the client** — the joiner looked like the broken one and
+     nothing on it said otherwise. The retail disc's ISO9660 label is literally
+     `SOF`.
+
+   Both are fixable with a labelled disc image + the fleet's mount launcher,
+   and neither was landed, because on 2026-08-31 **exactly one fleet box
+   (`.240`) had a virtual disc mounter installed** — so the two-machine proof
+   this fleet requires could not be produced, and a staged fix nobody can test
+   is a guess.
+
+**7. OpenJK's prebuilt Windows binaries CANNOT RUN ON THIS FLEET.** They are
+the obvious answer to the Jedi Academy CD check (OpenJK has none) and they are
+dead on arrival: `openjk.x86.exe` and every DLL beside it are PE
+**SubsystemVersion 6.0** and import `MSVCP140` / `VCRUNTIME140` /
+`api-ms-win-crt-*` / `AcquireSRWLockExclusive` / `WakeAllConditionVariable`.
+XP's loader refuses that before a single instruction runs. A **mingw**
+cross-build would produce a 4.0-subsystem binary and is the only version of
+that idea worth trying; the Linux `openjkded` built here with
+`-DUseInternalZlib=OFF` (the bundled zlib is K&R-era and will not compile under
+gcc 15) works fine and is what `jka-server` runs.
+
+**8. Jedi Knight DF2 / Mysteries of the Sith are blocked by an EMPTY
+DIRECTORY, and the error names nothing about it.** Host Game accepts every
+setting and then answers **"No Valid Characters"**. Both games need a pilot
+(`player\<name>\<name>.plr`) *and* a multiplayer character
+(`.mpc`) before they can host or join, and the retail tree ships `player\`
+empty. Both files are plain text and **the name comes from the FILENAME**, so a
+ready-made pair now ships in the library as `player\fleet\fleet.plr` +
+`fleet.mpc` for each title. With it staged, a fresh box goes straight to a
+Players list instead of a name-entry box. Verified by copying `.123`'s pair to
+`.240` and joining. (Neither game has a dedicated server on any platform;
+DirectPlay TCP/IP, peer-hosted, and the joiner finds the host by leaving
+"Locate Session" **blank**. Two ESTABLISHED TCP:2300 links between the boxes is
+the objective proof.)
+
+**Bonus trap:** DF2 runs an 8-bit palettised DirectDraw surface and the agent's
+GDI `SCREENSHOT` loses the palette — menus come back as legible text on black,
+the 3D view as almost nothing. Do **not** read that as a rendering fault; its
+sequel MotS is 16-bit and screenshots perfectly, which is how we confirmed
+DF2's one-line network-provider list was a palette artefact and not a missing
+DirectPlay service provider.
+
 ## The Unreal Gold / Deus Ex LAN lane: what joins what, and the 227k trap (2026-08-31)
 
 Two-box LAN verification of the Unreal-engine and RTS titles on `.143` + `.246`.
