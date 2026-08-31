@@ -14,6 +14,67 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-08-31 — The capability gate's `disk` rule does NOT credit an already-installed tree, and it runs BEFORE the code written to fix exactly that (.240)
+
+On `.240` (C: 1,578 MB free of 76,285) `FarCry` reads **`gated`, limiting
+`disk`, have 1578 / need 3700** — while `C:\Games\FarCry` is **sitting on that
+disk**, fully deployed, and its `runs` cell is **`verified`**. The staged tree
+measures 3,610 MB, so the title is occupying more than twice the space the gate
+says the box does not have.
+
+`gs_run()` (`agent/src/gamesync.c`) asks two different disk questions in the
+same loop iteration, and only the second one is right:
+
+```c
+/* ~3103: the CAPABILITY GATE - no credit for an existing install */
+if (!gs_gate_allows_title(library, titles[i], why, sizeof(why))) {
+    log_msg(LOG_GS, "GATED %s - %s", titles[i], why);
+    g_gs.gated_titles++;
+    continue;                       /* <-- leaves before the credit below */
+}
+
+/* ~3120: GAMESYNC's OWN room check - credits it correctly */
+if (gs_file_exists(have)) {
+    existing = gs_dir_size(have, &nfiles);
+    if (existing > 0 && freeb >= 0)
+        freeb += existing;          /* "updated, not added" */
+}
+```
+
+The comment on that second block already states the principle and the incident
+that produced it — *"an installed game could never be patched on a full disk: a
+6 GB box kept its OLD Unreal Tournament 436 while the patched 469e sat on the
+share, skipped for 'needing' a gigabyte it was already using. The server runs
+469e and a 436 client cannot join it."* **The gate `continue`s twenty lines
+above it and never reaches it.**
+
+**Consequences, in order of how much they matter:**
+
+1. **An installed large title can never be patched once the disk fills.** The
+   UT-436 incident is live again on `.240` for every title whose `disk_mb`
+   exceeds free space — silently, because a gate skip is a normal log line.
+2. **The matrix lies about capability.** `gated` means "this machine cannot run
+   it", and `.240` reads `deploy=gated, runs=verified` for FarCry — two cells
+   contradicting each other, with the wrong one being the alarming one.
+3. `skipped` (did not fit) and `gated` (cannot run it) are deliberately
+   different counters with different follow-ups, and this collapses a
+   disk-space fact into the capability column.
+
+**The fix belongs at the CALL SITE, not in the rules.** `agent/shared/gamegate.h`
+is mirrored by `scripts/gamegate/rules.py` and pinned by
+`tests/python/test_gamegate_mirror.py`, which compiles the header and compares
+every answer — so changing the `disk` rule breaks the mirror. Credit the
+existing tree against `free_mb` in `gs_gate_allows_title()`'s profile for this
+title (the same `gs_dir_size(have)` the block below already computes) and the
+rules stay untouched.
+
+**NOT FIXED HERE, deliberately:** `.240` went off the network mid-session, so
+this could not be verified on hardware, and shipping an unverified agent binary
+fleet-wide to fix a reporting defect is a worse trade than reporting it.
+
+---
+
+
 ## 2026-08-31 — `smbclient put` to the NAS stamps the file **Oct 2007**, and GAMESYNC's resume test is size AND mtime
 
 `CLAUDE.md` says the dev host can only write the share through the gvfs mount
