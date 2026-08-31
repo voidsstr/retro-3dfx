@@ -14,6 +14,84 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-08-31 — Sizing inside the `FindFirstFile` loop TRUNCATED the library on Win9x: `.243` saw 25 of 46 titles and called it `done`
+
+The user's report was *"the pentium 1 computer needs the compatible games staged
+i dont see any games on the desktop"*. Part of that is arithmetic on a 1.2 GB
+disk (below). Part of it was a bug that made the machine's library **21 titles
+shorter than it is**, silently.
+
+`GAMESYNC STATUS` on `.243` (Win98SE, Pentium 1 165 MHz, agent 1.78.1) read:
+
+```
+state=done  titles_done=2  titles_total=25  titles_gated=22  titles_skipped=1
+```
+
+The staged library is **46** titles, and the published verdict file for that
+box's profile hash says so in its own header (`# titles=46`). Nothing anywhere
+said 21 were missing.
+
+**Cause.** `gs_run()` called `gs_dir_size()` — a full recursive walk of a whole
+title tree, over the same SMB connection — from *inside* the
+`FindFirstFileA`/`FindNextFileA` loop, so the outer search handle stayed open
+across minutes of further redirector traffic per title. **The Win9x redirector
+does not keep that search context alive**: `FindNextFileA` returns FALSE
+partway down the library, the `do { } while (FindNextFileA(...))` loop ends
+normally, and the run completes reporting success.
+
+**Why it survived so long:** it cannot happen on XP, and every other box in the
+fleet is XP or Win7. `.243` is the only Win9x machine actively syncing.
+
+**Fixed in agent 1.78.3** (`agent/src/gamesync.c`): collect the directory names,
+`FindClose`, *then* size them — the handle now lives for one directory listing
+instead of the whole sizing pass. And, because this project's signature failure
+is a tool reporting success:
+
+* a `FindNextFile` error that is not `ERROR_NO_MORE_FILES` is logged as
+  `library enumeration STOPPED EARLY after N title(s)`;
+* the `titles[]` cap was a bare `64` in three places and silent; it is now
+  `GS_MAX_TITLES` (96) and logs when hit;
+* the published verdict file carrying **more** rows than were enumerated is
+  flagged — on the box that had the bug that reads *"covers 46 of 25"*, which is
+  a free, direct detector.
+
+Pinned by `retro-agent/tests/python/test_gamesync_enumeration.py`; all six
+assertions fail against the previous `gamesync.c`.
+
+### What `.243` can actually hold, which is the other half of "no games"
+
+`HWPROFILE`: **C: is 1,220 MB total, 604 MB free.** `GS_FREE_MARGIN` is a flat
+**300 MB**, sized in its own comment for XP — so a quarter of this volume is
+reserved and the games budget is about **300 MB**. Against that, the six titles
+the gate approves measure: Quake1 53, Descent1 31, HexenII 99, MasterOfOrionII
+331, ShadowWarrior 377, JediKnightMotS 437 MB.
+
+**So the honest ceiling is three games** — Quake1 + Descent1 + HexenII, 183 MB —
+until disk is freed. Two were already on the box; HexenII is the one the
+truncation and the numbers between them cost it. The other three cannot fit at
+all, and reporting them as "gated" was the second defect (next entry down).
+
+### A dead agent on Win98 has NO remote recovery route — confirmed by probing
+
+The agent died mid-session (after a plain `DIRLIST`, not a large read). The
+documented signature held exactly:
+
+| port | state |
+|---|---|
+| 139 | **open** — the OS and networking are perfectly fine |
+| 9897 | accepts a socket, never answers a protocol `PING` |
+| 9898 / 9899 | refused |
+
+and then 9897 went to refused as well. Every remote route was tried and none
+exists: `445` refused, and `nmblookup -A` shows the box registers
+`N5R5L9<00>`, `WORKGROUP<00>`, `N5R5L9<03>`, `ADMIN<03>` and **no `<20>`** — no
+File Server Service, so there is no SMB share to reach in through either. On
+Win9x the `HKLM\...\Run\RetroAgent` value fires only at logon and nothing
+supervises the process, so **a dead agent there is strictly a keyboard job**.
+Do not spend time looking for a remote way back in.
+
+---
+
 ## 2026-08-31 — The capability gate's `disk` rule does NOT credit an already-installed tree, and it runs BEFORE the code written to fix exactly that (.240)
 
 On `.240` (C: 1,578 MB free of 76,285) `FarCry` reads **`gated`, limiting
@@ -264,6 +342,69 @@ including 139/445 unreachable, not merely the agent's) minutes after a fullscree
 user was also power-cycling hardware by hand, and `.133` dropped in the same
 window — but the cheap precaution is free: **`taskkill /f /im hl.exe` belongs in
 a `finally:` block, not at the end of the happy path.**
+
+---
+
+## 2026-08-31 — UnrealGold cannot start on `.143`, and the nGlide worry there is already solved (.143)
+
+`UnrealGold` was recorded `runs` on `.143`. It does **not** start. Reproduced from
+a verified-clean state (no `Unreal.exe` alive, desktop 1024x768x32): the staged
+`Play Unreal Gold.bat` raises a **Critical Error** and never renders. The engine's
+own `System\Unreal.log` names it:
+
+```
+Log: Bound to D3DDrv.dll
+Init: No fullscreen display modes found (DD_OK)
+Log: 3d hardware initialization failed
+```
+
+Unreal 1's `D3DDrv` is **DirectDraw-based** and enumerates **zero** fullscreen
+modes on this box's GeForce 6800 / ForceWare 71.89. FLEETRES picks it —
+`FR_UE1DEV=D3DDrv.D3DRenderDevice`.
+
+**It is not a one-line renderer swap.** Both alternatives were tried on hardware
+and neither is a drop-in:
+
+| device | result |
+|---|---|
+| `D3DDrv` (staged) | `No fullscreen display modes found` -> Critical Error |
+| `OpenGLDrv` (`OpenGlDrv.dll` **is** shipped) | enumerates pixel formats, then `ChangeDisplaySettings failed: 1024x768` -> `OpenGlDrv.Errors.ResFailed` |
+| `GlideDrv` | gets furthest — a real Unreal viewport window instead of an instant Critical Error — but raises its own `Error` dialog |
+
+### The nGlide wrapper is NOT hiding the Voodoo5 here — the library already handles it
+
+Worth recording because the standing warning says to check it: on `.143`
+FLEETRES reports **`FR_GLIDE=1`**, and `Play Unreal Gold.bat` acts on it —
+after a launch, `System\` contains only **`glide2x.dll.nglide`**. The
+1,310,720 B wrapper has been moved aside and a Glide path would use the **real**
+`system32\glide2x.dll` (258,048 B). So for UnrealGold the per-box mechanism
+works and needs no fix. (`Carmageddon2` still carries its own 1,310,720 B copy —
+not checked whether its launcher does the same.)
+
+### Why "does Glide work on .143?" CANNOT be answered remotely
+
+`HWPROFILE`: the Voodoo5 5500 is present (`VEN_121A&DEV_0009&SUBSYS_0002121A`,
+AmigaMerlin 3.1-R11) but **`attached_to_desktop: false`** — the GeForce 6800
+drives the panel. Glide renders to the Voodoo5's **own connector**, so a GDI
+`SCREENSHOT` of the GeForce framebuffer is black whether Glide is working
+perfectly or not working at all. **Do not read that black frame as a failure,
+and do not read it as success.** Telling the two apart needs a person at the
+monitor or the cable moved to the Voodoo5. This is the one box where the
+distinction can arise, since it now holds the fleet's only 3dfx silicon.
+
+## 2026-08-31 — A Glide/UE1 run can WEDGE the display driver so no mode can be set (.143)
+
+After the `GlideDrv` attempt above, the box was left at **800x600x4bpp @ 1 Hz**
+and **every** `DISPLAYCFG set` was refused with *"mode not supported by display
+driver"* — 800x600x32, 1024x768x16, 640x480x32, 1024x768x32 at 75 and at 0 all
+failed. Counter-Strike 1.6, launched next, then raised a **"Video mode change
+failure"** dialog, which looks exactly like a CS regression and **is not one** —
+it is the wedged driver.
+
+**So: after any 3dfx/Glide experiment on `.143`, check `DISPLAYCFG get` before
+believing the next title's failure.** Recovery is a reboot (via
+`scripts/fleet/safe-reboot.py`, never a bare `REBOOT`); no mode set of any kind
+recovers it in place.
 
 ---
 
