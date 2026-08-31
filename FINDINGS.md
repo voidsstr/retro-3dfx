@@ -14,6 +14,96 @@ it until a Voodoo card goes back in.
 
 ---
 
+## Five new LAN titles: Serious Sam is disc-locked, and RTCW lies about its resolution (2026-08-31)
+
+Staging five new LAN-multiplayer titles into `Games-Library`. Seven findings, in
+rough order of how much they will cost the next person.
+
+**1. SERIOUS SAM (BOTH ENCOUNTERS) IS DISC-LOCKED, AND THE TREE LOOKS PERFECT.**
+The retail CD's `Install\` directory IS the installed tree — pure file copy, no
+registry, no CD key — so it stages beautifully and then puts up a modal
+*"CD check / Please insert the game CD"* and refuses to start. Measured on
+`.143` and `.246` against: every `.gro` local (including the
+`1_00_ExtraTools.gro` first left out), `Setup.exe` staged, a `C:\Install\` decoy
+holding `Bin\SeriousSam.exe` + `Setup.exe`, and `+cdpath` at the tree both with
+and without a trailing backslash. **`SeriousSam.exe` imports `GetDriveTypeA`,
+and the strings immediately before the message are `C:\Install\`,
+`Bin\SeriousSam.exe`, `Setup.exe`** — it walks the drive letters for a
+CD-ROM-*typed* volume carrying the game. `subst` gives `DRIVE_FIXED` and a share
+gives `DRIVE_REMOTE`, so nothing but a mounted disc satisfies it. **The Doom 3
+route does not exist here:** The Second Encounter is already retail v1.05, and
+it has the same check. Withdrawn from the library and purged from both boxes.
+
+**2. RTCW 1.41 HAS NO `r_mode -1` BRANCH — AND CARRIES THE CVARS THAT SAY IT
+DOES.** `WolfMP.exe`/`WolfSP.exe` have `r_customwidth`, `r_customheight` and
+`r_customaspect` in the cvar table, **save** whatever you set, print no error,
+and render 640x480. On `.246`: a `fleetres.cfg` asking for `r_mode -1` +
+1920x1080 came up 640x480 and wrote `seta r_mode "3"` back beside an intact
+`seta r_customwidth "1920"`; the same at 1280x1024 with `r_colorbits 32`, also
+640x480; a plain `seta r_mode "8"` came up 1280x1024 at once. **The cvar table
+is not evidence that a branch exists.** RTCW now sits beside SoF2 in
+`stage-fleetres.py`'s `IDTECH3_NO_CUSTOM_MODE`.
+
+**3. `FR_Q3MODE` CAN NAME A MODE THE BOX CANNOT SET, AND THIS ENGINE ANSWERS
+THAT WITH A WINDOW.** On `.246` (1920x1080) `FR_Q3MODE` is 7 = 1152x864, and
+`DISPLAYCFG set 1152 864 32` on that same box returns
+`{"status":"error","error":"mode not supported by display driver"}`. RTCW
+accepted `seta r_mode "7"`, kept it, set the **desktop** to 1280x960 (the
+driver's nearest) and drew into a **1152x864 window** with `r_fullscreen` still
+`"1"` and the taskbar visible around it. **The real fix is in `FLEETRES.EXE`:**
+`provisioning/fleetres/fleetres.c` already enumerates the driver's mode list
+into `g_modes[]` for its own `-report`, and `q3_mode_for()` / `q2_mode_for()`
+simply never consult it — teaching them to skip a table entry the driver does
+not offer would fix every id Tech 2/3 title at once and could only ever move a
+mode *down* to one that exists. **`SoldierOfFortune2` and `JediAcademy` take
+`FR_Q3MODE` today and are exposed to this on all three 1080p boxes.** Until
+then RTCW is called with `-cap 1024 768`.
+
+**4. GDI CANNOT READ AN EXCLUSIVE FULLSCREEN SURFACE, AND THE WORKAROUND IS
+PER-ENGINE.** `SCREENSHOT` returns a solid black frame for RTCW's OpenGL
+surface on `.246` (Win7) while the game is plainly running, and for **Warcraft
+II's 8-bit DirectDraw surface on BOTH XP and Win7** — the mode change to
+640x480x8 is visible through `DISPLAYCFG` and the picture is not. For an id
+engine there is a route: `bind F12 "screenshot"` in the staged `autoexec.cfg`,
+then `DOWNLOAD` the `Main\screenshots\shotNNNN.tga` it writes. **For Warcraft II
+there is no route at all** — the title runs and cannot be photographed by the
+agent. Note the asymmetry that wasted time: the same RTCW at 640x480 on `.143`
+(XP + GeForce 6800) *was* capturable, so "the capture worked last time" proves
+nothing about the next box.
+
+**5. RTCW'S LIMBO MENU IS A RELATIVE-MOUSE MENU; ITS KEYBOARD IS FINE.** Two
+absolute `UICLICK`s straight on ALLIES left SPECTATOR selected on `.143`. But
+keys *do* reach the engine in-game — a `UIKEY TEXT:` landed as chat — and it is
+only the **console key** that will not open the console in-game (it works at the
+main menu). So `bind F9 "team allies"` / `bind F10 "team axis"` are the route
+the menu never offered, and they are what made a two-box RTCW proof possible.
+
+**6. GOG'S WARCRAFT II `_dx` BUILD IS INSEPARABLE FROM A VISTA-ONLY DLL.**
+`Warcraft II BNE_dx.exe` `LoadLibrary`s the game-local `ddraw.dll` **by name**
+(`vidinimo_PC.cpp line 113`) and dies with *"Direct Draw Error — unable to find
+the file ddraw.dll"*. That wrapper's PE `SubsystemVersion` is **6.0** — XP's
+loader refuses it — and a game-local `ddraw.dll` **shadows system32**, so
+staging it to satisfy the `_dx` build would have taken the ORDINARY build down
+on every XP box. The plain `Warcraft II BNE.exe` needs no wrapper. Second time a
+GOG repack has produced a Vista-only image here (SiN Gold was the first).
+
+**7. HOST-SIDE PLUMBING, three things that each cost a detour.**
+- **`smbclient -Tx` is the reliable write path to the NAS.** A `cp -r` through
+  the gvfs mount died with *"error writing ... Invalid argument"* part-way
+  through an 800 MB tree and left a directory `rm -rf` could not remove;
+  `smbclient //192.168.1.122/files -U admin%password -m SMB2 -D <dir> -Tx t.tar`
+  put the same 805 MB up in **3m13s**, and `-c 'deltree <dir>'` removed what
+  gvfs could not. Credentials are the vaulted NAS ones.
+- **`/mnt/retro-share` serves STALE METADATA right after a write.** Four
+  launchers written through smbclient still read as the old size and mtime
+  through the CIFS mount minutes later. Verify a write with
+  `smbclient -c 'ls'`, not with `ls /mnt`.
+- **`taskkill /f /im <game>.exe` killed ONE instance.** Four `WolfMP.exe`
+  accumulated on `.143` across a session, and the extras were why the game
+  stopped going exclusive-fullscreen and started landing in a window. Count the
+  processes in `PROCLIST` afterwards; `PROCKILL <pid>` per pid is what actually
+  cleared it.
+
 ## DOS/IPX + peer-hosted LAN: Descent 3 hosts on the DEV HOST under Wine, and Carmageddon's front end cannot be driven (2026-08-31)
 
 Verifying the DOS/IPX and peer-hosted titles (Descent 1-3, Carmageddon 1/2,
