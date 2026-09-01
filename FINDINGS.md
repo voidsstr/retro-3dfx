@@ -14,6 +14,79 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-09-01 — A disc image can be missing the very protection its exe checks. Comanche 4 and Blue Shift both refused on hardware, for the same reason.
+
+**The version check we already do is only HALF the question.** CLAUDE.md tells
+you to read the SafeDisc version before planning around it, because that decides
+whether DAEMON Tools 3.47 can help. It does not tell you to ask whether the
+IMAGE still carries anything to emulate — and today two titles were taken to
+`.143` on the strength of an exe-level audit and both refused.
+
+**COMANCHE 4.** `C4setup\C4.EXE` is **SafeDisc 2.40.011** — a version 3.47
+targets — and it is the *intact retail* binary, not a crack (its `.text` is
+ciphertext; the `Crack\c4.exe` beside it, the same 2,505,453 bytes, decrypts to
+ordinary `55 8b ec` x86, so the crack really is an added folder). It **renders**
+— the NovaLogic splash comes up — then says *"Cannot locate the CD-ROM"*, and
+kept saying it with all four DAEMON Tools emulation options ON (verified by the
+tray checkmarks **and** by `d347bus\Cfg\khjeh` changing) and with the disc's own
+`DRVMGT.DLL`/`00000001.TMP` copied into the game directory.
+
+**The media is why.** SafeDisc 2 authenticates by reading sectors that MUST
+FAIL, which in a 2352-byte dump survive as sectors whose stored EDC disagrees
+with their own bytes:
+
+| image | sectors | bad EDC |
+|---|---|---|
+| `SystemShock2/_disc/System Shock 2 (USA).bin` | 284,667 | **793** (673 runs, 819–10058) |
+| `MaxPayne/_disc/MaxPayne.bin` | 357,635 | **600** (536 runs, 347779–357324) |
+| `Comanche.4/FLT-COM4.BIN` | 358,557 | **0** |
+
+The first two are SafeDisc titles that *work* here under DAEMON Tools — the
+control, and the reason this is a finding and not an observation. **Emulation
+replays a protection the image must still carry; it cannot invent one.**
+
+**BLUE SHIFT, one protection along.** The "try a real mounter" experiment that
+had been the last open question was run: the unmodified ISO mounted as
+`BLUESHIFT_UK` with the right contents and the game still said *"Wrong disc
+inserted."* — with SecuROM emulation on too. Label, CD key and mounter are now
+all refuted. The cause: `bshift.exe` is **SecuROM** (sections `.cms_t`/`.cms_d`,
+entry point RVA `0x000e8a6d` inside `.cms_t`, entropy 7.17; Razor 1911's own
+`.nfo` says `Protection: Securom`), which authenticates by **Data Position
+Measurement** — the angular position of sectors on a pressed CD. `Blue Shift.iso`
+is exactly 150,257 × 2048: a plain ISO with no raw sectors and no DPM.
+
+**Two transferable rules:**
+- **A string search that comes back empty is evidence of a WRAPPER, not evidence
+  there is no check.** "Wrong disc inserted." is in neither the game tree nor the
+  disc, in ASCII or UTF-16LE, because it lives in the encrypted section.
+- **A `.iso` is a THIRD state, not "clean".** 2048-byte sectors have no EDC field,
+  so the question is unanswerable from that format — never report it as zero.
+
+Tool: `retro-agent/scripts/fleet/discprotect.py` (`exe` and `image`). Tests:
+`tests/python/test_disc_image_carries_protection.py`. Neither title is staged.
+
+---
+
+## 2026-09-01 — `xcopy` through the agent copies NOTHING and returns 0, because it is waiting for a stdin
+
+Not "broken on several fleet XP boxes", which is what three separate pieces of
+machinery in this project were built around. `xcopy` asks whether the
+destination is a file or a directory and reads the answer from **stdin**;
+`EXEC`/`EXECW` run children hidden with no stdin handle, so it exits at that
+read having done nothing — no output, no error, exit code 0.
+
+Diagnose it in one command, and the command is the point: ask xcopy for its own
+**help**. `EXEC cmd /c xcopy /?` prints *nothing*; `xcopy /? < nul` prints the
+full help. That rules out the share, the paths, the quoting and the box in a
+single step. The fix is the same redirect: `EXECW 900 cmd /c xcopy "SRC" "DST"
+/E /I /Y < nul` turned a silent no-op into `147 File(s) copied` on `.143`.
+
+`cmd /c start /wait "" xcopy ...` also works — a new console brings a stdin with
+it — and is the worse fix, because `start` detaches and the exit code you then
+check belongs to `start`, not to xcopy.
+
+---
+
 ## 2026-09-01 — Halo 2 INSTALLS on XP and still cannot run: the shim fixes the APIs, and nothing can fix the LICENCE. Withdrawn.
 
 Follow-on to yesterday's entry, which stopped one step too early. Everything it
