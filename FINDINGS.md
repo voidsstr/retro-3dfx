@@ -14,6 +14,61 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-09-01 — `UIKEY` DOES reach an id Tech 3 game in exclusive fullscreen. The rule is about MENUS.
+
+**CLAUDE.md says "id Tech 3 ignores synthetic keyboard input in exclusive
+fullscreen", and that measurement (on SoF2) was about a MENU.** In-game the
+engine takes synthetic keys fine: at fullscreen 1920x1080 on `.123` and `.240`,
+`UIKEY F5` fired a bound `say` and `UIKEY F6` opened the scoreboard, on
+ioquake3, on retail Quake II 3.20 and on retail RTCW `WolfMP.exe` alike.
+
+This is what made a **six-box** LAN proof possible with nobody at a keyboard:
+give each machine `+exec lan.cfg +connect <ip>:<port>` with
+`seta name "Fleet<octet>"` and a `say` bind, and the in-game scoreboard is the
+evidence — a chat line sent from one box appearing on another cannot be faked
+by a process list or a bound port.
+
+**It does NOT generalise to every engine.** `halo.exe -window` — the obvious
+next experiment, since windowing is what unlocks SoF2's typing — reaches Halo's
+main menu and then ignores `UICLICK` on MULTIPLAYER *and* `UIKEY DOWN`; the
+highlight never leaves CAMPAIGN. Refuted on `.240`, screenshot kept. So the
+windowed workaround is an **id Tech 3** workaround, not a fleet-wide one.
+
+## 2026-09-01 — A green server on a port nothing can dial: Tribes 2 had no client, ever.
+
+`tribes2-server` (docker, UDP 28000, TribesNext) has been in every server table
+and answering `healthcheck.py` for months, and **there is no Tribes 2 client in
+the staged library and none on any fleet box.** `compat.py record` refuses the
+title outright because there is no `Games-Library/Tribes2` directory.
+
+"Tribes 2 has never been LAN-tested" therefore never meant a test that failed.
+It meant a title nobody staged — and a health check that was, correctly and
+uselessly, green the whole time. **A server's own liveness says nothing about
+whether anything can reach it**, and this fleet now has one documented case of
+exactly that.
+
+## 2026-09-01 — A per-installation value in a staged tree drifts BACK. Halo's CD keys had.
+
+Halo PC allows **one simultaneous player per CD key** and rejects the rest with
+the generic *"Your CD Key is invalid"*. Keys were assigned per box on
+2026-08-31. On 2026-09-01 `audit_keys.py` found **every live box that has
+`halo.exe` carrying the same `DigitalProductID` again** — byte-identical to the
+leftover blob on two boxes that do not even have the game. Exactly one machine
+could have joined a Halo game, and nothing said so.
+
+The likely mechanism is the one Red Alert 2's `Serial` was fixed for: a
+`GAMESYNC` of `Halo\install.reg`, which is copied **byte-identically to every
+box** and therefore cannot carry a per-installation value. RA2 generates its
+serial **on the box** in the launcher for this reason; Halo does not.
+
+**And verify the post-condition, not the tool's OK.** `assign_keys.py` prints a
+fingerprint of the KEY; `audit_keys.py` prints a fingerprint of the resulting
+DPID BLOB. They are different hashes of different things and never agree, so
+comparing them reads as "the write failed". It had not — a direct `REGREAD` of
+the blob on all five boxes is what settled it.
+
+---
+
 ## 2026-09-01 — Halo 2 RUNS. Three sessions of "it is DRM-locked" was nobody ever running the game binary.
 
 **Halo 2 for Windows Vista reaches its main menu on `.246` (Win7 32-bit),
