@@ -14,6 +14,103 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-09-01 — Halo 2 RUNS. Three sessions of "it is DRM-locked" was nobody ever running the game binary.
+
+**Halo 2 for Windows Vista reaches its main menu on `.246` (Win7 32-bit),
+fullscreen 1024x768, from the staged launcher, with no crack and without ever
+being asked for a product key.** The prior verdict — *"WITHDRAWN, this title
+cannot be licensed on this fleet, it needs Vista's Software Licensing
+Service"* — was wrong in every part, and each part failed the same way: a
+conclusion drawn about **`startup.exe`**, which is not the game.
+
+- **`startup.exe` is the DISC AUTORUN/INSTALLER, not the launcher.** The disc's
+  own instructions say *"RUN SETUP.EXE OR STARTUP.EXE"* — to install. Run from
+  an *installed* tree it starts an install and fails asking for
+  `halo2.exe.dtz`, a compressed disc-only payload no installed tree carries.
+  Every inference of the form *"`startup.exe` never creates `halo2.exe`,
+  therefore the licence check blocks the game"* was about the installer.
+  **Nobody had tried `halo2.exe` itself.** It works.
+
+- **"Files are missing or damaged in the installation directory" WAS TRUE, and
+  the tool to prove it was already in the binary.** `startup.exe` writes
+  `%TEMP%\startup.log` when **`TNP_LOG`** is set in the environment, and it
+  names the file it wanted: `Exiting, launching program
+  'C:\Games\Halo2\StartMenu.cab'`. `StartMenu.cab` (994,930 B) is on the disc
+  root and was never staged. The message had been recorded in three documents
+  as *"THAT MESSAGE IS A LIE"* on the strength of the tree being byte-exact
+  against the **library** — which it was; the library was simply missing a file
+  the disc has. **Byte-exact against your own staging is not the same as
+  complete.**
+
+- **A 6 KB DLL killed the process before `main()` and looked exactly like DRM.**
+  The disc's `XP PATCH` ships `dwmapi.dll` **for WinXP and deliberately not for
+  Win7** — its own instructions say so in a column. The stub exports one
+  function; Vista+ ship a real 67,072-byte `dwmapi.dll`; **a DLL beside the exe
+  shadows `system32`**, so on Win7 both `startup.exe` and `halo2.exe` died
+  instantly with `0xC0000139 STATUS_ENTRYPOINT_NOT_FOUND` — no dialog, no log,
+  no process. That is why the earlier `.246` test "reached the licensing wall":
+  **nothing was ever alive to reach it.** Proven by control, not inference —
+  dropping Win7's *real* `dwmapi.dll` into the tree brought `startup.exe` back,
+  and removing the stub took `halo2.exe` to its menu. It now ships as
+  `dwmapi.dll.xpshim` and the launcher places it per box. Same shape as the
+  per-box resolution rule: one staged tree, two OS families, no staged constant
+  is right.
+
+- **The licensing evidence was all read from the wrong store.**
+  `sldl_dll.dll` imports **no `slc.dll`** — it is a self-contained XrML store —
+  so `slmgr /dlv all` could never show a Halo 2 SKU no matter what. Running
+  `H2V-licr.msi` with `/l*v` shows the opposite of what was recorded: **every
+  licence installs**, `SLDLInstallLicense returned: 0` for Halo2 Publishing,
+  UL-OOB, UL-PHN and the Product PPD in both OEM and Retail flavours. And the
+  `0xC004F050` that condemned the owner's keys came from
+  `SoftwareLicensingService.InstallProductKey` — the **Windows product-key
+  API**. Halo 2 is not a Windows SKU; it refuses any game key. The two vaulted
+  keys are still unused and still undisproved, and their vault tag
+  (`verified=BLOCKED … do not re-try`) is now misleading.
+
+- **A loader's error message can be a `%s` bug, not a fact.** `Loader.exe`
+  prints `ERROR: Failed to load the executable: %s [%s]` with a **wide string
+  through a narrow `%s`**, so it emits only the first character (`h [...]`).
+  "Loader.exe refuses `halo2.exe`" was recorded as a property of the loader; it
+  was `0xC0000135 DLL_NOT_FOUND` for a missing `d3dx9_31.dll`. Once DirectX was
+  installed the same command worked.
+
+**What a box actually needs**, all of which fail as a silent instant exit:
+`xlive.dll` (Games for Windows LIVE — `redists\XLiveRedist1.0.6027.msi`, and
+its own MSI condition proves it supports **XP SP2+**: `VersionNT = 501 AND
+ServicePackLevel >= 2`), `d3dx9_31.dll` (`redists\DXSETUP.exe /silent`), the
+VC++ 2005 SxS CRT, and on XP `Loader.exe` to redirect the Vista-only
+`ADVAPI32!RegGetValueA` into `Wow.dll`. `.246` had all of it already; `.123`
+had **neither** GFWL nor DirectX, both installed from the disc's own redists
+with `/qn /norestart REBOOT=ReallySuppress` and `/silent` — no reboot, which
+matters because `.123` is unactivated and must never restart.
+
+**Still open:** on `.123` (XP SP3, Radeon HD 3850 AGP 512 MB, sm3.0 — far above
+the game's own 128 MB/SM2 floor) `halo2.exe` now loads, holds ~362 MB, takes its
+single-instance mutex and creates a fullscreen `Halo 2` window — **and never
+paints it.** GDI captures pure black (extrema 0,0,0), `-windowed` gives a titled
+window with a black client area, and the process exits on the first keystroke.
+That is a real render failure, not a capture limit.
+
+**Provenance, checked the expensive way because the sizes collide.** The disc
+carries a `CRACK` folder whose `Startup.exe` is **the same 1,705,336 bytes** as
+the retail one — precisely the trap CLAUDE.md warns about. By md5 the staged
+file is the **original** (`17ac0bd2215c86bcdb2c688b6baaab18`, vs the crack's
+`dcf81e93d7e7d7a3b89fbcf295e4493c`), and all six shim files match the disc's
+`CRACK\XP PATCH` copies byte for byte. Nothing from the crack is staged.
+
+**And the media question that started it: all three "copies" are one image.**
+`Games/Windows XP/Halo 2 PC/Halo2.iso` and the ISO inside
+`Halo 2 Vista + Serial Keys.zip` are **byte-identical** — full md5
+`f278f73ae1ee884d65ca0a7d75d62c99` over all 4,110,188,544 bytes, CRC32
+`4D6C4FA4` both. The `Inbox/…anikuni…` copy is **the same image still
+downloading**: a sparse file, 303 of 400 probes all-zero and **97 of 97
+downloaded probes byte-identical** to it. Identical file sizes were the hint;
+the sparse map is what made it certain. The `nosTEAM` repack self-describes as
+"already cracked" and was refused unexamined.
+
+---
+
 ## 2026-09-01 — A disc image can be missing the very protection its exe checks. Comanche 4 and Blue Shift both refused on hardware, for the same reason.
 
 **The version check we already do is only HALF the question.** CLAUDE.md tells
