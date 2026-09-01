@@ -14,6 +14,92 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-08-31 — `.133`: a 256-colour screen was photographed in the SHELL's palette, and a modal dialog was scored as a crash
+
+Two separate defects on the same box, both of the project's signature shape:
+**the tool reported something and it was believed.**
+
+### 1. `SCREENSHOT` of an 8-bpp display returned the geometry and the WRONG colours
+
+StarCraft, Jedi Knight and Warcraft II all run 640x480x**8**. Every frame came
+back the right size, from a live process, with the picture's structure plainly
+visible — and every colour nonsense. A previous session had already recorded a
+`verified` compat cell on one of those frames, which is how far they get before
+anyone notices. Worse than a black frame: a black frame is obviously useless.
+
+**Cause.** On an 8-bpp display `CreateCompatibleBitmap` makes an 8-bpp DDB, so
+`BitBlt` copies palette **indices** and `GetDIBits` is the step that must turn
+them into RGB. It does that with the palette selected into the HDC it is handed,
+and a fresh `CreateCompatibleDC` carries only the 20 static system colours.
+
+**Fix, agent 1.79.1** (`agent/src/screen.c:screen_palette_for_capture`):
+`GetSystemPaletteEntries` → `CreatePalette` → `SelectPalette` +
+`RealizePalette` into the memory DC before `GetDIBits`, on **both** capture
+paths (`SCREENSHOT` and `SCREENDIFF` — a tile diff comparing noise against
+noise is the same bug in different clothes). It returns NULL above 8 bpp so the
+normal 16/32-bpp path is byte-for-byte unchanged; `peFlags` is zeroed because
+`PC_*` bits make the logical palette *mapped* rather than copied and
+reintroduce the very error being removed. Test:
+`retro-agent/tests/python/test_screenshot_palette.py`.
+
+**A/B PROVEN on hardware, not inferred.** Same 640x480x8 desktop, same box,
+minutes apart: under **1.79.0** the icon labels are black-on-black and only the
+20 static colours survive; under **1.79.1/1.79.2** it is full colour and
+readable.
+`/home/voidsstr/lan-proof/box133/palette_AB_1790_before.png` vs
+`…/palette_AB_1792_after.png`.
+
+**THE LIMIT, ALSO MEASURED — do not re-derive it.** A **DirectDraw
+exclusive-mode** game programs its 256 entries into the DAC *without* updating
+GDI's system palette, so there is nothing correct for GDI to translate with.
+StarCraft, Jedi Knight and Warcraft II photograph identically wrong under
+1.79.2. So for that class of title a wrong-coloured frame is a **capture**
+limit, not a rendering fault, and the geometry in it is real.
+
+### 2. "GDI SCREENSHOT is black" had been copied onto six rows and was false on five
+
+An automated sweep wrote that sentence into `.133`'s `AliensVsPredator`,
+`DeusEx`, `JediKnightDF2`, `MasterOfOrionII`, `RedneckRampage` and
+`WarcraftII` rows. Re-measured: **only AliensVsPredator is actually black**
+(extrema (0,0) across the frame, before and after ESCAPE/SPACE and a 30 s
+wait). The other five photograph fine and are now `verified`. The
+"GDI returns black on fullscreen" rule is a **Windows 7** fact and a
+**per-title** DirectDraw fact; it is not a property of an XP box.
+
+### 3. Max Payne's `-skipstartup` does NOT skip its startup dialog — `-nodialog` does
+
+`MaxPayne` was recorded `failed — "no GAME process after 90s"` on `.133`,
+`.123` and `.240`. It was never a crash: retail v1.05 opens
+`CMaxPayneStartupDialog` (Play / Options / Parental Lock / Quit) and
+`-skipstartup` leaves it up, so `MaxPayne.exe` sits **alive and idle at a modal
+dialog forever**. A process-presence sweep cannot tell that from a crash.
+Measured three times with the disc mounted: `-nodialog` boots straight to the
+main menu in ~30 s, and the game then plays fullscreen at 1280x960.
+
+**Fix went in the SPEC, not the artefact.** `Play Max Payne.bat` is *generated*
+from `provisioning/discmount/specs/MaxPayne.json` + the shared mount template,
+so a hand-edit of the shipped launcher is erased by the next
+`make-mount-launcher.py` run — and `tests/python/test_mount_launcher_template.py`
+goes red the moment the two disagree. `GAMEARGS` is now
+`-nodialog -skipstartup` in the spec, regenerated and republished, proven by a
+purge-free redeploy (`GAMESYNC` `state=done`, `titles_done 41/46`,
+`failed_files 0`) plus a cold run with the drive unmounted.
+
+### 4. Two more small ones from the same session
+
+* **`/mnt/retro-share` caches.** An `md5sum` of a file *just* written through
+  another mount can read the OLD content and then agree seconds later. Re-read
+  before believing a mismatch — and never the other way round.
+* **The Unreal `Running.ini` trap applies to Deus Ex too.** A hard `taskkill`
+  leaves `System\Running.ini` and the next bare-exe launch comes up as a
+  "Deus Ex Recovery Mode" dialog. The staged Play bat deletes it; a raw
+  `DeusEx.exe` launch does not. `DeusEx.exe` also **ignores a map name on the
+  command line**, so there is no menu bypass that way — unlike `jasp.exe`
+  (Jedi Academy), where `+map t1_sour` is the working route past an
+  id Tech 3 relative-mouse menu.
+
+---
+
 ## 2026-08-31 — `.246`: a parenthesis in `GTITLE` broke Soldier of Fortune II's launcher on EVERY box, and it reported nothing
 
 `Play Soldier of Fortune II.bat` died instantly with
