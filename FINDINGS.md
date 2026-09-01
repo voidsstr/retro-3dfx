@@ -14,6 +14,94 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-09-01 — Halo 2 INSTALLS on XP and still cannot run: the shim fixes the APIs, and nothing can fix the LICENCE. Withdrawn.
+
+Follow-on to yesterday's entry, which stopped one step too early. Everything it
+said about the loader and the shim is confirmed and now goes further: the
+retail installer runs to completion, and the game still refuses, for a reason
+that is neither the media nor the hardware.
+
+### THE INSTALL IS REAL, AND IT WAS DONE THE RIGHT WAY THIS TIME
+
+Installed in the **build VM** (`~/retro-vm/run-build.sh`), not on a fleet box —
+the retail `Startup.exe` under `Loader.exe`, "Customize game install" → "Full
+install only", ending on **"Halo 2 for Windows Vista has been successfully
+installed."** No crack, no key requested at any point. The captured tree is
+**byte-exact**: 134 files / 4,563,180,528 bytes, zero missing, zero extra, zero
+size mismatches against the guest.
+
+Two mechanics worth keeping:
+
+* **`halo2.exe` is not a file on the disc — `halo2.exe.dtz` IS RAW ZLIB.** It
+  begins `78 da` and `zlib.decompressobj()` returns the whole 14.7 MB PE with
+  zero `unused_data`. That is how its imports were read before installing.
+* **The agent's `DOWNLOAD` caps at `MAX_FRAME_SIZE` = 32 MB** and fails with
+  "File too large or error getting size" — a 36-byte text file written in place
+  of your data, which looks like a short read, not an error. 28 of the 134
+  files are over the cap. Route them through a store-mode volumed archive
+  (`7z a -mx0 -v30m`); 7-Zip 9.20's `-tsplit` is READ-ONLY and will not create
+  one.
+
+### THE REAL BLOCKER: halo2.exe CONSUMES A SOFTWARE LICENSING RIGHT AT STARTUP
+
+Its import table from `sldl_dll.dll` is the whole story:
+
+    SLDLInitialize, SLDLOpen, SLDLConsumeRight,
+    SLDLGetLicensingStatusInformation, SLDLGetSLIDList, SLDLGetInformation
+
+`SLDLConsumeRight` fails with no licence, and the game aborts on a message that
+sends you looking in entirely the wrong place:
+
+    "Initialization failed. Either insufficient system resources were found to
+     run the game, or game data is missing or damaged."
+
+That says *hardware or data*. It is neither. Measured on **.246**, Windows 7
+Professional **32-bit** (so no Wow6432Node redirection excuse), the one box
+that needs **no shim at all**:
+
+| step | result |
+|---|---|
+| `H2V-licr.msi` (the disc's "Halo 2 License Installer Program") | installs; every SLDL custom action returns 1; log ends `Installation success or error status: 0` |
+| `slmgr.vbs /dlv all` afterwards | **no Halo 2 SKU exists.** Windows SKUs only |
+| genuine owner key via `SoftwareLicensingService.InstallProductKey` | **`0xC004F050`** — SLS rejects it because there is no SKU to bind to |
+| `sc query slsvc` | **"The specified service does not exist"** — Win7 runs `sppsvc`, the SUCCESSOR |
+| XP (build VM): `sc query slsvc` / `sppsvc` / `slc.dll` | none, none, **absent** |
+
+So Halo 2 Vista needs **Windows Vista specifically** — not "Vista-era APIs",
+which the shim genuinely does supply, but Vista's **Software Licensing
+Service**. There is no such service on any of the nine machines.
+
+**The key is not disproved.** 25 characters, correct alphabet, rejected by the
+OS rather than by the game. Both owner keys are re-tagged `verified=BLOCKED`
+with the `0xC004F050` detail so nobody burns another session re-trying them on
+XP or Win7.
+
+### AND THIS IS WHY THE DISC PAIRS THE SHIM WITH A CRACK
+
+Yesterday's entry treated `/CRACK/XP PATCH/` and `/CRACK/Startup.exe` as two
+unrelated things that happened to share a folder. They are not unrelated: the
+shim makes the binaries LOAD, and the 7-byte patch (`call <validate>` →
+`mov eax,0x19111911`) is what answers the licence check that no non-Vista
+machine can answer. **The shim alone was never sufficient**, and the pairing is
+the giveaway. We do not use the crack, so the shim alone is all we have.
+
+### DISPOSITION
+
+Staged, validated (47 titles, 0 failures), **GAMESYNC-deployed to .246 with
+`failed_files: 0` and `titles_done 47/47`, 52,183/52,183 MB** — and then
+**WITHDRAWN**, because a desktop icon that opens "Initialization failed" is the
+Soldier-of-Fortune mistake again. The tree is intact at
+`trashbox/Files/Games-Library/Halo2` with the whole measurement in its
+`README-FLEET.txt`; restore it if a Vista box ever joins the fleet.
+
+The gate had it right on hardware, for the record: `.123` `.145` `.246` run,
+`.240` **no — 1490 MB free, needs 4500**, `.143` **no — CPU lacks sse**, `.133`
+**no — CPU lacks sse2**. That GPU floor is not marketing copy either: the
+game's own `pccompat.dll` prints it — 128 MB VRAM, pixel shader 2, vertex
+shader 2 — when it refuses the VM's Cirrus.
+
+---
+
 ## 2026-09-01 — Seven new LAN servers on .132, and four probes that would each have called a healthy one dead
 
 **The brief was "a dedicated LAN server on this host for every staged title",
