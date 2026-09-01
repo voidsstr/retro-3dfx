@@ -14,6 +14,161 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-08-31 (late) — Halo 2 RUNS ON WINDOWS XP: the blocker is three missing imports, not the PE subsystem; Half-Life 2 is dead on this whole fleet for a reason that has nothing to do with its media
+
+Staging request was Halo 2 + Half-Life 2 + popular HL2 mods. One of the three is
+possible. Everything below is measured, not recalled.
+
+### HALO 2's PE SUBSYSTEM IS 4.0 — THE SiN GOLD TEST PASSES, SO THE XP PATCH IS REAL
+
+The standing rule is that `SubsystemVersion >= 6.0` is Vista-only and **XP's
+loader refuses it before a single instruction runs** (SiN Gold shipped one and
+was unloadable fleet-wide). That test was applied here first, and Halo 2 passes
+it outright:
+
+    halo2.exe   MajorOSVersion 4  MajorSubsystemVersion 4  Subsystem 2 (GUI)
+                14,677,368 bytes, PE32 i386, 5 sections
+
+So the loader will map it. **Halo 2's Vista dependency is entirely in its import
+table**, which is a different and much weaker problem:
+
+    dwmapi.dll   MF.dll   MFPlat.DLL      <- do not exist on XP
+    xlive.dll  sldl_dll.dll  d3dx9_31.dll <- ship with the game / its redists
+
+Confirmed absent on real hardware (`.145` and `.123`, both XP SP3): `dwmapi.dll`,
+`mf.dll`, `mfplat.dll` and `xlive.dll` are all missing from `system32`;
+`d3dx9_31.dll` is already present.
+
+`halo2.exe` is NOT a loose file on the disc — it is `halo2.exe.dtz`, and **a
+`.dtz` is raw zlib**: the file begins `78 da` and `zlib.decompressobj()` returns
+the whole 14.7 MB executable with zero bytes of `unused_data`. That is how the
+PE above was read without installing anything.
+
+### THE XP PATCH IS A PURE API SHIM SET, AND EVERY DLL PROVES IT BY ITS EXPORTS
+
+The patch ships **on the Halo 2 disc itself**, at `/CRACK/XP PATCH/`. A
+case-insensitive sweep of the entire share (`-iname '*xp*patch*' '*dwmapi*'
+'*mfplat*' '*halo2*' '*h2v*'`) finds **no other copy anywhere**, and
+`Files/Game Updates/` has no Halo 2 entry. Its export tables are the evidence
+that it is a compatibility shim and not a crack — each DLL exports exactly the
+Vista API that XP lacks, and nothing else:
+
+    dwmapi.dll     1 export   DwmEnableComposition
+    mf.dll         7 exports  MFCreateMediaSession, MFCreateTopology, MFGetService, ...
+    MFPlat.dll     2 exports  MFStartup, MFShutdown
+    XTaskDlg.dll   2 exports  TaskDialog, TaskDialogIndirect
+    Wow.dll        3 exports  CreateProcessWithTokenW, RegGetValueA, RegGetValueW
+
+`Loader.exe` is a console injector (`CreateProcessW` + `VirtualAllocEx` +
+`WriteProcessMemory` + `ResumeThread`, and the only string it carries is
+`wow.dll`). It exists because **the retail launcher's problem cannot be fixed by
+dropping a DLL next to it**: `Startup.exe` statically imports
+`CreateProcessWithTokenW` *from ADVAPI32*, and XP's advapi32 has no such export.
+Creating the process suspended lets the import table be redirected to `Wow.dll`
+before ntdll's loader ever resolves it.
+
+**Proven on `.123` (Athlon 64 2.4 GHz, Radeon HD 3850, XP SP3), both directions:**
+
+    C:\H2SRC\Startup.exe                              -> EXIT=-1073741511
+                                                          = 0xC0000139
+                                                          = STATUS_ENTRYPOINT_NOT_FOUND
+    Loader.exe C:\H2SRC\Startup.exe                    -> EXIT=0, Startup.exe alive
+                                                          at 27,464 K, and a window
+                                                          titled "Halo 2 for Windows
+                                                          Vista" (class MainWindow)
+                                                          rendering its four-item menu
+
+The negative control is the whole point: the identical binary dies at load
+without the shim and reaches an interactive installer with it. Prerequisite is
+`redists\vcredist.msi` (VC8) — the shims link against MSVCR80/MSVCP80.
+
+**Trap that cost a cycle:** `cmd /c prog & echo EXIT=%errorlevel%` always prints
+`EXIT=0`, because `%errorlevel%` expands at parse time, before the program runs.
+Use `cmd /v:on /c prog ^& echo EXIT=!errorlevel!`.
+
+### THE SAME DISC ALSO CARRIES AN ACTUAL CRACK, AND IT IS SEVEN BYTES
+
+`/CRACK/Startup.exe` is **byte-for-byte the same SIZE** as the retail
+`/Startup.exe` (1,705,336) and a different file — md5 `dcf81e93...` vs
+`17ac0bd2...`. This is the "never compare candidate exes by SIZE" rule paying
+for itself. `cmp -l` says the difference is **7 bytes in 2 places**:
+
+    file offset 0x7060   e8 74 e6 00 00   ->   b8 11 19 11 19
+                         call <validate>       mov eax, 0x19111911
+    file offset 0x158    PE OptionalHeader CheckSum, fixed up to match
+
+A call to the licence-validation routine replaced by a constant return. That is
+protection removal, it is NOT used, and nothing named CRACK was uploaded to any
+box — the shim folder was renamed `XP-COMPAT-SHIM` and the staged `Startup.exe`
+md5 was re-checked against the retail hash before transfer.
+
+Also on the disc: `HALO 2 PRODUCT KEYs.txt`, **282 unique well-formed keys**.
+Every one uses exactly the Microsoft alphabet `BCDFGHJKMPQRTVWXY2346789`, so the
+format check that killed a bad Halo 1 key in seconds does not disqualify these —
+but well-formedness is precisely what a keygen produces. **Not used. Ask the
+user for keys they own.**
+
+### HALF-LIFE 2 IS UNSTAGEABLE FOR A REASON THAT SURVIVES ANY CHOICE OF MEDIA
+
+The share's `Half.Life.2.PC..WwW.DivX-Es.CoM.ISO` (4,221,749,248 B, volume dated
+2004-11-16) is not a retail disc at all. It is **a ripped Steam client directory**:
+
+    /Steam.dll.bak   948,736 B   <- the genuine Valve Steam.dll, renamed aside
+    /bin/Steam.dll    61,440 B   <- a 61 KB replacement
+    /bin/Steamy.dll   53,248 B   <- not a Valve file
+    0 x .gcf                     <- content extracted loose into hl2/ and cstrike/
+
+A legitimate Steam install keeps its content in GCF archives and has no
+`Steamy.dll`. This is a no-Steam crack.
+
+**But the decisive fact needs none of that.** There is no Steam client that runs
+on any operating system this fleet has: Valve ended Steam support for **Windows
+XP and Vista on 2019-01-01**, and for **Windows 7/8/8.1 on 2024-01-01** (the
+client embeds Chromium, which dropped those platforms). The fleet is eight XP
+boxes and one Windows 7 box. So retail HL2, a Steam key, and a legitimate
+purchase are *all* equally unlaunchable here, and **every Source mod goes with
+it** — Source mods install under `steamapps/sourcemods` and are launched by
+Steam. `Demos & Shareware/HL2_Demo.zip` is no escape either: its
+`Half-Life-2-Demo.exe` is a Wise installer whose payload identifies itself as
+`Steam Install`.
+
+HL2 is therefore not "blocked on a crack" — it is blocked on a client that
+cannot exist on this hardware. Nothing was half-staged.
+
+### WHICH BOXES CAN ACTUALLY TAKE HALO 2
+
+Published minimum is 2.0 GHz / 1 GB / a 128 MB SM2.0 card, and the installed
+tree is about 7 GB. Measured against live `HWPROFILE` reads:
+
+    .123  2402 MHz  2047 MB  HD 3850  sm3.0  189,618 MB free   RUN (installer proven here)
+    .145  3093 MHz  3316 MB  8400 GS  sm3.0  139,486 MB free   RUN
+    .246  3093 MHz  3317 MB  HD 5450  sm3.0  150,801 MB free   RUN - Win7, needs NO shim
+    .240  2403 MHz  1022 MB  X800     sm2.0    1,487 MB free   NO - DISK ONLY (needs ~7 GB)
+    .143  1000 MHz   511 MB  6800     sm3.0                    NO - cpu and ram
+    .171  2793 MHz   509 MB  865G     fixed                    NO - ram, vram, gpu 2 levels short
+    .133   701 MHz   255 MB  Ti 4600  sm1.x                    NO - cpu and ram
+    .124   845 MHz   511 MB  GF2 GTS  tnl                      NO - everything
+    .243   165 MHz                                             NO
+
+**`.240` is refused on free space, not on hardware** — it is otherwise the
+fourth capable box, and freeing ~6 GB would let it in. That distinction matters
+because the gate reports the limiting factor and "X800 is too slow" would be
+wrong.
+
+Intended `requires.json` when the tree exists (`min_os` is `winxp`, not `vista`,
+*because* of the shim):
+
+    { "requirements_version": 1, "title": "Halo 2", "year": 2007,
+      "min_cpu_mhz": 2000, "min_ram_mb": 1024, "min_vram_mb": 128,
+      "disk_mb": 7000, "gpu_feature_level": "sm2.0",
+      "cpu_features": ["mmx","sse","sse2"], "min_os": "winxp" }
+
+Blocked only on product keys the user owns. The disc's own installer menu offers
+**"INSTALL DEDICATED SERVER FOR HALO 2"**, which is the hook for the `lanservers`
+lane if Halo 2 lands.
+
+---
+
 ## 2026-08-31 (late) — the last deployed-but-untested cells: Soldier of Fortune has never loaded a level anywhere, and a "locked" DAEMON Tools unit was a leaked process
 
 Closing the remaining never-tested cells on `.124` (GeForce2 GTS, 845 MHz, 511 MB,
