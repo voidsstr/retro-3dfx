@@ -79,6 +79,40 @@ clock, both scoreboards showing two players.
   loads TFE's module set and dies with `Cannot load DLL file
   'Bin\Entities.dll': Module not found` — naming a file the TSE tree never had.
 
+### Serious Sam's CLIENT needs its connection settings chosen once per box
+
+The `ssam-tfe-server` join was proven from `.240` (server went
+`0 players / paused` → `1 player / openplaying`, `player_0 Serious Sam` at
+ping 38, live fullscreen play on DesertTemple) — but only after two
+client-side screens that a fresh box always shows and that `+connect <ip>`
+cannot skip:
+
+1. a modal, *"SeriousSam is starting for the first time…"*
+2. a full-screen **CONNECTION SETTINGS** page — *"Before joining a network
+   game, you have to adjust your connection parameters"* — with **`LAN
+   gaming`** in the list.
+
+Until that is answered the process just sits there, which reads exactly like a
+broken server. It IS drivable remotely, and the detail that matters:
+**a click only HIGHLIGHTS the row.** The page's own footer says
+`Enter - load this`, and that is what loads it. Sequence at 1920x1080:
+`UICLICK 960 584` (OK) · `UICLICK 487 463` (LAN gaming) · `UIKEY ENTER` ·
+`UICLICK 958 738` (START). Where the choice persists has not been found —
+`Scripts/PersistentSymbols.ini` carries no `net_`/`cli_` symbol for it — so it
+is per-box until somebody locates it.
+
+### RTCW's limbo menu DOES follow an absolute click
+
+The staged tree's own `Main/autoexec.cfg` says it does not: *"UICLICK sets an
+ABSOLUTE pointer position, which that menu does not follow… a fleet box has no
+way to pick a team, and a two-box LAN proof cannot get either end into the
+game."* Measured again 2026-09-01 at `r_mode 3`, clicking **AXIS** switched
+the panel to the SPAWNING tab and clicking **CLOSE** took both clients out of
+limbo. What is true is that the coordinates have to come from a screenshot at
+the resolution the game is actually running, and that `UIKEY CONSOLE` does not
+open RTCW's console from limbo — the keys land in the limbo CHAT box, which
+turned out to be the better proof anyway.
+
 ### Deus Ex's dedicated server is blocked by a CD check, invisibly
 
 `DEUSEX.EXE -server` runs headless and draws no window, so "is there a window"
