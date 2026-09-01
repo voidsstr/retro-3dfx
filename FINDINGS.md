@@ -14,6 +14,78 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-08-31 (late) — the last deployed-but-untested cells: Soldier of Fortune has never loaded a level anywhere, and a "locked" DAEMON Tools unit was a leaked process
+
+Closing the remaining never-tested cells on `.124` (GeForce2 GTS, 845 MHz, 511 MB,
+XP SP3), `.123`, `.240` and `.246`. Four things worth not re-deriving.
+
+### SOLDIER OF FORTUNE 1 REACHES ITS MENU ON EVERY BOX AND LOADS A LEVEL ON NONE
+
+The staged tree's `README-FLEET.txt` said, in bold prose, *"Single player is fine
+without a disc"*. It is not, and it never was. What was actually observed on the
+boxes that recorded `verified` was **the ARC main menu rendering full screen** —
+which is beautiful, is genuinely hardware OpenGL, and is not a game.
+
+    .123   SoF.exe +map arm1                 -> WON Error! Please insert the SOF CD
+    .240   SoF.exe +map nyc1                 -> the identical dialog
+    .124   SoF.exe +map nyc1  AND  +newgame  -> the identical dialog, BOTH with a
+           foreign disc in the virtual drive AND with device 0 unmounted so the
+           CD-ROM drive was empty
+
+`newgame` is a real console command in `SoF.exe`'s string table, so the command
+line is not taking a different path from the menu. **The post-condition for this
+title is a LOADED LEVEL, not a menu** — that single substitution hid the defect
+for a day across four boxes. The staged README has been corrected on the share.
+
+Second `.124` measurement, for whoever tries to click through it next: **the ARC
+menu is RELATIVE-MOUSE.** Absolute `UICLICK` reaches the left-hand icon column
+(two clicks — the first moves, the second activates) and cannot press START GAME
+at all; arrow keys and ENTER do nothing. This is the CLAUDE.md triage table's
+"not automatable" row, and recognising it early is worth an hour.
+
+### A "LOCKED" DAEMON TOOLS UNIT WAS A LEAKED daemon.exe FROM AN EARLIER SESSION
+
+`.124` was recorded earlier the same day as having a DAEMON Tools unit that
+answered *"Unable to mount image. Unit is locked."* and could not be cleared
+without a reboot. It was carrying **a leaked `daemon.exe` (pid 940) plus two
+orphaned `cmd.exe`** from that earlier attempt. One `taskkill /f /pid 940` and
+the very next mount succeeded first try — and then **four more image swaps in a
+row** succeeded with no unmount between them (SeriousSamTFE -> SeriousSamTSE ->
+JediAcademy_CD1 -> BF1942_1). So before believing a unit is locked, **list the
+processes**: a stuck `daemon.exe` sitting behind an invisible modal looks exactly
+like a kernel-level lock and needs no reboot.
+
+### TWO MAP-NAME / INPUT TRAPS THAT COST A LAUNCH EACH
+
+* **Deathmatch Classic's map is `dmc_dm2`, not `dm2`.** `+map dm2` starts the
+  engine full screen and then prints `map change failed: 'dm2' not found on
+  server` over the lambda screen — which reads as a broken mod, not a typo.
+* **The Serious Sam menu takes `UICLICK` but ignores synthetic ENTER** (it reads
+  the keyboard through DirectInput). A click selects a list row and highlights
+  it; nothing then loads it. Use `SeriousSam.exe +level "Levels\..."` instead —
+  `+level`, `+game`, `+connect`, `+script`, `+goto` are all in its string table.
+
+### BF1942: THE MOUNT SUCCEEDS AND THE GAME STILL REFUSES — ON BOTH MOUNTERS
+
+Confirmed on `.124` (DAEMON Tools 3.47) and `.246` (WinCDEmu): the disc image
+mounts, the volume label is right (`BF1942_1`), the launcher writes **no**
+`mount-error.txt`, and `BF1942.exe` still puts up *"Cannot locate the CD-ROM"*.
+That is the SafeDisc 2.80.010 wrapper in `Mods\bf1942\Mod.dll`, not a mount
+problem, and mounting it again on a third mounter will not change it.
+
+### `.123` HAS NO OPTICAL DRIVE AT ALL, AND THAT IS `n/a`, NOT `failed`
+
+`wmic logicaldisk where "DriveType=5"` returns *No Instance(s) Available*, so
+`HWPROFILE` reports `disc_mount:false`, the gate suppresses both Jedi Academy
+shortcuts, and the desktop correctly carries no Jedi Academy icon while the tree
+(including its `_disc` image) is fully deployed. Running the launcher by hand
+refuses **loudly**, with the boxed banner naming every path it searched and
+saying *"this is an INSTALL problem, not a mount problem"*. Nothing is broken;
+the remedy is a mounter, and installing one is a driver-class install needing a
+reboot, which `.123` (unactivated XP) must not have.
+
+---
+
 ## 2026-08-31 — `.240`: a card swap mid-session, a gate that took the ICON off a working game, and three library claims that only ever covered a MENU
 
 Everything below was measured on `.240` (XP SP3, Athlon 64 3300+, 1022 MB).
