@@ -14,6 +14,116 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-08-31 — `.240`: a card swap mid-session, a gate that took the ICON off a working game, and three library claims that only ever covered a MENU
+
+Everything below was measured on `.240` (XP SP3, Athlon 64 3300+, 1022 MB).
+**Its RADEON 9800 XT was replaced with a RADEON X800 Series part-way through
+the session** (`PCI\VEN_1002&DEV_4A4B`), so any `.240` result older than
+2026-08-31 17:00 describes a different GPU. `profile_hash` went
+`e4f69a245d795af3` -> `4df7d2475bf5722c`; every render verdict recorded here
+was re-measured on the X800 afterwards.
+
+### A REFUSED TCP CONNECT ON AN XP AGENT IS NOT PROOF THE AGENT DIED
+
+This wasted two diagnoses. Both failure shapes look identical to a client:
+
+| ports | what it really is |
+|---|---|
+| 9898/9899/9897 refused **and 139/445 refused** | the whole MACHINE is down |
+| 9898/9899/9897 refused, **139/445 OPEN** | the agent is *usually* fine — its accept loop is blocked inside a long `EXEC` and the listen backlog is full, so Windows RSTs new connects (`ECONNREFUSED`) |
+
+The second one was read as "the agent died" and sent an hour into SMB recovery
+routes that cannot work (XP Pro workgroup ForceGuest refuses every credential,
+including the right one). It came back on its own 12 s later, and `SYSINFO`
+then reported an **uptime spanning the whole outage** — which is the cheap
+proof it never restarted. **Ask the agent its uptime after it returns before
+concluding anything died.** A third occurrence was a genuine auto-update
+(1.79.2 -> 1.79.4) and `uptime_seconds` told those apart in one command.
+
+### The gate suppressed the SHORTCUT of a title that was installed and VERIFIED
+
+`gs_gate_allows_title()` already knew a `disk` verdict is not final — it defers
+to GAMESYNC's own room check, which credits the tree already on the volume.
+`gs_gate_allows_shortcut()` never learned it, **and that is the later call
+site**: the tree is on disk and `gs_file_exists(target)` has just confirmed the
+launcher is there. Measured:
+
+```
+FarCry: SHORTCUT SUPPRESSED "Far Cry" (Play Far Cry.bat)
+        - disk: not enough free disk (have 1492 MB, needs 3700)
+done: 46/46 title(s) copied, 0 skipped, 0 gated, 0 file error(s)
+```
+
+Far Cry occupies **3609 MB of that box's own volume**, which is precisely why
+only 1492 MB is free. So the game was installed, previously recorded
+`runs=verified`, and left with **no desktop icon** — while `titles_gated` read
+**0** and the summary line said nothing was gated at all. Fixed in agent
+**1.79.4**; regression
+`tests/python/test_gamesync_enumeration.py::test_a_disk_refusal_does_not_suppress_a_SHORTCUT_either`,
+verified to fail against the old branch condition.
+
+### The AGP Radeon X800 was not in the capability gate's GPU table at all
+
+`HWPROFILE` reported `feature_level: "unknown"` for the card driving the
+screen. The only R4xx row was `0x5D48-0x5D6F` (PCIe R423/R480); the AGP R420
+ids `0x4A48-0x4A6F` and the `0x5548-0x557F` block were absent. It fails open,
+so nothing was wrongly refused — the gate was simply **blind to that machine's
+GPU**, which is worse than it sounds because it is silent. That row also said
+`SM3`: **no R4xx has Shader Model 3.0**, the family tops out at SM2.0b, and
+SM3.0 was NVIDIA's NV40 differentiator that generation. Both fixed and mirrored
+into `scripts/gamegate/rules.py` (agent **1.79.4**).
+
+### THREE library claims that only ever covered reaching a MENU
+
+The same mistake three times, in three different trees. A menu rendering
+fullscreen at the right mode is **not** the title working, and a
+process-presence or mode-change test scores all three as passing.
+
+* **Opposing Force** — `Opposing Force.bat` reaches its console fullscreen at
+  1280x960, and then `map op4ctf_crash` makes `hl.exe` **disappear**: no
+  window, no process, desktop snaps back. `-condebug` wrote
+  `gearbox\qconsole.log` with box-133's exact signature and nothing after it —
+  `Can't register variable mapcyclefile, already defined` / `servercfgfile` /
+  `lservercfgfile`. `HOW-TO-RUN.txt` claimed *"gearbox (Opposing Force)
+  PROVEN: map op4ctf_crash"* — that proof was **`.171` only**, and
+  `op4ctf_crash` is exactly the map that kills it elsewhere. The doc now says
+  so; `.123` and `.133` record the same failure.
+* **Soldier of Fortune** — the tree's README says *"Single player is fine
+  without a disc"*. It is not. `SoF.exe +map nyc1`, a **single-player** map,
+  raises the identical modal *"WON Error! Please insert the SOF CD and try
+  again."* that the README attributes to multiplayer only. The verified fact
+  was only ever that the staged `won_set_key` gets you to the ARC main menu.
+  Its menu is also **relative-mouse** — an absolute `UICLICK` at (639,526)
+  moved the in-game cursor from (115,281) to (115,328), i.e. by the delta —
+  and `UIKEY` reaches neither menu nor modal, so the menu's own New Game path
+  needs a human once.
+* **BF1942** — and here the *mount* is the thing that was doubted and is
+  actually fine. Post-condition verified, not assumed: `wmic logicaldisk`
+  shows `F:` DriveType 5 VolumeName `BF1942_1`, and the launcher wrote **no**
+  `mount-error.txt`. The game still puts up *"Cannot locate the CD-ROM"*. So
+  the disc is present and correct and the refusal is the SafeDisc **2.80.010**
+  wrapper in `Mods\bf1942\Mod.dll`. Do not re-litigate this as a mount fault.
+
+### Red Alert 2 / Yuri's Revenge: the shell is ALWAYS 800x600, and that is not a fault
+
+`ScreenWidth`/`ScreenHeight` in `RA2MD.INI` govern **gameplay only**. Proved by
+setting 1280x960 and then the launcher's own 1920x1080: an 800x600 menu both
+times, the configured mode in-game both times. So an 800x600 menu screenshot is
+**not** evidence of a resolution bug, and this title's resolution cannot be
+judged from a picture of its menu. (Yuri's Revenge verified in-game at
+1920x1080 fullscreen, driven entirely with absolute `UICLICK` — unlike SoF,
+this menu is not relative-mouse.)
+
+### A bare ini filename does not go where you think
+
+`FLEETRES.EXE -ini RA2MD.INI ...` with a **relative** name writes
+`C:\WINDOWS\RA2MD.INI` — `WritePrivateProfileString` resolves an unqualified
+path against the Windows directory. The staged launchers correctly pass
+`"%~dp0RA2MD.INI"`; a hand-run command that drops the path silently edits a
+file in `C:\WINDOWS` and the game reads the untouched original.
+
+---
+
 ## 2026-08-31 — `.133`: a 256-colour screen was photographed in the SHELL's palette, and a modal dialog was scored as a crash
 
 Two separate defects on the same box, both of the project's signature shape:
