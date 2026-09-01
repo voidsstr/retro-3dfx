@@ -14,6 +14,105 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-09-01 — Seven new LAN servers on .132, and four probes that would each have called a healthy one dead
+
+**The brief was "a dedicated LAN server on this host for every staged title",
+priority RTCW first.** Quake III, Quake II and SoF2 already had one. RTCW did
+not, despite being listed in the game-servers skill's table — it was there
+aspirationally ("no directory, no install script, no game data") while the game
+was staged and being played box-to-box. Added, with six others:
+
+`rtcw-server` :27963 · `unrealgold-server` :7807 · `doom3-server` :27666 ·
+`deusex-server` :7790 · `ssam-tfe-server` :25600 · `ssam-tse-server` :25610 ·
+`shogo-server` :27888. The host now runs **24 game servers**, all `enabled`,
+linger on.
+
+**RTCW proven two-box:** `.123` and `.240` both joined
+`192.168.1.132:27963` from the staged retail tree, appeared in the server's
+player list with live pings, took Axis and Allied, **each saw the other's
+chat**, and survived the `vstr` rotation from `mp_beach` to `mp_village`.
+**DOOM 3 proven two-box:** both boxes in the same `d3dm1` match, same match
+clock, both scoreboards showing two players.
+
+### The traps, in order of how much time they would have cost
+
+- **RETAIL RTCW SPEAKS PROTOCOL 60; ioRTCW SPEAKS 61.** `com_legacyprotocol`
+  defaults to exactly 60, which is why this works at all. `getstatus`
+  advertises `com_protocol\61` and **`getinfo` advertises `protocol\60`** —
+  getinfo is the one the client browser filters on. Read the right reply.
+- **27963 IS NOT AN ARBITRARY FREE PORT.** The Quake III engine's LAN scan
+  broadcasts to `27960..27963` and nowhere else; OpenArena, Quake III and Team
+  Arena hold the first three. A server outside that window is invisible in
+  RTCW's own LAN browser no matter how healthy it is.
+- **`qagame.mp.x86_64.so` comes from the ioRTCW download, not the retail
+  paks** (those ship Windows DLLs). Without it: `VM_Create on game failed`,
+  which reads like a corrupt install rather than a wrong-platform file.
+- **UNREAL 227 AND DEUS EX ANSWER `\info\`, NOT `\status\`.** UT99/UT2004
+  answer `\status\` with hostname, maptitle and numplayers; Unreal 227 answers
+  the SAME packet with only the basic block — no name, no map, no count — so
+  the UT probe renders a healthy server as `? | map=?`.
+- **DOOM 3 ANSWERS NEITHER.** id Tech 4's out-of-band message is
+  `short 0xFFFF` + NUL-terminated command + long, and its `infoResponse` puts
+  the echoed challenge and protocol — **eight raw bytes containing NULs** —
+  before the key/value pairs, which therefore start at **offset 23**.
+  Splitting from byte 0 puts every value against the wrong key and the server
+  reads as nameless.
+- **SHOGO SPEAKS GAMESPY ON THE GAME PORT ITSELF** (27888), not port+1 like
+  the UT family and Serious Sam.
+
+### Two "it says it is running" failures, both real
+
+- **Shogo: do NOT untick "Communicate with GameSpy" in its wizard.** It reads
+  like a dead master uplink; it is the switch for the server's own **query
+  responder**. Unticked, `ShogoSrv.exe` binds UDP 27888 and answers nothing at
+  all — a listening socket no browser can see, the same shape as the Red
+  Faction trap. There is also **one more modal after Finish** ("Power users can
+  specify the -go command-line parameter…"): until it is dismissed the window
+  list reads "Shogo Server", which looks exactly like a running server while
+  the port is unbound. And ShogoSrv commits its settings only on a **clean
+  exit**, which a service never gets — so the wizard is driven with xdotool on
+  every start (~70 s, `TimeoutStartSec=300`).
+- **Serious Sam: `ser_bWaitFirstPlayer = 1` is the shipped default** and means
+  the process is up, the log is clean, and the server is not hosting until
+  somebody happens to arrive. Both fleet configs set it to 0. Separately,
+  **TSE needs `ModEXT.txt` (contents `MP`) at the tree root** or the engine
+  loads TFE's module set and dies with `Cannot load DLL file
+  'Bin\Entities.dll': Module not found` — naming a file the TSE tree never had.
+
+### Deus Ex's dedicated server is blocked by a CD check, invisibly
+
+`DEUSEX.EXE -server` runs headless and draws no window, so "is there a window"
+proves nothing. Under Wine it stopped dead on a modal titled **"Cd Required At
+Startup"** with the process at 0% CPU and its log file 0 bytes —
+indistinguishable from a hang. `[Core.System] CdPath` points at
+`C:\Games\DeusEx\`, right on a fleet box and meaningless in a container.
+
+### Three tools disagreed about how many servers this host runs
+
+`healthcheck.py` checked **18**, `gameservers.py` knew **17+3**, and
+`host-duties.py` — the thing you run after a reboot to ask "is the host back?"
+— hand-listed **nine** and answered ALL HOST DUTIES UP. `descent3-server` and
+`farcry-server` had been live and absent from healthcheck.py the whole time.
+`host-duties.py` now derives its game-server list from `gameservers.py` instead
+of keeping a second copy, and `rtcw-server` came off its
+`NEVER_INSTALLED_HERE` set — leaving it there would hide a real outage behind
+a reassuring word.
+
+### RTCW favourites had to be made local-only
+
+RTCW is a Quake III **engine** but a different **game**, so it shares the `q3`
+bucket in the favourites agent — and the deliberate "do not filter a master's
+output" rule handed a WolfMP client **sixteen live Quake III Arena servers**,
+every one of which refuses it on connect. New `local_only` flag; the list is
+now one server, ours.
+
+### Gametype correction
+
+The game-servers skill said RTCW's `g_gametype` was 3=Objective 4=Stopwatch
+5=Checkpoint. It is **5=Objective (GT_WOLF), 6=Stopwatch, 7=Checkpoint**, and
+the binary says so itself: `strings qagame.mp.x86_64.so` →
+`g_gametype %i is out of range, defaulting to GT_WOLF(5)`.
+
 ## 2026-08-31 (late) — Halo 2 RUNS ON WINDOWS XP: the blocker is three missing imports, not the PE subsystem; Half-Life 2 is dead on this whole fleet for a reason that has nothing to do with its media
 
 Staging request was Halo 2 + Half-Life 2 + popular HL2 mods. One of the three is
