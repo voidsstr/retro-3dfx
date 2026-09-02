@@ -14,6 +14,66 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-09-01 — Quake III was on the Intel chip on `.171`, and ioquake3 CANNOT be moved off it
+
+`.171` has a Voodoo 2 pair, and Quake III had never used them. The game ran —
+fullscreen, 800x600, right FOV, no error anywhere — on the box's **Intel 865G**.
+That is the failure shape this project keeps paying for: the tool reported
+success and there was nothing to look at.
+
+**Why nothing selected the card.** A Voodoo 2's INF is `Class=MEDIA`. It does
+not drive the desktop, so it registers **no OpenGL ICD**:
+`HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\OpenGLdrivers` on that box
+contains exactly one subkey, `Intel`. `opengl32.dll` can therefore never route
+to it, by design — the card is reached only by an engine that loads 3dfx's
+**standalone** GL directly. That DLL is `system32\3dfxvgl.dll` from the Win2K
+1.02.00 kit: 336 `gl*` + 24 `wgl*` exports (and 17 `Drv*`), importing
+`glide3x.dll`, advertising `GL_ARB_multitexture`, `GL_EXT_compiled_vertex_array`
+and `GL_EXT_texture_env_add` — everything Quake III asks for.
+
+Retail `quake3.exe` 1.32c with `seta r_glDriver "3dfxvgl"` picks it up first
+try:
+
+```
+...assuming '3dfxvgl' is a standalone driver
+GL_RENDERER: 3Dfx/Voodoo2/2 TMUs/4 MB/stand-alone (Jan 27 2000)
+MODE: -1, 800 x 600 fullscreen hz:60
+1260 frames, 29.6 seconds: 42.6 fps      (demo four, 800x600x16)
+```
+
+**THE EXPENSIVE PART: ioquake3 has no route to that card at all.** Three
+mechanisms were tried on hardware and all three failed *silently*, each landing
+back on the Intel 865G with a perfectly healthy-looking log:
+
+| route | why it fails |
+|---|---|
+| `r_glDriver` | ioquake3 **dropped the cvar**. The `seta` is ignored, no warning. |
+| game-local `opengl32.dll` | **`opengl32` is in XP's KnownDLLs**, so the application directory never wins. Copying `3dfxvgl.dll` in as `opengl32.dll` changed nothing. |
+| `SDL_VIDEO_GL_DRIVER` | this `SDL.dll` **hardcodes `"OPENGL32.DLL"`** — `strings` finds no such variable name in the binary. |
+
+So on a Voodoo box the engine has to be the retail one. **That does not cost
+multiplayer**, which was the reason the staged tree avoided it: both fleet Q3
+servers already run `com_legacyprotocol 68`, which retail 1.32c speaks. The
+comment in `Play Quake III Arena - retail 1.32c.bat` saying that binary "CANNOT
+join the fleet Q3 server" is stale.
+
+**The fix is per box, in the staged tree** — `Games-Library/Quake3-TeamArena/FLEETGL.BAT`,
+called by all three launchers, keyed on `system32\3dfxvgl.dll` existing (true
+only where the Voodoo 2 driver is installed, so the other seven boxes keep
+ioquake3 unchanged). It appends `r_glDriver` plus the 16-bit colour/texture/
+depth settings to the mod's `fleetres.cfg` — the file the launcher already
+writes fresh at every start, which is exec'd LAST and therefore beats the
+latched cvars. Guarded by `tests/python/test_q3_voodoo2_gl.py`.
+
+**Two smaller things worth keeping:**
+- `SCREENSHOT 0` on a Voodoo 2 box photographs the **desktop**, not the game:
+  the 3D output leaves over the passthrough cable and is not in the primary
+  surface. This is a genuine "GDI cannot see it" case, unlike most XP titles.
+  Use the engine's own `screenshotJPEG` bind — synthetic `UIKEY` does reach it.
+- In an id Tech 3 **in-game** console a line without a leading `/` is sent as
+  **chat**, so `timedemo 1` silently became a say. At the MENU console the same
+  line runs as a command. Drive benchmarks from the command line instead.
+
 ## 2026-09-01 — `UIKEY` DOES reach an id Tech 3 game in exclusive fullscreen. The rule is about MENUS.
 
 **CLAUDE.md says "id Tech 3 ignores synthetic keyboard input in exclusive
