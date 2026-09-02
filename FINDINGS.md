@@ -74,6 +74,58 @@ latched cvars. Guarded by `tests/python/test_q3_voodoo2_gl.py`.
   **chat**, so `timedemo 1` silently became a say. At the MENU console the same
   line runs as a command. Drive benchmarks from the command line instead.
 
+## 2026-09-01 - A NEW V5-6000 BOX (.185), and why "our Glide hangs" was a red herring
+
+A second Voodoo 5 6000 is live on **192.168.1.185** (NSC-AB862B3CF23, XP SP3,
+AMD w/ 3DNow!, 511 MB) - `PCI\VEN_121A&DEV_0009&SUBSYS_0001121A`, same board ID
+as the .133 card. AmigaMerlin 3.1-R11 was installed on it at 18:11 that day.
+
+Our user-mode stack was deployed there (glide2x 258,048 / glide3x 339,968 /
+3dfxogl 708,608 = `retro3dfx 0.5.0`), same set that gave +8.3% on .143.
+Quake 3 then died inside `LoadLibrary(3dfxogl.dll)`, and `C:\3dfxogl.log` ended at
+`attach: calling grGlideInit()` - i.e. our Glide never returned from init. That
+reads exactly like a 4-chip Glide bug (V56K-PLAN item 3, `hwcMapBoard`'s hardcoded
+32 MB BAR map).
+
+**It was not ours.** Restoring AmigaMerlin's own files (Mesa 6.3 ICD + retail
+glide3x) and re-running the identical Q3 command failed too, one step later, at
+`GLW_ChoosePFD`. No Glide of any kind could open a context on that box.
+
+Root cause, found in one registry read:
+
+```
+HKLM\SYSTEM\CurrentControlSet\Control\Session Manager
+  PendingFileRenameOperations = ... \??\C:\WINDOWS\system32\SET12.tmp
+                                  ! \??\C:\WINDOWS\system32\3dfxvs.dll
+```
+
+`3dfxvs.dll` in system32 was still the **2001 inbox** driver (689,216 B,
+dated 08/17/2001) while `SET12.tmp` (610,240 B, dated at the install) waited for
+the next boot. The box was running the **old display driver against
+AmigaMerlin's new miniport** - an install that had never been completed. Nothing
+user-mode can open a Glide context in that state.
+
+**Rules taken from this:**
+- **Before A/B-ing any ICD/Glide on a freshly-driver-installed box, check
+  `PendingFileRenameOperations`.** A queued `3dfxvs.dll` means the box has not
+  finished its driver install; every 3D result until reboot is noise.
+- **Two ICDs failing the same way is the signal.** One failing ICD points at the
+  ICD; two independent ones failing at adjacent init steps points at the layer
+  underneath both. That A/B cost one command and saved a day of Glide debugging.
+- Recorded as fleetbook recipe #21.
+
+### Also: `retro-3dfx/tests/predeploy.sh` was failing for a bogus reason
+
+`toolchain-3dfx/prefix` had become a **real directory holding a stale 30-file
+partial copy** of the build tree, instead of the symlink to
+`~/retro3dfx-toolchain/prefix` that its siblings (`bin`, `wine`, `devtools`,
+`downloads`, `extract`) all are. So the gate's repo-tree-vs-build-tree sync check
+compared against a tree that mostly did not exist and reported 21 spurious
+`FAIL sync ...` lines plus `DLL not found`. All 30 stale files were byte-identical
+to the real tree, so nothing was lost; replaced with the symlink (stale copy kept
+at `prefix.stale-copy-20260901`) and the gate returns **PASS**. A gate that fails
+for an environment reason trains you to ignore it - check the symlink first.
+
 ## 2026-09-01 — `UIKEY` DOES reach an id Tech 3 game in exclusive fullscreen. The rule is about MENUS.
 
 **CLAUDE.md says "id Tech 3 ignores synthetic keyboard input in exclusive
