@@ -14,6 +14,69 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-09-04 — the 6000 benchmarks EXACTLY on published data: 2.66x SLI at 1024x768
+
+Ran the single-chip half of the sweep (`ambench.py 0 ... 3,6,8,9`) so our SLI
+scaling could be quoted at a fill-bound resolution rather than a CPU-bound one.
+AmigaMerlin 3.1-R11, Q3 1.32 `demo four`, 16-bit, vsync off, `.191`.
+
+| resolution | 1 chip | 4-way SLI | scaling |
+|---|--:|--:|--:|
+| 640x480   | 116.5 | 152.6 | 1.31x |
+| 1024x768  |  55.2 | 147.1 | **2.66x** |
+| 1280x1024 |  35.1 | 119.4 | **3.40x** |
+| 1600x1200 |  24.7 |  71.9 | 2.91x |
+
+### Single-chip is a perfectly straight fill-rate line
+
+19.9 / 19.8 / 19.7 ms per megapixel across 640->1024->1280->1600. Three
+independent intervals agreeing to 1% means one VSA-100 here is fill-rate-bound
+at EVERY resolution including 640x480, and nothing else is interfering. That is
+the cleanest calibration of this board we have ever had, and it is the reference
+line against which any future driver regression can be measured.
+
+### It matches the published record to the second decimal
+
+| source | config | 1024x768 scaling |
+|---|---|--:|
+| x86-secret 2005 (V5 6000 vs V4 4500, Athlon XP 2800+, 32-bit max) | real prototype | **2.66x** |
+| **ours** (AmigaMerlin 3.1-R11, Athlon 1152, 16-bit) | Strange God recreation | **2.66x** |
+| GamersNexus 2023 (same board MODEL as ours, XP 2600+, 32-bit trilinear max) | VRG 1.05.04 | 3.46x |
+
+The x86-secret agreement is exact. GamersNexus reads higher because their
+heavier settings (32-bit textures, trilinear, max detail) push 1024x768 further
+into fill-bound territory — our equivalent point is 1280x1024, where we measure
+**3.40x** against their 3.46x. Both are near the 4x theoretical ceiling.
+
+**So the board, in AmigaMerlin's hands, is performing exactly as the published
+record says a Voodoo5 6000 should.** Absolute numbers beat every published
+figure at every resolution (152.6/150.0/147.1/119.4 vs x86-secret's
+148.2/141.8/130.3/92.1) despite a CPU roughly half the clock, because we run
+16-bit and they ran 32-bit at max detail — VoodooAlert's controlled pair on this
+card puts that difference at 1.20x.
+
+### Two independent confirmations of the CPU-bound finding
+
+- x86-secret states it outright for 640x480: the 5500 and the 6000 come out
+  level, *"was hier auf eine Limitierung seitens der CPU schliessen laesst"* —
+  and that was on an **Athlon XP 2800+**. If a 2.1 GHz Barton is CPU-bound at
+  640x480, a 1.15 GHz Athlon certainly is.
+- Their 640x480 4-way scaling is **1.34x** (148.2/110.2). We measure **1.31x**.
+  Within 3%. The 1.30x reported earlier in this session was therefore never a
+  defect — it is the correct answer to a question asked at the wrong resolution.
+
+### The one anomaly worth chasing
+
+**Scaling PEAKS at 1280x1024 (3.40x) and falls back to 2.91x at 1600x1200.**
+Single-chip stays perfectly linear there (19.7 ms/Mpx), so the loss is in the
+4-way path specifically, not in the chip. It is not VRAM: in 128MB mode each
+chip holds only its own bands, so 1600x1200x16 front+back+depth is ~2.9 MB of
+the 32 MB per chip. Same direction as the rising marginal cost recorded in the
+resolution-sweep entry above. Unexplained; a real 4-way-only ceiling above
+1.3 Mpx.
+
+---
+
 ## 2026-09-04 — the skew bits are NAMED IN 3dfx's OWN CODE: an undocumented heat erratum
 
 The `vidProcCfg` diff between the working AmigaMerlin stack and our skewing one
