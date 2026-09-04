@@ -14,6 +14,48 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-09-04 — the V5 6000 is CPU-bound to 1024x768, and the fill wall is gradual
+
+Full eight-point Q3 resolution sweep on `.191` under AmigaMerlin 3.1-R11, 4-way
+SLI, `demo four`, 16-bit, **vsync off** (`FX_GLIDE_SWAPINTERVAL=0` AND
+`r_swapInterval 0` — both, because the Glide env var alone does not reach the
+engine's own swap logic). Automated, completion+fps as the pass metric:
+`tools/v56k/trials/ambench.py 5 "<tag>" 2,3,4,5,6,7,8,9`.
+
+| resolution | Mpx | fps | ms/frame | marginal ms/Mpx |
+|---|--:|--:|--:|--:|
+| 512x384   | 0.197 | 147.6 | 6.775 | - |
+| 640x480   | 0.307 | **152.6** | 6.553 | - |
+| 800x600   | 0.480 | 150.0 | 6.667 | 0.66 |
+| 960x720   | 0.691 | 147.9 | 6.761 | 0.45 |
+| 1024x768  | 0.786 | 147.1 | 6.798 | 0.39 |
+| 1152x864  | 0.995 | 138.7 | 7.210 | 1.97 |
+| 1280x1024 | 1.311 | 119.4 | 8.375 | 3.70 |
+| 1600x1200 | 1.920 | 71.9  | 13.908 | 9.08 |
+
+**512x384 is SLOWER than 640x480 (147.6 vs 152.6).** That is the tell: below
+1 Mpx nothing here is measuring the card at all. The spread across 512-1024 is
+147-153 fps, which is run-to-run noise (~3%) on a flat line, so treat those five
+points as ONE number. Fitting 640-1024 gives `t = 6.41 ms + 0.50 ms/Mpx`, i.e.
+a **CPU ceiling of ~156 fps** on this Athlon 1152 / nForce2. A 2.6x pixel
+increase costs 3.6% of the frame rate.
+
+**There is no single knee — the marginal cost climbs monotonically** (0.39 →
+1.97 → 3.70 → 9.08 ms/Mpx). The first sweep only had 640/800/1024/1280 and made
+1280x1024 look like a threshold, which suggested the databook's "1280 needs 2x
+mode" scanout note. Adding 1152x864 and 1600x1200 killed that reading: the
+departure from flat begins at 1152x864, and the per-pixel cost keeps rising
+after it. A hard mode threshold would show one step and then a constant slope.
+A rising slope is saturation, not a switch.
+
+Practical consequence for benchmarking this card: **any Q3 number at or below
+1024x768 is a CPU benchmark, not a card benchmark.** Comparisons against period
+published numbers are only meaningful at 1280x1024 and 1600x1200, where the card
+is actually the limit — and that is exactly where period reviews of the 6000 are
+thinnest. Bench the 6000 at 1600x1200, or measure nothing.
+
+---
+
 ## 2026-09-04 — AmigaMerlin RUNS 4-WAY SLI CORRECTLY ON THIS BOARD. The bug is ours.
 
 The single most important result of the session, and it ends weeks of ambiguity

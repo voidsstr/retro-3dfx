@@ -7,9 +7,13 @@ from client.retro_protocol import RetroConnection
 IP='192.168.1.191'; Q3=r'C:\Games\Quake3-TeamArena'
 FPS=re.compile(r'(\d+) frames, ([\d.]+) seconds: ([\d.]+) fps')
 # r_mode -> label
-MODES=[('3','640x480'),('4','800x600'),('6','1024x768'),('8','1280x1024')]
+ALL={'2':'512x384','3':'640x480','4':'800x600','5':'960x720','6':'1024x768',
+     '7':'1152x864','8':'1280x1024','9':'1600x1200'}
 CFG=sys.argv[1] if len(sys.argv)>1 else '5'
 TAG=sys.argv[2] if len(sys.argv)>2 else 'AM-4way'
+# argv[3]: comma-separated r_mode list; default = the four standard points
+SEL=(sys.argv[3].split(',') if len(sys.argv)>3 else ['3','4','6','8'])
+MODES=[(m,ALL[m]) for m in SEL if m in ALL]
 GK=r'HKLM\SYSTEM\CurrentControlSet\Services\3dfxvs\Device0\Glide'
 DK=r'HKLM\SYSTEM\CurrentControlSet\Services\3dfxvs\Device0\D3D'
 
