@@ -60,11 +60,20 @@ them behind a HiNT bridge) do not is entirely consistent with both observations.
 
 ### The competing hypothesis, and the 2x2 that separates them
 
-The dump showed only ONE other register differing: `pllCtrl0` `0000D137`
-(AmigaMerlin) vs `0000B31F` (ours), which was written off as refresh 60 vs 85 Hz.
-But **refresh rate is itself a scanout-timing variable** — 85 Hz leaves less
-margin for inter-chip skew than 60 Hz. So the AmigaMerlin run changed TWO things
-at once and neither has been isolated.
+The dump showed only ONE other register differing: `pllCtrl0`. Decoding it with
+the VSA-100 PLL formula `f = 14.31818 * (N+2) / ((M+2) * 2^K)`, where
+`N = bits[15:8]`, `M = bits[7:2]`, `K = bits[1:0]`, settles what it was:
+
+| | `pllCtrl0` | N / M / K | pixel clock | VESA 640x480 |
+|---|---|---|--:|---|
+| AmigaMerlin | `0000D137` | 209 / 13 / 3 | **25.176 MHz** | 25.175 = **60 Hz** |
+| ours | `0000B31F` | 179 / 7 / 3 | **35.994 MHz** | 36.000 = **85 Hz** |
+
+Three-decimal agreement, so this is certain rather than inferred. **The
+AmigaMerlin comparison run changed TWO things at once** — the erratum bits AND
+the pixel clock, by a factor of 1.43. And **refresh rate is itself a
+scanout-timing variable**: at 85 Hz each chip has 30% less time per pixel, so
+less margin for inter-chip skew. Neither cause is isolated.
 
 The decisive experiment is a 2x2, and every cell is reachable by poking IO
 `0x05C` and setting the refresh — **no miniport rebuild, which matters because
