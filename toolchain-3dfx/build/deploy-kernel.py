@@ -12,7 +12,8 @@ Run tests/predeploy.sh first -- non-zero exit means do NOT deploy.
 Rollback: copy <name>.v56kprev back over <name> and reboot.
 """
 import argparse, asyncio, hashlib, json, os, sys
-sys.path.insert(0, '/mnt/c/development/retro-agent')
+sys.path.insert(0, os.environ.get('RETRO_AGENT_DIR',
+                os.path.expanduser('~/development/retro-agent')))
 from client.retro_protocol import RetroConnection
 
 STAGE = r'C:\RETRO_AGENT\v56k-kernel'
@@ -33,7 +34,8 @@ async def ex(c, cmd, secs=30):
 async def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('what', nargs='?', default='both', choices=['display', 'miniport', 'both'])
-    ap.add_argument('--ip', default='192.168.1.133')
+    ap.add_argument('--ip', default=os.environ.get('DEPLOY_IP', '192.168.1.133'),
+                    help='box to deploy to (default %(default)s)')
     ap.add_argument('--src', default=os.path.join(os.path.dirname(__file__),
                                                   '../../optimized/v56k-sli-build-20260811'))
     ap.add_argument('--no-reboot', action='store_true')

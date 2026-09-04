@@ -14,6 +14,168 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-09-04 — The V5 6000's SLI band skew: how to SEE per-chip state, and what it is not
+
+The Voodoo 5 6000 (now in `.191`, see `DEPLOY-191-20260904.md`) renders perfectly
+and **scans out** wrong in any multi-chip config: horizontal strips displaced
+sideways. Single-chip is clean. This entry records the instrument, because the
+instrument is the reusable part.
+
+### You cannot photograph this bug with software. Stop trying.
+
+Every readback path reads MEMORY, and reads through the master's BAR1 are
+**SLI-gathered in hardware** (`CFG_SLI_RD_EN` is set on every chip in every SLI
+arm), so the card reassembles a correct image for any reader. That is why Quake
+III's `screenshotJPEG` is pixel-perfect while the monitor is broken. Verified
+dead ends, each tested rather than assumed:
+
+- **GDI `SCREENSHOT` during exclusive fullscreen** — garbled, and the garble is
+  the CAPTURE, not the bug: captured in **single-chip** mode (visually clean on
+  the monitor) it comes back just as interlaced. `gdi_fs_single.png` vs
+  `gdi_fs_4way.png`. CLAUDE.md's warning is correct.
+- **Windowed 3D + GDI** — the window's client area captures BLACK; a Glide
+  fullscreen-exclusive surface never composites into the GDI primary.
+- **Per-chip framebuffer readback does not exist**: `GlideMapSlaveChips` aliases
+  every slave's FB VA to the master's (`SLIAA.C:1402-1404`), and
+  `HWCEXT_MAX_SLAVE_REGS` is 4 — the FB window is never returned to user mode.
+- **No alternate output to sample**: the 6000's INF row is `NOTV NOLCD`, and the
+  fleet has no capture hardware.
+
+**So the only sensors are per-chip REGISTER state and an eye on the monitor.**
+
+### The instrument: per-chip registers from user mode, NO driver rebuild
+
+`HWCEXT_GET_SLAVE_REGS` (0x19, `HWCEXT.H:565`, handled at `HWCEXT.C:2732`) is
+already answered by the SHIPPING `3dfxv5d.dll`. It returns, per chip 0..3, the
+VAs of four register windows mapped **read/write** into the calling process — so
+you can both read per-chip scanout state and poke it live. Tool:
+`scratchpad/fxscan2.c` (`dump` / `diff` / `phase` / `poke`), mingw, run through
+the agent.
+
+Sequencing trap: do **not** send `HWCEXT_ALLOCCONTEXT` first. `hwcGetLinearAddr`
+(`HWCEXT.C:785-825`) has an "if a GLIDESTATE already exists, return the old
+mapping" branch that returns the OLD never-mapped bases and never fills
+`glideSlaveRegBase[]` — you get four zeros. Order: `GETLINEARADDR` (0x03) then
+`GET_SLAVE_REGS` (0x19). Neither is exclusive-gated, so this runs against a live
+fullscreen game. (`HWCEXT_PCI_OP` at `HWCEXT.C:2409` IS exclusive-gated.)
+
+### What the instrument ruled OUT — measured, in the failing state
+
+Read **while Quake III was fullscreen at 640x480 in 4-way SLI**, all four chips
+agreed on `vidScreenSize` (640x480), `vidDesktopStride`, `vidProcCfg`,
+`vidDesktopStart`, `vidOvlEndCoord`, `lfbMemoryConfig`.
+
+**This kills the "slaves never get `vidScreenSize`" hypothesis** — which was the
+leading candidate from two independent research passes, and is what 3dfx's own
+comment at `MINIHWC.C:4339` complains about (*"the w2k miniport doesn't copy this
+value to the slave chips / so for now re-write it here"*, storing to
+`bInfo->regInfo` = the MASTER, which does nothing for chips 1-3). The complaint
+is real and the workaround is broken, but during a game `H3SetMode` on each slave
+already leaves the right geometry, so it is **not** this bug. A patch for it was
+written and then REVERTED on this evidence — do not re-apply it blind.
+
+Divergence at the DESKTOP is a red herring: after a game exits, the slaves keep
+the game's geometry (master 1024x768, slaves 640x480) because nothing restores
+them. Only the in-game reading counts.
+
+### What survived, and is now the live investigation
+
+1. **`vidOverlayDudx` is 0 on every chip, and 0 is WRONG.** Napalm spec r1.13
+   s11.1.21: *"if enhanced video is enabled, this register is defined to be the
+   number of active pixels of a scanline before the the driver of dac_hsync is
+   switched over from one chip to another"* — and the pin table: *"dac_hsync
+   Pullup (for multi-chip only, where dac_hsync gets driven by multiple chips and
+   transition occurs in middle of active scanline)"*. Glide hardcodes
+   `vidOverlayDudx = 0UL` (`MINIHWC.C:4041`) whenever the app sets its own mode;
+   the DirectDraw path sets `cxScreen >> 1` and says why (`DDFXNT.C:2606`, *"set
+   this register to have hsync in the middle of the line"*). A Glide game never
+   creates a DDraw surface, so it never runs. **Poking 320 into all four chips
+   VISIBLY CHANGED the artefact on hardware** — the register is live and is a
+   real lever; 320 is not yet the right value for four chips.
+2. **The 2/4-way ANALOG SLI arm never tristates hsync.** Census of every
+   `CFG_DAC_HSYNC_TRISTATE` write in `SLIAA.C`: 1927, 2609, 2858, 2929, 2950,
+   3002, 3024, 3111, 3261, 3332 — none inside the arm at 2677-2731, which is the
+   arm this board executes. Every other multi-chip arm leaves one chip driving
+   hsync; this one lets all four drive it.
+3. **W2K dropped Win9x's 4-chip master `CFG_VIDPLL_SEL`.** Win9x
+   `MINIVDD/SLIAA.C:1690-1695` has `else if ((1 == i) && (4 == dwChips))` —
+   *"Special Case 4 way where master also needs to sync from slave"* — W2K
+   `SLIAA.C:3421` has the slave branch and **no else**. Guarded by `4 == dwChips`,
+   so no board 3dfx ever shipped could reach it. Measured consequence, via
+   `fxscan2 phase`: **chip2 free-runs +148 ppm** against chip0 while chips 1 and 3
+   hold within 0.5 ppm. Patch written (`V56K-MASTERVIDPLL`).
+
+### Corrections to earlier premises in this repo
+
+- **`SSTH3_SLI_AA_CONFIGURATION` cannot select 2-way on this board.** `GPCI.C:1446`
+  has no `case 2` and no `case 5` — both fall to `default:`; `GSST.C:1828` forces
+  `sliCount=4` when `chipCount==4`; and `EnableSLIAA` refuses any request where
+  `dwChips != numUnits` (`SLIAA.C:3510`). It is 4-way or single-chip, nothing else.
+- **`FX_GLIDE_ANALOG_SLI=0` does not mean digital.** `GSST.C:2053` ends with an
+  unconditional `if (gc->chipCount == 4) gc->bInfo->h3analogSli = 1;` and
+  `MINIHWC.C:4277` re-forces it. Analog was active in every skewed trial.
+- **`SSTH3_VIDEO_REFRESH_OPTIMIZATION` has zero references in the W2K tree** — it
+  exists only in the Win9x MiniVDD. Setting it is a no-op.
+- Band height is NOT the cause: Glide programs `SLICTRL chips=4 sli=4 divisor=1
+  band=3 renderMask=0x18`, and the same value reaches the miniport, so both sides
+  agree at 8 lines.
+
+## 2026-09-04 — `setup-toolchain.sh` succeeds and produces an unusable Wine, if the host has default ACLs
+
+Rebuilding the Wine/VC6/DDK toolchain on this dev host (`~/retro3dfx-toolchain`,
+restored offline from the share backup — all 8 pinned inputs SHA256-verified)
+finished with `Toolchain ready` and **exit 0**, and every build then died with:
+
+```
+wine: could not load kernel32.dll, status c0000135
+```
+
+The tarball extracted fine (818 MB, `lib/wine/{i386,x86_64}-windows` both fully
+populated, `kernel32.dll` present and readable — `head -c2` returns `MZ`). The
+mode bits looked right too: `-rwxr-x---` on `bin/wine`, `-rwxr-x---` on every
+`x86_64-unix/*.so`.
+
+**The mode bits were a lie — an ACL mask was clamping them.** `$HOME` here
+carries a default ACL, so every extracted file inherited one:
+
+```
+$ getfacl wine/lib/wine/x86_64-windows/kernel32.dll
+user::rw-
+user:voidsstr:rwx       #effective:r--      <-- clamped
+user:remote:rwx         #effective:r--      <-- clamped
+group::r-x              #effective:r--
+mask::r--                                   <-- the clamp
+other::---
+```
+
+`ls -l` shows the ACL entry, not the effective permission, and the `+` suffix is
+the only hint. Execute was stripped from the whole tree, so the loader could not
+map its own DLLs.
+
+**Fix — strip the ACLs and let the mode bits be authoritative:**
+
+```bash
+TC=$HOME/retro3dfx-toolchain
+setfacl -R -b "$TC"
+find "$TC" -type d -exec chmod u+rwx {} +
+find "$TC" -type f -exec chmod u+rw  {} +
+find "$TC/wine/bin" -type f -exec chmod u+x {} +
+find "$TC/wine/lib/wine/x86_64-unix" -name '*.so' -exec chmod u+x {} +
+```
+
+Windows `.exe`/`.dll` under the prefix do NOT need the Unix execute bit (Wine
+maps them itself), so only `wine/bin/*` and the `x86_64-unix/*.so` loaders matter.
+
+**Two traps that cost time on top of it, both mine:**
+- `setup-toolchain.sh` guards wineboot with `[ -d "$TC/prefix/drive_c" ]`. Its
+  `timeout 180` is not always enough, and a wineboot that dies part-way still
+  leaves `drive_c/` behind — so a re-run **skips** the boot and the prefix stays
+  unbootable forever. Judge the prefix by
+  `drive_c/windows/system32/kernel32.dll`, never by `drive_c` existing.
+- `pkill -f "retro3dfx-toolchain/wine"` also matches **the shell running that
+  very command** (the pattern appears in its own `bash -c` argv), so it kills
+  itself mid-script. Use `wineserver -k` instead.
+
 ## 2026-09-01 — Quake III was on the Intel chip on `.171`, and ioquake3 CANNOT be moved off it
 
 `.171` has a Voodoo 2 pair, and Quake III had never used them. The game ran —
