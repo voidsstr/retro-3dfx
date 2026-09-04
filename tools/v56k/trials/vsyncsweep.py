@@ -24,9 +24,13 @@ HOLD = int(sys.argv[1]) if len(sys.argv) > 1 else 25
 STEPS = []
 for chars in range(8):
     px = 7 + chars * 8
+    # 31 px (pixels=7, chars=3) HARD-FREEZES this board - NIC dead, physical
+    # power cycle. That is the vga_crtc_fast bug the driver comment describes,
+    # confirmed on hardware. Never program it.
+    if px == 31:
+        continue
     note = ''
-    if px == 31: note = "  (Case A's 'desired' value, before the vga_crtc_fast bump)"
-    if px == 39: note = '  <-- CURRENT DRIVER DEFAULT'
+    if px == 39: note = '  <-- CURRENT DRIVER DEFAULT (the broken picture, our control)'
     if px == 47: note = "  (Case B, 'run slave 8 clocks ahead')"
     STEPS.append((px, 0x800 | (chars << 3) | 7, note))
 

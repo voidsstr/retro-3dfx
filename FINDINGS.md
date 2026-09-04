@@ -104,6 +104,23 @@ with a Case B else-branch ("Run slave 8 clocks ahead") at `chars = 5` = 47 px.
 So 31 / 39 / 47 are all documented candidates. Sweepable live with
 `sligrid --poke <chip>:AC=<val>` (multi-poke support was added for this).
 
+### DANGER: vga_vsync_offset = 31 px HARD-FREEZES the board
+
+Sweeping the field, `pixels=7, chars=3` (= 31 px, `cfgSliAaMisc = 0x81F`) killed
+the machine outright — NIC dead, no route to host, physical power cycle needed.
+The liveness gate named the step exactly, which is why every hardware sweep must
+have one.
+
+**That is the `vga_crtc_fast` bug the driver comment describes, confirmed on
+silicon.** `SLIAA.C:2489-2494` says the *desired* value is `pixels=7, chars=3`
+but that the module "has a bug in it which causes us to have to bump the
+vsyncOffsetChars field" — so 3dfx shipped `chars=4` (39 px). The comment is
+accurate and the bump is a genuine, necessary workaround, not a mistake.
+**Never program pixels=7 with chars=3.** `tools/v56k/trials/vsyncsweep.py`
+skips it permanently.
+
+Values that ran without wedging: 7, 15, 23 px (and the 39 px default).
+
 **Note the earlier research pass "eliminated" vga_vsync_offset on the grounds
 that W2K, Win9x and DOS all program it identically. That reasoning is wrong:
 identical across ports says nothing about whether the value is right for a board
