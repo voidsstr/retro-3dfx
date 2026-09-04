@@ -14,6 +14,101 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-09-04 (later still) — PROOF no software can see this bug, and the clock theory is DEAD
+
+Three of my own conclusions were wrong. Recording them so nobody rebuilds the
+same case.
+
+### The framebuffer is BIT-EXACT PERFECT while the monitor is wrong
+
+`tools/v56k/sligrid.c` draws a static, bit-exact pattern from inside Glide
+(it must be a Glide app: `HWCEXT_PCI_OP` is gated on the caller holding
+`HWC_EXCLUSIVE`, `HWCEXT.C:2409`). With the monitor visibly skewed and the
+colours wrong, its own read-back of the front buffer reported:
+
+```
+readback: 0 of 307200 pixels differ (0.0000%)
+```
+
+**Zero.** Reads through the master's BAR1 are SLI-gathered by the hardware
+(`CFG_SLI_RD_EN` set on every chip), so the card reassembles a flawless image for
+any reader. **No screenshot, LFB read, GDI capture or pixel diff can EVER detect
+this defect** — that is now proven with a bit-exact test, not inferred. Do not
+build another picture-based detector.
+
+### The "chip2 free-running" clock theory is DEAD
+
+An early `fxscan2 phase` run measured chip2 at **+148 ppm** while chips 1 and 3
+held within 0.5 ppm, and a whole hypothesis was built on it (the 4-chip master
+`CFG_VIDPLL_SEL` branch W2K dropped). Re-measured from a clean boot, with the
+skew fully reproduced:
+
+```
+chip1  +0.000 ppm   locked
+chip2  +0.093 ppm   locked
+chip3  +0.047 ppm   locked
+```
+
+**All four chips are locked and the picture is still skewed.** The +148 ppm was
+transient and does not reproduce. Clock lock is not the fault, and phase is NOT
+a usable proxy metric for it.
+
+### Setting the master's vidpll_sel BLANKS THE SCREEN
+
+Direct PCI-config read from inside Glide exclusive mode confirmed the master
+really does differ from Win9x:
+
+```
+chip cfgVideoCtrl0 [vidpll_sel]
+  0  00000001   FREERUN     <- master, bit 11 CLEAR
+  1  00000803   LOCKED
+  2  00000803   LOCKED
+  3  00000803   LOCKED
+```
+
+That is exactly the dropped Win9x branch (`MINIVDD/SLIAA.C:1690`, *"Special Case
+4 way where master also needs to sync from slave"*). **But poking bit 11 on the
+master produced NO PICTURE AT ALL.** Per Databook 3.4.9 the master's
+`SYNC_CLK_IN`/`SYNC_CLK_FB` are grounded, so telling it to slave its PLL to an
+undriven input stops its video clock. The Win9x branch presupposes a board that
+wires a slave's clock back to the master; this recreation evidently does not.
+**Do not apply that patch blind** — `optimized/v56k-sli-scanout-candidates/02-master-vidpll-sel.patch`
+is therefore NOT a fix and is retained only as evidence.
+
+### What IS live: vga_vsync_offset
+
+`cfgSliAaMisc[8:0]` — pixels[2:0] | chars[5:3] | hxtra[8:6] — is the **only
+inter-chip horizontal alignment knob in the whole stack**. Read from hardware:
+
+```
+chip0  cfgSliAaMisc 00000800   [0 0 0 =  0 px]   master
+chip1  cfgSliAaMisc 00000827   [7 4 0 = 39 px]
+chip2  cfgSliAaMisc 00000827   [7 4 0 = 39 px]
+chip3  cfgSliAaMisc 00000827   [7 4 0 = 39 px]
+```
+
+The slaves are deliberately run **39 pixels** ahead of the master. Zeroing all
+three to 0x800 **visibly MOVED the bands** (still skewed, but different) — so this
+register is the live lever, and the remaining question is only its value.
+
+Our config (`dwChips=4, sliEn, !aaEn, analog`) takes Case A of
+`SLIAA.C:2489-2515`, whose own comment admits the number is a fudge:
+
+    // The desired value for the hardware is actually
+    // vsyncOffsetPixels = 7, vsyncOffsetChars = 3, but the
+    // vga_crtc_fast module has a bug in it which causes us to
+    // have to bump the vsyncOffsetChars field
+    vsyncOffsetPixels = 7; vsyncOffsetChars = 4;      // = 39 px
+
+with a Case B else-branch ("Run slave 8 clocks ahead") at `chars = 5` = 47 px.
+So 31 / 39 / 47 are all documented candidates. Sweepable live with
+`sligrid --poke <chip>:AC=<val>` (multi-poke support was added for this).
+
+**Note the earlier research pass "eliminated" vga_vsync_offset on the grounds
+that W2K, Win9x and DOS all program it identically. That reasoning is wrong:
+identical across ports says nothing about whether the value is right for a board
+3dfx never shipped.**
+
 ## 2026-09-04 (later) — A scanout flight recorder for the GLIDE path, and four more candidates killed
 
 Follow-on to the entry below. The headline: **a static per-chip register dump

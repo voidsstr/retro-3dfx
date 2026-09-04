@@ -224,7 +224,7 @@ int main(int argc, char **argv)
     int W = 640, H = 480, hold = 30, i, res = GR_RESOLUTION_640x480;
     const char *readback = NULL, *emit = NULL;
     int do_regs = 0, do_pci = 0, nphase = 0;
-    U32 pdev = 0, poff = 0, pval = 0; int do_poke = 0;
+    U32 pdev[8], poff[8], pval[8]; int npoke = 0;
     unsigned short *pat, *back;
     GrContext_t ctx; HWND hw;
 
@@ -236,8 +236,11 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "--regs")) do_regs = 1;
         else if (!strcmp(argv[i], "--pci")) do_pci = 1;
         else if (!strcmp(argv[i], "--phase") && i+1 < argc) nphase = atoi(argv[++i]);
-        else if (!strcmp(argv[i], "--poke") && i+1 < argc)
-            { do_poke = sscanf(argv[++i], "%lu:%lx=%lx", &pdev, &poff, &pval) == 3; }
+        else if (!strcmp(argv[i], "--poke") && i+1 < argc) {
+            if (npoke < 8 && sscanf(argv[++i], "%lu:%lx=%lx",
+                                    &pdev[npoke], &poff[npoke], &pval[npoke]) == 3)
+                npoke++;
+        }
     }
     if      (W == 640  && H == 480) res = GR_RESOLUTION_640x480;
     else if (W == 800  && H == 600) res = GR_RESOLUTION_800x600;
@@ -277,9 +280,13 @@ int main(int argc, char **argv)
         if (do_regs) dump_regs();
         if (do_pci)  dump_pci();
         if (nphase)  phase_test(nphase);
-        if (do_poke) { U32 old = 0; pci_rd(pdev, poff, &old);
-            printf("\npoke chip%lu cfg[0x%02lX] %08lX -> %08lX\n", pdev, poff, old, pval);
-            fflush(stdout); pci_wr(pdev, poff, pval); }
+        { int q; for (q = 0; q < npoke; q++) { U32 old = 0, rb = 0;
+            pci_rd(pdev[q], poff[q], &old);
+            pci_wr(pdev[q], poff[q], pval[q]);
+            pci_rd(pdev[q], poff[q], &rb);
+            printf("\npoke chip%lu cfg[0x%02lX] %08lX -> %08lX (readback %08lX)\n",
+                   pdev[q], poff[q], old, pval[q], rb);
+            fflush(stdout); } }
         if (readback) {
             back = (unsigned short *)malloc((size_t)W*H*2);
             grLfbReadRegion(GR_BUFFER_FRONTBUFFER, 0, 0, (FxU32)W, (FxU32)H,
