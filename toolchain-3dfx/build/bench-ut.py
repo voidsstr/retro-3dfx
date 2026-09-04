@@ -23,12 +23,13 @@ button is at a known position.
 --vsync matters on this board: the UTbench timedemo reset it on BOTH Glide and
 OpenGL, but it survives frame-limited. See V56K-SLI-FINDINGS.
 """
-import argparse, asyncio, json, re, sys, functools
+import argparse, asyncio, json, os, re, sys, functools
 print = functools.partial(print, flush=True)
-sys.path.insert(0, '/mnt/c/development/retro-agent')
+sys.path.insert(0, os.environ.get('RETRO_AGENT_DIR',
+                os.path.expanduser('~/development/retro-agent')))
 from client.retro_protocol import RetroConnection
 
-IP = '192.168.1.133'
+IP = os.environ.get('BENCH_IP', '192.168.1.133')
 UT = r'C:\Games\Unreal Tournament (Installed)\System'
 # NOT the 8.3 form driver-bench uses: on THIS box UNREAL~1 is "Unreal Tournament
 # GOTY [GOG]" and the install we want is UNREAL~3, so a hardcoded UNREAL~1 starts
@@ -66,13 +67,20 @@ async def uptime(c):
 
 
 async def main():
+    global IP, UT, UTS
     ap = argparse.ArgumentParser()
     ap.add_argument('renderer', choices=sorted(DEV))
     ap.add_argument('--res', default='1024x768')
     ap.add_argument('--vsync', action='store_true',
                     help='cap to refresh (FX_GLIDE_SWAPINTERVAL=1); this board resets unlimited')
     ap.add_argument('--demo-wait', type=int, default=150)
+    ap.add_argument('--ip', default=IP, help='box to bench (default %(default)s)')
+    ap.add_argument('--dir', default=UT, help='UT System directory ON THE BOX')
+    ap.add_argument('--outdir', default='/tmp/qa256', help='where to save bench.log')
     a = ap.parse_args()
+    IP = a.ip; UT = a.dir; UTS = UT
+    os.makedirs(a.outdir, exist_ok=True)
+    print('box=%s ut=%s' % (IP, UT))
     w, h = a.res.split('x')
 
     c = await C()
@@ -130,7 +138,7 @@ async def main():
         for pid in await pids(c):
             await ex(c, 'cmd /c taskkill /f /pid %d 2>nul & echo ok' % pid)
         txt = await ex(c, 'cmd /c type "%s\\bench.log" 2>nul' % UT, 30)
-        open('/tmp/qa256/ut_%s.log' % a.renderer, 'w').write(txt)
+        open(os.path.join(a.outdir, 'ut_%s.log' % a.renderer), 'w').write(txt)
         # UT prints a timedemo line for EVERY timedemo segment, including a 3-frame
         # artifact from the menu/intro before the real demo starts. Take the run
         # with the most frames, not the first match.

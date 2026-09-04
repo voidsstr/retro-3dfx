@@ -25,7 +25,7 @@ DefaultDestDir   = 11
 
 [3dfx.Mfg]
 								      ; ASSY#                            BUS   RAM  Speed   TV?   LCD?
-"3dfx Voodoo Series" = 3dfxvsV5,PCI\VEN_121A&DEV_0009&SUBSYS_0001121A ; 848                              AGP    SD   166   NOTV  NOLCD
+"3dfx Voodoo5 6000" = 3dfxvsV6,PCI\VEN_121A&DEV_0009&SUBSYS_0001121A ; 848                              AGP    SD   166   NOTV  NOLCD
 "3dfx Voodoo Series" = 3dfxvsV5,PCI\VEN_121A&DEV_0009&SUBSYS_0002121A ; 846,874                          AGP  Both   166   NOTV  NOLCD
 "3dfx Voodoo Series" = 3dfxvsV5,PCI\VEN_121A&DEV_0009&SUBSYS_0003121A ; 847                              PCI    SG   166   NOTV  NOLCD
 "3dfx Voodoo Series" = 3dfxvsV5,PCI\VEN_121A&DEV_0009&SUBSYS_0004121A ; 845,849,850,851,868,879,880,881  AGP    SD   166   Both   Both
@@ -52,6 +52,13 @@ ExcludeFromSelect.ntalpha=PCI\VEN_121A&DEV_0009
 CopyFiles=3dfxvs.Miniport, 3dfxvs.Display
 AddReg=OpenGL.AddRegs
 
+; retro3dfx: Voodoo5 6000 (4x VSA-100 behind a HiNT HB1-SE66 bridge).
+; Same files as the 5500 - the miniport detects chip count at runtime -
+; but the 6000 needs QUAD defaults, not the 5500's 2-way ones.
+[3dfxvsV6]
+CopyFiles=3dfxvs.Miniport, 3dfxvs.Display
+AddReg=OpenGL.AddRegs
+
 ;
 ; File sections
 ;
@@ -70,6 +77,9 @@ glide2x.dll
 ;
 
 [3dfxvsV5.Services]
+AddService = 3dfxvs, 0x00000002, 3dfxvs_Service_Inst, 3dfxvs_EventLog_Inst
+
+[3dfxvsV6.Services]
 AddService = 3dfxvs, 0x00000002, 3dfxvs_Service_Inst, 3dfxvs_EventLog_Inst
 
 [3dfxvs_Service_Inst]
@@ -94,6 +104,10 @@ HKR,,TypesSupported,0x00010001,7
 MaximumDeviceMemoryConfiguration=132
 MaximumNumberOfDevices=4
 
+[3dfxvsV6.GeneralConfigData]
+MaximumDeviceMemoryConfiguration=260
+MaximumNumberOfDevices=4
+
 ;
 ; Software Installation
 ;
@@ -101,6 +115,12 @@ MaximumNumberOfDevices=4
 [3dfxvsV5.SoftwareSettings]
 AddReg = 3dfxvs_SoftwareDeviceSettings
 AddReg = 3dfxTools_Voodoo5
+DelReg = 3dfxvs_DeleteSWSettings
+
+[3dfxvsV6.SoftwareSettings]
+AddReg = 3dfxvs_SoftwareDeviceSettings
+AddReg = 3dfxTools_Voodoo5
+AddReg = 3dfxTools_Voodoo6_Defaults
 DelReg = 3dfxvs_DeleteSWSettings
 
 [3dfxvs_SoftwareDeviceSettings]
@@ -603,6 +623,18 @@ HKR,Glide\"Vertical Sync","Tweak Map",,"*,0,1"
 HKR,Glide\"Vertical Sync","Tweak Value",,"FX_GLIDE_SWAPINTERVAL"
 HKR,Glide\"Vertical Sync","HTML Help",,"hh ms-its:3dfx%20Voodoo5%20Help.chm::/Advanced%20Features/3dfx%20Tools%20Advanced%20Features%20Help.htm#Glide_VSync"
 HKR,Glide,FX_GLIDE_SWAPINTERVAL,,"0"
+
+; retro3dfx: Voodoo5 6000 quad-chip defaults.  Values confirmed against a
+; working AmigaMerlin 3.1 R11 install on the Strange God card (2026-08-06):
+;   SLI_AA_CONFIGURATION 5 = 4-way SLI   (0=single, 2=2-way as on the 5500)
+;   FX_GLIDE_ANALOG_SLI 1  = analog-combine the two digital SLI pairs,
+;                            which is the 6000's mandatory double-SLI mode
+[3dfxTools_Voodoo6_Defaults]
+HKR,D3D,SSTH3_DIGITAL_SLI_AA,,"0"
+HKR,Glide,FX_GLIDE_ANALOG_SLI,,"1"
+HKR,D3D,SSTH3_SLI_AA_CONFIGURATION,,"5"
+HKR,Glide,SSTH3_SLI_AA_CONFIGURATION,,"5"
+HKR,,SSTH3_VIDEO_REFRESH_OPTIMIZATION,,"1"
 
 [3dfxvs_DeleteSWSettings]
 HKR,TIMINGS

@@ -17,13 +17,17 @@ Rules encoded here:
   bench-safe.py stability [--modes 3,6] [--cooldown 90]
   bench-safe.py perf      [--modes 3,6,8] [--cooldown 120]
 """
-import argparse, asyncio, json, re, sys, functools
+import argparse, asyncio, json, os, re, sys, functools
 print = functools.partial(print, flush=True)   # never lose results to buffering on a crash
-sys.path.insert(0, '/mnt/c/development/retro-agent')
+sys.path.insert(0, os.environ.get('RETRO_AGENT_DIR',
+                os.path.expanduser('~/development/retro-agent')))
 from client.retro_protocol import RetroConnection
 
-IP = '192.168.1.133'
-Q3 = r'C:\Games\Quake III Arena\Quake3'
+# Defaults are overridable per box: the V5 6000 moved from .133 (dual P3-700)
+# to .191 (Athlon 1152) on 2026-09-03, and the Q3 tree is at a different path
+# there. Nothing about this harness is box-specific except these two.
+IP = os.environ.get('BENCH_IP', '192.168.1.133')
+Q3 = os.environ.get('BENCH_Q3',  r'C:\Games\Quake III Arena\Quake3')
 # Background CPU thieves only. Deliberately contains NO game executables -- this
 # harness must never terminate something a human started (V56K-NO-STOMP).
 QUIESCE = ['rotate_wall.exe', 'daemon.exe', 'wuauclt.exe', '3dfxMan.exe', 'wmiprvse.exe']
@@ -112,11 +116,16 @@ async def run_q3(mode, vsync):
     return fps, rebooted
 
 async def main():
+    global IP, Q3
     ap = argparse.ArgumentParser()
     ap.add_argument('what', choices=['stability', 'perf'])
     ap.add_argument('--modes', default='')
     ap.add_argument('--cooldown', type=int, default=0)
+    ap.add_argument('--ip', default=IP, help='box to bench (default %(default)s)')
+    ap.add_argument('--dir', default=Q3, help='Quake III directory ON THE BOX')
     a = ap.parse_args()
+    IP, Q3 = a.ip, a.dir
+    print('box=%s q3=%s' % (IP, Q3))
     vsync = (a.what == 'stability')
     modes = (a.modes or ('3,6' if vsync else '3,6,8')).split(',')
     cool = a.cooldown or (90 if vsync else 120)
