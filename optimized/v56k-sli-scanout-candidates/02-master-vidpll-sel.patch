@@ -1,0 +1,45 @@
+diff --git a/3dfx Driver Code/H5/W2K/Src/Video/Miniport/H5/SLIAA.C b/3dfx Driver Code/H5/W2K/Src/Video/Miniport/H5/SLIAA.C
+index be5eb5c..c2636ef 100644
+--- a/3dfx Driver Code/H5/W2K/Src/Video/Miniport/H5/SLIAA.C	
++++ b/3dfx Driver Code/H5/W2K/Src/Video/Miniport/H5/SLIAA.C	
+@@ -3431,6 +3431,40 @@ H3_SETUP_SLI_AA(PHW_DEVICE_EXTENSION  HwDeviceExtension,
+       PCI_IO_WR(h3ChipSetupIoBase+MISCINIT1,
+                 (PCI_IO_RD(h3ChipSetupIoBase+MISCINIT1) | SST_POWERDOWN_DAC));
+     }
++    else if (4 == pChipInfo->dwChips)
++    {
++      /* V56K-MASTERVIDPLL: on a FOUR-chip board the master must lock its
++      ** video PLL too.  The Win9x reference does this and the W2K port
++      ** dropped the branch entirely:
++      **
++      **   H5/Win9x/DX/MINIVDD/SLIAA.C:1690-1695  (loop is 1-based there,
++      **   so its `1 == i` is this loop's `0 == i` -- the MASTER)
++      **     } else if ((1 == i) && (4 == pChipInfo->dwChips)) {
++      **         // Special Case 4 way where master also needs to sync
++      **         // from slave
++      **         PCI_CFG_WR(CFG_VIDEO_CTRL0, ... | CFG_VIDPLL_SEL, ...);
++      **     }
++      **
++      ** It is guarded by `4 == dwChips`, so NO 3dfx board that ever
++      ** shipped could reach it -- which is exactly why the omission
++      ** survived: the 5500 has two chips and never takes this path.
++      ** On the Voodoo 5 6000 the four chips are two digital SLI pairs
++      ** combined in the analog domain, and every chip's video PLL has to
++      ** derive from one shared sync clock.  With the master left on its
++      ** own PLL the chain does not fully lock: measured on box .191 with
++      ** `fxscan2 phase`, chip2 free-ran +148 ppm against chip0 while
++      ** chips 1 and 3 held to within 0.5 ppm.  A chip that scans out at a
++      ** different rate slides horizontally against the others every
++      ** frame, which is the sideways-offset SLI banding the 6000 shows --
++      ** rendering is unaffected (the SLICTRL render/compare masks ARE
++      ** programmed per chip above), so the rendered buffer reads back
++      ** pixel-perfect and only the SCANOUT is wrong.
++      */
++      PCI_CFG_WR(CFG_VIDEO_CTRL0,
++                 (PCI_CFG_RD(CFG_VIDEO_CTRL0, h3ChipSetupDeviceNum) |
++                  CFG_VIDPLL_SEL),
++                 h3ChipSetupDeviceNum);
++    }
+     // TO DO:
+     // Adjust pci fifo thresholds?
+ 

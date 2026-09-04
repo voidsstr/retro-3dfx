@@ -1,0 +1,42 @@
+diff --git a/3dfx Driver Code/H5/MINIHWC/MINIHWC.C b/3dfx Driver Code/H5/MINIHWC/MINIHWC.C
+index 5e820c2..a41b2e6 100644
+--- a/3dfx Driver Code/H5/MINIHWC/MINIHWC.C	
++++ b/3dfx Driver Code/H5/MINIHWC/MINIHWC.C	
+@@ -4052,6 +4052,37 @@ hwcInitVideo(hwcBoardInfo *bInfo, FxBool tiled, FxVideoTimingInfo *vidTiming,
+     ovlWidth = scrWidth;
+   }
+ 
++  /* V56K-HSYNCHANDOFF: in ENHANCED VIDEO mode -- which every multi-chip arm
++  ** of H3_SETUP_SLI_AA turns on via CFG_ENHANCED_VIDEO_EN -- the silicon
++  ** REDEFINES this register.  Napalm spec r1.13 s11.1.21, verbatim:
++  **
++  **   "if enhanced video is enabled, this register is defined to be the
++  **    number of active pixels of a scanline before the the driver of
++  **    dac_hsync is switched over from one chip to another.  For example,
++  **    in a 640x480 display, and vidOverlayDuDx is set to 320 (decimal),
++  **    then the hsync is switch over at the middle of a scanline."
++  **
++  ** and the pin table: "dac_hsync  Pullup (for multi-chip only, where
++  ** dac_hsync gets driven by multiple chips and transition occurs in
++  ** middle of active scanline)".
++  **
++  ** Above, this is a magnification step size and is left 0 whenever the
++  ** app sets its own mode (scrWidth == xRes), so on a multi-chip board we
++  ** were telling every chip to hand dac_hsync over at column ZERO.
++  ** The DirectDraw path already gets this right and says why --
++  ** W2K/.../Displays/H5/DDFXNT.C:2606:
++  **   // In Enhanced Video Mode AA or SLI then we need to
++  **   // set this register to have hsync in the middle of the line
++  **   SETDW(ghwIO->vidOverlayDudx, (ppdev->cxScreen >> 1));
++  ** -- but a Glide game never creates a DDraw surface, so it never ran.
++  ** Only apply it when we are NOT horizontally scaling (dudx still 0);
++  ** a scaling overlay needs the real step size and cannot be multi-chip
++  ** SLI at the same time.
++  */
++  if ((bInfo->pciInfo.numChips > 1) && (vidOverlayDudx == 0UL)) {
++    vidOverlayDudx = (FxU32) (bInfo->vidInfo.xRes >> 1);
++  }
++
+   HWC_IO_STORE(bInfo->regInfo, vidOverlayDudx, vidOverlayDudx);
+ 
+   vidOverlayDvdy = 0UL;
