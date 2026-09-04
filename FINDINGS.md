@@ -14,6 +14,72 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-09-04 — AmigaMerlin RUNS 4-WAY SLI CORRECTLY ON THIS BOARD. The bug is ours.
+
+The single most important result of the session, and it ends weeks of ambiguity
+about whether the Voodoo 5 6000 recreation can do multi-chip at all.
+
+**AmigaMerlin 3.1-R11 was installed on `.191` alongside our stack and it renders
+4-way SLI with NO skew**, verified on the monitor by the operator. So the board
+is fine, the HiNT bridge is fine, the analog combine is fine — **the scanout
+defect is in OUR driver.** Stop looking for a hardware excuse.
+
+### Measured, automated (timedemo completion + fps, no visual judgement needed)
+
+| driver | single-chip | 4-way SLI | SLI scaling |
+|---|--:|--:|--:|
+| **AmigaMerlin 3.1-R11** | 116.5 fps | **151.5 fps** | **1.30x** |
+| ours (H5 + SGL ICD 0.5.0) | 92.5 fps | 105.0 fps | 1.14x |
+
+Q3 1.32c `demo four`, 640x480x16, vsync off, Athlon 1152 / nForce2.
+AmigaMerlin is faster in BOTH configurations and its SLI actually scales.
+
+### The pass/fail metric that needs no eyes
+
+Whether the timedemo **completes and prints an fps line** is a perfectly good
+automated health check — a driver that wedges the card never gets there. That is
+how both rows above were produced without anyone watching the screen.
+`tools/v56k/trials/ambench.py`.
+
+### The register diff — same board, same 4-way config, one works
+
+Captured live with `fxscan2 dump` in both stacks:
+
+| register | AmigaMerlin (CORRECT) | ours (SKEWED) |
+|---|---|---|
+| `vidProcCfg` | `03E60101` | `33E60101` |
+| `pllCtrl0` | `0000D137` | `0000B31F` |
+
+Everything else — `vidScreenSize`, `vidDesktopStride`, `vidDesktopStart`,
+`vidOvlEndCoord`, `lfbMemoryConfig`, `vidOverlayDudx`, `vidOvlDudxOffSrcW` — is
+IDENTICAL between the two, and identical across all four chips in both. Even
+`miscInit0` diverges the same way in both (master `077C0000`, slaves `0`), which
+independently confirms the Y-origin divergence is by design.
+
+**`vidProcCfg` differs by exactly `0x30000000` — bits 28 and 29, set in ours and
+clear in AmigaMerlin.** That is the prime candidate and it is directly pokeable
+(IO offset 0x05C) for a no-rebuild trial.
+
+`pllCtrl0` differs because the two stacks request different refresh rates (ours
+drives the ICD's per-resolution 85 Hz, AmigaMerlin ran at 60 Hz here), so that
+one is probably a consequence, not a cause — but it has not been eliminated.
+
+### Installing AmigaMerlin, for the record
+
+Extract `amigamerlin_3.1_r11.exe` (7-Zip; the payload is a plain 7z at offset
+78848) and install `driver2k/3dfxvs.inf` headlessly with `tools/drvupd.c` against
+`PCI\VEN_121A&DEV_0009&SUBSYS_0001121A` — its INF has a dedicated `3dfxvsV6`
+section, *"AMIGAMERLIN 3.1-R11 For Voodoo 5 6000 AGP"*, for exactly that HWID.
+Two dialogs must be clicked through even with the signing policy relaxed: the
+unsigned-driver "Hardware Installation" warning and a per-file "Confirm File
+Replace". Our files survive alongside it (different names: `3dfxv5d.dll` /
+`3dfxv5m.sys` vs its `3dfxvs.dll` / `3dfxvsm.sys`), and a full rollback set is
+kept at `C:\RETRO_AGENT\am-rollback\`.
+
+**Trap:** AmigaMerlin's INF installs `FX_GLIDE_REFRESH = 75` into
+`...\Device0\Glide`, which overrides the per-resolution refresh for EVERY mode
+and put the monitor out of range. Delete it (or set 60) before running anything.
+
 ## 2026-09-04 (later still) — PROOF no software can see this bug, and the clock theory is DEAD
 
 Three of my own conclusions were wrong. Recording them so nobody rebuilds the
