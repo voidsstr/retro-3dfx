@@ -14,6 +14,110 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-09-04 — OUR DRIVER IS 21% SLOWER THAN AMIGAMERLIN ON ONE CHIP, AND THAT IS A SECOND BUG
+
+A literature sweep (3 research agents + synthesis, ~654k tokens, 301 fetches)
+against every published Q3 number for this card produced one conclusion that
+matters more than the benchmark comparison itself.
+
+### The deficit is not about SLI
+
+| run, box .191, 640x480x16, `demo four` | AmigaMerlin 3.1-R11 | ours (H5 + SGL ICD) | gap |
+|---|--:|--:|--:|
+| single chip | 116.5 | 92.5 | **-21%** |
+| 4-way SLI | 152.6 | 105.0 | **-31%** |
+
+**The single-chip number is the important one.** Every variable except the
+driver is pinned — same box, card, game, demo, resolution, colour depth — and we
+are still 21% down *before any second chip is involved*. That cannot be a SLI
+bug, a scanout bug, or a hardware excuse. The deficit being roughly equal in
+both configurations reads as **per-chip submission-path cost**, which points at
+the open FIFO-wedge / submission-pacing items (§21-22) rather than anything new.
+
+Caveat worth holding: if the multi-chip scanout defect carries a performance
+cost of its own, part of the 4-way half of that gap may be a symptom of it
+rather than an independent throughput problem. The single-chip 21% is clean.
+
+### The free experiment the literature hands us
+
+VoodooExtreme's Dec-2000 review is the **only published test of our driver's
+actual code lineage** (3dfx's own V5-6000 reference driver). At 1024x768 it
+reports **88.4 fps at 16-bit vs 86.1 at 32-bit — a 1.03x gain for halving the
+colour depth**, which the reviewer explicitly calls out as a driver bug
+("performance in 16-bit color was a bit lackluster... most likely a driver
+issue") and says the 5500 shows it too. Community drivers on the same silicon
+get a proper **1.20x** (VoodooAlert, 155.1 vs 128.7).
+
+So: **run our driver at 640x480 in 16-bit and again in 32-bit.** If the ratio
+comes back near 1.0x we have inherited a documented 3dfx defect and have a named
+target; if it comes back near 1.2x, the 21% is ours and lives elsewhere. Pure
+fps, no visual verdict, fully automated — but it needs our stack reinstalled.
+
+### The CPU ceiling is now a number, not an inference
+
+AnandTech (Oct 2000) published a Q3 640x480x16 CPU ladder on a GeForce2 GTS:
+Athlon 800 = 128, 900 = 137, **1.0 GHz = 144, 1.2 GHz = 162** ("a 1% performance
+increase per MHz"). The control sits on the same chart — 1024x768x32 is dead
+flat at 83 fps for every CPU from 800 MHz to 1.2 GHz. Interpolating to our
+1152 MHz Athlon gives **~158 fps**, and demo four plus XP probably pulls the
+real figure to 145-155.
+
+**AmigaMerlin's 152.6 is ~96% of that ceiling. Ours at 105.0 is 66% of it.**
+That asymmetry is the whole finding: AmigaMerlin is at the wall and cannot go
+faster on this host, while our driver is nowhere near it — so our deficit is
+entirely recoverable in software, and our 640x480 result is a legitimate driver
+measurement rather than a host measurement.
+
+### Three independent proofs that 640x480 is a CPU wall, not a fill wall
+
+1. **thedodgegarage** (Celeron 1000, 16-bit, 640x480): V4 4500 (1 chip) **83**,
+   V5 5500 (2 chips) **81**, V5 6000 (4 chips) **82**. Scaling is zero — very
+   slightly negative. Their author: *"the 1000 mhz Celeron isn't feeding the
+   Quake 3 game data to the 3dfx video cards fast enough."*
+2. **AnandTech** (Athlon 750, 16-bit, 640x480): V5 5500 (2 chips) 83.0 and
+   V4 4500 (1 chip) 83.0 — **exactly 1.00x**.
+3. **The fill-rate proof.** x86-secret enabled 2x FSAA at 640x480, doubling
+   sampled fill work: the 1-chip 4500 lost **49%**, the 2-chip 5500 lost **31%**,
+   the 4-chip 6000 lost **3%** (148.2 -> 143.8). A card that barely notices a
+   doubling of fill work is not fill-bound. Spec agrees: 4x333 Mpixel/s =
+   1.33 Gpixel/s, and 640x480 at 151 fps with 3x overdraw needs 10-20% of it.
+
+### What has never been measured — state this instead of papering over it
+
+- **No published Q3 benchmark of any V5 6000 on an Athlon-class CPU at
+  1.0-1.2 GHz.** Every 6000 dataset uses a Celeron 1000, an Athlon XP 2600+/2800+,
+  a dual PIII-800, an XP-M at 2.4-2.5 GHz, or a Phenom. Our box sits in a gap.
+- **No published 640x480 figure for any modern 6000 recreation at any colour
+  depth.** Our 640x480 pair has no direct comparator at all.
+- **Nothing whatsoever for a driver built from the leaked H5/Napalm W2K source.**
+  That stack appears in no benchmark literature anywhere. **Our numbers are the
+  first of their kind**, and AmigaMerlin on the same box is the only valid
+  control — which is exactly the design we already ran.
+- **No period review of the 6000 exists**; it never shipped. Every 6000 number in
+  the world is either the one VoodooExtreme article or a modern retro test.
+
+### Sources actively excluded, with cause
+
+- **gaming2k / tredfx "Athlon 1 GHz 6000" numbers** — denied at source by 3dfx's
+  Dave Barron ("We haven't sent any out to anyone"), never archived.
+  **Fabricated; do not chase.**
+- **The I/ITSEC 1600x1200 4xFSAA demo** — 3dfx taped over the fps counter and
+  banned timedemos. Any fps attributed to it is invented.
+- **Hartware.de** — its "16-bit" runs use the *Fast* preset while its 32-bit runs
+  use High Quality. Not a like-for-like pair.
+- **HotHardware** — demo unstated and its own charts are internally inconsistent.
+- **PCGH 2017 Rev A-3700** — the card locked up; zero numbers published.
+- **ModLabs zx-c64 6000** — Q3 1.11/Demo1, 32bpp, WinME, and a **PCI** card
+  (16-24% bus penalty). Four condition mismatches.
+
+**Cross-review variance is ~±20% and that is measured, not assumed**: for the
+identical card, CPU, demo and resolution, AnandTech reports 79.5 where PC
+Perspective reports 71.3. Only within-article ratios are trustworthy — which is
+precisely why the scaling-ratio agreement (2.66x vs 2.66x) is worth more than
+any absolute-fps agreement.
+
+---
+
 ## 2026-09-04 — the 6000 benchmarks EXACTLY on published data: 2.66x SLI at 1024x768
 
 Ran the single-chip half of the sweep (`ambench.py 0 ... 3,6,8,9`) so our SLI
