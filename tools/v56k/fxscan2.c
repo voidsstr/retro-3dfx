@@ -453,6 +453,86 @@ static int cmd_fixtest(int holdms)
     return 0;
 }
 
+
+/* ---------------- ring: continuous per-chip scanout flight recorder -------
+ * The display driver's registry ring cannot see this path: a Glide fullscreen
+ * app makes the display driver RELEASE the hardware (DrvAssertMode(DISABLE))
+ * and then programs the card itself, so nothing in 3dfxv5d.dll is on the path.
+ * This is the equivalent recorder for the GLIDE path, sampled from outside
+ * through the per-chip register windows.
+ *
+ * Records a line whenever ANY watched register on ANY chip changes, so the
+ * mode switch, the SLI enable and any mid-session divergence all land in the
+ * log with a timestamp.  Every line is flushed: if the box wedges, the ring
+ * still holds the last state BEFORE the wedge, which is the whole point.
+ */
+static int cmd_ring(double secs, int interval_ms, const char *path)
+{
+    FILE *fp;
+    u32 prev[MAXCHIP][NREGS];
+    u32 cur;
+    DWORD t0, tnow, last_hb = 0;
+    int k, i, first = 1, nlines = 0;
+
+    fp = path ? fopen(path, "w") : stdout;
+    if (!fp) { fprintf(stderr, "ERR cannot open %s\n", path); return 2; }
+
+    fprintf(fp, "# fxscan2 ring: per-chip scanout flight recorder\n");
+    fprintf(fp, "# chips=%lu interval=%dms duration=%.0fs\n",
+            (unsigned long)g_numChips, interval_ms, secs);
+    fprintf(fp, "# ms      chip reg                  old      -> new\n");
+    fflush(fp);
+
+    memset(prev, 0, sizeof(prev));
+    t0 = GetTickCount();
+
+    for (;;) {
+        tnow = GetTickCount();
+        if ((tnow - t0) >= (DWORD)(secs * 1000.0)) break;
+
+        for (k = 0; k < (int)g_numChips; k++) {
+            if (!g_io[k]) continue;
+            for (i = 0; i < NREGS; i++) {
+                cur = RD(g_io[k], g_regs[i].off);
+                if (first || cur != prev[k][i]) {
+                    if (!first) {
+                        fprintf(fp, "%8lu  %d   %-20s %08X -> %08X\n",
+                                (unsigned long)(tnow - t0), k, g_regs[i].name,
+                                prev[k][i], cur);
+                        nlines++;
+                    }
+                    prev[k][i] = cur;
+                }
+            }
+        }
+        if (first) {
+            fprintf(fp, "%8lu  INITIAL SNAPSHOT\n", (unsigned long)(tnow - t0));
+            for (k = 0; k < (int)g_numChips; k++)
+                for (i = 0; i < NREGS; i++)
+                    fprintf(fp, "%8s  %d   %-20s          =  %08X\n",
+                            "", k, g_regs[i].name, prev[k][i]);
+            first = 0;
+        }
+
+        /* heartbeat: scanout line counters, so a stalled CRTC is visible too */
+        if ((tnow - last_hb) >= 1000) {
+            fprintf(fp, "%8lu  HB   curline", (unsigned long)(tnow - t0));
+            for (k = 0; k < (int)g_numChips; k++)
+                fprintf(fp, "  c%d=%4lu", k,
+                        (unsigned long)(g_io[k] ? (RD(g_io[k], IO_VIDCURRENTLINE) & 0x7FF) : 0));
+            fprintf(fp, "\n");
+            last_hb = tnow;
+        }
+        fflush(fp);
+        Sleep(interval_ms);
+    }
+
+    fprintf(fp, "# ring ended, %d change lines\n", nlines);
+    fflush(fp);
+    if (fp != stdout) fclose(fp);
+    return 0;
+}
+
 int main(int argc, char **argv)
 {
     const char *cmd = (argc > 1) ? argv[1] : "dump";
@@ -468,7 +548,12 @@ int main(int argc, char **argv)
         rc = cmd_poke(atoi(argv[2]), (u32)strtoul(argv[3], 0, 0),
                       (u32)strtoul(argv[4], 0, 0), argc > 5 ? atoi(argv[5]) : 8000);
     else if (!strcmp(cmd, "fixtest")) rc = cmd_fixtest(argc > 2 ? atoi(argv[2]) : 0);
-    else { fprintf(stderr, "usage: fxscan2 dump|diff|phase [s]|poke <chip> <off> <val> [ms]|fixtest [ms]\n"); rc = 2; }
+    else if (!strcmp(cmd, "ring"))
+        rc = cmd_ring(argc > 2 ? atof(argv[2]) : 60.0,
+                      argc > 3 ? atoi(argv[3]) : 100,
+                      argc > 4 ? argv[4] : NULL);
+    else { fprintf(stderr, "usage: fxscan2 dump|diff|phase [s]|poke <chip> <off> <val> [ms]|fixtest [ms]|\n"
+                        "       ring [secs] [interval_ms] [outfile]\n"); rc = 2; }
 
     close_card();
     return rc;

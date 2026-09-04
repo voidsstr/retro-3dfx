@@ -150,6 +150,39 @@ instrumented builds.
    whichever layers apply. A fix without a regression test is not done.
    Full change policy: `optimized/README.md`; suite docs: `tests/README.md`.
 
+## RULE: every layer gets a flight recorder — instrument, don't eyeball (REQUIRED)
+
+**When a bug is not directly observable, the first deliverable is an instrument,
+not a guess.** Manual visual testing does not scale, cannot be regressed, burns
+the operator's time, and — on this hardware — is often simply wrong (a GDI
+screenshot of an exclusive-fullscreen surface looks broken even when the monitor
+is perfect). Every path we touch should be able to tell us what it did.
+
+- **Add a ring to the path you are debugging.** The display driver already has
+  one (below). The Glide/MINIHWC path, the ICD, and any user-mode tool we ship
+  should each carry the same shape: a fixed-size ring of timestamped lines, with
+  a dump/reader, gated so it costs nothing when off.
+- **Prefer state you can read back over pictures you have to look at.** Per-chip
+  registers, computed geometry, mask values, phase — these regress cleanly in a
+  test. "Does it look right?" does not.
+- **Every hardware sweep gets a liveness gate.** Poking a live scanout can wedge
+  the box (it did — a physical power cycle). Bracket every step: the agent must
+  answer before and after, and uptime must not go backwards. Stop on the step
+  that breaks it, because *which* step broke it is the finding.
+- **When an instrument cannot see the defect, record WHY** in `FINDINGS.md` so
+  nobody re-runs it. Three were eliminated this way for the V5 6000 scanout skew
+  (GDI capture, windowed capture, the display-driver ring) — each tested, not
+  assumed.
+- **A test that needs the operator's eyes STAYS UP until they answer.** Never put
+  a visual trial on a timer and never tear it down before the verdict arrives —
+  if it closes first, the answer is worthless and they have to watch it again.
+  Split every such trial into `setup` (apply the state, leave the game running,
+  EXIT) and `teardown` (an explicit, separate command run only after the reply).
+  Say plainly in the question what is on screen and that it will stay there.
+- Instruments live in `tools/v56k/` (per-chip register/scanout tools, mingw) and
+  `toolchain-3dfx/build/` (host-side harnesses). Ask "what would have shown me
+  this in one command?" and build that before the next hypothesis.
+
 ## Instrumentation & diagnostics (in the deployed driver)
 
 - **Registry-ring flight recorder**: `RLog00..RLog31` + `RLogSeq` under

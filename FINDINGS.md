@@ -14,6 +14,106 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-09-04 (later) — A scanout flight recorder for the GLIDE path, and four more candidates killed
+
+Follow-on to the entry below. The headline: **a static per-chip register dump
+cannot tell "correctly programmed" from "stale but coincidentally equal"** — a
+continuous recorder can, and it changed the conclusions.
+
+### The instrument: `fxscan2 ring`
+
+`tools/v56k/fxscan2.c` gained a `ring` command — the Glide-path equivalent of the
+display driver's registry flight recorder, because the display driver is not on
+this path at all (a Glide fullscreen app makes it release the hardware).
+
+    fxscan2 ring <secs> <interval_ms> <outfile>
+
+Samples every watched register on all four chips and writes a line whenever ANY
+of them changes, plus a per-second `HB` heartbeat of each chip's `vidCurrentLine`
+so a stalled CRTC is visible. **Every line is flushed** — if the box wedges, the
+ring still holds the last state before the wedge, which is the entire point.
+Start it BEFORE launching the game so it captures the mode transition.
+
+### What the ring showed that the dump could not
+
+Across the desktop → Glide transition at 640x480, the MASTER receives the full
+geometry program and **chips 1-3 receive only `vidProcCfg` and `dacMode`**:
+
+```
+6562  0  vidScreenSize     00300400 -> 001E0280     (1024x768 -> 640x480)
+6562  0  vidDesktopStride  00000010 -> 0000000A     (16 -> 10 tiles)
+6562  0  vidDesktopStart   01E80000 -> 01F60000
+6562  0  lfbMemoryConfig   001039C0 -> 000A3D58
+6703  0  miscInit0         00000000 -> 077C0000     (yOrigin 479)
+6703  1  vidProcCfg        33E60100 -> 33E60101     <- slaves get ONLY this
+6703  2  vidProcCfg        33E60100 -> 33E60101
+6703  3  vidProcCfg        33E60100 -> 33E60101
+```
+
+The pre-launch snapshot shows why the earlier static dump was misleading: with
+the desktop at 1024x768 the slaves were sitting at **640x480 left over from the
+previous game**. During a 640x480 run they therefore "agree" with the master by
+coincidence. **A snapshot cannot distinguish that from correct programming.**
+
+### FOUR candidates killed on hardware — do not re-propose
+
+1. **Slave Y-origin (`miscInit0`) — the divergence is BY DESIGN.** Forcing chips
+   1-3 to the master's `077C0000` (yOrigin 479) **BLANKED THE SCREEN** and needed
+   a Ctrl-Alt-Del. The master flips its origin (bottom-left for GL); the slaves
+   address *compacted band buffers* from 0. **"Slave register != master register"
+   is NOT automatically a bug** — that framing drove two whole research passes and
+   is wrong for this hardware.
+2. **The SLI masks are correct.** 3dfx's own `H5/DOCS/Video SLI AA Configs.xls`
+   gives, for "4 chips, analog SLI": `rmask_fetch/rmask_crt = 0x30` on every chip
+   and `cmask_fetch/cmask_crt = 0x00/0x10/0x20/0x30` for chips 0-3, with
+   `rmask_aafifo=0x0, cmask_aafifo=0xff` and `divide_video = 1`. The driver
+   computes exactly this shape at `Miniport/H5/SLIAA.C:2677-2724`
+   (`(dwChips-1)<<log2` and `i<<log2`). No discrepancy.
+3. **Not tristating hsync in the analog arm is CORRECT.** The same sheet's header
+   states the whole table assumes `video_tv_output_en = dac_vsync_float =
+   dac_hsync_float = 0`. So the 2/4-way analog arm's *absence* of a
+   `CFG_DAC_HSYNC_TRISTATE` write matches the spec; it is not the omission it
+   looked like.
+4. **Band height 8 is correct at 640x480, and 16 RESETS THE BOARD.** The sheet's
+   header says "16-high SLI bands", so 16 was forced via
+   `FX_GLIDE_FORCE_SLI_BAND_HEIGHT` — **the box rebooted** (recovered on its own).
+   The arithmetic says why: group height = band x chips, and the group must divide
+   the screen height. At 640x480 4-way, band 8 -> group 32 -> 480/32 = 15 exactly;
+   band 16 -> group 64 -> 480/64 = 7.5. The sheet's "16-high" is the example it was
+   written against (at 1024x768, 768/64 = 12, which divides).
+   **This also explains Win9x's 4-chip band-height halving** (`DDFXS32.C:1272`,
+   "Scott's Sellers suggestion for 4-chip optimization"): it keeps the group height
+   dividing the screen height. Glide already computes the equivalent (band=8), so
+   the W2K display driver's missing halving never affected the Glide path.
+
+### Also killed earlier in the same session
+
+The SLI hsync handover column (`vidOverlayDudx`, Napalm r1.13 s11.1.21) is 0 on
+every chip and poking it **visibly changes the artefact**, so it is a live lever —
+but a sweep of eight configurations (0/160/320/480/639 uniform, staggered
+160/320/480/639, master-only 320, slaves-only 320) at 640x480 4-way was still
+skewed in every one.
+
+### What still stands
+
+**Chip 2 free-runs at +148 ppm** while chips 1 and 3 hold within 0.5 ppm of chip 0
+(`fxscan2 phase`), with vertical line phase aligned — i.e. a horizontal error.
+The source-verified candidate for it is the 4-chip master `CFG_VIDPLL_SEL` branch
+that Win9x has (`MINIVDD/SLIAA.C:1690`, *"Special Case 4 way where master also
+needs to sync from slave"*) and the W2K port dropped (`SLIAA.C:3421` has the slave
+branch and no else). It is guarded by `4 == dwChips`, so no board 3dfx shipped
+could reach it. `CFG_VIDEO_CTRL0` is PCI **config** space, so `fxscan2 poke`
+cannot reach it; `HWCEXT_PCI_OP` (0x18) can, but only from a process holding
+Glide exclusive mode — i.e. from inside a Glide app (`scratchpad/skew/sligrid.c`
+supports `--pci` and `--poke fn:OFF=VAL` for exactly this).
+
+### Operational
+
+Two hardware incidents this session, both from poking a live scanout: one hard
+freeze (NIC dead, physical power cycle) from an ungated 8-step sweep, and one
+self-recovering reboot from band height 16. **Liveness-gate every sweep** — the
+step that breaks it IS the finding. Pattern: `scratchpad/dudxsweep2.py`.
+
 ## 2026-09-04 — The V5 6000's SLI band skew: how to SEE per-chip state, and what it is not
 
 The Voodoo 5 6000 (now in `.191`, see `DEPLOY-191-20260904.md`) renders perfectly

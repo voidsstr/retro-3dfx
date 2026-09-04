@@ -1,3 +1,35 @@
+# Hardware tests that need the operator's eyes — the persistent-trial pattern
+
+**A visual trial STAYS UP until the operator answers. Never time-box it.**
+
+Some defects on this stack are only visible on the physical monitor — a CRTC
+scanout error is the standing example: every software readback (in-engine
+screenshot, Glide LFB, GDI capture, the display-driver ring) reads memory or is
+SLI-gathered by the hardware, so all of them show a correct image while the
+screen is wrong. See `FINDINGS.md`, "The V5 6000's SLI band skew", for the three
+instruments that were each *tested* and eliminated.
+
+When a trial needs a human verdict, split it in two:
+
+| script | does | must NOT do |
+|---|---|---|
+| `*_setup.py`  | launch the game, apply the state, print what is on screen, **exit leaving it running** | close the game, restore the mode, revert the poke |
+| `*_teardown.py` | kill the game, revert pokes, restore the desktop mode | run before the operator has answered |
+
+Rules learned the hard way:
+
+- **Do not hold with `sleep` and then tear down.** If the trial ends before the
+  reply lands, the answer describes a screen that is already gone and the
+  operator has to sit through it again. This wasted several rounds.
+- **Say in the question exactly what is on screen and that it will stay.**
+- **Liveness-gate every hardware sweep.** Poking a live SLI scanout hard-froze
+  the box once (NIC dead, physical power cycle). Bracket each step: the agent
+  must answer before and after, and uptime must not go backwards; stop on the
+  step that breaks it, because which step broke it IS the finding. Pattern:
+  `dudxsweep2.py`.
+- **One fullscreen 3D app at a time.** If the operator is also driving the box,
+  the run is void and the game can crash — that is not a driver fault.
+
 # Driver test suite
 
 Regression tests for the self-built 3dfx XP driver stack (display driver,

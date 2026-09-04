@@ -63,3 +63,51 @@ horizontal alignment knob).
 Administrator) does not hold. Running it from a temporary service was tried and
 did not produce output; the practical route is to read these from the miniport
 instead, or run it with a real LocalSystem launcher.
+
+## `fxscan2 ring` — the GLIDE-path flight recorder
+
+    fxscan2 ring <secs> <interval_ms> <outfile>
+
+The display driver's registry ring cannot see a Glide fullscreen session: the
+driver RELEASES the hardware (`DrvAssertMode(DISABLE)`) and Glide programs the
+card directly, so nothing in `3dfxv5d.dll` is on the path. This is the equivalent
+recorder, sampled from outside through the per-chip register windows.
+
+Logs a line whenever any watched register on any chip changes, plus a per-second
+`HB` heartbeat of each chip's `vidCurrentLine` (so a stalled CRTC shows up too).
+**Every line is flushed**, so if the box wedges the ring still holds the last
+state before the wedge. **Start it BEFORE launching the game** — the mode
+transition is the interesting part.
+
+This is what proved the slaves are never given geometry: across the transition
+the master gets `vidScreenSize`/`vidDesktopStride`/`vidDesktopStart`/
+`lfbMemoryConfig`/`miscInit0` and chips 1-3 get only `vidProcCfg` + `dacMode`.
+A static `dump` could not show that, because the slaves were sitting on the
+previous session's resolution and therefore *coincidentally matched*.
+
+## `sligrid.c` — Glide test pattern + in-process PCI probe
+
+A fullscreen Glide app that draws a static, bit-exact pattern. It matters because
+`HWCEXT_PCI_OP` (0x18) is gated on the caller holding `HWC_EXCLUSIVE`
+(`HWCEXT.C:2409`) — **only the process that owns the card in fullscreen Glide can
+touch PCI config space**. So the probe has to live inside a Glide app. Supports
+`--pci`, `--regs`, `--readback`, and `--poke fn:OFF=VAL`. This is the only route
+to `cfgVideoCtrl0` (`CFG_VIDPLL_SEL`, `CFG_DAC_HSYNC_TRISTATE`) without a driver
+rebuild.
+
+Build needs the Glide SDK from the sibling repo:
+
+```bash
+i686-w64-mingw32-gcc -O2 -Wall -o sligrid.exe sligrid.c \
+  -I<retro-agent>/scripts/3dfx/glide-sdk/include \
+  <retro-agent>/scripts/3dfx/glide-sdk/lib/libglide3x_retail.dll.a -lgdi32 -luser32
+```
+
+## `trials/` — persistent visual trials
+
+A trial that needs the operator's eyes is split in two and **never time-boxed**
+(see `tests/README.md`): `*_setup.py` applies the state, leaves the game running
+and exits; `trial_teardown.py` is run separately, only after the verdict.
+`dudxsweep2.py` is the liveness-gated sweep pattern — poking a live scanout
+hard-froze the box once, so every step is bracketed by an agent round-trip and an
+uptime check, and the sweep stops on the step that breaks it.
