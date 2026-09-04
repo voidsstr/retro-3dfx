@@ -14,6 +14,72 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-09-04 — the skew bits are NAMED IN 3dfx's OWN CODE: an undocumented heat erratum
+
+The `vidProcCfg` diff between the working AmigaMerlin stack and our skewing one
+was `0x30000000` = BIT(28) | BIT(29). Both bits are now traced to source.
+
+**Decoding the two live values** against the `vidProcCfg` table in
+`Displays/H5/H3DEFS.H:1174-1226`:
+
+| value | bits set | meaning |
+|---|---|---|
+| AmigaMerlin `03E60101` | 0,8,17,18,21,22,23,24,25 | VIDEO_PROCESSOR_EN, OVERLAY_EN, OVERLAY_FILTER_4X4, DESKTOP_PIXEL_RGB565, OVERLAY_PIXEL_RGB565D, DESKTOP_TILED_EN, OVERLAY_TILED_EN |
+| ours `33E60101` | the same **plus 28 and 29** | + BIT(28) (**unnamed**) + `SST_OVERLAY_EACH_VSYNC` |
+
+BIT(29) is `SST_OVERLAY_EACH_VSYNC`. **BIT(28) has no name in ANY of the eight
+copies of `H3DEFS.H` in this tree** — it is a consistent gap between
+`SST_CURSOR_EN` (27) and `SST_OVERLAY_EACH_VSYNC` (29). An undocumented bit.
+
+### Who sets them, and why — `Miniport/H5/h3modeset.c:667-672`
+
+```c
+// Set Bit 28 and 29 on Napalm boards
+// This fixes a problem we were seeing with high-res modes in a heated environment.
+if ((IS_NAPALM) /*&& (66 == HwDeviceExtension->PciSpeed)*/)
+    temp |= (BIT(28) | BIT(29));
+else
+    temp &= ~(BIT(28) | BIT(29));
+```
+
+3dfx's own comment. These bits are an **erratum workaround for high-resolution
+modes in a hot chassis** — almost certainly a scanout prefetch/fetch-threshold
+tweak, which is exactly the class of change that would shift when a chip latches
+its scanout data. Note the **commented-out `66 == PciSpeed` gate**: this was
+once conditional on a 66 MHz PCI bus and someone at 3dfx widened it to every
+Napalm board.
+
+### Why the working 5500 does not disprove it
+
+`IS_NAPALM` is `(0x06 <= PCIDeviceID)` (`Miniport/H5/H3.H:320`) and BOTH the V5
+5500 and the 6000 are `DEV_0009`, so `.143` sets these same bits and its 2-way
+SLI is clean. The bits are therefore **not sufficient on their own** — but the
+A/B that matters was run on ONE board: same 6000, bits set = skew, bits clear =
+no skew. A scanout-timing perturbation that 2 chips absorb and 4 chips (two of
+them behind a HiNT bridge) do not is entirely consistent with both observations.
+
+### The competing hypothesis, and the 2x2 that separates them
+
+The dump showed only ONE other register differing: `pllCtrl0` `0000D137`
+(AmigaMerlin) vs `0000B31F` (ours), which was written off as refresh 60 vs 85 Hz.
+But **refresh rate is itself a scanout-timing variable** — 85 Hz leaves less
+margin for inter-chip skew than 60 Hz. So the AmigaMerlin run changed TWO things
+at once and neither has been isolated.
+
+The decisive experiment is a 2x2, and every cell is reachable by poking IO
+`0x05C` and setting the refresh — **no miniport rebuild, which matters because
+the Wine build tree is still unusable**:
+
+| | bits 28/29 SET | bits 28/29 CLEAR |
+|---|---|---|
+| **85 Hz** | known: SKEWED | ? |
+| **60 Hz** | ? | AmigaMerlin-equivalent |
+
+If the "60 Hz + bits set" cell is clean, refresh is the cause and the erratum
+bits are innocent. If "85 Hz + bits clear" is clean, the bits are the cause.
+
+---
+
 ## 2026-09-04 — the V5 6000 is CPU-bound to 1024x768, and the fill wall is gradual
 
 Full eight-point Q3 resolution sweep on `.191` under AmigaMerlin 3.1-R11, 4-way
