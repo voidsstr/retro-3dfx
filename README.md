@@ -3,15 +3,19 @@
 Building — and **fixing** — the original 3dfx Voodoo 3/4/5 drivers for
 Windows XP from the leaked H5/Napalm source tree, on Linux, under Wine, and
 running them on real hardware. This repo turned the abandoned December-2000
-3dfx driver source into a stable daily-driver stack for a Voodoo5 5500 (and
-is staged for the Voodoo5 6000), with a regression suite that locks in every
+3dfx driver source into a stable daily-driver stack for a Voodoo5 5500 — and
+now drives a 4x VSA-100 Voodoo5 6000 as well (see
+[Voodoo 5 6000](#voodoo-5-6000)) — with a regression suite that locks in every
 hardware-verified fix.
 
 **This is the vintage-source stack.** The clean-room stack (MesaFX ICD /
 open Glide) lives in `retro-agent` (`voodoo-cleanroom/`, `scripts/3dfx/`) —
-don't mix them up. The full working map (deployed files ↔ source locations,
-build commands, deploy flow, test order, instrumentation, box facts) is in
-[`CLAUDE.md`](CLAUDE.md); read it before touching driver code.
+don't mix them up; how far that stack gets on real VSA-100 silicon (user-mode
+only, and the failing layer is its Glide, not its ICD) is measured in
+[`OPEN-STACK-ON-VSA100.md`](OPEN-STACK-ON-VSA100.md). The full working map
+(deployed files ↔ source locations, build commands, deploy flow, test order,
+instrumentation, box facts) is in [`CLAUDE.md`](CLAUDE.md); read it before
+touching driver code.
 
 ## Stack at a glance
 
@@ -125,31 +129,67 @@ commit** — source assertion, native test, d3dlab mode + golden, whichever
 layers apply. A fix without a regression test is not done. Details in
 `tests/README.md`; change policy in `optimized/README.md`.
 
-## Next: Voodoo 5 6000
+## Voodoo 5 6000
 
-The branch (`v56k-6000`) is staged for the incoming **"Strange God" V5 6000**
-(modern recreation: 4× VSA-100, 256 MB, HiNT bridge, dual VBIOS). Full plan:
-[`V56K-PLAN.md`](V56K-PLAN.md).
+The 4x VSA-100 "Strange God" recreation (modern rebuild of the unreleased
+6000; four chips behind a HiNT HB1-SE66 bridge) runs our stack. There is one
+card and it has moved once — older docs that place it in `.133` are stale:
 
-- **Phase 0 (pre-arrival) — done:** the 6000's external graphics clock
-  (GPIO bit-bang through the HiNT bridge, Win9x-only code) ported to the
-  W2K/XP miniport; defensive 4-chip detection fallback; unified binary
-  serves V3/V5/6000; `voodoo5-6k.inf` staged in the dist package.
-  *Housekeeping note:* that port currently lives in the (git-tracked) build
-  tree only — mirror it into the repo source tree + add invariants before
-  any vintage-source resync.
-- **Phase 1 (arrival):** install the vendor's known-good stack first;
-  capture PnP tree/BARs/both VBIOS images before changing anything.
-- **Phase 2:** our stack in 128 MB mode — bring-up ladder: single chip →
-  2-way SLI → 4-way (analog combine + external clock); 2D → Glide → GL → D3D;
-  AA ladder to 8×.
-- **Phase 3:** 256 MB mode (64 MB/chip) — aperture and >32 MB addressing
-  audit, soak, benchmark.
-- **Phase 4:** productize — package, HWID gates, benchmark set.
+- **`.133` "P3-DUAL"** (dual P3-700), until 2026-08-31 — verified 2026-08-12
+  in **256 MB mode (64 MB/chip) with 4-way SLI**: Q3 61.4 fps, UT99 Glide
+  39.8 fps.
+- **`.191`** (Athlon 1152 / nForce2, XP SP3), now — **128 MB VBIOS mode**
+  (32 MB/chip); this is the box every 2026-09-04 number below was taken on
+  ([`DEPLOY-191-20260904.md`](DEPLOY-191-20260904.md) covers the move).
 
-Two of the plan's pre-arrival verification items were already satisfied by
-the 5500 work: the D3D HAL is now heavily exercised (CS-D3D/UT2004/3DMark),
-and Glide2 is proven in a real game (UT99).
+**Headline (2026-09-04): the board is proven good, and the two defects left
+are ours.** AmigaMerlin 3.1-R11 — a third-party, retail-lineage driver —
+was installed on `.191` next to our stack and renders 4-way SLI **with no
+skew**, faster than us in both configurations. Silicon, bridge and analog
+combine are therefore fine, and against that control our vintage stack has
+two open and independent defects:
+
+| Q3 1.32c `demo four`, 640x480x16, vsync off, `.191` | AmigaMerlin | ours | gap |
+|---|--:|--:|--:|
+| single chip | 116.5 fps | 92.5 fps | **-21%** |
+| 4-way SLI | 151.5 fps | 105.0 fps | **-31%** |
+
+Both rows are a **paired run** — the two drivers benchmarked back to back in the
+same session, so the gap is a like-for-like comparison. A later eight-point
+resolution sweep measured AmigaMerlin's 4-way 640x480 point separately at
+**152.6 fps**; the two agree to 0.7%, well inside this box's ~3% run-to-run
+noise. Quote one convention or the other, never a mix of both.
+
+1. **A 4-way scanout skew** — horizontal bands displaced sideways on the
+   monitor while the framebuffer is *bit-exact correct* (0 of 307200 pixels
+   differ). No screenshot, LFB read or pixel diff can ever see it; per-chip
+   register state plus an eye on the monitor are the only sensors.
+2. **A ~21% single-chip performance deficit** — measured before any second
+   chip is involved, so it is not a symptom of the skew or of SLI.
+
+Where the 6000 material lives:
+
+- [`V56K-BENCHMARKS.md`](V56K-BENCHMARKS.md) — the standing benchmark
+  reference: our numbers, the AmigaMerlin control, the published-literature
+  comparisons, and which runs are valid at all (on this box any Q3 result at
+  or below 1024x768 is a CPU benchmark, not a card benchmark).
+- [`V56K-SLI-FINDINGS.md`](V56K-SLI-FINDINGS.md) — the multi-chip/SLI
+  investigation, incl. the scanout skew, the candidates killed on hardware,
+  and the sweep-safety rules (some register values hard-freeze the board).
+- [`V56K-PLAN.md`](V56K-PLAN.md) — the build-out plan; its status header is
+  the list of what is still open. Two of its pre-arrival verification items
+  are stale — the 5500 work already satisfied them: the D3D HAL is now
+  heavily exercised (CS-D3D / UT2004 / 3DMark2001), and Glide2 is proven in a
+  real game (UT99 GOTY on `glide2x.dll`).
+- [`tools/v56k/`](tools/v56k/) — per-chip instrumentation that needs **no
+  driver rebuild**: `fxscan2` (per-chip scanout registers: `dump`, `diff`,
+  `phase`, `poke`, `ring`), `fxpci`, `sligrid` (bit-exact Glide pattern with
+  read-back, live pokes), and `trials/` (automated bench + sweep harnesses).
+- [`V56K-256MB-READINESS.md`](V56K-256MB-READINESS.md) — the 256 MB-mode
+  audit; read its outcome banner first (Changes 1-4 were falsified on
+  hardware — do not re-apply them).
+- [`FINDINGS.md`](FINDINGS.md), the 2026-09-03/04 entries — the raw log
+  behind all of the above.
 
 ## Layout
 
@@ -161,6 +201,12 @@ and Glide2 is proven in a real game (UT99).
 - **`tests/`** — the regression suite (see above).
 - **`optimized/`** — driver-journey documentation, per-game launchers
   (`gltest/cs_fast.bat`), profiling tools.
-- **`VINTAGE-FIXES.md`** — the fix ledger. **`V56K-PLAN.md`** — the 6000
-  plan. **`FINDINGS.md`** — investigation matrices. **`CLAUDE.md`** — the
-  working map.
+- **`tools/v56k/`** — per-chip V5 6000 instrumentation and trial harnesses
+  (see above); has its own README.
+- **`VINTAGE-FIXES.md`** — the fix ledger. **`FINDINGS.md`** —
+  investigation matrices (the running log; newest first).
+  **`CLAUDE.md`** — the working map.
+  6000: **`V56K-PLAN.md`** (plan + open items), **`V56K-BENCHMARKS.md`**
+  (numbers), **`V56K-SLI-FINDINGS.md`** (multi-chip/scanout),
+  **`V56K-256MB-READINESS.md`** (256 MB mode).
+  **`OPEN-STACK-ON-VSA100.md`** — the clean-room stack measured on VSA-100.

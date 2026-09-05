@@ -4,6 +4,12 @@ Box: **192.168.1.133 "P3-DUAL"** — dual Pentium III 700, 1 GB, XP SP3, Voodoo 
 (4× VSA-100 behind a HiNT HB1-SE66 bridge, 128 MB BIOS mode = 32 MB/chip).
 Stack: `3dfxv5m.sys` + `3dfxv5d.dll` + `glide3x.dll`/`glide2x.dll` + `3dfxogl.dll` (ICD 0.5.0).
 
+**As of 2026-09-04 the card lives in `192.168.1.191`** — Athlon 1152 MHz /
+nForce2, XP SP3, AGP, same board and same 128 MB VBIOS mode. §§1–25 were
+measured on `.133`; **§26 is `.191`** and is the current front: AmigaMerlin
+3.1-R11 drives 4-way SLI on this board with no skew, so the multi-chip scanout
+defect is **ours**, not the hardware's.
+
 ---
 
 ## 1. Multi-chip IS working — but nothing configures SLI explicitly
@@ -1295,3 +1301,319 @@ via leftover registry/PnP state.
 - **Baseline before you build.** On a fresh XP, confirm ~5 clean normal boots
   *before* installing the 3dfx stack, then re-confirm after each component. Without
   a known-good baseline there is nothing to attribute a regression to.
+
+---
+
+## 26. THE 4-WAY SCANOUT SKEW — the board is exonerated, the bug is ours (2026-09-04)
+
+**Board moved.** The Voodoo 5 6000 is now in **192.168.1.191** — Athlon 1152 MHz /
+nForce2, XP SP3, AGP, same card (4× VSA-100 @166 MHz behind a HiNT HB1-SE66
+bridge, **128 MB VBIOS mode = 32 MB/chip**). Deployment record:
+`DEPLOY-191-20260904.md`. Everything in §§1–25 was measured on `.133`; this
+section is `.191`.
+
+**The defect.** In any multi-chip config the card **renders** perfectly and
+**scans out** wrong: horizontal strips displaced sideways. Single-chip is clean.
+Raw log: `FINDINGS.md`, the 2026-09-04 entries.
+
+### 26.1 VERIFIED ON HARDWARE — AmigaMerlin renders 4-way SLI correctly
+
+**AmigaMerlin 3.1-R11 (a third-party retail-lineage driver) was installed on
+`.191` alongside our stack and it renders 4-way SLI with NO skew**, confirmed on
+the monitor by the operator. Same board, same bridge, same analog combine, same
+host. **The hardware is fine and the scanout defect is in OUR driver.** Stop
+looking for a hardware excuse; that ends weeks of ambiguity.
+
+Q3 1.32c `demo four`, 640×480×16, vsync off, `.191`:
+
+| driver | single chip | 4-way SLI | SLI scaling |
+|---|--:|--:|--:|
+| **AmigaMerlin 3.1-R11** (correct picture) | 116.5 | **151.5** | **1.30×** |
+| ours (H5 + SGL ICD 0.5.0) (skewed picture) | 92.5 | 105.0 | 1.14× |
+
+**fps convention — do not silently mix the two runs.** The table above is the
+**paired** comparison: both stacks benchmarked back-to-back in the same session,
+and it is the pair to quote for any driver-vs-driver delta (**−21 %** single
+chip, **−31 %** 4-way). The later eight-point resolution sweep separately
+measured AmigaMerlin 4-way at **152.6** (→ **1.31×** scaling) — that is the
+figure the sweep-derived tables in `FINDINGS.md` and the sibling docs use. The
+two agree to 0.7 %, well inside this box's ~3 % run-to-run noise, but quote
+**151.5 / 1.30×** for the paired driver comparison and **152.6 / 1.31×** for the
+sweep.
+
+AmigaMerlin is faster in **both** configurations. The single-chip 92.5 vs 116.5
+(**−21 %**) is a *separate* defect with nothing to do with SLI — it is measured
+before any second chip is involved — and is tracked in `FINDINGS.md`,
+2026-09-04 entry *OUR DRIVER IS 21% SLOWER THAN AMIGAMERLIN ON ONE CHIP*.
+
+**Pass/fail metric that needs no eyes:** whether the timedemo *completes and
+prints an fps line*. A driver that wedges the card never gets there, so both
+rows above were produced unattended. `tools/v56k/trials/ambench.py` — which
+**pins refresh to 60 Hz on both stacks** (`FX_GLIDE_REFRESH=60` *and*
+`+set r_displayRefresh 60`), so these two rows are not subject to the capture
+confound of §26.4.
+
+#### Installing AmigaMerlin, for the record
+
+Extract `amigamerlin_3.1_r11.exe` with 7-Zip (the payload is a plain 7z at
+offset 78848) and install `driver2k/3dfxvs.inf` headlessly with `tools/drvupd.c`
+against `PCI\VEN_121A&DEV_0009&SUBSYS_0001121A` — its INF carries a dedicated
+`3dfxvsV6` section, *"AMIGAMERLIN 3.1-R11 For Voodoo 5 6000 AGP"*, for exactly
+that HWID. Two dialogs must be clicked through even with the signing policy
+relaxed (unsigned-driver warning, per-file Confirm File Replace). Our files
+survive alongside it — different names (`3dfxv5d.dll`/`3dfxv5m.sys` vs its
+`3dfxvs.dll`/`3dfxvsm.sys`) — and a full rollback set sits at
+`C:\RETRO_AGENT\am-rollback\`.
+
+**Trap:** AmigaMerlin's INF writes `FX_GLIDE_REFRESH = 75` into
+`…\Device0\Glide`, which overrides the per-resolution refresh for **every** mode
+and put the monitor out of range. Delete it (or set 60) before running anything.
+
+### 26.2 The register diff — two registers differ, everything else is identical
+
+Captured live with `fxscan2 dump` under both stacks, 4-way, 640×480:
+
+| register | AmigaMerlin (CORRECT) | ours (SKEWED) |
+|---|---|---|
+| `vidProcCfg` | `03E60101` | `33E60101` |
+| `pllCtrl0`   | `0000D137` | `0000B31F` |
+
+`vidScreenSize`, `vidDesktopStride`, `vidDesktopStart`, `vidOvlEndCoord`,
+`lfbMemoryConfig`, `vidOverlayDudx` and `vidOvlDudxOffSrcW` are **identical**
+between the two stacks and across all four chips in both. `miscInit0` diverges
+the same way in both (master `077C0000`, slaves `0`), which independently
+confirms the slave Y-origin divergence is by design (§26.5, row 9).
+
+**`vidProcCfg` differs by exactly `0x30000000` = BIT(28) | BIT(29)** — set in
+ours, clear in AmigaMerlin. Decoded against the `vidProcCfg` table at
+`Displays/H5/H3DEFS.H:1174-1224`:
+
+| value | bits set | meaning |
+|---|---|---|
+| AmigaMerlin `03E60101` | 0,8,17,18,21,22,23,24,25 | VIDEO_PROCESSOR_EN, OVERLAY_EN, OVERLAY_FILTER_4X4, DESKTOP_PIXEL_RGB565, OVERLAY_PIXEL_RGB565D, DESKTOP_TILED_EN, OVERLAY_TILED_EN |
+| ours `33E60101` | the same **plus 28 and 29** | + BIT(28) (**unnamed**) + `SST_OVERLAY_EACH_VSYNC` |
+
+BIT(29) is `SST_OVERLAY_EACH_VSYNC` (`H3DEFS.H:1222`). **BIT(28) has no name in
+any copy of `H3DEFS.H` in this tree** — the vidProcCfg block jumps straight from
+`SST_CURSOR_EN` BIT(27) (`:1221`) to BIT(29). It is an undocumented bit.
+
+`vidProcCfg` is directly pokeable at **IO offset 0x05C**, so both bits can be
+trialled with **no miniport rebuild** — which matters, because the Wine build
+tree is currently unusable (see `FINDINGS.md`, 2026-09-04 entry
+*`setup-toolchain.sh` succeeds and produces an unusable Wine*).
+
+### 26.3 Where bits 28/29 come from — 3dfx's own undocumented heat erratum
+
+`Miniport/H5/h3modeset.c:667-672`, verbatim:
+
+```c
+  // Set Bit 28 and 29 on Napalm boards
+  // This fixes a problem we were seeing with high-res modes in a heated environment.
+  if ((IS_NAPALM) /*&& (66 == HwDeviceExtension->PciSpeed)*/)
+    temp |= (BIT(28) | BIT(29));
+  else
+    temp &= ~(BIT(28) | BIT(29));
+```
+
+3dfx's own comment: these bits are an **erratum workaround for high-resolution
+modes in a hot chassis** — the class of change that shifts when a chip latches
+its scanout data. Note the **commented-out `66 == PciSpeed` gate**: the
+workaround was once conditional on a 66 MHz PCI bus and someone at 3dfx widened
+it to every Napalm board.
+
+**Why the working 5500 does not disprove this.** `IS_NAPALM` is
+`(0x06 <= PCIDeviceID)` (`Miniport/H5/H3.H:320`), and both the V5 5500 and the
+6000 are `DEV_0009` — so `.143` sets these same bits and its 2-way SLI is clean.
+The bits are therefore **not sufficient on their own**.
+
+**And the AmigaMerlin comparison is NOT an A/B.** "Bits clear" was only ever
+observed under a *different driver*, which moved `pllCtrl0` at the same time
+(§26.4). One board, yes; one variable, no — it is a **two-variable comparison**.
+A scanout-timing perturbation that 2 chips absorb and 4 chips (two of them behind
+a HiNT bridge) do not would be consistent with every observation here — but so
+would the refresh difference, and nothing yet separates them. These bits are the
+**prime suspect; they are not a proven cause.**
+
+### 26.4 UNRESOLVED CONFOUND — the comparison changed TWO variables
+
+**Do not treat the erratum bits as the cause yet.** The AmigaMerlin capture also
+ran at a different pixel clock. Decoding `pllCtrl0` with the VSA-100 PLL formula
+`f = 14.31818 * (N+2) / ((M+2) * 2^K)`, where `N = bits[15:8]`,
+`M = bits[7:2]`, `K = bits[1:0]`:
+
+| stack | `pllCtrl0` | N / M / K | pixel clock | VESA 640x480 |
+|---|---|---|--:|---|
+| AmigaMerlin | `0000D137` | 209 / 13 / 3 | **25.176 MHz** | 25.175 = **60 Hz** |
+| ours        | `0000B31F` | 179 /  7 / 3 | **35.994 MHz** | 36.000 = **85 Hz** |
+
+Three-decimal agreement with the VESA clocks, so the refresh rates are certain,
+not inferred.
+
+**Where those two clocks came from — the 60-vs-85 gap is OURS, not the
+drivers'.** The two captures were taken under different harnesses. The §26.1
+benchmark rows ran under `tools/v56k/trials/ambench.py`, which **pins** refresh
+(`FX_GLIDE_REFRESH=60` *and* `+set r_displayRefresh 60`). The **register dumps in
+the table above were not taken under it**: they came from the trial scripts
+(`trial_setup.py`, `ringrun.py`, `ringtrial.py`), **none of which sets any
+refresh**, so our dump took the ICD's own per-resolution default of **85 Hz**.
+The AmigaMerlin dump, by contrast, was captured while `FX_GLIDE_REFRESH` had been
+forced to **60** to stop the monitor going out of range (the INF trap in §26.1).
+**So the 60-vs-85 difference is a configuration difference this session
+introduced between the two captures — not an intrinsic property of either
+driver.** That makes it easy to control for, and it makes one rule mandatory:
+**any future capture must pin refresh explicitly, or the comparison is
+worthless.**
+
+**Refresh rate is itself a scanout-timing variable** — at 85 Hz each chip has
+~30 % less time per pixel, i.e. less margin for inter-chip skew — so in the two
+dumps we hold, the erratum bits and the pixel clock are **confounded** and
+neither is isolated.
+
+**The decisive experiment is a 2×2**, and every cell is reachable by poking IO
+`0x05C` and setting the refresh rate — **no miniport rebuild required**:
+
+| | bits 28/29 SET | bits 28/29 CLEAR |
+|---|---|---|
+| **85 Hz** | known: **SKEWED** | ? |
+| **60 Hz** | ? | AmigaMerlin-equivalent — **NOT RUN on our driver** |
+
+- If **60 Hz + bits set** is clean → refresh is the cause, the bits are innocent.
+- If **85 Hz + bits clear** is clean → the bits are the cause.
+- If both are clean → either alone suffices.
+- If neither is clean → both are needed, or the real cause is a third thing that
+  differs between the stacks and was not in the dump.
+
+**All four cells still have to be run on OUR stack, the bottom-right one
+included.** AmigaMerlin's clean picture at 60 Hz with the bits clear is *not* a
+substitute for that cell: it was produced by a different driver that differs from
+ours in every other respect too (§26.1's −21 % single-chip deficit is the proof).
+Until we run it, "60 Hz + bits clear" is unknown on our driver, not clean.
+
+Run all four cells with a liveness gate (§26.6) and the operator watching the
+monitor; the artefact has no software detector (§26.5, row 3).
+
+### 26.5 ELIMINATED — consolidated. Do not re-propose any of these.
+
+Every row was killed **on hardware on `.191`**, not by reasoning.
+
+| # | hypothesis | what killed it |
+|--:|---|---|
+| 1 | GDI `SCREENSHOT` during exclusive fullscreen shows the bug | The same capture taken in **single-chip** mode — visually clean on the monitor — comes back just as interlaced. The garble is the CAPTURE. `gdi_fs_single.png` vs `gdi_fs_4way.png` |
+| 2 | Windowed 3D + GDI capture instead | The window's client area captures **BLACK**; a Glide fullscreen-exclusive surface never composites into the GDI primary |
+| 3 | Any framebuffer / pixel-diff detector | `tools/v56k/sligrid.c` read back its own bit-exact pattern with the monitor visibly skewed: `readback: 0 of 307200 pixels differ (0.0000%)`. Reads through the master's BAR1 are **SLI-gathered in hardware** (`CFG_SLI_RD_EN` set on every chip), so the card reassembles a flawless image for any reader. **Proven, not inferred — do not build another picture-based detector** |
+| 4 | Use the display driver's registry flight recorder | The display driver is **not on this path** — a Glide fullscreen app makes it release the hardware. Replaced by `fxscan2 ring` (§26.7) |
+| 5 | "The slaves never get `vidScreenSize`" (leading candidate of two research passes; 3dfx complains about it at `MINIHWC.C:4339`) | Read live during a 4-way 640×480 Q3 run: all four chips agree on `vidScreenSize`, `vidDesktopStride`, `vidProcCfg`, `vidDesktopStart`, `vidOvlEndCoord`, `lfbMemoryConfig`. The complaint is real and its workaround is broken, but `H3SetMode` on each slave already leaves the right geometry. **A patch was written and REVERTED — do not re-apply it blind** |
+| 6 | SLI band height is wrong | Glide programs `band=3` (8 lines) and the same value reaches the miniport, so both sides agree. Forcing 16 via `FX_GLIDE_FORCE_SLI_BAND_HEIGHT` **rebooted the box**. Arithmetic says why: group = band × chips must divide screen height — at 640×480 4-way, band 8 → group 32 → 480/32 = 15 exact; band 16 → group 64 → 480/64 = **7.5** |
+| 7 | The SLI row/column masks are wrong | 3dfx's own `H5/DOCS/Video SLI AA Configs.xls`, "4 chips, analog SLI": `rmask_fetch/rmask_crt = 0x30` on every chip, `cmask_fetch/cmask_crt = 0x00/0x10/0x20/0x30` for chips 0-3, `rmask_aafifo=0x0`, `cmask_aafifo=0xff`, `divide_video=1`. `Miniport/H5/SLIAA.C:2677-2724` computes exactly that shape. **No discrepancy** |
+| 8 | The 2/4-way analog arm never tristates hsync (`CFG_DAC_HSYNC_TRISTATE` appears at `SLIAA.C` 1927/2609/2858/2929/2950/3002/3024/3111/3261/3332 — none inside the arm at 2677-2731) | The same spreadsheet's header states the whole table assumes `video_tv_output_en = dac_vsync_float = dac_hsync_float = 0`. The absence is **correct**, not an omission |
+| 9 | Slave Y-origin: `miscInit0` master `077C0000` vs slaves `0` is a bug | Forcing chips 1-3 to the master's value **BLANKED THE SCREEN** (needed Ctrl-Alt-Del). By design: the master flips its origin (bottom-left for GL) while the slaves address *compacted band buffers* from 0. **"Slave register ≠ master register" is NOT automatically a bug** — that framing drove two whole research passes and is wrong for this hardware |
+| 10 | The chip clocks are not locked / chip2 free-runs at +148 ppm | Re-measured from a clean boot **with the skew fully reproduced**: chip1 +0.000, chip2 +0.093, chip3 +0.047 ppm — all locked, picture still skewed. The +148 ppm was transient and does not reproduce. **Clock lock is not the fault and phase is not a usable proxy metric for it** |
+| 11 | Restore Win9x's dropped 4-chip master `CFG_VIDPLL_SEL` branch (`MINIVDD/SLIAA.C:1690`, *"Special Case 4 way where master also needs to sync from slave"*; W2K `SLIAA.C:3421` has the slave branch and no `else`) | The master really is `FREERUN` (`cfgVideoCtrl0 = 00000001`, bit 11 clear) while chips 1-3 read `00000803` LOCKED — but **poking bit 11 on the master produced NO PICTURE AT ALL**. Per Databook 3.4.9 the master's `SYNC_CLK_IN`/`SYNC_CLK_FB` are grounded, so slaving its PLL to an undriven input stops its video clock. The Win9x branch presupposes a board that wires a slave's clock back to the master; this recreation does not. `optimized/v56k-sli-scanout-candidates/02-master-vidpll-sel.patch` is **NOT a fix** and is retained only as evidence |
+| 12 | `vga_vsync_offset` (`cfgSliAaMisc[8:0]` = pixels[2:0] \| chars[5:3] \| hxtra[8:6]) has the wrong value — the **only** inter-chip horizontal alignment knob in the stack | Live and real: the slaves run **39 px** ahead of the master (`00000827`) and zeroing them to `0x800` **visibly MOVED the bands**. But no value observed so far removes the skew — **and the sweep never finished**. `tools/v56k/trials/vsyncsweep.py` aborts the moment the box goes unreachable (returns 3), and it did: only **7, 15 and 23 px** actually ran, all still skewed, before the **31 px** step hard-froze the board (§26.6) and stopped the run. With the shipped **39 px** default as the broken control that is **four observed values**, not a completed sweep — **47 px** (Case B, `chars=5`, `SLIAA.C:2489-2515`, a documented candidate but never a run), 55 px and 63 px were **never reached**. `vsyncsweep.py` now skips 31 px permanently. **Those four values are eliminated; the register is not** |
+| 13 | The SLI hsync handover column `vidOverlayDudx` is 0 and 0 is wrong (Napalm r1.13 §11.1.21; the DDraw path sets `cxScreen >> 1` at `DDFXNT.C:2606`, the Glide path hardcodes `0UL` at `MINIHWC.C:4041`) | Poking it **visibly changes the artefact**, so it is a live lever — but eight configurations at 640×480 4-way (0/160/320/480/639 uniform; staggered 160/320/480/639; master-only 320; slaves-only 320) were **still skewed in every one**. Those eight values are eliminated; the register is not |
+
+**Three non-levers, corrected from earlier premises in this document:**
+
+- **`SSTH3_SLI_AA_CONFIGURATION` cannot select 2-way on this board.**
+  `GPCI.C:1446` has no `case 2` and no `case 5` (both fall to `default:`),
+  `GSST.C:1828` forces `sliCount=4` when `chipCount==4`, and `EnableSLIAA`
+  refuses any request where `dwChips != numUnits` (`SLIAA.C:3510`). It is 4-way
+  or single-chip, nothing between.
+- **`FX_GLIDE_ANALOG_SLI=0` does not mean digital.** `GSST.C:2053` ends with an
+  unconditional `if (gc->chipCount == 4) gc->bInfo->h3analogSli = 1;` and
+  `MINIHWC.C:4277` re-forces it. **Analog was active in every skewed trial.**
+- **`SSTH3_VIDEO_REFRESH_OPTIMIZATION` has zero references in the W2K tree** — it
+  exists only in the Win9x MiniVDD. Setting it is a no-op.
+
+**One piece of reasoning to retire.** An earlier research pass "eliminated"
+`vga_vsync_offset` on the grounds that W2K, Win9x and DOS all program it
+identically. **That reasoning is invalid**: identical across ports says nothing
+about whether the value is right for a board 3dfx never shipped. Row 12 above
+does the work properly — on silicon — but note what it actually eliminates: the
+**four values observed**, not the register, which stays open (§26.8 item 4).
+
+### 26.6 HARDWARE HAZARDS — every one of these was hit for real
+
+Every row below was hit for real this session, all from poking a live scanout:
+**two hard freezes** (both needing a physical power cycle), one self-recovering
+reboot, and two recoverable blank screens.
+
+| poke | consequence | note |
+|---|---|---|
+| `vga_vsync_offset` **pixels=7, chars=3 = 31 px** (`cfgSliAaMisc = 0x81F`) | **HARD FREEZE.** NIC dead, no route to host, **physical power cycle required** (ask the operator) | This is the `vga_crtc_fast` bug 3dfx documents at `SLIAA.C:2489-2494` — *"the vga_crtc_fast module has a bug in it which causes us to have to bump the vsyncOffsetChars field"* — **confirmed on silicon**. The shipped `chars=4` (39 px) bump is a genuine, necessary workaround. **Never program pixels=7 with chars=3.** `vsyncsweep.py` skips it permanently |
+| `vidOverlayDudx` sweep, **first (ungated) version** | **HARD FREEZE.** NIC dead, **physical power cycle required** | A *separate* freeze from the one above. Because the sweep had **no liveness gate**, which of its eight steps did it is **unknown and unrecoverable** — that loss is why rule 1 exists. `tools/v56k/trials/dudxsweep2.py` is the gated rewrite; see §26.5 row 13 |
+| `FX_GLIDE_FORCE_SLI_BAND_HEIGHT=16` at 640×480 4-way | box **rebooted** (recovered on its own) | See §26.5 row 6 |
+| master `cfgVideoCtrl0` bit 11 (`vidpll_sel`) set | **no picture at all** | §26.5 row 11 |
+| slave `miscInit0` forced to the master's `077C0000` | **screen blank**, Ctrl-Alt-Del to recover | §26.5 row 9 |
+
+**Two operational rules that follow:**
+
+1. **Liveness-gate every sweep.** The step that breaks the box **is** the
+   finding — an ungated sweep just tells you the box is gone. Both halves of
+   that lesson were paid for here: the `vga_vsync_offset` sweep **was** gated and
+   its gate named the failing step exactly (31 px), while the earlier
+   **ungated** `vidOverlayDudx` sweep froze the box and left no record of which
+   step did it. Pattern: `tools/v56k/trials/dudxsweep2.py` (the gated rewrite),
+   `tools/v56k/trials/vsyncsweep.py`. Note that a gated sweep **aborts** at the
+   wedge, so the steps after it are unrun, not clean.
+2. **Pokes persist until reboot and contaminate later runs.** Nothing restores
+   per-chip scanout state when an app exits: after a game the slaves keep the
+   *game's* geometry (observed: desktop at 1024×768 with the slaves still at
+   640×480 from the previous run). A later trial at the same resolution will
+   then "agree" by coincidence. **Reboot between conditions**, and treat any
+   register reading taken outside the failing app as worthless.
+
+### 26.7 The instruments (the reusable part)
+
+- **`HWCEXT_GET_SLAVE_REGS` (0x19, `HWCEXT.H:565`, handled `HWCEXT.C:2732`)** is
+  already answered by the **shipping** `3dfxv5d.dll` — no driver rebuild needed.
+  It returns, per chip 0..3, the VAs of four register windows mapped
+  **read/write** into the calling process, so per-chip scanout state can be both
+  read and poked live, against a running fullscreen game.
+  **Sequencing trap:** do **not** send `HWCEXT_ALLOCCONTEXT` first.
+  `hwcGetLinearAddr` (`HWCEXT.C:785-825`) has an "if a GLIDESTATE already
+  exists, return the old mapping" branch that returns the old, never-mapped
+  bases and never fills `glideSlaveRegBase[]` — you get four zeros.
+  **Order: `GETLINEARADDR` (0x03), then `GET_SLAVE_REGS` (0x19).**
+- **`HWCEXT_PCI_OP` (0x18, `HWCEXT.C:2409`) IS exclusive-gated** — it needs
+  `HWC_EXCLUSIVE`, i.e. it only works from inside a Glide app. That is why PCI
+  **config**-space work (e.g. `CFG_VIDEO_CTRL0`) needs `tools/v56k/sligrid.c`
+  (`--pci`, `--poke fn:OFF=VAL`) and cannot be done with `fxscan2 poke`.
+  `GETLINEARADDR` and `GET_SLAVE_REGS` are **not** gated.
+- **`fxscan2 dump` / `diff` / `phase` / `poke`** — `tools/v56k/fxscan2.c`, mingw,
+  run through the agent.
+- **`fxscan2 ring <secs> <interval_ms> <outfile>`** — the Glide-path equivalent
+  of the display driver's registry flight recorder. Samples every watched
+  register on all four chips, writes a line whenever any changes, plus a
+  per-second `HB` heartbeat of each chip's `vidCurrentLine` so a stalled CRTC is
+  visible. **Every line is flushed**, so a wedge still leaves the last state on
+  disk — the entire point. **Start it before launching the game** so it captures
+  the mode transition. A static dump cannot tell *"correctly programmed"* from
+  *"stale but coincidentally equal"*; the ring can, and that distinction changed
+  the conclusions (§26.5 row 5, §26.6 rule 2).
+- **`tools/v56k/sligrid.c`** — draws a static bit-exact pattern from inside
+  Glide and reads it back. Must be a Glide app because `HWCEXT_PCI_OP` is
+  exclusive-gated. Supports `--poke <chip>:OFF=<val>` (multi-poke).
+- **`tools/v56k/trials/ambench.py`** — automated Q3 timedemo harness;
+  completion + fps is the pass metric, no eyes required.
+
+**What the ring showed that no dump could:** across the desktop → Glide
+transition at 640×480, the **master** receives the full geometry program
+(`vidScreenSize`, `vidDesktopStride`, `vidDesktopStart`, `lfbMemoryConfig`,
+`miscInit0`) while **chips 1-3 receive only `vidProcCfg` and `dacMode`**.
+
+### 26.8 What is still open
+
+1. **Run the 2×2 of §26.4.** It is the next action, it needs no rebuild, and
+   until it is done "the erratum bits cause the skew" is a HYPOTHESIS.
+2. **BIT(28) is unnamed anywhere in the tree.** If the 2×2 implicates the bits,
+   isolate which of the two matters — they are independently pokeable.
+3. **`vidOverlayDudx` is a live lever with an unknown correct value** for four
+   chips; eight values are eliminated (§26.5 row 13), the register is not.
+4. **`vga_vsync_offset` likewise** — the sweep moved the bands without fixing
+   them, and the sweep **aborted at 31 px** after only four observed values
+   (7 / 15 / 23 px plus the 39 px default; 47 / 55 / 63 px were never reached —
+   §26.5 row 12). A value outside those four, or a *per-chip* pattern rather
+   than a uniform one, has not been ruled out.
+5. **The −21 % single-chip throughput deficit** (§26.1) is a separate bug and
+   should not be conflated with this one.

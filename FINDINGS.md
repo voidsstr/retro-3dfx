@@ -14,6 +14,85 @@ it until a Voodoo card goes back in.
 
 ---
 
+## 2026-09-04 — the open Glide does not hang the GAME on a 4-chip board, it kills the BOX
+
+First run of the retro-agent (clean-room / open) stack on the Voodoo 5 6000 at `.191`,
+reproducing the 4-cell isolation matrix that `OPEN-STACK-ON-VSA100.md` ran on the 2-chip
+5500 at `.143`. Harness: `scratchpad/openstack_matrix.py`, everything staged GAME-LOCAL
+in `C:\Games\Quake2Complete` (a game dir shadows system32 for DLL lookup), `system32`
+never written.
+
+### The build side is SOLVED — and this is genuinely new
+
+Both blockers that stopped this work on `.143` are gone:
+
+- **The open stack cross-builds on Linux.** `voodoo-cleanroom/build-stack.sh` is an
+  `i686-w64-mingw32` cross-compile and has NOTHING to do with the broken Wine/VC6
+  toolchain. It produced `glide3x_h5.dll` (989,027 B), `glide3x_h3.dll`, `glide2x.dll`
+  and the MesaFX ICD `opengl32.dll` (2,775,311 B) in one pass.
+- **The ABI mismatch is fixed on BOTH sides.** The open `glide3x_h5.dll` now exports all
+  four decorations (`grGlideInit`, `grGlideInit@0`, `_grGlideInit`, `_grGlideInit@0`),
+  784 exports total, so it satisfies either convention. And
+  `build-mesafx-retail.sh` (run it as `bash ./build-mesafx-retail.sh` — the file is not
+  executable) produces `opengl32_retail.dll` v0.1.61, which self-verifies
+  `OK: imports _grFoo@N (binds retail/AmigaMerlin glide3x)`. So the `grFoo@N` vs
+  `_grFoo@N` failure that killed cell C on `.143` cannot recur.
+
+### The hardware result: a HARD FREEZE, not a hung game
+
+Cell B (open MesaFX ICD + open `glide3x_h5`) **took the whole machine down**: 100%
+ping loss, NIC dead, agent gone, physical power cycle required. On `.143` the same
+pairing merely stopped the game between the mode set and Glide bringing the board up —
+the box stayed up. **On four chips the same defect is a machine killer.**
+
+Treat this as a safety rule: **the open Glide on VSA-100 must be assumed to hard-freeze
+the box**, so never queue it behind tests you still want results from, and never run it
+unattended when nobody can power-cycle.
+
+### Two harness defects found the honest way — and what they do and do not excuse
+
+The same run is NOT clean evidence, and saying so is the point:
+
+1. **Cell A (the AmigaMerlin baseline) reported "NO GL AT ALL" — that was MY bug.**
+   Quake II only writes `baseq2\qconsole.log` when the `logfile` cvar is set, and the
+   harness never set it. The canonical `q2run.bat` in
+   `retro-agent/voodoo-cleanroom/deploy/deploy171.py` sets `+set logfile 2`. With no
+   log there is no `GL_RENDERER` and no fps line, so the cell cannot report anything.
+   **The baseline did not fail; it was never measured.**
+2. **The `certutil -hashfile` upload check reported MD5 MISMATCH on all three files.**
+   The canonical verification is UPLOAD then DOWNLOAD and compare md5 out of band
+   (`deploy171.py:push()`), not `certutil` on the target. The staging most likely
+   succeeded and the check is what was broken — but it was not proven either way.
+
+**What survives:** the box hard-froze while the open Glide was staged, which is a real
+and serious result consistent with the `.143` prior. **What does NOT survive:** any
+claim about which layer is at fault. Cell D (retail ICD + open Glide) is the cell that
+isolates the Glide, and it never ran.
+
+### Rerun order matters now — put the dangerous cells LAST
+
+Because a freeze costs a physical power cycle, the matrix must run safe-first and
+persist each cell's result as it completes:
+
+| order | cell | ICD | Glide | risk |
+|---|---|---|---|---|
+| 1 | A | AmigaMerlin | AmigaMerlin | none — baseline |
+| 2 | C | open MesaFX (retail-linked) | AmigaMerlin | low — user-mode ICD only |
+| 3 | D | AmigaMerlin | **open h5** | **freeze expected** |
+| 4 | B | open MesaFX | **open h5** | **freeze expected** |
+
+### The named suspect for the init failure
+
+`build-stack.sh:9-15` states outright that the h5 tree **lacks the four h3 bring-up
+fixes** — TlsGetValue accessor, GETLINEARADDR prime, zero-base guard, lost-context
+fallback — and warns "port the h3 fixes to the h5 tree before using it anywhere". Those
+are exactly the fixes that made Glide initialise on the Voodoo3 (`.124`, fork `a71eb3f`).
+`OPEN-STACK-ON-VSA100.md` §2 independently reached the same place from the failure side.
+So this is not a mystery to be explored — it is a named, located port that has never
+been done, and it is the prerequisite for everything else in the open stack on VSA-100.
+
+---
+
 ## 2026-09-04 — OUR DRIVER IS 21% SLOWER THAN AMIGAMERLIN ON ONE CHIP, AND THAT IS A SECOND BUG
 
 A literature sweep (3 research agents + synthesis, ~654k tokens, 301 fetches)
@@ -194,7 +273,7 @@ was `0x30000000` = BIT(28) | BIT(29). Both bits are now traced to source.
 | AmigaMerlin `03E60101` | 0,8,17,18,21,22,23,24,25 | VIDEO_PROCESSOR_EN, OVERLAY_EN, OVERLAY_FILTER_4X4, DESKTOP_PIXEL_RGB565, OVERLAY_PIXEL_RGB565D, DESKTOP_TILED_EN, OVERLAY_TILED_EN |
 | ours `33E60101` | the same **plus 28 and 29** | + BIT(28) (**unnamed**) + `SST_OVERLAY_EACH_VSYNC` |
 
-BIT(29) is `SST_OVERLAY_EACH_VSYNC`. **BIT(28) has no name in ANY of the eight
+BIT(29) is `SST_OVERLAY_EACH_VSYNC`. **BIT(28) has no name in ANY of the six
 copies of `H3DEFS.H` in this tree** — it is a consistent gap between
 `SST_CURSOR_EN` (27) and `SST_OVERLAY_EACH_VSYNC` (29). An undocumented bit.
 
@@ -220,10 +299,14 @@ Napalm board.
 
 `IS_NAPALM` is `(0x06 <= PCIDeviceID)` (`Miniport/H5/H3.H:320`) and BOTH the V5
 5500 and the 6000 are `DEV_0009`, so `.143` sets these same bits and its 2-way
-SLI is clean. The bits are therefore **not sufficient on their own** — but the
-A/B that matters was run on ONE board: same 6000, bits set = skew, bits clear =
-no skew. A scanout-timing perturbation that 2 chips absorb and 4 chips (two of
-them behind a HiNT bridge) do not is entirely consistent with both observations.
+SLI is clean. The bits are therefore **not sufficient on their own**.
+
+**Do not call the AmigaMerlin comparison an A/B — it is not one.** "Bits clear"
+was only ever observed under a *different driver*, which moved `pllCtrl0` at the
+same time (below). One board, yes; one variable, no. A scanout-timing
+perturbation that 2 chips absorb and 4 chips (two of them behind a HiNT bridge)
+do not would be consistent with every observation here — but so would the
+refresh difference, and nothing yet separates them.
 
 ### The competing hypothesis, and the 2x2 that separates them
 
@@ -236,8 +319,21 @@ the VSA-100 PLL formula `f = 14.31818 * (N+2) / ((M+2) * 2^K)`, where
 | AmigaMerlin | `0000D137` | 209 / 13 / 3 | **25.176 MHz** | 25.175 = **60 Hz** |
 | ours | `0000B31F` | 179 / 7 / 3 | **35.994 MHz** | 36.000 = **85 Hz** |
 
-Three-decimal agreement, so this is certain rather than inferred. **The
-AmigaMerlin comparison run changed TWO things at once** — the erratum bits AND
+Three-decimal agreement, so this is certain rather than inferred.
+
+**Where these two numbers came from — this matters, and a cross-check caught it.**
+The benchmark harness `ambench.py` pins refresh (`FX_GLIDE_REFRESH=60` AND
+`+set r_displayRefresh 60`), but the register dumps were NOT taken under it — they
+came from the trial scripts (`trial_setup.py`, `ringrun.py`, `ringtrial.py`),
+none of which set a refresh at all, so those runs took the ICD's own
+per-resolution default of 85 Hz. The AmigaMerlin dump, by contrast, was taken
+while `FX_GLIDE_REFRESH` had been forced to 60 to stop the monitor going out of
+range. **So the 60-vs-85 difference is a configuration difference this session
+introduced between the two captures, not an intrinsic property of either
+driver.** That makes it easier to control for, and it means any future capture
+must pin refresh explicitly or the comparison is worthless.
+
+**The AmigaMerlin comparison run changed TWO things at once** — the erratum bits AND
 the pixel clock, by a factor of 1.43. And **refresh rate is itself a
 scanout-timing variable**: at 85 Hz each chip has 30% less time per pixel, so
 less margin for inter-chip skew. Neither cause is isolated.
