@@ -834,6 +834,87 @@ maps them itself), so only `wine/bin/*` and the `x86_64-unix/*.so` loaders matte
   very command** (the pattern appears in its own `bash -c` argv), so it kills
   itself mid-script. Use `wineserver -k` instead.
 
+---
+
+## 2026-09-04 — A staged `install.reg` re-pinned the resolution on every sync, and only GAMESYNC could undo it
+
+**`FLEETRES.EXE` runs from a title's launcher, so it cannot fix anything
+GAMESYNC writes AFTER the launcher ran.** `gs_run()` copies a title and then
+calls `gs_merge_reg()`, which applies that title's staged `install.reg` — a
+byte-identical constant shipped to every monitor on the fleet.
+
+`HalfLife1/install.reg` sets `HKCU\Software\Valve\Half-Life\Settings`
+`ScreenWidth`/`ScreenHeight`, and **there is no `Software\Valve\CounterStrike`
+key at all** (read live on `.240`), so that one value is the mode for *every*
+GoldSrc title on the machine. The file's own comment already records that
+Counter-Strike **"ignores -w/-h on the command line for the same reason"** —
+i.e. the defect was written down beside the thing causing it and read as a note
+about CS rather than as a consequence of the merge order. Measured on `.191`
+2026-09-04: **800x600**, on a box whose panel wants 1024x768.
+
+The fix is a resolution pass in the agent (`GAMERES`, v1.81.0), run at the end
+of each title's sync **after** `gs_merge_reg()`. That ordering is the whole
+mechanism; re-ordering those two calls restores the bug silently.
+
+**Two things worth keeping from building it:**
+
+* **The "how many did you CHANGE" counter earns its keep immediately.** The
+  pass reports values changed, and a settled box must report zero — the same
+  contract as GAMESYNC's `files_written`. The first hardware run reported
+  `4` on every consecutive pass, which named a real bug in seconds:
+  `GR_OP_KV` handed its writer the bare value instead of `key=value`, so it
+  replaced `ResolutionX=1024` with `1024`; that no longer parses as key=value,
+  so the next pass matched nothing and **appended** another `1024`. Three runs
+  left Descent 2's `DESCENT.CFG` with six junk lines and no resolution at all,
+  and every run reported success. After the fix: **4 → 0 → 0** on `.191`.
+* **A test of a helper passes against a broken caller.** The regression guard
+  is therefore two-part: `gr_kv_line()` is pinned natively, and a SOURCE
+  assertion pins that the `GR_OP_KV` branch actually calls it
+  (`tests/python/test_gameres_mirror.py`). The native test alone would have
+  gone green on the code that ate the file.
+
+**Refresh rate is per RESOLUTION, not per box** (added the same day). `.191`'s
+Gateway VX1120 offers 100 Hz at 1024x768 and 75 at 1280x960, so a single
+"monitor refresh" is wrong for one of the two engines running at those two
+targets — the same shape as one resolution for eight monitors. Three details
+that are not obvious:
+
+* **The EDID ceiling has to be applied when a mode is ADDED, not when it is
+  read.** Only the best rate per resolution is kept, so a read-time clamp
+  stores the rate the panel cannot sync and then has nothing to fall back to:
+  it answers 0 and loses the 100 Hz the monitor really does support.
+* **No EDID means no clamp AND no claim.** The answer is 0, which callers read
+  as "leave the refresh alone". A 60 fallback there is the staged-constant
+  mistake one field to the right, and on an analogue CRT the good outcome of
+  guessing is "out of range" on a screen nobody is standing in front of.
+* **Most of this library has no refresh setting to write.** Quake II's and
+  GoldSrc's binaries carry no refresh cvar at all — only `timerefresh` and
+  `r_norefresh` — and UE1 keeps `RefreshRate` solely under
+  `[GlideDrv.GlideRenderDevice]`, which is not the device these boxes render
+  on. `r_displayRefresh` IS present in every id Tech 3 binary here (quake3,
+  ioquake3, jasp, sof2mp, WolfSP). For everything else the only lever that
+  reaches the game is the **desktop's own persisted rate**, so the pass raises
+  that — upward only, resolution untouched, EDID required, read back rather
+  than trusted.
+
+**And a file two mechanisms both write must get the same number from each.**
+The launcher rebuilds `fleetres.cfg` at every start; the agent rewrites it
+whenever one of its settings is missing. A one-line disagreement — a refresh
+rate — makes each rewrite the other's copy forever, which would have destroyed
+the `0 value(s) changed` signal that had just caught the DESCENT.CFG bug. Both
+sides therefore emit `FR_HZ`, and the desktop raise is what makes that number
+the highest the monitor supports.
+
+**A related false alarm, fixed in the same pass.** `validate-staged-library.py`
+failed the ENTIRE library on Quake III because `FLEETGL.BAT` uses `%FR_*%`
+without calling `FLEETRES.BAT`. It is a **helper** the Play launchers call
+*after* `FLEETRES.BAT`, so the variables are already in the environment. The
+check now allows a file to inherit `FR_*` from a caller that satisfies the
+block, and still fails a helper nobody calls or one whose callers do not.
+A validator that cries wolf is one people learn to ignore.
+
+---
+
 ## 2026-09-01 — Quake III was on the Intel chip on `.171`, and ioquake3 CANNOT be moved off it
 
 `.171` has a Voodoo 2 pair, and Quake III had never used them. The game ran —
