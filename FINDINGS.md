@@ -13,6 +13,129 @@ physically removed and its whole stack purged; this lane has no hardware behind
 it until a Voodoo card goes back in.
 
 ---
+## 2026-09-12 — AMIGAMERLIN'S OpenGL IS MESA, and the whole chip/AA axis is ONE registry value
+
+Setting up the specpicks benchmark campaign on the Voodoo 5 6000 at `.191`
+(AmigaMerlin 3.1-R11, Athlon XP 2600+ @ 1921 MHz, XP SP3, Gateway VX1120 CRT).
+Runner: `retro-agent/scripts/benchmarks/v56k_bench.py`.
+
+### AmigaMerlin 3.1-R11 ships a MESA OpenGL ICD — so "AmigaMerlin vs our MesaFX" is one lineage
+
+The stack on `.191` is genuine AmigaMerlin: `InstalledDisplayDrivers=3dfxvs`,
+INF section **`3dfxvsV6`**, and `3dfxvs.dll` (610,240), `glide2x.dll` (94,208),
+`glide3x.dll` (344,064) and `3dfxOGL.dll` (2,646,009) are each **byte-identical
+(md5) to the package in `C:\RETRO_AGENT\amigamerlin`**. Nothing of ours is in
+the path; the leftover `3dfxv5d.dll` + `3dfxv5m.sys` on disk are unreferenced
+(the only service is `3dfxvs`).
+
+And yet the ICD registered at `OpenGLdrivers\3dfx` → `3dfxOGL.dll` reports:
+
+```
+GL_VENDOR:   Brian Paul
+GL_RENDERER: Mesa Glide v0.63 Voodoo5 6000 (tm)
+GL_VERSION:  1.2 Mesa 6.3
+```
+
+**AmigaMerlin's "3dfx" OpenGL is a MesaFX build wearing 3dfx's filename.** This
+matters twice over:
+
+- It is *not* contamination and must not be "fixed". The file ships that way.
+- The comparison this project keeps framing as "third-party yardstick vs our
+  clean-room MesaFX" is really **Mesa 6.3 vs our Mesa 6.2.2** on the same
+  Glide. Any writeup calling AmigaMerlin's GL path an independent
+  implementation is wrong.
+
+The corollary for CLAUDE.md's "we have never benchmarked AmigaMerlin as a
+complete stack": on *this* box the OpenGL half is AmigaMerlin's own file, so a
+Q3 run here IS a complete-AmigaMerlin measurement.
+
+### The chip count and the FSAA level are the SAME knob, and the driver publishes its own map
+
+There is no separate "how many chips" setting. Both live in
+`SSTH3_SLI_AA_CONFIGURATION` (REG_SZ) under
+
+    HKLM\SYSTEM\CurrentControlSet\Control\Class\{4D36E968-...}\0000\Settings\Glide
+
+and the enumeration does not have to be guessed: the 3dfx Tools descriptor
+subkeys beside it each carry a `List` of human labels and a `Tweak Map` of the
+values they write. `QuadChipAASLI` = `0,5,6,7,8` for *Single Chip Only, Fastest
+Performance, 2/4/8 Sample Anti-Aliasing*; `DualChipAASLI` = `0,2,3,4`;
+`SingleChipAASLI` = `0,1`. Union:
+
+| cfg | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|---|
+| chips | 1 | 1 | 2 | 2 | 2 | 4 | 4 | 4 | 4 |
+| AA | – | 2x | – | 2x | 4x | – | 2x | 4x | **8x** |
+
+**Read the descriptors rather than inventing a scale.** `Speed Settings` gives
+`FX_GLIDE_SWAPINTERVAL` the same way (`*,0,1`), which is how V-Sync-off is set
+without touching the tray app.
+
+### The old harness RECORDS the FSAA level it never applied
+
+`retro-agent/scripts/benchmarks/benchmark_runner.py` iterates an `fsaa` axis and
+at the point of use only logs *"FSAA=4x: apply via the card's driver profile if
+configured"* — there is no apply path at all — then writes `fsaa=4x` into
+`results.csv`. On the one card whose entire reason for existing is RGSS
+anti-aliasing that manufactures an article's worth of confidently mislabeled
+rows. `v56k_bench.py` writes the value, **reads it back**, and refuses to record
+a number for a cell it could not verify. Same shape as the `REGWRITE`-answers-OK
+trap: the tool reported success and would have been believed.
+
+### 4-chip 8x AA hangs GL init — and it killed the AGENT, not the box
+
+Asking for cfg 8 (4 chips, 8 samples) at 640x480 wedged the renderer *during a
+`vid_restart`*: `qconsole.log` ends at `Shutting down OpenGL subsystem` and the
+re-init never returns. `quake3.exe` sat at 40 MB and the agent died with it.
+
+**This is a DIFFERENT failure from the 2026-09-04 open-Glide result above, and
+the difference is the whole point of recording it:**
+
+| | open Glide (cfg any) | AmigaMerlin + 8x AA |
+|---|---|---|
+| 139/445 | **dead** — 100% ping loss | **OPEN** — OS and networking fine |
+| 9897 | dead | **accepts, answers nothing** |
+| recovery | physical power cycle | restart the agent |
+
+So the "assume the open Glide hard-freezes the box" safety rule does **not**
+generalise to an AA-induced hang. Probe with a protocol `PING` and read all
+three ports before deciding which one you have.
+
+The structural fix is to stop tearing the renderer down at all: `r_mode`,
+`r_customwidth/height` and `r_colorbits` are `CVAR_LATCH`, so the per-run values
+now go into `baseq3\fleetres.cfg` (which the staged `autoexec.cfg` execs before
+`R_Init`) **and** onto the command line as `+set`, which agree by construction.
+One renderer init at the target mode, no `vid_restart`, and it is faster per run.
+
+### `start` does not hand the child your working directory
+
+`LAUNCH cmd /c cd /d "C:\Games\Quake3-TeamArena" && start "bench" quake3.exe …`
+fails twice over: `start` will not find a bare exe name in the cwd (*"Windows
+cannot find 'quake3.exe'"*, a modal dialog), and giving it the absolute path
+instead gets the engine launched with a working directory of `C:\` —
+
+```
+----- FS_Startup -----
+Current search path: C:\/baseq3
+0 files in pk3 files
+Running in restricted demo mode.
+```
+
+which looks exactly like a broken Quake III install. **Launch through a `.bat`
+on the box that `cd /d`s and runs the exe directly**, and state `fs_basepath` /
+`fs_homepath` explicitly. (`.191` writes to `C:\q3home` by default, so the
+console log is not where the tree is.)
+
+### Baseline corroborated
+
+Q3 `demo four`, 640x480x16, picmip 0, V-Sync off, retail 1.32c on the 3dfx ICD:
+**1 chip 126.6 fps, 4 chips 150.2 fps** (a hand-run repeat of the 4-chip cell
+gave 154.2, so run-to-run spread is ~2.6%). The 4-chip figure agrees with the
+152.6 already recorded for AmigaMerlin on this box. Per the CPU-wall entry
+below, 640x480 is not where chips or AA separate — weight the matrix at
+1024x768 and above.
+
+---
 
 ## 2026-09-04 — the open Glide does not hang the GAME on a 4-chip board, it kills the BOX
 
