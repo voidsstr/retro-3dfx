@@ -13,6 +13,58 @@ physically removed and its whole stack purged; this lane has no hardware behind
 it until a Voodoo card goes back in.
 
 ---
+## 2026-09-15 — AGENT LIVENESS IS NOT BOARD LIVENESS, AND NOW THE BOX RESTARTS ITS OWN AGENT
+
+Two findings from the same afternoon, one procedural and one mechanical.
+
+**1. A wedge no longer costs a trip to the machine.** CLAUDE.md states that
+nothing supervises the retro agent - the `HKLM\...\Run\RetroAgent` value fires
+only at logon - so when the AmigaMerlin driver wedges under repeated Glide
+context creation and takes the agent's process down with it, the box is
+unreachable until somebody walks to it. That is why the benchmark sweep was
+written to STOP on the first wedge, and why it had produced exactly one
+measured cell of a nine-config matrix.
+
+`retro-agent/scripts/fleet/install-agent-watchdog.py` puts a Run-key `cmd`
+loop on the box (`C:\RETRO_AGENT\agentwd.cmd`) that checks `tasklist` every 30
+seconds and relaunches the agent if its process is gone. **Proven on `.124`,
+not assumed:** the agent was killed deliberately and answered `PONG` again
+within 5 seconds, with the restart recorded in `C:\RETRO_AGENT\agentwd.log`.
+The wedge itself still needs a reboot to clear - but a reboot can be issued
+REMOTELY once the agent answers, so the cost of a wedge went from a physical
+visit to about three minutes.
+
+It is a Run-key loop rather than a scheduled task for two reasons: XP's
+`schtasks /ru <user>` wants `/rp <password>` in argv, and `/ru SYSTEM` avoids
+the password but puts the agent in the wrong context for opening a Glide
+fullscreen window. A Run-key loop is already in the console session with the
+right token and needs no credentials at all.
+
+**2. The sweep now retries a config, and knows when not to.** A wedged pass
+still APPENDS its failed cell to the CSV, so "did this pass make progress?"
+cannot be answered by counting rows - only by counting rows whose `status` is
+`ok`. Counting rows would buy every config another boot forever. The rule is:
+retry while the last pass measured at least one cell; stop retrying that config
+when a pass measures nothing, because three boots that each wedge before the
+first cell are a fact about the config rather than a transient.
+
+**3. The image-quality pass had inherited a dialect bug the fps campaign had
+already fixed.** `v56k_shots.py` set the LATCHED id Tech 3 cvars (`r_mode`,
+`r_customwidth`, `r_colorbits`) in a file exec'd from the command line, which
+lands AFTER `R_Init` - they either do nothing, or need the `vid_restart` that
+hung the driver solid at 4 chips / 8x AA. It also wrote Quake III's cvars into
+Quake II, where `r_mode -1` does not exist and **`wait` takes no argument and
+delays exactly ONE frame**, so `wait 250` would have photographed the opening
+frame of the demo at every AA setting - producing a full set of shots that look
+entirely correct and are all the same wrong scene.
+
+And **RtCW's id Tech 3 fork has no `r_mode -1` branch** (already in CLAUDE.md,
+now paid for here): it renders 640x480 rather than erroring, so asking for a
+custom resolution would have filled a whole column with wrong-resolution
+captures, silently. It gets a real mode index, and an off-table resolution is
+declared unsupported rather than quietly rounded.
+
+---
 ## 2026-09-15 — NO AA CONFIG IS A "BOX KILLER"; THE NUMBER OF TOPOLOGY CHANGES PER BOOT IS
 
 This corrects the 2026-09-12 entry below, which named cfg 2 (2-chip SLI) and
