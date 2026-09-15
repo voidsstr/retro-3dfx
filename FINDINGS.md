@@ -13,6 +13,90 @@ physically removed and its whole stack purged; this lane has no hardware behind
 it until a Voodoo card goes back in.
 
 ---
+## 2026-09-15 — NO AA CONFIG IS A "BOX KILLER"; THE NUMBER OF TOPOLOGY CHANGES PER BOOT IS
+
+This corrects the 2026-09-12 entry below, which named cfg 2 (2-chip SLI) and
+cfg 8 (4-chip 8x AA) as configurations that wedge the AmigaMerlin display
+driver and kill the agent. They do hang - but not because of what they are.
+
+The Voodoo 5 6000 moved from the bricked `.191` to **`.124`** (Athlon XP 2400+
+@ 2004 MHz, 255 MB, nForce2, AmigaMerlin 3.1-R11 byte-identical to `.191`'s).
+Screening all nine configs there produced SIX "wedges the driver" verdicts -
+including **cfg 5, the DEFAULT**, which had produced 150 fps on `.191` and
+which works perfectly on `.124` from a fresh boot. That contradiction is what
+gave it away. Lining every hang up by its position in its boot session:
+
+| session | sequence | outcome |
+|---|---|---|
+| `.191` verification | cfg 0 ok -> cfg 5 ok | 2 changes, fine |
+| `.191` grid | cfg 0 ok -> cfg 1 ok -> **cfg 2 HUNG** | 3rd change |
+| `.191` 8x test | cfg 5 ok -> **cfg 8 HUNG** | 2nd change |
+| `.124` screen | cfg 0 ok -> cfg 1 ok -> **cfg 5 HUNG** | 3rd change |
+| `.124` post-reboot | cfg 5 ok | 1st, fine |
+
+**cfg 5 hung as a 3rd change and worked as a 1st and a 2nd.** So writing
+`SSTH3_SLI_AA_CONFIGURATION` repeatedly within one boot is what breaks the
+driver, on the second or third write; no individual configuration is bad. A
+RESOLUTION change is not a topology change - five resolutions at one config ran
+back to back with no wedge.
+
+**Everything measured after a hang is measured against broken hardware**, which
+is how six false verdicts appeared in a single screening run. The probe still
+reported `GR_NUM_BOARDS`/`GR_HARDWARE` for the first failing cell and then
+`- -` for the rest, and that "died before grGlideInit" pattern is the tell.
+
+### Consequences for method
+
+- **ONE AA CONFIG PER BOOT.** A multi-config sweep in one session cannot
+  produce trustworthy numbers however it is ordered. The full 9-point sweep is
+  achievable, but it costs nine reboots.
+- `v56k_bench.py` gained `board_alive()`: after any failed cell it asks the
+  BOARD (via `glideprobe --noopen`) whether Glide can still initialise, and
+  stops the campaign when it cannot, instead of blaming the next config.
+- **Agent liveness is not board liveness.** The agent survived every wedge
+  here; only the graphics subsystem died. A campaign that checks only the
+  agent will keep running and keep lying.
+
+### Two other corrections from the same work
+
+- **`GR_NUM_FB` is chips PRESENT, not chips ganged.** It reads 4 on this card
+  for every config including "Single Chip Only", so it cannot be used to
+  confirm a topology change took effect. The fps delta is the only evidence
+  (on `.191`: 1 chip 126.6 vs 4 chips 150.2 at 640x480x16).
+- **The display-class instance is not always `\0000`.** On `.191` the 3dfx card
+  was `\0000`; on `.124`, which had an NVIDIA card installed first, it is
+  `\0001`. A hardcoded instance writes the AA value into the other card's key
+  and then READS IT BACK SUCCESSFULLY from that same wrong key - the read-back
+  check becomes the camouflage. Resolve it from
+  `EnumDisplayDevices(ATTACHED_TO_DESKTOP)` via `HWPROFILE`.
+
+### AmigaMerlin on `.124`: verified data
+
+Q3 `demo four`, retail 1.32c on AmigaMerlin's own ICD, 4 chips no AA, 16-bit,
+picmip 0, V-Sync off, AA config written AND read back for every row:
+
+| 640x480 | 800x600 | 1024x768 | 1280x960 | 1600x1200 |
+|--:|--:|--:|--:|--:|
+| 122.8 | 122.3 | 117.9 | 114.6 | 78.5 |
+
+Flat to 1280x960 (-7% over a 4x pixel increase) then -31% at 1600x1200: CPU-
+bound until the very top of the range, exactly as the published fill-rate
+analysis for a 4-chip VSA-100 predicts.
+
+**Do not compare these to `.191`'s numbers.** Same driver and card, different
+host: `.191` was an Athlon XP 2600+ @ 1921 MHz with 511 MB and gave 150.2 fps
+at 640x480 where `.124` at a HIGHER 2004 MHz gives 122.8 - the 255 MB of RAM
+here is the obvious suspect. Only within-box comparisons are valid.
+
+### And the thing that made the card work at all
+
+`.124` was on **Microsoft's in-box XP Voodoo5 driver** (`3dfxvs2k.inf`,
+5.1.2001.0, 2001), which ships **no Glide and no OpenGL ICD** - hence a bare
+`OpenGLdrivers` key and a "3dfx device not found" dialog on the desktop.
+`glideprobe` hung at `grGlideInit()` against it and completed after installing
+AmigaMerlin: a clean A/B where only the driver changed.
+
+---
 ## 2026-09-12 — AMIGAMERLIN'S OpenGL IS MESA, and the whole chip/AA axis is ONE registry value
 
 Setting up the specpicks benchmark campaign on the Voodoo 5 6000 at `.191`
