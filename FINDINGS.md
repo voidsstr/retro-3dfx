@@ -13,6 +13,70 @@ physically removed and its whole stack purged; this lane has no hardware behind
 it until a Voodoo card goes back in.
 
 ---
+## 2026-09-15 — FSAA DOES NOT REACH THE CARD THROUGH AMIGAMERLIN'S OpenGL ICD: PIXEL-IDENTICAL FRAMES, ZERO FPS COST
+
+**`SSTH3_SLI_AA_CONFIGURATION` writes, reads back, survives a reboot - and
+changes nothing.** Every AA row measured on `.124` so far describes a card
+that is not anti-aliasing, and the harness called them `aa_verified` because
+the registry value read back. Reading a value back proves the WRITE landed; it
+is not evidence the driver acted on it. This is the project's signature failure
+shape and it got past a check written specifically to prevent it.
+
+Two independent measurements, either of which is sufficient:
+
+| evidence | no AA (cfg 5) | 4x AA (cfg 7) |
+|---|---|---|
+| Quake III 1024x768 screenshot, md5 | `6361acde…a18a` | **`6361acde…a18a`** |
+| pixel difference (PIL, per channel) | — | **(0,0) (0,0) (0,0)** |
+| Quake III fps, 1 chip 1024x768 (cfg 0 vs cfg 1) | 58.6 | **58.2 = 0.99x** |
+
+The frames are **byte-identical**, and at a fill-bound resolution 2x AA costs
+**nothing**. Real 2x AA must roughly halve fill rate. A third run with
+`FX_GLIDE_AA_SAMPLE=4` added produced the **same md5 again** - three settings,
+one image.
+
+The screenshots are the engine's own (`screenshotJPEG` from a deterministic
+`demo four` frame), so this is not a GDI capture artefact; and a deterministic
+demo frame rendered with identical settings SHOULD be byte-identical, which is
+exactly why identical images prove identical rendering.
+
+**Where the setting is supposed to go.** Strings from the installed binaries
+name the path, and it is not a single value:
+
+- `glide3x.dll` reads `SSTH3_SLI_AA_CONFIGURATION` **and** carries
+  `FX_GLIDE_AA_SAMPLE`, `FX_GLIDE_AA_CLIP`, `FX_GLIDE_FORCE_OLD_AA`, the full
+  `FX_GLIDE_AA{2,4,8}_OFFSET_{X,Y}n` jitter tables, and
+  `grTBufferWriteMaskExt`.
+- It **asks the miniport** for the configuration:
+  `hwcInitVideo: HWC_MINIVDD_HACK: ExEscape:HWCEXT_SLI_AA_REQUEST`.
+- The display driver `3dfxvs.dll` references the value **six** times and owns
+  the enables: `SSTH3_ANTIALIAS`, `SSTH3_DIGITAL_SLI_AA`,
+  `SSTH3_AA_ENABLE_OUTOFMEMORY`, `SSTH3_AAJITTER_FORCEFLAG`, and per-chip
+  dither-matrix selectors (`SSTH3_DITHMATSEL_4SMPL_CHP0`, `…_8SMPL_CHP2`, …).
+- `3dfxOGL.dll` - which IS the OpenGL ICD in use, 2,646,009 bytes, reporting
+  `GL_VENDOR: Brian Paul` / `GL_VERSION: 1.2 Mesa 6.3` - references the value
+  exactly **once**.
+
+So `SSTH3_SLI_AA_CONFIGURATION` selects a configuration; something else
+**enables** it, and the live registry key holds only the configuration value
+(plus `FX_GLIDE_ANALOG_SLI=1`). The leading hypothesis is that a Mesa-derived
+ICD never issues the T-buffer/AA request at all, which would mean **FSAA on
+this driver is reachable only from native Glide** - unverified, because the
+UT99 native-Glide run never launched (0-byte log) and that test still has to be
+made to work.
+
+**Consequences, immediately:**
+1. **No AA number or screenshot from the OpenGL titles is publishable as an AA
+   measurement.** They are measurements of the card with AA requested and not
+   delivered - which is itself a finding, and a more interesting one.
+2. `aa_verified` must mean "the rendering changed", not "the value read back".
+   A fps delta against the matching no-AA cell, or a pixel difference, is the
+   only honest post-condition.
+3. The `.124` hang the user had to power-cycle out of happened at cfg 1
+   (1 chip, 2x AA) - an AA config the driver is not honouring. Worth asking
+   whether the hangs are concentrated in configs that are being half-applied.
+
+---
 ## 2026-09-15 — AGENT LIVENESS IS NOT BOARD LIVENESS, AND NOW THE BOX RESTARTS ITS OWN AGENT
 
 Two findings from the same afternoon, one procedural and one mechanical.
