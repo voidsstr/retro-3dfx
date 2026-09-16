@@ -50,8 +50,7 @@ engine's own screenshot:
 
 **8x AA renders FASTER than no AA.** Eight samples cannot be free, and the
 polygon edges in the 8x frame are hard staircases with no intermediate shading
-— measured as well as seen: 78% of edge columns across a high-contrast boundary
-carry no blended pixel at all.
+The quantified figure — 78% of edge columns across a high-contrast boundary carry no blended pixel — was measured on the 4x-AA-requested (cfg 4) UT99 frame's terrain horizon, the cleanest two-tone edge captured (`retro-agent/docs/evidence/voodoo5-6000-fsaa/edge_stats.py` reproduces it: 257 of 328 columns). On a textured indoor crop of the cfg 8 frame the same metric reads 60-70% "blended" because texture noise reads as blending — a limit of the metric, which is why the cfg 8 evidence is the frame time and the edge zoom, not a percentage.
 
 ### Getting UT99 to launch at all — the finding that unblocked this
 
