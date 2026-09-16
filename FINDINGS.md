@@ -18,160 +18,248 @@ it until a Voodoo card goes back in.
 
 
 
+
 ## 2026-09-16 - GLQuake does NOT crash on AmigaMerlin; the benchmark harness's -condebug does
 
-Every GLQuake cell of the sweep died 5 s after GL init, silently (no window, no
-dialog), and Dr Watson had it five times over:
+**CORRECTED 2026-09-16 (adversarial review): right conclusion, wrong
+mechanism in the first version.**
+
+Every GLQuake cell of the sweep died seconds after GL init, silently (no
+window, no dialog). Dr Watson holds five records (3 sweep cells + 2 manual
+launches), all:
 
 ```
 GLQUAKE.EXE  c0000005 (access violation)
-FAULT -> 0040617c  rep stosd   es:415f4dc3=????????
-stack:   GLQUAKE+0x617c
-         0x534e4554          <- the return address, as ASCII: "TENS"
+FAULT -> 0040617c  rep stosd   es:415f4dc3     <- a console-line clear: memset(ptr, ' ', 38)
+                                                  through a pointer that now holds string bytes
 ```
 
-The saved return address on the stack is the letters **"TENS" from
-"GL_EX·TENS·IONS"**. AmigaMerlin's Mesa 6.3 ICD reports **61 extensions in
-1,449 bytes**; 1997's GLQuake formats that console line through a **1 KB buffer**
-on the `-condebug` path (`Con_DebugLog`), and the string walks over the stack.
+**Mechanism.** `-condebug` routes every console line through `Con_DebugLog`,
+which formats into a **static 1 KB buffer**. AmigaMerlin's Mesa 6.3 ICD reports
+**61 extensions, a 1,434-byte string** (the whole `GL_EXTENSIONS:` line is
+1,449 B). The overrun walks over the adjacent global console-text pointer in
+`.bss`; the next console clear then writes through the corrupted pointer
+(`0x415f4dc3` = bytes of the extension string). The first version of this
+entry said the STACK was smashed and read the "return address" `0x534e4554`
+("TENS") as proof: that value is Dr Watson's EBP-chain walk reading through
+`Con_Printf`'s message buffer (ebp pointed into the text), not a return
+address. Same cause, different object.
 
-Measured, same box, same binary (md5 `bcf40493…`, 435,712 B):
+**Measured, same box, same binary** (`glquake.exe` md5 `bcf40493…`, 435,712 B):
 
-| launch | outcome |
-|---|---|
-| `-condebug +exec bench.cfg` | dead in 5 s, every time |
-| **no `-condebug`** | **alive, window up, at 40 s** |
-| `-condebug` + `MESA_EXTENSION_OVERRIDE=-GL_… x54` | dead; extension line **unchanged at 1,450 B** - this Mesa 6.3 ignores the override |
+| launch | outcome | recorded? |
+|---|---|---|
+| `-condebug +exec bench.cfg` | dead within seconds, 5/5 | Dr Watson records on disk |
+| **no `-condebug`** | **alive - PROCLIST shows glquake.exe, WINLIST a "GLQuake" window - at 40 s** | live observation only |
+| `-condebug` + `MESA_EXTENSION_OVERRIDE=-GL_… x54` | dead; extension line unchanged at 1,450 B | live observation only |
 
-So the game is fine on this driver and the crash is **our logging flag**. It is
-specific to AmigaMerlin only in that its ICD's extension string is long enough
+So the game is fine on this driver and the crash is **our logging flag**. It
+is AmigaMerlin-specific only in that its ICD's extension string is long enough
 to trip a 1997 buffer; our own MesaFX on the Voodoo 3 evidently stayed under
-1 KB, which is why `-condebug` has always worked before. Benchmarking GLQuake
-here needs a capture route that does not depend on `-condebug`; until then it
-is out of the automated sweep, and its rows say `process-exited`, not
-"no fps line".
+1 KB, which is why `-condebug` always worked before. `MESA_EXTENSION_OVERRIDE`
+does nothing because the feature **does not exist in Mesa of this vintage** -
+the byte-identical ICD contains no such string - not because this driver
+"ignores" it.
+
+Benchmarking GLQuake here needs a capture route that does not depend on
+`-condebug` (`v56k_glq_shot.py` photographs the console line the timedemo
+leaves on screen; untested until the box is free). The recorded sweep rows read
+`no-fps-line`; the `process-exited` status that names this class of failure
+came after them.
 
 Two harness defects it exposed, both fixed the same day: the runner never
-checked whether the game process was still alive (it waited 7 minutes per cell
-for a log a dead process would never write), and `watson_decode` read a FRESH
-Dr Watson log as latin-1 - Dr Watson writes **UTF-16LE with a BOM when it
-creates the file** and ANSI only when it appends, so every log after a clear
-decoded to "no crash".
+checked whether the game process was still alive (7 minutes per cell for a log
+a dead process would never write), and `watson_decode` read the log as latin-1
+- Dr Watson **appends in whatever encoding the existing file has, and creates a
+new file as UTF-16LE with a BOM**, so every log after a clear decoded to "no
+crash".
 
-## 2026-09-16 - AmigaMerlin DOES program all four chips; the agent-killer is cumulative, not a bad mode
 
-Ring capture on `.124` (`v56k_repro_q3.py`, `fxscan2 ring` @100 ms through a live
-fullscreen Glide session). Two results, and the first refutes the hypothesis it
-was built to test.
+## 2026-09-16 - The Quake III cell that killed the agent is healthy in isolation; the agent-killer is not a mode, and not "cumulative" either
 
-**1. The mode set is HEALTHY, and better than the vintage driver's.** Across the
-desktop -> Glide transition at 1024x768:
+**CORRECTED 2026-09-16 (adversarial review).**
 
-| | registers written |
-|---|---|
-| chip0 (master) | **9** |
-| chips 1/2/3 (slaves) | **13 each**, including `vidScreenSize`, `vgaInit0`, `vidOvlEndCoord` |
+Ring capture on `.124` (`v56k_repro_q3.py`, `fxscan2 ring` @100 ms through a
+live fullscreen Glide session, 240 s).
 
-The W2K miniport in the vintage tree copies only five registers master->slave
-and **`vidScreenSize` is not among them**; AmigaMerlin writes the full geometry
-to every chip. For the whole 223-second session only `status` toggles, and the
-CRTC heartbeat stays locked across all four chips (`c0=c1=c2=c3` every sample).
-So "the slaves never got the geometry" is **not** the fault here.
+**1. The Glide mode set programs all four chips.** Across the desktop -> Glide
+transition at 1024x768, registers that CHANGED (the ring is a change recorder;
+a write of an unchanged value is invisible, and `status` is read-only and moves
+by itself):
 
-**2. The cell that kills the agent is FINE in isolation.** Quake III 1024x768
-16-bit at cfg 5 - the exact cell that killed the agent in the sweep - ran to
-completion with nothing anomalous. In the sweep it was the **fifth** cell of the
-boot, after 1600x1200 16/32 and 1280x960 16/32 all passed. So the trigger is
-**cumulative across cells in one boot**, not any particular mode.
+| | changed | of which driver-written |
+|---|---|---|
+| chip0 (master) | 9 | 8 - a LOWER bound: at the desktop it already held `vidScreenSize=00300400`, `vidOvlEndCoord`, `dacMode=0` |
+| chips 1/2/3 | 13 each | 12 each, including `vidScreenSize`, `vgaInit0`, `vidOvlEndCoord` |
 
-**The agent dies with NO Dr Watson record**, which is itself evidence: a
-user-mode crash would be logged now that dialogs are suppressed and the log is
-cleared per run. A process that disappears without an exception on a **255 MB**
-box points at resource exhaustion rather than a fault in the render path. The
-runner now records `mem_avail_mb`/`mem_load_pct` **before every cell** and puts
-free memory on the per-cell log line - a monotonic decline across a boot is what
-separates a leak from a driver fault, and without it both read as "it died
-again".
+The 13-vs-9 gap is mostly "no change needed on the master" plus the by-design
+master/slave differences (`miscInit0`, `miscInit1` DAC power-down, `vgaInit0`
+bit 9). Note this burst is the **Glide fullscreen path** (`grSstWinOpen`'s SLI
+setup in `glide3x`), not the display driver's mode set, so it is *not* a
+like-for-like comparison with the W2K miniport's five-register master->slave
+copy; a pure desktop mode change under AmigaMerlin with the ring armed would be.
+For the rest of the session only `status` toggles, and the four CRTC heartbeats
+stay **locked to within one scanline** (163 of 219 samples exactly equal, 56
+off by one line - read skew). The ring did not see the session end.
+
+**2. The cell that killed the agent is fine on its own.** Quake III 1024x768
+16-bit cfg 5 - the exact cell that took the agent down in the sweep - ran
+without incident in the repro and produced **120.4 fps** as the first cell of
+the next sweep boot. In the fatal boot it was the fifth cell, after 1600x1200
+16/32 and 1280x960 16/32.
+
+**3. What the evidence supports, and what it does not.** The first version of
+this entry said the trigger was "cumulative across cells in one boot". It is
+not: the next boot ran **at least 23 Glide sessions** (6 Quake III, 11 Quake
+II, 3 GLQuake crashes, UT99…) without a death. So: not a particular mode, not
+reproducible in isolation, not a count of sessions. Untested candidates:
+
+- the SEQUENCE (1280x960/32 -> 1024x768/16 with the slaves still holding
+  1280x960 geometry - README trap 6 says nothing restores them; the repro
+  started from pristine slaves);
+- the agent's own in-process watchdog (fires when a handler is stuck >75 s
+  with a game present: `taskkill` the game, restore the mode) - `agent.log`
+  around the death would show it;
+- who actually holds `:9897` in the dead state (EXEC children are spawned
+  with `bInheritHandles=TRUE`, so "9897 bound = the agent process is gone" is
+  not proven - `netstat -ano` during a death would be);
+- a parallel session tagged and rebuilt agent v1.82.0 at 12:08:51, thirty
+  seconds before the fatal cell (auto-update via the share is ruled out:
+  `agent_ver` stayed 1.81.1 across later reboots).
+
+The **memory** series (146 -> 140 MB over 21 cells, load 42-45 %) comes only
+from the boot in which the agent survived; the fatal boot has no memory data,
+and SYSINFO free memory is not the agent's own working set. "Not a leak" is
+therefore unsupported either way. "The agent dies with no Dr Watson record"
+was also unsupported - the repro's `watson_clear()` destroyed the fatal boot's
+log before anyone read it. The harness now fetches before it clears.
+
 
 ## 2026-09-16 - What each benchmark title does on AmigaMerlin, and why it fails
 
-Diagnosed on `.124` (V5 6000 + AmigaMerlin 3.1-R11) with the new
-`v56k_diag.py`. Four distinct causes, only two of which are the driver:
+**CORRECTED 2026-09-16 (adversarial review)** - the first version attributed
+two harness faults to the driver and the library.
 
-| title | outcome | cause |
+| title | outcome on `.124` | cause / status |
 |---|---|---|
-| Quake III | crashes | **AmigaMerlin**: int3 in `glide3x!grDrawTriangle+0x2d`, tripped by its own Mesa ICD |
-| UT99 GlideDrv | **works**, 66.44 fps @640x480 | 16-bit only - GlideDrv has no 32-bit mode |
-| UT99 OpenGLDrv | **GPF at init** | **AmigaMerlin**: `General protection fault!  History: UOpenGlRenderDevice::SetRes <- ::Init <- TryRenderDevice <- OpenWindow <- UGameEngine::Init` |
-| RtCW | works, 116-126 fps | loads its bundled Wicked3D `gl/openglv5.dll`, NOT AmigaMerlin's ICD |
-| Serious Sam TFE/TSE | never starts | **library**: `CD check - "Please insert the game CD"` |
+| Quake III | 16 of ~20 launches clean (79-122 fps cfg 5, 16-bit; 51-115 fps 32-bit); one 10:01 cfg-0 stall | the stall is the `glide3x` no-context trap (entry above); the agent deaths are a separate, unexplained event |
+| Quake II | 147-173 fps, flat across resolution, 32-bit = 16-bit | CPU-bound on this card; runs on the game-local copy of the AmigaMerlin ICD |
+| GLQuake | dies under the harness's `-condebug`; fine without it | harness (entry above) |
+| UT99 GlideDrv | **works**: 66.4 @640x480 cfg 2; 56-67 fps across 1600x1200..640x480 cfg 5 | 16-bit. The "32-bit" rows matched their 16-bit twins to within noise (57.82 vs 56.01): Glide 2.x has no 32-bit framebuffer, the request renders 16-bit. Now declared `unsupported-by-engine` |
+| UT99 OpenGLDrv | dies at init: `General protection fault! History: UOpenGlRenderDevice::SetRes <- ::Init <- TryRenderDevice <- OpenWindow <- UGameEngine::Init` (read off the screen; the dialog was not kept) | UT's STOCK v436 `OpenGLDrv.dll` against this ICD. That renderer is known-fragile with non-NVIDIA ICDs; blaming the driver is an inference, not a diagnosis |
+| **UT99 D3DDrv** | **works and gives real 32-bit: 800x600 32-bit 68.1 fps (16-bit 69.5); 1024x768 16-bit 69.1** | dies (`process-exited`) at 1280x960+, and at 1024x768 32-bit - records kept. This, not OpenGLDrv, is UT99's 32-bit route on this driver |
+| RtCW | 116-127 fps @640x480 | on the game's bundled Wicked3D `gl/openglv5.dll`; the first launch after an `r_glDriver` change loads it regardless of `+set`/config (mechanism not fully established). The 116.8 row is a `driver-mismatch` row |
+| Serious Sam TFE/TSE | `CD check - "Please insert the game CD"` | **the harness's fault, not the library's**: the staged title is a disc-mount launcher (mounts `_disc\SeriousSamTFE.iso`, waits for the drive) and the first bench launched `Bin\SeriousSam.exe` directly, bypassing it. The bench launcher is now generated from the same template |
 
-**The UT99 32-bit question is now answered.** The user's report that UT99 "would
-not change to 32 bit" is not a settings problem: GlideDrv is 16-bit-only, and
-the OpenGL device that would give 32-bit **general-protection-faults inside
-`SetRes`** against this driver. D3DDrv is the remaining candidate.
+Two of these are MODALS that sit forever (UE1's "Critical Error", Serious Sam's
+"CD check"); `v56k_diag.blocking_modal()` fails such a cell in seconds as
+`blocked-by-modal`. That path has not yet been exercised by a recorded row -
+the titles that trigger it were dropped from the sweep in the same commit.
+UE1's box is the ENGINE's dialog, so the Windows crash-dialog suppression
+(`quiet`) does not cover it - detection, not suppression, is the mechanism.
 
-**Two of these are MODALS that sit forever**, and each cost a stalled cell:
-UE1's own "Critical Error" box and Serious Sam's "CD check". They are not slow
-runs. `v56k_diag.blocking_modal()` now WINLIST-polls for them and the runner
-fails the cell in seconds as `blocked-by-modal` with the dialog named, instead
-of burning attempts x max_run on a cell that could never pass.
+## 2026-09-16 - ONE Quake III stall on AmigaMerlin was an int3 inside glide3x - the no-context trap, not "the hang"
 
-Note UE1's Critical Error is the ENGINE's dialog, so the Windows-level
-crash-dialog suppression (`v56k_diag quiet`) does not cover it - that is why
-detection, not suppression, is the mechanism for this class.
+**CORRECTED 2026-09-16 (adversarial review).** The first version of this entry
+called the record below "the Quake III hang" and tied it to the agent deaths.
+Neither holds; what does is narrower and more useful.
 
-## 2026-09-16 - The Quake III "hang" on AmigaMerlin is an int3 INSIDE glide3x, not a hang
-
-`.124`, Voodoo 5 6000 + AmigaMerlin 3.1-R11. Dr Watson had the answer the whole
-time:
+`.124`, Voodoo 5 6000 + AmigaMerlin 3.1-R11. Dr Watson recorded:
 
 ```
 App: C:\Games\Quake3-TeamArena\quake3.exe (pid=1008)
+When: 4/2/2003 @ 21:16:14.437   <- .124's clock reads April 2003; calibrated against the
+                                   GLQuake records this is 2026-09-16 ~14:01:20Z = 10:01 local
 Exception number: 80000003 (hardcoded breakpoint)
 function: glide3x!grDrawTriangle
 
 glide3x!grDrawTriangle+0x2d      <- int3
-3dfxogl+0xc65a1                  <- AmigaMerlin's Mesa 6.3 ICD
-3dfxogl+0xba55a / 0xb90af / 0xb9608
-quake3+0x6208d
+3dfxogl+0xc65a1                  <- the only frame below it that is trustworthy (see below)
+3dfxogl+0xba55a / 0xb90af / 0xb9608 / quake3+0x6208d   <- NOT a call chain
 ```
 
-**AmigaMerlin's RETAIL `glide3x.dll` ships a hardcoded breakpoint in
-`grDrawTriangle`**, and its own OpenGL ICD trips it. The disassembly at the
-fault shows two guards branching TO the int3 - `jz` when a pointer is NULL and
-`jnz` when that pointer's low bit is set - i.e. a debug assertion on a state
-pointer that was left in a shipping binary.
+**What it is.** Which launch: the cfg-0 Quake III run probed at 14:01:01Z
+(`v56k_repeat_nowd/cfg0-boot/versions.json`), a run that has no row and no log
+- one stall, at 10:01 local. Quake III then passed 6 cells at 14:14-14:24Z and
+10 of 10 cfg-5 cells at 16:07-16:42Z on the same `glide3x.dll` md5
+`8c376063…`. So this is **one crash in ~20 launches that day**, not the title's
+behaviour on this driver.
 
-**Why it looked like a whole-box wedge:** an int3 with no debugger attached
-raises STATUS_BREAKPOINT, and the resulting crash dialog sits BEHIND the
-exclusive fullscreen surface. The box is fine; nothing is on screen but the
-dead game. This is the same modal-behind-fullscreen trap already logged here
-for the Found New Hardware Wizard - it has now cost two separate manual reboots.
+**Which frames to believe.** Only the top ICD frame. The three lower
+`3dfxogl+…` addresses resolve to enumeration DATA tables in the ICD (checked on
+`/srv/retro-pxe/driverpacks/graphics_c/D/G/3b/3dfxOGL.dll`, **byte-identical**
+to the deployed ICD, md5 `8912a138…`): Dr Watson's EBP-chain walk ran through
+data. The "tripped from the ICD's draw path" wording rested on those frames and
+is withdrawn to "raised while `3dfxogl` was on the stack".
 
-**Mitigation shipped** (`scripts/benchmarks/v56k_diag.py quiet` in retro-agent):
-`DoReport=0`, `ShowUI=0`, `ErrorMode=2`, `DrWatson\VisualNotification=0`. The
-dump is still written; the dialog is not. A crash becomes an ordinary failed
-cell the sweep carries past instead of a wedge needing a person.
+**What the int3 is.** Not "a debug assertion left in a shipping binary". The
+sibling AmigaMerlin `glide3x` in the driverpack (385,024 B - a *different* build
+from the deployed 344,064 B one, which has not been disassembled) shows
+`grDrawTriangle` opening with THREE guards that share one `int3` sled: the TLS
+Glide-context pointer NULL, a field at `[gc+0x9788]` NULL, and the low bit. That
+is Glide's sanctioned **no-valid-context trap**. The simplest way to reach it is
+the ICD drawing after its Glide context has been closed - which is exactly what
+a focus loss does - and the Found New Hardware Wizard had just been found
+stealing focus from Quake III that same morning (the 10:15 entry). The two
+entries were written as competing explanations; they are more likely one event:
+**wizard steals focus -> Glide context torn down -> next `grDrawTriangle` trips
+the trap.** Hypothesis, not measured; the distinguishing test is a Quake III
+timedemo with a forced focus loss and Dr Watson armed.
+
+**What it is NOT.** Not the agent-killer. The agent deaths (16:16Z sweep cell,
+and the RtCW ICD-retirement death) have **no crash record** - and this entry's
+first version said that as if it were evidence. It is not: my own
+`v56k_repro_q3.py` ran `watson_clear()` at 12:28 before anyone had read the
+boot-1 log, so whatever record that boot held was destroyed unread. "No record"
+means "not looked at", and the harness now fetches before it clears.
+
+**Evidence status.** The record above was OVERWRITTEN on disk by the later
+GLQuake fetch (`watson_fetch` wrote a fixed filename; fixed the same day - every
+fetch now lands under its cell label). The only copies are this transcription,
+the `v56k_diag.py` header and a test fixture, all from one session. The
+"dialog sat behind the fullscreen surface" mechanism is inferred from the
+dead-agent port signature, never observed (no WINLIST or screenshot of it
+exists), and the earlier claim that it "cost two manual reboots" is withdrawn:
+no reboot on disk is traceable to it.
+
+**Mitigation** (`v56k_diag.py quiet`: `DoReport=0`, `ShowUI=0`, `ErrorMode=2`,
+`DrWatson\VisualNotification=0`, read back) is applied on `.124` and persists
+across reboots but not a re-image; the sweep runner now applies it itself at
+start rather than relying on a value set once by hand.
+
 
 ## 2026-09-16 - AmigaMerlin has NO registry ring - the recorder must come from outside
 
-Measured on `.124`: `RLog*` is absent from the display-class key, the `3dfxvs`
-service and `Device0`. The `RLog00..31`/`RLogSeq` flight recorder is OURS, added
-to the vintage H5 build; a retail driver has nothing equivalent. So for
-AmigaMerlin the recorder has to be reconstructed from outside the driver, and
-there are exactly two surfaces:
+**Amended 2026-09-16 (adversarial review).** Probed live on `.124` (REGREAD of
+the display-class key, the `3dfxvs` service and `Device0`: no `RLog*`); the
+probe output was not saved. It is certain for a stronger reason: the
+`RLog00..31`/`RLogSeq` recorder is OUR addition to the vintage H5 display
+driver (retro-3dfx `6857906`, 2026-07-21, `Displays/H5/LOGFILE.C`), so no
+retail binary can carry it. The recorder has to come from outside the driver.
+Surfaces used, both wrapped by `retro-agent/scripts/benchmarks/v56k_diag.py`:
 
 - **`tools/v56k/fxscan2 ring`** - per-chip scanout registers over the
-  `HWCEXT_GET_SLAVE_REGS` escape the SHIPPING driver already answers. **Verified
-  against AmigaMerlin on `.124`**: escape `0x3df3`, `121A:0009`, `numChips 4`,
-  32 MB/chip. It is the only recorder that can see a Glide fullscreen session,
-  because the driver releases the hardware on `DrvAssertMode(DISABLE)`.
-- **Dr Watson** - which is what actually cracked the crash above.
+  `HWCEXT_GET_SLAVE_REGS` escape the SHIPPING driver answers. Verified against
+  AmigaMerlin on `.124`: escape `0x3df3`, `121A:0009`, `numChips 4`, `fbRam
+  33554432` (the tool's number; "per chip" is an inference consistent with the
+  128 MB VBIOS mode). Of the two surfaces it is the one that can see a Glide
+  fullscreen session; the `DrvAssertMode(DISABLE)` reasoning is inherited from
+  our-driver documentation and has not been verified on the retail driver.
+- **Dr Watson** - five GLQuake records on disk prove the surface works; the
+  Quake III attribution rests on a transcription (entry above).
 
-Both are wrapped by `retro-agent/scripts/benchmarks/v56k_diag.py`
-(`dump|ring|watson|quiet|capture`), and the benchmark runner now captures a
-bundle automatically on any failed cell.
+**A THIRD surface may exist, and it would be the in-driver trace this campaign
+wants.** The sibling AmigaMerlin `glide3x.dll` in the driverpack carries
+`GDBG_FILE`, `GDBG_LEVEL` and `ASSERTION FAILED:` - Glide's own built-in debug
+log, switched on by environment variables. To confirm: `DOWNLOAD` the deployed
+`glide3x.dll` (344,064 B) and check for the same strings, then one Quake III
+launch with `GDBG_FILE=C:\gdbg.txt GDBG_LEVEL=<n>` in the launcher's
+environment. Not yet done - the sweep owns the box.
+
+Harness note: the per-cell "bundle" originally re-fetched whatever
+`C:\fxring.txt` was on the box, so three GLQuake failures carried the repro's
+Quake III ring as if it were theirs. The ring is now attached only when the
+runner armed one for that cell, and the file is deleted after every fetch.
 
 ## 2026-09-16 - RtCW r_glDriver is latched; retiring the wrong ICD to force it WEDGED .124
 
