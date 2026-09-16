@@ -30,6 +30,12 @@ Everything measured, established, retracted and NOT yet run is in
 - Second instalment: memory modes, SFFT / official 1.04 / the in-house
   stacks, a route that makes FSAA engage, the chip labels (SLI band height),
   32-bit, the other titles.
+- PUBLISHED 2026-09-16 as a six-part specpicks.com lab series
+  (`/reviews/voodoo5-6000-strange-god-part-{1..6}-*-2026`), with the rows in
+  the site DB (`/benchmarks/3dfx-voodoo5-6000`) and the dataset on the blob.
+  Two corrections surfaced while publishing: the 78% edge figure was measured
+  on the cfg 4 frame (not cfg 8), and host 2's chipset is not in its published
+  hardware record - both fixed in the dossier and the articles.
 
 ---
 ## 2026-09-15 (later) — IT IS NOT THE ICD: FSAA IS DEAD ON THE NATIVE GLIDE PATH TOO
