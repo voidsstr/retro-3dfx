@@ -13,6 +13,42 @@ physically removed and its whole stack purged; this lane has no hardware behind
 it until a Voodoo card goes back in.
 
 ---
+
+## 2026-09-16 - RtCW r_glDriver is latched; retiring the wrong ICD to force it WEDGED .124
+
+Benchmarking RtCW (WolfMP, wolfbench.dm_60) on .124's Voodoo 5 6000 + AmigaMerlin
+3.1-R11, the engine kept loading the game-staged `gl\openglv5.dll` (GL_VENDOR
+**METABYTE/WICKED3D**, GL_VERSION 1.1 - a 3dfx-era Wicked3D ICD, NOT AmigaMerlin's
+Mesa 6.3 `3dfxOGL.dll`) instead of the driver under test.
+
+- **`r_glDriver` is CVAR_LATCH.** `+set r_glDriver 3dfxogl` on the command line
+  AND `seta r_glDriver "3dfxogl"` written into `wolfconfig_mp.cfg` both LATCH the
+  change: the log read `3dfxogl` on disk yet R_Init still loaded `gl/openglv5.dll`
+  and printed "r_glDriver will be changed upon restarting." The pinned driver
+  loses the FIRST launch after a change; it applies on the next one.
+- **Retiring the wrong ICD to force a fallback is DANGEROUS.** Moving
+  `gl\openglv5.dll` aside so LoadLibrary fails and the engine falls back was
+  meant to be deterministic. Instead it wedged the box: RtCW hit a fullscreen
+  GL-init failure and **the agent died with it** - 135/139/445 open, 9898/9899
+  refused, 9897 still bound (the dead-agent signature; the box stayed up). Do NOT
+  retire an ICD an engine may try to load in exclusive fullscreen unattended.
+- **The fix that shipped:** the runner no longer forces the driver blind. It
+  READS BACK `GL_VENDOR` from the log (`RTCW.verify_driver`) and records a
+  `driver-mismatch` row status when the ICD that loaded is not the one asked for,
+  so a wrong-driver number is never published as clean. Both api variants are
+  kept: `rtcw` (AmigaMerlin 3dfxogl) and `rtcw:openglv5` (the Wicked3D ICD, a
+  genuine second GL path on the same card - 125.8 fps @ 640x480 cfg 2).
+
+## 2026-09-16 - The .124 agent watchdog did NOT relaunch a dead agent
+
+After the wedge above, the agent stayed dead for 10+ minutes; the Run-key
+watchdog loop never brought it back, though the box was healthy (139/445/135
+open). A dead XP agent with no working watchdog needs a person - SMB code-exec is
+blocked by ForceGuest and a bare power-cycle risks the PXE reinstall offer.
+Treat the watchdog as unverified until a killed-agent test proves it relaunches;
+likely causes to check: the loop's own cmd window died, or it keys on
+imagename presence while the process exits leaving 9897 bound.
+
 ## 2026-09-16 — THE CPU-BOUND CELL MEASURES EVERYTHING ELSE THAT IS RUNNING
 
 The 640x480 Quake III cell on `.124` moved 8-12% between two runs while every
