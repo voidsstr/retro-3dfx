@@ -13,6 +13,30 @@ physically removed and its whole stack purged; this lane has no hardware behind
 it until a Voodoo card goes back in.
 
 ---
+## 2026-09-16 — A MODAL DIALOG BEHIND A FULLSCREEN GAME LOOKS EXACTLY LIKE A DRIVER WEDGE
+
+Two consecutive Quake III runs on `.124` this morning loaded the map
+(`cgame loaded`), opened `demos/four.dm_66`, and never rendered a frame -
+five minutes of silence, `no-fps-line`, the renderer string present. The same
+setting had completed five resolutions the night before. It was not the card:
+XP's **"Found New Hardware Wizard"** for DAEMON Tools' driverless *SI Pseudo
+Device SCSI Processor Device* re-launches on every PnP re-detection, took
+focus behind the fullscreen window, and Quake III stops rendering when it
+loses focus. Killing the window by title only buys minutes; walking the wizard
+to its last page with **"Don't prompt me again to install this software"**
+ticked stops it for good (done; it did not return in the following minutes).
+
+Rule: a run that stalls right after the map loads gets a `WINLIST` before it
+gets blamed on the driver. `v56k_bench.quiesce()` now kills the wizard by
+window title as well.
+
+Also from the readiness audit: Quake II's game-local `3dfxgl.dll` on `.124` is
+2,646,009 B - a copy of the AmigaMerlin Mesa ICD under the MiniGL's name, left
+by the driver-install sweep - while the staged library ships the real 3dfx
+MiniGL (142,848 B). A Quake II row on this box is therefore an ICD row; the
+runner now labels it by the file's measured size.
+
+---
 ## 2026-09-16 — CHECKPOINT: the Voodoo 5 6000 campaign's first instalment is closed
 
 Everything measured, established, retracted and NOT yet run is in
