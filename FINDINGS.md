@@ -15,6 +15,35 @@ it until a Voodoo card goes back in.
 ---
 
 
+
+## 2026-09-16 - What each benchmark title does on AmigaMerlin, and why it fails
+
+Diagnosed on `.124` (V5 6000 + AmigaMerlin 3.1-R11) with the new
+`v56k_diag.py`. Four distinct causes, only two of which are the driver:
+
+| title | outcome | cause |
+|---|---|---|
+| Quake III | crashes | **AmigaMerlin**: int3 in `glide3x!grDrawTriangle+0x2d`, tripped by its own Mesa ICD |
+| UT99 GlideDrv | **works**, 66.44 fps @640x480 | 16-bit only - GlideDrv has no 32-bit mode |
+| UT99 OpenGLDrv | **GPF at init** | **AmigaMerlin**: `General protection fault!  History: UOpenGlRenderDevice::SetRes <- ::Init <- TryRenderDevice <- OpenWindow <- UGameEngine::Init` |
+| RtCW | works, 116-126 fps | loads its bundled Wicked3D `gl/openglv5.dll`, NOT AmigaMerlin's ICD |
+| Serious Sam TFE/TSE | never starts | **library**: `CD check - "Please insert the game CD"` |
+
+**The UT99 32-bit question is now answered.** The user's report that UT99 "would
+not change to 32 bit" is not a settings problem: GlideDrv is 16-bit-only, and
+the OpenGL device that would give 32-bit **general-protection-faults inside
+`SetRes`** against this driver. D3DDrv is the remaining candidate.
+
+**Two of these are MODALS that sit forever**, and each cost a stalled cell:
+UE1's own "Critical Error" box and Serious Sam's "CD check". They are not slow
+runs. `v56k_diag.blocking_modal()` now WINLIST-polls for them and the runner
+fails the cell in seconds as `blocked-by-modal` with the dialog named, instead
+of burning attempts x max_run on a cell that could never pass.
+
+Note UE1's Critical Error is the ENGINE's dialog, so the Windows-level
+crash-dialog suppression (`v56k_diag quiet`) does not cover it - that is why
+detection, not suppression, is the mechanism for this class.
+
 ## 2026-09-16 - The Quake III "hang" on AmigaMerlin is an int3 INSIDE glide3x, not a hang
 
 `.124`, Voodoo 5 6000 + AmigaMerlin 3.1-R11. Dr Watson had the answer the whole
