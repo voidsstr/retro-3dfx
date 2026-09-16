@@ -17,6 +17,47 @@ it until a Voodoo card goes back in.
 
 
 
+
+## 2026-09-16 - GLQuake does NOT crash on AmigaMerlin; the benchmark harness's -condebug does
+
+Every GLQuake cell of the sweep died 5 s after GL init, silently (no window, no
+dialog), and Dr Watson had it five times over:
+
+```
+GLQUAKE.EXE  c0000005 (access violation)
+FAULT -> 0040617c  rep stosd   es:415f4dc3=????????
+stack:   GLQUAKE+0x617c
+         0x534e4554          <- the return address, as ASCII: "TENS"
+```
+
+The saved return address on the stack is the letters **"TENS" from
+"GL_EX·TENS·IONS"**. AmigaMerlin's Mesa 6.3 ICD reports **61 extensions in
+1,449 bytes**; 1997's GLQuake formats that console line through a **1 KB buffer**
+on the `-condebug` path (`Con_DebugLog`), and the string walks over the stack.
+
+Measured, same box, same binary (md5 `bcf40493…`, 435,712 B):
+
+| launch | outcome |
+|---|---|
+| `-condebug +exec bench.cfg` | dead in 5 s, every time |
+| **no `-condebug`** | **alive, window up, at 40 s** |
+| `-condebug` + `MESA_EXTENSION_OVERRIDE=-GL_… x54` | dead; extension line **unchanged at 1,450 B** - this Mesa 6.3 ignores the override |
+
+So the game is fine on this driver and the crash is **our logging flag**. It is
+specific to AmigaMerlin only in that its ICD's extension string is long enough
+to trip a 1997 buffer; our own MesaFX on the Voodoo 3 evidently stayed under
+1 KB, which is why `-condebug` has always worked before. Benchmarking GLQuake
+here needs a capture route that does not depend on `-condebug`; until then it
+is out of the automated sweep, and its rows say `process-exited`, not
+"no fps line".
+
+Two harness defects it exposed, both fixed the same day: the runner never
+checked whether the game process was still alive (it waited 7 minutes per cell
+for a log a dead process would never write), and `watson_decode` read a FRESH
+Dr Watson log as latin-1 - Dr Watson writes **UTF-16LE with a BOM when it
+creates the file** and ANSI only when it appends, so every log after a clear
+decoded to "no crash".
+
 ## 2026-09-16 - AmigaMerlin DOES program all four chips; the agent-killer is cumulative, not a bad mode
 
 Ring capture on `.124` (`v56k_repro_q3.py`, `fxscan2 ring` @100 ms through a live
