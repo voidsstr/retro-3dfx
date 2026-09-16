@@ -16,6 +16,42 @@ it until a Voodoo card goes back in.
 
 
 
+
+## 2026-09-16 - AmigaMerlin DOES program all four chips; the agent-killer is cumulative, not a bad mode
+
+Ring capture on `.124` (`v56k_repro_q3.py`, `fxscan2 ring` @100 ms through a live
+fullscreen Glide session). Two results, and the first refutes the hypothesis it
+was built to test.
+
+**1. The mode set is HEALTHY, and better than the vintage driver's.** Across the
+desktop -> Glide transition at 1024x768:
+
+| | registers written |
+|---|---|
+| chip0 (master) | **9** |
+| chips 1/2/3 (slaves) | **13 each**, including `vidScreenSize`, `vgaInit0`, `vidOvlEndCoord` |
+
+The W2K miniport in the vintage tree copies only five registers master->slave
+and **`vidScreenSize` is not among them**; AmigaMerlin writes the full geometry
+to every chip. For the whole 223-second session only `status` toggles, and the
+CRTC heartbeat stays locked across all four chips (`c0=c1=c2=c3` every sample).
+So "the slaves never got the geometry" is **not** the fault here.
+
+**2. The cell that kills the agent is FINE in isolation.** Quake III 1024x768
+16-bit at cfg 5 - the exact cell that killed the agent in the sweep - ran to
+completion with nothing anomalous. In the sweep it was the **fifth** cell of the
+boot, after 1600x1200 16/32 and 1280x960 16/32 all passed. So the trigger is
+**cumulative across cells in one boot**, not any particular mode.
+
+**The agent dies with NO Dr Watson record**, which is itself evidence: a
+user-mode crash would be logged now that dialogs are suppressed and the log is
+cleared per run. A process that disappears without an exception on a **255 MB**
+box points at resource exhaustion rather than a fault in the render path. The
+runner now records `mem_avail_mb`/`mem_load_pct` **before every cell** and puts
+free memory on the per-cell log line - a monotonic decline across a boot is what
+separates a leak from a driver fault, and without it both read as "it died
+again".
+
 ## 2026-09-16 - What each benchmark title does on AmigaMerlin, and why it fails
 
 Diagnosed on `.124` (V5 6000 + AmigaMerlin 3.1-R11) with the new
