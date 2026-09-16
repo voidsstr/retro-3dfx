@@ -13,6 +13,25 @@ physically removed and its whole stack purged; this lane has no hardware behind
 it until a Voodoo card goes back in.
 
 ---
+## 2026-09-16 — CHECKPOINT: the Voodoo 5 6000 campaign's first instalment is closed
+
+Everything measured, established, retracted and NOT yet run is in
+`retro-agent/docs/specpicks-voodoo5-6000.md` under "Where testing stands —
+2026-09-16" and "What this campaign taught us". The short form:
+
+- Card: a modern "Strange God" AGP reproduction of the V5 6000 with a
+  **128 MB / 256 MB switch that has not been exercised yet**. Two hosts:
+  `.191` (EP-8RDA+, bricked mid-campaign) and `.124` (nForce2, 2004 MHz,
+  255 MB) — their numbers are not comparable with each other.
+- Publishable: the `.124` Quake III table for cfg 0/2/5 (3.47× spread from one
+  registry value), its repeatability, and the two negative findings — FSAA
+  never engages on either rendering path with AmigaMerlin 3.1-R11, and the
+  driver's chip-count labels do not describe the card.
+- Second instalment: memory modes, SFFT / official 1.04 / the in-house
+  stacks, a route that makes FSAA engage, the chip labels (SLI band height),
+  32-bit, the other titles.
+
+---
 ## 2026-09-15 (later) — IT IS NOT THE ICD: FSAA IS DEAD ON THE NATIVE GLIDE PATH TOO
 
 The entry below hypothesised that AmigaMerlin's Mesa-derived OpenGL ICD never
