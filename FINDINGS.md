@@ -13,6 +13,59 @@ physically removed and its whole stack purged; this lane has no hardware behind
 it until a Voodoo card goes back in.
 
 ---
+## 2026-09-15 (later) — IT IS NOT THE ICD: FSAA IS DEAD ON THE NATIVE GLIDE PATH TOO
+
+The entry below hypothesised that AmigaMerlin's Mesa-derived OpenGL ICD never
+issues the T-buffer/AA request, which would leave FSAA reachable from native
+Glide. **Tested on UT99 with `GlideDrv.GlideRenderDevice` — no OpenGL anywhere
+in the path — and the hypothesis is WRONG.** The setting does nothing there
+either, so the fault is in the driver/board configuration, not in the ICD.
+
+UT99, 1024x768, native Glide, its own on-screen `stat fps` overlay read off the
+engine's own screenshot:
+
+| configuration | FRAME | RENDER | POLYS |
+|---|--:|--:|--:|
+| cfg 5 — no AA | 6.9 ms | 5.4 ms | 058 |
+| cfg 8 — **8x AA** | 6.6 ms | **5.1 ms** | 056 |
+
+**8x AA renders FASTER than no AA.** Eight samples cannot be free, and the
+polygon edges in the 8x frame are hard staircases with no intermediate shading
+— measured as well as seen: 78% of edge columns across a high-contrast boundary
+carry no blended pixel at all.
+
+### Getting UT99 to launch at all — the finding that unblocked this
+
+UT99 had never produced a number, and the cause was not the renderer.
+**UE1 writes `System\Running.ini` while a session is live and deletes it on a
+CLEAN exit.** A benchmark harness kills the game, so the marker survived, and
+every subsequent launch stopped on a modal **"Unreal Tournament Recovery Mode"**
+dialog. The process existed, burned no CPU past the dialog, and left a **0-byte
+log** — indistinguishable from a renderer failure, and it was misread as one.
+CLAUDE.md already recorded this file surviving a redeploy for the same reason.
+Deleting it before each launch is now part of `Unreal1.prepare`.
+
+### Three techniques worth keeping
+
+- **UE1 ACCEPTS SYNTHETIC KEYSTROKES IN EXCLUSIVE FULLSCREEN.** id Tech 3
+  famously does not (CLAUDE.md), and that rule was wrongly assumed to
+  generalise. `UIKEY F11` reached UT99 fullscreen and produced its own
+  screenshot, which is what made a trustworthy capture of a Glide surface
+  possible at all — the agent's GDI `SCREENSHOT` of that surface returns dark
+  noise, confirmed here.
+- **UT99's `stat fps` overlay is a measurement channel** when a log cannot be
+  parsed: bind a key, press it, photograph the frame, read `FRAME=` /
+  `RENDER=` off the image.
+- **A deterministic scene is the hard part, and the obvious routes fail
+  quietly.** `?quickstart=true` picks a RANDOM PlayerStart, so two captures
+  differed in 74% of pixels for reasons that had nothing to do with AA; and
+  `demoplay` photographed 18s in returns the **loading screen**, which is a 2D
+  blit and therefore byte-identical under every AA setting — a vacuous result
+  that looks decisive. Both were caught only by LOOKING at the images. Edge
+  quality, unlike a pixel diff, is scene-independent, which is what finally
+  made the native-Glide answer safe to state.
+
+---
 ## 2026-09-15 — FSAA DOES NOT REACH THE CARD THROUGH AMIGAMERLIN'S OpenGL ICD: PIXEL-IDENTICAL FRAMES, ZERO FPS COST
 
 **`SSTH3_SLI_AA_CONFIGURATION` writes, reads back, survives a reboot - and
