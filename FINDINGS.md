@@ -14,6 +14,59 @@ it until a Voodoo card goes back in.
 
 ---
 
+
+## 2026-09-16 - The Quake III "hang" on AmigaMerlin is an int3 INSIDE glide3x, not a hang
+
+`.124`, Voodoo 5 6000 + AmigaMerlin 3.1-R11. Dr Watson had the answer the whole
+time:
+
+```
+App: C:\Games\Quake3-TeamArena\quake3.exe (pid=1008)
+Exception number: 80000003 (hardcoded breakpoint)
+function: glide3x!grDrawTriangle
+
+glide3x!grDrawTriangle+0x2d      <- int3
+3dfxogl+0xc65a1                  <- AmigaMerlin's Mesa 6.3 ICD
+3dfxogl+0xba55a / 0xb90af / 0xb9608
+quake3+0x6208d
+```
+
+**AmigaMerlin's RETAIL `glide3x.dll` ships a hardcoded breakpoint in
+`grDrawTriangle`**, and its own OpenGL ICD trips it. The disassembly at the
+fault shows two guards branching TO the int3 - `jz` when a pointer is NULL and
+`jnz` when that pointer's low bit is set - i.e. a debug assertion on a state
+pointer that was left in a shipping binary.
+
+**Why it looked like a whole-box wedge:** an int3 with no debugger attached
+raises STATUS_BREAKPOINT, and the resulting crash dialog sits BEHIND the
+exclusive fullscreen surface. The box is fine; nothing is on screen but the
+dead game. This is the same modal-behind-fullscreen trap already logged here
+for the Found New Hardware Wizard - it has now cost two separate manual reboots.
+
+**Mitigation shipped** (`scripts/benchmarks/v56k_diag.py quiet` in retro-agent):
+`DoReport=0`, `ShowUI=0`, `ErrorMode=2`, `DrWatson\VisualNotification=0`. The
+dump is still written; the dialog is not. A crash becomes an ordinary failed
+cell the sweep carries past instead of a wedge needing a person.
+
+## 2026-09-16 - AmigaMerlin has NO registry ring - the recorder must come from outside
+
+Measured on `.124`: `RLog*` is absent from the display-class key, the `3dfxvs`
+service and `Device0`. The `RLog00..31`/`RLogSeq` flight recorder is OURS, added
+to the vintage H5 build; a retail driver has nothing equivalent. So for
+AmigaMerlin the recorder has to be reconstructed from outside the driver, and
+there are exactly two surfaces:
+
+- **`tools/v56k/fxscan2 ring`** - per-chip scanout registers over the
+  `HWCEXT_GET_SLAVE_REGS` escape the SHIPPING driver already answers. **Verified
+  against AmigaMerlin on `.124`**: escape `0x3df3`, `121A:0009`, `numChips 4`,
+  32 MB/chip. It is the only recorder that can see a Glide fullscreen session,
+  because the driver releases the hardware on `DrvAssertMode(DISABLE)`.
+- **Dr Watson** - which is what actually cracked the crash above.
+
+Both are wrapped by `retro-agent/scripts/benchmarks/v56k_diag.py`
+(`dump|ring|watson|quiet|capture`), and the benchmark runner now captures a
+bundle automatically on any failed cell.
+
 ## 2026-09-16 - RtCW r_glDriver is latched; retiring the wrong ICD to force it WEDGED .124
 
 Benchmarking RtCW (WolfMP, wolfbench.dm_60) on .124's Voodoo 5 6000 + AmigaMerlin
