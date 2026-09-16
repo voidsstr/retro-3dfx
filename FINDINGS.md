@@ -13,6 +13,18 @@ physically removed and its whole stack purged; this lane has no hardware behind
 it until a Voodoo card goes back in.
 
 ---
+## 2026-09-16 — THE CPU-BOUND CELL MEASURES EVERYTHING ELSE THAT IS RUNNING
+
+The 640x480 Quake III cell on `.124` moved 8-12% between two runs while every
+GPU-bound cell repeated within 1.7%; the agent watchdog (an unfiltered
+`tasklist` every 30 s) had been installed between them. With the box QUIET -
+watchdog loop paused, the hardware wizard suppressed - the cell repeats within
+2%: cfg 0 117.5 / 116.3, cfg 5 119.4 / 121.6. The values taken with the loop
+running (97.4, 108.1) were 10-17% low. On a single-core Athlon XP a 30-second
+process enumeration is a benchmark variable. The watchdog is now a filtered
+`tasklist /fi` every 90 s, and CPU-bound cells are measured with it paused.
+
+---
 ## 2026-09-16 — A MODAL DIALOG BEHIND A FULLSCREEN GAME LOOKS EXACTLY LIKE A DRIVER WEDGE
 
 Two consecutive Quake III runs on `.124` this morning loaded the map
