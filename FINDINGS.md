@@ -19,6 +19,36 @@ it until a Voodoo card goes back in.
 
 
 
+## 2026-09-23 - Clean-room stack audit: h5 Glide TLS asm is broken; three shipped fixes are lost
+
+A code audit behind the rewritten `retro-agent/voodoo-cleanroom/README.md`
+(two adversarial fact-check passes, 1,552 claims) found:
+
+- **`glide3x_h5` `getThreadValueFast()` inline asm is wrong** (`fxglide.h`
+  ~2760). With `"=a"(t)` as `%0`, it reads `fs:[eax]` from a garbage `eax`,
+  adds the TEB constant `0x18` where `tlsOffset` belongs, and never uses the TLS
+  offset. The built DLL has 365 such reads. h5's `grSstSelect` runs one
+  **inside `grGlideInit`**, so our h5 Glide cannot initialise. It is the prime
+  suspect for the 2026-09-04 V5 6000 freeze (not proven: the Glide-only cell
+  never ran). The same asm was the real cause of the Voodoo 3 crash that fork
+  `a71eb3f` fixed with `TlsGetValue`; that commit's code comment gives a
+  different, wrong reason.
+- **Three verified fixes are in no source**: ICD 0.1.34 (monitor-max refresh),
+  ICD 0.1.35 (fullscreen cursor, `FX_DUMP_FRONT`) and glide2x fork `79ee51e`.
+  None was committed or pushed. The Voodoo 2 builds came from a fresh clone
+  (2026-08-28), and the main clone was re-created on 2026-09-04. Their
+  regression tests copy the logic, so they stay green while the fixes are
+  gone. Rule: a fork change is not done until it is pushed or captured under
+  `voodoo-cleanroom/patches/`.
+- **"Our Glide = 78–94% of retail" is withdrawn.** It compared runs taken
+  under different conditions; the same-ICD, same-conditions A/B (2026-07-23)
+  measured parity, 46.0 vs 46.3 fps. `DRIVER-STACK-ASSESSMENT.md` still
+  carries the old figure.
+
+Everything else from the audit (G3: no lane of our Glide bounds its FIFO
+spins; I11: our ICD stops after the mode set on VSA-100 even over retail
+Glide; the fxD3D `0x3DF3` escape collision) is in that README's §16.
+
 ## 2026-09-23 - The listener-aware watchdog recovers a dead AGENT, not a wedged BOX
 
 On `.124` (V5 6000, AmigaMerlin 3.1-R11) the new `agentwd.cmd` (restart when
