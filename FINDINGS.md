@@ -19,6 +19,23 @@ it until a Voodoo card goes back in.
 
 
 
+## 2026-09-23 - The listener-aware watchdog recovers a dead AGENT, not a wedged BOX
+
+On `.124` (V5 6000, AmigaMerlin 3.1-R11) the new `agentwd.cmd` (restart when
+`:9898` is not LISTENING, not only when the process is gone) was proven: agent
+killed deliberately, back on its own in **83 s**. Then the resumed cfg 2 sweep
+stalled Quake III at 1024x768/16 right after `cgame loaded` (no modal in
+`WINLIST`), and the box went to the familiar signature - 9898/9899 refused,
+**9897 accepting but not answering the protocol**, 445/139 up - and stayed
+there for 12+ minutes. The watchdog did not fire.
+
+So the watchdog's reach ends where the display driver wedges the console
+session: a loop of `tasklist`/`netstat`/`taskkill` in that session cannot run,
+or cannot kill, what is stuck under it. Treat a Quake III stall on this driver
+as **costing a power cycle**, watchdog or not. Evidence:
+`retro-agent/.../v56k_titles_192.168.1.124/diag/quake3_1024x768_16_cfg2-*`
+and `sweep_cfg2_cfg0_20260923.log`.
+
 ## 2026-09-16 - GLQuake does NOT crash on AmigaMerlin; the benchmark harness's -condebug does
 
 **CORRECTED 2026-09-16 (adversarial review): right conclusion, wrong
