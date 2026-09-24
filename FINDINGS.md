@@ -19,6 +19,42 @@ it until a Voodoo card goes back in.
 
 
 
+## 2026-09-23 (night) - CS 1.6 OpenGL "crash" on the V5 6000 is Mesa's SSE-exception probe, not the driver - `MESA_FORCE_SSE=1`
+
+**Symptom:** CS 1.6 (build 4554, BCShield) from the desktop on `.124` (V5 6000,
+AmigaMerlin 3.1-R11) dies before the first frame with *"hl.exe - Application
+Error: The instruction at 0x035e8fa0 referenced memory at 0x035e8fa0"*. Every
+route failed identically: MS `opengl32`, the gldrv slot, `Counter-Strike.exe`.
+Software mode worked. WON Half-Life said "The selected OpenGL mode is not
+supported by your video card" instead.
+
+**Cause, caught under XP's own `ntsd`** (`_NT_DEBUG_LOG_FILE_OPEN` for the log;
+XP's 5.1 ntsd has no `-logo`, and `-cf` does not work, so use `-c "$<file"`):
+`3dfxOGL.dll` is **Mesa-based** (`fxMesaCreateContext`, `common_x86.c`). At
+`wglCreateContext` it runs `_mesa_test_os_sse_exception_support`, which does
+`stmxcsr; and ~0x200; ldmxcsr; divps xmm1, xmm0` with xmm0 = 0. The divide by
+zero is deliberate: Mesa expects its `SetUnhandledExceptionFilter` hook to step
+over the trap. An *unhandled* filter only runs if no SEH frame claims the
+exception first. GoldSrc wraps video init in its own handler, so that handler
+takes `c00002b5` (STATUS_FLOAT_MULTIPLE_TRAPS) and shuts the engine down.
+`hw.dll` is unloaded while its subclassed window survives. Glide's DirectDraw
+teardown then sends WM_WINDOWPOSCHANGED down the chain DDRAW -> 3dfxOGL ->
+opengl32 -> freed `hw.dll` (0x035e8fa0), and that is the popup. Quake II/III
+never hit this because they install no handler around GL init.
+
+**Fix:** `set MESA_FORCE_SSE=1` before `hl.exe`. Mesa then skips only the OS
+probe, and the SSE paths stay on (CPUID still gates them; `MESA_NO_SSE` would
+turn them off and cost speed). Only a Mesa ICD reads the variable, so it is
+inert on every other card. It is in the staged `CounterStrike16` launchers and
+the bench's CS16 launch (retro-agent `c71127f`). Verified: the staged launcher
+runs fullscreen 1024x768 with no popup, and a `cs16` timedemo completes.
+
+**Generalises:** any game that puts its own exception handler around GL init
+will die the same way on AmigaMerlin's ICD. So will **our MesaFX** (same
+`common_x86.c`) on an SSE CPU. Try `MESA_FORCE_SSE=1` before anything else.
+WON Half-Life (`HalfLife1` tree) still exits with the variable set, so that is
+a separate fault and still open.
+
 ## 2026-09-23 (evening) - Watchdog proves itself on an agent death; RtCW 640x480/32 wedges AmigaMerlin like Quake III
 
 cfg 2 sweep on `.124` (V5 6000, AmigaMerlin 3.1-R11). UT99 D3DDrv at 1280x960/32
