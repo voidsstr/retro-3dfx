@@ -19,6 +19,43 @@ it until a Voodoo card goes back in.
 
 
 
+## 2026-09-24 - .243 (Win98 SE, P54C 165, 430HX): the Voodoo 2 answers but the boot never configures it
+
+**A Voodoo 2 that works in another PC looked absent on .243 for a whole night.
+It was answering on the PCI bus the entire time.** A read-only ring-3 config
+probe (`pci9x`, mechanism #1) found `121A:0002` rev 02 at **00:03.0** with
+**command 0000 and BAR0 0**: the BIOS leaves it unconfigured and Win98's
+boot-time enumeration creates no devnode, so HKLM\Enum\PCI and the live
+HKEY_DYN_DATA tree both show nothing. On the one boot where Windows did see it,
+the new-hardware wizard appeared and the never-installed key was later deleted
+(its freed records are still in SYSTEM.DAT, BAR0 0x41000000 in a LogConfig).
+
+- **Glide on such a card is a hard crash, not "no 3D".** Glide finds boards by
+  scanning config space itself, sets memory decode, and maps BAR0: with BAR0 0
+  that is over system RAM. Loading glide2x.dll + grSstQueryBoards took .243 down.
+- **`CM_Reenumerate_DevNode` on the PCI bus (cfgmgr32, from user mode) finds
+  it at once.** Windows installed the driver silently (3.02.02 kit, see below),
+  assigned **BAR0 0x09000000** with decode on, and gave it a devnode with
+  problem 0. Agent **1.83.0** does this at every Win9x startup when an installed
+  PCI device has no devnode (`PCIRESCAN` on demand). The boot-time rescue is NOT
+  yet proven across a reboot.
+- **Silent Win98 install recipe:** files at `SourcePath` (set to
+  `C:\WINDOWS\OPTIONS\CABS\`; it was a non-existent `D:\WIN98\`), the INF in
+  `C:\WINDOWS\INF` itself (INF\OTHER alone was not indexed: the rebuilt
+  DRVIDX.BIN kept its old size), DRVIDX/DRVDATA deleted, Class\MEDIA
+  `SilentInstall=1`. The 3dfx INF had to lose its `Reboot` and its 1997
+  MSVCRT/RICHED20 copies (Win98 SE's are newer, which means a keep-newer-file
+  prompt). Kit: share `Files\Drivers\3DFX\Win9x\voodoo2-30202-fleet\`.
+- **Result:** GLQuake with the Quake II 3.20 3dfx MiniGL (no P6 instructions, no
+  MMX: safe on a P54C) renders on the Voodoo 2 at 640x480x16, `timedemo demo1`
+  **42.3 fps**. Keep the MiniGL in a per-box `VOODOO\` folder with `-basedir ..`;
+  a game-local opengl32.dll in a shared tree hijacks GL on every NVIDIA box.
+- The chipset is **430HX + PIIX3** (Compaq EPP BIOS 1.1, 04/25/97), not 430FX.
+  The CMOS battery is dead (the clock resets to 1980-01-04 at every power-off).
+  Both unattended Win98 restarts of this box hung (2026-08-31, 2026-09-24).
+- Evidence and tools (parser, pci9x, reenum9x, regdump9x, wintext9x):
+  `retro-agent/.claude/evidence-243/` (host only). Fleetbook recipe #82.
+
 ## 2026-09-24 (morning) - Our clean-room ICD is now also a Microsoft ICD: CS 1.6 and UT99 OpenGL run on it on the V5 6000
 
 **Games that link the system `opengl32.dll` could never use our MesaFX ICD.**
