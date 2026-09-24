@@ -19,6 +19,19 @@ it until a Voodoo card goes back in.
 
 
 
+## 2026-09-23 (evening) - Watchdog proves itself on an agent death; RtCW 640x480/32 wedges AmigaMerlin like Quake III
+
+cfg 2 sweep on `.124` (V5 6000, AmigaMerlin 3.1-R11). UT99 D3DDrv at 1280x960/32
+killed the agent at 19:12 and the listener-aware `agentwd.cmd` had it back in
+25 s; `v56k_sweep.py` rebooted and continued unattended. At 19:54 RtCW
+(Wicked3D `openglv5.dll`) at 640x480/32 timed out and left the familiar
+display-driver wedge (9898 refused, 9897 mute, SMB up) that no user-mode
+watchdog can clear. So there are **two failure classes**: an agent death, which
+the watchdog now handles, and a display-driver wedge that needs a power cycle.
+The wedge has now been triggered by two different OpenGL ICDs (AmigaMerlin's
+Mesa for Quake III, Wicked3D for RtCW), which points below the ICD. Results
+are in `retro-agent/scripts/benchmarks/results/v56k_titles_192.168.1.124/`.
+
 ## 2026-09-23 - Clean-room stack audit: h5 Glide TLS asm is broken; three shipped fixes are lost
 
 A code audit behind the rewritten `retro-agent/voodoo-cleanroom/README.md`
