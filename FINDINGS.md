@@ -19,6 +19,33 @@ it until a Voodoo card goes back in.
 
 
 
+## 2026-09-24 (morning) - Our clean-room ICD is now also a Microsoft ICD: CS 1.6 and UT99 OpenGL run on it on the V5 6000
+
+**Games that link the system `opengl32.dll` could never use our MesaFX ICD.**
+`opengl32` is a KnownDLL on XP, so a game-local copy is ignored. Only engines
+that load a GL library by name (Quake II `gl_driver`, Quake III `r_glDriver`)
+reached it. voodoo-cleanroom **0.1.63** adds `fxicd.c`: the 17 `Drv*` entry
+points Microsoft's `opengl32` uses, mapped onto the existing single-context `wgl*`
+layer, plus the 336-entry dispatch table in Microsoft's order (Mesa's own
+`drivers/windows/icd/icdlist.h`). Registered on `.124` as
+`OpenGLDrivers\3dfx\DLL = retroicd.dll` (original `3dfxOGL.dll`; use `reg.exe`,
+since the agent's `REGWRITE` splits on the space in "Windows NT"):
+
+- **Counter-Strike 1.6 runs on it**: best-of-3 on one chip, 26.8 / 41.0 / 63.3 /
+  93.1 / 126.3 fps, level with AmigaMerlin, and it completes the 1600x1200 cell
+  that hangs AmigaMerlin. Microsoft's chooser picks our 32-bit format.
+- **UT99 436 OpenGLDrv runs on it** (58.3 fps at 800x600, one chip). On
+  AmigaMerlin's own ICD that renderer GPFs at init in
+  `UOpenGlRenderDevice::SetRes`. 1600x1200 and 1024x768 still raise UT's
+  "Critical Error"; not yet diagnosed.
+- `C:\retrogl.log` prints `ICD: DrvValidateVersion ... (loaded as the system
+  ICD)` when the registration took.
+
+Also 0.1.64 (built, hardware check pending): `fxBestRefresh()` re-implemented.
+The 0.1.34 monitor-max refresh fix had been lost from every source (bug I1), so
+every fullscreen game ran at 60 Hz. Its native test had kept passing because
+it mirrors the logic instead of reading the source; a new test reads the patch.
+
 ## 2026-09-24 - V5 6000 campaign: our clean-room ICD RUNS on the Voodoo 5; three harness faults that had been producing wrong numbers
 
 **Our voodoo-cleanroom MesaFX ICD (0.1.61, retail-linked, game-local
