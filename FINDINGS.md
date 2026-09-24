@@ -19,6 +19,55 @@ it until a Voodoo card goes back in.
 
 
 
+## 2026-09-24 - V5 6000 campaign: our clean-room ICD RUNS on the Voodoo 5; three harness faults that had been producing wrong numbers
+
+**Our voodoo-cleanroom MesaFX ICD (0.1.61, retail-linked, game-local
+`retrogl.dll` over AmigaMerlin's own `glide3x`) works on the V5 6000** (`.124`,
+cfg 0 single chip). README I11 ("stops after the mode set on a V4/5",
+measured on `.143` with a ~0.1.33 build) does NOT reproduce. Quake II, all
+fill-bound, 1600x1200 -> 640x480: **14.8 / 24.5 / 38.7 / 61.5 / 90.6** vs
+AmigaMerlin's own Mesa 6.3 ICD 14.5 / 22.7 / 37.1 / 57.2 / 81.5. Quake III is
+level at fill-bound resolutions and 12% behind at the CPU-bound 640x480
+(103.7 vs 117.9). Rows carry `api = opengl-cleanroom-0.1.61` in their own
+results dir, never beside the AmigaMerlin rows.
+
+**Every Quake II row the campaign had recorded ran at 640x480x16.** The staged
+`baseq2\autoexec.cfg` sets `gl_driver "opengl32"` and execs `fleetres.cfg`
+LAST, and that reset `gl_mode`, so the renderer restarted at the box's own
+mode before the timedemo ran. "32-bit" rows passed `gl_bitdepth 0` (= the
+16-bit desktop). The "flat, CPU-bound" Quake II and the "81.5 cap on one chip"
+were both this. The log said so plainly (`...setting mode 9` then
+`...setting mode 3`) and nothing read it. Fixed: the bench now writes the
+run's own fleetres.cfg and REFUSES any row whose last `setting mode` / `MODE:`
+line is not the asked mode (`wrong-mode`). That check immediately caught a
+second fault: GAMESYNC had restored the library's V1/V2 MiniGL as the
+game-local `3dfxgl.dll`, which drops a V5 to ref_soft at 320x240. Real Quake II
+single chip: 14.5 / 22.7 / 37.1 / 57.2 / 81.5.
+
+**CS 1.6 on `.124` is RAM-bound: the box has 255 MB.** `hl.exe` commits ~169 MB
+against ~156 MB available, so the same cell reads 40 or 89 fps depending on
+what the OS has trimmed. The box sat 97-100% idle throughout (wmic sampled),
+and the game logs are identical but for the fps line. Best-of-3 per cell is
+the honest number, and it must be published with the RAM next to it.
+
+**AmigaMerlin's retail `glide3x` sometimes gets a dead board mapping in
+`grGlideInit`** (`mov edi,[gc->ioRegs+0x1c]` with ioRegs unmapped;
+`grTexDownloadMipMapLevelPartial+0x6526` in export-symbol terms). Seen on CS 1.6,
+Quake II (ours and theirs) and Quake III, always on a launch shortly after
+another Glide app, never twice in a row. The bench retries once and keeps the
+failed row.
+
+**RtCW cannot be pointed at another ICD by config.** `WolfMP.exe` carries
+`gl/openglv3.dll` / `gl/openglv5.dll` itself and, on a Voodoo, loads
+`system32\gl\openglv5.dll` whatever `r_glDriver` says, then logs "r_glDriver
+will be changed upon restarting". That explains the 2026-09-16 "mechanism
+not fully established" note. Every RtCW number is therefore the Wicked3D
+wrapper's; its 1600x1200 is a deterministic crash in `openglv5!glReadPixels`.
+
+**Unattended recovery now exists** for the V5 display wedge (SMB stays up):
+ForceGuest=0 on `.124` + `safe-reboot.py --rpc` (net rpc shutdown, SMB1/NTLMv1)
++ `box-guardian.py` (retro-agent `8e8397e`). Proven: down 10 s after the call.
+
 ## 2026-09-23 (night) - CS 1.6 OpenGL "crash" on the V5 6000 is Mesa's SSE-exception probe, not the driver - `MESA_FORCE_SSE=1`
 
 **Symptom:** CS 1.6 (build 4554, BCShield) from the desktop on `.124` (V5 6000,
