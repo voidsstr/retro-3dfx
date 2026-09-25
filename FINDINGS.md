@@ -19,6 +19,30 @@ it until a Voodoo card goes back in.
 
 
 
+### 2026-09-25 - A freshly imaged XP box never got its display/audio drivers, and then lost C:\D (agent <= 1.85.0)
+
+Found while PXE-imaging a Dell Dimension 4600 (865G + ICH5). The agent's
+first-logon installer (`gs_install_missing_drivers`) and the reclaim guard
+(`gs_devices_unconfigured`) both searched `C:\D` for only a device's FIRST
+hardware id, `...&SUBSYS_xxxx&REV_02`, which no INF names. So nothing was ever
+installed, and the guard then **deleted `C:\D`** from under exactly the devices
+it served. It went unnoticed because the installer was never tested on a device
+it could serve. Fixed in agent **1.85.1** (retro-agent `f949430`,
+`agent/shared/drvmatch.h`). Things that cost time and must not be re-learned:
+- **DriverPacks INFs lie to a text search.** Ids sit in `;` comments,
+  `ExcludeFromSelect`, `[*.PosDup]`, AddReg strings and models sections XP x86
+  never reads. A match-anywhere fix resolved ~600 ids to INFs that cannot serve
+  them. Parse the model lines that `[Manufacturer]` points XP at, and let
+  SetupAPI confirm (`SetupDiBuildDriverInfoList` + `DI_ENUMSINGLEINF`).
+- **The image is missing whole driver payloads.** `scripts/pxe/inject-drivers.sh`
+  copies only each INF directory's top-level files. That leaves 46 INFs with no
+  `.sys` at all: every ATI display INF (`B136646\`), Creative, USB 3.0 and FTDI.
+- **Forcing an install is interactive on XP unless you say otherwise.**
+  `UpdateDriverForPlugAndPlayDevices` needs `INSTALLFLAG_NONINTERACTIVE` (0x4).
+  XP SP3 newdev honours it, and `SetupSetNonInteractiveMode` alone does not stop
+  newdev's wizard. DriverPacks' edits break catalogs (`I015\ialmnt5.inf` is
+  unsigned), so a non-interactive install also needs driver-signing policy Ignore.
+
 ### 2026-09-25 - The EP-8RDA+ hang is not the missing /sb, and the board is NOT blind
 
 The vetted `/sb` recovery floppy (`provisioning/bios-recovery/recovery.img`,
