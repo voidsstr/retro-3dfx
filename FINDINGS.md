@@ -45,6 +45,28 @@ session's *search* is worth. Search before you build, especially when the task
 sounds simple enough not to need it.
 
 
+## 2026-09-25 - .243's Voodoo 2 after the fix: the boot now finds it; the card LEFT .171; Hexen II joins Quake
+
+- **After the first successful install, a cold boot enumerated the card by
+  itself.** The 2026-09-25 reboot's log shows the agent's startup PCI rescue
+  finding all 5 installed devices present 50 s after boot (`nothing to do`).
+  One boot, so treat it as likely (the BIOS's ESCD probably now carries the
+  resources Windows assigned), not proven; the rescue stays as the safety net
+  and agent 1.85.0 records each boot's outcome in `PciRescueBoot`.
+- **This is the card that was in `.171`.** `.171`'s `Enum\PCI` has no
+  `VEN_121A` key at all and a GeForce FX 5500 drives it. Real Glide silicon on
+  the fleet: `.243`'s Voodoo 2 and `.143`'s V5 5500.
+- **Hexen II has a Voodoo launcher** on Quake's pattern: `VOODOO\GLH2.EXE`
+  beside the same Quake II 3.20 3dfx MiniGL, 640x480x16, gated on the agent's
+  `glide` capability. glh2 imports 50 GL entry points and the MiniGL exports
+  all of them. glh2's two `cmov` disassembly hits are switch jump tables inside
+  `.text` (repeating `xx yy 44 00` addresses), not code, so it is P54C-safe.
+- **DOS Glide is installed:** the kit's INF put `GLIDE2X.OVL` in `C:\WINDOWS`
+  (on the DOS PATH). No staged DOS Glide title fits `.243` yet: Carmageddon 1's
+  3dfx build needs its 660 MB tree plus a CD image, and real DOS has no image
+  mounter staged. A cold DOS boot would also still face the BIOS leaving BAR0 0
+  if the ESCD does not hold it; "Restart in MS-DOS mode" keeps Windows' setup.
+
 ## 2026-09-24 - .243 (Win98 SE, P54C 165, 430HX): the Voodoo 2 answers but the boot never configures it
 
 **A Voodoo 2 that works in another PC looked absent on .243 for a whole night.
@@ -63,8 +85,8 @@ the new-hardware wizard appeared and the never-installed key was later deleted
   it at once.** Windows installed the driver silently (3.02.02 kit, see below),
   assigned **BAR0 0x09000000** with decode on, and gave it a devnode with
   problem 0. Agent **1.83.0** does this at every Win9x startup when an installed
-  PCI device has no devnode (`PCIRESCAN` on demand). The boot-time rescue is NOT
-  yet proven across a reboot.
+  PCI device has no devnode (`PCIRESCAN` on demand). (Update 2026-09-25: the
+  next cold boot found the card without it - see the entry above.)
 - **Silent Win98 install recipe:** files at `SourcePath` (set to
   `C:\WINDOWS\OPTIONS\CABS\`; it was a non-existent `D:\WIN98\`), the INF in
   `C:\WINDOWS\INF` itself (INF\OTHER alone was not indexed: the rebuilt
