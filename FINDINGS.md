@@ -96,6 +96,21 @@ session's *search* is worth. Search before you build, especially when the task
 sounds simple enough not to need it.
 
 
+## 2026-09-25 (dawn) - V5 6000: "cfg 2 vs cfg 5" is a BOOT effect, not a Glide one; Quake II single-pass +64 % over AmigaMerlin
+
+- **SSTH3_SLI_AA_CONFIGURATION 2 and 5 are the same case in Glide** (gpci.c
+  `default:` - all chips SLI, no AA; the Dual/Quad names are 3dfx Tools' per-board
+  labels). Our h5 Glide logs `SLI_AA_REQUEST chips=4 sliEn=1` at both. Same-boot
+  test on the cfg 5 boot, clean-room stack, Quake III 1600x1200x16: Glide told 2
+  or 5 -> 77.6 fps in four alternating runs; the cfg 2 BOOT -> 69.6. The value
+  acts at boot on the display driver's side. With AmigaMerlin's Glide the cfg 2
+  boot is faster (87.0 vs 78.7), with ours slower - two Glides, the same two boot
+  states. Next: diff the miniport's registry/escape state between the two boots.
+- Clean-room ICD 0.1.75 makes Quake II single-pass (GL_SGIS_multitexture) the
+  default: all ours, four chips, 98.6 fps at 1600x1200 vs AmigaMerlin's own ICD
+  60.1; one chip +63..71 % over two-pass at every resolution. Full table:
+  retro-agent voodoo-cleanroom/README.md 13.3.
+
 ## 2026-09-25 (early) - V5 6000 clean-room lane: four chips on our Glide; Quake II's single-pass wall named; RtCW has a hidden Wicked3D switch
 
 Clean-room lane (voodoo-cleanroom ICD 0.1.67-0.1.74 + our h5 Glide fork), `.124`.
