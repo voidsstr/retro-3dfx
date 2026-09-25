@@ -19,6 +19,33 @@ it until a Voodoo card goes back in.
 
 
 
+### 2026-09-25 - The EP-8RDA+ hang is not the missing /sb, and the board is NOT blind
+
+The vetted `/sb` recovery floppy (`provisioning/bios-recovery/recovery.img`,
+AWDFLASH 8.24G) was written and read-back-verified, and it hung at
+**Programming Flash Memory** in exactly the same place as the ad-hoc 8.24F
+disk. So the missing `/sb` explains neither hang. It is still the right switch
+- it is why a retry is possible at all - but it is not the fault.
+
+**The operator can READ that message, which means the board has video.** A
+blind bootblock recovery shows nothing on screen; the whole disk is built
+around that. If awdflash's UI is up, the main BIOS is initialising the graphics
+card and the machine POSTs - this is an ordinary flash that will not write, not
+a bootblock rescue, and the two have different next steps. The "no video at
+all" framing from 2026-09-13 no longer describes the machine.
+
+Two consequences, both cheap:
+- **EPoX's nForce2 BIOS has a `Flash BIOS Protection` item.** Enabled, the
+  chipset refuses the write and the flasher just sits there - the exact
+  symptom. If the board reaches setup, check it before flashing again.
+- **awdflash has no verbose mode and no log**, so a hang there yields one fact:
+  it hung. `provisioning/bios-recovery/build-flashrom-diag.sh` now builds
+  `frdiag.img` with **flashrom 1.2 (DOS/DJGPP)**, which names the chipset and
+  the flash part and writes its verbose log *to the floppy* - an answer that
+  comes back even from a machine nobody can read. Probes are automatic and
+  read-only; the write is a `FLASH` a human types after seeing the chip get
+  identified. Boot-proven in QEMU first.
+
 ### 2026-09-24 - An ad-hoc EP-8RDA+ flash floppy hung the board; the vetted one was already in the repo
 
 A chat request to "format the floppy and load the BIOS image for the EP-8RDA+"
