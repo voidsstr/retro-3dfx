@@ -72,6 +72,48 @@ session's *search* is worth. Search before you build, especially when the task
 sounds simple enough not to need it.
 
 
+## 2026-09-25 (early) - V5 6000 clean-room lane: four chips on our Glide; Quake II's single-pass wall named; RtCW has a hidden Wicked3D switch
+
+Clean-room lane (voodoo-cleanroom ICD 0.1.67-0.1.74 + our h5 Glide fork), `.124`.
+Detail: retro-agent `voodoo-cleanroom/CHANGELOG.md`, README 13.3.
+
+- **Four chips work on our own h5 Glide.** First `grSstWinOpen` at cfg 5:
+  `SLI_AA_REQUEST(open) retVal=1 resStatus=1 chips=4 sliEn=1 nlines=8 analog=1`;
+  the all-ours Q2/Q3 cfg 5 matrix completed with no failed cell, level with our
+  ICD over AmigaMerlin's Glide. A real Quake II frame reads back through the LFB
+  under SLI.
+- **Quake II single-pass (GL_SGIS_multitexture) was 4x slower than two-pass - and
+  the cause was three things in OUR ICD, not Quake II** (0.1.58 had concluded
+  the opposite). An in-ICD EIP sampler (RETROGL_PROF) named each: (1)
+  glTexSubImage2D re-sent the whole mip level per lit surface (55 % CPU); (2) the
+  SGIS unit-select shim called XP msvcrt's locale-aware `getenv` twice per
+  surface (~27 %); (3) glActiveTexture/glClientActiveTexture flushed vertices on
+  every unit switch. 50.8 -> 197.5 fps at 640x480, 49.3 -> 176.3 at 1024x768.
+  **Lesson: counters only see what they were placed around; a sampler sees
+  everything.** Symbolize stripped XP system DLLs from their EXPORT tables -
+  that turned "17 % msvcrt" into "getenv".
+- **3dfx's `grTexDownloadMipMapLevelPartialRowExt` aligns `min_s` with `&= 8/4/2`**
+  (keeps one bit; meant `&= ~7/~3/~1`): a 32-bit row patch at s=16 is sent from
+  s=0. Fixed in our fork and advertised as `RETRO3DFX_PARTIALROW`; the ICD uses
+  sub-row uploads only when a Glide says it is fixed. Any retail Glide derived
+  from the 3dfx source may carry the same bug.
+- **RtCW 1.4 on a 3dfx card ignores `r_glDriver`.** `GLW_StartOpenGL`
+  (WolfMP.exe 0x477ff6): while `r_glIgnoreWicked3D` (default 0, ARCHIVE|LATCH) is
+  0 and a 3dfx card is found, it loads `gl/openglv5.dll` (then `openglv3`) and
+  `Cvar_Set`s `r_glDriver` to it; with 1 it forces `opengl32`, i.e. the SYSTEM
+  ICD. So every RtCW row "on" the AmigaMerlin ICD or our game-local ICD ran on
+  Wicked3D (the runner's GL_VENDOR read-back caught and relabelled the published
+  ones; the clean-room CSV's `opengl-cleanroom-0.1.61` RtCW rows are mislabelled).
+  To bench an ICD in RtCW: `+set r_glIgnoreWicked3D 1` and make it the system
+  ICD (`OpenGLDrivers\3dfx\DLL`).
+- **Clipped-path triangle batching: pixel-identical and worth nothing** - Quake
+  III's geometry already goes through the batched unclipped path; reverted.
+  `icd_frame_compare.py` (screenshot the timedemo's last frame per variant and
+  diff) is the reusable part: every change above was proven pixel-identical.
+- `.124` auto-updated its agent to 1.85.0 mid-cell (another session published
+  it); the restart reads as "agent died" to the runner. Check SYSINFO
+  agent_version before calling it a crash.
+
 ## 2026-09-25 (night) - V5 6000, clean-room lane: the grGlideInit "hang" was a hidden dialog; Quake II never quit; a 64-bit host breaks Glide's asm
 
 Clean-room lane (voodoo-cleanroom ICD 0.1.67/0.1.68 + our h5 Glide fork), `.124`.
