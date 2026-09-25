@@ -115,6 +115,25 @@ Full detail: retro-agent `voodoo-cleanroom/CHANGELOG.md` 0.1.67/0.1.68, README 1
   library walk during a timed run skews it - check `GAMESYNC STATUS` before
   trusting a number.
 
+## 2026-09-25 - .243 Voodoo 2 benchmarks: GLQuake 46.5 fps, Quake II 24.9 fps - both CPU-bound on the P166
+
+Host 3 (P166 P54C, 127 MB, Win98 SE, Voodoo 2 12 MB, 3dfx 3.02.02, Quake II
+3.20 `3dfxgl.dll` MiniGL). Full tables: `retro-agent/docs/voodoo2-243-benchmarks.md`;
+rows in the V5 6000 CSV format under the v56k-bench results folder.
+
+- **GLQuake demo1 46.5 fps @640x480x16, 44.6 @800x600** (demo3 44.5). Only ~4%
+  for 800x600: the CPU is the limit, not the card.
+- **Quake II 3.20 demo1 24.9 @640x480, 25.5 @800x600** - flat, as on the V5 6000.
+- **GLQuake refuses 512x384** ("Specified video mode not available"): it only
+  offers modes the 2D card enumerates; the Cirrus 5436 has none there.
+- **Quake II's demo1 ends with its own level change** (to base2), which
+  overrides a harness `nextserver "killserver; quit"` - the score is printed
+  first, but the game has to be closed by other means.
+- **The local chat client cost ~8%** (43.3 vs 47.1 fps) with agent 1.84.2's
+  1-second chat polls; agent 1.85.0 parks them.
+- Quake II reached this box as a new staged title, `Quake2Win9x` (base game,
+  COMMAND.COM launchers); verified in-game on the Voodoo from its desktop shortcut.
+
 ## 2026-09-25 - .243's Voodoo 2 after the fix: the boot now finds it; the card LEFT .171; Hexen II joins Quake
 
 - **After the first successful install, a cold boot enumerated the card by
