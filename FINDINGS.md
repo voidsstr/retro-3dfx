@@ -19,6 +19,32 @@ it until a Voodoo card goes back in.
 
 
 
+### 2026-09-24 - An ad-hoc EP-8RDA+ flash floppy hung the board; the vetted one was already in the repo
+
+A chat request to "format the floppy and load the BIOS image for the EP-8RDA+"
+was answered by building a flash floppy from scratch - FreeDOS 1.3 + AWDFLASH
+**8.24F** + `8rda4729.bin`, flashing with `/Py /Sy /CC /CD /CP /R`. It booted,
+it was QEMU-tested, it was written and read-back-verified, and **the board hung
+at *Programming Flash Memory*.**
+
+`retro-agent/provisioning/bios-recovery/` has held a fully reasoned recovery
+floppy for that exact board since 2026-09-16 - same BIOS image, same md5 -
+differing only in the switches, and the difference is the whole point:
+
+* **`/sb` (Skip BootBlock programming) was missing.** awdflash runs *out of the
+  boot block*; leaving it writable means a hang mid-flash can take the only
+  recovery path with it. With `/sb` the same hang is simply retried.
+* `8.24G` not `8.24F` - nForce-MAC aware, SST 49LF020 in its chip table.
+* `/sn` not `/Sy` - a backup written to floppy is worthless here and is one
+  more thing that can fail.
+
+**The finding is not about BIOS flashing.** Neither the fleetbook nor a
+`grep -ril 8rda` was run before building, and both would have found the prior
+work in seconds. Hard-won reasoning in this repo is only worth what the next
+session's *search* is worth. Search before you build, especially when the task
+sounds simple enough not to need it.
+
+
 ## 2026-09-24 - .243 (Win98 SE, P54C 165, 430HX): the Voodoo 2 answers but the boot never configures it
 
 **A Voodoo 2 that works in another PC looked absent on .243 for a whole night.
