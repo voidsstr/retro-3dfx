@@ -45,6 +45,49 @@ session's *search* is worth. Search before you build, especially when the task
 sounds simple enough not to need it.
 
 
+## 2026-09-25 (night) - V5 6000, clean-room lane: the grGlideInit "hang" was a hidden dialog; Quake II never quit; a 64-bit host breaks Glide's asm
+
+Clean-room lane (voodoo-cleanroom ICD 0.1.67/0.1.68 + our h5 Glide fork), `.124`.
+Full detail: retro-agent `voodoo-cleanroom/CHANGELOG.md` 0.1.67/0.1.68, README 13.3.
+
+- **The intermittent Quake III "hang in grGlideInit" on our h5 Glide was not a
+  hang.** A noninvasive `ntsd -pv` stack taken before the kill put the only thread
+  in `USER32!MessageBoxA` <- `glide3x!_grErrorDefaultCallback`, the text in
+  minihwc's `errorString`: Glide had REFUSED a stale board mapping (our
+  `hwcValidateMappings`) and reported it the 3dfx way, a `MessageBox(NULL, ...)`
+  behind the game's fullscreen window. **Any "hang at GL init" on a Glide stack
+  deserves a stack before a theory** - ntsd ships with XP; log via
+  `_NT_DEBUG_LOG_FILE_OPEN`, commands via `-c "$<file"`, attach with `-pv` so
+  `q` resumes rather than kills.
+- **The stale slots were made by the benchmark runner.** Every Quake II cell had
+  ended in a force-kill: retail 3.20 `SV_Map` clears `nextserver` for a map name
+  without `+`, so `set nextserver "killserver; quit"` placed BEFORE `demomap` was
+  wiped by the demomap itself; Quake II printed the fps line and sat at the
+  console; `WM_CLOSE` does not quit it; the runner force-killed it 10 s later. A
+  force-killed Glide process never sends `HWCEXT_UNMAP_MEMORY`, and the display
+  driver (keyed on PID alone) hands its dead mapping to the next process with
+  that PID. Set `nextserver` AFTER `demomap` (SV_Map defers the rest of the
+  buffer). Verified: Quake II exits by itself, `UNMAP9x ... retVal=1`.
+- **Glide's default error callback cannot be overridden before `grGlideInit`:**
+  `_GlideInitEnvironment` reinstalls it unconditionally ("dBorca - play safe").
+  Our fork keeps a caller's callback; the ICD installs a cdecl one
+  (`GrErrorCallbackFnc_t` has NO `FX_CALL`) that logs and returns.
+- **A 64-bit build host silently breaks every Glide asm path.** `fxgasm.c` prints
+  GC struct offsets by being RUN; cross-built on x86-64 Linux it runs 64-bit and
+  all 50 offsets are wrong (`kTriProcOffset` 0x95c0 vs 0x9558). The C-trisetup
+  build never reads them, which is why it went unseen. Derive them with the
+  target compiler instead (`fxgasm_cross.sh`, asm-offsets technique) - verified
+  identical to fxgasm.exe run on the box. Mesa's `x86/matypes.h` has the same
+  shape but ships pre-generated 32-bit, and the asm uses only `V4F_*`/`MATRIX_INV`.
+- **Glide's asm triangle setup is worth ~1.7 %, not a step change:** interleaved A/B
+  at 320x240 (CPU-bound on one chip): Quake II 221.9/223.0 -> 225.5/227.0, Quake
+  III 133.2/133.4 -> 133.8/134.0. The ICD's new sampler (`RETROGL_PROF`) on Quake
+  III: game 47 %, ICD 20 %, Glide 17 %, spread thin.
+- **Something on the dev host ran `GAMESYNC RESET`+`START` on `.124` mid-benchmark**
+  (00:43, from 192.168.1.132, not the two busy retro-agent sessions). A 53 GB
+  library walk during a timed run skews it - check `GAMESYNC STATUS` before
+  trusting a number.
+
 ## 2026-09-25 - .243's Voodoo 2 after the fix: the boot now finds it; the card LEFT .171; Hexen II joins Quake
 
 - **After the first successful install, a cold boot enumerated the card by
