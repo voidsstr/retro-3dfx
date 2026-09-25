@@ -82,6 +82,64 @@ the new-hardware wizard appeared and the never-installed key was later deleted
 - Evidence and tools (parser, pci9x, reenum9x, regdump9x, wintext9x):
   `retro-agent/.claude/evidence-243/` (host only). Fleetbook recipe #82.
 
+## 2026-09-24 (late) - The "dead board mapping" is PID reuse after a force-kill; the 09-04 freeze never reached board open; .124's clock resets on a power cycle
+
+**Why AmigaMerlin's `grGlideInit` intermittently faults on a dead mapping.** The
+vintage 3dfx W2K display driver (which AmigaMerlin descends from) keys every
+Glide per-process record on the **PID alone** (`HWCEXT.C` ~430-455, 814-825).
+It frees a record only when that process sends `HWCEXT_UNMAP_MEMORY` /
+`RELEASECONTEXT`, and it has no process-death cleanup (no
+`PsSetCreateProcessNotifyRoutine`, grepped case-insensitively). A Glide process
+killed with `TerminateProcess` never runs glide3x's `DLL_PROCESS_DETACH`, so its
+slot stays in the driver. XP recycles PIDs: the next Glide process that gets
+that PID is handed the dead process's non-zero, unmapped register base, and
+`HWC_IO_LOAD(dramInit1)` faults. That matches every record: always "a launch
+shortly after another Glide app", never twice in a row, and the benches were
+`taskkill /f`-ing games. Fixes:
+- `v56k_bench.py` and `cleanroom_smoke.py` close games with `WM_CLOSE` first
+  and force only what is still alive (retro-agent `132e715`, `f9c25ae`).
+- Our h5 Glide validates each mapping with `VirtualQuery` before the first MMIO
+  (fork `215a9e7`).
+- A hard kill mid-frame (SoF2 MP) also immediately preceded the 2026-09-24
+  total wedge of `.124`.
+
+**The 2026-09-04 freeze did not happen "at open".** That h5 build faulted in
+`grSstSelect` inside `grGlideInit` (H1) and never reached `grSstWinOpen`. H1
+alone has never taken a box down (h3 on the Voodoo 3, `.143`, `glideprobe` on
+`.124`). What the freeze followed was the teardown: the second H1 fault, in
+`DLL_PROCESS_DETACH`, skipped `UNMAP_MEMORY`, so the driver kept 4-chip
+mappings while Quake II held a fullscreen mode. Corrected in the clean-room
+README (retro-agent `6df28e4`).
+
+**Good board mappings on the V5 6000 (AmigaMerlin 3.1-R11, measured through
+the new opt-in `RETRO_GLIDE_MAPLOG`):**
+- register window 128 MB, frame buffer 256 MB, 4 KB per slave register page;
+- all `MEM_COMMIT` + `MEM_MAPPED` with `AllocationBase` equal to the address;
+- the same VAs in successive processes.
+
+**Also from the same audit (fork `215a9e7`):**
+- `hwcIdleHardwareWithTimeout` counted to 1e9 polls, reset only the master and
+  then looped forever, on every open and close. It is now bounded (~2 s) and
+  reports failure.
+- `FX_GLIDE_NUM_CHIPS=2` on the 4-chip board sends an SLI request naming fewer
+  chips than exist, a recorded box-killer. It is now accepted only as 1 or the
+  real count.
+- The H6 XP-escape fix had been dead code: `hwcEscape` was an `FxI16`, which
+  truncated `0x13df3`. It is now 32-bit.
+
+**`.124` came back from a power cycle at 1503 MHz** (100 MHz FSB, reported as an
+"Athlon XP 1800+") instead of 2004 MHz, apparently a BIOS reset. CPU-bound
+cells read about 20% low (Quake II 640x480 175 vs 215 fps) and nothing in a
+row said why. The user restored 133 MHz. Bench rows now carry `cpu_mhz`.
+**Check `HWPROFILE` cpu.mhz after every power cycle of this box.**
+
+**ICD fixes found by running more titles on our system ICD:**
+- ioquake3 hung inside `wglCreateContext`. `ntsd` showed our activation pump
+  dispatching an endless `WM_PAINT` to SDL; bounded in 0.1.65.
+- SiN Gold died of a stack overflow in an 80 KB Mesa span frame under a
+  Quake II-engine texture upload; Mesa's heap `DEFARRAY` variant fixes it in
+  0.1.66.
+
 ## 2026-09-24 (morning) - Our clean-room ICD is now also a Microsoft ICD: CS 1.6 and UT99 OpenGL run on it on the V5 6000
 
 **Games that link the system `opengl32.dll` could never use our MesaFX ICD.**
