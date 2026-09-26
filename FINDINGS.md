@@ -195,6 +195,44 @@ and lands nowhere - verify with DIRLIST.
 
 
 
+### 2026-09-26 - A dead CMOS battery during setup + the agent's clockfix = a box one reboot from the XP activation lockout
+
+The Dell Dimension 4600 (`.110`) installed with its clock at **2004-02-21**, so
+XP started its 30-day activation grace in 2004 (`wmic os get InstallDate`). At
+first logon agent 1.85.1's clockfix set the clock to 2026 from the NAS, and
+`wmic path Win32_WindowsProductActivation get /value` read
+**`ActivationRequired=1, RemainingGracePeriod=0`**. The Winlogon flag LICSTATUS
+reported said "not present". Only `safe-reboot.py`'s `wpabaln.exe` check refused
+the reboot that would have locked it. Fixed in agent **1.85.2**: clockfix asks WMI
+and will not move an unactivated XP clock past its grace. LICSTATUS reports the
+WMI verdict, and safe-reboot.py refuses on it. **Trust WMI, not the Winlogon flag.**
+
+Activated remotely with the operator's approval, while it was still logged in.
+On XP SP3 the class's methods are `GetInstallationID` and
+**`ActivateOffline(ConfirmationID)`**. `SetConfirmationID`, which the docs name,
+does not exist on this build ("Object doesn't support this property or method").
+`wmic path … call GetInstallationID` fails with 0x8004102f, because it is an
+instance method, so drive the class from VBScript under `cscript`. The Confirmation
+ID comes from the private xp-activation skill.
+
+### 2026-09-26 - Sound driver "installed - device working", no wave device: the kernel audio stack was never registered
+
+SoundMAX on the same Dell. `waveOutGetNumDevs()` was 0 across a reboot, and
+`sysaudio.sys`, `kmixer.sys` and `wdmaud.sys` were absent. The card INF's
+`Needs=WDMAUDIO.Registration` queues `rundll32 streamci.dll,StreamingDeviceSetup …`
+in HKLM RunOnce. RunOnce was empty and `Services\swenum\Devices` had none of
+the entries, so they were consumed without running; what consumed them is
+unproven. Running the box's own `wdmaudio.inf` `[DeviceRegistration]` commands
+installed 8 `SW\{…}` devices, and the wave device appeared with no reboot.
+Agent 1.85.2 does this at startup, bounded, and reports it.
+
+### 2026-09-26 - A held Intel Boot Agent must be ANSWERED, not ignored
+
+With the second PXE server gone, our server's silence made the Dell's Intel Boot
+Agent loop on DHCP forever. `localboot_macs` answers it with a PXE menu whose
+single item is type 0 ("boot from local disk"), with prompt timeout 0.
+Verified at 11:03:54: the held reboot went straight to the disk with no F12.
+
 ### 2026-09-25 - "txtsetup.sif is corrupt or missing, status 21" was a SECOND PXE server (corrects an earlier entry)
 
 A Dell Dimension 4600 PXE-installed three times. Text mode finished every time,
