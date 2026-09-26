@@ -15,6 +15,32 @@ it until a Voodoo card goes back in.
 ---
 
 
+### 2026-09-26 - XP DirectDraw HAL traps (vcr-kmd, proven in the QEMU test bed)
+
+Lane: **clean-room** (retro-agent `voodoo-cleanroom/vcr-kmd/display/vcrdd_ddraw.c`).
+Every one of these fails SILENTLY: the application just gets `DDCAPS_NOHARDWARE`
+and the HEL (surfaces in system memory, **the primary not lockable at all** -
+`DDERR_CANTLOCKSURFACE`), with nothing in any log.
+
+- **Never set `DDCAPS_GDI` in the HAL's core caps.** XP probes the HAL at every
+  PDEV (DrvGetDirectDrawInfo x2, DrvEnableDirectDraw, ten DdGetDriverInfo
+  queries) and then calls DrvDisableDirectDraw - and no DirectDrawCreate ever
+  re-enables it. Found by bisection against VirtualBox's minimal HAL; XP's own
+  Cirrus driver reports `BLT | READSCANLINE | BLTCOLORFILL` (0x04020040).
+  `GCAPS_DIRECTDRAW` in the DEVINFO is required as well.
+- **Blt gets its raster op as `0x00CC0000`**, not GDI's `SRCCOPY` (0x00CC0020).
+  Compare the ROP byte. A HAL that claims `DDCAPS_BLT` and declines a blit gets
+  the application `E_NOTIMPL` - there is no HEL fallback for that case.
+- `EngModifySurface(..., MS_NOTSYSTEMMEMORY, ...)` fails unless the surface
+  hooks something; the working shape (DDK samples, VirtualBox XPDM) is an
+  opaque device surface with the GDI calls hooked and punted to the DIB engine.
+- A driver that reports a monitor child is polled with
+  `IOCTL_VIDEO_GET_CHILD_STATE`; answer `VIDEO_CHILD_ACTIVE`.
+- **Test with a control.** XP's inbox Cirrus driver in the same VM
+  (`-vga cirrus`) gave a working HAL first time with the same test program
+  (`ddlab.exe`), which is what proved the environment and the tool were sound
+  and the fault was ours.
+
 ### 2026-09-26 - vcr-kmd on the V5 6000: the whole stack is ours, four chips included - and what that took
 
 Lane: **clean-room** (retro-agent `voodoo-cleanroom/vcr-kmd/`, our miniport +
