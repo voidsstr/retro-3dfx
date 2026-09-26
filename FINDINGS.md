@@ -15,6 +15,53 @@ it until a Voodoo card goes back in.
 ---
 
 
+### 2026-09-26 - vcr-kmd on the V5 6000: the whole stack is ours, four chips included - and what that took
+
+Lane: **clean-room** (retro-agent `voodoo-cleanroom/vcr-kmd/`, our miniport +
+display DLL under our ICD 0.1.75 + our h5 Glide). Details and numbers:
+`vcr-kmd/README.md` "Status".
+
+- **The desktop must not sit in Glide's command FIFO.** VSA-100 Glide puts its
+  FIFO at 96 KB .. ~1116 KB of video memory; a desktop at 1 MB was repainted
+  into the live command stream after a game's mode switch and the engine hung
+  (status 0xA5F). The vendor puts the desktop at the TOP of memory; so do we.
+- **The BIOS leaves the master in its power-up PCI decode** (cfgPciDecode 0x10:
+  128 MB / 256 MB). Glide's GPL dos_mode.c and the vendor narrow it to 0x45
+  (32 MB / 64 MB / 256 B); left wide, the first Glide run hung.
+- **A game killed mid-frame leaves the 3D engine busy** and every later Glide
+  open fails; a mode set that finds the chip busy must reset the engine
+  (miscInit0 GRX/FBI-FIFO/2D + miscInit1 CMDSTREAM; video and memory timing
+  untouched): 0xA5F -> 0x5F, desktop intact.
+- **A `CDS_FULLSCREEN` mode reverts when the process that set it exits** -
+  switch, draw and read back in ONE process, or the test measures the desktop
+  mode (our early VM "110/110" GDI passes did exactly that).
+- **The vendor programs the V5 6000's external clock for SLI**: HiNT bridge
+  (3388:0021) config 0xC4 goes 0x00111101 -> 0x00222201. It is an ICS307-style
+  24-bit serial synthesizer (target = master pixel clock / 4); ours sends the
+  same word and leaves the same GPIO state. Below ~5.5 MHz (doublescan
+  320x240/400x300) the part cannot follow - Glide and we send the nearest.
+- **The slaves live INSIDE the master's BAR windows** (BAR0 + 32 MB x chip,
+  BAR1 + 64 MB): PnP sized those windows at the power-up decode, so after
+  narrowing, the rest is routed by the bridge and mappable like any claimed
+  range. The HAL still cannot see fn 1-3 (raw 0xCF8 cycles).
+- **METHOD_BUFFERED IOCTLs share ONE buffer for input and output.** Zeroing the
+  answer before reading the request turned Glide's 4-chip enable into a
+  disable; Quake II then ran on the master alone and nothing reported it.
+- **With SLI enabled our config space equals AmigaMerlin 3.1-R11's** on all
+  four chips + the bridge. Vendor details worth knowing: slaves keep their own
+  miscInit1 straps (chips 2-3 bit 28); slave vidPixelBufThold stays 0x10410
+  whatever Glide writes on the master; pciInit0 PCI FIFO low threshold 10
+  (BIOS 8) and bit 11 (chip I/O decode OFF - we cannot copy that one, our VGA
+  access is through the I/O BAR); the vendor leaves slave miscInit0 at 0
+  (dos_mode.c copies the master's Y origin).
+- **Quake II single-pass, 4 chips, our kernel vs AmigaMerlin's: parity** -
+  201.3 / 201.5 fps at 640x480, 98.2 / 98.6 at 1600x1200 (refresh pinned to
+  60 Hz). **Unpinned, the refresh decides fill-bound numbers**: our ICD asks
+  for the highest refresh listed; the vendor lists what the monitor's EDID
+  allows (1600x1200 up to 70 Hz on `.124`) and ran 60, ours listed 85 and ran
+  75 - 25 % more scanout bandwidth out of every chip, 4-5 % fps. **Compare
+  kernels only at the same refresh**, and filter modes by EDID.
+
 ### 2026-09-25 - vcr-kmd (our own XP kernel driver pair, retro-agent `voodoo-cleanroom/vcr-kmd/`): what the V5 6000 and XP taught us before it touched the card
 
 **Note the stale header above: `.124` is a Voodoo 5 6000 box and XP is on C:
