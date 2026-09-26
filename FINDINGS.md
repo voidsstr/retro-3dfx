@@ -14,6 +14,26 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-26 - Our own Direct3D HAL: 26/26 on the 86Box Voodoo3, and the two NT traps
+
+Lane: **clean-room** (retro-agent `vcr-kmd/display/vcrdd_d3d.c`, `vcrdd_3d.c`).
+A DX7-level NT D3D HAL on the Voodoo 3D engine (triangle setup unit, PCI-FIFO
+writes) passes d3dprobe render 26/26 windowed and fullscreen - the matrix XP's
+in-box Voodoo3 driver passes on the same emulated card. Two traps, both silent:
+
+- **XP does not move video memory between a flip chain's surfaces.** The
+  surfaces keep their memory; after each flip the runtime re-targets rendering
+  with DP2 `SETRENDERTARGET` **by surface handle** - and `CreateSurfaceEx`
+  names a complex surface only by its ROOT. The driver must walk
+  `lpAttachList` (a ring for a flip chain) to learn the back buffer's handle,
+  or the retarget silently fails and every other fullscreen frame is drawn into
+  the front buffer.
+- **An NT Direct3D texture's `DD_SURFACE_LOCAL` does not carry
+  `DDRAWISURF_HASPIXELFORMAT`** although `ddpfSurface` is filled in. A driver
+  that trusts the flag refuses every texture and draws the diffuse colour.
+- The TMU addresses a texture as a mipmap whose LOD 0 is 256 wide: a 64x64
+  texture's `texBaseAddr` is its address minus 160 KB.
+
 ### 2026-09-26 - A Voodoo3 you can wedge for free: 86Box, and what it found in vcr-kmd
 
 Lane: **clean-room** (retro-agent `voodoo-cleanroom/vcr-kmd`, `tools/86box/`).
