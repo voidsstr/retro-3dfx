@@ -14,6 +14,42 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-26 - Test tooling must pace mode switches: a CRT hears every one
+
+Lane: **clean-room** (retro-agent `vcr-kmd` on the V5 6000, `.124`, Sony CPD-G200).
+
+- **A mode sweep is a monitor event, not a register test.** The first silicon
+  battery switched through all 123 vendor modes with a return to the desktop
+  after each (a CDS_FULLSCREEN mode reverts when its process exits): ~250
+  re-syncs at two a second, and the user heard every relay click. The
+  register comparison of every mode needs no monitor at all -
+  `golden_compare.py` runs the driver's own mode math against the vendor
+  capture on the host (123/123 identical). Live runs now go through ONE gate
+  (`tools/vcr_pace.h`): >= 3 s between switches across processes (a stamp
+  file on the box), a temporary mode held >= 3 s, a lock, a paced kill;
+  sweeps are one process, capped, EDID-gated on the host. Measured after:
+  5.2-5.4 s between switches (was 0.55 s).
+- **RESET_DEVICE is also the VgaSave hand-off - keep the full VGA reset.**
+  NT's mode change calls DrvAssertMode(FALSE) -> RESET_DEVICE, so every
+  switch dips to VGA text (31.5 kHz) and back (~30-170 ms): two sync changes
+  per switch. Skipping the reset looks free and is not: the same IOCTL hands
+  the card to VgaSave for a full-screen console, and the desktop's extension
+  state (CR1A/CR1B overflow, 2X, PLL) under a VGA text writer computes to
+  ~9 kHz / ~21 Hz - below any CRT's floor. The vendor does int10 mode 3 too.
+- **No EDID must not mean no filter.** A failed DDC read (monitor off at
+  boot, KVM, bad checksum) left the mode list unfiltered: 1600x1200@85
+  (106 kHz) and 1920x1440@75 (297 MHz) became settable on a 96 kHz / 260 MHz
+  tube. Fallback order now: this monitor's own EDID range; the same
+  monitor's persisted range; else the envelope of monitors seen INTERSECTED
+  with a conservative default (H 30-48 kHz, V 50-75 Hz, 80 MHz). A persisted
+  desktop mode that the narrower list lacks must fall back to the largest
+  listed mode, or the PDEV fails and XP drops to its VGA driver.
+- **A bugcheck during 4-chip SLI leaves the master's video clock on the
+  external synthesizer** (cfgVideoCtrl0 VIDPLL_SEL, at the SLI clock / 4):
+  the text screen after a blue screen could scan below 30 kHz. HwResetHw must
+  give the master its own PLL back (raw config cycles - HalGetBusData is
+  IRQL <= DISPATCH) before restoring pllCtrl0.
+
 ### 2026-09-26 - D3D on the Voodoo 3D engine: textures the CPU writes, and VSA-100 renderMode
 
 Lane: **clean-room** (retro-agent `vcr-kmd`, 86Box Voodoo3 bed; d3dprobe 38/38).
