@@ -14,6 +14,28 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-26 - VSA-100 needs PARMADJUST in fbzColorPath, or falling parameters do not iterate
+
+Lane: **clean-room** (retro-agent `vcr-kmd` D3D HAL, V5 6000 on `.124`).
+
+- **Without `SST_PARMADJUST` (fbzColorPath bit 26) the VSA-100 silicon
+  iterated every DECREASING parameter as a constant.** A gouraud triangle
+  kept the first vertex's value in any channel that fell across it (red
+  falling from ff stayed ff: fffb00 at the green corner, ff00ff at the blue)
+  while rising channels were exact; rotating the corners moved the fault to
+  whichever channel fell. 86Box's Voodoo3 reproduced none of it. 3dfx's h5
+  Glide initialises every context with `fbzColorPath = SST_PARMADJUST`
+  (gsst.c) and never clears it. With it: d3dprobe 40/40 fullscreen at
+  640x480 and 1024x768 on silicon.
+- **Test for falling slopes, not only rising ones.** Every d3dprobe quad
+  but gouraud had parameters that only increase across it (S, T, Z, colour),
+  so the fault showed in one test of 36. `gouraudb` (the quad rotated) is now
+  in the default list.
+- **The packed `sARGB` register was a red herring**: the vendor's D3D HAL
+  sends the packed D3DCOLOR and h5 Glide the four floats (GLIDE_PACKED_RGB=0);
+  both work. Isolate with a fresh device first - it ruled out state from the
+  preceding test in one run.
+
 ### 2026-09-26 - Test tooling must pace mode switches: a CRT hears every one
 
 Lane: **clean-room** (retro-agent `vcr-kmd` on the V5 6000, `.124`, Sony CPD-G200).
