@@ -19,17 +19,26 @@ it until a Voodoo card goes back in.
 
 
 
-### 2026-09-25 - "txtsetup.sif is corrupt or missing, status 21" after a HOLD is the DISK, not the NAS
+### 2026-09-25 - "txtsetup.sif is corrupt or missing, status 21" was a SECOND PXE server (corrects an earlier entry)
 
-A Dell Dimension 4600 PXE-installed twice. Both times text mode rebooted after
-about 15 minutes, and the disk then booted a restartable setup loader that asked
-for `txtsetup.sif`. The failure catalogue named one cause, the NAS being down,
-and that sent the diagnosis the wrong way. Where the message comes from decides
-the cause: right after a `HOLD` it comes from the loader on the disk, which means
-text mode died. The real fault was `inject-massstorage.py` dropping `&CC_` from
-INF ids. That wrote `PCI\VEN_8086&DEV_24D1 = "iaStor2"`, which put IDE-mode ICH5
-on Intel's RAID driver; 59 injected entries had the same shape. Fixed at the
-generator and in the live `TXTSETUP.SIF` (retro-agent `5dbdebe`).
+A Dell Dimension 4600 PXE-installed three times. Text mode finished every time,
+and every time the box rebooted it showed this error. The earlier version of this
+entry said the loader on the DISK caused it. **That was wrong.** Status 21 is
+setupldr's `NetOpen` failing a TFTP read; a disk-booted setupldr gives 14.
+
+When our server correctly HELD the Dell so it would boot its disk, a stale copy
+of our own `pxe_server.py` answered instead. It is the `RetroPXE` task on
+whitebeast (`.249`), left scheduled since before the 2026-08-24 move to
+`.132`. Its `winnt.sif` names the retired `XPSP3-PXE` tree. Whitebeast's own
+log shows an OFFER at the same second as each of our HOLDs.
+
+"Do not run two PXE hosts" was only a README sentence. Now it is checked:
+`scripts/pxe/pxe_rogue.py`, and `pxe_server.py` probes at startup and every 10
+minutes (retro-agent `b3e4acf`). The Windows copy also could never arm a hold,
+because it had no `/proc/net/arp`.
+
+The `inject-massstorage.py` `&CC_` fix (`5dbdebe`) was a real misbinding
+(IDE-mode ICH5 was bound to `iaStor2`), but it was not this failure.
 
 ### 2026-09-25 - A freshly imaged XP box never got its display/audio drivers, and then lost C:\D (agent <= 1.85.0)
 
