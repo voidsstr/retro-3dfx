@@ -14,6 +14,27 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-26 - D3D on the Voodoo 3D engine: textures the CPU writes, and VSA-100 renderMode
+
+Lane: **clean-room** (retro-agent `vcr-kmd`, 86Box Voodoo3 bed; d3dprobe 38/38).
+
+- **The D3D8 runtime uploads managed textures by Lock + CPU writes** (no DP2
+  TEXBLT - logged), and **the TMU's texture cache does not see LFB writes**: a
+  new texture that landed where an old one had been sampled the OLD texels.
+  Before sampling a texture the CPU wrote, run Glide's download-coherency
+  sequence (2D NOP, texBaseAddr away and back, nopCMD). On 86Box the cache
+  is only invalidated by texture-port / CMDFIFO-PKT5 / AGP writes, so one dword
+  is written back through the texture port too (linear from texBaseAddr on
+  Banshee+).
+- **CreateSurfaceEx doubles as the destroy notice** (fpVidMem 0): handles are
+  reused at once, across system- and video-memory surfaces.
+- **VSA-100 moved the 3D pixel depth, the channel WRITE ENABLES and the Y
+  origin into `renderMode` (0x1e0)** - reserved on Banshee/Voodoo3. A D3D
+  driver that ports its Voodoo3 register set without writing it draws nothing
+  (write enables 0) or in a Glide session's leftover 32 bpp.
+- The D3D runtime asks for **two stages**; TMU1 feeds TMU0 feeds the colour
+  combine, so stage 0 goes on TMU1 and stage 1 (with its combine) on TMU0.
+
 ### 2026-09-26 - Our own Direct3D HAL: 26/26 on the 86Box Voodoo3, and the two NT traps
 
 Lane: **clean-room** (retro-agent `vcr-kmd/display/vcrdd_d3d.c`, `vcrdd_3d.c`).
