@@ -19,6 +19,18 @@ it until a Voodoo card goes back in.
 
 
 
+### 2026-09-25 - "txtsetup.sif is corrupt or missing, status 21" after a HOLD is the DISK, not the NAS
+
+A Dell Dimension 4600 PXE-installed twice. Both times text mode rebooted after
+about 15 minutes, and the disk then booted a restartable setup loader that asked
+for `txtsetup.sif`. The failure catalogue named one cause, the NAS being down,
+and that sent the diagnosis the wrong way. Where the message comes from decides
+the cause: right after a `HOLD` it comes from the loader on the disk, which means
+text mode died. The real fault was `inject-massstorage.py` dropping `&CC_` from
+INF ids. That wrote `PCI\VEN_8086&DEV_24D1 = "iaStor2"`, which put IDE-mode ICH5
+on Intel's RAID driver; 59 injected entries had the same shape. Fixed at the
+generator and in the live `TXTSETUP.SIF` (retro-agent `5dbdebe`).
+
 ### 2026-09-25 - A freshly imaged XP box never got its display/audio drivers, and then lost C:\D (agent <= 1.85.0)
 
 Found while PXE-imaging a Dell Dimension 4600 (865G + ICH5). The agent's
