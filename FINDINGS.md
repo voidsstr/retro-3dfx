@@ -14,6 +14,35 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-26 - A Voodoo3 you can wedge for free: 86Box, and what it found in vcr-kmd
+
+Lane: **clean-room** (retro-agent `voodoo-cleanroom/vcr-kmd`, `tools/86box/`).
+86Box v6.0 emulates a real **Voodoo3 3000 AGP** (and Banshee, Voodoo 1/2 - no
+VSA-100) register for register: video processor, 2D engine, command FIFO, 3D.
+With the XP build VM's disk on its ASUS P3B-F our driver's Voodoo paths run
+with no card in any box, and a wedge costs a script restart. **XP ships its
+own Voodoo3 driver** (`3dfxvs2k.inf`, 5.1.2001.0) and binds it on first boot:
+that is a DirectDraw + Direct3D reference on the same emulated card (d3dprobe
+render 26/26; ddlab blt 77.6 Mpix/s). It turns DirectDraw off entirely at 24 bpp.
+
+What the bed's labs (gdilab, ddlab, d3dprobe - all self-checking) caught:
+
+- **Vertical retrace is `status[6]` CLEAR**, not set (Glide `grSstVRetraceOn`
+  returns `(status & SST_VRETRACE) == 0`). vcr-kmd had it inverted -
+  `WaitForVerticalBlank` waited for the END of the blank. Real on silicon.
+- **A 2D RECTFILL fills from the SOURCE operand** (colorFore); PATCOPY (0xF0)
+  fills from the pattern registers. Fill = SRCCOPY. A source colour key takes
+  its ROP from the `rop` register, byte 1 (0xAA = keep the destination).
+- **Sync = busy clear AND the PCI FIFO drained.** 86Box's status busy bit does
+  not count 2D writes still queued in its FIFO; only `status[4:0]` shows them,
+  so a busy-only wait let the CPU read pixels a queued copy had not written yet.
+- **A DirectDraw flip is pending until the next retrace** - answer
+  WASSTILLDRAWING until then, or the app draws into the visible buffer.
+- Setup traps: `-smp 2` QEMU installs need the UP ACPI kernel+HAL (`boot.ini
+  /kernel= /hal=`) on this one-CPU board, PIIX4 IDE (8086:7111) must be in the
+  critical device database, the BIOS halts without a floppy drive configured,
+  and Xvfb depth 24 packs 3 bytes a pixel (an `xwd` decoded as 32-bit turns
+  everything, 86Box's own toolbar included, into rainbow columns).
 
 ### 2026-09-26 - XP DirectDraw HAL traps (vcr-kmd, proven in the QEMU test bed)
 
