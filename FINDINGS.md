@@ -15,6 +15,39 @@ it until a Voodoo card goes back in.
 ---
 
 
+### 2026-09-25 - vcr-kmd (our own XP kernel driver pair, retro-agent `voodoo-cleanroom/vcr-kmd/`): what the V5 6000 and XP taught us before it touched the card
+
+**Note the stale header above: `.124` is a Voodoo 5 6000 box and XP is on C:
+now** (re-imaged; there is no D:). An UPLOAD to `D:\...` answers without error
+and lands nowhere - verify with DIRLIST.
+
+- **The VSA-100's VGA registers do NOT read back through the MMIO alias**
+  (IO-register offsets 0xB0-0xDF of memBase0): CRTC reads return 0, offset
+  0xCC returns the `status` byte. Glide's own cinit reaches VGA through the
+  I/O BAR for this reason; so does our miniport. User mode cannot see the CRTC
+  at all - `vcrprobe.sys` (loaded on the fly) exists for golden captures.
+- **`VideoPortGetBusData` cannot reach the V5's slave chips.** For a PnP
+  device videoprt substitutes the adapter's own slot, and chips 1-3 are PCI
+  functions 1-3 that PnP never enumerated (no multifunction bit: `.124`'s
+  `Enum\PCI` has ONE `VEN_121A` instance, bus 3 dev 0 fn 0, behind the HiNT
+  bridge at bus 2 dev 0). Use `HalGetBusDataByOffset`.
+- **Vendor (AmigaMerlin 3.1-R11) golden registers**, 123 modes captured through
+  its own HWCEXT mapping: no 2X mode up to 189 MHz (dacMode 0 at
+  1600x1200@70 - its source switches above 262 MHz; tdfxfb's max/2 = 175 MHz
+  rule would differ); vgaInit0 0x1140; CLUT bank 0 at every depth, not
+  bypassed; vidPixelBufThold 0x10410; tiled desktop at the top of video memory
+  with a hardware cursor. `.124`'s monitor caps 1600x1200 at 70 Hz (the mode
+  list is EDID-filtered). File: `vcr-kmd/golden/amigamerlin-3.1-r11_192.168.1.124.json`.
+- **mingw's `libntoskrnl.a` exports ~700 names XP SP3 does not (memcmp among
+  them)**: a driver importing one links and then fails to load at boot. Check
+  every import against the real XP export tables (`vcr-kmd/tools/check_imports.py`).
+- **Forcing a crash dump in QEMU**: `CrashOnCtrlScroll` needs right-Ctrl HELD
+  across both ScrollLock presses - two `sendkey ctrl_r-scroll_lock` chords do
+  nothing; ONE `sendkey ctrl_r-scroll_lock-scroll_lock 500` bugchecks 0xE2.
+- **A kernel dump exceeds the agent's 32 MB DOWNLOAD frame** (40 MB for a 1 GB
+  VM): read it on the box (`vcrctl dump` scans for the recorder's magic).
+
+
 
 
 
