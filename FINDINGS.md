@@ -14,6 +14,26 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-27 - vcr-kmd text on the 2D engine is correct but SLOWER than software on the 86Box bed - it ships opt-in
+
+Clean-room lane (retro-agent `e7ff9ee`). DrvTextOut by monochrome expansion - the
+string's glyphs OR-ed on the CPU into one 1 bpp mask per clip rectangle, sent as
+one host-to-screen blit - is 0 bad at 8/16/32 bpp over 87 gdilab cases. But on
+the 86Box Voodoo3 it drew ~115k glyphs/s (mssans8 opaque, 16 bpp) against ~139k
+for the software path it replaces and ~275k for XP's in-box 3dfx driver on the
+same emulated card; every engine call waits for PCI FIFO room (13-20k waits per
+2 s bench). So it is `Diag\Accel2DText = 1` only (a positive vcr_info flag, so a
+miniport that predates it never arms it).
+- An engine path that beats neither software nor the vendor is not a win yet:
+  the in-box driver's 2.4x says the data path is the problem (it does not stall
+  on PCI FIFO room per blit - a command FIFO in memory is the obvious suspect,
+  still to be measured), not the mask packing.
+- Emulator throughput is not silicon throughput: measure on `.124` (P3 host,
+  AGP V5) with the user present before arming it there.
+- gdilab's BASE tests report bad pixels at 8 bpp with the engine on
+  (`evidence/86box_v3/2d_a6_diag_off`); unresolved whether that is gdilab's
+  palette-mapped reference or the driver's 8 bpp fill/copy.
+
 ### 2026-09-27 - V5 6000 AA: cfg 1 was a malformed 4-chip request, and an SLI/AA guard must judge what a write turns ON
 
 Lane: **clean-room** (retro-agent `vcr-kmd` + our h5 Glide fork; offline and
