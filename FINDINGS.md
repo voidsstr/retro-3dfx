@@ -208,6 +208,35 @@ glidelab `b811d37` + `c2bde54`; not yet on silicon).
   `C:\Games\Quake2Complete\glide3x.dll` (what glidelab loads) before a traced
   run.
 
+### 2026-09-27 (later) - .243: a power loss resets the CMOS to defaults with a VALID checksum; the agent now puts skip-F1 back (1.86.0); USB on Win98 SE with no CD
+
+- **A power-off on the dead battery rebuilt the CMOS from Compaq defaults** -
+  2Dh=00 (skip-F1 off), 1Bh=44 (the 80 GB disk auto-typed), 0Eh=04 - **with a
+  valid checksum (0434h)**, so the next POST waited at 301 for F1. Because the
+  checksum is valid, the agent can put the bit straight back: agent **1.86.0**
+  (`agent/src/postskip.c`, loop in `agent/shared/postskip.h`) does at every
+  start, Win9x + the Deskpro 2000 04/25/97 ROM only. Verified live on .243:
+  `set now; 2Dh 00 -> 08`, and an independent re-read shows only 2Dh and 2Fh
+  changed. A bad checksum (162) is still refused - one F1, then it self-heals.
+- **Three adversarial reviews reshaped the CMOS writer before it shipped.**
+  A "restore every differing register from the snapshot" repair turns ONE torn
+  read (another RTC access moving the index between our 70h and 71h) into a
+  corrupted 0Bh; comparing 0Ah's UIP bit cries "do not reboot" on an untouched
+  CMOS; and a retry re-reads a lost restore byte as the new truth and reports
+  success. Final shape: double reads, UIP masked, ONE write per run, every byte
+  written logged and only those taken back out of other registers, never race
+  clockfix. The same flaw remains in the hand tool `cmosw9x` (documented).
+- **After that power-on, Windows' time of day froze for 8.5 hours** (clockfix's
+  "from" time was 1 s after its own start) and every agent thread stalled with
+  it, so the box refused 9898 all day while SMB answered. Cause UNPROVEN.
+- **USB on Win98 SE with no CD:** NUSB 3.3 carries only the USB 2.0 layer (no
+  OPENHCI/UHCD/USBD/USBHUB/HIDUSB). The unofficial SP3.56's `SP3.CAB` holds
+  `U98SEUSB.EXE` - the whole stack - plus `MOUHID.VXD`/`KBDHID.VXD`, which a
+  USB mouse needs (MSMOUSE.INF) and the box lacked. Installed a trimmed INF
+  (NOT its PCI VxD `Options` change); the NEC uPD720101 card (1033:0035 x2 +
+  1033:00E0) then came up problem 0 after a forced PCI re-enumeration - this
+  BIOS leaves the card unconfigured, like the Voodoo 2.
+- Detail: retro-agent CLAUDE.md (.243 sections) and `scripts/fleet/win9x/README.md`.
 ### 2026-09-27 - .243 (Voodoo 2 box, Compaq Deskpro 2000): a 1997 BIOS, an 80 GB disk, and POST halts
 
 - **The Compaq 586C BIOS (04/25/97) doubles heads while cylinders > 1024**, so
