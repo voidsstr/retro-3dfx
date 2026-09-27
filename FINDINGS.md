@@ -14,6 +14,29 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-27 - .243 (Voodoo 2 box, Compaq Deskpro 2000): a 1997 BIOS, an 80 GB disk, and POST halts
+
+- **The Compaq 586C BIOS (04/25/97) doubles heads while cylinders > 1024**, so
+  a drive reporting > 8,191 cylinders overflows to 256 heads (table heads byte
+  00): every BIOS read above head 0 fails and Win98's ESDI_506 tears down the
+  whole secondary channel ("ESDI BIOS read failure", Problem 10). Fix used: an
+  ATA Host Protected Area (SET MAX ADDRESS) so the drive REPORTS 8,191
+  cylinders (4.2 GB), FAT32 type 0Bh ending at cylinder 1021. ROMPaq SP15800
+  fixes the translation itself (by ROM disassembly; not flashed).
+- **A warm POST does not auto-type a drive; only a power-on does.** With CMOS
+  1Bh=00 a warm reboot gives Windows a native ESDI claim (D:) that real DOS
+  cannot see.
+- **Never send raw IDE commands to a channel Windows owns.** One IDENTIFY did
+  it: D: I/O stalled ~30 s per call and the next reboot never completed. The
+  port tools now refuse by reading HKEY_DYN_DATA.
+- **POST waited for F1 on "301-Keyboard Error" at every boot** (PS/2 keyboard
+  attached). CMOS 2Dh bit 3 (Compaq "skip F1 message") fixes it - verified on a
+  warm reboot. The CMOS battery is soldered and dead (clock resets to
+  1980-01-04 at each power-on); Compaq's plug-in 4.5 V pack goes on header E9.
+- **Win98 REBOOT from the agent never worked** until 1.85.4: it killed
+  retro_chat, orphaning its console's DOS VM (WINOA386.MOD), which Win98 will
+  not shut down over. Now `rundll32 shell32.dll,SHExitWindowsEx`, no kills.
+- Detail: retro-agent `scripts/fleet/win9x/README.md` and CLAUDE.md.
 ### 2026-09-26 - VSA-100 needs PARMADJUST in fbzColorPath, or falling parameters do not iterate
 
 Lane: **clean-room** (retro-agent `vcr-kmd` D3D HAL, V5 6000 on `.124`).
