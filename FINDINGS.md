@@ -14,6 +14,180 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-27 - V5 6000 AA: cfg 1 was a malformed 4-chip request, and an SLI/AA guard must judge what a write turns ON
+
+Lane: **clean-room** (retro-agent `vcr-kmd` + our h5 Glide fork; offline and
+on the 86Box Voodoo3 bed, NOT yet on silicon). Plan:
+retro-agent `docs/v56k-benchmark-plan.md`.
+
+- **The cfg 1 freeze was read back** from the miniport's `Prev*` phase history
+  (boot #18): `HWC_SLIAA a=4 b=0x102` = **4 chips**, SLI off, AA on, 2-sample,
+  analog - not a 1-chip request. `SET_BEGIN` 115.750 s -> clock -> slave init
+  -> `SET_DONE` 116.328 s, then nothing; glidelab's step log ends at
+  `grSstWinOpen` with no context line. The box froze inside Glide's open,
+  after the kernel reported success.
+- **Why it was malformed:** Glide lays out the samples for all 4 chips,
+  applies `forceSingleChip` only afterwards, and sends `dwChips =
+  pciInfo.numChips = 4` (fork `d161bd4`). No kernel has a video-mux branch for
+  `{4,0,1,0,1}`: vcr-kmd wrote ~430 registers and reported NOCLOCK|NOMUX as
+  success, AmigaMerlin's kernel wedged on the same request, and 3dfx's own
+  display driver never sends it (it rewrites cfg 1-4 to 0 on a 4-chip board).
+  Fixed without knowing the freeze mechanism: vcr-kmd refuses any shape with
+  no video mux before its first write, and our Glide refuses cfg 1 on more
+  than 2 chips.
+- **The VSA-100 AA secondary base (cfgAALfbCtrl) is a BYTE address in bits
+  4-25.** Glide writes it unshifted and decodes it as `cfgAALfbCtrl &
+  ~0xfc00000f`. `dos_mode.c:871`'s `<< 4` spills a real base into the control
+  bits: 0x01a00000 << 4 sets READ_EN, 0x06000000 << 4 sets read format 3. It
+  never mattered on `.124` only because Glide sends base 0 for cfg 3/7; it
+  would break cfg 8. vcr-kmd's vendor recipe (`Diag\SliAAVendorRecipe`)
+  writes the byte address; the default keeps the shift, byte-identical to
+  what ran, as the A/B control arm.
+- **dos_mode.c's video mux programs two shapes as a different sample count
+  than asked:** the 1-chip AA branch ignores the sample field (4 or 8 becomes
+  2), and the 2-chip 4-sample branches test `aaSampleHigh` as a boolean (8
+  becomes 4). Glide's tuple table and vcr-kmd's `vcr_sli_combo_ok` refuse both.
+- **Glide's cfg 0 close makes 24 zero writes through HWCEXT PCI_OP**
+  (hwcRestoreVideo, every Napalm close that is not multi-chip SLI/AA):
+  cfgSliLfbCtrl, cfgAADepthBufferAperture, cfgAALfbCtrl, cfgVideoCtrl0 and
+  cfgVideoCtrl2 (twice) on all 4 chips, result ignored. The first kernel guard
+  refused writes by REGISTER, and so changed the proven cfg 0: the slaves'
+  cfgVideoCtrl0 stayed 0x03000000 (syncs tristated) where it used to end at 0,
+  and each boot's first close flushed 20 phases. **Guard against what a write
+  turns on, never the register it lands on** - zero writes and READ_EN-only
+  toggles pass; an AA or video-merge value needs `Diag\SliAA`.
+- **A slave's raw 0xCF8 config cycle keeps only offset bits 2-7**, so an
+  unbounded PCI_OP offset of 0x140 reached cfgVideoCtrl0 past the `< 0x40`
+  header guard. Bound offsets to 0x00-0xFF and check alignment.
+- **pciInit0 cannot be read by a PCI config cycle** (0x4C is the status
+  register). A config-cycle read-back (`Diag\SliAAState`) records the value
+  the kernel wrote.
+- **A kernel refusal does not stop a Glide that ignores it.** The pre-guard
+  Glide (origin `d161bd4`) records the SLI_AA_REQUEST answer and opens its
+  multi-chip AA layout anyway, and the kernel cannot abort that open: the
+  request comes after HWCSETEXCLUSIVE, and the escapes after it (GETAGPINFO,
+  CONTEXT_DWORD) are unchecked. The kernel's AA refusal protects `.124` only
+  together with the SLIAA-GUARD `glide3x.dll` (fork `631221b` + `7736039` +
+  `e767d89`, local only - push before any deploy).
+- **A refused open after HWCSETEXCLUSIVE must give the display back.** The
+  first guard returned FXFALSE there, and `grSstWinOpen` does not call
+  hwcRestoreVideo when hwcInitVideo fails: vcr-kmd kept the exclusive owner (no
+  2D, no hardware pointer, no D3D) and the CRT kept the Glide mode until the
+  process exited. `e767d89` releases (HWCRLSEXCLUSIVE + hwcResetVideo) after a
+  3 s hold, because a release milliseconds after the mode set would re-sync
+  the CRT twice inside one call, where `vcr_pace` cannot see it.
+- **Since `631221b` a close that finds a multi-chip SLI/AA board busy skips
+  the SLI/AA disable escape** (cfg 5 included). On vcr-kmd the release's mode
+  restore turns SLI off anyway (RESTORE_MODE -> VcrHwSetMode -> VcrSliOff); on
+  AmigaMerlin that is unknown. RETRO_GLIDE_MAPLOG says "close: board not idle
+  - SLI/AA disable escape NOT sent".
+
+### 2026-09-27 - vcr-kmd: any process can release exclusive mode, and the DirectDraw heap starts at offset 0
+
+Lane: **clean-room** (retro-agent `vcr-kmd` display driver; offline and on the
+86Box Voodoo3 bed).
+
+- **Any process can send HWCRLSEXCLUSIVE** - a second Glide program's failed
+  open does. A release that does not come from the owner is a mode set under a
+  live Glide client. vcr-kmd refuses a non-owner release while there is an
+  owner (`967b4aa`, event 604 a=4), so a tool that releases from a separate
+  process (`vcrctl sliaa off`) must take exclusive first (`5e4ca36`). On 86Box
+  a stale owner (pid 1844) refused a plain release; `sliaa off` took over and
+  gave the desktop back.
+- **Glide's hwcRestoreVideo sends HWCRLSEXCLUSIVE even when its own idle wait
+  failed**, then skips its register restore and leaves cmdFifo0 enabled, and
+  the kernel's RESTORE_MODE resets a busy engine but reports success even
+  when the reset leaves it "STILL BUSY". Anything written after a release
+  must check idle and SST_CMDFIFOEN itself (`Diag\Reset3D` does).
+- **The DirectDraw heap starts at video-memory offset 0** on `.124` and on
+  86Box, because the desktop sits at the top. Any "offset 0 = no surface"
+  test in the HAL is a latent bug: `4a9793b` refused a Z buffer at offset 0,
+  and the drawable tests silently skipped a target there. Carry an explicit
+  flag.
+- **32 bpp D3D on the VSA-100 must disable stencil explicitly:** with
+  SST_STENCIL_ENABLE clear the chip still does REPLACE under stencilMode's
+  write mask, and vcr-kmd had never written stencilMode or stencilOp.
+  zaColor[31:24] is SST_ZACOLOR_ALPHA, not the stencil clear value; Glide's
+  `(stencil<<24)|depth` is its 2D-blit clear. Written at 32 bpp targets only;
+  that the chip ignores a stale enable at 16 bpp is UNPROVEN.
+- **On a Voodoo3 the D3D8 runtime refuses a 32 bpp device, and a 16 bpp
+  device with D24S8, from the caps** - before the driver. The HAL's own
+  CanCreateSurface guard is reachable only the DirectDraw 7 way (86Box,
+  `ddlab zsurf`).
+
+### 2026-09-27 - `.124`'s 16 bpp flip half rate is NOT the completion rule, and vidCurrentLine is no blank test
+
+Lane: **clean-room** (retro-agent `vcr-kmd/include/vcr_flip.h`).
+
+- **flip_done's own deadline (1.125 nominal frames) guarantees ~77 flips/s**
+  for a 60-frame ddlab run at 85 Hz even if every retrace were missed. The
+  16 bpp runs measured 46.9 and 42.1, so 0.5-0.64 s went outside the rule;
+  32 bpp on the same box, build and timing ran 87.4 / 86.3. The 16 bpp run is
+  confounded (always the battery's first fullscreen flip run and its only
+  depth change). The integration build on 86Box: no half rate at 16 or 32 bpp,
+  on either desktop depth, in either order.
+- **vidCurrentLine (0x94) cannot tell the blank.** 86Box does not emulate it
+  and reads 0xffffffff (0x7ff after the mask), so "in blank = line >= vdisp"
+  would be true forever and every flip would complete by deadline on the only
+  bed. On the VSA-100, 32 golden readings (4 zeros, none >= vdisp) suggest it
+  reads 0 through the blank (HYPOTHESIS). A deadline from the scanline needs
+  33 bits of CRTC data in a 32-bit field and cannot tell line 0 from the
+  blank. GetScanLine's blank is now `status[6]` alone, with `dwScanLine` 0 on
+  every non-OK path (ddlab had read 2293576 of stack garbage).
+- **Sample the retrace AFTER the start-address write**: a sample taken before
+  it completes a flip a frame early (the native test shows both).
+- The rule's one unproven silicon assumption: `status[6]` does not rise before
+  the start-address latch.
+- **An achieved-refresh deadline's trust band must be narrower than its
+  margin** (1/64 vs 1/32): the first 1/16 band trusted rates 4-5.5 % high,
+  which completed flips early. Nine 2X modes scan a line 8 px shorter than the
+  timing table (the halved total truncates to whole characters): the safe
+  direction, now pinned for every timing.
+- Open, from 86Box: a same-mode DirectDraw session's flip counters are not
+  logged at its end (XP never calls SetExclusiveMode(0) at the release), and
+  completions outrun the refresh by 2-3 % at 600 frames (`fast_frames`), on
+  the previous build too.
+
+### 2026-09-27 - Our h5 Glide's AA trace: what each level really does, the splash plugin, and the registry key Glide actually reads
+
+Lane: **clean-room** (h5 Glide fork `0b21976` + `e767d89`, retro-agent
+glidelab `b811d37` + `c2bde54`; not yet on silicon).
+
+- **`FX_GLIDE_TRACE` is read from the process environment only** (plain
+  getenv). A value in the glide registry key does nothing, by design;
+  `glidelab --trace N` sets it.
+- **Level 1 is file writes only - since `e767d89`.** Before it, hwcTraceCfg
+  made 36 PCI_OP config reads per dump on the V5 6000, right after the SLI/AA
+  escape and in every READ lock: hardware traffic in exactly the windows being
+  diagnosed. The dumps now need `FX_GLIDE_TRACE_CFG=1` (`glidelab
+  --trace-cfg`).
+- **Level 2 adds a bounded grFinish (a nopCMD and a bump) after each FIFO
+  step, only inside `grSstWinOpen`.** It used to fire in
+  `_grAAOffsetValue`/`_grEnableSliCtrl` wherever those ran (grEnable AA,
+  texture buffers, SLI LFB lock/unlock, close). It is not byte-identical to an
+  untraced open: a wedge that vanishes at level 2 is timing-sensitive, and
+  that is itself a result.
+- **`FX_GLIDE_NO_SPLASH` does not keep the third-party splash plugin out**:
+  doSplash still loads `3dfxspl3.dll`, whose initProc draws through Glide
+  inside the open. `FX_GLIDE_NO_PLUGIN=1` does; glidelab sets both for an AA
+  open.
+- The gamma DAC loop (hwcGammaTable) runs AFTER hwcInitVideo's SLI/AA escape -
+  the first video-clock-domain MMIO under the kernel's new mux - and is
+  bracketed.
+- **Registry trap:** `v56k_bench.apply_aa_config` and `glidelab_run --cfg`
+  write `SSTH3_SLI_AA_CONFIGURATION` under the display class key
+  (`Class\{4D36E968-...}\<inst>\Settings\Glide`), but our Glide's getRegPath
+  on XP reads `Services\3dfxvs\Device0\glide` (when `Services\3dfxvs\Device0`
+  exists) or else `Services\banshee\Device0\glide`. The class-key write never
+  reaches our Glide; only the in-process env from `--cfg` does - consistent
+  with the `sli_golden` captures that all ran Glide's default. Unverified on
+  the box; `glidelab_run --collect` reads every location.
+- **Build trap:** `build-stack.sh` with no workdir clones a fresh fork from
+  origin, which has none of this (`glide-devel-sezero` is ahead 4 of origin).
+  Rebuild with an explicit workdir, and check the md5 of
+  `C:\Games\Quake2Complete\glide3x.dll` (what glidelab loads) before a traced
+  run.
+
 ### 2026-09-27 - .243 (Voodoo 2 box, Compaq Deskpro 2000): a 1997 BIOS, an 80 GB disk, and POST halts
 
 - **The Compaq 586C BIOS (04/25/97) doubles heads while cylinders > 1024**, so
