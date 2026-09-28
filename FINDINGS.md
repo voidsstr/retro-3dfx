@@ -14,6 +14,42 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-28 (07:30) - `.124` overnight: 32 bpp D3D verified on silicon; a GDI screenshot is not the screen; three harness faults that each said PASS
+
+All on `.124` (V5 6000, all-ours stack). Detail: `retro-agent/docs/v56k-benchmark-plan.md`
+(resume point 07:30).
+
+- **vcr-kmd 32 bpp Direct3D works on silicon** (`Diag\D3D32` = 1 for one boot):
+  d3dprobe 40/40 fullscreen 640x480x32 and 1024x768x32 with D24X8, 42/42
+  windowed, 16 bpp 40/40, perf 84.2 fps at 85 Hz; Hidden & Dangerous Deluxe
+  starts. Left OFF by default: Rainbow Six errored with it armed (confounded:
+  Thief II had just stranded the desktop at 640x480), Thief II NewDark (D3D9)
+  still refuses. UT2004's device opens and dies at CreateTexture - the HAL
+  still says 256x256 max and no FOURCC.
+- **`vcrctl fbshot` reads what the video processor scans out**, because a GDI
+  screenshot of a fullscreen Glide/GL/D3D/DirectDraw game on our driver shows
+  the old desktop memory. Warcraft II BNE photographs SOLID BLACK through GDI;
+  fbshot showed its main menu. Two traps on the way, both in the first build:
+  vidDesktopStartAddr needs more than 24 bits on a 64 MB VSA-100 (0x3b00000
+  read as 0xb00000 = texture memory, a "desktop" made of RtCW textures), and a
+  fullscreen Glide game has the DESKTOP layer off - it is scanned out through
+  the overlay (vidProcCfg 026c0101, vidCurrOverlayStartAddr, tiled). The overlay
+  decode is not right yet (SLI bands / tile layout).
+- **Three harness faults, each reported PASS or FAIL wrongly:** (1) a GoldSrc
+  soak with its quit behind a wait chain cannot survive a map change - GoldSrc's
+  single command buffer puts the server's `reconnect` behind it (17,474
+  overflows; v2 drained the script: 4 maps in 30 min); (2) RtCW reuses
+  screenshot names every session, so a name diff found none of nine new shots
+  (now size+mtime); (3) GLQuake's bound `quit` opens the "really quit?" menu
+  and WM_CLOSE adds WinQuake's own "Confirm Exit" box - the next step then
+  launched SoF on top of it (the harness now refuses to start over a game).
+- **Unreal Gold on GlideDrv** (after `GlideRender` = 1) opens Glide 2.70 through
+  the Glide2->Glide3 translator at 320x200 (`Res=0`), shuts down, and hangs in
+  the second open; unresolved. **SoF loads no level at all** - the WON CD wall
+  covers single player too (library, not driver; `requires.json` corrected).
+- **3dfx Control Panel**: default-on 2D rows showed unticked while ON (the tick
+  was hard-wired to choices[1]) - fixed, deployed, Apply-without-reboot verified.
+
 ### 2026-09-28 (03:30) - The Voodoo 1/2 MiniGL cannot drive a VSA-100; H&D Deluxe needs 32 bpp Direct3D, which vcr-kmd ships OFF; a title-only error test passes an error dialog
 
 All on `.124` (V5 6000, all-ours stack), found by the desktop sweep
