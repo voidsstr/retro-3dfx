@@ -14,18 +14,66 @@ it until a Voodoo card goes back in.
 
 ---
 
-### 2026-09-28 (12:35) - Win7 ADMIN-PC (.195, ex-.246) "crashing" = two AMD TDR hangs + a power button; the agent wedges behind its own console echo
+### 2026-09-28 (12:35, CORRECTED same day) - Win7 ADMIN-PC (.195, ex-.246) "crashing" = two display TDRs + two power-button resets + a wedged agent; the GPU hang's cause is NOT proven
+
+> **CORRECTION (2026-09-28, after two independent reviews).** The original entry
+> below overclaimed. It is kept as written, and each corrected claim is marked
+> **[CORRECTED n]**. The corrected write-up, with the evidence md5s, is
+> `retro-agent/docs/case-studies/2026-09-win7-admin-pc-freezes.md` (tracked in
+> git). Fleetbook recipe: `win7-box-crashes-check-for-a-tdr-before-calling-it-a-bsod`.
+>
+> **Honest headline:**
+> - **PROVEN:** two TDRs (0x117 live dumps), two power-button resets, and an agent
+>   that wedged from about 23:47 on 09-26.
+> - **LIKELY, NOT PROVEN:** the cause is AMD Catalyst 15.7.1 (a Win7 **SP1**
+>   driver) on Win7 **RTM**, and/or a GPU hardware, thermal or power fault.
+>
+> 1. `atikmpag.sys+0x9F24` is the driver's **`DxgkDdiCollectDbgInfo` callback
+>    pointer**. It is identical for **every** TDR on this driver build, so it is
+>    **not a bug signature**. "The same offset both times" does not show one
+>    driver bug, and it cannot separate a driver bug from a GPU, thermal, PCIe or
+>    power fault.
+> 2. A missing Display **4101** does **not** prove the TDR never recovered. 4101
+>    is written by user-mode `DispCI.dll`, which a stuck session cannot run. The
+>    SPP 8197 / DCOM 10010 series shows the **session** was unusable; it does not
+>    show whether the GPU reset completed.
+> 3. The agent logged, and so echoed to its console, normally until
+>    **23:46:37**, which is **3.5 min after** TDR #2 (23:43:06). The wedge is
+>    bracketed 23:46:37 to about 23:47:56. So "the hung display blocked the
+>    console write" is **not shown**: a later session hang, or a click into the
+>    console, fits the evidence equally well. The `raw_out()`-under-`g_log_cs`
+>    mechanism is real and worth fixing, but it is a hypothesis for this event.
+> 4. The box-to-host clock offset is **6h05m02s**, not 6h04m41s. A 21.23 s
+>    step-back followed the clockfix, and two host-side daemon events confirm the
+>    corrected value. So TDR #1 was about **15:11:27 EDT** on 09-26 (power button
+>    15:11:33).
+> 5. The chat daemon's **09-27 22:56** long-poll loss hit **six agents within
+>    4 min**. It was host-side and says nothing about this box.
+> 6. **Unexplained** (the original entry did not mention these):
+>    - on 08-31 at 10:51 about 32 services terminated at once (7031), with no dump;
+>    - Kernel-Power 41 with **PowerButtonTimestamp 0** on 08-09 and 08-31 (14:27);
+>    - PSU, RAM and thermal are not excluded;
+>    - what triggered TDR #2 with no game running is unknown (the 600-s
+>      screensaver starting about 90-100 s earlier is an untested candidate).
+
+Original entry (12:35), kept for the record. Its original heading was "Win7 ADMIN-PC (.195, ex-.246)
+"crashing" = two AMD TDR hangs + a power button; the agent wedges behind its own console echo":
 
 Not a 3dfx-lane finding; it is fleet/agent. Full write-up with dumps and event exports is in
 `retro-agent/.claude/evidence-icons/192.168.1.195/crash/DIAGNOSIS.md` (untracked evidence dir).
+**[CORRECTED: superseded by `retro-agent/docs/case-studies/2026-09-win7-admin-pc-freezes.md`.]**
 
 - **No BSOD ever.** All five Kernel-Power 41 events carry BugcheckCode 0, and there is no Minidump.
   The two 09-26 freezes left **`C:\Windows\LiveKernelReports\WATCHDOG\WD-*.dmp`**: bugcheck
-  **0x117** (TDR), P2 = **`atikmpag.sys+0x9F24`** both times (Radeon HD 5450, Catalyst 15.7.1 on
+  **0x117** (TDR), P2 = **`atikmpag.sys+0x9F24`** both times **[CORRECTED 1: that is the
+  DxgkDdiCollectDbgInfo pointer, the same for every TDR on this build, not a bug signature]**
+  (Radeon HD 5450, Catalyst 15.7.1 on
   Win7 **RTM**, no SP1). The first was 5 min into Yuri's Revenge (Prefetch + DWM 9010). **Look in
   LiveKernelReports, not Minidump, for a Win7 display freeze**, and read the 41's
   **PowerButtonTimestamp**: it was set on both, meaning a person held the button, not a crash or a power cut.
-- **A Win7 TDR can hang WITHOUT recovering or bugchecking.** There was no Display 4101 and no
+- **A Win7 TDR can hang WITHOUT recovering or bugchecking.** **[CORRECTED 2: not shown; the
+  missing 4101 is written by user mode, so its absence does not prove the recovery failed. What
+  is shown is a session that could not start COM servers for 35 h.]** There was no Display 4101 and no
   0x116. The kernel, services and SMB ran for 35 h while the session could not start a GUI
   process. The tell is **Security-SPP 8197 "Failure displaying Software Licensing notification
   0x80080005" every 15 min** (142 in a row), plus DCOM 10010. On a non-activated Win7 box
@@ -35,8 +83,12 @@ Not a 3dfx-lane finding; it is fleet/agent. Full write-up with dumps and event e
   (conhost) or a console in Mark mode can block that write forever, and every logging thread then
   queues behind it. The signature: no log line after 23:46:37 (not even the 15-s flusher), new
   connections time out and then get refused, while the un-logged PROMPT_WAIT long-poll kept the chat
-  daemon "connected" for 23 h. Likely, not proven on the box; the fix is to move the echo outside the lock.
-- The box clock read **2013** (6h04m41s ahead) from 09-24 until clockfix on 09-26. `InstallDate`
+  daemon "connected" for 23 h **[CORRECTED 5: that long-poll's 09-27 22:56 loss was host-side, six
+  agents at once]**. Likely, not proven on the box; the fix is to move the echo outside the lock.
+  **[CORRECTED 3: the agent logged normally for 3.5 min after the TDR, so the display hang did not
+  block the echo at once. The wedge is bracketed 23:46:37 to about 23:47:56, and its trigger is
+  unknown.]**
+- The box clock read **2013** (6h04m41s ahead **[CORRECTED 4: 6h05m02s]**) from 09-24 until clockfix on 09-26. `InstallDate`
   is 2013-09-26: Windows was installed on a wrong RTC, which suggests the CMOS cell. Win7 answers
   an expired grace with Notification mode (hourly black wallpaper), **not** a logon lockout.
 
