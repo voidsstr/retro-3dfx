@@ -33,6 +33,53 @@ installed here any more): ARKAN2E6's 11 files inflated, errorlevel 1; with
 - Info-ZIP's scale: 0 ok, 1 warning (files extracted), 2+ error (9 zip not
   found, 50 disk full). Set TZ and fail on 2+, never on 1.
 
+### 2026-09-28 (night) - LAN-party pass on `.124` (V5 6000, all-ours stack): five real faults, none of them in the render path of the games that worked
+
+Every priority title was run the way its DESKTOP SHORTCUT runs it (the box's
+own FLEETRES values, the launcher's exe and renderer) with retro-agent's new
+`scripts/benchmarks/lan_check.py` (timedemo + ENGINE screenshots + a
+multiplayer soak on the fleet server) and `lan_sweep.py` (every other
+shortcut). Stack: vcr-kmd + our guarded h5 Glide (system32, md5 38a891e8) +
+MesaFX ICD 0.1.76 (system ICD). Quake III (ioquake3), Quake II, CS 1.6, RtCW MP,
+UT99 and GLQuake render and play multiplayer on the fleet servers; Turok 2 MP
+and Carmageddon 2 open Glide on four chips. What was actually broken:
+
+- **UT99 took 220 s to start** - the ICD's context-creation pump spun on
+  WM_PAINT (`paints-validated=87500081` in `C:\retrogl.log`; 0.1.65 bounded
+  dispatched messages, not validated paints). ICD **0.1.76** bounds both:
+  5.9 s. Diagnosed from the driver flight recorder: 195 s of NOTHING between
+  UT's mode set and `grSstWinOpen` points at user mode, not the kernel.
+- **GLQuake's own "Quake" shortcut died "Specified video mode not
+  available"** - GLQuake keeps 30 modes (MAX_MODE_LIST); our depth-major mode
+  listing put 1280x960x32 31st. vcr-kmd now lists 4:3/5:4 modes first at every
+  depth (order only).
+- **Carmageddon 2: "Unable to allocate Main Front Screen"** - the launcher
+  moved nGlide's glide2x.dll aside, and system32's glide2x (AmigaMerlin's
+  Glide2-to-Glide3 TRANSLATOR on a V4/5) loaded nGlide's game-local glide3x.dll
+  (application directory first). A tree that ships a Glide wrapper must move
+  EVERY wrapper DLL aside on a box with silicon.
+- **SoF crashed on F11** (its staged screenshot bind): ref_gl.dll fwrite()s
+  through an unchecked NULL when `user\scrnshot\` is missing. Staged the dir.
+- **The dev host is on 192.168.1.196, not .132** (since 2026-09-26): the
+  game-server watchdog restarted healthy servers 528x in 6 h and the CS/HLDM
+  A2S relays forwarded to .132 - both repointed at loopback. The host address
+  itself is the operator's call.
+
+Traps the harness encodes (each cost a run): id Tech 2 and GoldSrc take the
+server's precache/begin through the SAME command buffer as an exec'd script,
+so a `wait` chain keeps a joining client on the loading console; this CS 1.6
+(BCShield) ignores injected keys; a one-line `cmd /c cd /d X && Y` under the
+agent's EXEC/LAUNCH never changes directory; agent 1.89.0 refuses a 3dfx
+DRVUPDATE without `ALLOW3DFX` (and vcr-kmd's deploy_box printed the refusal
+and rebooted anyway - fixed); on this box our Glide reads
+`Services\3dfxvs\Device0\glide` (AmigaMerlin's leftover key: cfg 5,
+FX_GLIDE_REFRESH 75), so a reinstall of our driver does not touch it.
+
+Still open: the "Quake - 3dfx Voodoo" shortcut (VOODOO\OPENGL32.DLL, the 3dfx
+MiniGL) fails `wglCreateContext` before any grSstWinOpen, although the Glide 2
+path itself works (retro-agent `voodoo-cleanroom/tools/glide2probe.c`: open,
+60 swaps, clean close on four chips).
+
 ### 2026-09-28 - Fleet drivers (agent 1.89.0): `newimage.flag` is never deleted, so every boot of an imaged box is "fresh"; the share's driver store can install without C:\D
 
 Agent lane (retro-agent, not a 3dfx driver change - the 3dfx rule it obeys is
