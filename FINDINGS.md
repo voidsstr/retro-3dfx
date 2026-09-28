@@ -14,6 +14,42 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-28 (03:30) - The Voodoo 1/2 MiniGL cannot drive a VSA-100; H&D Deluxe needs 32 bpp Direct3D, which vcr-kmd ships OFF; a title-only error test passes an error dialog
+
+All on `.124` (V5 6000, all-ours stack), found by the desktop sweep
+(`retro-agent/scripts/benchmarks/lan_sweep.py`).
+
+- **The staged 3dfx MiniGL (Quake II 3.20 build, `Quake1\VOODOO\OPENGL32.DLL`,
+  also `HexenII\VOODOO\`) cannot drive a Voodoo 4/5.** Its wglCreateContext
+  fails before it ever calls grSstWinOpen, while the Glide 2 path under it
+  (AmigaMerlin's Glide2->Glide3 translator over our glide3x) opens the board
+  fine (`glide2probe`). The "- 3dfx Voodoo" shortcuts exist for Voodoo 1/2 boxes
+  whose desktop is a 2D chip; on a VSA-100 the system ICD is Glide-backed
+  anyway. **Library fix:** both launchers now `reg query` for
+  `Enum\PCI\VEN_121A&DEV_0009` (NT only - Win98 has no reg.exe and keeps the
+  MiniGL) and `call` the title's main launcher.
+- **Hidden & Dangerous Deluxe: "Unable to initialize graphics. This program
+  requires DirectX 8".** Not DirectX: its launcher forces
+  `Display bitdepth = 32`, and vcr-kmd offers 32 bpp Direct3D targets only with
+  `Services\vcrmp\Diag\D3D32 = 1` (default OFF, untested on silicon - V5
+  plan step 16). AmigaMerlin's HAL does 32 bpp D3D on this card, so this is our
+  gap, not the title's. 16 bpp D3D works: Jedi Knight / MotS render their
+  intros.
+- **An error dialog titled with the game's name passes a title-regex error
+  test.** That dialog was titled just "Hidden & Dangerous Deluxe" and the sweep
+  scored the title PASS (process alive, no "error" in any window title). The
+  sweep now reports any `#32770` that appeared during the run. Its skip list
+  also matched "3dfx", which silently dropped the two Glide shortcuts along
+  with the 3dfx Control Panel.
+- **Not driver faults, for the record:** Blue Shift dies at startup
+  (`could not link client.dll function HUD_PlayerMove` - the staged
+  `bshift\cl_dlls\client.dll` exports 6 functions; known library-wide, see
+  `HalfLife1\KNOWN-BROKEN-bshift-and-gearbox.txt`). Descent (DOSBox
+  `output=ddraw`) photographs solid black, unexplained yet - the only ddraw
+  DOSBox title; the recorder ring had wrapped before it was read.
+- **Performance, same demos, 1280x960x32, all-ours vs AmigaMerlin 3.1-R11:**
+  Quake III 84.7 vs 75.1-78.5, Quake II 138.5 vs 84.7, CS 1.6 93.1 vs 52.7-54.5.
+
 ### 2026-09-28 - The staged DJGPP UnZip exits 1 on EVERY run unless TZ is set - it is not a failure
 
 DOS lane (retro-agent `cf60c6b`). `C:\DOSGAME\UNZIP.EXE` is Info-ZIP UnZip 6.00
