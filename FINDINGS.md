@@ -14,6 +14,25 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-28 - The staged DJGPP UnZip exits 1 on EVERY run unless TZ is set - it is not a failure
+
+DOS lane (retro-agent `cf60c6b`). `C:\DOSGAME\UNZIP.EXE` is Info-ZIP UnZip 6.00
+built with DJGPP and `USE_EF_UT_TIME`. With no `TZ` in the environment it
+prints `Warning: TZ environment variable not found, cannot use UTC times!!`
+and returns **1 - Info-ZIP's WARNING** - even after extracting every file
+perfectly. Reproduced in DOSBox (`/usr/bin/dosbox` with `SDL_VIDEODRIVER=dummy`
+works headless on the dev host; the DOSBox-X-under-Wine toolchain is not
+installed here any more): ARKAN2E6's 11 files inflated, errorlevel 1; with
+`set TZ=EST5EDT`, 0; a missing zip, 9.
+
+- The first `.243` fill (`FILL.BAT`, `if errorlevel 1 ... FAIL`) therefore
+  logged **every** title FAIL, with the files sitting in `D:\GAMES`.
+- DOSGAME hit the same thing and wrote it down as an errorlevel that "cried
+  wolf on every successful install", then stopped testing it. The cause was
+  this one missing variable.
+- Info-ZIP's scale: 0 ok, 1 warning (files extracted), 2+ error (9 zip not
+  found, 50 disk full). Set TZ and fail on 2+, never on 1.
+
 ### 2026-09-28 - Fleet drivers (agent 1.89.0): `newimage.flag` is never deleted, so every boot of an imaged box is "fresh"; the share's driver store can install without C:\D
 
 Agent lane (retro-agent, not a 3dfx driver change - the 3dfx rule it obeys is
