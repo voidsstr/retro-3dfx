@@ -14,6 +14,32 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-28 (12:35) - Win7 ADMIN-PC (.195, ex-.246) "crashing" = two AMD TDR hangs + a power button; the agent wedges behind its own console echo
+
+Not a 3dfx-lane finding; it is fleet/agent. Full write-up with dumps and event exports is in
+`retro-agent/.claude/evidence-icons/192.168.1.195/crash/DIAGNOSIS.md` (untracked evidence dir).
+
+- **No BSOD ever.** All five Kernel-Power 41 events carry BugcheckCode 0, and there is no Minidump.
+  The two 09-26 freezes left **`C:\Windows\LiveKernelReports\WATCHDOG\WD-*.dmp`**: bugcheck
+  **0x117** (TDR), P2 = **`atikmpag.sys+0x9F24`** both times (Radeon HD 5450, Catalyst 15.7.1 on
+  Win7 **RTM**, no SP1). The first was 5 min into Yuri's Revenge (Prefetch + DWM 9010). **Look in
+  LiveKernelReports, not Minidump, for a Win7 display freeze**, and read the 41's
+  **PowerButtonTimestamp**: it was set on both, meaning a person held the button, not a crash or a power cut.
+- **A Win7 TDR can hang WITHOUT recovering or bugchecking.** There was no Display 4101 and no
+  0x116. The kernel, services and SMB ran for 35 h while the session could not start a GUI
+  process. The tell is **Security-SPP 8197 "Failure displaying Software Licensing notification
+  0x80080005" every 15 min** (142 in a row), plus DCOM 10010. On a non-activated Win7 box
+  (Notification mode) that is a free "desktop is dead" heartbeat.
+- **The agent wedged, it did not crash.** `agent/src/log.c raw_out()` does the console echo
+  `WriteFile(STD_ERROR_HANDLE)` **inside `g_log_cs`** (still in v1.89.1). On NT a hung display
+  (conhost) or a console in Mark mode can block that write forever, and every logging thread then
+  queues behind it. The signature: no log line after 23:46:37 (not even the 15-s flusher), new
+  connections time out and then get refused, while the un-logged PROMPT_WAIT long-poll kept the chat
+  daemon "connected" for 23 h. Likely, not proven on the box; the fix is to move the echo outside the lock.
+- The box clock read **2013** (6h04m41s ahead) from 09-24 until clockfix on 09-26. `InstallDate`
+  is 2013-09-26: Windows was installed on a wrong RTC, which suggests the CMOS cell. Win7 answers
+  an expired grace with Notification mode (hourly black wallpaper), **not** a logon lockout.
+
 ### 2026-09-28 (11:30) - V5 6000 on the all-ours stack: GDI gamma, a synthesized GL stub, and three test traps
 
 Clean-room lane (retro-agent `c904377`, `5669310`; vcr-kmd GDI gamma, MesaFX 0.1.77/0.1.78). Box `.124`, Athlon XP 2400+.
