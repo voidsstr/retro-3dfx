@@ -14,6 +14,45 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-28 - Fleet drivers (agent 1.89.0): `newimage.flag` is never deleted, so every boot of an imaged box is "fresh"; the share's driver store can install without C:\D
+
+Agent lane (retro-agent, not a 3dfx driver change - the 3dfx rule it obeys is
+`agent/shared/drvsafe.h`). User directive 2026-09-27: keep every driver current
+except 3dfx.
+
+- **`C:\RETRO_AGENT\newimage.flag` is written by `stage-oem.sh` and deleted by
+  NOTHING.** `.110`, imaged weeks earlier, still logs `image flag: ...` at every
+  start, so `fresh` is true on every boot of every PXE-imaged box. A new startup
+  pass first gated on `!fresh` would never have run on exactly the boxes it was
+  for - caught on `.110` before release. Anything keyed on "fresh image" is
+  really keyed on "was ever PXE-imaged".
+- **A box whose `C:\D` was reclaimed can still be served from the image's own
+  driver tree on the share**, without scanning 3,700 INFs over SMB:
+  `scripts/fleet/drvindex.c` indexes it with the agent's own matcher and 3dfx
+  rule into `Files\OS\XPSP3-FLEET\DRVINDEX\<vendor bucket>.TXT` (46,468 lines,
+  183 buckets), and the agent copies only the chosen INF's directory. Proven in
+  a throwaway overlay of the build VM with an extra e1000 (retail XP has no
+  driver for it): `L025\e1000325.inf` found, fetched, Windows-confirmed and
+  installed in 3 s with no UI.
+- **Match an index on the WHOLE id.** `PCI\VEN_10DE&DEV_0150` is a prefix of
+  `...DEV_0150&SUBSYS_...` and of `...DEV_01500`; a prefix match hands a device
+  an INF that does not serve it.
+- **A `LegacyDriver` devnode with a problem is a stopped service, not a missing
+  driver** (`ROOT\LEGACY_VGASAVE`, problem 24, in the VM).
+- **Adaptec's RAID INFs (`arcsas.inf`) carry the codename "Voodoo"** - INF text
+  is judged 3dfx without that word, or they are skipped as 3dfx.
+- **A video card with NO driver is not class `Display`** - XP files it under
+  "Other devices" as "Video Controller (VGA Compatible)". "Never touch display
+  automatically" has to test the `PCI\CC_03xx` id and the candidate INF's
+  `Class=`, not the device class. Found by the pre-release review.
+- **After a forced install hangs, never `FreeLibrary(newdev)` and never turn
+  SetupAPI prompts back on** - the stuck thread is still inside newdev and
+  returns into unmapped code when the dialog is dismissed, killing the agent.
+  The old image pass already knew this; the first cut of the new pass did not.
+- **`{GUID}\NVNET_DEV0057` is ONE hardware id.** `drvmatch_idch` has no braces,
+  so an indexer that tokenised by it indexed `\NVNET_DEV0057`, which no device
+  carries.
+
 ### 2026-09-27 - vcr-kmd text on the 2D engine is correct but SLOWER than software on the 86Box bed - it ships opt-in
 
 Clean-room lane (retro-agent `e7ff9ee`). DrvTextOut by monochrome expansion - the
