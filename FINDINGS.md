@@ -208,6 +208,29 @@ glidelab `b811d37` + `c2bde54`; not yet on silicon).
   `C:\Games\Quake2Complete\glide3x.dll` (what glidelab loads) before a traced
   run.
 
+### 2026-09-27 (night) - .243: POST 163 is sticky - 0Eh bit 2 is set by POST and cleared by nothing; agent 1.86.1 clears it
+
+- **After one power loss every reboot stopped at POST, warm ones included,
+  despite skip-F1 (2Dh bit 3) and a valid checksum.** The cause was CMOS 0Eh
+  bit 2 ("time invalid"): POST's RTC check (F000:2180 -> F000:227C: date and
+  month nonzero, every field valid BCD) sets it when the RTC lost power, and
+  **no code in the ROM clears it** - the other `and al,0FBh` sites are PIC
+  masks. So every later POST said 163-Time & Date Not Set, reset the clock to
+  1980 and the CMOS to defaults (2Dh=00, wiping skip-F1 BEFORE its F1
+  decision) and waited: five boots in a row, the agent logging `set now; 2Dh
+  00 -> 08` at each. Windows' SetSystemTime (clockfix) writes the RTC but
+  never 0Eh.
+- **Agent 1.86.1 clears only bit 2**, only when the RTC passes that same check
+  AND reads 2024+ (i.e. clockfix has set it; the 1980 default never
+  qualifies). Verified on .243: `0Eh 04 -> 00`, independent re-read 0Eh=00,
+  2Dh=08, checksum 043C. A real power loss still costs one F1 while the
+  battery is dead.
+- **The NEC uPD720101 USB card froze .243 ~2 minutes after every BOOT** (Num
+  Lock dead, no ARP) - yet ran 15 minutes live after a runtime re-enumeration.
+  Disabled at boot (Enum ConfigFlags=01, written + RegFlushKey by `devctl9x
+  persistoff`: a REGEDIT change did not survive the freeze); the box then
+  stayed up. The difference is how Windows sets the card up at boot on a BIOS
+  that never configures it - cause not proven.
 ### 2026-09-27 (later) - .243: a power loss resets the CMOS to defaults with a VALID checksum; the agent now puts skip-F1 back (1.86.0); USB on Win98 SE with no CD
 
 - **A power-off on the dead battery rebuilt the CMOS from Compaq defaults** -
