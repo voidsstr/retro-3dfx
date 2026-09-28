@@ -49,6 +49,32 @@ All on `.124` (V5 6000, all-ours stack), found by the desktop sweep
   DOSBox title; the recorder ring had wrapped before it was read.
 - **Performance, same demos, 1280x960x32, all-ours vs AmigaMerlin 3.1-R11:**
   Quake III 84.7 vs 75.1-78.5, Quake II 138.5 vs 84.7, CS 1.6 93.1 vs 52.7-54.5.
+- **Correction, 03:30: the first launcher fix never fired.** `Enum\PCI`'s subkeys
+  are the WHOLE id (`VEN_121A&DEV_0009&SUBSYS_0001121A&REV_01`), so
+  `reg query ...\Enum\PCI\VEN_121A&DEV_0009` finds no key and errorlevel 1 sent
+  both shortcuts down the MiniGL path again ("Quake Error", "Hexen II Error" in
+  the re-test). Measured on `.124`: the old test 1, `reg query ...\Enum\PCI |
+  find /i "VEN_121A&DEV_0009"` 0, a made-up id 1. Both launchers republished
+  with the prefix match. Lesson: test a detection line ON THE BOX, with a
+  negative control, before shipping the launcher around it.
+- **A GoldSrc soak that keeps a script pending cannot survive a map change,
+  and ours said PASS anyway.** GoldSrc has one command buffer; the server's
+  map-change `reconnect` is APPENDED behind whatever script is still queued. A
+  30-minute wait chain ahead of the quit meant the client sat at "Loading..."
+  from the first map change on (12 identical snapshots), and the chain
+  overflowed the buffer 17,474 times (`Cbuf_InsertText: overflow`), which also
+  cut the soak to 10.5 minutes. The render on `cs_747` was fine - the harness
+  was the fault. `lan_check.py` now drains the script in two minutes, closes the
+  game itself at the deadline, counts serverinfos, and fails an overflow.
+- **Not every Direct3D title is the D3D32 gap.** UT2004's device DOES open on
+  our HAL ("Video: vcr-kmd Voodoo 5 6000 (open driver)") and then dies at
+  `CreateTexture failed (D3DERR_INVALIDCALL)`: the HAL still reports the
+  Voodoo 3's 256x256 texture limit and no FOURCC formats; the VSA-100 does
+  2048x2048 and DXTn/FXT1. Thief II is NewDark 1.26 (Direct3D 9, 32-bit only):
+  "no supported video mode" - the D3D32 gap. Unreal Gold's "Assertion failed:
+  RenDev" was the box, not the driver: `HKLM\Software\RetroAgent\GlideRender`
+  was unset on `.124`, so FLEETRES wrote D3DDrv; set to 1 (only Unreal Gold's
+  launcher reads `FR_UE1DEV`).
 
 ### 2026-09-28 - The staged DJGPP UnZip exits 1 on EVERY run unless TZ is set - it is not a failure
 
