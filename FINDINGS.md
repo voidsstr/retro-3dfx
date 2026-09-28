@@ -14,6 +14,41 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-28 (11:30) - V5 6000 on the all-ours stack: GDI gamma, a synthesized GL stub, and three test traps
+
+Clean-room lane (retro-agent `c904377`, `5669310`; vcr-kmd GDI gamma, MesaFX 0.1.77/0.1.78). Box `.124`, Athlon XP 2400+.
+
+- **vcr-kmd refused every `SetDeviceGammaRamp`** (no `GCAPS2_CHANGEGAMMARAMP`):
+  Jedi Academy logged "SetDeviceGammaRamp failed." and the id Tech 3 family ran on
+  software gamma with overbright forced to 0. `DrvIcmSetDeviceGammaRamp` now loads
+  colour-table bank 0 (the overlay reads it too); `Diag\GdiGamma`=0 refuses. Probe:
+  `vcr-kmd/tools/gammaprobe.c`. NB: a probe that opens a window steals focus from a
+  fullscreen game (DirectDraw exclusive 0) - run it with no game up.
+- **SoF2 "very dark" = the engine default `r_overBrightBits 0`**, not a driver bug.
+  Its startup `GAMMA: ... 0 overbright bits` line is printed BEFORE R_InitImages
+  computes the value, so it reads 0 on every card and every config - three
+  "failed" attempts to set it had probably worked. Fixed in the staged
+  `base\mp\autoexec.cfg` (overbright 1, picmip 0). `sof2mp.exe`'s `r_mode` range is
+  [3,10], which is why `r_mode -1` lands at 640x480.
+- **ICD 0.1.77:** `wglGetDeviceGammaRamp3DFX` returned zeros until the first Set;
+  id Tech 3 restores that at shutdown = an all-zero CLUT at every quit/vid_restart.
+- **ICD 0.1.78:** Mesa glapi SYNTHESIZES a stub for any unknown `gl*` name and we
+  handed it out. WON Half-Life calls `glPNTrianglesiATI` (TruForm, 0x87F0-0x87F7)
+  whenever the pointer is non-NULL -> DMC crash (eip in the heap). A crashed GoldSrc
+  then took DirectDraw exclusive at 640x480x16, and while Dr. Watson held it the
+  process was MISSING from tasklist, so the harness launched the next title over it
+  (WON HL is single-instance: that run watched the corpse for 5 minutes).
+- **Jedi Academy:** "needs DAEMON Tools" was a harness bug - `cmd /c "a" "b"` strips
+  the outer quotes and ran `C:\Program`; WinCDEmu mounts the ISO fine. JA opens a
+  Player Configuration menu on joining that swallows bound keys (ESC first), and
+  never prints "entered the game" - prove the join with the SERVER's player list.
+- **GAMESYNC on `.124` copies at ~0.8 MB/s** over a 100 Mbit link with no read
+  errors (the host reads the same file at 54 MB/s). Not diagnosed; a 1.7 GB title
+  takes ~35 min.
+- `hwcext 0x17` (`HWCEXT_CONTEXT_DWORD_NT`) is unimplemented in vcr-kmd and logged as
+  a warning per Glide session; Glide falls back to a dummy context DWORD. Harmless
+  except alt-tab lost-context detection.
+
 ### 2026-09-28 (09:45) - A Win9x agent that LAUNCHes a DOS batch goes deaf until it ends; a USB mouse "connected, never enabled"
 
 Agent lane (retro-agent `842d9db`, agent 1.89.1).
