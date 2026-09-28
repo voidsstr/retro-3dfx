@@ -14,6 +14,30 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-28 (09:45) - A Win9x agent that LAUNCHes a DOS batch goes deaf until it ends; a USB mouse "connected, never enabled"
+
+Agent lane (retro-agent `842d9db`, agent 1.89.1).
+
+- **The "dead agent" port signature (9898 refused, 9897 accepts and never
+  answers) is also a STALLED agent.** `LAUNCH` ran `command.com /c FILL.BAT` with
+  creation flags 0, so on Win98 the DOS child ran inside the agent's own console
+  - a DOS VM - and the single thread serving every client blocked in its next
+  console write (`printf("Connection from")`) for the 74 minutes the batch ran.
+  It resumed by itself when the batch ended. Evidence: the agent log shows a
+  74-minute gap with no restart, and FILL.LOG's END is the resume second.
+  1.89.1: a 9x LAUNCH child gets CREATE_NEW_CONSOLE; no console write on the
+  multiplex serving path. EXEC unchanged (a new console for a 16-bit child with
+  pipes is unproven). The 08-31 "EXEC find killed .243" was very likely this.
+- **Win98 USB: `PORTSC` connected=1, enabled=0, connect-change already 0** means
+  the hub consumed the connect event and never reset the port - Win98's hub acts
+  on change bits and will not retry. A root-hub restart does nothing; a
+  **controller** restart re-detects the device. Found with `usb9x`, a read-only
+  UHCI probe (`scripts/fleet/win9x/usb9x.c`).
+- A cheap wireless receiver is a **composite** device (class 0): Win98 matches
+  `USB\COMPOSITE` only by compatible id, so it opens the wizard; its HID
+  collections need `HIDCI.DLL`/`MOUSE.DRV`/`MSMOUSE.VXD` in `SourcePath`, and
+  `hidserv.exe` (consumer control) can be skipped.
+
 ### 2026-09-28 (07:30) - `.124` overnight: 32 bpp D3D verified on silicon; a GDI screenshot is not the screen; three harness faults that each said PASS
 
 All on `.124` (V5 6000, all-ours stack). Detail: `retro-agent/docs/v56k-benchmark-plan.md`
