@@ -14,6 +14,13 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-29 (13:55) - Disc titles on `.124` under DAEMON Tools, and a "driver hang" that was a circuit breaker
+
+- **A reported vcr-kmd hard hang on `.124` (Serious Sam, 13:17:34 box time) was the 13:16:55 breaker trip.** The commands in that box log came from the dev host, which was dead from 13:16:55, so `.124`'s clock was at least 39 s fast before the power cut. After the cold boot it read 2 s slow. **A box log timestamp is not host time.** Before blaming a driver for a "hang", check `docs/host-issues-log.md` and the host's own `journalctl --list-boots`.
+- **`vcrctl fbshot` never finishes under Max Payne's D3D exclusive mode.** It waits in user space, before the line loop, and is killed cleanly (PROCKILL). Under OpenGL/Glide 4-chip SLI (Serious Sam, Jedi Academy) it works, and plain `SCREENSHOT` captures Max Payne. Unexplained; worth a look before using fbshot on D3D titles.
+- **Max Payne's menu ignores both synthetic keys and absolute clicks** (it follows relative mouse deltas), so it can't be driven by the agent. A plain WM_CLOSE (`taskkill` without /f) exits it cleanly and restores the desktop. System Shock 2's menu takes a click on Quit; WM_CLOSE to `shock2.exe` does nothing, because it's only the SafeDisc v1 loader and the game is `SHOCK2.ICD`.
+- **Serious Sam TSE's menu logo reads "The First Encounter" on this RETAIL disc.** The staged `SE1_00.gro` is byte-identical to the disc image's `Install/SE1_00.gro`, and `GameMP.dll` loads `Textures\Logo\sam_menulogo256a.tex`, identical to TFE's. It's not a staging mix-up; don't "fix" the tree.
+
 ### 2026-09-29 (13:05) - The 3dfx Control Panel now deploys itself (retro-agent 1.94.0), and two traps on the way
 
 - **A desktop shortcut the agent did not write is GONE after the next GAMESYNC.** `push_3dfxctl.py`'s "3dfx Control Panel" shortcut on `.124` vanished after two quiet syncs: the end-of-run sweep moves every desktop entry the run did not CLAIM. Anything that must stay on a fleet desktop has to be placed by `gs_place_tool_shortcuts()` (claimed via `gs_desk_note_lnk_kept`), not dropped there by a tool.
