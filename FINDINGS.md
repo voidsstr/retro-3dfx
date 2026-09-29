@@ -14,6 +14,13 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-29 (10:50) - agent 1.93.2: GAMESYNC and GAMERES stopped undoing each other; "settled" must be proven with two SYNCS
+
+- **No box on the fleet could ever settle.** GAMERES rewrites a title's config and registry for the box's monitor. The next GAMESYNC saw each rewritten file as "not the library's file" and copied the library copy back, and GAMERES changed it again. Every quiet sync wrote 11-27 files and changed 23-43 values, and rebuilt the icon layout (measured on .110, .145 and .124). The ".191 4 -> 0 -> 0" evidence of 2026-09-04 came from `GAMERES APPLY`, which copies nothing, so it could never have seen this.
+- **Fix:** a per-box ledger `C:\RETRO_AGENT\GRLEDGER.TXT` (`agent/shared/grledger.h`) keeps a file GAMERES adjusted while both the library copy and GAMERES's result are unchanged. Registry values a GAMERES rule owns are captured before `regedit` and restored after it. A missing or damaged ledger means the old behaviour.
+- **Proven on .124:** 1.93.1 wrote 21 files and changed 36 values. 1.93.2 wrote 18 once (the run that fills the ledger), then 0 files and 0 values twice, logging "18 adjusted file(s) kept". It needed one rebase fix: master's 1.93.0 `GamesDir` removed `GS_DEST`, and the ledger's owner check now uses the resolved folder.
+- **Rule: prove a settled box with two consecutive `GAMESYNC RESET`+`START` runs on a quiet library. `GAMERES APPLY` alone proves nothing.**
+
 ### 2026-09-29 (10:40) - `.243`: Windows 98 caches desktop icons by FILE NAME; 39 DOS flight sims staged and deployed
 
 - **Every Flight-* title shipped `ICON.ICO` at its own path, and all 39 desktop icons on `.243` drew F-14 Fleet Defender's art.** The PIFs recorded the right, distinct paths (`E:\GAMES\Flight-Falcon3\ICON.ICO` ...); the uniquely named `DESCENT9.ICO`, `hexen2.ico` and `Q2.ico` on the same desktop were right. Renamed per title (`FALCON3.ICO`, `WC1.ICO` ...), resynced, one desktop F5: all 39 drew their own art. `stage_win9x_dos.py` now names icons per title and `validate-staged-library.py` (`check_icon_names_9x`) FAILs 9x shortcuts whose differing icons share a name.
