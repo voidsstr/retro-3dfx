@@ -14,6 +14,45 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-28 (23:40) - `.243` (Win98, P166, Voodoo 2): Quake II's Voodoo shortcut proven end to end; DOS Quake's scripted quit; a LAUNCH line over 127 chars; a stale buffer that made a USB card "3dfx"; the SB16 gameport
+
+Fleet/agent findings from the Win98 Pentium 1, not driver-lane code.
+
+- **Quake II plays on the Voodoo 2 from the desktop shortcut** (`Games-Library/Quake2Win9x`,
+  `Play Quake II - Voodoo.bat`: `vid_ref gl`, `gl_driver 3dfxgl`, `gl_mode 3`). Proven by launching
+  the `.pif` the way a double-click does and reading the running game's console with `condump`:
+  `GL_VENDOR: 3Dfx Interactive Inc.`, `GL_RENDERER: 3Dfx Interactive Voodoo(tm)`, 640x480 FS,
+  `GL_SGIS_multitexture`, DirectSound on the SB16. **Synthetic keys (`UIKEY TILDE`, `UIKEY TEXT:`)
+  DO reach fullscreen Quake II's console on Win98** - unlike id Tech 3 in exclusive fullscreen on XP.
+- **Win98 `PROCLIST` names carry the full path** (`C:\GAMES\...\QUAKE2.EXE`): match a process by
+  suffix/substring, never equality - an exact-name check reported a running Quake II as "never started".
+- **Agent 1.89.1's own-console LAUNCH made Win98 refuse any `command.com /c` line over 127 chars**
+  (CreateProcess error 31 - every Quake II bench launch). 1.90.1 starts an existing `.exe` directly.
+- **DOS Quake from a script needs TWO things to end cleanly**: a bare `startdemos` first (demonum -1,
+  or the demo's svc_disconnect goes to CL_NextDemo and no score is printed), and `toggleconsole`
+  right before `quit` - `Host_Quit_f` exits only from the console, and from a script it opened the
+  "really quit? Y/N" menu. A/B in headless DOSBox (same QUAKE.EXE): plain `quit` sat in the menu,
+  toggleconsole+quit exited rc 0 after `969 frames ... fps`. **A DOS box stuck like that on Win98
+  cannot be ended remotely**: `PROCKILL` answered OK and the VM lived on, `WM_CLOSE` was ignored, and
+  keys do not reach an ICONIC graphics-mode DOS box (winkey9x tried) - a key at the box or a reboot.
+- **LAUNCHed DOS programs on .243 run in a MINIMIZED DOS box** (console windows start iconic there),
+  i.e. a background VM with virtualized video. The DOS Doom/Hexen/Quake timedemos were measured that
+  way; they are not real-DOS numbers.
+- **A REG_SZ id list read into a reused buffer must be double-NUL terminated.** `drvsafe_ids_3dfx()`
+  walks strings up to an EMPTY one; `drv9x.c` reset only `out[0]`, so the VIA USB controller -
+  enumerated right after the Voodoo 2 - carried the Voodoo's `VEN_121A` tail past its own NUL and
+  `DRIVERS STATUS` reported it `excluded_3dfx` (a false positive, the safe direction). Fixed in source
+  (retro-agent `c7b244a`), rides the next agent release.
+- **SB16 PnP gameport on Win98**: Windows binds `ISAPNP\CTL0024_DEV0003` (`*CTL7001`) to "Gameport
+  Joystick" (`vjoyd.vxd`, I/O 200-207) by itself, but configures NO joystick type, and winmm then
+  answers `JOYERR_PARMS` (165) for joystick 1 - every Windows game reports "no joystick". DirectInput's
+  `IDirectInputJoyConfig::SetConfig` fixes that without Game Controllers; its predefined type names are
+  `'#' + ('0' + n)` - `#2`..`#9`, then `#:` and `#;` - plus OEM keys (CH_1 = CH Flightstick Pro,
+  ThrustMaster_1, LogitechWingManExtreme, SideWinder 3D Pro/Precision Pro with `MSGAME.VXD`).
+  After `set #3` winmm reports `JOYERR_UNPLUGGED` (167) until a stick is attached. A raw 201h read of
+  `FF` with every axis timing out is IDENTICAL for "no stick" and "port not decoded". Tool:
+  `retro-agent/scripts/fleet/win9x/joy9x.c`.
+
 ### 2026-09-28 (12:35, CORRECTED same day) - Win7 ADMIN-PC (.195, ex-.246) "crashing" = two display TDRs + two power-button resets + a wedged agent; the GPU hang's cause is NOT proven
 
 > **CORRECTION (2026-09-28, after two independent reviews).** The original entry
