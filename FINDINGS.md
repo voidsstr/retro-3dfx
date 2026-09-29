@@ -14,6 +14,14 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-29 (14:15) - Serious Sam "Cannot set display mode! ... OpenGL acceleration" on Windows 7 was `gfx_iRefreshRate`, not the ICD (retro-agent 1.95.1, `eefdeec`)
+
+- **Symptom:** TFE/TSE die before any window on `.195` (ADMIN-PC, Win7 build 7600, Radeon HD 5450, Catalyst 15.7.1): `Fatal Error: Cannot set display mode! Serious Sam was unable to find display mode with OpenGL acceleration.` The driver and ICD are fine.
+- **Cause:** both writers of `Scripts\Game_startup.ini` (the launcher via FLEETRES, and GAMERES) wrote `gfx_iRefreshRate=<FR_HZ>` (60 there). With a non-zero rate Serious Engine 1 calls `ChangeDisplaySettings` with `dmDisplayFlags` value 4 (`DMDISPLAYFLAGS_TEXTMODE`) plus the rate. **XP ignores the flag; Windows 7 refuses the request at every resolution.** A test program on the box failed only when flag AND rate were both set.
+- **Fix:** one function, `agent/shared/gameres.h gr_se1_hz(fr_hz, os_major)` = 0 on NT major >= 6, `fr_hz` before. GAMERES writes `%SE1HZ%`, FLEETRES.EXE publishes `FR_SE1HZ` (RtlGetVersion else GetVersionEx - `>= 6` is immune to the 6.2 shim, so both writers agree), FLEETRES.BAT falls back to 0.
+- **Verified:** `.195` after GAMESYNC: agent and launcher both write `gfx_iRefreshRate=0`; `SeriousSam.log` "Starting display mode: 1920x1080xDesktop ICD fullscreen ... OpenGL context created: ATI Technologies Inc., AMD Radeon HD 5450"; WINLIST `Serious Sam (FullScreen 1920x1080)` foreground; clean WM_CLOSE exit. XP CRT `.184` (GeForce2 GTS, VSC A90): `FR_SE1HZ=85`, `gfx_iRefreshRate=85`, renders fullscreen 1024x768, desktop reads 85 Hz during the game. Evidence: `retro-agent/.claude/evidence-ssam-win7/`.
+- **Also wrong until now:** `sam_iDriver=1` is the **3dfx MiniGL (`3DFXVGL.DLL`)**, not Direct3D. The 2026-08-31 ".246 cannot open OpenGL, runs on Direct3D" note was this refresh fault, misattributed. Fleetbook: `serious-sam-cannot-set-display-mode-on-win7-gfx-irefreshrate`.
+
 ### 2026-09-29 (13:55) - Disc titles on `.124` under DAEMON Tools, and a "driver hang" that was a circuit breaker
 
 - **A reported vcr-kmd hard hang on `.124` (Serious Sam, 13:17:34 box time) was the 13:16:55 breaker trip.** The commands in that box log came from the dev host, which was dead from 13:16:55, so `.124`'s clock was at least 39 s fast before the power cut. After the cold boot it read 2 s slow. **A box log timestamp is not host time.** Before blaming a driver for a "hang", check `docs/host-issues-log.md` and the host's own `journalctl --list-boots`.
