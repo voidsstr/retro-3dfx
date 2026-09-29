@@ -14,6 +14,10 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-29 (12:55) - `.243`: never ALT+ENTER a full-screen SVGA DOS game on Win98 - it crashes WINOLDAP and can stall the agent
+
+- **Alt+Enter windows a VGA mode-13h game fine (that is how `SCREENSHOT` gets a frame of one), but on an SVGA title it page-faulted WINOLDAP in `VGAFULL.3GR`.** During the flight-sim launch sweep on `.243` the crash dialog sat over the desktop, the DOS VM stayed half-alive, and the single-threaded Win9x agent stalled until a person dismissed it - the second agent stall of the sweep. `sweep243.py` no longer sends it; a DOS title is judged alive from its window (Win9x reports a full-screen DOS box at (3000,3000), iconic) and closed with WINKEY9X CLOSE + Yes in the 635x178 "Windows cannot shut down this program" dialog.
+- **A full-screen DOS graphics screen reads back through GDI as noise** - that is a capture limit, not a render fault. Only a mode-13h title may be windowed for a picture, and only when someone could recover the box.
 ### 2026-09-29 (12:20) - After the ledger fix, GAMESYNC now fights the favourites agent instead
 
 - **What was measured:** .124 on 1.93.2 settled at 0 files written. Its next pass (12:05) wrote 7 files, and GAMERES "kept" fell from 18 to 15 with 6 values changed. No staged file outside `DOS-*` changed on the share in that window. What happened was that at 10:47:17 `retro-gameindex` UPLOADed six files straight into staged trees: `CounterStrike16\config\serverbrowser.vdf`, the Q3TA and Q2 `autoexec.cfg`, `Unreal.ini`, `UT2004.ini` and `UnrealTournament.ini`. The next GAMESYNC copied the library copies back. Three of those six are GAMERES-adjusted files, which the ledger correctly treats as "changed on the box" (re-copy, then re-adjust).
