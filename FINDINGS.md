@@ -14,6 +14,41 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-29 (04:00) - The V5 6000's graphics clock set LIVE (vcr-kmd, clean-room lane) - and how its slave chips are really clocked
+
+Clean-room lane (`voodoo-cleanroom/vcr-kmd`, `IOCTL_VCR_CLOCK`; the 3dfx Control Panel 2.1.0's
+Clock tab), `.124` (V5 6000). Evidence: `retro-agent/voodoo-cleanroom/vcr-kmd/evidence/2026-09-29-clock-*`,
+`retro-agent/scripts/3dfx/3dfxctl/evidence/20260929/`.
+
+- **The master's clock, as the VBIOS leaves it:** `pllCtrl1` 0xE721 = N 231 M 8 K 1 =
+  166.8 MHz (core AND SDRAM - one clock), `pllCtrl0` 0x4005 = 157.5 MHz (1280x1024@85),
+  `pllCtrl2` 0xBF01 = 691 MHz by the same formula - NOT a memory clock (the vendor W2K
+  miniport programs only pllCtrl1 on Napalm).
+- **THE SLAVES ARE NOT CLOCKED UNTIL A GAME ASKS FOR SLI.** At boot chips 1-3 read
+  `pllCtrl0` = `pllCtrl1` = **0x0C01 (50.1 MHz, the reset word)**, dramInit0 0x58579d29
+  (master 0x607eadf9), tmuGbeInit 0xffb (master 0xff0). Every SLI enable copies the
+  master's pllCtrl1 + DRAM timings into each slave - vcr-kmd `vcrmp_sli.c` `init_slave`,
+  exactly as the vendor's `H3InitializeSecondaryDevice` (`RegisterMap->pllCtrl1 =
+  HwDeviceExtension->pllCtrl1`, called per slave from `InitializeSlaveChipsInitRegs`) and
+  Glide's Linux/DOS `initSlave` do. So a live clock change writes the MASTER only and the
+  next game start carries it to all four; it must never happen under a running Glide
+  program (refused: `VCR_CLOCK_R_EXCLUSIVE`). The first build wrote all four chips - it
+  would have jumped an uninitialized slave's PLL 50 -> 162 MHz for nothing.
+- **A live pllCtrl1 change works on a running desktop:** 166.8 -> 150 MHz in 4 steps of
+  <= 5 MHz, each written with the IRQL raised after an idle re-check, 0 idle retries, the
+  word read back (0xF929 = 149.7 MHz), desktop drawn normally; RESTORE -> 0xE721 exactly;
+  175.0 MHz (0xDA1D) held on the desktop. **Not yet measured: a fill rate at two clocks.**
+- **The SDRAM refresh count is not a floor worry:** dramInit1 bits 9:1 = 0x18, the value
+  the vendor programs at EVERY clock from Banshee's 100 MHz to the Voodoo3 3500's 183 MHz
+  (cinit `h3InitSgram`, xf86-video-tdfx). DATABOOK strapInfo0 bit 11 = `pll_bypass`
+  (0 on all four chips here).
+- **XP writes `HKLM\SYSTEM\CurrentControlSet\Control\Windows` `ShutdownTime` at every
+  ORDERLY shutdown - an agent REBOOT through `safe-reboot.py` included** (04:50:56 and
+  05:01:18 UTC, two reboots). A crash, a hang or a power loss leaves it unchanged, so
+  "did the stamp move since X?" is a clean-shutdown proof - compare for EQUALITY only,
+  never order, because `.124`'s RTC resets after a power loss. The panel's "use this
+  clock again after Windows restarts" is built on it.
+
 ### 2026-09-28 (23:50) - Halo and Thief II on the V5 6000 (vcr-kmd, clean-room lane), and the fleet defects the party prep exposed
 
 Clean-room lane (`voodoo-cleanroom/vcr-kmd`), `.124` (V5 6000, Athlon XP 2400+, no SSE2).
