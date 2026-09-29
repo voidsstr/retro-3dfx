@@ -14,6 +14,14 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-29 (10:40) - `.243`: Windows 98 caches desktop icons by FILE NAME; 39 DOS flight sims staged and deployed
+
+- **Every Flight-* title shipped `ICON.ICO` at its own path, and all 39 desktop icons on `.243` drew F-14 Fleet Defender's art.** The PIFs recorded the right, distinct paths (`E:\GAMES\Flight-Falcon3\ICON.ICO` ...); the uniquely named `DESCENT9.ICO`, `hexen2.ico` and `Q2.ico` on the same desktop were right. Renamed per title (`FALCON3.ICO`, `WC1.ICO` ...), resynced, one desktop F5: all 39 drew their own art. `stage_win9x_dos.py` now names icons per title and `validate-staged-library.py` (`check_icon_names_9x`) FAILs 9x shortcuts whose differing icons share a name.
+- **39 DOS flight sims are library titles (`Flight-*`, `max_os win9x`)** built by `scripts/dosgames/stage_win9x_dos.py` from trees whose own setup was run in DOSBox with the SB16 at A220 I5 D1 H5; deployed to `.243` (45 titles, 0 failed files). Five more (Jane's ATF, USNF: Phar Lap TNT "cannot run under Windows"; Pacific Strike, Privateer, Righteous Fire: Origin JEMM refuses EMS/VCPI) need MS-DOS mode, which cannot see `.243`'s E: - they get an MS-DOS-mode PIF (byte 1AFh bit 7) and a C:\GAMES copy.
+- **Staging 39 new titles resynced the whole fleet**: `retro-autodeploy` answers any title-set change with GAMESYNC RESET+START on every box that answers, including boxes for which every new title is gated "no".
+- **Lost work: the session scratchpad is deleted at session end** - the icon/stage trees for 16 3D DOS games and the 5 MS-DOS-mode titles went with it and are being rebuilt under `~/.retro-fleet/stage-work/`.
+
+
 ### 2026-09-29 (05:50) - One new top-level directory in the library resyncs the whole fleet (retro-autodeploy); the library generators' write backend now refuses to make one, and repairs a torn write
 
 - **retro-autodeploy acts on a new title within one pass, on every box that answers.** Measured during the review of `scripts/fleet/libwrite.py` (retro-agent): another session created `Games-Library\Flight-MSFS51` at 05:40:44; autodeploy logged `.123 needs a sync: 1 new title(s)` at 05:41:50 and ran GAMESYNC RESET + START on `.123`, `.124`, `.145`, `.195`, `.240` and `.243` one after another (~40-60 s each) - boxes other sessions were testing on included. A change of `_deploy_generation.txt` does the same. Any tool that writes the library can start a fleet-wide sync by accident.
