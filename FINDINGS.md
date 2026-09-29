@@ -14,6 +14,12 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-29 (16:15) - Halo PC LAN: `haloded.exe` needs `sv_public 0`, or every key is "invalid"
+
+- **Six boxes (.145 .123 .195 .110 .240 .171) are in one Blood Gulch game hosted by `haloded.exe`** (1.00.10.0621, `Files\tmp\halo-build\_patch\`), with nobody at a keyboard. Details: retro-agent `docs/lan-multiplayer-status.md`.
+- **Public mode (the default) checks keys against GameSpy's dead auth service, so it rejects EVERY client with "Your CD Key is invalid"**. That is the same text a bad key or a shared key produces. `sv_public 0` in the exec file fixed it at once. Do not start rotating keys when every client is rejected at the same moment.
+- **A Halo client on the host box grabs UDP 2302/2303 alongside `haloded`** and takes its packets, so every box sees "Unable to join game". Start that client with `-port 2304 -cport 2305`.
+
 ### 2026-09-29 (14:15) - Serious Sam "Cannot set display mode! ... OpenGL acceleration" on Windows 7 was `gfx_iRefreshRate`, not the ICD (retro-agent 1.95.1, `eefdeec`)
 
 - **Symptom:** TFE/TSE die before any window on `.195` (ADMIN-PC, Win7 build 7600, Radeon HD 5450, Catalyst 15.7.1): `Fatal Error: Cannot set display mode! Serious Sam was unable to find display mode with OpenGL acceleration.` The driver and ICD are fine.
