@@ -14,6 +14,80 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-28 (23:50) - Halo and Thief II on the V5 6000 (vcr-kmd, clean-room lane), and the fleet defects the party prep exposed
+
+Clean-room lane (`voodoo-cleanroom/vcr-kmd`), `.124` (V5 6000, Athlon XP 2400+, no SSE2).
+Evidence: `retro-agent/scripts/benchmarks/results/v56k_lan_192.168.1.124/day/fbshots/halo_*`.
+
+- **Halo 1.10 reaches a textured main menu from the LIBRARY tree** (purged, GAMESYNC'd,
+  119 files / 1,496,651,991 bytes = the library) with `Diag\D3D32`=1 + `Diag\D3DBigTex`=7
+  armed and the staged `config.txt` giving `0x121a:0x0009` `DisableRenderTargets`. Its
+  FATAL dialog 105 (0x52cb57) is render-target creation failing - that switch avoids it;
+  registry pre-answers only silence the NON-fatal dialogs and are not needed once it is
+  set (all purged, no dialog appeared). A white menu = DXT2/DXT4 not offered (vcrdd lists
+  them as the DXT3/DXT5 hardware formats since the integration build). The operator
+  chose to keep both switches armed for the LAN party; Rainbow Six fails with them.
+- **The SSE2 floor in Halo's `requires.json` is at least partly wrong**: halo.exe 1.10
+  ran to the menu on a CPU with no SSE2, so its SSE2 code is cpuid-guarded that far.
+  Gameplay is NOT yet seen - do not relax the floor until it is.
+- **Halo's Bink intros play ~10x slow on vcr-kmd**: MGS -> Bungie -> Gearbox were still
+  playing 13 minutes after launch, halo.exe ~100% CPU; Escape skips each. The staged
+  launcher now passes `-novideo` where the `vcrmp` service is RUNNING
+  (`stage-fleetres.py halo_novideo`); menu in <40 s. WHY the movie path is that slow on
+  our driver is not explained yet (texture Lock path is the first suspect).
+- **Halo exits cleanly on WM_CLOSE** (`taskkill` without `/f`): `ExitFlag=clean`, desktop
+  restored, no crash-recovery dialog next launch.
+- **Agent 1.90.2: the shortcut gate ignored the published verdict.** The copy honoured
+  `_gamegate\<hash>.txt` (Halo=run, an operator override in
+  `scripts/gamegate/overrides.txt`), then the shortcut gate re-ran the local rules and
+  logged `SHORTCUT SUPPRESSED ... cpu_features: CPU lacks sse2` - an installed game with
+  no icon, the Far Cry `disk` defect at the same second call site.
+  `gg_shortcut_no_stands()` (agent/shared/gamegate.h) now drops a "no" only when the
+  host's title verdict is not "no" and the "no" is the title's own (same limiting field).
+- **Halo keys drift back after EVERY sync, not once**: GAMESYNC merges install.reg each
+  time it walks a title, and Halo's carries the library key - `.145`/`.240` (distinct on
+  09-01) were measured back on one key. The 09-01 entry below named the mechanism;
+  nothing fixed it. Now `assign_keys.py` keeps the box's key in
+  `%ALLUSERSPROFILE%\RetroFleet\halo-key.reg` and `Play Halo.bat` `reg import`s it at
+  every launch (verified on `.124`: registry = library key after the sync, the box's own
+  key after the launch). `audit_keys.py` reports the key a box PLAYS on.
+- **Thief II runs NewDark's Direct3D 9 display at 1280x960x32 on vcr-kmd** once
+  `D3D32`=1 and `D3DBigTex` bits 0+2 are armed - in mission ("Running
+  Interference": sky, lightmaps, HUD), menu Quit back to the desktop. The DX6
+  fallback (cam_ext.cfg aside) only ever reached 640x480. The staged launcher now
+  keeps cam_ext.cfg where vcrmp runs AND both switches are armed (one `findstr`
+  per switch on `reg query ...\vcrmp\Diag`, measured on XP).
+- **A test harness restarted `.124`, not the driver.** A sweep closing Aliens vs
+  Predator sent ALT+F4 while the game was alive but NOT focused: it reached the
+  desktop ("Shut Down Windows"), its console-quit RETURN confirmed it - agent log
+  `console control event 5`, EventLog 6006 (clean shutdown) at 23:24:43, boot
+  23:26:18. No bugcheck: the only minidump on the box (`Mini040203-02.dmp`,
+  0xEA) has **3dfxvs.dll** on its stack and no vcr-kmd module loaded - an OLD
+  crash from the vintage driver, dated 2003 because `.124`'s RTC resets and
+  Windows logs Save Dump before clockfix runs. Read the module list before
+  blaming a minidump on today's driver. Agent **1.91.0** refuses ALT+F4 with the
+  shell focused and any key but ESCAPE into the shut-down dialog
+  (`agent/shared/uiguard.h`); WINLIST names the focused window's pid and
+  `lan_sweep.py` types only into the game's own focused window.
+- **Agent 1.90.x flooded its own log**: "a console write returned after 4294967
+  s" - the busy stamp `GetTickCount()|1` read 1 ms in the future inside one tick
+  (0xFFFFFFFF), and each report was echoed into another: 4,514 lines in ten
+  minutes, agent.log rotated away every few minutes. Fixed in 1.91.0
+  (`agent/shared/busytick.h`).
+- **OPEN - GAMESYNC and GAMERES rewrite each other's files on every sync** on a box whose
+  target differs from the staged configs: the size+mtime test sees every GAMERES-edited
+  config as changed, copies the library version back, and GAMERES rewrites it - 22 files
+  and 36 values on EVERY sync on `.124` (target 1280x960). `files_written` is therefore
+  never 0 there and every sync re-arranges the icons; the "settled box reports 0" signal
+  is dead on such boxes. Not fixed (GAMESYNC-core; its owner is mid-change).
+- **`.124`'s `Z:` had dropped to `Unavailable`**, so `publish_all.py` found no writer;
+  one `NETMAP \\192.168.1.122\files Z:` fixed it. `.124` <-> NAS SMB still reads at
+  0.55-0.83 MB/s with ZERO NIC errors/discards (Intel PRO/100+, E100B 8.0.47,
+  SpeedDuplex=auto) while host -> `.124` runs 11 MB/s - a 1.4 GB title takes ~30 min.
+  Physical path (cable/switch port) not yet checked.
+
+---
+
 ### 2026-09-28 (23:40) - `.243` (Win98, P166, Voodoo 2): Quake II's Voodoo shortcut proven end to end; DOS Quake's scripted quit; a LAUNCH line over 127 chars; a stale buffer that made a USB card "3dfx"; the SB16 gameport
 
 Fleet/agent findings from the Win98 Pentium 1, not driver-lane code.
