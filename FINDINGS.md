@@ -37,7 +37,10 @@ Clock tab), `.124` (V5 6000). Evidence: `retro-agent/voodoo-cleanroom/vcr-kmd/ev
 - **A live pllCtrl1 change works on a running desktop:** 166.8 -> 150 MHz in 4 steps of
   <= 5 MHz, each written with the IRQL raised after an idle re-check, 0 idle retries, the
   word read back (0xF929 = 149.7 MHz), desktop drawn normally; RESTORE -> 0xE721 exactly;
-  175.0 MHz (0xDA1D) held on the desktop. **Not yet measured: a fill rate at two clocks.**
+  175.0 MHz (0xDA1D) held on the desktop. **The fill rate follows it exactly** (glidelab
+  fill, 640x480, 4-chip SLI): 1110.7 Mpix/s at stock, 997.1 at 149.7 MHz, 1110.7 again -
+  0.8977 = 149.744 / 166.806 - and after that SLI run all four chips read 0xF929: the
+  slaves took the master's word at the SLI enable.
 - **The SDRAM refresh count is not a floor worry:** dramInit1 bits 9:1 = 0x18, the value
   the vendor programs at EVERY clock from Banshee's 100 MHz to the Voodoo3 3500's 183 MHz
   (cinit `h3InitSgram`, xf86-video-tdfx). DATABOOK strapInfo0 bit 11 = `pll_bypass`
