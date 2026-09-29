@@ -20,6 +20,15 @@ it until a Voodoo card goes back in.
 - **Public mode (the default) checks keys against GameSpy's dead auth service, so it rejects EVERY client with "Your CD Key is invalid"**. That is the same text a bad key or a shared key produces. `sv_public 0` in the exec file fixed it at once. Do not start rotating keys when every client is rejected at the same moment.
 - **A Halo client on the host box grabs UDP 2302/2303 alongside `haloded`** and takes its packets, so every box sees "Unable to join game". Start that client with `-port 2304 -cport 2305`.
 
+### 2026-09-29 (16:15) - The monitor slept under the screensaver on most of the fleet; the agent now sets the power scheme on every start (retro-agent 1.96.0, `665c2af`)
+
+- **Symptom:** the 10-minute Starfield screensaver started, then the monitor was switched off under it. Measured: `.123`, `.110`, `.171`, `.184` (XP) "Turn off monitor (AC) After 20 mins"; `.243` (Win98) monitor off at 900 s AC and system standby at 1200 s. The manual pass of 2026-08-17 (fleetbook #11) had set these to Never on several of the same boxes - re-images and the XP defaults brought them back, which is why it now runs at every agent start, not once.
+- **Win98 has power schemes too:** fleetbook #11 said Win98 monitor blanking is `ScreenSavePowerOffActive`/`LowPowerActive`, "not powercfg". On `.243` both were already 0 while `HKCU\Control Panel\PowerCfg\PowerPolicies\0\Policies` held VideoTimeoutAc 900 (offset 56) and IdleTimeoutAc 1200 with IdleAc = sleep. Win98 SE's `powrprof.dll` has the same `GetActivePwrScheme`/`ReadPwrScheme`/`WritePwrScheme`/`SetActivePwrScheme` and the same `USER_POWER_POLICY` layout as XP - one code path serves both, verified by reading the blob back as zeros.
+- **XP's "System hibernates" = standby + `mach.DozeS4Timeout`:** `.143` showed hibernate DC "After 20 mins" from IdleTimeoutDc 300 + DozeS4TimeoutDc 900. Zero both or hibernate stays.
+- **`WritePwrScheme` needs the scheme's name** in the platform's own width (ANSI on 9x, UTF-16 on NT). Taking it from `EnumPwrSchemes` and handing the bytes straight back avoids ever converting it; `.184`'s scheme kept "Home/Office Desk".
+- **Win7 (`.195`, High performance) was already Never on all six values** (read-only `powercfg -q`); it was in a LAN game, so the Vista `Power*ValueIndex` write path of 1.96.0 is not yet exercised on hardware.
+- Code: `agent/src/monpower.c`, decision `agent/shared/monpower.h`, command `MONPOWER [apply]`, off-switch `MonitorNeverSleep=0`. Tests: `tests/native/test_monpower.c`, `tests/python/test_monpower.py`.
+
 ### 2026-09-29 (14:15) - Serious Sam "Cannot set display mode! ... OpenGL acceleration" on Windows 7 was `gfx_iRefreshRate`, not the ICD (retro-agent 1.95.1, `eefdeec`)
 
 - **Symptom:** TFE/TSE die before any window on `.195` (ADMIN-PC, Win7 build 7600, Radeon HD 5450, Catalyst 15.7.1): `Fatal Error: Cannot set display mode! Serious Sam was unable to find display mode with OpenGL acceleration.` The driver and ICD are fine.
