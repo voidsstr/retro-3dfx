@@ -14,6 +14,12 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-29 (12:20) - After the ledger fix, GAMESYNC now fights the favourites agent instead
+
+- **What was measured:** .124 on 1.93.2 settled at 0 files written. Its next pass (12:05) wrote 7 files, and GAMERES "kept" fell from 18 to 15 with 6 values changed. No staged file outside `DOS-*` changed on the share in that window. What happened was that at 10:47:17 `retro-gameindex` UPLOADed six files straight into staged trees: `CounterStrike16\config\serverbrowser.vdf`, the Q3TA and Q2 `autoexec.cfg`, `Unreal.ini`, `UT2004.ini` and `UnrealTournament.ini`. The next GAMESYNC copied the library copies back. Three of those six are GAMERES-adjusted files, which the ledger correctly treats as "changed on the box" (re-copy, then re-adjust).
+- **Consequences:** each sync reverts the favourites, and the agent re-pushes them within about 5 min. A box that gameindex touches never reads 0 files written. **This is not a ledger regression.** Read the agent log's UPLOAD lines before blaming GAMESYNC.
+- **Open fix (not done):** move the favourites outside the staged trees (a file the game reads that GAMESYNC does not ship), or teach the ledger/gate about gameindex's files.
+
 ### 2026-09-29 (10:50) - agent 1.93.2: GAMESYNC and GAMERES stopped undoing each other; "settled" must be proven with two SYNCS
 
 - **No box on the fleet could ever settle.** GAMERES rewrites a title's config and registry for the box's monitor. The next GAMESYNC saw each rewritten file as "not the library's file" and copied the library copy back, and GAMERES changed it again. Every quiet sync wrote 11-27 files and changed 23-43 values, and rebuilt the icon layout (measured on .110, .145 and .124). The ".191 4 -> 0 -> 0" evidence of 2026-09-04 came from `GAMERES APPLY`, which copies nothing, so it could never have seen this.
