@@ -14,6 +14,13 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-29 (13:05) - The 3dfx Control Panel now deploys itself (retro-agent 1.94.0), and two traps on the way
+
+- **A desktop shortcut the agent did not write is GONE after the next GAMESYNC.** `push_3dfxctl.py`'s "3dfx Control Panel" shortcut on `.124` vanished after two quiet syncs: the end-of-run sweep moves every desktop entry the run did not CLAIM. Anything that must stay on a fleet desktop has to be placed by `gs_place_tool_shortcuts()` (claimed via `gs_desk_note_lnk_kept`), not dropped there by a tool.
+- **XP caches icons by PATH.** Changing the icon inside the same `3dfxctl.exe` may keep showing the old one, so the shortcut points at a NEW file, `C:\RETRO_AGENT\3dfxlogo.ico`, and the agent rewrites an existing shortcut once when it does not name that icon (a length-prefixed UTF-16 StringData match in the .lnk).
+- **The only genuine 3dfx logo found as icon art** is `IDI_MAIN_ICON` in AmigaMerlin 3.1 R1's `Driver Setup.exe` (32x32, 16 colours). None of the leaked source tree's `.ICO` files is the logo (they are test-tool icons: CSIM, GLUT, conformance runners).
+- **Now:** on XP/2000 with a present Banshee/V3/V4/V5 the agent copies the panel + logo from `Utility\Retro Automation\3dfx` at start when missing/different (`FxPanelBoot`), so a new panel build reaches the fleet by publishing it there. Proven on `.124` with files removed; a second start copied nothing.
+
 ### 2026-09-29 (12:55) - `.243`: never ALT+ENTER a full-screen SVGA DOS game on Win98 - it crashes WINOLDAP and can stall the agent
 
 - **Alt+Enter windows a VGA mode-13h game fine (that is how `SCREENSHOT` gets a frame of one), but on an SVGA title it page-faulted WINOLDAP in `VGAFULL.3GR`.** During the flight-sim launch sweep on `.243` the crash dialog sat over the desktop, the DOS VM stayed half-alive, and the single-threaded Win9x agent stalled until a person dismissed it - the second agent stall of the sweep. `sweep243.py` no longer sends it; a DOS title is judged alive from its window (Win9x reports a full-screen DOS box at (3000,3000), iconic) and closed with WINKEY9X CLOSE + Yes in the 635x178 "Windows cannot shut down this program" dialog.
