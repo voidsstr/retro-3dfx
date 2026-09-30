@@ -14,6 +14,19 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-30 (10:50) - A frozen `.124` takes the WHOLE wired LAN down: its NIC floods 802.3x PAUSE frames. The 09-29 "wedged host NIC" was this
+
+- **What happened:** at 09:42:42 Quake II was quit through the console on `.124` while it ran 2x AA on vcr-kmd, and `.124` froze hard within 5 s. 80 s later the dev host's `enp129s0` began logging `NETDEV WATCHDOG ... transmit queue 0 timed out`. The NAS and every wired box then stopped answering even ARP.
+- **Source vs victim, from counters, no root needed:** `ethtool -I -a enp129s0` on the host read `rx_pause_frames` **91,198** and `tx_pause_frames` **3** over the boot spanning both events. The host was being PAUSED.
+- **The mechanism:** a hung PC's NIC stops having its receive ring drained and keeps sending PAUSE frames. The unmanaged switches honour flow control, so every port stalls.
+- **How it was pinned:** a cable bisection with the user, run by another session: switch 3 with its uplink was fine, and fine with `.243` added. Adding `.124` took the LAN down within a minute. The gateway's `devices.ha` listed `.124`'s last activity as 09:42:31, the moment of the freeze.
+- **09-29 16:47 was the same event, misread as the host's RTL8125B.** `.124` froze at the Quake II 2x-AA launch at 16:32. The host lost its internet at 16:39 and was rebooted at 16:45, then its NIC "timed out on every switch". The frozen `.124` was cabled into every switch tried. The host was never powered off, yet its NIC ran 15 h clean from 18:46.
+- **Consequences for the AA work:**
+  - An AA freeze on `.124` costs the whole fleet, the NAS and the host's wired internet until `.124` loses power, not just `.124`.
+  - Keep AA tests supervised.
+  - Turn off 802.3x flow control on `.124`'s NIC (Intel, MAC OUI `00:D0:B7`).
+- **Records:** retro-agent `docs/host-issues-log.md` signature 7 plus the corrected 09-29 entry, and fleetbook recipe `whole-wired-lan-down-a-hung-box-floods-pause-frames`.
+
 ### 2026-09-29 (16:15) - Halo PC LAN: `haloded.exe` needs `sv_public 0`, or every key is "invalid"
 
 - **Six boxes (.145 .123 .195 .110 .240 .171) are in one Blood Gulch game hosted by `haloded.exe`** (1.00.10.0621, `Files\tmp\halo-build\_patch\`), with nobody at a keyboard. Details: retro-agent `docs/lan-multiplayer-status.md`.
