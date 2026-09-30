@@ -14,6 +14,19 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-30 (19:30) - V5 6000 AA: 2x, 4x AND 8x now run clean in-game. The fix is AA LFB READ_EN on the master chip pair. CORRECTS the 15:10 entry's mechanism
+
+- **The measured discriminator.** Every freeze had `cfgAALfbCtrl` READ_EN (bit 28) clear on all four chips. Every clean run had it set on chips 0/1, which is what both 3dfx miniports write: RD_EN for every AA request, cleared only on chips 2/3 of the 4-chip high-sample shapes (NT `SLIAA.C:2443-2449`, `:3409-3419`).
+  - Froze: 2x with the default recipe (0x4C000000); 8x with the vendor recipe (0xCE3DC000).
+  - Clean: 2x vendor (0xDF8F6000, 5 launches); 4x vendor (0xDF1EE000 / 0xCF1EE000, 2 launches); **8x vendor + READ_EN on chips 0/1** (0xDE3DC000 / 0xCE3DC000, 3 launches).
+  - 8x is the controlled pair: base (the real secondary buffer 0x023DC000), depth aperture, /4 and everything else were identical, and only READ_EN on chips 0/1 changed.
+  - The user confirmed the picture at 2x, 4x and 8x.
+- **Where the fix lives.** Kernel (clean-room lane, vcr-kmd `9fefeec`): READ_EN for every AA shape of a 4-chip board. The vendor recipe is the default (`c5faa87`).
+- **WITHDRAWN - the 15:10 entry's mechanism,** "base 0 duplicated every AA LFB write into Glide's command FIFO". Glide's new level-2 trace of AA write locks (retro3dfx-glide `0401004`) shows no LFB write lock in 70 s of Quake II. The per-frame `sliCtrl` lines in the 2x trace sit inside depth clears and state validation, not LFB unlocks. There were no LFB writes for a base to misdirect, and 8x froze with a correct base.
+- **What READ_EN does beyond LFB read snooping is undocumented in every source here.** A read handshake between the paired chips that the master waits on forever would fit the random, hard freezes.
+- **Lesson:** when a fix changes three register fields at once (base, READ_EN, /4), credit none of them until one is changed alone. The 8x case did that by accident.
+- **Also, from the user:** under AA the splash, loading and menu screens are garbled only BEFORE Quake II's first rendered game frame; after it, gameplay and menus look right. So this is a start-up state (suspect the ~9 s `SliPersistAll` AA enable), to be fixed after the multi-game AA tests.
+
 ### 2026-09-30 (18:45) - Win98 DOS titles: some cannot run in a DOS box at all; they now restart into real DOS. Every DOS shortcut was windowed. The Win9x spec was lost.
 
 - **"Renders" is not "works".** The Win98 build VM sweep called 55 of 62 shortcuts "renders"; reading the frames found a CD-check prompt (Longbow), a fatal "Unable to lock XMS memory" dialog (MSFS 5.1, French), four text-mode questions in small windows, a wrong game (Blue Angels is Blue Angel 69, a strip board game) and start-up crashes the launcher's CLS had wiped. Run the launcher once WITHOUT its CLS (`scripts/vm/win98/trial.py`) to read the error.
@@ -27,6 +40,8 @@ it until a Voodoo card goes back in.
 - **The Win9x DOS titles' spec and prepared trees lived in a session scratchpad** that host reboots wiped. `spec_from_library.py` rebuilt it byte-exactly from the library. It is `retro-agent/scripts/dosgames/specs/win9x-dos.json` now. Evidence and results stay in the repo or `~/.retro-fleet`, never in the scratchpad.
 
 ### 2026-09-30 (15:10) - The V5 6000 AA freezes were the kernel's AA LFB base: 0 put every AA LFB write into Glide's command FIFO. The vendor recipe fixes 2x and 4x; 8x still freezes
+
+> **CORRECTED 19:30 (entry above):** the mechanism below is WITHDRAWN. The fix is READ_EN on the master chip pair, and 8x works too.
 
 - **Mechanism (clean-room lane, vcr-kmd):** for every AA shape that stores ONE sample per chip (cfg 6 = 2x, cfg 7 = 4x) Glide sends a secondary colour base of 0 (`SLI_AA_REQUEST: secColor` = 0). The kernel's dos_mode.c-derived recipe wrote it, and `cfgAALfbCtrl` read back **0x4C000000** on all four chips. That is base 0 with CPU + dispatch AA writes on. So every AA LFB write was ALSO written into video memory from offset 0, and Glide keeps its command FIFO there (`hwcInitFifo`: fifoStart **0x18000**, length 0xFF000). A write that lands on commands not yet executed hangs the chips, at random, and the monitor loses sync.
 - **Why it looked random:** the freezes came at the 3dfx splash (which is LFB-drawn) and at quit with Quake II's console open (the top of the screen). Three minutes of play with the HUD at the bottom survived, and the glidelab `edges` pattern never froze because it does no LFB writes. Our ICD takes 2-3 LFB write locks per frame in Quake II, AA or not.
