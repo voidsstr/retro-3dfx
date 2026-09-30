@@ -14,6 +14,21 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-30 (15:10) - The V5 6000 AA freezes were the kernel's AA LFB base: 0 put every AA LFB write into Glide's command FIFO. The vendor recipe fixes 2x and 4x; 8x still freezes
+
+- **Mechanism (clean-room lane, vcr-kmd):** for every AA shape that stores ONE sample per chip (cfg 6 = 2x, cfg 7 = 4x) Glide sends a secondary colour base of 0 (`SLI_AA_REQUEST: secColor` = 0). The kernel's dos_mode.c-derived recipe wrote it, and `cfgAALfbCtrl` read back **0x4C000000** on all four chips. That is base 0 with CPU + dispatch AA writes on. So every AA LFB write was ALSO written into video memory from offset 0, and Glide keeps its command FIFO there (`hwcInitFifo`: fifoStart **0x18000**, length 0xFF000). A write that lands on commands not yet executed hangs the chips, at random, and the monitor loses sync.
+- **Why it looked random:** the freezes came at the 3dfx splash (which is LFB-drawn) and at quit with Quake II's console open (the top of the screen). Three minutes of play with the HUD at the bottom survived, and the glidelab `edges` pattern never froze because it does no LFB writes. Our ICD takes 2-3 LFB write locks per frame in Quake II, AA or not.
+- **Fix:** 3dfx's NT miniport points that base at the primary buffers. The kernel's vendor recipe does the same, with base = `tileMark`, AA reads on and /4; it read back **0xDF8F6000** at 2x, and 0xDF1EE000 / 0xCF1EE000 at 4x.
+- **Result with the fix on .124:** 2x ran 3 launches and 4x ran 2. Every splash, console and quit was clean, and the user confirmed the picture ("smooth AA, looked right").
+- **Now the default:** `Diag\SliAAVendorRecipe` absent = 1 (retro-agent `c5faa87`). The old arm survives only for A/B tests.
+- **How it was found:** ICD 0.1.79 writes disk-flushed steps into the same file as Glide's disk-flushed trace, so each freeze's last line names the step (retro3dfx-gl `fb41979`, `RETROGL_SYNCTRACE=1`). Evidence: retro-agent `voodoo-cleanroom/vcr-kmd/evidence/glidelab/aa_vendor_0930/README.md`.
+- **Still open, 8x (cfg 8, 2 samples per chip):**
+  - Glide sends a real secondary buffer at 0x023DC000, below the primary buffer at 0x031EE000.
+  - The vendor recipe wrote `cfgAALfbCtrl` = 0xCE3DC000 and the whole-tiled-range depth aperture 0x400031EE.
+  - The splash completed. The box froze within about 110 ms of `winopen: done`, during the ICD's context setup and Quake II's GL init.
+- **AA auto-disarm proven 3x:** after each real freeze the next boot disarmed AA by itself (`SliAAAutoOff` 49/52/55).
+- **Also seen, to do:** under AA the loading, menu and splash screens are garbled until gameplay starts. Gameplay itself looks right.
+
 ### 2026-09-30 (15:00) - Win98 SE build VM (86Box): a killed Glide game freezes the Voodoo 2 passthrough on its last frame; S3 Trio64 goes black under Win98's driver; SLiRP SMB is fragile
 
 - **A KILLED Glide game leaves the Voodoo 2 relay on its last 3D frame.** PROCKILL on Quake II (3dfx) in the VM never ran grSstWinClose/grGlideShutdown; the monitor kept showing its LOADING frame over a healthy desktop, and every later screenshot showed it (a whole sweep judged 60 titles against it before this was seen). The same happens on real Voodoo 2 hardware. `retro-agent/scripts/fleet/win9x/glreset9x` opens and closes Glide 2 on board 0 (FX_GLIDE_NO_SPLASH=1) and hands the screen back - verified in the VM. Not on a BAR0-0 board (.243 before PCIRESCAN).
