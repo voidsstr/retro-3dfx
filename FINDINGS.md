@@ -14,6 +14,14 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-09-30 (15:00) - Win98 SE build VM (86Box): a killed Glide game freezes the Voodoo 2 passthrough on its last frame; S3 Trio64 goes black under Win98's driver; SLiRP SMB is fragile
+
+- **A KILLED Glide game leaves the Voodoo 2 relay on its last 3D frame.** PROCKILL on Quake II (3dfx) in the VM never ran grSstWinClose/grGlideShutdown; the monitor kept showing its LOADING frame over a healthy desktop, and every later screenshot showed it (a whole sweep judged 60 titles against it before this was seen). The same happens on real Voodoo 2 hardware. `retro-agent/scripts/fleet/win9x/glreset9x` opens and closes Glide 2 on board 0 (FX_GLIDE_NO_SPLASH=1) and hands the screen back - verified in the VM. Not on a BAR0-0 board (.243 before PCIRESCAN).
+- **Glide on the VM works:** 86Box Voodoo 2 + the 3dfx 3.02.02 kit ran Hexen II (Glide) to its menu and Quake II (3dfx GL) in-game. PnP did NOT find the INF from INF\OTHER (unlike .243); "Specify a location" = C:\WINDOWS\OPTIONS\CABS did.
+- **86Box's S3 Trio64 went BLACK under Win98's own S3 Trio32/64 driver** (boot log: s3.vxd loaded fine, Windows running blind) - the VM uses a Cirrus GD5436, like .243.
+- **SMB through 86Box SLiRP drops**: error 55 mid-read about once a minute on big files (GAMESYNC's resume copes), once a ~20 min total loss (error 53, `net use` "Disconnected", NAS still pingable), and garbled directory listings (titles "Q"/"F", a file "M") - GAMESYNC recorded each as a failure, never as success. A REBOOT after that session hung at "Windows is shutting down"; MSDOS.SYS AutoScan=2 makes the reset unattended.
+- **WM_CLOSE on a running DOS box raises "terminate it now?" with No as the DEFAULT button** - RETURN keeps the game running; answer Y. "Program Requires MS-DOS Mode" is also Yes/No and Yes REWRITES the shortcut; answer N. Win9x retitles the agent's console with its last command - exclude it by pid, never by title.
+
 ### 2026-09-30 (10:50) - A frozen `.124` takes the WHOLE wired LAN down: its NIC floods 802.3x PAUSE frames. The 09-29 "wedged host NIC" was this
 
 - **What happened:** at 09:42:42 Quake II was quit through the console on `.124` while it ran 2x AA on vcr-kmd, and `.124` froze hard within 5 s. 80 s later the dev host's `enp129s0` began logging `NETDEV WATCHDOG ... transmit queue 0 timed out`. The NAS and every wired box then stopped answering even ARP.
