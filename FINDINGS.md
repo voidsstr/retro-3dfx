@@ -31,6 +31,12 @@ it until a Voodoo card goes back in.
 - **Keep `SliPersistAll` = 0** (the deployed default, pinned by `test_vcr_kmd_integration.py`) except when hunting a wedge, and expect garbage during every enable while it is 1. Evidence: retro-agent `voodoo-cleanroom/vcr-kmd/evidence/glidelab/aa_garble_0930/README.md`.
 - **Side findings:** UT436 holds its `-log` file open exclusively (`DOWNLOAD` -> `Cannot open file: error 32`), so a runner cannot read the timedemo summary until UT exits; UT's F10 `Exit` bind was ignored twice after the demo ended while the console `exit` worked. h5 `grTBufferWriteMaskExt` tests `!gc->sliCount` but non-SLI AA runs with `sliCount` = 1, so 8x takes the "1 sample per chip, SLI" mapping - harmless today (its "primary only" case leaves the secondary on), latent.
 
+### 2026-10-01 (19:30) - Descent's DOS/4GW 1.97 GPFs with 128 MB: the P1's "it connected and then rebooted"
+
+- **The P1 (.243, 128 MB) hard-reset the moment Descent started in real DOS** - after DALI connected (logs: IPX PRESENT, 504 KB conventional free, DALI 86 KB). The build VM given the same 128 MB showed why: `DOS/4GW Professional error (2001): exception 0Dh (general protection fault)` from the bound DOS/4GW 1.97. At 64 MB (the VM's usual size) it never appears - which is how the morning's VM proof passed. `set DOS16M=:32M` before the game fixes it (VM at 128 MB: pilot screen, clean quit). Now in the generated RDLAN.BAT for both Descents.
+- **The earlier "DALI never connected" was the box's CMOS state, not DALI**: with the clock-invalid flag clear and the skip-F1 bit set, a diagnostic run connected first try (ARP for the host in 0.1 s) and warm-rebooted back to Windows unattended.
+- **mTCP programs trace to a file with `set DEBUGGING=0x7F` + `set LOGFILE=...`** (DALI and DHCP both honour it) - the way to see ARP/UDP in real DOS on a box nobody can screenshot.
+
 ### 2026-10-01 (10:40) - .243 to 800x600x16: three side effects of one display change
 
 - **On a box with no EDID, a resolution change is a NEW GATE PROFILE.** The profile hash includes the panel size, and with no EDID the agent takes the panel from the persisted desktop mode. .243 at 800x600 became `b9a3b8c66827032c`, found no published verdicts, fell back to the local rules (which cannot see an operator override) and began copying 18 GB - RedneckRampage, which the user ejected, first. Fix: `<new> @follows <old>` in `scripts/gamegate/overrides.txt`, publish before the next sync.
