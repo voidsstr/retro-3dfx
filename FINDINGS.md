@@ -14,6 +14,13 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-10-01 (10:40) - .243 to 800x600x16: three side effects of one display change
+
+- **On a box with no EDID, a resolution change is a NEW GATE PROFILE.** The profile hash includes the panel size, and with no EDID the agent takes the panel from the persisted desktop mode. .243 at 800x600 became `b9a3b8c66827032c`, found no published verdicts, fell back to the local rules (which cannot see an operator override) and began copying 18 GB - RedneckRampage, which the user ejected, first. Fix: `<new> @follows <old>` in `scripts/gamegate/overrides.txt`, publish before the next sync.
+- **The host gate measured the disk floor on C:** while GAMESYNC writes to `GamesDir` (.243: E:, 64 GB; C: 433 MB), so the published file refused Die by the Sword and WC Prophecy. The fetch now reads `GamesDir`; cached rule verdicts need `--refresh` (free space is not in the cache key).
+- **Win98's 75x75 icon grid holds ~70 icons at 800x600**; .243 has 96. `scripts/fleet/win9x/iconspc9x 60 62` (13 x 9 = 117), persisted, verified on the box.
+- **The morning's .243 outage was the WARM REBOOT, not DALI**: the real-DOS batch's logs show packet driver up, DHCP lease (.247), DALI not connected ("IPX NOT DETECTED"), then WBOOT - after which the box never came back until power-cycled. Windows IPX on .243 is now active (802.2).
+
 ### 2026-10-01 (07:00) - agent 1.97.1: an unreadable gate file no longer reads as "not published", a run with failed titles no longer sweeps; new Voodoo 2 titles; what blocks the rest
 
 - **GAMESYNC fell back to the LOCAL gate rules whenever `_gamegate\<hash>.txt` could not be READ** (SMB error 53 read as "not published"). The local rules cannot see the operator's overrides, so the W98BUILD VM planned 18,104 MB - every title its (.243-twin) profile had ejected; GAMESYNC never deletes, so on `.243` that would have been permanent. 1.97.1: only file/path-not-found is "absent"; anything else retries 5x and the run refuses, copying nothing (`agent/shared/verdictread.h`; verified on XPBUILD with `library=` pointed at a dead host).
