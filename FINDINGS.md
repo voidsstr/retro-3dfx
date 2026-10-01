@@ -14,6 +14,15 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-10-01 (11:40) - bots on the dedicated game servers: six traps (game servers, not a driver lane)
+
+- **Yamagi Quake 2 loads `game.so` from beside its own BINARY before `-datadir`.** A 3zb2 game.so in `~/q2-server/baseq2/` was ignored (serverinfo kept the packaged `gamedate Sep 17 2025`); the unit now runs a copy of `/usr/lib/yamagi-quake2/quake2` from `~/q2-server` (systemd drop-in). Re-run `install-3zb2.sh` after an apt upgrade.
+- **A semicolon in a COMMENT runs the rest of the line** in Quake 2 (`Unknown command "it"`) and mvdsv (`possibly tried to use security hole`) cfgs: the command buffer splits at `;` before it strips `//`.
+- **UT2004 ignores `MinPlayers` in `UT2004.ini`** (the native rules query said 0 with 6 in the ini); `?MinPlayers=3?Difficulty=4` on the URL works. And its GameSpy `numplayers` is padded up to MinPlayers - 3 on an empty server, which the wall read as three humans. `\game_property\NumPlayers\` / `NumBots` are the truth on every Unreal engine (Unreal 226 answers NumPlayers blank).
+- **UT99's bot skill lives in `User.ini`** (`ChallengeBotInfo` is config(User)); the `Difficulty=` under that section in UnrealTournament.ini does nothing. Verify with the query's `botskill`.
+- **mvdsv rcon is SHA1-crypted by default** (`sv_crypt_rcon 1`): `HEX(SHA1("rcon " + pw + ts + " " + args...))` UPPERCASE + ts (16 hex chars, little-endian `time_t`) in the password slot; a plain `rcon <pw> <cmd>` answers `Bad rcon_password.` - the skill's one-liner never worked on it.
+- **The Specialists 3.0 cannot have bots on a dedicated server**: the Linux `ts_i386.so`'s `cmd_addbot` is 13 instructions that print `Bots only in listen servers.` Also no bots possible: RTCW MP (`BotLoadMap: bot library used before being setup`), SoF2 (empty `botfiles/`, no `.aas`), Deus Ex (`No support done for this one` in its own DeusExMPGame source). Full table: retro-agent `docs/staged-title-server-matrix.md` and the `game-servers` skill.
+
 ### 2026-10-01 (11:00) - V5 6000 AA: the "garbled start-up screens" were the diagnostic SliPersistAll, not AA (clean-room lane)
 
 - **Symptom:** under AA, every game's start-up was garbled until 3D rendering began (Quake II's 3dfx splash and id cinematic; UT99's splash + log console "duplicated over the screen", "a grid of many small copies"); gameplay and later menus were fine.
