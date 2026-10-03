@@ -14,6 +14,17 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-10-02 (23:40) - tuning every OpenGL/Glide game on the V5 6000 (.124): what the games themselves decide (clean-room lane)
+
+- **Descent 3 1.4's OpenGL renderer is 16-bit, whatever `RS_bitdepth` says** (`legacy/renderer/opengl.cpp`: `dmBitsPerPel = 16`, the `bit_depth` line commented out; our ICD logged `colDepth=16` with 32 set). **It caps itself at 60 fps** (`Min_allowed_frametime` 16 ms) - under vsync at 85 Hz that judders; `-framecap <refresh>` fixes it (game's own `-timetest Secret2.dem` -> `fps.txt`: 60.2 -> 63.9; 79.0 vsync off).
+- **Descent 3's pilot file holds the WHOLE control mapping AND the game window size**; SM_GAME clamps that window to the display, so a pilot saved at 1280x960 draws a 1280x960 box on a bigger screen. Only a level start through a JOIN (`-pilot SDF -directip +connect <srv>`) shows it - the `-timetest` demo fills the screen whatever the pilot says. `Default_pilot` only PRE-SELECTS in the PILOTS menu; `-pilot` skips it. `PredefDetailSetting` 0-3 is applied OVER the per-option values at every start (4 = custom keeps them) - never stage it.
+- **UE1 on the V5 6000: GlideDrv beats our ICD's OpenGLDrv** (UT 436 UTbench 63.4 vs 57.0, OpenGL CPU-bound at every size/depth). GlideDrv's `RefreshRate` takes 60/70/72/75/80/85/90/100/120 Hz; the staged 60Hz flickered and capped vsync. **An outside WM_CLOSE crashes UE1 on Glide** ("Assertion failed: RenDev", `UWindowsViewport::EndFullscreen <- WM_KILLFOCUS`); the game's own `exit` is clean.
+- **Hexen II's mode list is the DRIVER's**: `glh2.exe` refused 1280x960 on .240's ATI driver and opens it on the V5 6000 (our vcr-kmd).
+- **A variable set in the registry reaches nothing already running** - Explorer needs `WM_SETTINGCHANGE("Environment")` (`retro-agent scripts/fleet/win9x/envbcast`), and the agent's own children never get it. Read a live process's environment from its PEB (`envof`) rather than guess.
+- **`vcrctl fbshot` photographs a fullscreen Glide frame; GDI does not** (it reads the desktop surface in the board's tile layout - stripes). Evidence: `retro-agent voodoo-cleanroom/vcr-kmd/evidence/gametune_1001/`.
+
+---
+
 ### 2026-10-01 (11:40) - bots on the dedicated game servers: six traps (game servers, not a driver lane)
 
 - **Yamagi Quake 2 loads `game.so` from beside its own BINARY before `-datadir`.** A 3zb2 game.so in `~/q2-server/baseq2/` was ignored (serverinfo kept the packaged `gamedate Sep 17 2025`); the unit now runs a copy of `/usr/lib/yamagi-quake2/quake2` from `~/q2-server` (systemd drop-in). Re-run `install-3zb2.sh` after an apt upgrade.
