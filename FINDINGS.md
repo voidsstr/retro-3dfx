@@ -14,6 +14,15 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-10-03 (10:15) - a fullscreen-only Voodoo ICD cannot render into a WS_CHILD window: Serious Sam TFE stopped running on .124 (clean-room lane)
+- **Symptom:** The First Encounter exited ~20 s into every launch, silently. `C:\retrogl.log` showed `grSstWinOpenExt` returning 0 with "GLIDE non-fatal ERROR" and no message. It passed the 10-01 sweep.
+- **Cause, measured with an instrumented debug h5 Glide** (game-local, `GDBG_LEVEL=80`; it printed the HRESULT and the window): `SetCooperativeLevel(DDSCL_EXCLUSIVE|DDSCL_FULLSCREEN)` returned `0x80070057` (DDERR_INVALIDPARAMS). The window was a child, style `0x56000000`, its parent the game window. DirectDraw exclusive mode needs a top-level window, and Glide takes the screen that way on NT.
+- **Why a child:** Serious Engine's canvas is a WS_POPUP when `ogl_bExclusive` is 1 and a WS_CHILD when it is 0 (`ViewPort.cpp` `OpenCanvas`). TFE v1.00's auto-adjust set 0. Its `GLSettings.lst` matches a 3dfx card by a `"3Dfx*"` VENDOR, and our MesaFX ICD says "Brian Paul". TFE took `Default.ini`, which includes `Initial.ini`, which sets `ogl_bExclusive = 0`, and saved it at exit. Every later start then failed.
+- **Ruled out:** ICD 0.1.80, 0.1.82 and 0.1.83 fail alike. Glide, kernel and display driver are byte-identical to 10-01, and the board was fine (TSE opened it at the same moment).
+- **Fix (library, all boxes):** where the 3dfx card drives the screen, the launchers write `ogl_bExclusive=1` before the canvas exists. TFE's list gains "Brian Paul" + Voodoo entries whose scripts include the card's own TFE profile and set 1, so TFE now uses its Voodoo5 profile. Evidence: retro-agent `voodoo-cleanroom/vcr-kmd/evidence/gametune_1001/serioussam_preset/`.
+- **The general point for the ICD:** any game that renders into a child window fails on our stack the same way. 3dfx's own ICD presumably handed Glide the top-level window. That would be a candidate ICD change, using the root window for Glide's exclusive mode.
+- Side findings: TFE refused its auto-demos because the staged tree's demo files are older than its levels (re-dated). TSE's Engine.dll calls its refresh variable `gap_iRefreshRate`, not `gfx_iRefreshRate`, so the library's line never applied on TSE.
+
 ### 2026-10-02 (23:40) - tuning every OpenGL/Glide game on the V5 6000 (.124): what the games themselves decide (clean-room lane)
 
 - **Descent 3 1.4's OpenGL renderer is 16-bit, whatever `RS_bitdepth` says** (`legacy/renderer/opengl.cpp`: `dmBitsPerPel = 16`, the `bit_depth` line commented out; our ICD logged `colDepth=16` with 32 set). **It caps itself at 60 fps** (`Min_allowed_frametime` 16 ms) - under vsync at 85 Hz that judders; `-framecap <refresh>` fixes it (game's own `-timetest Secret2.dem` -> `fps.txt`: 60.2 -> 63.9; 79.0 vsync off).
