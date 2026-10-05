@@ -14,6 +14,31 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-10-04 (20:10) - capturing the frame without the display lock: `vcrctl fbshot --probe`; Max Payne froze during the test (clean-room lane, tool only)
+- **The hang:** every `ExtEscape` runs `DrvEscape` under win32k's display lock. Under Max Payne's Direct3D menu the default `fbshot` printed nothing in 25 s.
+  - Its thread waits in the kernel, so killing it does not end it: the process cannot exit until the wait does.
+  - A timeout in the tool cannot fix this. Only a path that never takes the lock can.
+- **The fix needed no kernel code.** The existing `vcrprobe.sys` (demand-start, read-only) already reads physical memory and PCI config, so `--probe` takes everything from it and calls no GDI, not even `GetDC`:
+  - the board comes from the HAL;
+  - memory per chip comes from vcr-kmd's own `HardwareInformation.MemorySize` (via `DEVICEMAP\VIDEO`);
+  - registers and memBase1 come through 4 KB dword reads.
+- **Results on .124:**
+  - On a still desktop it is pixel-identical to the default path (0 of 1,310,720).
+  - The Quake II 4-chip overlay gives the same plan: aperture, `sli_shift` 2, READ_EN.
+  - Under Max Payne it finished. The AA gate is unchanged: a VSA-100 counts as multi-chip, so the master's SLI/AA registers are always read.
+- **Trap - read the CPU before blaming a lock.** While Max Payne ran, everything at normal priority crawled:
+  - the probe took ~120 s, against 1.4 s on the desktop;
+  - `wmic` timed out at 40 s;
+  - `taskkill` (WM_CLOSE) never returned.
+
+  The same probe at `start /high` took 38 s, and `taskkill /f` at high priority returned at once. "Slow" and "stuck" look the same from an EXEC timeout.
+- **Max Payne stopped responding during the session.** The user saw it frozen with Num Lock alive. Two probe frames minutes apart were pixel-identical. A forced close restored 1280x1024@85.
+  - The cause is not established.
+  - The leading suspect is the default path's queued wait for the display lock behind a CPU-bound game: a priority inversion.
+  - Other candidates: the probe's ~1.2 million uncached video-memory reads, or the game itself (SafeDisc 2.51 under DAEMON Tools).
+  - Until a run with no capture separates these, keep both paths away from Direct3D titles in unattended sweeps. GDI `SCREENSHOT` photographs Max Payne fine.
+  - Evidence: retro-agent `voodoo-cleanroom/vcr-kmd/evidence/gametune_1001/fbshot_probe/`.
+
 ### 2026-10-03 (10:15) - a fullscreen-only Voodoo ICD cannot render into a WS_CHILD window: Serious Sam TFE stopped running on .124 (clean-room lane)
 - **Symptom:** The First Encounter exited ~20 s into every launch, silently. `C:\retrogl.log` showed `grSstWinOpenExt` returning 0 with "GLIDE non-fatal ERROR" and no message. It passed the 10-01 sweep.
 - **Cause, measured with an instrumented debug h5 Glide** (game-local, `GDBG_LEVEL=80`; it printed the HRESULT and the window): `SetCooperativeLevel(DDSCL_EXCLUSIVE|DDSCL_FULLSCREEN)` returned `0x80070057` (DDERR_INVALIDPARAMS). The window was a child, style `0x56000000`, its parent the game window. DirectDraw exclusive mode needs a top-level window, and Glide takes the screen that way on NT.
