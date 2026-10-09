@@ -12157,3 +12157,27 @@ for the 2004-era titles being staged.
 Also: **`SYSINFO` reports no CPU MHz, no total RAM and no GPU name** on any box
 (`gpu: None` on all eight), and `VIDEODIAG.adapters[0]` lists stale registry
 keys rather than the live adapter. Neither is a basis for a hardware decision.
+
+## 2026-10-09 — a box whose MONITOR changed kept the old panel's game resolutions (agent 1.98.0)
+
+`gameres` (detect the monitor, write every staged title's own config) had one
+caller: `gs_run()`. On a provisioned box the startup GAMESYNC thread returns at
+the `gamesync.done` marker **before** reaching it, and that return is the normal
+path on a fleet box — so the pass never ran on a provisioned machine. Swap a
+monitor and every game kept asking for the old panel's mode, across any number
+of reboots, with nothing reporting it: the configs were self-consistent, the
+sync said `state=done`, and the only symptom was a game that would not display.
+
+Found on `.123`: now a **CRT with no EDID at 1280x1024**, with Counter-Strike
+pinned at **1600x1200**. `.145`/`.197` (genuinely 1080p LCDs, so their 1080p
+target is correct) each carried one stale value from a rule added after their
+last sync — the same cause.
+
+Fix: `gameres_startup()` runs from the startup thread **above** the marker
+return, beside `qbinds_startup()`. `GameResBoot` records it; a settled box reads
+`0 value(s) changed`. `GAMERES APPLY` and the startup pass now share one walker.
+
+Two traps worth keeping: **`REGREAD` takes a KEY** (reading
+`...\RetroAgent\GameResBoot` errors and looks like "absent" — it reported a
+present `QuakeBindsBoot` as missing), and **1080p is the right answer on the
+1080p boxes** — check the panel before calling 1920x1080 the bug.
