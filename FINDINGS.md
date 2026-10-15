@@ -14,6 +14,67 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-10-15 - GLQuake "freezes" when its video menu changes the mode on `.124`: DirectDraw drops exclusive, the board is RESET TO VGA and SLI turned off, and nothing tells the live Glide context (clean-room lane)
+
+Reported from the box itself over retro chat: "quake freezes when changing
+resolution through the ingame menu". `.124` = V5 6000 on the all-ours stack
+(vcr-kmd + our h5 Glide + MesaFX ICD as the system ICD, `OpenGLdrivers\3dfx\DLL
+= retroicd.dll`). **The box does NOT lock up** - the agent answered throughout
+and the ring kept recording. What dies is the picture.
+
+The flight recorder (`vcrctl log`, uptime ms) is unambiguous:
+
+| ms | what |
+|---|---|
+| 31486329 | GDI mode set **1280x960x32@60** - GLQuake's own `ChangeDisplaySettings`. `VID_SetFullDIBMode` sets `dmFields = DM_BITSPERPEL|DM_PELSWIDTH|DM_PELSHEIGHT` only, so the refresh is the driver default, not the panel's 85 |
+| 31487813 | `DirectDraw exclusive 1`, then mode **1280x960x32@85** - our Glide taking the board (`grSstWinOpen` -> DDraw `SetCooperativeLevel(EXCLUSIVE|FULLSCREEN)` + `SetDisplayMode`) |
+| 31487969 | **`HWCSETEXCLUSIVE` pid 380 (GLQUAKE.EXE)** - the chip is Glide's |
+| 31488625 | `SLI/AA on: 4 chips`, clock 37.1 MHz - rendering |
+| **31584063** | **`SLI/AA off: display reset`** - i.e. `DrvAssertMode(FALSE)` -> `IOCTL_VIDEO_RESET_DEVICE` -> `VcrSliOff` + `VcrHwResetToVga`. **No `HWCRLSEXCLUSIVE` anywhere**: Glide never released |
+| 31584094 | `DrvAssertMode` / `DrvEnablePDEV mode 159` = 1280x1024x32@85, the registry desktop mode; old PDEV disabled; `DirectDraw exclusive 0` |
+| 31621360 | 37 s later another 1280x960@60, then the process exits cleanly (`retrogl.log`: `wglDeleteContext` ... `PROCESS_DETACH: process exit`) |
+
+**Root cause, three faults stacked:**
+
+1. **GLQuake's mode change destroys its window and creates a new one**
+   (`gl_vidnt.c` `VID_SetWindowedMode`/`VID_SetFullDIBMode` both `CreateWindowEx`),
+   and **never touches the GL context** - no `wglDeleteContext`, no
+   `wglCreateContext`, `maindc` still the dead window's DC. The engine's own
+   video menu says "Video modes must be set from the command line" for exactly
+   this reason.
+2. **That drops the DirectDraw exclusive mode our Glide holds.** The runtime
+   restores the desktop mode, GDI re-asserts the PDEV, and the miniport resets
+   the board to VGA and turns 4-chip SLI/AA off - **under a live Glide command
+   stream**, which is the one thing the driver's own comments say it must not do.
+3. **Nobody tells the ICD.** `fxwgl.c`'s `__wglMonitor` has `case WM_DISPLAYCHANGE:
+   case WM_SIZE: break;` - a no-op - so the Glide context is never rebuilt and
+   the game renders for ever into a board that has been reprogrammed out from
+   under it. Frozen picture, game still running (it still takes the keyboard, so
+   ESC -> quit works blind).
+
+**A fourth, smaller fault found on the way:** `pd->exclusive_pid` lives in the
+**PDEV**, and a mode change makes a NEW PDEV - so `DrvAssertMode(TRUE)`'s
+"exclusive owner %u never released - cleared on re-assert" warning **did not
+fire**, and the one log line that would have named this did not exist. Ownership
+has to sit at device scope (the miniport extension) to survive a PDEV swap.
+
+**Workaround today:** set the resolution in `Play Quake.bat` / FLEETRES, never in
+the menu (GAMERES already owns this per box). Recovery needs no reboot:
+`taskkill /f /im glquake.exe` through the agent, or ESC-quit blind.
+
+**Fixes, in order of value:** (a) the ICD must act on `WM_DISPLAYCHANGE` / a dead
+`hWND` - rebuild the Glide context at the new size, or fail loudly, never keep
+drawing; (b) a kernel -> user "your board was reset" signal the ICD checks at
+`SwapBuffers`, which also covers alt-tab, the screensaver and any other app's
+mode set; (c) device-scope exclusive ownership so the stale-owner warning fires
+and `RESET_DEVICE` under a live owner is at least visible; (d) a regression test
+that opens a fullscreen Glide context, changes the display mode from outside it,
+and asserts the stack rebuilds or errors instead of wedging.
+
+Fleetbook: `glquake-video-menu-freezes-a-glide-box`.
+
+---
+
 ### 2026-10-15 - `.197`'s new GeForce GTX 1650 CANNOT be driven: 32-bit Windows 7, and R390 was NVIDIA's last 32-bit branch (fleet, not 3dfx)
 - **What the box shows:** `.197` (ADMIN-PC, Dell OptiPlex 790, Windows 7 Professional **32-bit**, 6.1.7600, no SP1) came up at **800x600 on the Microsoft Standard VGA Graphics Adapter**. The card is `PCI\VEN_10DE&DEV_1F82` = **TU117, GeForce GTX 1650** (Turing, 2019). The fleetbook has that box at 1920x1080 with EDID on 2026-10-09, so the card was swapped in since.
 - **Nothing on the box reports a fault.** `wmic Win32_VideoController` answers `Status=OK`, `ConfigManagerErrorCode=0`, and `PCISCAN` returns `pci_display_devices: []`. The only symptom is the resolution - this project's usual "reported success and was believed" shape.
