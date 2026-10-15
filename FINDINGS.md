@@ -14,6 +14,16 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-10-15 - `.197`'s new GeForce GTX 1650 CANNOT be driven: 32-bit Windows 7, and R390 was NVIDIA's last 32-bit branch (fleet, not 3dfx)
+- **What the box shows:** `.197` (ADMIN-PC, Dell OptiPlex 790, Windows 7 Professional **32-bit**, 6.1.7600, no SP1) came up at **800x600 on the Microsoft Standard VGA Graphics Adapter**. The card is `PCI\VEN_10DE&DEV_1F82` = **TU117, GeForce GTX 1650** (Turing, 2019). The fleetbook has that box at 1920x1080 with EDID on 2026-10-09, so the card was swapped in since.
+- **Nothing on the box reports a fault.** `wmic Win32_VideoController` answers `Status=OK`, `ConfigManagerErrorCode=0`, and `PCISCAN` returns `pci_display_devices: []`. The only symptom is the resolution - this project's usual "reported success and was believed" shape.
+- **The blocker is absolute, so do not go looking for an INF.** NVIDIA **Release 390** (390.xx/391.xx, Jan 2018) is the last branch that ships 32-bit Windows drivers, and it predates Turing by a year. The 32-bit binaries for TU117 were never built, so there is no official, OEM or modded 32-bit driver naming `DEV_1F82`. (Win7 **x64** would also need SP1 before an R418+ driver installs.)
+- **Leftover from the previous card:** `oem2.inf` still registers an **AMD Radeon HD 5450** (`1002:68F9`, 15.200.1062.1004) at Display instance `0001`. That card is not present, but its driver being installed means refitting it needs no work.
+- **The onboard Intel HD 2000 is not a route** while a discrete card is fitted - the OptiPlex BIOS disables the IGP.
+- Fleetbook: `a-turing-nvidia-card-cannot-be-driven-on-32-bit-windows-r390`.
+
+---
+
 ### 2026-10-04 (20:10) - capturing the frame without the display lock: `vcrctl fbshot --probe`; Max Payne froze during the test (clean-room lane, tool only)
 - **The hang:** every `ExtEscape` runs `DrvEscape` under win32k's display lock. Under Max Payne's Direct3D menu the default `fbshot` printed nothing in 25 s.
   - Its thread waits in the kernel, so killing it does not end it: the process cannot exit until the wait does.
