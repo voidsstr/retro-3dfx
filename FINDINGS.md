@@ -14,6 +14,36 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-11-08 - vcr-kmd D3D on `.124`: DirectDraw places textures on 4-byte boundaries, and the HAL had no half-pixel offset
+
+Two bugs in OUR Direct3D HAL (`voodoo-cleanroom/vcr-kmd/display/`, the
+clean-room lane), both found chasing UT2003's menu text, which was coloured
+noise while UT2004's was fine:
+
+- **Texture placement.** DirectDraw's LINEAR heap places a surface on a
+  4-byte boundary. `vmiData.dwTextureAlign = 16` is not applied there, and
+  the GetHeapAlignment GUID was never answered. `texBaseAddr` keeps bits
+  25:4, so a texture at `...4` is sampled 4 bytes early, which shifts every
+  DXT block. UT2003's single-level DXT5 font pages were at 0x91d6b4 and
+  0x93d6b4. Mip chains were always fine because the HAL allocates those
+  itself (`HeapVidMemAllocAligned`, 16). **Every single-level texture now
+  goes through that allocator.** d3dprobe never caught it: its textures
+  happened to land aligned. A render-correct d3dprobe does not prove a game's
+  placement - **log the placement from the game** (`log_combo`, event 513
+  what 21-23).
+- **No half-pixel centre.** D3D's pixel centre is the integer coordinate,
+  and the Voodoo samples at +0.5. `xy_bias` was 0, so a 1:1 texture sampled
+  texel (x+1, y+1) everywhere (`d3dprobe rgb565_decode1` 1024/1024 wrong).
+  3dfx's H5 HAL adds 0.5 by default (`D3RSTATE.C` `pixelOffset`,
+  PIXELCENTER=1). Fixed.
+
+**Solid-colour test textures hide decode and placement bugs.** The `cells`
+tests pass with any error inside a block. The `*_decode` tests compare every
+texel of varied blocks against a reference decoder, and `*_decode1` /
+`dxt5_big_*` draw them one texel per pixel. Also: `D3DTA_ALPHAREPLICATE` is
+ignored by the HAL (a gap).
+Commits 76d36e7, 481acfd; plan: `retro-agent/docs/v56k-benchmark-plan.md`.
+
 ### 2026-10-15 - GLQuake "freezes" when its video menu changes the mode on `.124`: DirectDraw drops exclusive, the board is RESET TO VGA and SLI turned off, and nothing tells the live Glide context (clean-room lane)
 
 Reported from the box itself over retro chat: "quake freezes when changing
