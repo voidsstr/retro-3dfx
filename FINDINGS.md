@@ -42,7 +42,15 @@ tests pass with any error inside a block. The `*_decode` tests compare every
 texel of varied blocks against a reference decoder, and `*_decode1` /
 `dxt5_big_*` draw them one texel per pixel. Also: `D3DTA_ALPHAREPLICATE` is
 ignored by the HAL (a gap).
-Commits 76d36e7, 481acfd; plan: `retro-agent/docs/v56k-benchmark-plan.md`.
+- **A DX6 title picks its Z at the DESKTOP depth.** Rainbow Six enumerated
+  Z formats at the 32 bpp desktop (with `Diag\D3D32`: D24X8/D24S8), took
+  the deepest, then switched to 640x480x16. ContextCreate refused "16 bpp
+  target with a 32-bit Z", and the game showed "RAINBOW SIX ERROR". The
+  VSA-100 has no 16/32 mode, but a 32-bit Z surface's rows hold the 16-bit
+  aux buffer, so that pair now draws as 16/16 (be58b7d). D3D8 refuses the
+  same pair itself (8876086a), so only DX6/7 titles reach it.
+
+Commits 76d36e7, 481acfd, be58b7d; plan: `retro-agent/docs/v56k-benchmark-plan.md`.
 
 ### 2026-10-15 - GLQuake "freezes" when its video menu changes the mode on `.124`: DirectDraw drops exclusive, the board is RESET TO VGA and SLI turned off, and nothing tells the live Glide context (clean-room lane)
 
