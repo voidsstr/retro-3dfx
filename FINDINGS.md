@@ -14,6 +14,23 @@ it until a Voodoo card goes back in.
 
 ---
 
+### 2026-11-12 - vcr-kmd D3D on `.124`: a killed Glide client's command FIFO eats every D3D triangle; the D3D8 runtime promises X8R8G8B8 + D16
+
+Clean-room lane (retro-agent `voodoo-cleanroom/vcr-kmd`). Evidence: `vcr-kmd/evidence/d3dplan_1112/onbox/`; plan: `vcr-kmd/docs/d3d-plan.md`.
+
+- **A Glide/OpenGL session that ends through Glide's lost-context close (killed, `taskkill /im`, alt-tab away) leaves
+  `cmdFifo0` ENABLED.** Afterwards D3D clears work and **every triangle silently vanishes** (d3dprobe 9/40, 7/42).
+  A windowed D3D run then times out the 2D idle wait, acceleration goes off, and the HAL disappears until the
+  next mode set. `vcrctl reg 0x80024` shows `baseSize` 0x1fe with readPtr stuck and status 0xa1f
+  (CMD0_BUSY). A paced `vcrctl modeseq` (the mode-set engine reset) recovers it: 40/40, 42/42. **Before trusting any D3D
+  result on `.124`, check that cmdFifo0 is off.**
+- **The D3D8 runtime reports X8R8G8B8 + D16 as a matching pair** (`CheckDepthStencilMatch` = OK). Our
+  ContextCreate refuses it, so CreateDevice fails with 8876086c and costs two CRT mode switches 156 ms apart.
+  3dfx's HAL never refused a size mismatch: it allocated the Z at the target's depth.
+- First in-game D3D frames on vcr-kmd: UT2003 flyby 9.41 fps at 640x480x16, 116.7 of 123 ms in DrawPrimitive.
+  The confetti mip noise traces to per-level mip placement: XP creates one surface per level, and we
+  place each one separately.
+
 ### 2026-11-08 - vcr-kmd D3D on `.124`: DirectDraw places textures on 4-byte boundaries, and the HAL had no half-pixel offset
 
 Two bugs in OUR Direct3D HAL (`voodoo-cleanroom/vcr-kmd/display/`, the
